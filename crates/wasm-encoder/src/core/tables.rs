@@ -73,17 +73,24 @@ pub struct TableType {
     pub maximum: Option<u32>,
 }
 
-impl TableType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.push(self.element_type.into());
+impl Encode for TableType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
         }
-        bytes.push(flags);
-        bytes.extend(encoders::u32(self.minimum));
+
+        sink.extend(
+            [u8::from(self.element_type), flags]
+                .into_iter()
+                .chain(encoders::u32(self.minimum)),
+        );
+
         if let Some(max) = self.maximum {
-            bytes.extend(encoders::u32(max));
+            sink.extend(encoders::u32(max));
         }
     }
 }

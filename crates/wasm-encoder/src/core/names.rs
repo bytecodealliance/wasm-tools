@@ -205,10 +205,14 @@ impl NameMap {
     fn size(&self) -> usize {
         encoders::u32(self.count).len() + self.bytes.len()
     }
+}
 
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend(encoders::u32(self.count));
-        dst.extend(&self.bytes);
+impl Encode for NameMap {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(encoders::u32(self.count).chain(self.bytes.iter().copied()));
     }
 }
 
@@ -245,9 +249,13 @@ impl IndirectNameMap {
     fn size(&self) -> usize {
         encoders::u32(self.count).len() + self.bytes.len()
     }
+}
 
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend(encoders::u32(self.count));
-        dst.extend(&self.bytes);
+impl Encode for IndirectNameMap {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(encoders::u32(self.count).chain(self.bytes.iter().copied()));
     }
 }

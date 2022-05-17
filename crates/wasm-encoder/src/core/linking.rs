@@ -1,4 +1,4 @@
-use crate::{encoders, CustomSection, Encode, Section};
+use crate::{encode_section, encoders, CustomSection, Encode, Section};
 use std::convert::TryInto;
 
 const VERSION: u32 = 2;
@@ -208,21 +208,6 @@ impl SymbolTable {
 
     // TODO: sections
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        let num_added = encoders::u32(self.num_added);
-        let num_added_len = num_added.len();
-        let payload_len = num_added_len + self.bytes.len();
-        bytes.extend(
-            std::iter::once(WASM_SYMBOL_TABLE)
-                .chain(encoders::u32(payload_len.try_into().unwrap()))
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
-    }
-}
-
-/// # Symbol definition flags.
-impl SymbolTable {
     /// This is a weak symbol.
     ///
     /// This flag is mutually exclusive with `WASM_SYM_BINDING_LOCAL`.
@@ -272,6 +257,15 @@ impl SymbolTable {
     /// This symbol is intended to be included in the linker output, regardless
     /// of whether it is used by the program.
     pub const WASM_SYM_NO_STRIP: u32 = 0x80;
+}
+
+impl Encode for SymbolTable {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        encode_section(sink, WASM_SYMBOL_TABLE, self.num_added, &self.bytes);
+    }
 }
 
 /// The definition of a data symbol within a symbol table.

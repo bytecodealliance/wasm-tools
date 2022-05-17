@@ -9,12 +9,14 @@ pub enum ModuleArg {
     Instance(u32),
 }
 
-impl ModuleArg {
-    fn encode(self, bytes: &mut Vec<u8>) {
+impl Encode for ModuleArg {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match self {
             Self::Instance(index) => {
-                bytes.push(0x02);
-                bytes.extend(encoders::u32(index));
+                sink.extend([0x02].into_iter().chain(encoders::u32(*index)));
             }
         }
     }
@@ -37,32 +39,29 @@ pub enum ComponentArg {
     Type(u32),
 }
 
-impl ComponentArg {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for ComponentArg {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match self {
             Self::Module(index) => {
-                bytes.push(0x00);
-                bytes.extend(encoders::u32(*index));
+                sink.extend([0x00].into_iter().chain(encoders::u32(*index)));
             }
             Self::Component(index) => {
-                bytes.push(0x01);
-                bytes.extend(encoders::u32(*index));
+                sink.extend([0x01].into_iter().chain(encoders::u32(*index)));
             }
             Self::Instance(index) => {
-                bytes.push(0x02);
-                bytes.extend(encoders::u32(*index));
+                sink.extend([0x02].into_iter().chain(encoders::u32(*index)));
             }
             Self::Function(index) => {
-                bytes.push(0x03);
-                bytes.extend(encoders::u32(*index));
+                sink.extend([0x03].into_iter().chain(encoders::u32(*index)));
             }
             Self::Value(index) => {
-                bytes.push(0x04);
-                bytes.extend(encoders::u32(*index));
+                sink.extend([0x04].into_iter().chain(encoders::u32(*index)));
             }
             Self::Type(index) => {
-                bytes.push(0x05);
-                bytes.extend(encoders::u32(*index));
+                sink.extend([0x05].into_iter().chain(encoders::u32(*index)));
             }
         }
     }

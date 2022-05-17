@@ -82,9 +82,11 @@ pub struct GlobalType {
     pub mutable: bool,
 }
 
-impl GlobalType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.push(self.val_type.into());
-        bytes.push(self.mutable as u8);
+impl Encode for GlobalType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend([self.val_type.into(), self.mutable as u8]);
     }
 }

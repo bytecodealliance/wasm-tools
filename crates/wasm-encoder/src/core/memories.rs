@@ -73,8 +73,11 @@ pub struct MemoryType {
     pub memory64: bool,
 }
 
-impl MemoryType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for MemoryType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
@@ -82,10 +85,9 @@ impl MemoryType {
         if self.memory64 {
             flags |= 0b100;
         }
-        bytes.push(flags);
-        bytes.extend(encoders::u64(self.minimum));
+        sink.extend([flags].into_iter().chain(encoders::u64(self.minimum)));
         if let Some(max) = self.maximum {
-            bytes.extend(encoders::u64(max));
+            sink.extend(encoders::u64(max));
         }
     }
 }

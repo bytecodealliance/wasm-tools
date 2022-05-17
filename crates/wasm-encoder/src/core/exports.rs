@@ -17,8 +17,11 @@ pub enum Export {
     Tag(u32),
 }
 
-impl Export {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for Export {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         let (ty, index) = match self {
             Self::Function(i) => (0x00, *i),
             Self::Table(i) => (0x01, *i),
@@ -27,8 +30,7 @@ impl Export {
             Self::Tag(i) => (0x04, *i),
         };
 
-        bytes.push(ty);
-        bytes.extend(encoders::u32(index));
+        sink.extend([ty].into_iter().chain(encoders::u32(index)));
     }
 }
 

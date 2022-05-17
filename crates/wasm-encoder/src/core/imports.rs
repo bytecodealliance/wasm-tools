@@ -22,28 +22,30 @@ pub enum EntityType {
     Tag(TagType),
 }
 
-impl EntityType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for EntityType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match self {
             Self::Function(i) => {
-                bytes.push(0x00);
-                bytes.extend(encoders::u32(*i));
+                sink.extend([0x00].into_iter().chain(encoders::u32(*i)));
             }
             Self::Table(t) => {
-                bytes.push(0x01);
-                t.encode(bytes);
+                sink.extend([0x01]);
+                t.encode(sink);
             }
             Self::Memory(t) => {
-                bytes.push(0x02);
-                t.encode(bytes);
+                sink.extend([0x02]);
+                t.encode(sink);
             }
             Self::Global(t) => {
-                bytes.push(0x03);
-                t.encode(bytes);
+                sink.extend([0x03]);
+                t.encode(sink);
             }
             Self::Tag(t) => {
-                bytes.push(0x04);
-                t.encode(bytes);
+                sink.extend([0x04]);
+                t.encode(sink);
             }
         }
     }

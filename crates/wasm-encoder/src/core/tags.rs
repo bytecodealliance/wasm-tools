@@ -76,9 +76,15 @@ pub struct TagType {
     pub func_type_idx: u32,
 }
 
-impl TagType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.push(self.kind as u8);
-        bytes.extend(encoders::u32(self.func_type_idx));
+impl Encode for TagType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(
+            [self.kind as u8]
+                .into_iter()
+                .chain(encoders::u32(self.func_type_idx)),
+        );
     }
 }

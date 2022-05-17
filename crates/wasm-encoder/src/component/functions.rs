@@ -1,10 +1,5 @@
 use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
 
-const CANONICAL_OPTION_UTF8: u8 = 0x00;
-const CANONICAL_OPTION_UTF16: u8 = 0x01;
-const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x02;
-const CANONICAL_OPTION_INTO: u8 = 0x03;
-
 /// Represents options for component functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalOption {
@@ -22,16 +17,16 @@ pub enum CanonicalOption {
     Into(u32),
 }
 
-impl CanonicalOption {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for CanonicalOption {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match self {
-            Self::UTF8 => bytes.push(CANONICAL_OPTION_UTF8),
-            Self::UTF16 => bytes.push(CANONICAL_OPTION_UTF16),
-            Self::CompactUTF16 => bytes.push(CANONICAL_OPTION_COMPACT_UTF16),
-            Self::Into(index) => {
-                bytes.push(CANONICAL_OPTION_INTO);
-                bytes.extend(encoders::u32(*index));
-            }
+            Self::UTF8 => sink.extend([0x00]),
+            Self::UTF16 => sink.extend([0x01]),
+            Self::CompactUTF16 => sink.extend([0x02]),
+            Self::Into(index) => sink.extend([0x03].into_iter().chain(encoders::u32(*index))),
         }
     }
 }

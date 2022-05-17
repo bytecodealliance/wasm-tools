@@ -160,8 +160,7 @@ impl Function {
         let mut bytes = vec![];
         bytes.extend(encoders::u32(u32::try_from(locals.len()).unwrap()));
         for (count, ty) in locals {
-            bytes.extend(encoders::u32(count));
-            bytes.push(ty.into());
+            bytes.extend(encoders::u32(count).chain([ty.into()]));
         }
         Function { bytes }
     }
@@ -198,7 +197,7 @@ impl Function {
                 }
             }
             // If we didn't increment, a new type of local appeared
-            locals_collected.push((1, l))
+            locals_collected.push((1, l));
         }
 
         Function::new(locals_collected)
@@ -218,9 +217,14 @@ impl Function {
         self.bytes.extend(bytes);
         self
     }
+}
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.extend(
+impl Encode for Function {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(
             encoders::u32(u32::try_from(self.bytes.len()).unwrap())
                 .chain(self.bytes.iter().copied()),
         );
@@ -245,15 +249,19 @@ pub struct MemArg {
     pub memory_index: u32,
 }
 
-impl MemArg {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for MemArg {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         if self.memory_index == 0 {
-            bytes.extend(encoders::u32(self.align));
-            bytes.extend(encoders::u64(self.offset));
+            sink.extend(encoders::u32(self.align).chain(encoders::u64(self.offset)));
         } else {
-            bytes.extend(encoders::u32(self.align | (1 << 6)));
-            bytes.extend(encoders::u64(self.offset));
-            bytes.extend(encoders::u32(self.memory_index));
+            sink.extend(
+                encoders::u32(self.align | (1 << 6))
+                    .chain(encoders::u64(self.offset))
+                    .chain(encoders::u32(self.memory_index)),
+            );
         }
     }
 }
@@ -272,12 +280,15 @@ pub enum BlockType {
     FunctionType(u32),
 }
 
-impl BlockType {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for BlockType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match *self {
-            BlockType::Empty => bytes.push(0x40),
-            BlockType::Result(ty) => bytes.push(ty.into()),
-            BlockType::FunctionType(f) => bytes.extend(encoders::s33(f.into())),
+            Self::Empty => sink.extend([0x40]),
+            Self::Result(ty) => sink.extend([ty.into()]),
+            Self::FunctionType(f) => sink.extend(encoders::s33(f.into())),
         }
     }
 }
@@ -764,1547 +775,1550 @@ pub enum Instruction<'a> {
     F64x2RelaxedMax,
 }
 
-impl Instruction<'_> {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for Instruction<'_> {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match *self {
             // Control instructions.
-            Instruction::Unreachable => bytes.push(0x00),
-            Instruction::Nop => bytes.push(0x01),
+            Instruction::Unreachable => sink.extend([0x00]),
+            Instruction::Nop => sink.extend([0x01]),
             Instruction::Block(bt) => {
-                bytes.push(0x02);
-                bt.encode(bytes);
+                sink.extend([0x02]);
+                bt.encode(sink);
             }
             Instruction::Loop(bt) => {
-                bytes.push(0x03);
-                bt.encode(bytes);
+                sink.extend([0x03]);
+                bt.encode(sink);
             }
             Instruction::If(bt) => {
-                bytes.push(0x04);
-                bt.encode(bytes);
+                sink.extend([0x04]);
+                bt.encode(sink);
             }
-            Instruction::Else => bytes.push(0x05),
+            Instruction::Else => sink.extend([0x05]),
             Instruction::Try(bt) => {
-                bytes.push(0x06);
-                bt.encode(bytes);
+                sink.extend([0x06]);
+                bt.encode(sink);
             }
             Instruction::Catch(t) => {
-                bytes.push(0x07);
-                bytes.extend(encoders::u32(t));
+                sink.extend([0x07]);
+                sink.extend(encoders::u32(t));
             }
             Instruction::Throw(t) => {
-                bytes.push(0x08);
-                bytes.extend(encoders::u32(t));
+                sink.extend([0x08]);
+                sink.extend(encoders::u32(t));
             }
             Instruction::Rethrow(l) => {
-                bytes.push(0x09);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x09]);
+                sink.extend(encoders::u32(l));
             }
-            Instruction::End => bytes.push(0x0B),
+            Instruction::End => sink.extend([0x0B]),
             Instruction::Br(l) => {
-                bytes.push(0x0C);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x0C]);
+                sink.extend(encoders::u32(l));
             }
             Instruction::BrIf(l) => {
-                bytes.push(0x0D);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x0D]);
+                sink.extend(encoders::u32(l));
             }
             Instruction::BrTable(ref ls, l) => {
-                bytes.push(0x0E);
-                bytes.extend(encoders::u32(u32::try_from(ls.len()).unwrap()));
+                sink.extend([0x0E]);
+                sink.extend(encoders::u32(u32::try_from(ls.len()).unwrap()));
                 for l in ls.as_ref() {
-                    bytes.extend(encoders::u32(*l));
+                    sink.extend(encoders::u32(*l));
                 }
-                bytes.extend(encoders::u32(l));
+                sink.extend(encoders::u32(l));
             }
-            Instruction::Return => bytes.push(0x0F),
+            Instruction::Return => sink.extend([0x0F]),
             Instruction::Call(f) => {
-                bytes.push(0x10);
-                bytes.extend(encoders::u32(f));
+                sink.extend([0x10]);
+                sink.extend(encoders::u32(f));
             }
             Instruction::CallIndirect { ty, table } => {
-                bytes.push(0x11);
-                bytes.extend(encoders::u32(ty));
-                bytes.extend(encoders::u32(table));
+                sink.extend([0x11]);
+                sink.extend(encoders::u32(ty));
+                sink.extend(encoders::u32(table));
             }
             Instruction::Delegate(l) => {
-                bytes.push(0x18);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x18]);
+                sink.extend(encoders::u32(l));
             }
             Instruction::CatchAll => {
-                bytes.push(0x19);
+                sink.extend([0x19]);
             }
 
             // Parametric instructions.
-            Instruction::Drop => bytes.push(0x1A),
-            Instruction::Select => bytes.push(0x1B),
+            Instruction::Drop => sink.extend([0x1A]),
+            Instruction::Select => sink.extend([0x1B]),
             Instruction::TypedSelect(ty) => {
-                bytes.push(0x1c);
-                bytes.extend(encoders::u32(1));
-                bytes.push(ty.into());
+                sink.extend([0x1c]);
+                sink.extend(encoders::u32(1));
+                sink.extend([ty.into()]);
             }
 
             // Variable instructions.
             Instruction::LocalGet(l) => {
-                bytes.push(0x20);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x20]);
+                sink.extend(encoders::u32(l));
             }
             Instruction::LocalSet(l) => {
-                bytes.push(0x21);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x21]);
+                sink.extend(encoders::u32(l));
             }
             Instruction::LocalTee(l) => {
-                bytes.push(0x22);
-                bytes.extend(encoders::u32(l));
+                sink.extend([0x22]);
+                sink.extend(encoders::u32(l));
             }
             Instruction::GlobalGet(g) => {
-                bytes.push(0x23);
-                bytes.extend(encoders::u32(g));
+                sink.extend([0x23]);
+                sink.extend(encoders::u32(g));
             }
             Instruction::GlobalSet(g) => {
-                bytes.push(0x24);
-                bytes.extend(encoders::u32(g));
+                sink.extend([0x24]);
+                sink.extend(encoders::u32(g));
             }
             Instruction::TableGet { table } => {
-                bytes.push(0x25);
-                bytes.extend(encoders::u32(table));
+                sink.extend([0x25]);
+                sink.extend(encoders::u32(table));
             }
             Instruction::TableSet { table } => {
-                bytes.push(0x26);
-                bytes.extend(encoders::u32(table));
+                sink.extend([0x26]);
+                sink.extend(encoders::u32(table));
             }
 
             // Memory instructions.
             Instruction::I32Load(m) => {
-                bytes.push(0x28);
-                m.encode(bytes);
+                sink.extend([0x28]);
+                m.encode(sink);
             }
             Instruction::I64Load(m) => {
-                bytes.push(0x29);
-                m.encode(bytes);
+                sink.extend([0x29]);
+                m.encode(sink);
             }
             Instruction::F32Load(m) => {
-                bytes.push(0x2A);
-                m.encode(bytes);
+                sink.extend([0x2A]);
+                m.encode(sink);
             }
             Instruction::F64Load(m) => {
-                bytes.push(0x2B);
-                m.encode(bytes);
+                sink.extend([0x2B]);
+                m.encode(sink);
             }
             Instruction::I32Load8_S(m) => {
-                bytes.push(0x2C);
-                m.encode(bytes);
+                sink.extend([0x2C]);
+                m.encode(sink);
             }
             Instruction::I32Load8_U(m) => {
-                bytes.push(0x2D);
-                m.encode(bytes);
+                sink.extend([0x2D]);
+                m.encode(sink);
             }
             Instruction::I32Load16_S(m) => {
-                bytes.push(0x2E);
-                m.encode(bytes);
+                sink.extend([0x2E]);
+                m.encode(sink);
             }
             Instruction::I32Load16_U(m) => {
-                bytes.push(0x2F);
-                m.encode(bytes);
+                sink.extend([0x2F]);
+                m.encode(sink);
             }
             Instruction::I64Load8_S(m) => {
-                bytes.push(0x30);
-                m.encode(bytes);
+                sink.extend([0x30]);
+                m.encode(sink);
             }
             Instruction::I64Load8_U(m) => {
-                bytes.push(0x31);
-                m.encode(bytes);
+                sink.extend([0x31]);
+                m.encode(sink);
             }
             Instruction::I64Load16_S(m) => {
-                bytes.push(0x32);
-                m.encode(bytes);
+                sink.extend([0x32]);
+                m.encode(sink);
             }
             Instruction::I64Load16_U(m) => {
-                bytes.push(0x33);
-                m.encode(bytes);
+                sink.extend([0x33]);
+                m.encode(sink);
             }
             Instruction::I64Load32_S(m) => {
-                bytes.push(0x34);
-                m.encode(bytes);
+                sink.extend([0x34]);
+                m.encode(sink);
             }
             Instruction::I64Load32_U(m) => {
-                bytes.push(0x35);
-                m.encode(bytes);
+                sink.extend([0x35]);
+                m.encode(sink);
             }
             Instruction::I32Store(m) => {
-                bytes.push(0x36);
-                m.encode(bytes);
+                sink.extend([0x36]);
+                m.encode(sink);
             }
             Instruction::I64Store(m) => {
-                bytes.push(0x37);
-                m.encode(bytes);
+                sink.extend([0x37]);
+                m.encode(sink);
             }
             Instruction::F32Store(m) => {
-                bytes.push(0x38);
-                m.encode(bytes);
+                sink.extend([0x38]);
+                m.encode(sink);
             }
             Instruction::F64Store(m) => {
-                bytes.push(0x39);
-                m.encode(bytes);
+                sink.extend([0x39]);
+                m.encode(sink);
             }
             Instruction::I32Store8(m) => {
-                bytes.push(0x3A);
-                m.encode(bytes);
+                sink.extend([0x3A]);
+                m.encode(sink);
             }
             Instruction::I32Store16(m) => {
-                bytes.push(0x3B);
-                m.encode(bytes);
+                sink.extend([0x3B]);
+                m.encode(sink);
             }
             Instruction::I64Store8(m) => {
-                bytes.push(0x3C);
-                m.encode(bytes);
+                sink.extend([0x3C]);
+                m.encode(sink);
             }
             Instruction::I64Store16(m) => {
-                bytes.push(0x3D);
-                m.encode(bytes);
+                sink.extend([0x3D]);
+                m.encode(sink);
             }
             Instruction::I64Store32(m) => {
-                bytes.push(0x3E);
-                m.encode(bytes);
+                sink.extend([0x3E]);
+                m.encode(sink);
             }
             Instruction::MemorySize(i) => {
-                bytes.push(0x3F);
-                bytes.extend(encoders::u32(i));
+                sink.extend([0x3F]);
+                sink.extend(encoders::u32(i));
             }
             Instruction::MemoryGrow(i) => {
-                bytes.push(0x40);
-                bytes.extend(encoders::u32(i));
+                sink.extend([0x40]);
+                sink.extend(encoders::u32(i));
             }
             Instruction::MemoryInit { mem, data } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(8));
-                bytes.extend(encoders::u32(data));
-                bytes.extend(encoders::u32(mem));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(8));
+                sink.extend(encoders::u32(data));
+                sink.extend(encoders::u32(mem));
             }
             Instruction::DataDrop(data) => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(9));
-                bytes.extend(encoders::u32(data));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(9));
+                sink.extend(encoders::u32(data));
             }
             Instruction::MemoryCopy { src, dst } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(10));
-                bytes.extend(encoders::u32(dst));
-                bytes.extend(encoders::u32(src));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(10));
+                sink.extend(encoders::u32(dst));
+                sink.extend(encoders::u32(src));
             }
             Instruction::MemoryFill(mem) => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(11));
-                bytes.extend(encoders::u32(mem));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(11));
+                sink.extend(encoders::u32(mem));
             }
 
             // Numeric instructions.
             Instruction::I32Const(x) => {
-                bytes.push(0x41);
-                bytes.extend(encoders::s32(x));
+                sink.extend([0x41]);
+                sink.extend(encoders::s32(x));
             }
             Instruction::I64Const(x) => {
-                bytes.push(0x42);
-                bytes.extend(encoders::s64(x));
+                sink.extend([0x42]);
+                sink.extend(encoders::s64(x));
             }
             Instruction::F32Const(x) => {
-                bytes.push(0x43);
+                sink.extend([0x43]);
                 let x = x.to_bits();
-                bytes.extend(x.to_le_bytes().iter().copied());
+                sink.extend(x.to_le_bytes().iter().copied());
             }
             Instruction::F64Const(x) => {
-                bytes.push(0x44);
+                sink.extend([0x44]);
                 let x = x.to_bits();
-                bytes.extend(x.to_le_bytes().iter().copied());
+                sink.extend(x.to_le_bytes().iter().copied());
             }
-            Instruction::I32Eqz => bytes.push(0x45),
-            Instruction::I32Eq => bytes.push(0x46),
-            Instruction::I32Ne => bytes.push(0x47),
-            Instruction::I32LtS => bytes.push(0x48),
-            Instruction::I32LtU => bytes.push(0x49),
-            Instruction::I32GtS => bytes.push(0x4A),
-            Instruction::I32GtU => bytes.push(0x4B),
-            Instruction::I32LeS => bytes.push(0x4C),
-            Instruction::I32LeU => bytes.push(0x4D),
-            Instruction::I32GeS => bytes.push(0x4E),
-            Instruction::I32GeU => bytes.push(0x4F),
-            Instruction::I64Eqz => bytes.push(0x50),
-            Instruction::I64Eq => bytes.push(0x51),
-            Instruction::I64Ne => bytes.push(0x52),
-            Instruction::I64LtS => bytes.push(0x53),
-            Instruction::I64LtU => bytes.push(0x54),
-            Instruction::I64GtS => bytes.push(0x55),
-            Instruction::I64GtU => bytes.push(0x56),
-            Instruction::I64LeS => bytes.push(0x57),
-            Instruction::I64LeU => bytes.push(0x58),
-            Instruction::I64GeS => bytes.push(0x59),
-            Instruction::I64GeU => bytes.push(0x5A),
-            Instruction::F32Eq => bytes.push(0x5B),
-            Instruction::F32Ne => bytes.push(0x5C),
-            Instruction::F32Lt => bytes.push(0x5D),
-            Instruction::F32Gt => bytes.push(0x5E),
-            Instruction::F32Le => bytes.push(0x5F),
-            Instruction::F32Ge => bytes.push(0x60),
-            Instruction::F64Eq => bytes.push(0x61),
-            Instruction::F64Ne => bytes.push(0x62),
-            Instruction::F64Lt => bytes.push(0x63),
-            Instruction::F64Gt => bytes.push(0x64),
-            Instruction::F64Le => bytes.push(0x65),
-            Instruction::F64Ge => bytes.push(0x66),
-            Instruction::I32Clz => bytes.push(0x67),
-            Instruction::I32Ctz => bytes.push(0x68),
-            Instruction::I32Popcnt => bytes.push(0x69),
-            Instruction::I32Add => bytes.push(0x6A),
-            Instruction::I32Sub => bytes.push(0x6B),
-            Instruction::I32Mul => bytes.push(0x6C),
-            Instruction::I32DivS => bytes.push(0x6D),
-            Instruction::I32DivU => bytes.push(0x6E),
-            Instruction::I32RemS => bytes.push(0x6F),
-            Instruction::I32RemU => bytes.push(0x70),
-            Instruction::I32And => bytes.push(0x71),
-            Instruction::I32Or => bytes.push(0x72),
-            Instruction::I32Xor => bytes.push(0x73),
-            Instruction::I32Shl => bytes.push(0x74),
-            Instruction::I32ShrS => bytes.push(0x75),
-            Instruction::I32ShrU => bytes.push(0x76),
-            Instruction::I32Rotl => bytes.push(0x77),
-            Instruction::I32Rotr => bytes.push(0x78),
-            Instruction::I64Clz => bytes.push(0x79),
-            Instruction::I64Ctz => bytes.push(0x7A),
-            Instruction::I64Popcnt => bytes.push(0x7B),
-            Instruction::I64Add => bytes.push(0x7C),
-            Instruction::I64Sub => bytes.push(0x7D),
-            Instruction::I64Mul => bytes.push(0x7E),
-            Instruction::I64DivS => bytes.push(0x7F),
-            Instruction::I64DivU => bytes.push(0x80),
-            Instruction::I64RemS => bytes.push(0x81),
-            Instruction::I64RemU => bytes.push(0x82),
-            Instruction::I64And => bytes.push(0x83),
-            Instruction::I64Or => bytes.push(0x84),
-            Instruction::I64Xor => bytes.push(0x85),
-            Instruction::I64Shl => bytes.push(0x86),
-            Instruction::I64ShrS => bytes.push(0x87),
-            Instruction::I64ShrU => bytes.push(0x88),
-            Instruction::I64Rotl => bytes.push(0x89),
-            Instruction::I64Rotr => bytes.push(0x8A),
-            Instruction::F32Abs => bytes.push(0x8B),
-            Instruction::F32Neg => bytes.push(0x8C),
-            Instruction::F32Ceil => bytes.push(0x8D),
-            Instruction::F32Floor => bytes.push(0x8E),
-            Instruction::F32Trunc => bytes.push(0x8F),
-            Instruction::F32Nearest => bytes.push(0x90),
-            Instruction::F32Sqrt => bytes.push(0x91),
-            Instruction::F32Add => bytes.push(0x92),
-            Instruction::F32Sub => bytes.push(0x93),
-            Instruction::F32Mul => bytes.push(0x94),
-            Instruction::F32Div => bytes.push(0x95),
-            Instruction::F32Min => bytes.push(0x96),
-            Instruction::F32Max => bytes.push(0x97),
-            Instruction::F32Copysign => bytes.push(0x98),
-            Instruction::F64Abs => bytes.push(0x99),
-            Instruction::F64Neg => bytes.push(0x9A),
-            Instruction::F64Ceil => bytes.push(0x9B),
-            Instruction::F64Floor => bytes.push(0x9C),
-            Instruction::F64Trunc => bytes.push(0x9D),
-            Instruction::F64Nearest => bytes.push(0x9E),
-            Instruction::F64Sqrt => bytes.push(0x9F),
-            Instruction::F64Add => bytes.push(0xA0),
-            Instruction::F64Sub => bytes.push(0xA1),
-            Instruction::F64Mul => bytes.push(0xA2),
-            Instruction::F64Div => bytes.push(0xA3),
-            Instruction::F64Min => bytes.push(0xA4),
-            Instruction::F64Max => bytes.push(0xA5),
-            Instruction::F64Copysign => bytes.push(0xA6),
-            Instruction::I32WrapI64 => bytes.push(0xA7),
-            Instruction::I32TruncF32S => bytes.push(0xA8),
-            Instruction::I32TruncF32U => bytes.push(0xA9),
-            Instruction::I32TruncF64S => bytes.push(0xAA),
-            Instruction::I32TruncF64U => bytes.push(0xAB),
-            Instruction::I64ExtendI32S => bytes.push(0xAC),
-            Instruction::I64ExtendI32U => bytes.push(0xAD),
-            Instruction::I64TruncF32S => bytes.push(0xAE),
-            Instruction::I64TruncF32U => bytes.push(0xAF),
-            Instruction::I64TruncF64S => bytes.push(0xB0),
-            Instruction::I64TruncF64U => bytes.push(0xB1),
-            Instruction::F32ConvertI32S => bytes.push(0xB2),
-            Instruction::F32ConvertI32U => bytes.push(0xB3),
-            Instruction::F32ConvertI64S => bytes.push(0xB4),
-            Instruction::F32ConvertI64U => bytes.push(0xB5),
-            Instruction::F32DemoteF64 => bytes.push(0xB6),
-            Instruction::F64ConvertI32S => bytes.push(0xB7),
-            Instruction::F64ConvertI32U => bytes.push(0xB8),
-            Instruction::F64ConvertI64S => bytes.push(0xB9),
-            Instruction::F64ConvertI64U => bytes.push(0xBA),
-            Instruction::F64PromoteF32 => bytes.push(0xBB),
-            Instruction::I32ReinterpretF32 => bytes.push(0xBC),
-            Instruction::I64ReinterpretF64 => bytes.push(0xBD),
-            Instruction::F32ReinterpretI32 => bytes.push(0xBE),
-            Instruction::F64ReinterpretI64 => bytes.push(0xBF),
-            Instruction::I32Extend8S => bytes.push(0xC0),
-            Instruction::I32Extend16S => bytes.push(0xC1),
-            Instruction::I64Extend8S => bytes.push(0xC2),
-            Instruction::I64Extend16S => bytes.push(0xC3),
-            Instruction::I64Extend32S => bytes.push(0xC4),
+            Instruction::I32Eqz => sink.extend([0x45]),
+            Instruction::I32Eq => sink.extend([0x46]),
+            Instruction::I32Ne => sink.extend([0x47]),
+            Instruction::I32LtS => sink.extend([0x48]),
+            Instruction::I32LtU => sink.extend([0x49]),
+            Instruction::I32GtS => sink.extend([0x4A]),
+            Instruction::I32GtU => sink.extend([0x4B]),
+            Instruction::I32LeS => sink.extend([0x4C]),
+            Instruction::I32LeU => sink.extend([0x4D]),
+            Instruction::I32GeS => sink.extend([0x4E]),
+            Instruction::I32GeU => sink.extend([0x4F]),
+            Instruction::I64Eqz => sink.extend([0x50]),
+            Instruction::I64Eq => sink.extend([0x51]),
+            Instruction::I64Ne => sink.extend([0x52]),
+            Instruction::I64LtS => sink.extend([0x53]),
+            Instruction::I64LtU => sink.extend([0x54]),
+            Instruction::I64GtS => sink.extend([0x55]),
+            Instruction::I64GtU => sink.extend([0x56]),
+            Instruction::I64LeS => sink.extend([0x57]),
+            Instruction::I64LeU => sink.extend([0x58]),
+            Instruction::I64GeS => sink.extend([0x59]),
+            Instruction::I64GeU => sink.extend([0x5A]),
+            Instruction::F32Eq => sink.extend([0x5B]),
+            Instruction::F32Ne => sink.extend([0x5C]),
+            Instruction::F32Lt => sink.extend([0x5D]),
+            Instruction::F32Gt => sink.extend([0x5E]),
+            Instruction::F32Le => sink.extend([0x5F]),
+            Instruction::F32Ge => sink.extend([0x60]),
+            Instruction::F64Eq => sink.extend([0x61]),
+            Instruction::F64Ne => sink.extend([0x62]),
+            Instruction::F64Lt => sink.extend([0x63]),
+            Instruction::F64Gt => sink.extend([0x64]),
+            Instruction::F64Le => sink.extend([0x65]),
+            Instruction::F64Ge => sink.extend([0x66]),
+            Instruction::I32Clz => sink.extend([0x67]),
+            Instruction::I32Ctz => sink.extend([0x68]),
+            Instruction::I32Popcnt => sink.extend([0x69]),
+            Instruction::I32Add => sink.extend([0x6A]),
+            Instruction::I32Sub => sink.extend([0x6B]),
+            Instruction::I32Mul => sink.extend([0x6C]),
+            Instruction::I32DivS => sink.extend([0x6D]),
+            Instruction::I32DivU => sink.extend([0x6E]),
+            Instruction::I32RemS => sink.extend([0x6F]),
+            Instruction::I32RemU => sink.extend([0x70]),
+            Instruction::I32And => sink.extend([0x71]),
+            Instruction::I32Or => sink.extend([0x72]),
+            Instruction::I32Xor => sink.extend([0x73]),
+            Instruction::I32Shl => sink.extend([0x74]),
+            Instruction::I32ShrS => sink.extend([0x75]),
+            Instruction::I32ShrU => sink.extend([0x76]),
+            Instruction::I32Rotl => sink.extend([0x77]),
+            Instruction::I32Rotr => sink.extend([0x78]),
+            Instruction::I64Clz => sink.extend([0x79]),
+            Instruction::I64Ctz => sink.extend([0x7A]),
+            Instruction::I64Popcnt => sink.extend([0x7B]),
+            Instruction::I64Add => sink.extend([0x7C]),
+            Instruction::I64Sub => sink.extend([0x7D]),
+            Instruction::I64Mul => sink.extend([0x7E]),
+            Instruction::I64DivS => sink.extend([0x7F]),
+            Instruction::I64DivU => sink.extend([0x80]),
+            Instruction::I64RemS => sink.extend([0x81]),
+            Instruction::I64RemU => sink.extend([0x82]),
+            Instruction::I64And => sink.extend([0x83]),
+            Instruction::I64Or => sink.extend([0x84]),
+            Instruction::I64Xor => sink.extend([0x85]),
+            Instruction::I64Shl => sink.extend([0x86]),
+            Instruction::I64ShrS => sink.extend([0x87]),
+            Instruction::I64ShrU => sink.extend([0x88]),
+            Instruction::I64Rotl => sink.extend([0x89]),
+            Instruction::I64Rotr => sink.extend([0x8A]),
+            Instruction::F32Abs => sink.extend([0x8B]),
+            Instruction::F32Neg => sink.extend([0x8C]),
+            Instruction::F32Ceil => sink.extend([0x8D]),
+            Instruction::F32Floor => sink.extend([0x8E]),
+            Instruction::F32Trunc => sink.extend([0x8F]),
+            Instruction::F32Nearest => sink.extend([0x90]),
+            Instruction::F32Sqrt => sink.extend([0x91]),
+            Instruction::F32Add => sink.extend([0x92]),
+            Instruction::F32Sub => sink.extend([0x93]),
+            Instruction::F32Mul => sink.extend([0x94]),
+            Instruction::F32Div => sink.extend([0x95]),
+            Instruction::F32Min => sink.extend([0x96]),
+            Instruction::F32Max => sink.extend([0x97]),
+            Instruction::F32Copysign => sink.extend([0x98]),
+            Instruction::F64Abs => sink.extend([0x99]),
+            Instruction::F64Neg => sink.extend([0x9A]),
+            Instruction::F64Ceil => sink.extend([0x9B]),
+            Instruction::F64Floor => sink.extend([0x9C]),
+            Instruction::F64Trunc => sink.extend([0x9D]),
+            Instruction::F64Nearest => sink.extend([0x9E]),
+            Instruction::F64Sqrt => sink.extend([0x9F]),
+            Instruction::F64Add => sink.extend([0xA0]),
+            Instruction::F64Sub => sink.extend([0xA1]),
+            Instruction::F64Mul => sink.extend([0xA2]),
+            Instruction::F64Div => sink.extend([0xA3]),
+            Instruction::F64Min => sink.extend([0xA4]),
+            Instruction::F64Max => sink.extend([0xA5]),
+            Instruction::F64Copysign => sink.extend([0xA6]),
+            Instruction::I32WrapI64 => sink.extend([0xA7]),
+            Instruction::I32TruncF32S => sink.extend([0xA8]),
+            Instruction::I32TruncF32U => sink.extend([0xA9]),
+            Instruction::I32TruncF64S => sink.extend([0xAA]),
+            Instruction::I32TruncF64U => sink.extend([0xAB]),
+            Instruction::I64ExtendI32S => sink.extend([0xAC]),
+            Instruction::I64ExtendI32U => sink.extend([0xAD]),
+            Instruction::I64TruncF32S => sink.extend([0xAE]),
+            Instruction::I64TruncF32U => sink.extend([0xAF]),
+            Instruction::I64TruncF64S => sink.extend([0xB0]),
+            Instruction::I64TruncF64U => sink.extend([0xB1]),
+            Instruction::F32ConvertI32S => sink.extend([0xB2]),
+            Instruction::F32ConvertI32U => sink.extend([0xB3]),
+            Instruction::F32ConvertI64S => sink.extend([0xB4]),
+            Instruction::F32ConvertI64U => sink.extend([0xB5]),
+            Instruction::F32DemoteF64 => sink.extend([0xB6]),
+            Instruction::F64ConvertI32S => sink.extend([0xB7]),
+            Instruction::F64ConvertI32U => sink.extend([0xB8]),
+            Instruction::F64ConvertI64S => sink.extend([0xB9]),
+            Instruction::F64ConvertI64U => sink.extend([0xBA]),
+            Instruction::F64PromoteF32 => sink.extend([0xBB]),
+            Instruction::I32ReinterpretF32 => sink.extend([0xBC]),
+            Instruction::I64ReinterpretF64 => sink.extend([0xBD]),
+            Instruction::F32ReinterpretI32 => sink.extend([0xBE]),
+            Instruction::F64ReinterpretI64 => sink.extend([0xBF]),
+            Instruction::I32Extend8S => sink.extend([0xC0]),
+            Instruction::I32Extend16S => sink.extend([0xC1]),
+            Instruction::I64Extend8S => sink.extend([0xC2]),
+            Instruction::I64Extend16S => sink.extend([0xC3]),
+            Instruction::I64Extend32S => sink.extend([0xC4]),
 
             Instruction::I32TruncSatF32S => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(0));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(0));
             }
             Instruction::I32TruncSatF32U => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(1));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(1));
             }
             Instruction::I32TruncSatF64S => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(2));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(2));
             }
             Instruction::I32TruncSatF64U => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(3));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(3));
             }
             Instruction::I64TruncSatF32S => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(4));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(4));
             }
             Instruction::I64TruncSatF32U => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(5));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(5));
             }
             Instruction::I64TruncSatF64S => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(6));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(6));
             }
             Instruction::I64TruncSatF64U => {
-                bytes.push(0xFC);
-                bytes.extend(encoders::u32(7));
+                sink.extend([0xFC]);
+                sink.extend(encoders::u32(7));
             }
 
             // Reference types instructions.
             Instruction::RefNull(ty) => {
-                bytes.push(0xd0);
-                bytes.push(ty.into());
+                sink.extend([0xd0]);
+                sink.extend([ty.into()]);
             }
-            Instruction::RefIsNull => bytes.push(0xd1),
+            Instruction::RefIsNull => sink.extend([0xd1]),
             Instruction::RefFunc(f) => {
-                bytes.push(0xd2);
-                bytes.extend(encoders::u32(f));
+                sink.extend([0xd2]);
+                sink.extend(encoders::u32(f));
             }
 
             // Bulk memory instructions.
             Instruction::TableInit { segment, table } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(0x0c));
-                bytes.extend(encoders::u32(segment));
-                bytes.extend(encoders::u32(table));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(0x0c));
+                sink.extend(encoders::u32(segment));
+                sink.extend(encoders::u32(table));
             }
             Instruction::ElemDrop { segment } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(0x0d));
-                bytes.extend(encoders::u32(segment));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(0x0d));
+                sink.extend(encoders::u32(segment));
             }
             Instruction::TableCopy { src, dst } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(0x0e));
-                bytes.extend(encoders::u32(dst));
-                bytes.extend(encoders::u32(src));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(0x0e));
+                sink.extend(encoders::u32(dst));
+                sink.extend(encoders::u32(src));
             }
             Instruction::TableGrow { table } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(0x0f));
-                bytes.extend(encoders::u32(table));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(0x0f));
+                sink.extend(encoders::u32(table));
             }
             Instruction::TableSize { table } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(0x10));
-                bytes.extend(encoders::u32(table));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(0x10));
+                sink.extend(encoders::u32(table));
             }
             Instruction::TableFill { table } => {
-                bytes.push(0xfc);
-                bytes.extend(encoders::u32(0x11));
-                bytes.extend(encoders::u32(table));
+                sink.extend([0xfc]);
+                sink.extend(encoders::u32(0x11));
+                sink.extend(encoders::u32(table));
             }
 
             // SIMD instructions.
             Instruction::V128Load { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x00));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x00));
+                memarg.encode(sink);
             }
             Instruction::V128Load8x8S { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x01));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x01));
+                memarg.encode(sink);
             }
             Instruction::V128Load8x8U { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x02));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x02));
+                memarg.encode(sink);
             }
             Instruction::V128Load16x4S { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x03));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x03));
+                memarg.encode(sink);
             }
             Instruction::V128Load16x4U { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x04));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x04));
+                memarg.encode(sink);
             }
             Instruction::V128Load32x2S { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x05));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x05));
+                memarg.encode(sink);
             }
             Instruction::V128Load32x2U { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x06));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x06));
+                memarg.encode(sink);
             }
             Instruction::V128Load8Splat { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x07));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x07));
+                memarg.encode(sink);
             }
             Instruction::V128Load16Splat { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x08));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x08));
+                memarg.encode(sink);
             }
             Instruction::V128Load32Splat { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x09));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x09));
+                memarg.encode(sink);
             }
             Instruction::V128Load64Splat { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x0A));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x0A));
+                memarg.encode(sink);
             }
             Instruction::V128Store { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x0B));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x0B));
+                memarg.encode(sink);
             }
             Instruction::V128Const(x) => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x0C));
-                bytes.extend(x.to_le_bytes().iter().copied());
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x0C));
+                sink.extend(x.to_le_bytes().iter().copied());
             }
             Instruction::I8x16Shuffle { lanes } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x0D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x0D));
                 assert!(lanes.iter().all(|l: &u8| *l < 32));
-                bytes.extend(lanes.iter().copied());
+                sink.extend(lanes.iter().copied());
             }
             Instruction::I8x16Swizzle => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x0E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x0E));
             }
             Instruction::I8x16Splat => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x0F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x0F));
             }
             Instruction::I16x8Splat => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x10));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x10));
             }
             Instruction::I32x4Splat => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x11));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x11));
             }
             Instruction::I64x2Splat => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x12));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x12));
             }
             Instruction::F32x4Splat => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x13));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x13));
             }
             Instruction::F64x2Splat => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x14));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x14));
             }
             Instruction::I8x16ExtractLaneS { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x15));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x15));
                 assert!(lane < 16);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I8x16ExtractLaneU { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x16));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x16));
                 assert!(lane < 16);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I8x16ReplaceLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x17));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x17));
                 assert!(lane < 16);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I16x8ExtractLaneS { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x18));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x18));
                 assert!(lane < 8);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I16x8ExtractLaneU { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x19));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x19));
                 assert!(lane < 8);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I16x8ReplaceLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x1A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x1A));
                 assert!(lane < 8);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I32x4ExtractLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x1B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x1B));
                 assert!(lane < 4);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I32x4ReplaceLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x1C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x1C));
                 assert!(lane < 4);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I64x2ExtractLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x1D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x1D));
                 assert!(lane < 2);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I64x2ReplaceLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x1E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x1E));
                 assert!(lane < 2);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::F32x4ExtractLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x1F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x1F));
                 assert!(lane < 4);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::F32x4ReplaceLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x20));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x20));
                 assert!(lane < 4);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::F64x2ExtractLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x21));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x21));
                 assert!(lane < 2);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::F64x2ReplaceLane { lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x22));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x22));
                 assert!(lane < 2);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
 
             Instruction::I8x16Eq => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x23));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x23));
             }
             Instruction::I8x16Ne => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x24));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x24));
             }
             Instruction::I8x16LtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x25));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x25));
             }
             Instruction::I8x16LtU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x26));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x26));
             }
             Instruction::I8x16GtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x27));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x27));
             }
             Instruction::I8x16GtU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x28));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x28));
             }
             Instruction::I8x16LeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x29));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x29));
             }
             Instruction::I8x16LeU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x2A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x2A));
             }
             Instruction::I8x16GeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x2B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x2B));
             }
             Instruction::I8x16GeU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x2C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x2C));
             }
             Instruction::I16x8Eq => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x2D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x2D));
             }
             Instruction::I16x8Ne => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x2E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x2E));
             }
             Instruction::I16x8LtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x2F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x2F));
             }
             Instruction::I16x8LtU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x30));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x30));
             }
             Instruction::I16x8GtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x31));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x31));
             }
             Instruction::I16x8GtU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x32));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x32));
             }
             Instruction::I16x8LeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x33));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x33));
             }
             Instruction::I16x8LeU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x34));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x34));
             }
             Instruction::I16x8GeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x35));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x35));
             }
             Instruction::I16x8GeU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x36));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x36));
             }
             Instruction::I32x4Eq => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x37));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x37));
             }
             Instruction::I32x4Ne => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x38));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x38));
             }
             Instruction::I32x4LtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x39));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x39));
             }
             Instruction::I32x4LtU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x3A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x3A));
             }
             Instruction::I32x4GtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x3B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x3B));
             }
             Instruction::I32x4GtU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x3C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x3C));
             }
             Instruction::I32x4LeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x3D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x3D));
             }
             Instruction::I32x4LeU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x3E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x3E));
             }
             Instruction::I32x4GeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x3F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x3F));
             }
             Instruction::I32x4GeU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x40));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x40));
             }
             Instruction::F32x4Eq => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x41));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x41));
             }
             Instruction::F32x4Ne => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x42));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x42));
             }
             Instruction::F32x4Lt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x43));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x43));
             }
             Instruction::F32x4Gt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x44));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x44));
             }
             Instruction::F32x4Le => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x45));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x45));
             }
             Instruction::F32x4Ge => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x46));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x46));
             }
             Instruction::F64x2Eq => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x47));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x47));
             }
             Instruction::F64x2Ne => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x48));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x48));
             }
             Instruction::F64x2Lt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x49));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x49));
             }
             Instruction::F64x2Gt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x4A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x4A));
             }
             Instruction::F64x2Le => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x4B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x4B));
             }
             Instruction::F64x2Ge => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x4C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x4C));
             }
             Instruction::V128Not => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x4D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x4D));
             }
             Instruction::V128And => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x4E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x4E));
             }
             Instruction::V128AndNot => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x4F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x4F));
             }
             Instruction::V128Or => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x50));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x50));
             }
             Instruction::V128Xor => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x51));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x51));
             }
             Instruction::V128Bitselect => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x52));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x52));
             }
             Instruction::V128AnyTrue => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x53));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x53));
             }
             Instruction::I8x16Abs => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x60));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x60));
             }
             Instruction::I8x16Neg => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x61));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x61));
             }
             Instruction::I8x16Popcnt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x62));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x62));
             }
             Instruction::I8x16AllTrue => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x63));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x63));
             }
             Instruction::I8x16Bitmask => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x64));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x64));
             }
             Instruction::I8x16NarrowI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x65));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x65));
             }
             Instruction::I8x16NarrowI16x8U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x66));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x66));
             }
             Instruction::I8x16Shl => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x6b));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x6b));
             }
             Instruction::I8x16ShrS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x6c));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x6c));
             }
             Instruction::I8x16ShrU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x6d));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x6d));
             }
             Instruction::I8x16Add => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x6e));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x6e));
             }
             Instruction::I8x16AddSatS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x6f));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x6f));
             }
             Instruction::I8x16AddSatU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x70));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x70));
             }
             Instruction::I8x16Sub => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x71));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x71));
             }
             Instruction::I8x16SubSatS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x72));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x72));
             }
             Instruction::I8x16SubSatU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x73));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x73));
             }
             Instruction::I8x16MinS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x76));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x76));
             }
             Instruction::I8x16MinU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x77));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x77));
             }
             Instruction::I8x16MaxS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x78));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x78));
             }
             Instruction::I8x16MaxU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x79));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x79));
             }
             Instruction::I8x16RoundingAverageU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x7B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x7B));
             }
             Instruction::I16x8ExtAddPairwiseI8x16S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x7C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x7C));
             }
             Instruction::I16x8ExtAddPairwiseI8x16U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x7D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x7D));
             }
             Instruction::I32x4ExtAddPairwiseI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x7E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x7E));
             }
             Instruction::I32x4ExtAddPairwiseI16x8U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x7F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x7F));
             }
             Instruction::I16x8Abs => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x80));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x80));
             }
             Instruction::I16x8Neg => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x81));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x81));
             }
             Instruction::I16x8Q15MulrSatS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x82));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x82));
             }
             Instruction::I16x8AllTrue => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x83));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x83));
             }
             Instruction::I16x8Bitmask => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x84));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x84));
             }
             Instruction::I16x8NarrowI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x85));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x85));
             }
             Instruction::I16x8NarrowI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x86));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x86));
             }
             Instruction::I16x8ExtendLowI8x16S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x87));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x87));
             }
             Instruction::I16x8ExtendHighI8x16S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x88));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x88));
             }
             Instruction::I16x8ExtendLowI8x16U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x89));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x89));
             }
             Instruction::I16x8ExtendHighI8x16U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x8A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x8A));
             }
             Instruction::I16x8Shl => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x8B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x8B));
             }
             Instruction::I16x8ShrS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x8C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x8C));
             }
             Instruction::I16x8ShrU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x8D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x8D));
             }
             Instruction::I16x8Add => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x8E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x8E));
             }
             Instruction::I16x8AddSatS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x8F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x8F));
             }
             Instruction::I16x8AddSatU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x90));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x90));
             }
             Instruction::I16x8Sub => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x91));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x91));
             }
             Instruction::I16x8SubSatS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x92));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x92));
             }
             Instruction::I16x8SubSatU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x93));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x93));
             }
             Instruction::I16x8Mul => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x95));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x95));
             }
             Instruction::I16x8MinS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x96));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x96));
             }
             Instruction::I16x8MinU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x97));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x97));
             }
             Instruction::I16x8MaxS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x98));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x98));
             }
             Instruction::I16x8MaxU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x99));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x99));
             }
             Instruction::I16x8RoundingAverageU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x9B));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x9B));
             }
             Instruction::I16x8ExtMulLowI8x16S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x9C));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x9C));
             }
             Instruction::I16x8ExtMulHighI8x16S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x9D));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x9D));
             }
             Instruction::I16x8ExtMulLowI8x16U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x9E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x9E));
             }
             Instruction::I16x8ExtMulHighI8x16U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x9F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x9F));
             }
             Instruction::I32x4Abs => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA0));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA0));
             }
             Instruction::I32x4Neg => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA1));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA1));
             }
             Instruction::I32x4AllTrue => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA3));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA3));
             }
             Instruction::I32x4Bitmask => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA4));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA4));
             }
             Instruction::I32x4ExtendLowI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA7));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA7));
             }
             Instruction::I32x4ExtendHighI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA8));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA8));
             }
             Instruction::I32x4ExtendLowI16x8U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA9));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA9));
             }
             Instruction::I32x4ExtendHighI16x8U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xAA));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xAA));
             }
             Instruction::I32x4Shl => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xAB));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xAB));
             }
             Instruction::I32x4ShrS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xAC));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xAC));
             }
             Instruction::I32x4ShrU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xAD));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xAD));
             }
             Instruction::I32x4Add => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xAE));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xAE));
             }
             Instruction::I32x4Sub => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB1));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB1));
             }
             Instruction::I32x4Mul => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB5));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB5));
             }
             Instruction::I32x4MinS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB6));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB6));
             }
             Instruction::I32x4MinU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB7));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB7));
             }
             Instruction::I32x4MaxS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB8));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB8));
             }
             Instruction::I32x4MaxU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB9));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB9));
             }
             Instruction::I32x4DotI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xBA));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xBA));
             }
             Instruction::I32x4ExtMulLowI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xBC));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xBC));
             }
             Instruction::I32x4ExtMulHighI16x8S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xBD));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xBD));
             }
             Instruction::I32x4ExtMulLowI16x8U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xBE));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xBE));
             }
             Instruction::I32x4ExtMulHighI16x8U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xBF));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xBF));
             }
             Instruction::I64x2Abs => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC0));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC0));
             }
             Instruction::I64x2Neg => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC1));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC1));
             }
             Instruction::I64x2AllTrue => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC3));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC3));
             }
             Instruction::I64x2Bitmask => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC4));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC4));
             }
             Instruction::I64x2ExtendLowI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC7));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC7));
             }
             Instruction::I64x2ExtendHighI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC8));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC8));
             }
             Instruction::I64x2ExtendLowI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC9));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC9));
             }
             Instruction::I64x2ExtendHighI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xCA));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xCA));
             }
             Instruction::I64x2Shl => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xCB));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xCB));
             }
             Instruction::I64x2ShrS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xCC));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xCC));
             }
             Instruction::I64x2ShrU => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xCD));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xCD));
             }
             Instruction::I64x2Add => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xCE));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xCE));
             }
             Instruction::I64x2Sub => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD1));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD1));
             }
             Instruction::I64x2Mul => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD5));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD5));
             }
             Instruction::I64x2ExtMulLowI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xDC));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xDC));
             }
             Instruction::I64x2ExtMulHighI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xDD));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xDD));
             }
             Instruction::I64x2ExtMulLowI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xDE));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xDE));
             }
             Instruction::I64x2ExtMulHighI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xDF));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xDF));
             }
             Instruction::F32x4Ceil => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x67));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x67));
             }
             Instruction::F32x4Floor => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x68));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x68));
             }
             Instruction::F32x4Trunc => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x69));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x69));
             }
             Instruction::F32x4Nearest => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x6A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x6A));
             }
             Instruction::F32x4Abs => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE0));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE0));
             }
             Instruction::F32x4Neg => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE1));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE1));
             }
             Instruction::F32x4Sqrt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE3));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE3));
             }
             Instruction::F32x4Add => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE4));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE4));
             }
             Instruction::F32x4Sub => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE5));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE5));
             }
             Instruction::F32x4Mul => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE6));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE6));
             }
             Instruction::F32x4Div => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE7));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE7));
             }
             Instruction::F32x4Min => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE8));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE8));
             }
             Instruction::F32x4Max => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE9));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE9));
             }
             Instruction::F32x4PMin => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xEA));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xEA));
             }
             Instruction::F32x4PMax => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xEB));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xEB));
             }
             Instruction::F64x2Ceil => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x74));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x74));
             }
             Instruction::F64x2Floor => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x75));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x75));
             }
             Instruction::F64x2Trunc => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x7A));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x7A));
             }
             Instruction::F64x2Nearest => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x94));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x94));
             }
             Instruction::F64x2Abs => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xEC));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xEC));
             }
             Instruction::F64x2Neg => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xED));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xED));
             }
             Instruction::F64x2Sqrt => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xEF));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xEF));
             }
             Instruction::F64x2Add => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF0));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF0));
             }
             Instruction::F64x2Sub => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF1));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF1));
             }
             Instruction::F64x2Mul => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF2));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF2));
             }
             Instruction::F64x2Div => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF3));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF3));
             }
             Instruction::F64x2Min => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF4));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF4));
             }
             Instruction::F64x2Max => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF5));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF5));
             }
             Instruction::F64x2PMin => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF6));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF6));
             }
             Instruction::F64x2PMax => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF7));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF7));
             }
             Instruction::I32x4TruncSatF32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF8));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF8));
             }
             Instruction::I32x4TruncSatF32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xF9));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xF9));
             }
             Instruction::F32x4ConvertI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xFA));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xFA));
             }
             Instruction::F32x4ConvertI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xFB));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xFB));
             }
             Instruction::I32x4TruncSatF64x2SZero => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xFC));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xFC));
             }
             Instruction::I32x4TruncSatF64x2UZero => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xFD));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xFD));
             }
             Instruction::F64x2ConvertLowI32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xFE));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xFE));
             }
             Instruction::F64x2ConvertLowI32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xFF));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xFF));
             }
             Instruction::F32x4DemoteF64x2Zero => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x5E));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x5E));
             }
             Instruction::F64x2PromoteLowF32x4 => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x5F));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x5F));
             }
             Instruction::V128Load32Zero { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x5C));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x5C));
+                memarg.encode(sink);
             }
             Instruction::V128Load64Zero { memarg } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x5D));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x5D));
+                memarg.encode(sink);
             }
             Instruction::V128Load8Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x54));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x54));
+                memarg.encode(sink);
                 assert!(lane < 16);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Load16Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x55));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x55));
+                memarg.encode(sink);
                 assert!(lane < 8);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Load32Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x56));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x56));
+                memarg.encode(sink);
                 assert!(lane < 4);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Load64Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x57));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x57));
+                memarg.encode(sink);
                 assert!(lane < 2);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Store8Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x58));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x58));
+                memarg.encode(sink);
                 assert!(lane < 16);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Store16Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x59));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x59));
+                memarg.encode(sink);
                 assert!(lane < 8);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Store32Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x5A));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x5A));
+                memarg.encode(sink);
                 assert!(lane < 4);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::V128Store64Lane { memarg, lane } => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0x5B));
-                memarg.encode(bytes);
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0x5B));
+                memarg.encode(sink);
                 assert!(lane < 2);
-                bytes.push(lane);
+                sink.extend([lane]);
             }
             Instruction::I64x2Eq => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD6));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD6));
             }
             Instruction::I64x2Ne => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD7));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD7));
             }
             Instruction::I64x2LtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD8));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD8));
             }
             Instruction::I64x2GtS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD9));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD9));
             }
             Instruction::I64x2LeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xDD));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xDD));
             }
             Instruction::I64x2GeS => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xDB));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xDB));
             }
             Instruction::I8x16RelaxedSwizzle => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA2));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA2));
             }
             Instruction::I32x4RelaxedTruncSatF32x4S => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA5));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA5));
             }
             Instruction::I32x4RelaxedTruncSatF32x4U => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xA6));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xA6));
             }
             Instruction::I32x4RelaxedTruncSatF64x2SZero => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC5));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC5));
             }
             Instruction::I32x4RelaxedTruncSatF64x2UZero => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xC6));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xC6));
             }
             Instruction::F32x4Fma => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xAF));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xAF));
             }
             Instruction::F32x4Fms => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB0));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB0));
             }
             Instruction::F64x2Fma => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xCF));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xCF));
             }
             Instruction::F64x2Fms => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD0));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD0));
             }
             Instruction::I8x16LaneSelect => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB2));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB2));
             }
             Instruction::I16x8LaneSelect => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB3));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB3));
             }
             Instruction::I32x4LaneSelect => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD2));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD2));
             }
             Instruction::I64x2LaneSelect => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD3));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD3));
             }
             Instruction::F32x4RelaxedMin => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xB4));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xB4));
             }
             Instruction::F32x4RelaxedMax => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xE2));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xE2));
             }
             Instruction::F64x2RelaxedMin => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xD4));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xD4));
             }
             Instruction::F64x2RelaxedMax => {
-                bytes.push(0xFD);
-                bytes.extend(encoders::u32(0xEE));
+                sink.extend([0xFD]);
+                sink.extend(encoders::u32(0xEE));
             }
         }
     }

@@ -55,10 +55,14 @@ impl ModuleType {
     pub fn type_count(&self) -> u32 {
         self.types_added
     }
+}
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.extend(encoders::u32(self.num_added));
-        bytes.extend(self.bytes.iter().copied());
+impl Encode for ModuleType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(encoders::u32(self.num_added).chain(self.bytes.iter().copied()))
     }
 }
 
@@ -125,10 +129,14 @@ impl ComponentType {
     pub fn type_count(&self) -> u32 {
         self.types_added
     }
+}
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.extend(encoders::u32(self.num_added));
-        bytes.extend(self.bytes.iter().copied());
+impl Encode for ComponentType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(encoders::u32(self.num_added).chain(self.bytes.iter().copied()))
     }
 }
 
@@ -184,10 +192,14 @@ impl InstanceType {
     pub fn type_count(&self) -> u32 {
         self.types_added
     }
+}
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.extend(encoders::u32(self.num_added));
-        bytes.extend(self.bytes.iter().copied());
+impl Encode for InstanceType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(encoders::u32(self.num_added).chain(self.bytes.iter().copied()))
     }
 }
 
@@ -288,24 +300,27 @@ pub enum PrimitiveInterfaceType {
     String,
 }
 
-impl PrimitiveInterfaceType {
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::Unit => bytes.push(0x7f),
-            Self::Bool => bytes.push(0x7e),
-            Self::S8 => bytes.push(0x7d),
-            Self::U8 => bytes.push(0x7c),
-            Self::S16 => bytes.push(0x7b),
-            Self::U16 => bytes.push(0x7a),
-            Self::S32 => bytes.push(0x79),
-            Self::U32 => bytes.push(0x78),
-            Self::S64 => bytes.push(0x77),
-            Self::U64 => bytes.push(0x76),
-            Self::Float32 => bytes.push(0x75),
-            Self::Float64 => bytes.push(0x74),
-            Self::Char => bytes.push(0x73),
-            Self::String => bytes.push(0x72),
-        }
+impl Encode for PrimitiveInterfaceType {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend([match self {
+            Self::Unit => 0x7f,
+            Self::Bool => 0x7e,
+            Self::S8 => 0x7d,
+            Self::U8 => 0x7c,
+            Self::S16 => 0x7b,
+            Self::U16 => 0x7a,
+            Self::S32 => 0x79,
+            Self::U32 => 0x78,
+            Self::S64 => 0x77,
+            Self::U64 => 0x76,
+            Self::Float32 => 0x75,
+            Self::Float64 => 0x74,
+            Self::Char => 0x73,
+            Self::String => 0x72,
+        }]);
     }
 }
 
@@ -320,11 +335,14 @@ pub enum InterfaceTypeRef {
     Type(u32),
 }
 
-impl InterfaceTypeRef {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for InterfaceTypeRef {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
         match self {
-            Self::Primitive(ty) => ty.encode(bytes),
-            Self::Type(index) => bytes.extend(encoders::s33(*index as i64)),
+            Self::Primitive(ty) => ty.encode(sink),
+            Self::Type(index) => sink.extend(encoders::s33(*index as i64)),
         }
     }
 }
