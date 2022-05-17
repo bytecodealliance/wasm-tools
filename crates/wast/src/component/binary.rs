@@ -376,23 +376,31 @@ impl Encode for TypeField<'_> {
     }
 }
 
+impl Encode for Primitive {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            Primitive::Unit => e.push(0x7f),
+            Primitive::Bool => e.push(0x7e),
+            Primitive::S8 => e.push(0x7d),
+            Primitive::U8 => e.push(0x7c),
+            Primitive::S16 => e.push(0x7b),
+            Primitive::U16 => e.push(0x7a),
+            Primitive::S32 => e.push(0x79),
+            Primitive::U32 => e.push(0x78),
+            Primitive::S64 => e.push(0x77),
+            Primitive::U64 => e.push(0x76),
+            Primitive::Float32 => e.push(0x75),
+            Primitive::Float64 => e.push(0x74),
+            Primitive::Char => e.push(0x73),
+            Primitive::String => e.push(0x72),
+        }
+    }
+}
+
 impl<'a> Encode for InterType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            InterType::Unit => e.push(0x7f),
-            InterType::Bool => e.push(0x7e),
-            InterType::S8 => e.push(0x7d),
-            InterType::U8 => e.push(0x7c),
-            InterType::S16 => e.push(0x7b),
-            InterType::U16 => e.push(0x7a),
-            InterType::S32 => e.push(0x79),
-            InterType::U32 => e.push(0x78),
-            InterType::S64 => e.push(0x77),
-            InterType::U64 => e.push(0x76),
-            InterType::Float32 => e.push(0x75),
-            InterType::Float64 => e.push(0x74),
-            InterType::Char => e.push(0x73),
-            InterType::String => e.push(0x72),
+            InterType::Primitive(p) => p.encode(e),
             InterType::Record(r) => r.encode(e),
             InterType::Variant(v) => v.encode(e),
             InterType::List(l) => l.encode(e),
@@ -402,6 +410,16 @@ impl<'a> Encode for InterType<'a> {
             InterType::Union(u) => u.encode(e),
             InterType::Option(o) => o.encode(e),
             InterType::Expected(x) => x.encode(e),
+        }
+    }
+}
+
+impl<'a> Encode for InterTypeRef<'a> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            InterTypeRef::Primitive(p) => p.encode(e),
+            InterTypeRef::Ref(i) => i.encode(e),
+            InterTypeRef::Inline(_) => unreachable!("should be expanded by now"),
         }
     }
 }

@@ -18,10 +18,9 @@
  0x21 | 02 03       | import section
  0x23 | 01          | 1 count
  0x24 | 00 02       | [instance 0] ComponentImport { name: "", ty: 2 }
- 0x26 | 01 05       | type section
- 0x28 | 02          | 2 count
- 0x29 | 7f          | [type 3] Interface(Primitive(Unit))
- 0x2a | 4c 00 03    | [type 4] Function(ComponentFuncType { params: [], result: Type(3) })
- 0x2d | 02 03       | import section
- 0x2f | 01          | 1 count
- 0x30 | 00 04       | [func 0] ComponentImport { name: "", ty: 4 }
+ 0x26 | 01 04       | type section
+ 0x28 | 01          | 1 count
+ 0x29 | 4c 00 7f    | [type 3] Function(ComponentFuncType { params: [], result: Primitive(Unit) })
+ 0x2c | 02 03       | import section
+ 0x2e | 01          | 1 count
+ 0x2f | 00 03       | [func 0] ComponentImport { name: "", ty: 3 }

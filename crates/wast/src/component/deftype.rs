@@ -101,7 +101,7 @@ pub struct ComponentFunctionType<'a> {
     /// name resolution and a name for the custom `name` section.
     pub params: Box<[ComponentFunctionParam<'a>]>,
     /// The result type of a function.
-    pub result: ComponentTypeUse<'a, InterType<'a>>,
+    pub result: InterTypeRef<'a>,
 }
 
 impl<'a> Parse<'a> for ComponentFunctionType<'a> {
@@ -125,7 +125,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
             })?
         } else {
             // If the result is omitted, use `unit`.
-            ComponentTypeUse::Inline(InterType::Unit)
+            InterTypeRef::Primitive(Primitive::Unit)
         };
         Ok(Self {
             params: params.into(),
@@ -140,7 +140,7 @@ pub struct ComponentFunctionParam<'a> {
     /// An optionally-specified name of this parameter
     pub name: Option<&'a str>,
     /// The type of the parameter.
-    pub type_: ComponentTypeUse<'a, InterType<'a>>,
+    pub type_: InterTypeRef<'a>,
 }
 
 /// A type for a nested module
@@ -306,7 +306,7 @@ impl<'a> From<TypeField<'a>> for InstanceTypeField<'a> {
 #[derive(Debug, Clone)]
 pub struct ValueType<'a> {
     /// The type of the value.
-    pub value_type: ComponentTypeUse<'a, InterType<'a>>,
+    pub value_type: InterTypeRef<'a>,
 }
 
 impl<'a> Parse<'a> for ValueType<'a> {
