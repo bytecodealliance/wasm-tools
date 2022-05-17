@@ -249,6 +249,12 @@ impl<'a> From<TypeField<'a>> for ComponentTypeField<'a> {
     }
 }
 
+impl<'a> From<Alias<'a>> for ComponentTypeField<'a> {
+    fn from(field: Alias<'a>) -> ComponentTypeField<'a> {
+        ComponentTypeField::Alias(field)
+    }
+}
+
 /// A type for a nested instance
 #[derive(Debug)]
 pub struct InstanceType<'a> {
@@ -299,6 +305,12 @@ pub enum InstanceTypeField<'a> {
 impl<'a> From<TypeField<'a>> for InstanceTypeField<'a> {
     fn from(field: TypeField<'a>) -> InstanceTypeField<'a> {
         InstanceTypeField::Type(field)
+    }
+}
+
+impl<'a> From<Alias<'a>> for InstanceTypeField<'a> {
+    fn from(field: Alias<'a>) -> InstanceTypeField<'a> {
+        InstanceTypeField::Alias(field)
     }
 }
 

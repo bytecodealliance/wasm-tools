@@ -195,6 +195,12 @@ impl<'a> From<TypeField<'a>> for ComponentField<'a> {
     }
 }
 
+impl<'a> From<Alias<'a>> for ComponentField<'a> {
+    fn from(field: Alias<'a>) -> ComponentField<'a> {
+        ComponentField::Alias(field)
+    }
+}
+
 /// A function to call at instantiation time.
 #[derive(Debug)]
 pub struct Start<'a> {

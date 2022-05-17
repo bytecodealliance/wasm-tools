@@ -4,7 +4,6 @@ use crate::kw;
 use crate::names::Namespace;
 use crate::token::{Id, Index};
 use crate::Error;
-use std::mem::replace;
 
 /// Resolve the fields of a component and everything nested within it, changing
 /// `Index::Id` to `Index::Num` and expanding alias syntax sugar.
@@ -20,6 +19,11 @@ pub fn resolve(component: &mut Component<'_>) -> Result<(), Error> {
 #[derive(Default)]
 struct Resolver<'a> {
     stack: Vec<ComponentState<'a>>,
+
+    // When a name refers to a definition in an outer scope, we'll need to
+    // insert an outer alias before it. This collects the aliases to be
+    // inserted during resolution.
+    aliases_to_insert: Vec<Alias<'a>>,
 }
 
 /// Context structure used to perform name resolution.
@@ -41,11 +45,6 @@ struct ComponentState<'a> {
     modules: Namespace<'a>,
     components: Namespace<'a>,
     values: Namespace<'a>,
-
-    // When a name refers to a definition in an outer scope, we'll need to
-    // insert an outer alias before it. This collects the aliases to be
-    // inserted during resolution.
-    aliases_to_insert: Vec<Alias<'a>>,
 }
 
 impl<'a> ComponentState<'a> {
@@ -58,12 +57,33 @@ impl<'a> ComponentState<'a> {
 }
 
 impl<'a> Resolver<'a> {
+    fn current(&mut self) -> &mut ComponentState<'a> {
+        self.stack
+            .last_mut()
+            .expect("should have at least one component state")
+    }
+
     fn fields(
         &mut self,
         id: Option<Id<'a>>,
         fields: &mut Vec<ComponentField<'a>>,
     ) -> Result<(), Error> {
         self.stack.push(ComponentState::new(id));
+        self.resolve_prepending_aliases(fields, Resolver::field, ComponentState::register)?;
+        self.stack.pop();
+        Ok(())
+    }
+
+    fn resolve_prepending_aliases<T>(
+        &mut self,
+        fields: &mut Vec<T>,
+        resolve: fn(&mut Self, &mut T) -> Result<(), Error>,
+        register: fn(&mut ComponentState<'a>, &T) -> Result<(), Error>,
+    ) -> Result<(), Error>
+    where
+        T: From<Alias<'a>>,
+    {
+        assert!(self.aliases_to_insert.is_empty());
 
         // Iterate through the fields of the component. We use an index
         // instead of an iterator because we'll be inserting aliases
@@ -71,26 +91,22 @@ impl<'a> Resolver<'a> {
         let mut i = 0;
         while i < fields.len() {
             // Resolve names within the field.
-            self.field(&mut fields[i])?;
+            resolve(self, &mut fields[i])?;
 
             // Name resolution may have emitted some aliases. Insert them before
             // the current definition.
-            let resolver = self.stack.last_mut().unwrap();
-            let aliases_to_insert = replace(&mut resolver.aliases_to_insert, Vec::new());
-            for alias in aliases_to_insert {
-                fields.insert(i, ComponentField::Alias(alias));
-                i += 1;
-            }
+            let amt = self.aliases_to_insert.len();
+            fields.splice(i..i, self.aliases_to_insert.drain(..).map(T::from));
+            i += amt;
 
             // Definitions can't refer to themselves or to definitions that appear
             // later in the format. Now that we're done resolving this field,
             // assign it an index for later defintions to refer to.
-            resolver.register(&mut fields[i])?;
+            register(self.current(), &fields[i])?;
 
             i += 1;
         }
 
-        self.stack.pop();
         Ok(())
     }
 
@@ -380,100 +396,52 @@ impl<'a> Resolver<'a> {
     }
 
     fn nested_component_type(&mut self, c: &mut ComponentType<'a>) -> Result<(), Error> {
-        // Iterate through the fields of the component type. We use an index
-        // instead of an iterator because we'll be inserting aliases
-        // as we go.
-        let mut i = 0;
-        while i < c.fields.len() {
-            // Resolve names within the field.
-            match &mut c.fields[i] {
-                ComponentTypeField::Alias(alias) => {
-                    self.alias(alias)?;
+        self.resolve_prepending_aliases(
+            &mut c.fields,
+            |resolver, field| match field {
+                ComponentTypeField::Alias(alias) => resolver.alias(alias),
+                ComponentTypeField::Type(ty) => resolver.type_field(ty),
+                ComponentTypeField::Import(import) => resolver.item_sig(&mut import.item),
+                ComponentTypeField::Export(export) => resolver.item_sig(&mut export.item),
+            },
+            |state, field| {
+                match field {
+                    ComponentTypeField::Alias(alias) => {
+                        state.register_alias(alias)?;
+                    }
+                    ComponentTypeField::Type(ty) => {
+                        state.types.register(ty.id, "type")?;
+                    }
+                    // Only the type namespace is populated within the component type
+                    // namespace so these are ignored here.
+                    ComponentTypeField::Import(_) | ComponentTypeField::Export(_) => {}
                 }
-                ComponentTypeField::Type(ty) => {
-                    self.type_field(ty)?;
-                }
-                ComponentTypeField::Import(import) => {
-                    self.item_sig(&mut import.item)?;
-                }
-                ComponentTypeField::Export(export) => {
-                    self.item_sig(&mut export.item)?;
-                }
-            }
-
-            // Name resolution may have emitted some aliases. Insert them before
-            // the current definition.
-            let resolver = self.stack.last_mut().unwrap();
-            let aliases_to_insert = replace(&mut resolver.aliases_to_insert, Vec::new());
-            for alias in aliases_to_insert {
-                c.fields.insert(i, ComponentTypeField::Alias(alias));
-                i += 1;
-            }
-
-            // Definitions can't refer to themselves or to definitions that appear
-            // later in the format. Now that we're done resolving this field,
-            // assign it an index for later defintions to refer to.
-            match &mut c.fields[i] {
-                ComponentTypeField::Alias(alias) => {
-                    resolver.register_alias(alias)?;
-                }
-                ComponentTypeField::Type(ty) => {
-                    resolver.types.register(ty.id, "type")?;
-                }
-
-                // Only the type namespace is populated within the component type
-                // namespace so these are ignored here.
-                ComponentTypeField::Import(_) | ComponentTypeField::Export(_) => {}
-            }
-            i += 1;
-        }
-        Ok(())
+                Ok(())
+            },
+        )
     }
 
     fn instance_type(&mut self, c: &mut InstanceType<'a>) -> Result<(), Error> {
-        // Iterate through the fields of the component type. We use an index
-        // instead of an iterator because we'll be inserting aliases
-        // as we go.
-        let mut i = 0;
-        while i < c.fields.len() {
-            // Resolve names within the field.
-            match &mut c.fields[i] {
-                InstanceTypeField::Alias(alias) => {
-                    self.alias(alias)?;
+        self.resolve_prepending_aliases(
+            &mut c.fields,
+            |resolver, field| match field {
+                InstanceTypeField::Alias(alias) => resolver.alias(alias),
+                InstanceTypeField::Type(ty) => resolver.type_field(ty),
+                InstanceTypeField::Export(export) => resolver.item_sig(&mut export.item),
+            },
+            |state, field| {
+                match field {
+                    InstanceTypeField::Alias(alias) => {
+                        state.register_alias(alias)?;
+                    }
+                    InstanceTypeField::Type(ty) => {
+                        state.types.register(ty.id, "type")?;
+                    }
+                    InstanceTypeField::Export(_export) => {}
                 }
-                InstanceTypeField::Type(ty) => {
-                    self.type_field(ty)?;
-                }
-                InstanceTypeField::Export(export) => {
-                    self.item_sig(&mut export.item)?;
-                }
-            }
-
-            // Name resolution may have emitted some aliases. Insert them before
-            // the current definition.
-            let resolver = self.stack.last_mut().unwrap();
-            let aliases_to_insert = replace(&mut resolver.aliases_to_insert, Vec::new());
-            for alias in aliases_to_insert {
-                c.fields.insert(i, InstanceTypeField::Alias(alias));
-                i += 1;
-            }
-
-            // Definitions can't refer to themselves or to definitions that appear
-            // later in the format. Now that we're done resolving this field,
-            // assign it an index for later defintions to refer to.
-            match &mut c.fields[i] {
-                InstanceTypeField::Alias(alias) => {
-                    resolver.register_alias(alias)?;
-                }
-                InstanceTypeField::Type(ty) => {
-                    resolver.types.register(ty.id, "type")?;
-                }
-                InstanceTypeField::Export(_export) => {}
-            }
-            i += 1;
-        }
-
-        Ok(())
+                Ok(())
+            },
+        )
     }
 
     fn item_ref<K>(&mut self, item: &mut ItemRef<'a, K>) -> Result<(), Error>
@@ -530,9 +498,8 @@ impl<'a> Resolver<'a> {
                 },
             };
 
-            let resolver = self.stack.last_mut().unwrap();
-            index = Index::Num(resolver.register_alias(&mut alias)?, span);
-            resolver.aliases_to_insert.push(alias);
+            index = Index::Num(self.current().register_alias(&mut alias)?, span);
+            self.aliases_to_insert.push(alias);
         }
         item.idx = index;
         item.export_names = Vec::new();
@@ -589,16 +556,15 @@ impl<'a> Resolver<'a> {
                     Ns::Type => AliasKind::ExportKind(core::ExportKind::Type),
                 },
             };
-            let resolver = self.stack.last_mut().unwrap();
-            let local_index = resolver.register_alias(&mut alias)?;
-            resolver.aliases_to_insert.push(alias);
+            let local_index = self.current().register_alias(&mut alias)?;
+            self.aliases_to_insert.push(alias);
             *idx = Index::Num(local_index, span);
             return Ok(());
         }
 
         // If resolution in any parent failed then simply return the error from our
         // local namespace
-        self.stack.last_mut().unwrap().resolve(ns, idx)?;
+        self.current().resolve(ns, idx)?;
         unreachable!()
     }
 
