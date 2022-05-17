@@ -55,3 +55,164 @@
     (canon.lift (func (param string)) string=latin1+utf16 (into $libc)
       (func $my_instance "log-compact-utf16")))
 )
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (func (canon.lower string=utf8 string=utf16 (func $f)))
+  )
+  "canonical option `utf8` conflicts with option `utf16`")
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (func (canon.lower string=utf8 string=latin1+utf16 (func $f)))
+  )
+  "canonical option `utf8` conflicts with option `compact-utf16`")
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (func (canon.lower string=utf16 string=latin1+utf16 (func $f)))
+  )
+  "canonical option `utf16` conflicts with option `compact-utf16`")
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (func (canon.lower (into 0) (func $f)))
+  )
+  "instance index out of bounds")
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (import "i" (instance $i))
+    (func (canon.lower (into $i) (func $f)))
+  )
+  "not a module instance")
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (module $m)
+    (instance $i (instantiate (module $m)))
+    (func (canon.lower (into $i) (into $i) (func $f)))
+  )
+  "`into` is specified more than once")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export "") (param i32 i32))
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (func (param (list u8))) (func $i "")))
+  )
+  "canonical option `into` is required")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export "") (param i32 i32))
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (func (param (list u8))) (into $i) (func $i "")))
+  )
+  "does not export a memory")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export "") (param i32 i32))
+      (memory (export "memory") 0)
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (func (param (list u8))) (into $i) (func $i "")))
+  )
+  "does not export a function named `canonical_abi_realloc`")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export "") (param i32 i32))
+      (memory (export "memory") 0)
+      (func (export "canonical_abi_realloc"))
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (func (param (list u8))) (into $i) (func $i "")))
+  )
+  "wrong signature")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export "") (param i32 i32))
+      (memory (export "memory") 0)
+      (func (export "canonical_abi_realloc") (param i32 i32 i32 i32) (result i32)
+        unreachable)
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (func (param (list u8))) (into $i) (func $i "")))
+  )
+  "does not export a function named `canonical_abi_free`")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export "") (param i32 i32))
+      (memory (export "memory") 0)
+      (func (export "canonical_abi_realloc") (param i32 i32 i32 i32) (result i32)
+        unreachable)
+      (func (export "canonical_abi_free"))
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (func (param (list u8))) (into $i) (func $i "")))
+  )
+  "wrong signature")
+
+(assert_invalid
+  (component
+    (module $m
+      (func (export ""))
+    )
+    (instance $i (instantiate (module $m)))
+    (func (canon.lower (func $i "")))
+  )
+  "not a component function")
+
+(assert_invalid
+  (component
+    (module $m (func (export "foo") (param i32)))
+    (instance $i (instantiate (module $m)))
+    (func (export "foo")
+      (canon.lift (func) (func $i "foo")))
+  )
+  "lowered parameter types `[]` do not match parameter types `[I32]`")
+
+(assert_invalid
+  (component
+    (module $m (func (export "foo") (result i32)))
+    (instance $i (instantiate (module $m)))
+    (func (export "foo")
+      (canon.lift (func) (func $i "foo")))
+  )
+  "lowered result types `[]` do not match result types `[I32]`")
+
+(assert_invalid
+  (component
+    (type $f string)
+    (module $m (func (export "foo")))
+    (instance $i (instantiate (module $m)))
+    (func (export "foo")
+      (canon.lift (type $f) (func $i "foo")))
+  )
+  "not a function type")
+
+(assert_invalid
+  (component
+    (import "" (func $f))
+    (func (export "foo")
+      (canon.lift (func) (func $f)))
+  )
+  "not a core WebAssembly function")
