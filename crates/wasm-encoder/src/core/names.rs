@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encoders, CustomSection, Encode, Section};
 
 /// An encoder for the custom `name` section.
 ///
@@ -153,25 +153,20 @@ impl NameSection {
     }
 }
 
-impl Section for NameSection {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
-    }
-
+impl Encode for NameSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let name_len = encoders::u32(4);
-        let n = name_len.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + 4 + self.bytes.len()).unwrap())
-                .chain(name_len)
-                .chain(b"name".iter().copied())
-                .chain(self.bytes.iter().copied()),
-        );
+        CustomSection {
+            name: "name",
+            data: &self.bytes,
+        }
+        .encode(sink);
     }
 }
+
+impl Section for NameSection {}
 
 /// A map used to name items in a wasm module, organized by naming each
 /// individual index.

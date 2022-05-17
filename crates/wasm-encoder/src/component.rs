@@ -1,35 +1,27 @@
 mod aliases;
-mod components;
 mod exports;
 mod functions;
+mod imports;
 mod instances;
-mod modules;
 mod start;
 mod types;
 
 pub use self::aliases::*;
-pub use self::components::*;
 pub use self::exports::*;
 pub use self::functions::*;
+pub use self::imports::*;
 pub use self::instances::*;
-pub use self::modules::*;
 pub use self::start::*;
 pub use self::types::*;
+
+use crate::{encoders, Encode};
 
 /// A WebAssembly component section.
 ///
 /// Various builders defined in this crate already implement this trait, but you
 /// can also implement it yourself for your own custom section builders, or use
 /// `RawSection` to use a bunch of raw bytes as a section.
-pub trait ComponentSection {
-    /// Gets the section's identifier.
-    fn id(&self) -> u8;
-
-    /// Write this section's header and data into the given sink.
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>;
-}
+pub trait ComponentSection: Encode {}
 
 /// Known section identifiers of WebAssembly components.
 ///
@@ -70,6 +62,8 @@ impl From<ComponentSectionId> for u8 {
 ///
 /// Unlike core WebAssembly modules, the sections of a component
 /// may appear in any order and may be repeated.
+///
+/// Components may also added as a section to other components.
 #[derive(Clone, Debug)]
 pub struct Component {
     bytes: Vec<u8>,
@@ -93,7 +87,6 @@ impl Component {
 
     /// Write a section to this component.
     pub fn section(&mut self, section: &impl ComponentSection) -> &mut Self {
-        self.bytes.push(section.id());
         section.encode(&mut self.bytes);
         self
     }
@@ -104,3 +97,19 @@ impl Default for Component {
         Self::new()
     }
 }
+
+impl Encode for Component {
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(
+            [ComponentSectionId::Component.into()]
+                .into_iter()
+                .chain(encoders::u32(u32::try_from(self.bytes.len()).unwrap()))
+                .chain(self.bytes.iter().copied()),
+        );
+    }
+}
+
+impl ComponentSection for Component {}

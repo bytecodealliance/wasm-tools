@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encode_section, encoders, Encode, Section, SectionId};
 
 /// An encoder for the memory section.
 ///
@@ -51,24 +51,16 @@ impl MemorySection {
     }
 }
 
-impl Section for MemorySection {
-    fn id(&self) -> u8 {
-        SectionId::Memory.into()
-    }
-
+impl Encode for MemorySection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+        encode_section(sink, SectionId::Memory, self.num_added, &self.bytes);
     }
 }
+
+impl Section for MemorySection {}
 
 /// A memory's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

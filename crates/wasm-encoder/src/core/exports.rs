@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encode_section, encoders, Encode, Section, SectionId};
 
 /// Represents an export from a WebAssembly module.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -78,21 +78,13 @@ impl ExportSection {
     }
 }
 
-impl Section for ExportSection {
-    fn id(&self) -> u8 {
-        SectionId::Export.into()
-    }
-
+impl Encode for ExportSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+        encode_section(sink, SectionId::Export, self.num_added, &self.bytes);
     }
 }
+
+impl Section for ExportSection {}

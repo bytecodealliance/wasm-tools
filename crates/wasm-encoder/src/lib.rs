@@ -81,6 +81,31 @@ pub use self::custom::*;
 pub use self::raw::*;
 pub mod encoders;
 
+/// Implemented by types that can be encoded into a byte sink.
+pub trait Encode {
+    /// Encode the type into the given byte sink.
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>;
+}
+
+fn encode_section<S>(sink: &mut S, id: impl Into<u8>, count: u32, bytes: &[u8])
+where
+    S: Extend<u8>,
+{
+    let count = encoders::u32(count);
+
+    sink.extend(
+        [id.into()]
+            .into_iter()
+            .chain(encoders::u32(
+                u32::try_from(count.len() + bytes.len()).unwrap(),
+            ))
+            .chain(count)
+            .chain(bytes.iter().copied()),
+    );
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

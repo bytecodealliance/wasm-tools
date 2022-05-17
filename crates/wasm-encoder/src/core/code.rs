@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId, ValType};
+use crate::{encode_section, encoders, Encode, Section, SectionId, ValType};
 use std::borrow::Cow;
 
 /// An encoder for the code section.
@@ -96,24 +96,16 @@ impl CodeSection {
     }
 }
 
-impl Section for CodeSection {
-    fn id(&self) -> u8 {
-        SectionId::Code.into()
-    }
-
+impl Encode for CodeSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+        encode_section(sink, SectionId::Code, self.num_added, &self.bytes);
     }
 }
+
+impl Section for CodeSection {}
 
 /// An encoder for a function body within the code section.
 ///

@@ -1,5 +1,7 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encoders, CustomSection, Encode, Section};
 use std::convert::TryInto;
+
+const VERSION: u32 = 2;
 
 /// An encoder for the [linking custom
 /// section](https://github.com/WebAssembly/tool-conventions/blob/master/Linking.md#linking-metadata-section).
@@ -36,7 +38,7 @@ use std::convert::TryInto;
 /// module.section(&linking);
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct LinkingSection {
     bytes: Vec<u8>,
 }
@@ -60,31 +62,28 @@ impl LinkingSection {
     }
 }
 
-impl Section for LinkingSection {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
+impl Default for LinkingSection {
+    fn default() -> Self {
+        let mut bytes = Vec::new();
+        bytes.extend(encoders::u32(VERSION));
+        Self { bytes }
     }
+}
 
+impl Encode for LinkingSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let name_len = encoders::u32(u32::try_from("linking".len()).unwrap());
-        let name_len_len = name_len.len();
-
-        let version = 2;
-
-        sink.extend(
-            encoders::u32(
-                u32::try_from(name_len_len + "linking".len() + 1 + self.bytes.len()).unwrap(),
-            )
-            .chain(name_len)
-            .chain(b"linking".iter().copied())
-            .chain(encoders::u32(version))
-            .chain(self.bytes.iter().copied()),
-        );
+        CustomSection {
+            name: "linking",
+            data: &self.bytes,
+        }
+        .encode(sink);
     }
 }
+
+impl Section for LinkingSection {}
 
 #[allow(unused)]
 const WASM_SEGMENT_INFO: u8 = 5;

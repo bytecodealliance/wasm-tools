@@ -1,4 +1,4 @@
-use crate::{encoders, Instruction, Section, SectionId, ValType};
+use crate::{encode_section, encoders, Encode, Instruction, Section, SectionId, ValType};
 
 /// An encoder for the element section.
 ///
@@ -235,21 +235,13 @@ impl ElementSection {
     }
 }
 
-impl Section for ElementSection {
-    fn id(&self) -> u8 {
-        SectionId::Element.into()
-    }
-
+impl Encode for ElementSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+        encode_section(sink, SectionId::Element, self.num_added, &self.bytes);
     }
 }
+
+impl Section for ElementSection {}

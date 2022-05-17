@@ -1,4 +1,6 @@
-use crate::{encoders, ComponentExport, ComponentSection, ComponentSectionId};
+use crate::{
+    encode_section, encoders, ComponentExport, ComponentSection, ComponentSectionId, Encode,
+};
 
 /// Represents an argument to instantiating a WebAssembly module.
 #[derive(Debug, Clone)]
@@ -189,21 +191,18 @@ impl InstanceSection {
     }
 }
 
-impl ComponentSection for InstanceSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::Instance.into()
-    }
-
+impl Encode for InstanceSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
+        encode_section(
+            sink,
+            ComponentSectionId::Instance,
+            self.num_added,
+            &self.bytes,
         );
     }
 }
+
+impl ComponentSection for InstanceSection {}

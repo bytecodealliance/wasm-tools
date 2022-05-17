@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, ComponentSectionId};
+use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
 
 const CANONICAL_OPTION_UTF8: u8 = 0x00;
 const CANONICAL_OPTION_UTF16: u8 = 0x01;
@@ -111,21 +111,18 @@ impl ComponentFunctionSection {
     }
 }
 
-impl ComponentSection for ComponentFunctionSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::Function.into()
-    }
-
+impl Encode for ComponentFunctionSection {
     fn encode<S>(&self, sink: &mut S)
     where
         S: Extend<u8>,
     {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
+        encode_section(
+            sink,
+            ComponentSectionId::Function,
+            self.num_added,
+            &self.bytes,
         );
     }
 }
+
+impl ComponentSection for ComponentFunctionSection {}
