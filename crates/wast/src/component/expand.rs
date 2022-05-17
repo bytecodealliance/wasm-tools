@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::gensym;
 use crate::kw;
-use crate::token::{self, Id, Index, Span};
+use crate::token::{Id, Index, Span};
 use std::collections::HashMap;
 use std::mem;
 
@@ -304,10 +304,7 @@ impl<'a> Expander<'a> {
                     let ty = t.inline.take().unwrap_or_default();
                     let key = ty.key();
                     if let Some(idx) = func_type_to_idx.get(&key) {
-                        t.index = Some(token::ItemRef {
-                            idx: idx.clone(),
-                            kind: kw::r#type(item.span),
-                        });
+                        t.index = Some(idx.clone());
                         return;
                     }
                     let id = gensym::gen(item.span);
@@ -318,10 +315,7 @@ impl<'a> Expander<'a> {
                         def: key.to_def(item.span),
                     }));
                     let idx = Index::Id(id);
-                    t.index = Some(token::ItemRef {
-                        idx,
-                        kind: kw::r#type(item.span),
-                    });
+                    t.index = Some(idx);
                 }
                 core::ItemKind::Global(_)
                 | core::ItemKind::Table(_)

@@ -1957,9 +1957,8 @@ impl Printer {
     ) -> Result<()> {
         self.result.push_str(name);
         if memarg.memory != 0 {
-            self.result.push_str(" (memory ");
+            self.result.push_str(" ");
             self.print_idx(&state.memory_names, memarg.memory)?;
-            self.result.push(')');
         }
         if memarg.offset != 0 {
             write!(self.result, " offset={}", memarg.offset)?;

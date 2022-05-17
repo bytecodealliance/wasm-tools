@@ -1,7 +1,6 @@
 use crate::core::*;
 use crate::gensym;
-use crate::kw;
-use crate::token::{Index, ItemRef, Span};
+use crate::token::{Index, Span};
 use std::collections::HashMap;
 
 pub fn expand<'a>(fields: &mut Vec<ModuleField<'a>>) {
@@ -180,7 +179,7 @@ impl<'a> Expander<'a> {
         T: TypeReference<'a>,
     {
         if let Some(idx) = &item.index {
-            return idx.idx.clone();
+            return idx.clone();
         }
         let key = match item.inline.as_mut() {
             Some(ty) => {
@@ -191,10 +190,7 @@ impl<'a> Expander<'a> {
         };
         let span = Span::from_offset(0); // FIXME: don't manufacture
         let idx = self.key_to_idx(span, key);
-        item.index = Some(ItemRef {
-            idx,
-            kind: kw::r#type(span),
-        });
+        item.index = Some(idx);
         return idx;
     }
 

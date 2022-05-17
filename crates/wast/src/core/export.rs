@@ -1,6 +1,6 @@
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{ItemRef, Span};
+use crate::token::{Index, Span};
 
 /// A entry in a WebAssembly module's export section.
 #[derive(Debug)]
@@ -9,8 +9,10 @@ pub struct Export<'a> {
     pub span: Span,
     /// The name of this export from the module.
     pub name: &'a str,
+    /// The kind of item being exported.
+    pub kind: ExportKind,
     /// What's being exported from the module.
-    pub index: ItemRef<'a, ExportKind>,
+    pub item: Index<'a>,
 }
 
 /// Different kinds of elements that can be exported from a WebAssembly module,
@@ -28,10 +30,14 @@ pub enum ExportKind {
 
 impl<'a> Parse<'a> for Export<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let span = parser.parse::<kw::export>()?.0;
+        let name = parser.parse()?;
+        let (kind, item) = parser.parens(|p| Ok((p.parse()?, p.parse()?)))?;
         Ok(Export {
-            span: parser.parse::<kw::export>()?.0,
-            name: parser.parse()?,
-            index: parser.parse()?,
+            span,
+            name,
+            kind,
+            item,
         })
     }
 }

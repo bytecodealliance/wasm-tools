@@ -122,7 +122,7 @@ pub enum DataKind<'a> {
     /// memory on module instantiation.
     Active {
         /// The memory that this `Data` will be associated with.
-        memory: ItemRef<'a, kw::memory>,
+        memory: Index<'a>,
 
         /// Initial offset to load this data segment at
         offset: Expression<'a>,
@@ -141,13 +141,19 @@ impl<'a> Parse<'a> for Data<'a> {
         // ... and otherwise we must be attached to a particular memory as well
         // as having an initialization offset.
         } else {
-            let memory = if let Some(index) = parser.parse::<Option<IndexOrRef<_>>>()? {
-                index.0
+            let memory = if parser.peek::<u32>() {
+                // FIXME: this is only here to accomodate
+                // proposals/threads/imports.wast at this current moment in
+                // time, this probably should get removed when the threads
+                // proposal is rebased on the current spec.
+                Index::Num(parser.parse()?, span)
+            } else if parser.peek2::<kw::memory>() {
+                parser.parens(|p| {
+                    p.parse::<kw::memory>()?;
+                    p.parse()
+                })?
             } else {
-                ItemRef {
-                    kind: kw::memory(parser.prev_span()),
-                    idx: Index::Num(0, span),
-                }
+                Index::Num(0, span)
             };
             let offset = parser.parens(|parser| {
                 if parser.peek::<kw::offset>() {
