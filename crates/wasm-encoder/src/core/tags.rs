@@ -49,10 +49,7 @@ impl TagSection {
 }
 
 impl Encode for TagSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Tag, self.num_added, &self.bytes);
     }
 }
@@ -77,14 +74,8 @@ pub struct TagType {
 }
 
 impl Encode for TagType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(
-            [self.kind as u8]
-                .into_iter()
-                .chain(encoders::u32(self.func_type_idx)),
-        );
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(self.kind as u8);
+        sink.extend(encoders::u32(self.func_type_idx));
     }
 }

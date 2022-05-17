@@ -154,10 +154,7 @@ impl NameSection {
 }
 
 impl Encode for NameSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         CustomSection {
             name: "name",
             data: &self.bytes,
@@ -208,11 +205,9 @@ impl NameMap {
 }
 
 impl Encode for NameMap {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(encoders::u32(self.count).chain(self.bytes.iter().copied()));
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.count));
+        sink.extend(&self.bytes);
     }
 }
 
@@ -252,10 +247,8 @@ impl IndirectNameMap {
 }
 
 impl Encode for IndirectNameMap {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(encoders::u32(self.count).chain(self.bytes.iter().copied()));
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.count));
+        sink.extend(&self.bytes);
     }
 }

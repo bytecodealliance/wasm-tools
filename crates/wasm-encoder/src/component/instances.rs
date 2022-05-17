@@ -10,13 +10,11 @@ pub enum ModuleArg {
 }
 
 impl Encode for ModuleArg {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Instance(index) => {
-                sink.extend([0x02].into_iter().chain(encoders::u32(*index)));
+                sink.push(0x02);
+                sink.extend(encoders::u32(*index));
             }
         }
     }
@@ -40,30 +38,18 @@ pub enum ComponentArg {
 }
 
 impl Encode for ComponentArg {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        match self {
-            Self::Module(index) => {
-                sink.extend([0x00].into_iter().chain(encoders::u32(*index)));
-            }
-            Self::Component(index) => {
-                sink.extend([0x01].into_iter().chain(encoders::u32(*index)));
-            }
-            Self::Instance(index) => {
-                sink.extend([0x02].into_iter().chain(encoders::u32(*index)));
-            }
-            Self::Function(index) => {
-                sink.extend([0x03].into_iter().chain(encoders::u32(*index)));
-            }
-            Self::Value(index) => {
-                sink.extend([0x04].into_iter().chain(encoders::u32(*index)));
-            }
-            Self::Type(index) => {
-                sink.extend([0x05].into_iter().chain(encoders::u32(*index)));
-            }
-        }
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let (kind, index) = match self {
+            Self::Module(index) => (0x00, *index),
+            Self::Component(index) => (0x01, *index),
+            Self::Instance(index) => (0x02, *index),
+            Self::Function(index) => (0x03, *index),
+            Self::Value(index) => (0x04, *index),
+            Self::Type(index) => (0x05, *index),
+        };
+
+        sink.push(kind);
+        sink.extend(encoders::u32(index));
     }
 }
 
@@ -191,10 +177,7 @@ impl InstanceSection {
 }
 
 impl Encode for InstanceSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(
             sink,
             ComponentSectionId::Instance,

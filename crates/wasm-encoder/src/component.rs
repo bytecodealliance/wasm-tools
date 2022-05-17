@@ -99,16 +99,10 @@ impl Default for Component {
 }
 
 impl Encode for Component {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(
-            [ComponentSectionId::Component.into()]
-                .into_iter()
-                .chain(encoders::u32(u32::try_from(self.bytes.len()).unwrap()))
-                .chain(self.bytes.iter().copied()),
-        );
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(ComponentSectionId::Component.into());
+        sink.extend(encoders::u32(u32::try_from(self.bytes.len()).unwrap()));
+        sink.extend(&self.bytes);
     }
 }
 

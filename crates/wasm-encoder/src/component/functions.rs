@@ -18,15 +18,15 @@ pub enum CanonicalOption {
 }
 
 impl Encode for CanonicalOption {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            Self::UTF8 => sink.extend([0x00]),
-            Self::UTF16 => sink.extend([0x01]),
-            Self::CompactUTF16 => sink.extend([0x02]),
-            Self::Into(index) => sink.extend([0x03].into_iter().chain(encoders::u32(*index))),
+            Self::UTF8 => sink.push(0x00),
+            Self::UTF16 => sink.push(0x01),
+            Self::CompactUTF16 => sink.push(0x02),
+            Self::Into(index) => {
+                sink.push(0x03);
+                sink.extend(encoders::u32(*index));
+            }
         }
     }
 }
@@ -107,10 +107,7 @@ impl ComponentFunctionSection {
 }
 
 impl Encode for ComponentFunctionSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(
             sink,
             ComponentSectionId::Function,

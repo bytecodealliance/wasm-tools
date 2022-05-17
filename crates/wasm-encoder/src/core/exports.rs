@@ -18,11 +18,8 @@ pub enum Export {
 }
 
 impl Encode for Export {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let (ty, index) = match self {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let (kind, index) = match self {
             Self::Function(i) => (0x00, *i),
             Self::Table(i) => (0x01, *i),
             Self::Memory(i) => (0x02, *i),
@@ -30,7 +27,8 @@ impl Encode for Export {
             Self::Tag(i) => (0x04, *i),
         };
 
-        sink.extend([ty].into_iter().chain(encoders::u32(index)));
+        sink.push(kind);
+        sink.extend(encoders::u32(index));
     }
 }
 
@@ -81,10 +79,7 @@ impl ExportSection {
 }
 
 impl Encode for ExportSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Export, self.num_added, &self.bytes);
     }
 }

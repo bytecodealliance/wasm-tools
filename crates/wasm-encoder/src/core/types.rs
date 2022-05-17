@@ -104,10 +104,7 @@ impl TypeSection {
 }
 
 impl Encode for TypeSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Type, self.num_added, &self.bytes);
     }
 }

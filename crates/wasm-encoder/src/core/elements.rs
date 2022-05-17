@@ -236,10 +236,7 @@ impl ElementSection {
 }
 
 impl Encode for ElementSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Element, self.num_added, &self.bytes);
     }
 }

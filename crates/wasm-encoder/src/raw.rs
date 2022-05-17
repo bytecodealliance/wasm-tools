@@ -12,16 +12,10 @@ pub struct RawSection<'a> {
 }
 
 impl Encode for RawSection<'_> {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(
-            [self.id]
-                .into_iter()
-                .chain(encoders::u32(u32::try_from(self.data.len()).unwrap()))
-                .chain(self.data.iter().copied()),
-        );
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(self.id);
+        sink.extend(encoders::u32(u32::try_from(self.data.len()).unwrap()));
+        sink.extend(self.data);
     }
 }
 

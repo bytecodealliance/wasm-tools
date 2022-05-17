@@ -26,17 +26,11 @@ pub struct StartSection {
 }
 
 impl Encode for StartSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let f = encoders::u32(self.function_index);
-        sink.extend(
-            [SectionId::Start.into()]
-                .into_iter()
-                .chain(encoders::u32(f.len() as u32))
-                .chain(f),
-        );
+        sink.push(SectionId::Start.into());
+        sink.extend(encoders::u32(f.len() as u32));
+        sink.extend(f);
     }
 }
 

@@ -71,10 +71,7 @@ impl Default for LinkingSection {
 }
 
 impl Encode for LinkingSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         CustomSection {
             name: "linking",
             data: &self.bytes,
@@ -260,10 +257,7 @@ impl SymbolTable {
 }
 
 impl Encode for SymbolTable {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, WASM_SYMBOL_TABLE, self.num_added, &self.bytes);
     }
 }

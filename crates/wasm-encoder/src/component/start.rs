@@ -28,27 +28,20 @@ impl<A> Encode for ComponentStartSection<A>
 where
     A: AsRef<[u32]>,
 {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let args = self.args.as_ref();
 
         let mut bytes = Vec::new();
-        bytes.extend(
-            encoders::u32(self.function_index)
-                .chain(encoders::u32(u32::try_from(args.len()).unwrap())),
-        );
+        bytes.extend(encoders::u32(self.function_index));
+        bytes.extend(encoders::u32(u32::try_from(args.len()).unwrap()));
+
         for arg in args {
             bytes.extend(encoders::u32(*arg));
         }
 
-        sink.extend(
-            [ComponentSectionId::Start.into()]
-                .into_iter()
-                .chain(encoders::u32(u32::try_from(bytes.len()).unwrap()))
-                .chain(bytes),
-        );
+        sink.push(ComponentSectionId::Start.into());
+        sink.extend(encoders::u32(u32::try_from(bytes.len()).unwrap()));
+        sink.extend(&bytes);
     }
 }
 

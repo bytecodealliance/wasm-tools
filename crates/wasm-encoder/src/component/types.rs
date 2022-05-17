@@ -58,11 +58,9 @@ impl ModuleType {
 }
 
 impl Encode for ModuleType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(encoders::u32(self.num_added).chain(self.bytes.iter().copied()))
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.num_added));
+        sink.extend(&self.bytes);
     }
 }
 
@@ -132,11 +130,9 @@ impl ComponentType {
 }
 
 impl Encode for ComponentType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(encoders::u32(self.num_added).chain(self.bytes.iter().copied()))
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.num_added));
+        sink.extend(&self.bytes);
     }
 }
 
@@ -195,11 +191,9 @@ impl InstanceType {
 }
 
 impl Encode for InstanceType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(encoders::u32(self.num_added).chain(self.bytes.iter().copied()))
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.num_added));
+        sink.extend(&self.bytes);
     }
 }
 
@@ -301,11 +295,8 @@ pub enum PrimitiveInterfaceType {
 }
 
 impl Encode for PrimitiveInterfaceType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend([match self {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(match self {
             Self::Unit => 0x7f,
             Self::Bool => 0x7e,
             Self::S8 => 0x7d,
@@ -320,7 +311,7 @@ impl Encode for PrimitiveInterfaceType {
             Self::Float64 => 0x74,
             Self::Char => 0x73,
             Self::String => 0x72,
-        }]);
+        });
     }
 }
 
@@ -336,10 +327,7 @@ pub enum InterfaceTypeRef {
 }
 
 impl Encode for InterfaceTypeRef {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Primitive(ty) => ty.encode(sink),
             Self::Type(index) => sink.extend(encoders::s33(*index as i64)),
@@ -586,10 +574,7 @@ impl ComponentTypeSection {
 }
 
 impl Encode for ComponentTypeSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, ComponentSectionId::Type, self.num_added, &self.bytes);
     }
 }

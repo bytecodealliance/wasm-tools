@@ -26,22 +26,22 @@ pub enum AliasExportKind {
 }
 
 impl Encode for AliasExportKind {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(match self {
-            Self::Module => [0x00, 0x00],
-            Self::Component => [0x00, 0x01],
-            Self::Instance => [0x00, 0x02],
-            Self::ComponentFunction => [0x00, 0x03],
-            Self::Value => [0x00, 0x04],
-            Self::Function => [0x01, 0x00],
-            Self::Table => [0x01, 0x01],
-            Self::Memory => [0x01, 0x02],
-            Self::Global => [0x01, 0x03],
-            Self::Tag => [0x01, 0x04],
-        });
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let (preamble, value) = match self {
+            AliasExportKind::Module => (0x00, 0x00),
+            AliasExportKind::Component => (0x00, 0x01),
+            AliasExportKind::Instance => (0x00, 0x02),
+            AliasExportKind::ComponentFunction => (0x00, 0x03),
+            AliasExportKind::Value => (0x00, 0x04),
+            AliasExportKind::Function => (0x01, 0x00),
+            AliasExportKind::Table => (0x01, 0x01),
+            AliasExportKind::Memory => (0x01, 0x02),
+            AliasExportKind::Global => (0x01, 0x03),
+            AliasExportKind::Tag => (0x01, 0x04),
+        };
+
+        sink.push(preamble);
+        sink.push(value);
     }
 }
 
@@ -135,10 +135,7 @@ impl AliasSection {
 }
 
 impl Encode for AliasSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, ComponentSectionId::Alias, self.num_added, &self.bytes);
     }
 }

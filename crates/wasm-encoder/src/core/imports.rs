@@ -23,28 +23,26 @@ pub enum EntityType {
 }
 
 impl Encode for EntityType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Function(i) => {
-                sink.extend([0x00].into_iter().chain(encoders::u32(*i)));
+                sink.push(0x00);
+                sink.extend(encoders::u32(*i));
             }
             Self::Table(t) => {
-                sink.extend([0x01]);
+                sink.push(0x01);
                 t.encode(sink);
             }
             Self::Memory(t) => {
-                sink.extend([0x02]);
+                sink.push(0x02);
                 t.encode(sink);
             }
             Self::Global(t) => {
-                sink.extend([0x03]);
+                sink.push(0x03);
                 t.encode(sink);
             }
             Self::Tag(t) => {
-                sink.extend([0x04]);
+                sink.push(0x04);
                 t.encode(sink);
             }
         }
@@ -131,10 +129,7 @@ impl ImportSection {
 }
 
 impl Encode for ImportSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Import, self.num_added, &self.bytes);
     }
 }

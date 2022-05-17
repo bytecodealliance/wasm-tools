@@ -51,10 +51,7 @@ impl ComponentExportSection {
 }
 
 impl Encode for ComponentExportSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(
             sink,
             ComponentSectionId::Export,

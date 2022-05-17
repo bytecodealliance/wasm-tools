@@ -155,10 +155,7 @@ impl DataSection {
 }
 
 impl Encode for DataSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Data, self.num_added, &self.bytes);
     }
 }
@@ -173,17 +170,11 @@ pub struct DataCountSection {
 }
 
 impl Encode for DataCountSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let count = encoders::u32(self.count);
-        sink.extend(
-            [SectionId::DataCount.into()]
-                .into_iter()
-                .chain(encoders::u32(u32::try_from(count.len()).unwrap()))
-                .chain(count),
-        );
+        sink.push(SectionId::DataCount.into());
+        sink.extend(encoders::u32(u32::try_from(count.len()).unwrap()));
+        sink.extend(count);
     }
 }
 

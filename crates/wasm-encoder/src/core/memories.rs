@@ -52,10 +52,7 @@ impl MemorySection {
 }
 
 impl Encode for MemorySection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Memory, self.num_added, &self.bytes);
     }
 }
@@ -74,10 +71,7 @@ pub struct MemoryType {
 }
 
 impl Encode for MemoryType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
@@ -85,7 +79,9 @@ impl Encode for MemoryType {
         if self.memory64 {
             flags |= 0b100;
         }
-        sink.extend([flags].into_iter().chain(encoders::u64(self.minimum)));
+
+        sink.push(flags);
+        sink.extend(encoders::u64(self.minimum));
         if let Some(max) = self.maximum {
             sink.extend(encoders::u64(max));
         }

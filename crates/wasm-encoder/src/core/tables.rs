@@ -52,10 +52,7 @@ impl TableSection {
 }
 
 impl Encode for TableSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Table, self.num_added, &self.bytes);
     }
 }
@@ -74,20 +71,15 @@ pub struct TableType {
 }
 
 impl Encode for TableType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
         }
 
-        sink.extend(
-            [u8::from(self.element_type), flags]
-                .into_iter()
-                .chain(encoders::u32(self.minimum)),
-        );
+        sink.push(self.element_type.into());
+        sink.push(flags);
+        sink.extend(encoders::u32(self.minimum));
 
         if let Some(max) = self.maximum {
             sink.extend(encoders::u32(max));

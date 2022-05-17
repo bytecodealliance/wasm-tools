@@ -63,10 +63,7 @@ impl GlobalSection {
 }
 
 impl Encode for GlobalSection {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+    fn encode(&self, sink: &mut Vec<u8>) {
         encode_section(sink, SectionId::Global, self.num_added, &self.bytes);
     }
 }
@@ -83,10 +80,8 @@ pub struct GlobalType {
 }
 
 impl Encode for GlobalType {
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend([self.val_type.into(), self.mutable as u8]);
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(self.val_type.into());
+        sink.push(self.mutable as u8);
     }
 }
