@@ -338,18 +338,6 @@ impl Encode for Index<'_> {
     }
 }
 
-impl<T> Encode for IndexOrRef<'_, T> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.0.encode(e);
-    }
-}
-
-impl<T> Encode for ItemRef<'_, T> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.idx.encode(e);
-    }
-}
-
 impl<'a> Encode for TableType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.elem.encode(e);
@@ -445,8 +433,8 @@ impl Encode for Global<'_> {
 impl Encode for Export<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.name.encode(e);
-        self.index.kind.encode(e);
-        self.index.encode(e);
+        self.kind.encode(e);
+        self.item.encode(e);
     }
 }
 
@@ -468,11 +456,7 @@ impl Encode for Elem<'_> {
         match (&self.kind, &self.payload) {
             (
                 ElemKind::Active {
-                    table:
-                        ItemRef {
-                            idx: Index::Num(0, _),
-                            ..
-                        },
+                    table: Index::Num(0, _),
                     offset,
                 },
                 ElemPayload::Indices(_),
@@ -492,11 +476,7 @@ impl Encode for Elem<'_> {
             }
             (
                 ElemKind::Active {
-                    table:
-                        ItemRef {
-                            idx: Index::Num(0, _),
-                            ..
-                        },
+                    table: Index::Num(0, _),
                     offset,
                 },
                 ElemPayload::Exprs {
@@ -553,13 +533,16 @@ impl Encode for Data<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.kind {
             DataKind::Passive => e.push(0x01),
+            DataKind::Active {
+                memory: Index::Num(0, _),
+                offset,
+            } => {
+                e.push(0x00);
+                offset.encode(e);
+            }
             DataKind::Active { memory, offset } => {
-                if let Index::Num(0, _) = memory.idx {
-                    e.push(0x00);
-                } else {
-                    e.push(0x02);
-                    memory.encode(e);
-                }
+                e.push(0x02);
+                memory.encode(e);
                 offset.encode(e);
             }
         }
@@ -615,11 +598,7 @@ impl Encode for Expression<'_> {
 impl Encode for BlockType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         // block types using an index are encoded as an sleb, not a uleb
-        if let Some(ItemRef {
-            idx: Index::Num(n, _),
-            ..
-        }) = &self.ty.index
-        {
+        if let Some(Index::Num(n, _)) = &self.ty.index {
             return i64::from(*n).encode(e);
         }
         let ty = self
@@ -658,7 +637,7 @@ impl Encode for LaneArg {
 
 impl Encode for MemArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match &self.memory.idx {
+        match &self.memory {
             Index::Num(0, _) => {
                 self.align.trailing_zeros().encode(e);
                 self.offset.encode(e);

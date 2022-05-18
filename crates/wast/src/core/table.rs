@@ -1,7 +1,7 @@
 use crate::core::*;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
-use crate::token::{Id, Index, IndexOrRef, ItemRef, LParen, NameAnnotation, Span};
+use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
 /// A WebAssembly `table` directive in a module.
 #[derive(Debug)]
@@ -116,7 +116,7 @@ pub enum ElemKind<'a> {
     /// An active segment associated with a table.
     Active {
         /// The table this `elem` is initializing.
-        table: ItemRef<'a, kw::table>,
+        table: Index<'a>,
         /// The offset within `table` that we'll initialize at.
         offset: Expression<'a>,
     },
@@ -126,7 +126,7 @@ pub enum ElemKind<'a> {
 #[derive(Debug)]
 pub enum ElemPayload<'a> {
     /// This element segment has a contiguous list of function indices
-    Indices(Vec<ItemRef<'a, kw::func>>),
+    Indices(Vec<Index<'a>>),
 
     /// This element segment has a list of optional function indices,
     /// represented as expressions using `ref.func` and `ref.null`.
@@ -144,15 +144,23 @@ impl<'a> Parse<'a> for Elem<'a> {
         let id = parser.parse()?;
         let name = parser.parse()?;
 
-        let kind = if parser.peek::<u32>() || (parser.peek::<LParen>() && !parser.peek::<RefType>())
-        {
-            let table = if let Some(index) = parser.parse::<Option<IndexOrRef<_>>>()? {
-                index.0
+        let kind = if parser.peek::<kw::declare>() {
+            parser.parse::<kw::declare>()?;
+            ElemKind::Declared
+        } else if parser.peek::<u32>() || (parser.peek::<LParen>() && !parser.peek::<RefType>()) {
+            let table = if parser.peek::<u32>() {
+                // FIXME: this is only here to accomodate
+                // proposals/threads/imports.wast at this current moment in
+                // time, this probably should get removed when the threads
+                // proposal is rebased on the current spec.
+                Index::Num(parser.parse()?, span)
+            } else if parser.peek2::<kw::table>() {
+                parser.parens(|p| {
+                    p.parse::<kw::table>()?;
+                    p.parse()
+                })?
             } else {
-                ItemRef {
-                    kind: kw::table(parser.prev_span()),
-                    idx: Index::Num(0, span),
-                }
+                Index::Num(0, span)
             };
             let offset = parser.parens(|parser| {
                 if parser.peek::<kw::offset>() {
@@ -161,9 +169,6 @@ impl<'a> Parse<'a> for Elem<'a> {
                 parser.parse()
             })?;
             ElemKind::Active { table, offset }
-        } else if parser.peek::<kw::declare>() {
-            parser.parse::<kw::declare>()?;
-            ElemKind::Declared
         } else {
             ElemKind::Passive
         };
@@ -194,10 +199,10 @@ impl<'a> ElemPayload<'a> {
             Some(ty) => (false, ty),
         };
         if let HeapType::Func = ty.heap {
-            if must_use_indices || parser.peek::<IndexOrRef<kw::func>>() {
+            if must_use_indices || parser.peek::<Index<'_>>() {
                 let mut elems = Vec::new();
                 while !parser.is_empty() {
-                    elems.push(parser.parse::<IndexOrRef<_>>()?.0);
+                    elems.push(parser.parse()?);
                 }
                 return Ok(ElemPayload::Indices(elems));
             }

@@ -251,36 +251,6 @@ impl<'a, K: Peek> Peek for ItemRef<'a, K> {
     }
 }
 
-/// Convenience structure to parse `$f` or `(item $f)`.
-#[derive(Clone, Debug)]
-pub struct IndexOrRef<'a, K>(pub ItemRef<'a, K>);
-
-impl<'a, K> Parse<'a> for IndexOrRef<'a, K>
-where
-    K: Parse<'a> + Default,
-{
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<Index<'_>>() {
-            Ok(IndexOrRef(ItemRef {
-                kind: K::default(),
-                idx: parser.parse()?,
-            }))
-        } else {
-            Ok(IndexOrRef(parser.parse()?))
-        }
-    }
-}
-
-impl<'a, K: Peek> Peek for IndexOrRef<'a, K> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        Index::peek(cursor) || ItemRef::<K>::peek(cursor)
-    }
-
-    fn display() -> &'static str {
-        "an item reference"
-    }
-}
-
 /// An `@name` annotation in source, currently of the form `@name "foo"`
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct NameAnnotation<'a> {

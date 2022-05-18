@@ -1,6 +1,6 @@
 use crate::core::*;
 use crate::parser::{Parse, Parser, Result};
-use crate::token::{Id, IndexOrRef, ItemRef, NameAnnotation, Span};
+use crate::token::{Id, Index, NameAnnotation, Span};
 use crate::{annotation, kw};
 
 pub use crate::core::resolve::Names;
@@ -145,7 +145,7 @@ pub enum ModuleField<'a> {
     Memory(Memory<'a>),
     Global(Global<'a>),
     Export(Export<'a>),
-    Start(ItemRef<'a, kw::func>),
+    Start(Index<'a>),
     Elem(Elem<'a>),
     Data(Data<'a>),
     Tag(Tag<'a>),
@@ -187,7 +187,7 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         }
         if parser.peek::<kw::start>() {
             parser.parse::<kw::start>()?;
-            return Ok(ModuleField::Start(parser.parse::<IndexOrRef<_>>()?.0));
+            return Ok(ModuleField::Start(parser.parse()?));
         }
         if parser.peek::<kw::elem>() {
             return Ok(ModuleField::Elem(parser.parse()?));

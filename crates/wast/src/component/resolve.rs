@@ -669,7 +669,7 @@ fn resolve_moduletype(ty: &mut ModuleType<'_>) -> Result<(), Error> {
         match &mut sig.kind {
             core::ItemKind::Func(ty) | core::ItemKind::Tag(core::TagType::Exception(ty)) => {
                 let idx = ty.index.as_mut().expect("index should be filled in");
-                names.resolve(&mut idx.idx, "type")?;
+                names.resolve(idx, "type")?;
             }
             core::ItemKind::Memory(_) | core::ItemKind::Global(_) | core::ItemKind::Table(_) => {}
         }

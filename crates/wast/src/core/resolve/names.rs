@@ -1,7 +1,7 @@
 use crate::core::resolve::Ns;
 use crate::core::*;
 use crate::names::{resolve_error, Namespace};
-use crate::token::{Id, Index, ItemRef};
+use crate::token::{Id, Index};
 use crate::Error;
 
 pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
@@ -174,7 +174,7 @@ impl<'a> Resolver<'a> {
             ModuleField::Elem(e) => {
                 match &mut e.kind {
                     ElemKind::Active { table, offset } => {
-                        self.resolve_item_ref(table)?;
+                        self.resolve(table, Ns::Table)?;
                         self.resolve_expr(offset)?;
                     }
                     ElemKind::Passive { .. } | ElemKind::Declared { .. } => {}
@@ -182,7 +182,7 @@ impl<'a> Resolver<'a> {
                 match &mut e.payload {
                     ElemPayload::Indices(elems) => {
                         for idx in elems {
-                            self.resolve_item_ref(idx)?;
+                            self.resolve(idx, Ns::Func)?;
                         }
                     }
                     ElemPayload::Exprs { exprs, ty } => {
@@ -197,19 +197,29 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Data(d) => {
                 if let DataKind::Active { memory, offset } = &mut d.kind {
-                    self.resolve_item_ref(memory)?;
+                    self.resolve(memory, Ns::Memory)?;
                     self.resolve_expr(offset)?;
                 }
                 Ok(())
             }
 
             ModuleField::Start(i) => {
-                self.resolve_item_ref(i)?;
+                self.resolve(i, Ns::Func)?;
                 Ok(())
             }
 
             ModuleField::Export(e) => {
-                self.resolve_item_ref(&mut e.index)?;
+                self.resolve(
+                    &mut e.item,
+                    match e.kind {
+                        ExportKind::Func => Ns::Func,
+                        ExportKind::Table => Ns::Table,
+                        ExportKind::Memory => Ns::Memory,
+                        ExportKind::Global => Ns::Global,
+                        ExportKind::Tag => Ns::Tag,
+                        ExportKind::Type => Ns::Type,
+                    },
+                )?;
                 Ok(())
             }
 
@@ -292,7 +302,7 @@ impl<'a> Resolver<'a> {
         T: TypeReference<'a>,
     {
         let idx = ty.index.as_mut().unwrap();
-        let idx = self.resolve_item_ref(idx)?;
+        self.resolve(idx, Ns::Type)?;
 
         // If the type was listed inline *and* it was specified via a type index
         // we need to assert they're the same.
@@ -320,24 +330,6 @@ impl<'a> Resolver<'a> {
             Ns::Tag => self.tags.resolve(idx, "tag"),
             Ns::Type => self.types.resolve(idx, "type"),
         }
-    }
-
-    fn resolve_item_ref<'b, K>(&self, item: &'b mut ItemRef<'a, K>) -> Result<&'b Index<'a>, Error>
-    where
-        K: Into<ExportKind> + Copy,
-    {
-        self.resolve(
-            &mut item.idx,
-            match item.kind.into() {
-                ExportKind::Func => Ns::Func,
-                ExportKind::Table => Ns::Table,
-                ExportKind::Global => Ns::Global,
-                ExportKind::Memory => Ns::Memory,
-                ExportKind::Tag => Ns::Tag,
-                ExportKind::Type => Ns::Type,
-            },
-        )?;
-        Ok(&mut item.idx)
     }
 }
 
@@ -429,20 +421,20 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         use Instruction::*;
 
         if let Some(m) = instr.memarg_mut() {
-            self.resolver.resolve_item_ref(&mut m.memory)?;
+            self.resolver.resolve(&mut m.memory, Ns::Memory)?;
         }
 
         match instr {
             MemorySize(i) | MemoryGrow(i) | MemoryFill(i) => {
-                self.resolver.resolve_item_ref(&mut i.mem)?;
+                self.resolver.resolve(&mut i.mem, Ns::Memory)?;
             }
             MemoryInit(i) => {
                 self.resolver.datas.resolve(&mut i.data, "data")?;
-                self.resolver.resolve_item_ref(&mut i.mem)?;
+                self.resolver.resolve(&mut i.mem, Ns::Memory)?;
             }
             MemoryCopy(i) => {
-                self.resolver.resolve_item_ref(&mut i.src)?;
-                self.resolver.resolve_item_ref(&mut i.dst)?;
+                self.resolver.resolve(&mut i.src, Ns::Memory)?;
+                self.resolver.resolve(&mut i.dst, Ns::Memory)?;
             }
             DataDrop(i) => {
                 self.resolver.datas.resolve(i, "data")?;
@@ -450,23 +442,23 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             TableInit(i) => {
                 self.resolver.elems.resolve(&mut i.elem, "elem")?;
-                self.resolver.resolve_item_ref(&mut i.table)?;
+                self.resolver.resolve(&mut i.table, Ns::Table)?;
             }
             ElemDrop(i) => {
                 self.resolver.elems.resolve(i, "elem")?;
             }
 
             TableCopy(i) => {
-                self.resolver.resolve_item_ref(&mut i.dst)?;
-                self.resolver.resolve_item_ref(&mut i.src)?;
+                self.resolver.resolve(&mut i.dst, Ns::Table)?;
+                self.resolver.resolve(&mut i.src, Ns::Table)?;
             }
 
             TableFill(i) | TableSet(i) | TableGet(i) | TableSize(i) | TableGrow(i) => {
-                self.resolver.resolve_item_ref(&mut i.dst)?;
+                self.resolver.resolve(&mut i.dst, Ns::Table)?;
             }
 
             GlobalSet(i) | GlobalGet(i) => {
-                self.resolver.resolve_item_ref(&mut i.0)?;
+                self.resolver.resolve(i, Ns::Global)?;
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
@@ -490,11 +482,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             Call(i) | RefFunc(i) | ReturnCall(i) => {
-                self.resolver.resolve_item_ref(&mut i.0)?;
+                self.resolver.resolve(i, Ns::Func)?;
             }
 
             CallIndirect(c) | ReturnCallIndirect(c) => {
-                self.resolver.resolve_item_ref(&mut c.table)?;
+                self.resolver.resolve(&mut c.table, Ns::Table)?;
                 self.resolver.resolve_type_use(&mut c.ty)?;
             }
 

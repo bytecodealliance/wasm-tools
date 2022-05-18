@@ -1,7 +1,7 @@
 use crate::core::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, Index, ItemRef, LParen, NameAnnotation, Span};
+use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 use std::mem;
 
 /// The value types for a wasm module.
@@ -680,7 +680,7 @@ impl<'a> Parse<'a> for Type<'a> {
 #[derive(Clone, Debug)]
 pub struct TypeUse<'a, T> {
     /// The type that we're referencing, if it was present.
-    pub index: Option<ItemRef<'a, kw::r#type>>,
+    pub index: Option<Index<'a>>,
     /// The inline type, if present.
     pub inline: Option<T>,
 }
@@ -690,10 +690,7 @@ impl<'a, T> TypeUse<'a, T> {
     /// with an index specified.
     pub fn new_with_index(idx: Index<'a>) -> TypeUse<'a, T> {
         TypeUse {
-            index: Some(ItemRef {
-                idx,
-                kind: kw::r#type::default(),
-            }),
+            index: Some(idx),
             inline: None,
         }
     }
@@ -702,7 +699,10 @@ impl<'a, T> TypeUse<'a, T> {
 impl<'a, T: Peek + Parse<'a>> Parse<'a> for TypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let index = if parser.peek2::<kw::r#type>() {
-            Some(parser.parse()?)
+            Some(parser.parens(|p| {
+                p.parse::<kw::r#type>()?;
+                p.parse()
+            })?)
         } else {
             None
         };

@@ -1,7 +1,6 @@
 use crate::core::*;
 use crate::gensym;
-use crate::kw;
-use crate::token::{Id, Index, ItemRef, Span};
+use crate::token::{Id, Index, Span};
 use std::mem;
 
 pub fn run(fields: &mut Vec<ModuleField>) {
@@ -82,7 +81,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             id: None,
                             name: None,
                             kind: DataKind::Active {
-                                memory: item_ref(kw::memory(m.span), id),
+                                memory: Index::Id(id),
                                 offset: Expression {
                                     instrs: Box::new([if is_32 {
                                         Instruction::I32Const(0)
@@ -141,7 +140,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             id: None,
                             name: None,
                             kind: ElemKind::Active {
-                                table: item_ref(kw::table(t.span), id),
+                                table: Index::Id(id),
                                 offset: Expression {
                                     instrs: Box::new([Instruction::I32Const(0)]),
                                 },
@@ -228,13 +227,7 @@ fn export<'a>(
     ModuleField::Export(Export {
         span,
         name,
-        index: item_ref(kind, id),
-    })
-}
-
-fn item_ref<'a, K>(kind: K, id: impl Into<Index<'a>>) -> ItemRef<'a, K> {
-    ItemRef {
         kind,
-        idx: id.into(),
-    }
+        item: Index::Id(id),
+    })
 }
