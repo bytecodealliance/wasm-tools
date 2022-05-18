@@ -413,7 +413,7 @@ impl<'a> Expander<'a> {
         }
         // And if this type isn't already defined we append it to the index
         // space with a fresh and unique name.
-        let span = Span::from_offset(0); // FIXME: don't manufacture
+        let span = Span::from_offset(0); // FIXME(#613): don't manufacture
         let id = gensym::gen(span);
         self.to_prepend.push(TypeField {
             span,
@@ -432,7 +432,7 @@ impl<'a> Expander<'a> {
     where
         T: TypeReference<'a>,
     {
-        let span = Span::from_offset(0); // FIXME: don't manufacture
+        let span = Span::from_offset(0); // FIXME(#613): don't manufacture
         let dummy = ComponentTypeUse::Ref(ItemRef {
             idx: Index::Num(0, span),
             kind: kw::r#type(span),
