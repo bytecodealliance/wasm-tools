@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encoders, Encode, Section, SectionId};
 
 /// An encoder for the start section of WebAssembly modules.
 ///
@@ -25,17 +25,13 @@ pub struct StartSection {
     pub function_index: u32,
 }
 
-impl Section for StartSection {
-    fn id(&self) -> u8 {
-        SectionId::Start.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+impl Encode for StartSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let f = encoders::u32(self.function_index);
-        let n = f.len();
-        sink.extend(encoders::u32(n as u32).chain(f));
+        sink.push(SectionId::Start.into());
+        sink.extend(encoders::u32(f.len() as u32));
+        sink.extend(f);
     }
 }
+
+impl Section for StartSection {}

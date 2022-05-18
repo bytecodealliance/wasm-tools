@@ -1,4 +1,4 @@
-use crate::{encoders, Instruction, Section, SectionId};
+use crate::{encode_section, encoders, Encode, Instruction, Section, SectionId};
 
 /// An encoder for the data section.
 ///
@@ -154,24 +154,13 @@ impl DataSection {
     }
 }
 
-impl Section for DataSection {
-    fn id(&self) -> u8 {
-        SectionId::Data.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for DataSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, SectionId::Data, self.num_added, &self.bytes);
     }
 }
+
+impl Section for DataSection {}
 
 /// An encoder for the data count section.
 #[derive(Clone, Copy, Debug)]
@@ -180,17 +169,13 @@ pub struct DataCountSection {
     pub count: u32,
 }
 
-impl Section for DataCountSection {
-    fn id(&self) -> u8 {
-        SectionId::DataCount.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
+impl Encode for DataCountSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let count = encoders::u32(self.count);
-        let n = count.len();
-        sink.extend(encoders::u32(u32::try_from(n).unwrap()).chain(count));
+        sink.push(SectionId::DataCount.into());
+        sink.extend(encoders::u32(u32::try_from(count.len()).unwrap()));
+        sink.extend(count);
     }
 }
+
+impl Section for DataCountSection {}

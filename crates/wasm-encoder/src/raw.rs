@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, Section};
+use crate::{encoders, ComponentSection, Encode, Section};
 
 /// A section made up of uninterpreted, raw bytes.
 ///
@@ -11,32 +11,13 @@ pub struct RawSection<'a> {
     pub data: &'a [u8],
 }
 
-impl Section for RawSection<'_> {
-    fn id(&self) -> u8 {
-        self.id
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(
-            encoders::u32(u32::try_from(self.data.len()).unwrap()).chain(self.data.iter().copied()),
-        );
+impl Encode for RawSection<'_> {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(self.id);
+        sink.extend(encoders::u32(u32::try_from(self.data.len()).unwrap()));
+        sink.extend(self.data);
     }
 }
 
-impl ComponentSection for RawSection<'_> {
-    fn id(&self) -> u8 {
-        self.id
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        sink.extend(
-            encoders::u32(u32::try_from(self.data.len()).unwrap()).chain(self.data.iter().copied()),
-        );
-    }
-}
+impl Section for RawSection<'_> {}
+impl ComponentSection for RawSection<'_> {}

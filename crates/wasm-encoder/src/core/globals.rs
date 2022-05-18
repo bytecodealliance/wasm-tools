@@ -1,4 +1,4 @@
-use crate::{encoders, Instruction, Section, SectionId, ValType};
+use crate::{encode_section, Encode, Instruction, Section, SectionId, ValType};
 
 /// An encoder for the global section.
 ///
@@ -62,24 +62,13 @@ impl GlobalSection {
     }
 }
 
-impl Section for GlobalSection {
-    fn id(&self) -> u8 {
-        SectionId::Global.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for GlobalSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, SectionId::Global, self.num_added, &self.bytes);
     }
 }
+
+impl Section for GlobalSection {}
 
 /// A global's type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -90,9 +79,9 @@ pub struct GlobalType {
     pub mutable: bool,
 }
 
-impl GlobalType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.push(self.val_type.into());
-        bytes.push(self.mutable as u8);
+impl Encode for GlobalType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(self.val_type.into());
+        sink.push(self.mutable as u8);
     }
 }

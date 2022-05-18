@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encoders, CustomSection, Encode, Section};
 
 /// An encoder for the custom `name` section.
 ///
@@ -153,25 +153,17 @@ impl NameSection {
     }
 }
 
-impl Section for NameSection {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let name_len = encoders::u32(4);
-        let n = name_len.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + 4 + self.bytes.len()).unwrap())
-                .chain(name_len)
-                .chain(b"name".iter().copied())
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for NameSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        CustomSection {
+            name: "name",
+            data: &self.bytes,
+        }
+        .encode(sink);
     }
 }
+
+impl Section for NameSection {}
 
 /// A map used to name items in a wasm module, organized by naming each
 /// individual index.
@@ -210,10 +202,12 @@ impl NameMap {
     fn size(&self) -> usize {
         encoders::u32(self.count).len() + self.bytes.len()
     }
+}
 
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend(encoders::u32(self.count));
-        dst.extend(&self.bytes);
+impl Encode for NameMap {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.count));
+        sink.extend(&self.bytes);
     }
 }
 
@@ -250,9 +244,11 @@ impl IndirectNameMap {
     fn size(&self) -> usize {
         encoders::u32(self.count).len() + self.bytes.len()
     }
+}
 
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend(encoders::u32(self.count));
-        dst.extend(&self.bytes);
+impl Encode for IndirectNameMap {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(encoders::u32(self.count));
+        sink.extend(&self.bytes);
     }
 }

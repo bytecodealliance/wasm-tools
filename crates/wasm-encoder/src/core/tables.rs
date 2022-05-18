@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId, ValType};
+use crate::{encode_section, encoders, Encode, Section, SectionId, ValType};
 
 /// An encoder for the table section.
 ///
@@ -51,24 +51,13 @@ impl TableSection {
     }
 }
 
-impl Section for TableSection {
-    fn id(&self) -> u8 {
-        SectionId::Table.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for TableSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, SectionId::Table, self.num_added, &self.bytes);
     }
 }
+
+impl Section for TableSection {}
 
 /// A table's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,17 +70,19 @@ pub struct TableType {
     pub maximum: Option<u32>,
 }
 
-impl TableType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        bytes.push(self.element_type.into());
+impl Encode for TableType {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
         }
-        bytes.push(flags);
-        bytes.extend(encoders::u32(self.minimum));
+
+        sink.push(self.element_type.into());
+        sink.push(flags);
+        sink.extend(encoders::u32(self.minimum));
+
         if let Some(max) = self.maximum {
-            bytes.extend(encoders::u32(max));
+            sink.extend(encoders::u32(max));
         }
     }
 }

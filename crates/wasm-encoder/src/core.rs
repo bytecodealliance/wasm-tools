@@ -28,20 +28,14 @@ pub use tables::*;
 pub use tags::*;
 pub use types::*;
 
+use crate::Encode;
+
 /// A WebAssembly module section.
 ///
 /// Various builders defined in this crate already implement this trait, but you
 /// can also implement it yourself for your own custom section builders, or use
 /// `RawSection` to use a bunch of raw bytes as a section.
-pub trait Section {
-    /// Gets the section's identifier.
-    fn id(&self) -> u8;
-
-    /// Write this section's header and data into the given sink.
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>;
-}
+pub trait Section: Encode {}
 
 /// Known section identifiers of WebAssembly modules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -86,7 +80,11 @@ impl From<SectionId> for u8 {
     }
 }
 
-/// A Wasm module that is being encoded.
+/// Represents a WebAssembly component that is being encoded.
+///
+/// Sections within a WebAssembly module are encoded in a specific order.
+///
+/// Modules may also added as a section to a WebAssembly component.
 #[derive(Clone, Debug)]
 pub struct Module {
     pub(crate) bytes: Vec<u8>,
@@ -115,7 +113,6 @@ impl Module {
     /// to use this crate to easily construct test cases for bad Wasm module
     /// encodings.
     pub fn section(&mut self, section: &impl Section) -> &mut Self {
-        self.bytes.push(section.id());
         section.encode(&mut self.bytes);
         self
     }

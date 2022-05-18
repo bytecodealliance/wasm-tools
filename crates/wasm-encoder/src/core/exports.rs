@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encode_section, encoders, Encode, Section, SectionId};
 
 /// Represents an export from a WebAssembly module.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -17,9 +17,9 @@ pub enum Export {
     Tag(u32),
 }
 
-impl Export {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        let (ty, index) = match self {
+impl Encode for Export {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let (kind, index) = match self {
             Self::Function(i) => (0x00, *i),
             Self::Table(i) => (0x01, *i),
             Self::Memory(i) => (0x02, *i),
@@ -27,8 +27,8 @@ impl Export {
             Self::Tag(i) => (0x04, *i),
         };
 
-        bytes.push(ty);
-        bytes.extend(encoders::u32(index));
+        sink.push(kind);
+        sink.extend(encoders::u32(index));
     }
 }
 
@@ -78,21 +78,10 @@ impl ExportSection {
     }
 }
 
-impl Section for ExportSection {
-    fn id(&self) -> u8 {
-        SectionId::Export.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for ExportSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, SectionId::Export, self.num_added, &self.bytes);
     }
 }
+
+impl Section for ExportSection {}

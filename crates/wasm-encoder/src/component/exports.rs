@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentArg, ComponentSection, ComponentSectionId};
+use crate::{encode_section, encoders, ComponentArg, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents an export for a WebAssembly component.
 pub type ComponentExport = ComponentArg;
@@ -50,21 +50,15 @@ impl ComponentExportSection {
     }
 }
 
-impl ComponentSection for ComponentExportSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::Export.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
+impl Encode for ComponentExportSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(
+            sink,
+            ComponentSectionId::Export,
+            self.num_added,
+            &self.bytes,
         );
     }
 }
+
+impl ComponentSection for ComponentExportSection {}

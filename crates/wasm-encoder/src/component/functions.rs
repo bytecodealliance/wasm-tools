@@ -1,9 +1,4 @@
-use crate::{encoders, ComponentSection, ComponentSectionId};
-
-const CANONICAL_OPTION_UTF8: u8 = 0x00;
-const CANONICAL_OPTION_UTF16: u8 = 0x01;
-const CANONICAL_OPTION_COMPACT_UTF16: u8 = 0x02;
-const CANONICAL_OPTION_INTO: u8 = 0x03;
+use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents options for component functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,15 +17,15 @@ pub enum CanonicalOption {
     Into(u32),
 }
 
-impl CanonicalOption {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for CanonicalOption {
+    fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            Self::UTF8 => bytes.push(CANONICAL_OPTION_UTF8),
-            Self::UTF16 => bytes.push(CANONICAL_OPTION_UTF16),
-            Self::CompactUTF16 => bytes.push(CANONICAL_OPTION_COMPACT_UTF16),
+            Self::UTF8 => sink.push(0x00),
+            Self::UTF16 => sink.push(0x01),
+            Self::CompactUTF16 => sink.push(0x02),
             Self::Into(index) => {
-                bytes.push(CANONICAL_OPTION_INTO);
-                bytes.extend(encoders::u32(*index));
+                sink.push(0x03);
+                sink.extend(encoders::u32(*index));
             }
         }
     }
@@ -111,21 +106,15 @@ impl ComponentFunctionSection {
     }
 }
 
-impl ComponentSection for ComponentFunctionSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::Function.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
+impl Encode for ComponentFunctionSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(
+            sink,
+            ComponentSectionId::Function,
+            self.num_added,
+            &self.bytes,
         );
     }
 }
+
+impl ComponentSection for ComponentFunctionSection {}

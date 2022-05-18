@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, ComponentSectionId};
+use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents the expected export kind for an alias.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,8 +25,8 @@ pub enum AliasExportKind {
     Tag,
 }
 
-impl AliasExportKind {
-    fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for AliasExportKind {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let (preamble, value) = match self {
             AliasExportKind::Module => (0x00, 0x00),
             AliasExportKind::Component => (0x00, 0x01),
@@ -40,8 +40,8 @@ impl AliasExportKind {
             AliasExportKind::Tag => (0x01, 0x04),
         };
 
-        bytes.push(preamble);
-        bytes.push(value);
+        sink.push(preamble);
+        sink.push(value);
     }
 }
 
@@ -134,21 +134,10 @@ impl AliasSection {
     }
 }
 
-impl ComponentSection for AliasSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::Alias.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for AliasSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, ComponentSectionId::Alias, self.num_added, &self.bytes);
     }
 }
+
+impl ComponentSection for AliasSection {}

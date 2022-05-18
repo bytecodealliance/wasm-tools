@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encode_section, encoders, Encode, Section, SectionId};
 
 /// An encoder for the function section of WebAssembly modules.
 ///
@@ -50,21 +50,10 @@ impl FunctionSection {
     }
 }
 
-impl Section for FunctionSection {
-    fn id(&self) -> u8 {
-        SectionId::Function.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for FunctionSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, SectionId::Function, self.num_added, &self.bytes);
     }
 }
+
+impl Section for FunctionSection {}

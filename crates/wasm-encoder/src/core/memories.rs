@@ -1,4 +1,4 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encode_section, encoders, Encode, Section, SectionId};
 
 /// An encoder for the memory section.
 ///
@@ -51,24 +51,13 @@ impl MemorySection {
     }
 }
 
-impl Section for MemorySection {
-    fn id(&self) -> u8 {
-        SectionId::Memory.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
+impl Encode for MemorySection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, SectionId::Memory, self.num_added, &self.bytes);
     }
 }
+
+impl Section for MemorySection {}
 
 /// A memory's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,8 +70,8 @@ pub struct MemoryType {
     pub memory64: bool,
 }
 
-impl MemoryType {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
+impl Encode for MemoryType {
+    fn encode(&self, sink: &mut Vec<u8>) {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
@@ -90,10 +79,11 @@ impl MemoryType {
         if self.memory64 {
             flags |= 0b100;
         }
-        bytes.push(flags);
-        bytes.extend(encoders::u64(self.minimum));
+
+        sink.push(flags);
+        sink.extend(encoders::u64(self.minimum));
         if let Some(max) = self.maximum {
-            bytes.extend(encoders::u64(max));
+            sink.extend(encoders::u64(max));
         }
     }
 }

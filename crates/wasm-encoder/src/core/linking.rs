@@ -1,5 +1,7 @@
-use crate::{encoders, Section, SectionId};
+use crate::{encode_section, encoders, CustomSection, Encode, Section};
 use std::convert::TryInto;
+
+const VERSION: u32 = 2;
 
 /// An encoder for the [linking custom
 /// section](https://github.com/WebAssembly/tool-conventions/blob/master/Linking.md#linking-metadata-section).
@@ -36,7 +38,7 @@ use std::convert::TryInto;
 /// module.section(&linking);
 /// let wasm_bytes = module.finish();
 /// ```
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct LinkingSection {
     bytes: Vec<u8>,
 }
@@ -60,31 +62,25 @@ impl LinkingSection {
     }
 }
 
-impl Section for LinkingSection {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let name_len = encoders::u32(u32::try_from("linking".len()).unwrap());
-        let name_len_len = name_len.len();
-
-        let version = 2;
-
-        sink.extend(
-            encoders::u32(
-                u32::try_from(name_len_len + "linking".len() + 1 + self.bytes.len()).unwrap(),
-            )
-            .chain(name_len)
-            .chain(b"linking".iter().copied())
-            .chain(encoders::u32(version))
-            .chain(self.bytes.iter().copied()),
-        );
+impl Default for LinkingSection {
+    fn default() -> Self {
+        let mut bytes = Vec::new();
+        bytes.extend(encoders::u32(VERSION));
+        Self { bytes }
     }
 }
+
+impl Encode for LinkingSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        CustomSection {
+            name: "linking",
+            data: &self.bytes,
+        }
+        .encode(sink);
+    }
+}
+
+impl Section for LinkingSection {}
 
 #[allow(unused)]
 const WASM_SEGMENT_INFO: u8 = 5;
@@ -209,21 +205,6 @@ impl SymbolTable {
 
     // TODO: sections
 
-    fn encode(&self, bytes: &mut Vec<u8>) {
-        let num_added = encoders::u32(self.num_added);
-        let num_added_len = num_added.len();
-        let payload_len = num_added_len + self.bytes.len();
-        bytes.extend(
-            std::iter::once(WASM_SYMBOL_TABLE)
-                .chain(encoders::u32(payload_len.try_into().unwrap()))
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
-        );
-    }
-}
-
-/// # Symbol definition flags.
-impl SymbolTable {
     /// This is a weak symbol.
     ///
     /// This flag is mutually exclusive with `WASM_SYM_BINDING_LOCAL`.
@@ -273,6 +254,12 @@ impl SymbolTable {
     /// This symbol is intended to be included in the linker output, regardless
     /// of whether it is used by the program.
     pub const WASM_SYM_NO_STRIP: u32 = 0x80;
+}
+
+impl Encode for SymbolTable {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, WASM_SYMBOL_TABLE, self.num_added, &self.bytes);
+    }
 }
 
 /// The definition of a data symbol within a symbol table.

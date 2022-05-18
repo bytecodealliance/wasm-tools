@@ -1,4 +1,6 @@
-use crate::{encoders, ComponentExport, ComponentSection, ComponentSectionId};
+use crate::{
+    encode_section, encoders, ComponentExport, ComponentSection, ComponentSectionId, Encode,
+};
 
 /// Represents an argument to instantiating a WebAssembly module.
 #[derive(Debug, Clone)]
@@ -7,12 +9,12 @@ pub enum ModuleArg {
     Instance(u32),
 }
 
-impl ModuleArg {
-    fn encode(self, bytes: &mut Vec<u8>) {
+impl Encode for ModuleArg {
+    fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Instance(index) => {
-                bytes.push(0x02);
-                bytes.extend(encoders::u32(index));
+                sink.push(0x02);
+                sink.extend(encoders::u32(*index));
             }
         }
     }
@@ -35,34 +37,19 @@ pub enum ComponentArg {
     Type(u32),
 }
 
-impl ComponentArg {
-    pub(crate) fn encode(&self, bytes: &mut Vec<u8>) {
-        match self {
-            Self::Module(index) => {
-                bytes.push(0x00);
-                bytes.extend(encoders::u32(*index));
-            }
-            Self::Component(index) => {
-                bytes.push(0x01);
-                bytes.extend(encoders::u32(*index));
-            }
-            Self::Instance(index) => {
-                bytes.push(0x02);
-                bytes.extend(encoders::u32(*index));
-            }
-            Self::Function(index) => {
-                bytes.push(0x03);
-                bytes.extend(encoders::u32(*index));
-            }
-            Self::Value(index) => {
-                bytes.push(0x04);
-                bytes.extend(encoders::u32(*index));
-            }
-            Self::Type(index) => {
-                bytes.push(0x05);
-                bytes.extend(encoders::u32(*index));
-            }
-        }
+impl Encode for ComponentArg {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let (kind, index) = match self {
+            Self::Module(index) => (0x00, *index),
+            Self::Component(index) => (0x01, *index),
+            Self::Instance(index) => (0x02, *index),
+            Self::Function(index) => (0x03, *index),
+            Self::Value(index) => (0x04, *index),
+            Self::Type(index) => (0x05, *index),
+        };
+
+        sink.push(kind);
+        sink.extend(encoders::u32(index));
     }
 }
 
@@ -189,21 +176,15 @@ impl InstanceSection {
     }
 }
 
-impl ComponentSection for InstanceSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::Instance.into()
-    }
-
-    fn encode<S>(&self, sink: &mut S)
-    where
-        S: Extend<u8>,
-    {
-        let num_added = encoders::u32(self.num_added);
-        let n = num_added.len();
-        sink.extend(
-            encoders::u32(u32::try_from(n + self.bytes.len()).unwrap())
-                .chain(num_added)
-                .chain(self.bytes.iter().copied()),
+impl Encode for InstanceSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(
+            sink,
+            ComponentSectionId::Instance,
+            self.num_added,
+            &self.bytes,
         );
     }
 }
+
+impl ComponentSection for InstanceSection {}

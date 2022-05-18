@@ -81,6 +81,23 @@ pub use self::custom::*;
 pub use self::raw::*;
 pub mod encoders;
 
+/// Implemented by types that can be encoded into a byte sink.
+pub trait Encode {
+    /// Encode the type into the given byte sink.
+    fn encode(&self, sink: &mut Vec<u8>);
+}
+
+fn encode_section(sink: &mut Vec<u8>, id: impl Into<u8>, count: u32, bytes: &[u8]) {
+    let count = encoders::u32(count);
+
+    sink.push(id.into());
+    sink.extend(encoders::u32(
+        u32::try_from(count.len() + bytes.len()).unwrap(),
+    ));
+    sink.extend(count);
+    sink.extend(bytes);
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -88,18 +105,12 @@ mod test {
     #[test]
     fn it_encodes_an_empty_module() {
         let bytes = Module::new().finish();
-        assert_eq!(
-            bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x01, 0x00, 0x00, 0x00]
-        );
+        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x01, 0x00, 0x00, 0x00]);
     }
 
     #[test]
     fn it_encodes_an_empty_component() {
         let bytes = Component::new().finish();
-        assert_eq!(
-            bytes,
-            [0x00, 'a' as u8, 's' as u8, 'm' as u8, 0x0a, 0x00, 0x01, 0x00]
-        );
+        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x0a, 0x00, 0x01, 0x00]);
     }
 }
