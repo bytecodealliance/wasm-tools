@@ -2369,9 +2369,7 @@ impl Printer {
         match ty {
             InterfaceTypeRef::Primitive(ty) => self.print_primitive_type(ty),
             InterfaceTypeRef::Type(idx) => {
-                self.result.push_str("(type ");
                 self.print_idx(&state.type_names, *idx)?;
-                self.result.push(')');
             }
         }
 

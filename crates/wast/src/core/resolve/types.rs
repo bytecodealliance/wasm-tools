@@ -188,7 +188,7 @@ impl<'a> Expander<'a> {
             }
             None => T::default().key(),
         };
-        let span = Span::from_offset(0); // FIXME: don't manufacture
+        let span = Span::from_offset(0); // FIXME(#613): don't manufacture
         let idx = self.key_to_idx(span, key);
         item.index = Some(idx);
         return idx;

@@ -305,54 +305,52 @@ fn resolve_intertype<'a, 'b>(
     resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
 ) -> Result<(), Error> {
     match ty {
-        InterType::Unit => {}
-        InterType::Bool => {}
-        InterType::U8 => {}
-        InterType::S8 => {}
-        InterType::U16 => {}
-        InterType::S16 => {}
-        InterType::U32 => {}
-        InterType::S32 => {}
-        InterType::U64 => {}
-        InterType::S64 => {}
-        InterType::Float32 => {}
-        InterType::Float64 => {}
-        InterType::String => {}
-        InterType::Char => {}
+        InterType::Primitive(_) => {}
         InterType::Flags(_) => {}
         InterType::Enum(_) => {}
         InterType::Record(r) => {
             for field in r.fields.iter_mut() {
-                resolve_type_use(&mut field.type_, resolve_stack)?;
+                resolve_intertype_ref(&mut field.type_, resolve_stack)?;
             }
         }
         InterType::Variant(v) => {
             for case in v.cases.iter_mut() {
-                resolve_type_use(&mut case.type_, resolve_stack)?;
+                resolve_intertype_ref(&mut case.type_, resolve_stack)?;
             }
         }
         InterType::List(l) => {
-            resolve_type_use(&mut *l.element, resolve_stack)?;
+            resolve_intertype_ref(&mut *l.element, resolve_stack)?;
         }
         InterType::Tuple(t) => {
             for field in t.fields.iter_mut() {
-                resolve_type_use(field, resolve_stack)?;
+                resolve_intertype_ref(field, resolve_stack)?;
             }
         }
         InterType::Union(t) => {
             for arm in t.arms.iter_mut() {
-                resolve_type_use(arm, resolve_stack)?;
+                resolve_intertype_ref(arm, resolve_stack)?;
             }
         }
         InterType::Option(o) => {
-            resolve_type_use(&mut *o.element, resolve_stack)?;
+            resolve_intertype_ref(&mut *o.element, resolve_stack)?;
         }
         InterType::Expected(r) => {
-            resolve_type_use(&mut *r.ok, resolve_stack)?;
-            resolve_type_use(&mut *r.err, resolve_stack)?;
+            resolve_intertype_ref(&mut *r.ok, resolve_stack)?;
+            resolve_intertype_ref(&mut *r.err, resolve_stack)?;
         }
     }
     Ok(())
+}
+
+fn resolve_intertype_ref<'a, 'b>(
+    ty: &'b mut InterTypeRef<'a>,
+    resolve_stack: &'b mut Vec<ComponentResolver<'a>>,
+) -> Result<(), Error> {
+    match ty {
+        InterTypeRef::Primitive(_) => Ok(()),
+        InterTypeRef::Ref(idx) => resolve_ns(idx, Ns::Type, resolve_stack),
+        InterTypeRef::Inline(_) => unreachable!("should be expanded by now"),
+    }
 }
 
 fn resolve_type_field<'a>(
@@ -362,9 +360,9 @@ fn resolve_type_field<'a>(
     match &mut field.def {
         ComponentTypeDef::DefType(DefType::Func(f)) => {
             for param in f.params.iter_mut() {
-                resolve_type_use(&mut param.type_, resolve_stack)?;
+                resolve_intertype_ref(&mut param.type_, resolve_stack)?;
             }
-            resolve_type_use(&mut f.result, resolve_stack)?;
+            resolve_intertype_ref(&mut f.result, resolve_stack)?;
         }
         ComponentTypeDef::DefType(DefType::Module(m)) => {
             resolve_stack.push(ComponentResolver::new(field.id));
@@ -382,7 +380,7 @@ fn resolve_type_field<'a>(
             resolve_stack.pop();
         }
         ComponentTypeDef::DefType(DefType::Value(v)) => {
-            resolve_type_use(&mut v.value_type, resolve_stack)?
+            resolve_intertype_ref(&mut v.value_type, resolve_stack)?
         }
         ComponentTypeDef::InterType(i) => resolve_intertype(i, resolve_stack)?,
     }

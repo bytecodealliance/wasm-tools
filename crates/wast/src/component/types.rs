@@ -55,10 +55,10 @@ impl<'a> Parse<'a> for TypeField<'a> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
-        let def = if parser.peek::<InterType>() {
-            ComponentTypeDef::InterType(parser.parse()?)
-        } else {
+        let def = if parser.peek2::<DefTypeKind>() {
             ComponentTypeDef::DefType(parser.parens(|p| p.parse())?)
+        } else {
+            ComponentTypeDef::InterType(parser.parse()?)
         };
         Ok(TypeField {
             span,
@@ -82,10 +82,8 @@ pub enum ComponentTypeUse<'a, T> {
 
 impl<'a, T: Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<IndexOrRef<'a, kw::r#type>>() {
-            Ok(ComponentTypeUse::Ref(
-                parser.parse::<IndexOrRef<kw::r#type>>()?.0,
-            ))
+        if parser.peek::<ItemRef<'a, kw::r#type>>() {
+            Ok(ComponentTypeUse::Ref(parser.parse()?))
         } else {
             Ok(ComponentTypeUse::Inline(parser.parse()?))
         }

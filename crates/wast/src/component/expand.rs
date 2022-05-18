@@ -247,9 +247,9 @@ impl<'a> Expander<'a> {
 
     fn expand_func_ty(&mut self, ty: &mut ComponentFunctionType<'a>) {
         for param in ty.params.iter_mut() {
-            self.expand_component_type_use(&mut param.type_);
+            self.expand_intertype_ref(&mut param.type_);
         }
-        self.expand_component_type_use(&mut ty.result);
+        self.expand_intertype_ref(&mut ty.result);
     }
 
     fn expand_module_ty(&mut self, ty: &mut ModuleType<'a>) {
@@ -352,58 +352,71 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_value_ty(&mut self, ty: &mut ValueType<'a>) {
-        self.expand_component_type_use(&mut ty.value_type);
+        self.expand_intertype_ref(&mut ty.value_type);
     }
 
     fn expand_intertype(&mut self, ty: &mut InterType<'a>) {
         match ty {
-            InterType::Unit
-            | InterType::Bool
-            | InterType::S8
-            | InterType::U8
-            | InterType::S16
-            | InterType::U16
-            | InterType::S32
-            | InterType::U32
-            | InterType::S64
-            | InterType::U64
-            | InterType::Float32
-            | InterType::Float64
-            | InterType::Char
-            | InterType::String
-            | InterType::Flags(_)
-            | InterType::Enum(_) => {}
+            InterType::Primitive(_) | InterType::Flags(_) | InterType::Enum(_) => {}
             InterType::Record(r) => {
                 for field in r.fields.iter_mut() {
-                    self.expand_component_type_use(&mut field.type_);
+                    self.expand_intertype_ref(&mut field.type_);
                 }
             }
             InterType::Variant(v) => {
                 for case in v.cases.iter_mut() {
-                    self.expand_component_type_use(&mut case.type_);
+                    self.expand_intertype_ref(&mut case.type_);
                 }
             }
             InterType::List(t) => {
-                self.expand_component_type_use(&mut t.element);
+                self.expand_intertype_ref(&mut t.element);
             }
             InterType::Tuple(t) => {
                 for field in t.fields.iter_mut() {
-                    self.expand_component_type_use(field);
+                    self.expand_intertype_ref(field);
                 }
             }
             InterType::Union(u) => {
                 for arm in u.arms.iter_mut() {
-                    self.expand_component_type_use(arm);
+                    self.expand_intertype_ref(arm);
                 }
             }
             InterType::Option(t) => {
-                self.expand_component_type_use(&mut t.element);
+                self.expand_intertype_ref(&mut t.element);
             }
             InterType::Expected(e) => {
-                self.expand_component_type_use(&mut e.ok);
-                self.expand_component_type_use(&mut e.err);
+                self.expand_intertype_ref(&mut e.ok);
+                self.expand_intertype_ref(&mut e.err);
             }
         }
+    }
+
+    fn expand_intertype_ref(&mut self, ty: &mut InterTypeRef<'a>) {
+        let inline = match ty {
+            InterTypeRef::Primitive(_) | InterTypeRef::Ref(_) => return,
+            InterTypeRef::Inline(inline) => {
+                mem::replace(inline, InterType::Primitive(Primitive::Unit))
+            }
+        };
+        // If this inline type has already been defined within this context
+        // then reuse the previously defined type to avoid injecting too many
+        // types into the type index space.
+        if let Some(idx) = inline.key().lookup(self) {
+            *ty = InterTypeRef::Ref(idx);
+            return;
+        }
+        // And if this type isn't already defined we append it to the index
+        // space with a fresh and unique name.
+        let span = Span::from_offset(0); // FIXME(#613): don't manufacture
+        let id = gensym::gen(span);
+        self.to_prepend.push(TypeField {
+            span,
+            id: Some(id),
+            name: None,
+            def: inline.into_def(),
+        });
+        let idx = Index::Id(id);
+        *ty = InterTypeRef::Ref(idx);
     }
 
     fn expand_component_type_use<T>(
@@ -413,7 +426,7 @@ impl<'a> Expander<'a> {
     where
         T: TypeReference<'a>,
     {
-        let span = Span::from_offset(0); // FIXME: don't manufacture
+        let span = Span::from_offset(0); // FIXME(#613): don't manufacture
         let dummy = ComponentTypeUse::Ref(ItemRef {
             idx: Index::Num(0, span),
             kind: kw::r#type(span),
