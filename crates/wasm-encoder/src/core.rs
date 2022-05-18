@@ -28,7 +28,7 @@ pub use tables::*;
 pub use tags::*;
 pub use types::*;
 
-use crate::{encoders, ComponentSection, ComponentSectionId, Encode};
+use crate::Encode;
 
 /// A WebAssembly module section.
 ///
@@ -134,13 +134,3 @@ impl Default for Module {
         Self::new()
     }
 }
-
-impl Encode for Module {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        sink.push(ComponentSectionId::Module.into());
-        sink.extend(encoders::u32(u32::try_from(self.bytes.len()).unwrap()));
-        sink.extend(&self.bytes);
-    }
-}
-
-impl ComponentSection for Module {}

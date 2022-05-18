@@ -1,20 +1,24 @@
 mod aliases;
+mod components;
 mod exports;
 mod functions;
 mod imports;
 mod instances;
+mod modules;
 mod start;
 mod types;
 
 pub use self::aliases::*;
+pub use self::components::*;
 pub use self::exports::*;
 pub use self::functions::*;
 pub use self::imports::*;
 pub use self::instances::*;
+pub use self::modules::*;
 pub use self::start::*;
 pub use self::types::*;
 
-use crate::{encoders, Encode};
+use crate::Encode;
 
 /// A WebAssembly component section.
 ///
@@ -97,13 +101,3 @@ impl Default for Component {
         Self::new()
     }
 }
-
-impl Encode for Component {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        sink.push(ComponentSectionId::Component.into());
-        sink.extend(encoders::u32(u32::try_from(self.bytes.len()).unwrap()));
-        sink.extend(&self.bytes);
-    }
-}
-
-impl ComponentSection for Component {}
