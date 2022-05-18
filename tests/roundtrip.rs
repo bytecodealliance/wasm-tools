@@ -215,9 +215,10 @@ impl TestState {
             .directives
             .into_par_iter()
             .filter_map(|directive| {
-                let (line, col) = directive.span().linecol_in(contents);
+                let span = directive.span();
                 self.test_wast_directive(test, directive)
                     .with_context(|| {
+                        let (line, col) = span.linecol_in(contents);
                         format!(
                             "failed directive on {}:{}:{}",
                             test.display(),
