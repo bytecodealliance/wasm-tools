@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Instruction, Section, SectionId, ValType};
+use crate::{encode_section, Encode, Instruction, Section, SectionId, ValType};
 
 /// An encoder for the element section.
 ///
@@ -113,60 +113,56 @@ impl ElementSection {
     /// Define an element segment.
     pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> &mut Self {
         let expr_bit = match segment.elements {
-            Elements::Expressions(_) => 0b100,
-            Elements::Functions(_) => 0b000,
+            Elements::Expressions(_) => 0b100u32,
+            Elements::Functions(_) => 0b000u32,
         };
         match &segment.mode {
             ElementMode::Active {
                 table: None,
                 offset,
             } => {
-                self.bytes.extend(encoders::u32(/* 0x00 | */ expr_bit));
+                (/* 0x00 | */expr_bit).encode(&mut self.bytes);
                 offset.encode(&mut self.bytes);
                 Instruction::End.encode(&mut self.bytes);
             }
             ElementMode::Passive => {
-                self.bytes.extend(encoders::u32(0x01 | expr_bit));
+                (0x01 | expr_bit).encode(&mut self.bytes);
                 if expr_bit == 0 {
                     self.bytes.push(0x00); // elemkind == funcref
                 } else {
-                    self.bytes.push(segment.element_type.into());
+                    segment.element_type.encode(&mut self.bytes);
                 }
             }
             ElementMode::Active {
                 table: Some(i),
                 offset,
             } => {
-                self.bytes.extend(encoders::u32(0x02 | expr_bit));
-                self.bytes.extend(encoders::u32(*i));
+                (0x02 | expr_bit).encode(&mut self.bytes);
+                i.encode(&mut self.bytes);
                 offset.encode(&mut self.bytes);
                 Instruction::End.encode(&mut self.bytes);
                 if expr_bit == 0 {
                     self.bytes.push(0x00); // elemkind == funcref
                 } else {
-                    self.bytes.push(segment.element_type.into());
+                    segment.element_type.encode(&mut self.bytes);
                 }
             }
             ElementMode::Declared => {
-                self.bytes.extend(encoders::u32(0x03 | expr_bit));
+                (0x03 | expr_bit).encode(&mut self.bytes);
                 if expr_bit == 0 {
                     self.bytes.push(0x00); // elemkind == funcref
                 } else {
-                    self.bytes.push(segment.element_type.into());
+                    segment.element_type.encode(&mut self.bytes);
                 }
             }
         }
 
         match segment.elements {
             Elements::Functions(fs) => {
-                self.bytes
-                    .extend(encoders::u32(u32::try_from(fs.len()).unwrap()));
-                for f in fs {
-                    self.bytes.extend(encoders::u32(*f));
-                }
+                fs.encode(&mut self.bytes);
             }
             Elements::Expressions(e) => {
-                self.bytes.extend(encoders::u32(e.len() as u32));
+                e.len().encode(&mut self.bytes);
                 for expr in e {
                     match expr {
                         Element::Func(i) => Instruction::RefFunc(*i).encode(&mut self.bytes),

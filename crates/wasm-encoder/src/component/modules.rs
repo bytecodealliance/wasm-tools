@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, ComponentSectionId, Encode, Module};
+use crate::{ComponentSection, ComponentSectionId, Encode, Module};
 
 /// An encoder for the module section of WebAssembly components.
 ///
@@ -18,9 +18,8 @@ pub struct ModuleSection<'a>(pub &'a Module);
 
 impl Encode for ModuleSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.push(ComponentSectionId::Module.into());
-        sink.extend(encoders::u32(u32::try_from(self.0.bytes.len()).unwrap()));
-        sink.extend(&self.0.bytes);
+        ComponentSectionId::Module.encode(sink);
+        self.0.bytes.encode(sink);
     }
 }
 

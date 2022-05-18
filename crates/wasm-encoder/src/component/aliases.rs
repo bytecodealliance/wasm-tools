@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
+use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents the expected export kind for an alias.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,8 +91,8 @@ impl AliasSection {
         name: &str,
     ) -> &mut Self {
         kind.encode(&mut self.bytes);
-        self.bytes.extend(encoders::u32(instance));
-        self.bytes.extend(encoders::str(name));
+        instance.encode(&mut self.bytes);
+        name.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -103,8 +103,8 @@ impl AliasSection {
     pub fn outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         self.bytes.push(0x05);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(index));
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -115,8 +115,8 @@ impl AliasSection {
     pub fn outer_module(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         self.bytes.push(0x00);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(index));
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -127,8 +127,8 @@ impl AliasSection {
     pub fn outer_component(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         self.bytes.push(0x01);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(index));
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

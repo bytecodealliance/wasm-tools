@@ -62,6 +62,12 @@ impl From<ComponentSectionId> for u8 {
     }
 }
 
+impl Encode for ComponentSectionId {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(*self as u8);
+    }
+}
+
 /// Represents a WebAssembly component that is being encoded.
 ///
 /// Unlike core WebAssembly modules, the sections of a component

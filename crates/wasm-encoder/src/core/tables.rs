@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Section, SectionId, ValType};
+use crate::{encode_section, Encode, Section, SectionId, ValType};
 
 /// An encoder for the table section.
 ///
@@ -77,12 +77,12 @@ impl Encode for TableType {
             flags |= 0b001;
         }
 
-        sink.push(self.element_type.into());
+        self.element_type.encode(sink);
         sink.push(flags);
-        sink.extend(encoders::u32(self.minimum));
+        self.minimum.encode(sink);
 
         if let Some(max) = self.maximum {
-            sink.extend(encoders::u32(max));
+            max.encode(sink);
         }
     }
 }

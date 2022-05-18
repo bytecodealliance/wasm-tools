@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Section, SectionId};
+use crate::{encode_section, Encode, Section, SectionId};
 
 /// An encoder for the memory section.
 ///
@@ -81,9 +81,9 @@ impl Encode for MemoryType {
         }
 
         sink.push(flags);
-        sink.extend(encoders::u64(self.minimum));
+        self.minimum.encode(sink);
         if let Some(max) = self.maximum {
-            sink.extend(encoders::u64(max));
+            max.encode(sink);
         }
     }
 }
