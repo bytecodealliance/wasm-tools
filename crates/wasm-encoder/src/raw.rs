@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, Encode, Section};
+use crate::{ComponentSection, Encode, Section};
 
 /// A section made up of uninterpreted, raw bytes.
 ///
@@ -14,8 +14,7 @@ pub struct RawSection<'a> {
 impl Encode for RawSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
         sink.push(self.id);
-        sink.extend(encoders::u32(u32::try_from(self.data.len()).unwrap()));
-        sink.extend(self.data);
+        self.data.encode(sink);
     }
 }
 

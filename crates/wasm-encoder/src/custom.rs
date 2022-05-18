@@ -1,4 +1,4 @@
-use crate::{encoders, ComponentSection, Encode, Section, SectionId};
+use crate::{encoding_size, ComponentSection, Encode, Section, SectionId};
 
 /// A custom section holding arbitrary data.
 #[derive(Clone, Debug)]
@@ -11,15 +11,10 @@ pub struct CustomSection<'a> {
 
 impl Encode for CustomSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
-        let name_len = encoders::u32(u32::try_from(self.name.len()).unwrap());
-
-        // Note: the custom section id is the same for both modules and components
-        sink.push(SectionId::Custom.into());
-        sink.extend(encoders::u32(
-            u32::try_from(name_len.len() + self.name.len() + self.data.len()).unwrap(),
-        ));
-        sink.extend(name_len);
-        sink.extend(self.name.as_bytes());
+        let encoded_name_len = encoding_size(u32::try_from(self.name.len()).unwrap());
+        SectionId::Custom.encode(sink);
+        (encoded_name_len + self.name.len() + self.data.len()).encode(sink);
+        self.name.encode(sink);
         sink.extend(self.data);
     }
 }

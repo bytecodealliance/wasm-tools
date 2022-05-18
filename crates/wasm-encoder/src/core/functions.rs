@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Section, SectionId};
+use crate::{encode_section, Encode, Section, SectionId};
 
 /// An encoder for the function section of WebAssembly modules.
 ///
@@ -44,7 +44,7 @@ impl FunctionSection {
 
     /// Define a function in a module's function section.
     pub fn function(&mut self, type_index: u32) -> &mut Self {
-        self.bytes.extend(encoders::u32(type_index));
+        type_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

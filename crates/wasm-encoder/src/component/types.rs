@@ -1,6 +1,6 @@
 use crate::{
-    encode_functype, encode_section, encoders, ComponentSection, ComponentSectionId, Encode,
-    EntityType, ValType,
+    encode_functype, encode_section, ComponentSection, ComponentSectionId, Encode, EntityType,
+    ValType,
 };
 
 /// Represents a module type.
@@ -35,8 +35,8 @@ impl ModuleType {
     /// Defines an import in this module type.
     pub fn import(&mut self, module: &str, name: &str, ty: EntityType) -> &mut Self {
         self.bytes.push(0x02);
-        self.bytes.extend(encoders::str(module));
-        self.bytes.extend(encoders::str(name));
+        module.encode(&mut self.bytes);
+        name.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -45,7 +45,7 @@ impl ModuleType {
     /// Defines an export in this module type.
     pub fn export(&mut self, name: &str, ty: EntityType) -> &mut Self {
         self.bytes.push(0x07);
-        self.bytes.extend(encoders::str(name));
+        name.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -59,7 +59,7 @@ impl ModuleType {
 
 impl Encode for ModuleType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.extend(encoders::u32(self.num_added));
+        self.num_added.encode(sink);
         sink.extend(&self.bytes);
     }
 }
@@ -94,8 +94,8 @@ impl ComponentType {
     /// The type is expected to be an index to a previously defined or aliased type.
     pub fn import(&mut self, name: &str, ty: u32) -> &mut Self {
         self.bytes.push(0x02);
-        self.bytes.extend(encoders::str(name));
-        self.bytes.extend(encoders::u32(ty));
+        name.encode(&mut self.bytes);
+        ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -105,8 +105,8 @@ impl ComponentType {
     /// The type is expected to be an index to a previously defined or aliased type.
     pub fn export(&mut self, name: &str, ty: u32) -> &mut Self {
         self.bytes.push(0x07);
-        self.bytes.extend(encoders::str(name));
-        self.bytes.extend(encoders::u32(ty));
+        name.encode(&mut self.bytes);
+        ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -116,8 +116,8 @@ impl ComponentType {
         self.bytes.push(0x09);
         self.bytes.push(0x02);
         self.bytes.push(0x05);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(index));
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self.types_added += 1;
         self
@@ -131,7 +131,7 @@ impl ComponentType {
 
 impl Encode for ComponentType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.extend(encoders::u32(self.num_added));
+        self.num_added.encode(sink);
         sink.extend(&self.bytes);
     }
 }
@@ -166,8 +166,8 @@ impl InstanceType {
     /// The type is expected to be an index to a previously defined or aliased type.
     pub fn export(&mut self, name: &str, ty: u32) -> &mut Self {
         self.bytes.push(0x07);
-        self.bytes.extend(encoders::str(name));
-        self.bytes.extend(encoders::u32(ty));
+        name.encode(&mut self.bytes);
+        ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -177,8 +177,8 @@ impl InstanceType {
         self.bytes.push(0x09);
         self.bytes.push(0x02);
         self.bytes.push(0x05);
-        self.bytes.extend(encoders::u32(count));
-        self.bytes.extend(encoders::u32(index));
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self.types_added += 1;
         self
@@ -192,7 +192,7 @@ impl InstanceType {
 
 impl Encode for InstanceType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.extend(encoders::u32(self.num_added));
+        self.num_added.encode(sink);
         sink.extend(&self.bytes);
     }
 }
@@ -230,13 +230,12 @@ impl<'a> TypeEncoder<'a> {
         let params = params.into_iter();
         self.0.push(0x4c);
 
-        self.0
-            .extend(encoders::u32(u32::try_from(params.len()).unwrap()));
+        params.len().encode(self.0);
         for (name, ty) in params {
             match name {
                 Some(name) => {
                     self.0.push(0x01);
-                    self.0.extend(encoders::str(name));
+                    name.encode(self.0);
                 }
                 None => self.0.push(0x00),
             }
@@ -330,7 +329,7 @@ impl Encode for InterfaceTypeRef {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Primitive(ty) => ty.encode(sink),
-            Self::Type(index) => sink.extend(encoders::s33(*index as i64)),
+            Self::Type(index) => (*index as i64).encode(sink),
         }
     }
 }
@@ -360,10 +359,9 @@ impl InterfaceTypeEncoder<'_> {
     {
         let fields = fields.into_iter();
         self.0.push(0x71);
-        self.0
-            .extend(encoders::u32(fields.len().try_into().unwrap()));
+        fields.len().encode(self.0);
         for (name, ty) in fields {
-            self.0.extend(encoders::str(name));
+            name.encode(self.0);
             ty.into().encode(self.0);
         }
     }
@@ -377,14 +375,13 @@ impl InterfaceTypeEncoder<'_> {
     {
         let cases = cases.into_iter();
         self.0.push(0x70);
-        self.0
-            .extend(encoders::u32(cases.len().try_into().unwrap()));
+        cases.len().encode(self.0);
         for (name, ty, default_to) in cases {
-            self.0.extend(encoders::str(name));
+            name.encode(self.0);
             ty.into().encode(self.0);
             if let Some(default) = default_to {
                 self.0.push(0x01);
-                self.0.extend(encoders::u32(default));
+                default.encode(self.0);
             } else {
                 self.0.push(0x00);
             }
@@ -406,8 +403,7 @@ impl InterfaceTypeEncoder<'_> {
     {
         let types = types.into_iter();
         self.0.push(0x6E);
-        self.0
-            .extend(encoders::u32(types.len().try_into().unwrap()));
+        types.len().encode(self.0);
         for ty in types {
             ty.into().encode(self.0);
         }
@@ -421,10 +417,9 @@ impl InterfaceTypeEncoder<'_> {
     {
         let names = names.into_iter();
         self.0.push(0x6D);
-        self.0
-            .extend(encoders::u32(names.len().try_into().unwrap()));
+        names.len().encode(self.0);
         for name in names {
-            self.0.extend(encoders::str(name));
+            name.encode(self.0);
         }
     }
 
@@ -436,9 +431,9 @@ impl InterfaceTypeEncoder<'_> {
     {
         let tags = tags.into_iter();
         self.0.push(0x6C);
-        self.0.extend(encoders::u32(tags.len().try_into().unwrap()));
+        tags.len().encode(self.0);
         for tag in tags {
-            self.0.extend(encoders::str(tag));
+            tag.encode(self.0);
         }
     }
 
@@ -451,8 +446,7 @@ impl InterfaceTypeEncoder<'_> {
     {
         let types = types.into_iter();
         self.0.push(0x6B);
-        self.0
-            .extend(encoders::u32(types.len().try_into().unwrap()));
+        types.len().encode(self.0);
         for ty in types {
             ty.into().encode(self.0);
         }

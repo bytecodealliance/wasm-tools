@@ -1,5 +1,4 @@
-use crate::{encode_section, encoders, CustomSection, Encode, Section};
-use std::convert::TryInto;
+use crate::{encode_section, CustomSection, Encode, Section};
 
 const VERSION: u32 = 2;
 
@@ -65,7 +64,7 @@ impl LinkingSection {
 impl Default for LinkingSection {
     fn default() -> Self {
         let mut bytes = Vec::new();
-        bytes.extend(encoders::u32(VERSION));
+        VERSION.encode(&mut bytes);
         Self { bytes }
     }
 }
@@ -122,16 +121,11 @@ impl SymbolTable {
     /// The `name` must be omitted if `index` references an imported table and
     /// the `WASM_SYM_EXPLICIT_NAME` flag is not set.
     pub fn function(&mut self, flags: u32, index: u32, name: Option<&str>) -> &mut Self {
-        self.bytes.extend(
-            encoders::u32(SYMTAB_FUNCTION)
-                .chain(encoders::u32(flags))
-                .chain(encoders::u32(index)),
-        );
+        SYMTAB_FUNCTION.encode(&mut self.bytes);
+        flags.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         if let Some(name) = name {
-            self.bytes.extend(
-                encoders::u32(name.len().try_into().unwrap())
-                    .chain(name.as_bytes().iter().copied()),
-            );
+            name.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
@@ -142,16 +136,11 @@ impl SymbolTable {
     /// The `name` must be omitted if `index` references an imported table and
     /// the `WASM_SYM_EXPLICIT_NAME` flag is not set.
     pub fn global(&mut self, flags: u32, index: u32, name: Option<&str>) -> &mut Self {
-        self.bytes.extend(
-            encoders::u32(SYMTAB_GLOBAL)
-                .chain(encoders::u32(flags))
-                .chain(encoders::u32(index)),
-        );
+        SYMTAB_GLOBAL.encode(&mut self.bytes);
+        flags.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         if let Some(name) = name {
-            self.bytes.extend(
-                encoders::u32(name.len().try_into().unwrap())
-                    .chain(name.as_bytes().iter().copied()),
-            );
+            name.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
@@ -164,16 +153,11 @@ impl SymbolTable {
     /// The `name` must be omitted if `index` references an imported table and
     /// the `WASM_SYM_EXPLICIT_NAME` flag is not set.
     pub fn table(&mut self, flags: u32, index: u32, name: Option<&str>) -> &mut Self {
-        self.bytes.extend(
-            encoders::u32(SYMTAB_TABLE)
-                .chain(encoders::u32(flags))
-                .chain(encoders::u32(index)),
-        );
+        SYMTAB_TABLE.encode(&mut self.bytes);
+        flags.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         if let Some(name) = name {
-            self.bytes.extend(
-                encoders::u32(name.len().try_into().unwrap())
-                    .chain(name.as_bytes().iter().copied()),
-            );
+            name.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self
@@ -186,18 +170,13 @@ impl SymbolTable {
         name: &str,
         definition: Option<DataSymbolDefinition>,
     ) -> &mut Self {
-        self.bytes.extend(
-            encoders::u32(SYMTAB_DATA)
-                .chain(encoders::u32(flags))
-                .chain(encoders::u32(name.len().try_into().unwrap()))
-                .chain(name.as_bytes().iter().copied()),
-        );
+        SYMTAB_DATA.encode(&mut self.bytes);
+        flags.encode(&mut self.bytes);
+        name.encode(&mut self.bytes);
         if let Some(def) = definition {
-            self.bytes.extend(
-                encoders::u32(def.index)
-                    .chain(encoders::u32(def.offset))
-                    .chain(encoders::u32(def.size)),
-            );
+            def.index.encode(&mut self.bytes);
+            def.offset.encode(&mut self.bytes);
+            def.size.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self

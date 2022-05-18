@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Section, SectionId};
+use crate::{encode_section, Encode, Section, SectionId};
 
 /// The type of a value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -34,6 +34,12 @@ impl From<ValType> for u8 {
     }
 }
 
+impl Encode for ValType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.push(*self as u8);
+    }
+}
+
 pub(crate) fn encode_functype<P, R>(bytes: &mut Vec<u8>, params: P, results: R)
 where
     P: IntoIterator<Item = ValType>,
@@ -45,9 +51,9 @@ where
     let results = results.into_iter();
 
     bytes.push(0x60);
-    bytes.extend(encoders::u32(u32::try_from(params.len()).unwrap()));
+    params.len().encode(bytes);
     bytes.extend(params.map(u8::from));
-    bytes.extend(encoders::u32(u32::try_from(results.len()).unwrap()));
+    results.len().encode(bytes);
     bytes.extend(results.map(u8::from));
 }
 

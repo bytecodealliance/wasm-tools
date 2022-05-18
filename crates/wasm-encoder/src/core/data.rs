@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Instruction, Section, SectionId};
+use crate::{encode_section, encoding_size, Encode, Instruction, Section, SectionId};
 
 /// An encoder for the data section.
 ///
@@ -102,15 +102,14 @@ impl DataSection {
                 offset,
             } => {
                 self.bytes.push(0x02);
-                self.bytes.extend(encoders::u32(memory_index));
+                memory_index.encode(&mut self.bytes);
                 offset.encode(&mut self.bytes);
                 Instruction::End.encode(&mut self.bytes);
             }
         }
 
         let data = segment.data.into_iter();
-        self.bytes
-            .extend(encoders::u32(u32::try_from(data.len()).unwrap()));
+        data.len().encode(&mut self.bytes);
         self.bytes.extend(data);
 
         self.num_added += 1;
@@ -171,10 +170,9 @@ pub struct DataCountSection {
 
 impl Encode for DataCountSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        let count = encoders::u32(self.count);
-        sink.push(SectionId::DataCount.into());
-        sink.extend(encoders::u32(u32::try_from(count.len()).unwrap()));
-        sink.extend(count);
+        SectionId::DataCount.encode(sink);
+        encoding_size(self.count).encode(sink);
+        self.count.encode(sink);
     }
 }
 

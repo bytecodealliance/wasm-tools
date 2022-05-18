@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Section, SectionId};
+use crate::{encode_section, Encode, Section, SectionId};
 
 /// Represents an export from a WebAssembly module.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ impl Encode for Export {
         };
 
         sink.push(kind);
-        sink.extend(encoders::u32(index));
+        index.encode(sink);
     }
 }
 
@@ -71,7 +71,7 @@ impl ExportSection {
 
     /// Define an export in the export section.
     pub fn export(&mut self, name: &str, export: Export) -> &mut Self {
-        self.bytes.extend(encoders::str(name));
+        name.encode(&mut self.bytes);
         export.encode(&mut self.bytes);
         self.num_added += 1;
         self

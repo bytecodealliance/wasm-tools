@@ -79,7 +79,6 @@ pub use self::component::*;
 pub use self::core::*;
 pub use self::custom::*;
 pub use self::raw::*;
-pub mod encoders;
 
 /// Implemented by types that can be encoded into a byte sink.
 pub trait Encode {
@@ -87,14 +86,75 @@ pub trait Encode {
     fn encode(&self, sink: &mut Vec<u8>);
 }
 
-fn encode_section(sink: &mut Vec<u8>, id: impl Into<u8>, count: u32, bytes: &[u8]) {
-    let count = encoders::u32(count);
+impl<T: Encode + ?Sized> Encode for &'_ T {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        T::encode(self, sink)
+    }
+}
 
+impl<T: Encode> Encode for [T] {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.len().encode(sink);
+        for item in self {
+            item.encode(sink);
+        }
+    }
+}
+
+impl Encode for [u8] {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.len().encode(sink);
+        sink.extend(self);
+    }
+}
+
+impl Encode for str {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.len().encode(sink);
+        sink.extend_from_slice(self.as_bytes());
+    }
+}
+
+impl Encode for usize {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        assert!(*self <= u32::max_value() as usize);
+        (*self as u32).encode(sink)
+    }
+}
+
+impl Encode for u32 {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        leb128::write::unsigned(sink, (*self).into()).unwrap();
+    }
+}
+
+impl Encode for i32 {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        leb128::write::signed(sink, (*self).into()).unwrap();
+    }
+}
+
+impl Encode for u64 {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        leb128::write::unsigned(sink, *self).unwrap();
+    }
+}
+
+impl Encode for i64 {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        leb128::write::signed(sink, *self).unwrap();
+    }
+}
+
+fn encoding_size(n: u32) -> usize {
+    let mut buf = [0u8; 5];
+    leb128::write::unsigned(&mut &mut buf[..], n.into()).unwrap()
+}
+
+fn encode_section(sink: &mut Vec<u8>, id: impl Into<u8>, count: u32, bytes: &[u8]) {
     sink.push(id.into());
-    sink.extend(encoders::u32(
-        u32::try_from(count.len() + bytes.len()).unwrap(),
-    ));
-    sink.extend(count);
+    (encoding_size(count) + bytes.len()).encode(sink);
+    count.encode(sink);
     sink.extend(bytes);
 }
 

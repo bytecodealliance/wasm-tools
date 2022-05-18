@@ -81,7 +81,7 @@ pub struct GlobalType {
 
 impl Encode for GlobalType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.push(self.val_type.into());
+        self.val_type.encode(sink);
         sink.push(self.mutable as u8);
     }
 }

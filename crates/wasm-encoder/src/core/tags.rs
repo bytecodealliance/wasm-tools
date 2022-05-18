@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, Encode, Section, SectionId};
+use crate::{encode_section, Encode, Section, SectionId};
 
 /// An encoder for the tag section.
 ///
@@ -76,6 +76,6 @@ pub struct TagType {
 impl Encode for TagType {
     fn encode(&self, sink: &mut Vec<u8>) {
         sink.push(self.kind as u8);
-        sink.extend(encoders::u32(self.func_type_idx));
+        self.func_type_idx.encode(sink);
     }
 }

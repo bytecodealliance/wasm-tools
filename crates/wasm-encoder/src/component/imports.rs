@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
+use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
 
 /// An encoder for the import section of WebAssembly components.
 ///
@@ -38,9 +38,9 @@ impl ComponentImportSection {
     }
 
     /// Define an import in the component import section.
-    pub fn import(&mut self, name: &str, ty: u32) -> &mut Self {
-        self.bytes.extend(encoders::str(name));
-        self.bytes.extend(encoders::u32(ty));
+    pub fn import(&mut self, name: &str, type_index: u32) -> &mut Self {
+        name.encode(&mut self.bytes);
+        type_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

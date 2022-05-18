@@ -1,6 +1,5 @@
 use crate::{
-    encode_section, encoders, Encode, GlobalType, MemoryType, Section, SectionId, TableType,
-    TagType,
+    encode_section, Encode, GlobalType, MemoryType, Section, SectionId, TableType, TagType,
 };
 
 /// The type of an entity.
@@ -27,7 +26,7 @@ impl Encode for EntityType {
         match self {
             Self::Function(i) => {
                 sink.push(0x00);
-                sink.extend(encoders::u32(*i));
+                i.encode(sink);
             }
             Self::Table(t) => {
                 sink.push(0x01);
@@ -120,8 +119,8 @@ impl ImportSection {
 
     /// Define an import in the import section.
     pub fn import(&mut self, module: &str, field: &str, ty: impl Into<EntityType>) -> &mut Self {
-        self.bytes.extend(encoders::str(module));
-        self.bytes.extend(encoders::str(field));
+        module.encode(&mut self.bytes);
+        field.encode(&mut self.bytes);
         ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self

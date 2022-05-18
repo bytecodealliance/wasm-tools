@@ -1,6 +1,4 @@
-use crate::{
-    encode_section, encoders, ComponentExport, ComponentSection, ComponentSectionId, Encode,
-};
+use crate::{encode_section, ComponentExport, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents an argument to instantiating a WebAssembly module.
 #[derive(Debug, Clone)]
@@ -14,7 +12,7 @@ impl Encode for ModuleArg {
         match self {
             Self::Instance(index) => {
                 sink.push(0x02);
-                sink.extend(encoders::u32(*index));
+                index.encode(sink);
             }
         }
     }
@@ -49,7 +47,7 @@ impl Encode for ComponentArg {
         };
 
         sink.push(kind);
-        sink.extend(encoders::u32(index));
+        index.encode(sink);
     }
 }
 
@@ -101,11 +99,10 @@ impl InstanceSection {
         let args = args.into_iter();
         self.bytes.push(0x00);
         self.bytes.push(0x00);
-        self.bytes.extend(encoders::u32(module_index));
-        self.bytes
-            .extend(encoders::u32(u32::try_from(args.len()).unwrap()));
+        module_index.encode(&mut self.bytes);
+        args.len().encode(&mut self.bytes);
         for (name, arg) in args {
-            self.bytes.extend(encoders::str(name));
+            name.encode(&mut self.bytes);
             arg.into().encode(&mut self.bytes);
         }
         self.num_added += 1;
@@ -121,10 +118,9 @@ impl InstanceSection {
     {
         let exports = exports.into_iter();
         self.bytes.push(0x02);
-        self.bytes
-            .extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
+        exports.len().encode(&mut self.bytes);
         for (name, export) in exports {
-            self.bytes.extend(encoders::str(name));
+            name.encode(&mut self.bytes);
             export.into().encode(&mut self.bytes);
         }
         self.num_added += 1;
@@ -145,11 +141,10 @@ impl InstanceSection {
         let args = args.into_iter();
         self.bytes.push(0x00);
         self.bytes.push(0x01);
-        self.bytes.extend(encoders::u32(component_index));
-        self.bytes
-            .extend(encoders::u32(u32::try_from(args.len()).unwrap()));
+        component_index.encode(&mut self.bytes);
+        args.len().encode(&mut self.bytes);
         for (name, arg) in args {
-            self.bytes.extend(encoders::str(name));
+            name.encode(&mut self.bytes);
             arg.into().encode(&mut self.bytes);
         }
         self.num_added += 1;
@@ -165,10 +160,9 @@ impl InstanceSection {
     {
         let exports = exports.into_iter();
         self.bytes.push(0x01);
-        self.bytes
-            .extend(encoders::u32(u32::try_from(exports.len()).unwrap()));
+        exports.len().encode(&mut self.bytes);
         for (name, export) in exports {
-            self.bytes.extend(encoders::str(name));
+            name.encode(&mut self.bytes);
             export.into().encode(&mut self.bytes);
         }
         self.num_added += 1;

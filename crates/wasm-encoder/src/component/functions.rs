@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, ComponentSection, ComponentSectionId, Encode};
+use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents options for component functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,7 +25,7 @@ impl Encode for CanonicalOption {
             Self::CompactUTF16 => sink.push(0x02),
             Self::Into(index) => {
                 sink.push(0x03);
-                sink.extend(encoders::u32(*index));
+                index.encode(sink);
             }
         }
     }
@@ -76,13 +76,12 @@ impl ComponentFunctionSection {
     {
         let options = options.into_iter();
         self.bytes.push(0x00);
-        self.bytes.extend(encoders::u32(type_index));
-        self.bytes
-            .extend(encoders::u32(u32::try_from(options.len()).unwrap()));
+        type_index.encode(&mut self.bytes);
+        options.len().encode(&mut self.bytes);
         for option in options {
             option.encode(&mut self.bytes);
         }
-        self.bytes.extend(encoders::u32(func_index));
+        func_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -95,12 +94,11 @@ impl ComponentFunctionSection {
     {
         let options = options.into_iter();
         self.bytes.push(0x01);
-        self.bytes
-            .extend(encoders::u32(u32::try_from(options.len()).unwrap()));
+        options.len().encode(&mut self.bytes);
         for option in options {
             option.encode(&mut self.bytes);
         }
-        self.bytes.extend(encoders::u32(func_index));
+        func_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

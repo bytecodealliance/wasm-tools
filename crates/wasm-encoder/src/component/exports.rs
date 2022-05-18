@@ -1,4 +1,4 @@
-use crate::{encode_section, encoders, ComponentArg, ComponentSection, ComponentSectionId, Encode};
+use crate::{encode_section, ComponentArg, ComponentSection, ComponentSectionId, Encode};
 
 /// Represents an export for a WebAssembly component.
 pub type ComponentExport = ComponentArg;
@@ -43,7 +43,7 @@ impl ComponentExportSection {
 
     /// Define an export in the export section.
     pub fn export(&mut self, name: &str, export: impl Into<ComponentExport>) -> &mut Self {
-        self.bytes.extend(encoders::str(name));
+        name.encode(&mut self.bytes);
         export.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
