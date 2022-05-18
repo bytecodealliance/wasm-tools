@@ -212,7 +212,7 @@ impl<'a> Parse<'a> for WastExecute<'a> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::invoke>() {
             Ok(WastExecute::Invoke(parser.parse()?))
-        } else if l.peek::<kw::module>() {
+        } else if l.peek::<kw::module>() || l.peek::<kw::component>() {
             Ok(WastExecute::Wat(parse_wat(parser)?))
         } else if l.peek::<kw::get>() {
             parser.parse::<kw::get>()?;
