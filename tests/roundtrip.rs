@@ -289,7 +289,7 @@ impl TestState {
                     // offset is a text-parser error, whereas with memory64
                     // support that error is deferred until later.
                     if !test.iter().any(|t| t == "memory64") {
-                        if let QuoteWat::Quote(_, src) = module {
+                        if let QuoteWat::QuoteModule(_, src) = module {
                             if src
                                 .iter()
                                 .filter_map(|(_, s)| str::from_utf8(s).ok())

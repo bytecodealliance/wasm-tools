@@ -51,3 +51,69 @@
   (type $A22c (expected unit $A8))
   (type $A22d (expected $A9 $A10))
 )
+
+(assert_invalid
+  (component
+    (type $t (module))
+    (type (func (param $t)))
+  )
+  "not an interface type")
+
+(assert_invalid
+  (component
+    (type $t (module))
+    (type (func (result $t)))
+  )
+  "not an interface type")
+
+(assert_invalid
+  (component
+    (type $t (module))
+    (type (value $t))
+  )
+  "not an interface type")
+
+(assert_invalid
+  (component
+    (type $t (module))
+    (type (option $t))
+  )
+  "not an interface type")
+
+(assert_invalid
+  (component (type (option 0)))
+  "index out of bounds")
+(assert_invalid
+  (component (type (list 0)))
+  "index out of bounds")
+(assert_invalid
+  (component (type (record (field "x" 0))))
+  "index out of bounds")
+(assert_invalid
+  (component (type (variant (case "x" 0))))
+  "index out of bounds")
+(assert_invalid
+  (component (type (union 0)))
+  "index out of bounds")
+(assert_invalid
+  (component (type (expected 0 1)))
+  "index out of bounds")
+(assert_invalid
+  (component (type (tuple 0)))
+  "index out of bounds")
+
+(assert_invalid
+  (component (type (record (field "" s32))))
+  "name cannot be empty")
+
+(assert_invalid
+  (component (type (variant (case "" s32))))
+  "name cannot be empty")
+
+(assert_invalid
+  (component (type (flags "")))
+  "name cannot be empty")
+
+(assert_invalid
+  (component (type (enum "")))
+  "name cannot be empty")

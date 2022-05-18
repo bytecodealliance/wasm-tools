@@ -109,7 +109,8 @@ impl WastDirective<'_> {
         match self {
             WastDirective::Wat(QuoteWat::Wat(Wat::Module(m))) => m.span,
             WastDirective::Wat(QuoteWat::Wat(Wat::Component(c))) => c.span,
-            WastDirective::Wat(QuoteWat::Quote(span, _)) => *span,
+            WastDirective::Wat(QuoteWat::QuoteModule(span, _)) => *span,
+            WastDirective::Wat(QuoteWat::QuoteComponent(span, _)) => *span,
             WastDirective::AssertMalformed { span, .. }
             | WastDirective::Register { span, .. }
             | WastDirective::AssertTrap { span, .. }
@@ -271,16 +272,18 @@ impl<'a> Parse<'a> for WastInvoke<'a> {
 #[derive(Debug)]
 pub enum QuoteWat<'a> {
     Wat(Wat<'a>),
-    Quote(Span, Vec<(Span, &'a [u8])>),
+    QuoteModule(Span, Vec<(Span, &'a [u8])>),
+    QuoteComponent(Span, Vec<(Span, &'a [u8])>),
 }
 
 impl QuoteWat<'_> {
     /// Encodes this module to bytes, either by encoding the module directly or
     /// parsing the contents and then encoding it.
     pub fn encode(&mut self) -> Result<Vec<u8>, Error> {
-        let source = match self {
+        let (source, prefix) = match self {
             QuoteWat::Wat(m) => return m.encode(),
-            QuoteWat::Quote(_, source) => source,
+            QuoteWat::QuoteModule(_, source) => (source, None),
+            QuoteWat::QuoteComponent(_, source) => (source, Some("(component")),
         };
         let mut ret = String::new();
         for (span, src) in source {
@@ -292,6 +295,10 @@ impl QuoteWat<'_> {
             }
             ret.push_str(" ");
         }
+        if let Some(prefix) = prefix {
+            ret.insert_str(0, prefix);
+            ret.push_str(")");
+        }
         let buf = ParseBuffer::new(&ret)?;
         let mut wat = parser::parse::<Wat<'_>>(&buf)?;
         wat.encode()
@@ -301,7 +308,13 @@ impl QuoteWat<'_> {
 impl<'a> Parse<'a> for QuoteWat<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek2::<kw::quote>() {
-            parser.parse::<kw::module>()?;
+            let ctor = if parser.peek::<kw::component>() {
+                parser.parse::<kw::component>()?;
+                QuoteWat::QuoteComponent
+            } else {
+                parser.parse::<kw::module>()?;
+                QuoteWat::QuoteModule
+            };
             let span = parser.parse::<kw::quote>()?.0;
             let mut src = Vec::new();
             while !parser.is_empty() {
@@ -309,7 +322,7 @@ impl<'a> Parse<'a> for QuoteWat<'a> {
                 let string = parser.parse()?;
                 src.push((span, string));
             }
-            Ok(QuoteWat::Quote(span, src))
+            Ok(ctor(span, src))
         } else {
             Ok(QuoteWat::Wat(parse_wat(parser)?))
         }

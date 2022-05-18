@@ -60,3 +60,37 @@
     )
   )
   "duplicate import name `:a`")
+
+(assert_malformed
+  (component quote
+    "(import \"\" (func))"
+    "(import \"\" (func))"
+  )
+  "duplicate import name `` already defined")
+
+(assert_malformed
+  (component quote
+    "(type (component"
+      "(import \"\" (func))"
+      "(import \"\" (func))"
+    "))"
+  )
+  "duplicate import name `` already defined")
+
+(assert_invalid
+  (component
+    (import "" (func (type 100)))
+  )
+  "type index out of bounds")
+
+(assert_invalid
+  (component
+    (module $m (func (export "")))
+    (instance $i (instantiate (module $m)))
+    (func (canon.lift (type 100) (func $i "")))
+  )
+  "type index out of bounds")
+
+(component
+  (import "" (value string))
+)

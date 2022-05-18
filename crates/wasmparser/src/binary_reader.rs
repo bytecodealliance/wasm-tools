@@ -924,31 +924,6 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
-    /// Advances the `BinaryReader` up to two bytes to parse a variable
-    /// length integer as a `u8`.
-    ///
-    /// # Errors
-    ///
-    /// If `BinaryReader` has less than one or two bytes remaining, or the
-    /// variable integer is larger than eight bits.
-    pub fn read_var_u8(&mut self) -> Result<u8> {
-        // Optimization for single byte i32.
-        let byte = self.read_u8()?;
-        if (byte & 0x80) == 0 {
-            return Ok(byte);
-        }
-
-        let next = self.read_u8()? as u32;
-        let result: u32 = (next << 7) | (byte & 0x7F) as u32;
-        if result >= 0x100 {
-            return Err(BinaryReaderError::new(
-                "invalid var_u8: integer representation too long",
-                self.original_position() - 1,
-            ));
-        }
-        Ok(result as u8)
-    }
-
     /// Advances the `BinaryReader` up to four bytes to parse a variable
     /// length integer as a `u32`.
     ///

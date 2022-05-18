@@ -266,3 +266,19 @@
   (alias outer $C $m (component $target))
   (export "v" (component $target))
 )
+
+(assert_invalid
+  (component (alias outer 100 0 (module)))
+  "invalid outer alias count of 100")
+
+(assert_invalid
+  (component (alias outer 0 0 (module)))
+  "index out of bounds")
+
+(assert_invalid
+  (component (alias outer 100 0 (component)))
+  "invalid outer alias count of 100")
+
+(assert_invalid
+  (component (alias outer 0 0 (component)))
+  "index out of bounds")

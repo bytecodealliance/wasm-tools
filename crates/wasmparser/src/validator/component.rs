@@ -183,9 +183,7 @@ impl ComponentState {
         // export signature
         let (params, results) = ty.lower(types, false);
 
-        if core_ty.params.as_ref() != params.as_slice()
-            || core_ty.returns.as_ref() != results.as_slice()
-        {
+        if core_ty.params.as_ref() != params.as_slice() {
             return Err(BinaryReaderError::new(
                 format!("lowered parameter types `{:?}` do not match parameter types `{:?}` of core function {func_index}", params.as_slice(), core_ty.params),
                 offset,

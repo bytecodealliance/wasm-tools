@@ -222,6 +222,15 @@ fn resolve_alias<'a, 'b>(
             export: _,
         } => resolve_ns(instance, Ns::Instance, resolve_stack),
         AliasTarget::Outer { outer, index } => {
+            // Short-circuit when both indices are already resolved as this
+            // helps to write tests for invalid modules where wasmparser should
+            // be the one returning the error.
+            if let Index::Num(..) = outer {
+                if let Index::Num(..) = index {
+                    return Ok(());
+                }
+            }
+
             // Resolve `outer`, and compute the depth at which to look up
             // `index`.
             let depth = match outer {

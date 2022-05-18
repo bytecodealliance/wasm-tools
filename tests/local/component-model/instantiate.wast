@@ -359,3 +359,223 @@
 
   (instance (instantiate (module $final) (with "" (instance $b))))
 )
+
+(assert_invalid
+  (component (instance $i (export "" (func 0))))
+  "function index out of bounds")
+
+(assert_invalid
+  (component (instance $i (export "" (instance 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance $i (export "" (component 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance $i (export "" (instance 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance $i (export "" (module 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance $i (export "" (value 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance core (export "" (func 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance core (export "" (table 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance core (export "" (global 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component (instance core (export "" (memory 0))))
+  "index out of bounds")
+
+(assert_invalid
+  (component
+    (import "" (instance $i))
+    (module $m)
+    (instance (instantiate (module $m) (with "" (instance $i))))
+  )
+  "not a module instance")
+
+;; FIXME(#605) I think this should be invalid
+(component
+  (module $m)
+  (instance $i (instantiate (module $m)))
+  (instance (instantiate (module $m)
+    (with "" (instance $i))
+    (with "" (instance $i))
+  ))
+)
+
+(assert_invalid
+  (component
+    (module $m (func (export "")))
+    (instance $i (instantiate (module $m)))
+    (instance (instantiate (module $m)
+      (with "" (instance $i))
+      (with "" (instance $i))
+    ))
+  )
+  "duplicate instantiation argument name")
+
+(assert_invalid
+  (component
+    (module $m1 (func (export "")))
+    (module $m2 (import "" "" (global i32)))
+    (instance $i (instantiate (module $m1)))
+    (instance (instantiate (module $m2)
+      (with "" (instance $i))
+    ))
+  )
+  "expected module instantiation argument `::` to be of type `global`")
+
+(assert_invalid
+  (component
+    (module $m)
+    (instance $i (instantiate (module $m)))
+    (component $c)
+    (instance (instantiate (component $c) (with "" (instance $i))))
+  )
+  "not a component instance")
+
+(assert_invalid
+  (component
+    (component $m)
+    (instance $i (instantiate (component $m)))
+    (instance (instantiate (component $m)
+      (with "" (instance $i))
+      (with "" (instance $i))
+    ))
+  )
+  "name `` already defined")
+
+(assert_invalid
+  (component
+    (component $c (import "" (func)))
+    (instance (instantiate (component $c)
+      (with "" (component $c))
+    ))
+  )
+  "expected component instantiation argument `` to be of type `function`")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance (instantiate (component $c)
+      (with "" (module 0))
+    ))
+  )
+  "index out of bounds")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance (instantiate (component $c)
+      (with "" (value 0))
+    ))
+  )
+  "index out of bounds")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance (instantiate (component $c)
+      (with "" (instance 0))
+    ))
+  )
+  "index out of bounds")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance (instantiate (component $c)
+      (with "" (func 0))
+    ))
+  )
+  "index out of bounds")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance (instantiate (component $c)
+      (with "" (component 100))
+    ))
+  )
+  "index out of bounds")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance
+      (export "" (component $c))
+      (export "" (component $c))
+    )
+  )
+  "export name `` already defined")
+
+(component
+  (import "1" (instance $i))
+  (import "2" (func $f))
+  (import "3" (component $c))
+  (import "4" (module $m))
+  (import "5" (value $v string))
+  (instance
+    (export "1" (instance $i))
+    (export "2" (func $f))
+    (export "3" (component $c))
+    (export "4" (module $m))
+    (export "5" (value $v))
+  )
+)
+
+(component
+  (module $m
+    (func (export "1"))
+    (memory (export "2") 1)
+    (table (export "3") 1 funcref)
+    (global (export "4") i32 i32.const 0)
+  )
+  (instance $i (instantiate (module $m)))
+  (instance core
+    (export "a" (func $i "1"))
+    (export "b" (memory $i "2"))
+    (export "c" (table $i "3"))
+    (export "d" (global $i "4"))
+  )
+)
+
+(assert_invalid
+  (component
+    (module $m (func (export "")))
+    (instance $i (instantiate (module $m)))
+    (instance core
+      (export "" (func $i ""))
+      (export "" (func $i ""))
+    )
+  )
+  "export name `` already defined")
+
+(assert_invalid
+  (component
+    (component $c)
+    (instance $i (instantiate (component $c)))
+    (export "" (instance $i ""))
+  )
+  "no export named ``")
+
+(assert_invalid
+  (component
+    (export "" (instance 100 ""))
+  )
+  "index out of bounds")
