@@ -174,18 +174,7 @@ struct ComponentContext {
     instances: Vec<(usize, usize)>,
 
     // This component's value index space.
-    //
-    // An indirect list of all values inside this component.
-    //
-    // Each entry is of the form `(i, j)` where `component.sections[i]` is
-    // guaranteed to be either
-    //
-    // * a `Section::Start` and we are referencing the `j`th result of the start
-    //   function, or
-    //
-    // * a `Section::Import` and we are referenceing the `j`th import in that
-    //   section, which is guaranteed to be a value import.
-    values: Vec<(usize, usize)>,
+    values: Vec<ValueType>,
 }
 
 impl ComponentContext {
@@ -1289,9 +1278,9 @@ impl ComponentBuilder {
                 self.total_instances += 1;
                 self.component_mut().instances.push((section_index, nth));
             }
-            Type::Value(_) => {
+            Type::Value(ty) => {
                 self.total_values += 1;
-                self.component_mut().values.push((section_index, nth));
+                self.component_mut().values.push(ty.clone());
             }
             Type::Interface(_) => unreachable!("cannot import interface types"),
         }
