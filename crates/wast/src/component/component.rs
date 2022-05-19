@@ -211,7 +211,7 @@ impl<'a> Parse<'a> for Start<'a> {
         parser.parse::<kw::start>()?;
         let func = parser.parse::<IndexOrRef<_>>()?.0;
         let mut args = Vec::new();
-        while !parser.peek2::<kw::result>() {
+        while !parser.is_empty() && !parser.peek2::<kw::result>() {
             args.push(parser.parse()?);
         }
         let result = if !parser.is_empty() {
