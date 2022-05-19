@@ -82,6 +82,21 @@ struct ComponentBuilder {
     total_values: usize,
 }
 
+#[derive(Debug, Clone)]
+enum ComponentOrCoreFuncType {
+    Component(Rc<FuncType>),
+    Core(Rc<crate::core::FuncType>),
+}
+
+impl ComponentOrCoreFuncType {
+    fn unwrap_core(self) -> Rc<crate::core::FuncType> {
+        match self {
+            ComponentOrCoreFuncType::Core(f) => f,
+            ComponentOrCoreFuncType::Component(_) => panic!("not a core func type"),
+        }
+    }
+}
+
 /// Metadata (e.g. contents of various index spaces) we keep track of on a
 /// per-component basis.
 #[derive(Debug)]
@@ -96,18 +111,7 @@ struct ComponentContext {
     import_names: HashSet<String>,
 
     // This component's function index space.
-    //
-    // An indirect list of all functions in this component.
-    //
-    // Each entry is of the form `(i, j)` where `component.sections[i]` is
-    // guaranteed to be either
-    //
-    // * a `Section::Func` and we are referencing the `j`th function defined in
-    //   that section, which is guaranteed to be a core Wasm function, or
-    //
-    // * a `Section::Import` and we are referencing the `j`th import in that
-    //   section, which is guaranteed to be a function import.
-    funcs: Vec<(usize, usize)>,
+    funcs: Vec<ComponentOrCoreFuncType>,
 
     // Which entries in `funcs` are interface functions?
     interface_funcs: Vec<u32>,
@@ -121,9 +125,6 @@ struct ComponentContext {
     // Note that a component can't import core functions, so these entries will
     // never point to a `Section::Import`.
     core_funcs: Vec<u32>,
-
-    // A map from a core function's index to its core function type.
-    core_func_types: HashMap<u32, Rc<crate::core::FuncType>>,
 
     // This component's component index space.
     //
@@ -197,7 +198,6 @@ impl ComponentContext {
             interface_funcs: vec![],
             scalar_interface_funcs: vec![],
             core_funcs: vec![],
-            core_func_types: HashMap::default(),
             components: vec![],
             modules: vec![],
             instances: vec![],
@@ -1267,7 +1267,9 @@ impl ComponentBuilder {
         match &*self.current_type_scope().get(ty).clone() {
             Type::Func(func_ty) => {
                 let func_index = u32::try_from(self.component().funcs.len()).unwrap();
-                self.component_mut().funcs.push((section_index, nth));
+                self.component_mut()
+                    .funcs
+                    .push(ComponentOrCoreFuncType::Component(Rc::clone(func_ty)));
 
                 self.component_mut().interface_funcs.push(func_index);
                 if func_ty.is_scalar() {
@@ -1296,16 +1298,10 @@ impl ComponentBuilder {
     }
 
     fn interface_function_type(&self, inter_func: u32) -> &Rc<FuncType> {
-        let (section_index, nth) = self.component().funcs[inter_func as usize];
-        let inter_func_ty = match &self.component().component.sections[section_index] {
-            Section::Import(ImportSection { imports }) => imports[nth].ty,
-            Section::Func(FuncSection { funcs }) => match &funcs[nth] {
-                Func::CanonLift { func_ty, .. } => *func_ty,
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
-        self.current_type_scope().get_func(inter_func_ty)
+        match &self.component().funcs[inter_func as usize] {
+            ComponentOrCoreFuncType::Component(ty) => ty,
+            ComponentOrCoreFuncType::Core(_) => panic!("not an interface function"),
+        }
     }
 
     fn push_func(&mut self, func: Func) {
@@ -1319,25 +1315,26 @@ impl ComponentBuilder {
         let section_index = self.component().component.sections.len() - 1;
 
         let func_index = u32::try_from(self.component().funcs.len()).unwrap();
-        self.component_mut().funcs.push((section_index, nth));
 
-        match &func {
+        let ty = match &func {
             Func::CanonLift { func_ty, .. } => {
                 self.component_mut().interface_funcs.push(func_index);
-                if self.current_type_scope().get_func(*func_ty).is_scalar() {
+                let ty = Rc::clone(self.current_type_scope().get_func(*func_ty));
+                if ty.is_scalar() {
                     let interface_func_index = self.component().interface_funcs.len();
                     self.component_mut().scalar_interface_funcs.push(func_index);
                 }
+                ComponentOrCoreFuncType::Component(ty)
             }
             Func::CanonLower { inter_func, .. } => {
                 let inter_func_ty = self.interface_function_type(*inter_func);
                 let core_func_ty = canonical_abi_for(inter_func_ty);
                 self.component_mut().core_funcs.push(func_index);
-                self.component_mut()
-                    .core_func_types
-                    .insert(func_index, core_func_ty);
+                ComponentOrCoreFuncType::Core(core_func_ty)
             }
-        }
+        };
+
+        self.component_mut().funcs.push(ty);
 
         match self.component_mut().component.sections.last_mut() {
             Some(Section::Func(FuncSection { funcs })) => funcs.push(func),
@@ -1466,8 +1463,10 @@ impl ComponentBuilder {
             if !self.component().core_funcs.is_empty() {
                 choices.push(|u, c| {
                     let core_func = *u.choose(&c.component().core_funcs)?;
-                    let core_func_ty = c.component().core_func_types.get(&core_func).unwrap();
-                    let inter_func_ty = inverse_scalar_canonical_abi_for(u, core_func_ty)?;
+                    let core_func_ty = c.component().funcs[core_func as usize]
+                        .clone()
+                        .unwrap_core();
+                    let inter_func_ty = inverse_scalar_canonical_abi_for(u, &core_func_ty)?;
 
                     let func_ty = if let Some(indices) = c
                         .current_type_scope()
