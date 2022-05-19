@@ -5,6 +5,7 @@
 
 use crate::{arbitrary_loop, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::{
     collections::{HashMap, HashSet},
@@ -97,6 +98,12 @@ impl ComponentOrCoreFuncType {
     }
 }
 
+#[derive(Debug, Clone)]
+enum ComponentOrCoreInstanceType {
+    Component(Rc<InstanceType>),
+    Core(BTreeMap<String, crate::core::EntityType>),
+}
+
 /// Metadata (e.g. contents of various index spaces) we keep track of on a
 /// per-component basis.
 #[derive(Debug)]
@@ -159,19 +166,7 @@ struct ComponentContext {
     modules: Vec<(usize, usize)>,
 
     // This component's instance index space.
-    //
-    // An indirect list of all instances imported or instantiated inside this
-    // component.
-    //
-    // Each entry is of the form `(i, j)` where `component.sections[i]` is
-    // guaranteed to be either
-    //
-    // * a `Section::Instance` and we are referencing the `j`th instance
-    //   instantiated in that section, or
-    //
-    // * a `Section::Import` and we are referenceing the `j`th import in that
-    //   section, which is guaranteed to be an instance import.
-    instances: Vec<(usize, usize)>,
+    instances: Vec<ComponentOrCoreInstanceType>,
 
     // This component's value index space.
     values: Vec<ValueType>,
@@ -877,7 +872,7 @@ impl ComponentBuilder {
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<InstanceType> {
+    ) -> Result<Rc<InstanceType>> {
         let mut defs = vec![];
         let mut exports = HashSet::new();
 
@@ -893,7 +888,7 @@ impl ComponentBuilder {
             })
         })?;
 
-        Ok(InstanceType { defs })
+        Ok(Rc::new(InstanceType { defs }))
     }
 
     fn arbitrary_instance_type_def(
@@ -1274,9 +1269,11 @@ impl ComponentBuilder {
                 self.total_components += 1;
                 self.component_mut().components.push((section_index, nth));
             }
-            Type::Instance(_) => {
+            Type::Instance(ty) => {
                 self.total_instances += 1;
-                self.component_mut().instances.push((section_index, nth));
+                self.component_mut()
+                    .instances
+                    .push(ComponentOrCoreInstanceType::Component(Rc::clone(ty)));
             }
             Type::Value(ty) => {
                 self.total_values += 1;
@@ -1679,7 +1676,7 @@ struct TypeSection {
 enum Type {
     Module(ModuleType),
     Component(ComponentType),
-    Instance(InstanceType),
+    Instance(Rc<InstanceType>),
     Func(Rc<FuncType>),
     Value(ValueType),
     Interface(InterfaceType),
