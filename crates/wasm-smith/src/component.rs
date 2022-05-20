@@ -932,7 +932,7 @@ impl ComponentBuilder {
                     Alias::Outer {
                         count,
                         i,
-                        kind: OuterAliasKind::Type,
+                        kind: OuterAliasKind::Type(_),
                     } => (count, i),
                     _ => unreachable!(),
                 };
@@ -972,11 +972,12 @@ impl ComponentBuilder {
 
         let max_type_in_scope = u32::try_from(scope.types.len() - 1).unwrap();
         let i = u.int_in_range(0..=max_type_in_scope)?;
+        let ty = Rc::clone(scope.get(i));
 
         Ok(Alias::Outer {
             count,
             i,
-            kind: OuterAliasKind::Type,
+            kind: OuterAliasKind::Type(ty),
         })
     }
 
@@ -1741,7 +1742,7 @@ enum InstanceExportAliasKind {
 enum OuterAliasKind {
     Module,
     Component,
-    Type,
+    Type(Rc<Type>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

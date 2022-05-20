@@ -142,7 +142,7 @@ impl Type {
                         ComponentTypeDef::Alias(Alias::Outer {
                             count,
                             i,
-                            kind: OuterAliasKind::Type,
+                            kind: OuterAliasKind::Type(_),
                         }) => {
                             enc_comp_ty.alias_outer_type(*count, *i);
                         }
@@ -164,7 +164,7 @@ impl Type {
                         InstanceTypeDef::Alias(Alias::Outer {
                             count,
                             i,
-                            kind: OuterAliasKind::Type,
+                            kind: OuterAliasKind::Type(_),
                         }) => {
                             enc_inst_ty.alias_outer_type(*count, *i);
                         }
