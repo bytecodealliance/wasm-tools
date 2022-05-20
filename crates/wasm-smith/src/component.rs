@@ -543,7 +543,7 @@ impl ComponentBuilder {
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<ModuleType> {
+    ) -> Result<Rc<ModuleType>> {
         let mut defs = vec![];
         let mut has_memory = false;
         let mut has_canonical_abi_realloc = false;
@@ -690,12 +690,12 @@ impl ComponentBuilder {
             Ok(true)
         })?;
 
-        Ok(ModuleType {
+        Ok(Rc::new(ModuleType {
             defs,
             has_memory,
             has_canonical_abi_realloc,
             has_canonical_abi_free,
-        })
+        }))
     }
 
     fn arbitrary_core_entity_type(
@@ -834,7 +834,7 @@ impl ComponentBuilder {
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<ComponentType> {
+    ) -> Result<Rc<ComponentType>> {
         let mut defs = vec![];
         let mut imports = HashSet::new();
         let mut exports = HashSet::new();
@@ -853,9 +853,13 @@ impl ComponentBuilder {
                     let name = crate::unique_string(100, &mut imports, u)?;
                     let max_def_ty_idx = me.current_type_scope().def_types.len() - 1;
                     let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
-                    let ty = me.current_type_scope().def_types[def_ty_idx];
-                    let ty = u32::try_from(ty).unwrap();
-                    defs.push(ComponentTypeDef::Import(Import { name, ty }));
+                    let index = me.current_type_scope().def_types[def_ty_idx];
+                    let index = u32::try_from(index).unwrap();
+                    let ty = Rc::clone(me.current_type_scope().get(index));
+                    defs.push(ComponentTypeDef::Import(Import {
+                        name,
+                        ty: TypeIndex { index, ty },
+                    }));
                 } else {
                     // Type definitions, exports, and aliases.
                     let def = me.arbitrary_instance_type_def(u, &mut exports, type_fuel)?;
@@ -865,7 +869,7 @@ impl ComponentBuilder {
             })
         })?;
 
-        Ok(ComponentType { defs })
+        Ok(Rc::new(ComponentType { defs }))
     }
 
     fn arbitrary_instance_type(
@@ -909,11 +913,13 @@ impl ComponentBuilder {
         // Export.
         if !self.current_type_scope().types.is_empty() {
             choices.push(|me, exports, u, _type_fuel| {
+                let index = u.int_in_range(
+                    0..=u32::try_from(me.current_type_scope().types.len()).unwrap() - 1,
+                )?;
+                let ty = Rc::clone(me.current_type_scope().get(index));
                 Ok(InstanceTypeDef::Export {
                     name: crate::unique_string(100, exports, u)?,
-                    ty: u.int_in_range(
-                        0..=u32::try_from(me.current_type_scope().types.len()).unwrap() - 1,
-                    )?,
+                    ty: TypeIndex { index, ty },
                 })
             });
         }
@@ -1235,20 +1241,23 @@ impl ComponentBuilder {
         }
     }
 
-    fn push_import(&mut self, name: String, ty: u32) {
+    fn push_import(&mut self, name: String, ty: TypeIndex) {
         let nth = match self.ensure_section(
             |sec| matches!(sec, Section::Import(_)),
             || Section::Import(ImportSection { imports: vec![] }),
         ) {
             Section::Import(sec) => {
-                sec.imports.push(Import { name, ty });
+                sec.imports.push(Import {
+                    name,
+                    ty: ty.clone(),
+                });
                 sec.imports.len() - 1
             }
             _ => unreachable!(),
         };
         let section_index = self.component().component.sections.len() - 1;
 
-        match &*self.current_type_scope().get(ty).clone() {
+        match &*ty.ty {
             Type::Func(func_ty) => {
                 let func_index = u32::try_from(self.component().funcs.len()).unwrap();
                 self.component_mut()
@@ -1384,8 +1393,9 @@ impl ComponentBuilder {
                 }
 
                 let f = u.choose(&choices)?;
-                let ty = f(u, self)?;
-                self.push_import(name, ty);
+                let index = f(u, self)?;
+                let ty = Rc::clone(self.current_type_scope().get(index));
+                self.push_import(name, TypeIndex { index, ty });
                 Ok(true)
             })?;
         }
@@ -1674,8 +1684,8 @@ struct TypeSection {
 
 #[derive(Clone, Debug)]
 enum Type {
-    Module(ModuleType),
-    Component(ComponentType),
+    Module(Rc<ModuleType>),
+    Component(Rc<ComponentType>),
     Instance(Rc<InstanceType>),
     Func(Rc<FuncType>),
     Value(ValueType),
@@ -1739,7 +1749,7 @@ struct ComponentType {
 enum ComponentTypeDef {
     Import(Import),
     Type(Rc<Type>),
-    Export { name: String, ty: u32 },
+    Export { name: String, ty: TypeIndex },
     Alias(Alias),
 }
 
@@ -1761,7 +1771,7 @@ struct InstanceType {
 #[derive(Clone, Debug)]
 enum InstanceTypeDef {
     Type(Rc<Type>),
-    Export { name: String, ty: u32 },
+    Export { name: String, ty: TypeIndex },
     Alias(Alias),
 }
 
@@ -1888,7 +1898,7 @@ struct ImportSection {
 #[derive(Clone, Debug)]
 struct Import {
     name: String,
-    ty: u32,
+    ty: TypeIndex,
 }
 
 #[derive(Debug)]
@@ -1928,3 +1938,9 @@ struct StartSection {}
 
 #[derive(Debug)]
 struct AliasSection {}
+
+#[derive(Clone, Debug)]
+struct TypeIndex {
+    index: u32,
+    ty: Rc<Type>,
+}

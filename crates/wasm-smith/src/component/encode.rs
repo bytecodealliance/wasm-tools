@@ -67,7 +67,7 @@ impl ImportSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
-            sec.import(&imp.name, imp.ty);
+            sec.import(&imp.name, imp.ty.index);
         }
         component.section(&sec);
     }
@@ -131,13 +131,13 @@ impl Type {
                 for def in &comp_ty.defs {
                     match def {
                         ComponentTypeDef::Import(imp) => {
-                            enc_comp_ty.import(&imp.name, imp.ty);
+                            enc_comp_ty.import(&imp.name, imp.ty.index);
                         }
                         ComponentTypeDef::Type(ty) => {
                             ty.encode(enc_comp_ty.ty());
                         }
                         ComponentTypeDef::Export { name, ty } => {
-                            enc_comp_ty.export(name, *ty);
+                            enc_comp_ty.export(name, ty.index);
                         }
                         ComponentTypeDef::Alias(Alias::Outer {
                             count,
@@ -159,7 +159,7 @@ impl Type {
                             ty.encode(enc_inst_ty.ty());
                         }
                         InstanceTypeDef::Export { name, ty } => {
-                            enc_inst_ty.export(name, *ty);
+                            enc_inst_ty.export(name, ty.index);
                         }
                         InstanceTypeDef::Alias(Alias::Outer {
                             count,
