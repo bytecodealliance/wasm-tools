@@ -31,7 +31,7 @@ impl Mutator for RemoveExportMutator {
 
             match export.kind {
                 wasmparser::ExternalKind::Func => {
-                    exports.export(export.name, Export::Function(export.index));
+                    exports.export(export.name, Export::Func(export.index));
                 }
                 wasmparser::ExternalKind::Table => {
                     exports.export(export.name, Export::Table(export.index));

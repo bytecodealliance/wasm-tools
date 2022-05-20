@@ -68,7 +68,7 @@ impl Mutator for RenameExportMutator {
 
             match export.kind {
                 wasmparser::ExternalKind::Func => {
-                    exports.export(new_name.as_str(), Export::Function(export.index));
+                    exports.export(new_name.as_str(), Export::Func(export.index));
                 }
                 wasmparser::ExternalKind::Table => {
                     exports.export(new_name.as_str(), Export::Table(export.index));

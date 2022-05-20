@@ -254,7 +254,7 @@ impl RemoveItem {
                         let item = item?;
                         let e = match &item.kind {
                             ExternalKind::Func => {
-                                Export::Function(self.remap(Item::Function, item.index)?)
+                                Export::Func(self.remap(Item::Function, item.index)?)
                             }
                             ExternalKind::Table => {
                                 Export::Table(self.remap(Item::Table, item.index)?)
