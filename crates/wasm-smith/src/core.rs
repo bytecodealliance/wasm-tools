@@ -233,7 +233,7 @@ impl<'a> Arbitrary<'a> for MaybeInvalidModule {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Type {
     Func(Rc<FuncType>),
 }
@@ -248,7 +248,7 @@ pub(crate) struct FuncType {
 }
 
 /// An import of an entity provided externally or by a component.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Import {
     /// The name of the module providing this entity.
     pub(crate) module: String,
@@ -259,7 +259,7 @@ pub(crate) struct Import {
 }
 
 /// Type of an entity.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum EntityType {
     /// A global entity.
     Global(GlobalType),
@@ -274,7 +274,7 @@ pub(crate) enum EntityType {
 }
 
 /// Type of a tag.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct TagType {
     /// Index of the function type.
     func_type_idx: u32,

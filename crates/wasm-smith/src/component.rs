@@ -12,7 +12,7 @@ use std::{
     marker,
     rc::Rc,
 };
-use wasm_encoder::{InterfaceTypeRef, PrimitiveInterfaceType, ValType};
+use wasm_encoder::{PrimitiveInterfaceType, ValType};
 
 mod encode;
 
@@ -1016,9 +1016,11 @@ impl ComponentBuilder {
             0 => Ok(InterfaceTypeRef::Primitive(
                 self.arbitrary_primitive_interface_type(u)?,
             )),
-            1 => Ok(InterfaceTypeRef::Type(
-                *u.choose(&self.current_type_scope().interface_types)?,
-            )),
+            1 => {
+                let index = *u.choose(&self.current_type_scope().interface_types)?;
+                let ty = Rc::clone(self.current_type_scope().get(index));
+                Ok(InterfaceTypeRef::Type(TypeIndex { index, ty }))
+            }
             _ => unreachable!(),
         }
     }
@@ -1571,9 +1573,11 @@ fn canonical_abi_for(inter_func_ty: &FuncType) -> Rc<crate::core::FuncType> {
         params: inter_func_ty
             .params
             .iter()
-            .flat_map(|ty| to_core_ty(ty.ty))
+            .flat_map(|ty| to_core_ty(ty.ty.clone()))
             .collect(),
-        results: to_core_ty(inter_func_ty.result).into_iter().collect(),
+        results: to_core_ty(inter_func_ty.result.clone())
+            .into_iter()
+            .collect(),
     })
 }
 
@@ -1593,13 +1597,13 @@ fn inverse_scalar_canonical_abi_for(
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S32),
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U32),
             ])
-            .copied(),
+            .cloned(),
         ValType::I64 => u
             .choose(&[
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S64),
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U64),
             ])
-            .copied(),
+            .cloned(),
         ValType::F32 => Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float32)),
         ValType::F64 => Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float64)),
         ValType::V128 | ValType::FuncRef | ValType::ExternRef => {
@@ -1682,7 +1686,7 @@ struct TypeSection {
     types: Vec<Rc<Type>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Type {
     Module(Rc<ModuleType>),
     Component(Rc<ComponentType>),
@@ -1692,7 +1696,7 @@ enum Type {
     Interface(InterfaceType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ModuleType {
     defs: Vec<ModuleTypeDef>,
     has_memory: bool,
@@ -1700,14 +1704,14 @@ struct ModuleType {
     has_canonical_abi_free: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum ModuleTypeDef {
     TypeDef(crate::core::Type),
     Import(crate::core::Import),
     Export(String, crate::core::EntityType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Alias {
     InstanceExport {
         instance: u32,
@@ -1721,7 +1725,7 @@ enum Alias {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InstanceExportAliasKind {
     Module,
     Component,
@@ -1733,19 +1737,19 @@ enum InstanceExportAliasKind {
     Global,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum OuterAliasKind {
     Module,
     Component,
     Type,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ComponentType {
     defs: Vec<ComponentTypeDef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum ComponentTypeDef {
     Import(Import),
     Type(Rc<Type>),
@@ -1763,12 +1767,12 @@ impl From<InstanceTypeDef> for ComponentTypeDef {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct InstanceType {
     defs: Vec<InstanceTypeDef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InstanceTypeDef {
     Type(Rc<Type>),
     Export { name: String, ty: TypeIndex },
@@ -1783,7 +1787,7 @@ struct FuncType {
 
 impl FuncType {
     fn is_scalar(&self) -> bool {
-        self.params.iter().all(|p| p.is_scalar()) && is_scalar(self.result)
+        self.params.iter().all(|p| p.is_scalar()) && is_scalar(&self.result)
     }
 }
 
@@ -1795,11 +1799,11 @@ struct OptionalNamedType {
 
 impl OptionalNamedType {
     fn is_scalar(&self) -> bool {
-        is_scalar(self.ty)
+        is_scalar(&self.ty)
     }
 }
 
-fn is_scalar(ty: InterfaceTypeRef) -> bool {
+fn is_scalar(ty: &InterfaceTypeRef) -> bool {
     match ty {
         InterfaceTypeRef::Primitive(prim) => match prim {
             PrimitiveInterfaceType::Unit
@@ -1821,16 +1825,16 @@ fn is_scalar(ty: InterfaceTypeRef) -> bool {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct NamedType {
     name: String,
     ty: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ValueType(InterfaceTypeRef);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InterfaceType {
     Primitive(PrimitiveInterfaceType),
     Record(RecordType),
@@ -1844,47 +1848,47 @@ enum InterfaceType {
     Expected(ExpectedType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct RecordType {
     fields: Vec<NamedType>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VariantType {
     cases: Vec<(NamedType, Option<u32>)>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ListType {
     elem_ty: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TupleType {
     fields: Vec<InterfaceTypeRef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct FlagsType {
     fields: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct EnumType {
     variants: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct UnionType {
     variants: Vec<InterfaceTypeRef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct OptionType {
     inner_ty: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ExpectedType {
     ok_ty: InterfaceTypeRef,
     err_ty: InterfaceTypeRef,
@@ -1895,7 +1899,7 @@ struct ImportSection {
     imports: Vec<Import>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Import {
     name: String,
     ty: TypeIndex,
@@ -1939,7 +1943,22 @@ struct StartSection {}
 #[derive(Debug)]
 struct AliasSection {}
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum InterfaceTypeRef {
+    Primitive(PrimitiveInterfaceType),
+    Type(TypeIndex),
+}
+
+impl From<InterfaceTypeRef> for wasm_encoder::InterfaceTypeRef {
+    fn from(r: InterfaceTypeRef) -> Self {
+        match r {
+            InterfaceTypeRef::Primitive(p) => wasm_encoder::InterfaceTypeRef::Primitive(p),
+            InterfaceTypeRef::Type(t) => wasm_encoder::InterfaceTypeRef::Type(t.index),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TypeIndex {
     index: u32,
     ty: Rc<Type>,
