@@ -5,13 +5,14 @@
 
 use crate::{arbitrary_loop, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::{
     collections::{HashMap, HashSet},
     marker,
     rc::Rc,
 };
-use wasm_encoder::{InterfaceTypeRef, PrimitiveInterfaceType, ValType};
+use wasm_encoder::{PrimitiveInterfaceType, ValType};
 
 mod encode;
 
@@ -82,6 +83,27 @@ struct ComponentBuilder {
     total_values: usize,
 }
 
+#[derive(Debug, Clone)]
+enum ComponentOrCoreFuncType {
+    Component(Rc<FuncType>),
+    Core(Rc<crate::core::FuncType>),
+}
+
+impl ComponentOrCoreFuncType {
+    fn unwrap_core(self) -> Rc<crate::core::FuncType> {
+        match self {
+            ComponentOrCoreFuncType::Core(f) => f,
+            ComponentOrCoreFuncType::Component(_) => panic!("not a core func type"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum ComponentOrCoreInstanceType {
+    Component(Rc<InstanceType>),
+    Core(BTreeMap<String, crate::core::EntityType>),
+}
+
 /// Metadata (e.g. contents of various index spaces) we keep track of on a
 /// per-component basis.
 #[derive(Debug)]
@@ -96,18 +118,7 @@ struct ComponentContext {
     import_names: HashSet<String>,
 
     // This component's function index space.
-    //
-    // An indirect list of all functions in this component.
-    //
-    // Each entry is of the form `(i, j)` where `component.sections[i]` is
-    // guaranteed to be either
-    //
-    // * a `Section::Func` and we are referencing the `j`th function defined in
-    //   that section, which is guaranteed to be a core Wasm function, or
-    //
-    // * a `Section::Import` and we are referencing the `j`th import in that
-    //   section, which is guaranteed to be a function import.
-    funcs: Vec<(usize, usize)>,
+    funcs: Vec<ComponentOrCoreFuncType>,
 
     // Which entries in `funcs` are interface functions?
     interface_funcs: Vec<u32>,
@@ -121,9 +132,6 @@ struct ComponentContext {
     // Note that a component can't import core functions, so these entries will
     // never point to a `Section::Import`.
     core_funcs: Vec<u32>,
-
-    // A map from a core function's index to its core function type.
-    core_func_types: HashMap<u32, Rc<crate::core::FuncType>>,
 
     // This component's component index space.
     //
@@ -158,33 +166,10 @@ struct ComponentContext {
     modules: Vec<(usize, usize)>,
 
     // This component's instance index space.
-    //
-    // An indirect list of all instances imported or instantiated inside this
-    // component.
-    //
-    // Each entry is of the form `(i, j)` where `component.sections[i]` is
-    // guaranteed to be either
-    //
-    // * a `Section::Instance` and we are referencing the `j`th instance
-    //   instantiated in that section, or
-    //
-    // * a `Section::Import` and we are referenceing the `j`th import in that
-    //   section, which is guaranteed to be an instance import.
-    instances: Vec<(usize, usize)>,
+    instances: Vec<ComponentOrCoreInstanceType>,
 
     // This component's value index space.
-    //
-    // An indirect list of all values inside this component.
-    //
-    // Each entry is of the form `(i, j)` where `component.sections[i]` is
-    // guaranteed to be either
-    //
-    // * a `Section::Start` and we are referencing the `j`th result of the start
-    //   function, or
-    //
-    // * a `Section::Import` and we are referenceing the `j`th import in that
-    //   section, which is guaranteed to be a value import.
-    values: Vec<(usize, usize)>,
+    values: Vec<ValueType>,
 }
 
 impl ComponentContext {
@@ -197,7 +182,6 @@ impl ComponentContext {
             interface_funcs: vec![],
             scalar_interface_funcs: vec![],
             core_funcs: vec![],
-            core_func_types: HashMap::default(),
             components: vec![],
             modules: vec![],
             instances: vec![],
@@ -559,7 +543,7 @@ impl ComponentBuilder {
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<ModuleType> {
+    ) -> Result<Rc<ModuleType>> {
         let mut defs = vec![];
         let mut has_memory = false;
         let mut has_canonical_abi_realloc = false;
@@ -706,12 +690,12 @@ impl ComponentBuilder {
             Ok(true)
         })?;
 
-        Ok(ModuleType {
+        Ok(Rc::new(ModuleType {
             defs,
             has_memory,
             has_canonical_abi_realloc,
             has_canonical_abi_free,
-        })
+        }))
     }
 
     fn arbitrary_core_entity_type(
@@ -850,7 +834,7 @@ impl ComponentBuilder {
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<ComponentType> {
+    ) -> Result<Rc<ComponentType>> {
         let mut defs = vec![];
         let mut imports = HashSet::new();
         let mut exports = HashSet::new();
@@ -869,9 +853,13 @@ impl ComponentBuilder {
                     let name = crate::unique_string(100, &mut imports, u)?;
                     let max_def_ty_idx = me.current_type_scope().def_types.len() - 1;
                     let def_ty_idx = u.int_in_range(0..=max_def_ty_idx)?;
-                    let ty = me.current_type_scope().def_types[def_ty_idx];
-                    let ty = u32::try_from(ty).unwrap();
-                    defs.push(ComponentTypeDef::Import(Import { name, ty }));
+                    let index = me.current_type_scope().def_types[def_ty_idx];
+                    let index = u32::try_from(index).unwrap();
+                    let ty = Rc::clone(me.current_type_scope().get(index));
+                    defs.push(ComponentTypeDef::Import(Import {
+                        name,
+                        ty: TypeIndex { index, ty },
+                    }));
                 } else {
                     // Type definitions, exports, and aliases.
                     let def = me.arbitrary_instance_type_def(u, &mut exports, type_fuel)?;
@@ -881,14 +869,14 @@ impl ComponentBuilder {
             })
         })?;
 
-        Ok(ComponentType { defs })
+        Ok(Rc::new(ComponentType { defs }))
     }
 
     fn arbitrary_instance_type(
         &mut self,
         u: &mut Unstructured,
         type_fuel: &mut u32,
-    ) -> Result<InstanceType> {
+    ) -> Result<Rc<InstanceType>> {
         let mut defs = vec![];
         let mut exports = HashSet::new();
 
@@ -904,7 +892,7 @@ impl ComponentBuilder {
             })
         })?;
 
-        Ok(InstanceType { defs })
+        Ok(Rc::new(InstanceType { defs }))
     }
 
     fn arbitrary_instance_type_def(
@@ -925,11 +913,13 @@ impl ComponentBuilder {
         // Export.
         if !self.current_type_scope().types.is_empty() {
             choices.push(|me, exports, u, _type_fuel| {
+                let index = u.int_in_range(
+                    0..=u32::try_from(me.current_type_scope().types.len()).unwrap() - 1,
+                )?;
+                let ty = Rc::clone(me.current_type_scope().get(index));
                 Ok(InstanceTypeDef::Export {
                     name: crate::unique_string(100, exports, u)?,
-                    ty: u.int_in_range(
-                        0..=u32::try_from(me.current_type_scope().types.len()).unwrap() - 1,
-                    )?,
+                    ty: TypeIndex { index, ty },
                 })
             });
         }
@@ -942,7 +932,7 @@ impl ComponentBuilder {
                     Alias::Outer {
                         count,
                         i,
-                        kind: OuterAliasKind::Type,
+                        kind: OuterAliasKind::Type(_),
                     } => (count, i),
                     _ => unreachable!(),
                 };
@@ -982,11 +972,12 @@ impl ComponentBuilder {
 
         let max_type_in_scope = u32::try_from(scope.types.len() - 1).unwrap();
         let i = u.int_in_range(0..=max_type_in_scope)?;
+        let ty = Rc::clone(scope.get(i));
 
         Ok(Alias::Outer {
             count,
             i,
-            kind: OuterAliasKind::Type,
+            kind: OuterAliasKind::Type(ty),
         })
     }
 
@@ -1026,9 +1017,11 @@ impl ComponentBuilder {
             0 => Ok(InterfaceTypeRef::Primitive(
                 self.arbitrary_primitive_interface_type(u)?,
             )),
-            1 => Ok(InterfaceTypeRef::Type(
-                *u.choose(&self.current_type_scope().interface_types)?,
-            )),
+            1 => {
+                let index = *u.choose(&self.current_type_scope().interface_types)?;
+                let ty = Rc::clone(self.current_type_scope().get(index));
+                Ok(InterfaceTypeRef::Type(TypeIndex { index, ty }))
+            }
             _ => unreachable!(),
         }
     }
@@ -1251,23 +1244,28 @@ impl ComponentBuilder {
         }
     }
 
-    fn push_import(&mut self, name: String, ty: u32) {
+    fn push_import(&mut self, name: String, ty: TypeIndex) {
         let nth = match self.ensure_section(
             |sec| matches!(sec, Section::Import(_)),
             || Section::Import(ImportSection { imports: vec![] }),
         ) {
             Section::Import(sec) => {
-                sec.imports.push(Import { name, ty });
+                sec.imports.push(Import {
+                    name,
+                    ty: ty.clone(),
+                });
                 sec.imports.len() - 1
             }
             _ => unreachable!(),
         };
         let section_index = self.component().component.sections.len() - 1;
 
-        match &*self.current_type_scope().get(ty).clone() {
+        match &*ty.ty {
             Type::Func(func_ty) => {
                 let func_index = u32::try_from(self.component().funcs.len()).unwrap();
-                self.component_mut().funcs.push((section_index, nth));
+                self.component_mut()
+                    .funcs
+                    .push(ComponentOrCoreFuncType::Component(Rc::clone(func_ty)));
 
                 self.component_mut().interface_funcs.push(func_index);
                 if func_ty.is_scalar() {
@@ -1283,29 +1281,25 @@ impl ComponentBuilder {
                 self.total_components += 1;
                 self.component_mut().components.push((section_index, nth));
             }
-            Type::Instance(_) => {
+            Type::Instance(ty) => {
                 self.total_instances += 1;
-                self.component_mut().instances.push((section_index, nth));
+                self.component_mut()
+                    .instances
+                    .push(ComponentOrCoreInstanceType::Component(Rc::clone(ty)));
             }
-            Type::Value(_) => {
+            Type::Value(ty) => {
                 self.total_values += 1;
-                self.component_mut().values.push((section_index, nth));
+                self.component_mut().values.push(ty.clone());
             }
             Type::Interface(_) => unreachable!("cannot import interface types"),
         }
     }
 
     fn interface_function_type(&self, inter_func: u32) -> &Rc<FuncType> {
-        let (section_index, nth) = self.component().funcs[inter_func as usize];
-        let inter_func_ty = match &self.component().component.sections[section_index] {
-            Section::Import(ImportSection { imports }) => imports[nth].ty,
-            Section::Func(FuncSection { funcs }) => match &funcs[nth] {
-                Func::CanonLift { func_ty, .. } => *func_ty,
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
-        self.current_type_scope().get_func(inter_func_ty)
+        match &self.component().funcs[inter_func as usize] {
+            ComponentOrCoreFuncType::Component(ty) => ty,
+            ComponentOrCoreFuncType::Core(_) => panic!("not an interface function"),
+        }
     }
 
     fn push_func(&mut self, func: Func) {
@@ -1319,25 +1313,26 @@ impl ComponentBuilder {
         let section_index = self.component().component.sections.len() - 1;
 
         let func_index = u32::try_from(self.component().funcs.len()).unwrap();
-        self.component_mut().funcs.push((section_index, nth));
 
-        match &func {
+        let ty = match &func {
             Func::CanonLift { func_ty, .. } => {
                 self.component_mut().interface_funcs.push(func_index);
-                if self.current_type_scope().get_func(*func_ty).is_scalar() {
+                let ty = Rc::clone(self.current_type_scope().get_func(*func_ty));
+                if ty.is_scalar() {
                     let interface_func_index = self.component().interface_funcs.len();
                     self.component_mut().scalar_interface_funcs.push(func_index);
                 }
+                ComponentOrCoreFuncType::Component(ty)
             }
             Func::CanonLower { inter_func, .. } => {
                 let inter_func_ty = self.interface_function_type(*inter_func);
                 let core_func_ty = canonical_abi_for(inter_func_ty);
                 self.component_mut().core_funcs.push(func_index);
-                self.component_mut()
-                    .core_func_types
-                    .insert(func_index, core_func_ty);
+                ComponentOrCoreFuncType::Core(core_func_ty)
             }
-        }
+        };
+
+        self.component_mut().funcs.push(ty);
 
         match self.component_mut().component.sections.last_mut() {
             Some(Section::Func(FuncSection { funcs })) => funcs.push(func),
@@ -1401,8 +1396,9 @@ impl ComponentBuilder {
                 }
 
                 let f = u.choose(&choices)?;
-                let ty = f(u, self)?;
-                self.push_import(name, ty);
+                let index = f(u, self)?;
+                let ty = Rc::clone(self.current_type_scope().get(index));
+                self.push_import(name, TypeIndex { index, ty });
                 Ok(true)
             })?;
         }
@@ -1466,8 +1462,10 @@ impl ComponentBuilder {
             if !self.component().core_funcs.is_empty() {
                 choices.push(|u, c| {
                     let core_func = *u.choose(&c.component().core_funcs)?;
-                    let core_func_ty = c.component().core_func_types.get(&core_func).unwrap();
-                    let inter_func_ty = inverse_scalar_canonical_abi_for(u, core_func_ty)?;
+                    let core_func_ty = c.component().funcs[core_func as usize]
+                        .clone()
+                        .unwrap_core();
+                    let inter_func_ty = inverse_scalar_canonical_abi_for(u, &core_func_ty)?;
 
                     let func_ty = if let Some(indices) = c
                         .current_type_scope()
@@ -1576,9 +1574,11 @@ fn canonical_abi_for(inter_func_ty: &FuncType) -> Rc<crate::core::FuncType> {
         params: inter_func_ty
             .params
             .iter()
-            .flat_map(|ty| to_core_ty(ty.ty))
+            .flat_map(|ty| to_core_ty(ty.ty.clone()))
             .collect(),
-        results: to_core_ty(inter_func_ty.result).into_iter().collect(),
+        results: to_core_ty(inter_func_ty.result.clone())
+            .into_iter()
+            .collect(),
     })
 }
 
@@ -1598,13 +1598,13 @@ fn inverse_scalar_canonical_abi_for(
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S32),
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U32),
             ])
-            .copied(),
+            .cloned(),
         ValType::I64 => u
             .choose(&[
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::S64),
                 InterfaceTypeRef::Primitive(PrimitiveInterfaceType::U64),
             ])
-            .copied(),
+            .cloned(),
         ValType::F32 => Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float32)),
         ValType::F64 => Ok(InterfaceTypeRef::Primitive(PrimitiveInterfaceType::Float64)),
         ValType::V128 | ValType::FuncRef | ValType::ExternRef => {
@@ -1687,17 +1687,17 @@ struct TypeSection {
     types: Vec<Rc<Type>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Type {
-    Module(ModuleType),
-    Component(ComponentType),
-    Instance(InstanceType),
+    Module(Rc<ModuleType>),
+    Component(Rc<ComponentType>),
+    Instance(Rc<InstanceType>),
     Func(Rc<FuncType>),
     Value(ValueType),
     Interface(InterfaceType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ModuleType {
     defs: Vec<ModuleTypeDef>,
     has_memory: bool,
@@ -1705,14 +1705,14 @@ struct ModuleType {
     has_canonical_abi_free: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum ModuleTypeDef {
     TypeDef(crate::core::Type),
     Import(crate::core::Import),
     Export(String, crate::core::EntityType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Alias {
     InstanceExport {
         instance: u32,
@@ -1726,7 +1726,7 @@ enum Alias {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InstanceExportAliasKind {
     Module,
     Component,
@@ -1738,23 +1738,23 @@ enum InstanceExportAliasKind {
     Global,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum OuterAliasKind {
     Module,
     Component,
-    Type,
+    Type(Rc<Type>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ComponentType {
     defs: Vec<ComponentTypeDef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum ComponentTypeDef {
     Import(Import),
     Type(Rc<Type>),
-    Export { name: String, ty: u32 },
+    Export { name: String, ty: TypeIndex },
     Alias(Alias),
 }
 
@@ -1768,15 +1768,15 @@ impl From<InstanceTypeDef> for ComponentTypeDef {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct InstanceType {
     defs: Vec<InstanceTypeDef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InstanceTypeDef {
     Type(Rc<Type>),
-    Export { name: String, ty: u32 },
+    Export { name: String, ty: TypeIndex },
     Alias(Alias),
 }
 
@@ -1788,7 +1788,7 @@ struct FuncType {
 
 impl FuncType {
     fn is_scalar(&self) -> bool {
-        self.params.iter().all(|p| p.is_scalar()) && is_scalar(self.result)
+        self.params.iter().all(|p| p.is_scalar()) && is_scalar(&self.result)
     }
 }
 
@@ -1800,11 +1800,11 @@ struct OptionalNamedType {
 
 impl OptionalNamedType {
     fn is_scalar(&self) -> bool {
-        is_scalar(self.ty)
+        is_scalar(&self.ty)
     }
 }
 
-fn is_scalar(ty: InterfaceTypeRef) -> bool {
+fn is_scalar(ty: &InterfaceTypeRef) -> bool {
     match ty {
         InterfaceTypeRef::Primitive(prim) => match prim {
             PrimitiveInterfaceType::Unit
@@ -1826,16 +1826,16 @@ fn is_scalar(ty: InterfaceTypeRef) -> bool {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct NamedType {
     name: String,
     ty: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ValueType(InterfaceTypeRef);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InterfaceType {
     Primitive(PrimitiveInterfaceType),
     Record(RecordType),
@@ -1849,47 +1849,47 @@ enum InterfaceType {
     Expected(ExpectedType),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct RecordType {
     fields: Vec<NamedType>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VariantType {
     cases: Vec<(NamedType, Option<u32>)>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ListType {
     elem_ty: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TupleType {
     fields: Vec<InterfaceTypeRef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct FlagsType {
     fields: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct EnumType {
     variants: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct UnionType {
     variants: Vec<InterfaceTypeRef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct OptionType {
     inner_ty: InterfaceTypeRef,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ExpectedType {
     ok_ty: InterfaceTypeRef,
     err_ty: InterfaceTypeRef,
@@ -1900,10 +1900,10 @@ struct ImportSection {
     imports: Vec<Import>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Import {
     name: String,
-    ty: u32,
+    ty: TypeIndex,
 }
 
 #[derive(Debug)]
@@ -1943,3 +1943,24 @@ struct StartSection {}
 
 #[derive(Debug)]
 struct AliasSection {}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum InterfaceTypeRef {
+    Primitive(PrimitiveInterfaceType),
+    Type(TypeIndex),
+}
+
+impl From<InterfaceTypeRef> for wasm_encoder::InterfaceTypeRef {
+    fn from(r: InterfaceTypeRef) -> Self {
+        match r {
+            InterfaceTypeRef::Primitive(p) => wasm_encoder::InterfaceTypeRef::Primitive(p),
+            InterfaceTypeRef::Type(t) => wasm_encoder::InterfaceTypeRef::Type(t.index),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct TypeIndex {
+    index: u32,
+    ty: Rc<Type>,
+}

@@ -60,7 +60,7 @@ impl Encode for MemorySection {
 impl Section for MemorySection {}
 
 /// A memory's type.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MemoryType {
     /// Minimum size, in pages, of this memory
     pub minimum: u64,

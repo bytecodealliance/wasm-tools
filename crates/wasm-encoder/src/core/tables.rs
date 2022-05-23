@@ -60,7 +60,7 @@ impl Encode for TableSection {
 impl Section for TableSection {}
 
 /// A table's type.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TableType {
     /// The table's element type.
     pub element_type: ValType,

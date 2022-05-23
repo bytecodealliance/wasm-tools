@@ -67,7 +67,7 @@ impl ImportSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
-            sec.import(&imp.name, imp.ty);
+            sec.import(&imp.name, imp.ty.index);
         }
         component.section(&sec);
     }
@@ -131,18 +131,18 @@ impl Type {
                 for def in &comp_ty.defs {
                     match def {
                         ComponentTypeDef::Import(imp) => {
-                            enc_comp_ty.import(&imp.name, imp.ty);
+                            enc_comp_ty.import(&imp.name, imp.ty.index);
                         }
                         ComponentTypeDef::Type(ty) => {
                             ty.encode(enc_comp_ty.ty());
                         }
                         ComponentTypeDef::Export { name, ty } => {
-                            enc_comp_ty.export(name, *ty);
+                            enc_comp_ty.export(name, ty.index);
                         }
                         ComponentTypeDef::Alias(Alias::Outer {
                             count,
                             i,
-                            kind: OuterAliasKind::Type,
+                            kind: OuterAliasKind::Type(_),
                         }) => {
                             enc_comp_ty.alias_outer_type(*count, *i);
                         }
@@ -159,12 +159,12 @@ impl Type {
                             ty.encode(enc_inst_ty.ty());
                         }
                         InstanceTypeDef::Export { name, ty } => {
-                            enc_inst_ty.export(name, *ty);
+                            enc_inst_ty.export(name, ty.index);
                         }
                         InstanceTypeDef::Alias(Alias::Outer {
                             count,
                             i,
-                            kind: OuterAliasKind::Type,
+                            kind: OuterAliasKind::Type(_),
                         }) => {
                             enc_inst_ty.alias_outer_type(*count, *i);
                         }
@@ -179,11 +179,11 @@ impl Type {
                         .params
                         .iter()
                         .map(|p| translate_optional_named_type(p)),
-                    func_ty.result,
+                    func_ty.result.clone(),
                 );
             }
             Type::Value(val_ty) => {
-                enc.value(val_ty.0);
+                enc.value(val_ty.0.clone());
             }
             Type::Interface(ty) => {
                 ty.encode(enc.interface_type());
@@ -201,16 +201,16 @@ impl InterfaceType {
             }
             InterfaceType::Variant(ty) => {
                 enc.variant(
-                    ty.cases
-                        .iter()
-                        .map(|(ty, default_to)| (ty.name.as_str(), ty.ty, default_to.clone())),
+                    ty.cases.iter().map(|(ty, default_to)| {
+                        (ty.name.as_str(), ty.ty.clone(), default_to.clone())
+                    }),
                 );
             }
             InterfaceType::List(ty) => {
-                enc.list(ty.elem_ty);
+                enc.list(ty.elem_ty.clone());
             }
             InterfaceType::Tuple(ty) => {
-                enc.tuple(ty.fields.iter().copied());
+                enc.tuple(ty.fields.iter().cloned());
             }
             InterfaceType::Flags(ty) => {
                 enc.flags(ty.fields.iter().map(|f| f.as_str()));
@@ -219,24 +219,24 @@ impl InterfaceType {
                 enc.enum_type(ty.variants.iter().map(|v| v.as_str()));
             }
             InterfaceType::Union(ty) => {
-                enc.union(ty.variants.iter().copied());
+                enc.union(ty.variants.iter().cloned());
             }
             InterfaceType::Option(ty) => {
-                enc.option(ty.inner_ty);
+                enc.option(ty.inner_ty.clone());
             }
             InterfaceType::Expected(ty) => {
-                enc.expected(ty.ok_ty, ty.err_ty);
+                enc.expected(ty.ok_ty.clone(), ty.err_ty.clone());
             }
         }
     }
 }
 
 fn translate_named_type(ty: &NamedType) -> (&str, InterfaceTypeRef) {
-    (&ty.name, ty.ty)
+    (&ty.name, ty.ty.clone())
 }
 
 fn translate_optional_named_type(ty: &OptionalNamedType) -> (Option<&str>, InterfaceTypeRef) {
-    (ty.name.as_deref(), ty.ty)
+    (ty.name.as_deref(), ty.ty.clone())
 }
 
 fn translate_canon_opt(options: &[CanonOpt]) -> Vec<wasm_encoder::CanonicalOption> {
