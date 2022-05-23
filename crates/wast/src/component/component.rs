@@ -273,6 +273,11 @@ pub enum NestedComponentKind<'a> {
 
 impl<'a> Parse<'a> for NestedComponent<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        // See comments in `module.rs` for why this is tested here.
+        if parser.parens_depth() > 100 {
+            return Err(parser.error("component type nesting too deep"));
+        }
+
         let span = parser.parse::<kw::component>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
