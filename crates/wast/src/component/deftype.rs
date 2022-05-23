@@ -152,7 +152,7 @@ pub struct ModuleType<'a> {
 
 impl<'a> Parse<'a> for ModuleType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        // See comments in `nested_module.rs` for why this is tested here.
+        // See comments in `module.rs` for why this is tested here.
         if parser.parens_depth() > 100 {
             return Err(parser.error("module type nesting too deep"));
         }
@@ -203,7 +203,7 @@ pub struct ComponentType<'a> {
 
 impl<'a> Parse<'a> for ComponentType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        // See comments in `nested_module.rs` for why this is tested here.
+        // See comments in `module.rs` for why this is tested here.
         if parser.parens_depth() > 100 {
             return Err(parser.error("component type nesting too deep"));
         }
@@ -264,7 +264,7 @@ pub struct InstanceType<'a> {
 
 impl<'a> Parse<'a> for InstanceType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        // See comments in `nested_module.rs` for why this is tested here.
+        // See comments in `module.rs` for why this is tested here.
         if parser.parens_depth() > 100 {
             return Err(parser.error("instance type nesting too deep"));
         }
