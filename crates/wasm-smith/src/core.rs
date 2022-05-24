@@ -409,7 +409,7 @@ impl Module {
     }
 
     fn can_add_local_or_import_func(&self) -> bool {
-        self.func_types.len() > 0 && self.funcs.len() < self.config.max_funcs()
+        !self.func_types.is_empty() && self.funcs.len() < self.config.max_funcs()
     }
 
     fn can_add_local_or_import_table(&self) -> bool {
@@ -502,15 +502,15 @@ impl Module {
             match &entity_type {
                 EntityType::Tag(ty) => self.tags.push(ty.clone()),
                 EntityType::Func(idx, ty) => self.funcs.push((*idx, ty.clone())),
-                EntityType::Global(ty) => self.globals.push(ty.clone()),
-                EntityType::Table(ty) => self.tables.push(ty.clone()),
-                EntityType::Memory(ty) => self.memories.push(ty.clone()),
+                EntityType::Global(ty) => self.globals.push(*ty),
+                EntityType::Table(ty) => self.tables.push(*ty),
+                EntityType::Memory(ty) => self.memories.push(*ty),
             }
 
             self.num_imports += 1;
             self.imports.push(Import {
-                module: module.into(),
-                field: field.into(),
+                module,
+                field,
                 entity_type,
             });
             Ok(true)
@@ -580,7 +580,7 @@ impl Module {
                 Some((wasmparser::TypeDef::Func(func_type), index_store)) => {
                     let multi_value_required = func_type.returns.len() > 1;
                     let new_index = first_type_index + new_types.len();
-                    if new_index >= max_types || multi_value_required > multi_value_enabled {
+                    if new_index >= max_types || (multi_value_required && !multi_value_enabled) {
                         return None;
                     }
                     let func_type = Rc::new(FuncType {
@@ -657,7 +657,7 @@ impl Module {
                         maximum: memory_ty.maximum,
                         memory64: memory_ty.memory64,
                     };
-                    let entity = EntityType::Memory(memory_ty.clone());
+                    let entity = EntityType::Memory(memory_ty);
                     let type_size = entity.size();
                     if type_size_budget < type_size || !self.can_add_local_or_import_memory() {
                         continue;
@@ -699,10 +699,10 @@ impl Module {
 
     fn type_of(&self, item: &Export) -> EntityType {
         match *item {
-            Export::Global(idx) => EntityType::Global(self.globals[idx as usize].clone()),
-            Export::Memory(idx) => EntityType::Memory(self.memories[idx as usize].clone()),
-            Export::Table(idx) => EntityType::Table(self.tables[idx as usize].clone()),
-            Export::Function(idx) => {
+            Export::Global(idx) => EntityType::Global(self.globals[idx as usize]),
+            Export::Memory(idx) => EntityType::Memory(self.memories[idx as usize]),
+            Export::Table(idx) => EntityType::Table(self.tables[idx as usize]),
+            Export::Func(idx) => {
                 let (_idx, ty) = &self.funcs[idx as usize];
                 EntityType::Func(u32::max_value(), ty.clone())
             }
@@ -714,7 +714,7 @@ impl Module {
         &self.types[idx as usize]
     }
 
-    fn func_types<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
+    fn func_types(&self) -> impl Iterator<Item = (u32, &FuncType)> + '_ {
         self.func_types
             .iter()
             .copied()
@@ -727,14 +727,14 @@ impl Module {
         }
     }
 
-    fn tags<'a>(&'a self) -> impl Iterator<Item = (u32, &'a TagType)> + 'a {
+    fn tags(&self) -> impl Iterator<Item = (u32, &TagType)> + '_ {
         self.tags
             .iter()
             .enumerate()
             .map(move |(i, ty)| (i as u32, ty))
     }
 
-    fn funcs<'a>(&'a self) -> impl Iterator<Item = (u32, &'a Rc<FuncType>)> + 'a {
+    fn funcs(&self) -> impl Iterator<Item = (u32, &Rc<FuncType>)> + '_ {
         self.funcs
             .iter()
             .enumerate()
@@ -745,11 +745,11 @@ impl Module {
         self.tag_func_types().next().is_some()
     }
 
-    fn tag_func_types<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+    fn tag_func_types(&self) -> impl Iterator<Item = u32> + '_ {
         self.func_types
             .iter()
             .copied()
-            .filter(move |i| self.func_type(*i).results.len() == 0)
+            .filter(move |i| self.func_type(*i).results.is_empty())
     }
 
     fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
@@ -897,7 +897,7 @@ impl Module {
         let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
         choices.push(
             (0..self.funcs.len())
-                .map(|i| Export::Function(i as u32))
+                .map(|i| Export::Func(i as u32))
                 .collect(),
         );
         choices.push(
@@ -931,8 +931,8 @@ impl Module {
                 for list in choices.iter_mut() {
                     list.retain(|c| self.type_of(c).size() + 1 < max_size);
                 }
-                choices.retain(|list| list.len() > 0);
-                if choices.len() == 0 {
+                choices.retain(|list| !list.is_empty());
+                if choices.is_empty() {
                     return Ok(false);
                 }
 
@@ -1062,10 +1062,10 @@ impl Module {
 
                 // Select a kind for this segment now that we know the number of
                 // items the segment will hold.
-                let (kind, max_size_hint) = u.choose(&kind_candidates)?(u)?;
+                let (kind, max_size_hint) = u.choose(kind_candidates)?(u)?;
                 let max = max_size_hint
                     .map(|i| usize::try_from(i).unwrap())
-                    .unwrap_or(self.config.max_elements());
+                    .unwrap_or_else(|| self.config.max_elements());
 
                 // Pick whether we're going to use expression elements or
                 // indices. Note that externrefs must use expressions,
@@ -1207,7 +1207,7 @@ impl Module {
         // With memories we can generate data segments, and with bulk memory we
         // can generate passive segments. Without these though we can't create
         // a valid module with data segments.
-        if memories.len() == 0 && !self.config.bulk_memory_enabled() {
+        if memories.is_empty() && !self.config.bulk_memory_enabled() {
             return Ok(());
         }
 
@@ -1317,10 +1317,7 @@ pub(crate) fn arbitrary_func_type(
         results.push(arbitrary_valtype(u, valtypes)?);
         Ok(true)
     })?;
-    Ok(Rc::new(FuncType {
-        params: params.into(),
-        results: results.into(),
-    }))
+    Ok(Rc::new(FuncType { params, results }))
 }
 
 fn arbitrary_valtype(u: &mut Unstructured, valtypes: &[ValType]) -> Result<ValType> {
@@ -1435,13 +1432,13 @@ fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -
             output.end
         );
 
-        let x = map_linear(value, input.clone(), 0.0..1.0);
+        let x = map_linear(value, input, 0.0..1.0);
         let result = if x < PCT_INBOUNDS {
             if output_inbounds.start == output_inbounds.end {
                 output_inbounds.start
             } else {
                 let unscaled = x * x * x * x * x * x;
-                map_linear(unscaled, 0.0..1.0, output_inbounds.clone())
+                map_linear(unscaled, 0.0..1.0, output_inbounds)
             }
         } else {
             map_linear(x, 0.0..1.0, output.clone())

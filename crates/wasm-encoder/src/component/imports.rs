@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Represents the possible type bounds for type references.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum TypeBounds {
     /// The type is bounded by equality.
     Eq,
@@ -19,7 +19,7 @@ impl Encode for TypeBounds {
 }
 
 /// Represents a reference to a type.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum ComponentTypeRef {
     /// The reference is to a core module type.
     ///
