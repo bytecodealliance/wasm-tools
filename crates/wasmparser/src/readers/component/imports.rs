@@ -1,13 +1,50 @@
-use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use crate::{
+    BinaryReader, ComponentValType, Result, SectionIteratorLimited, SectionReader,
+    SectionWithLimitedItems,
+};
 use std::ops::Range;
+
+/// Represents the type bounds for imports and exports.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypeBounds {
+    /// The type is bounded by equality.
+    Eq,
+}
+
+/// Represents a reference to a component type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ComponentTypeRef {
+    /// The reference is to a core module type.
+    ///
+    /// The index is expected to be core type index to a core module type.
+    Module(u32),
+    /// The reference is to a function type.
+    ///
+    /// The index is expected to be a type index to a function type.
+    Func(u32),
+    /// The reference is to a value type.
+    Value(ComponentValType),
+    /// The reference is to a bounded type.
+    ///
+    /// The index is expected to be a type index.
+    Type(TypeBounds, u32),
+    /// The reference is to an instance type.
+    ///
+    /// The index is a type index to an instance type.
+    Instance(u32),
+    /// The reference is to a component type.
+    ///
+    /// The index is a type index to a component type.
+    Component(u32),
+}
 
 /// Represents an import in a WebAssembly component
 #[derive(Debug, Copy, Clone)]
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
     pub name: &'a str,
-    /// The type index of the item being imported.
-    pub ty: u32,
+    /// The type reference for the import.
+    pub ty: ComponentTypeRef,
 }
 
 /// A reader for the import section of a WebAssembly component.

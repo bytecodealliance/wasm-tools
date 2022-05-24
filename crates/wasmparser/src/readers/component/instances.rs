@@ -1,83 +1,43 @@
 use crate::{
-    BinaryReader, ComponentExport, Export, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
+    BinaryReader, ComponentExport, ComponentExternalKind, Result, SectionIteratorLimited,
+    SectionReader, SectionWithLimitedItems,
 };
 use std::ops::Range;
 
-/// Represents the kind of argument when instantiating a WebAssembly module.
-#[derive(Debug, Clone)]
-pub enum ModuleArgKind {
-    /// The argument is an instance.
-    Instance(u32),
-}
-
 /// Represents an argument to instantiating a WebAssembly component.
 #[derive(Debug, Clone)]
-pub struct ModuleArg<'a> {
-    /// The name of the module argument.
-    pub name: &'a str,
-    /// The kind of the module argument.
-    pub kind: ModuleArgKind,
-}
-
-/// Represents the kind of argument when instantiating a WebAssembly component.
-#[derive(Debug, Clone)]
-pub enum ComponentArgKind {
-    /// The argument is a module.
-    Module(u32),
-    /// The argument is a component.
-    Component(u32),
-    /// The argument is an instance.
-    Instance(u32),
-    /// The argument is a function.
-    Function(u32),
-    /// The argument is a value.
-    Value(u32),
-    /// The argument is a type.
-    Type(u32),
-}
-
-/// Represents an argument to instantiating a WebAssembly component.
-#[derive(Debug, Clone)]
-pub struct ComponentArg<'a> {
+pub struct ComponentInstantiationArg<'a> {
     /// The name of the component argument.
     pub name: &'a str,
     /// The kind of the component argument.
-    pub kind: ComponentArgKind,
+    pub kind: ComponentExternalKind,
+    /// The index of the argument item.
+    pub index: u32,
 }
 
 /// Represents an instance in a WebAssembly component.
 #[derive(Debug, Clone)]
-pub enum Instance<'a> {
-    /// The instance is from instantiating a WebAssembly module.
-    Module {
-        /// The module index.
-        index: u32,
-        /// The module's instantiation arguments.
-        args: Box<[ModuleArg<'a>]>,
-    },
+pub enum ComponentInstance<'a> {
     /// The instance is from instantiating a WebAssembly component.
-    Component {
+    Instantiate {
         /// The component index.
-        index: u32,
+        component_index: u32,
         /// The component's instantiation arguments.
-        args: Box<[ComponentArg<'a>]>,
+        args: Box<[ComponentInstantiationArg<'a>]>,
     },
-    /// The instance is a module instance from exporting local items.
-    ModuleFromExports(Box<[Export<'a>]>),
-    /// The instance is a component instance from exporting local items.
-    ComponentFromExports(Box<[ComponentExport<'a>]>),
+    /// The instance is a from exporting local items.
+    FromExports(Box<[ComponentExport<'a>]>),
 }
 
-/// A reader for the instance section of a WebAssembly component.
+/// A reader for the component instance section of a WebAssembly component.
 #[derive(Clone)]
-pub struct InstanceSectionReader<'a> {
+pub struct ComponentInstanceSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> InstanceSectionReader<'a> {
-    /// Constructs a new `InstanceSectionReader` for the given data and offset.
+impl<'a> ComponentInstanceSectionReader<'a> {
+    /// Constructs a new `ComponentInstanceSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
@@ -98,21 +58,21 @@ impl<'a> InstanceSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::InstanceSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x02, 0x00];
-    /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
+    /// use wasmparser::ComponentInstanceSectionReader;
+    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
+    /// let mut reader = ComponentInstanceSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let instance = reader.read().expect("instance");
     ///     println!("Instance: {:?}", instance);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<Instance<'a>> {
-        self.reader.read_instance()
+    pub fn read(&mut self) -> Result<ComponentInstance<'a>> {
+        self.reader.read_component_instance()
     }
 }
 
-impl<'a> SectionReader for InstanceSectionReader<'a> {
-    type Item = Instance<'a>;
+impl<'a> SectionReader for ComponentInstanceSectionReader<'a> {
+    type Item = ComponentInstance<'a>;
 
     fn read(&mut self) -> Result<Self::Item> {
         Self::read(self)
@@ -131,14 +91,14 @@ impl<'a> SectionReader for InstanceSectionReader<'a> {
     }
 }
 
-impl<'a> SectionWithLimitedItems for InstanceSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for ComponentInstanceSectionReader<'a> {
     fn get_count(&self) -> u32 {
         Self::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for InstanceSectionReader<'a> {
-    type Item = Result<Instance<'a>>;
+impl<'a> IntoIterator for ComponentInstanceSectionReader<'a> {
+    type Item = Result<ComponentInstance<'a>>;
     type IntoIter = SectionIteratorLimited<Self>;
 
     /// Implements iterator over the instance section.
@@ -146,9 +106,9 @@ impl<'a> IntoIterator for InstanceSectionReader<'a> {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::InstanceSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x02, 0x00];
-    /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
+    /// use wasmparser::ComponentInstanceSectionReader;
+    /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
+    /// let mut reader = ComponentInstanceSectionReader::new(data, 0).unwrap();
     /// for inst in reader {
     ///     println!("Instance {:?}", inst.expect("instance"));
     /// }

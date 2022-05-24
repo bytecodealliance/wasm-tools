@@ -1,41 +1,32 @@
 use crate::{
-    BinaryReader, ComponentExternalKind, Result, SectionIteratorLimited, SectionReader,
+    BinaryReader, ExternalKind, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
 use std::ops::Range;
 
-/// Represents an alias in a WebAssembly component.
+/// Represents a core alias for a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum ComponentAlias<'a> {
-    /// The alias is to an export of a component instance.
+pub enum Alias<'a> {
+    /// The alias is to an export of a module instance.
     InstanceExport {
         /// The alias kind.
-        kind: ComponentExternalKind,
+        kind: ExternalKind,
         /// The instance index.
         instance_index: u32,
         /// The export name.
         name: &'a str,
     },
-    /// The alias is to an outer item.
-    Outer {
-        /// The alias kind.
-        kind: ComponentExternalKind,
-        /// The outward count, starting at zero for the current component.
-        count: u32,
-        /// The index of the item within the outer component.
-        index: u32,
-    },
 }
 
-/// A reader for the alias section of a WebAssembly component.
+/// A reader for the core alias section of a WebAssembly component.
 #[derive(Clone)]
-pub struct ComponentAliasSectionReader<'a> {
+pub struct AliasSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
 }
 
-impl<'a> ComponentAliasSectionReader<'a> {
-    /// Constructs a new `ComponentAliasSectionReader` for the given data and offset.
+impl<'a> AliasSectionReader<'a> {
+    /// Constructs a new `AliasSectionReader` for the given data and offset.
     pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
@@ -52,25 +43,25 @@ impl<'a> ComponentAliasSectionReader<'a> {
         self.count
     }
 
-    /// Reads content of the alias section.
+    /// Reads content of the core alias section.
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentAliasSectionReader;
-    /// let data: &[u8] = &[0x01, 0x01, 0x00, 0x00, 0x03, b'f', b'o', b'o'];
-    /// let mut reader = ComponentAliasSectionReader::new(data, 0).unwrap();
+    /// use wasmparser::AliasSectionReader;
+    /// let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x03, b'f', b'o', b'o'];
+    /// let mut reader = AliasSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let alias = reader.read().expect("alias");
     ///     println!("Alias: {:?}", alias);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<ComponentAlias<'a>> {
-        self.reader.read_component_alias()
+    pub fn read(&mut self) -> Result<Alias<'a>> {
+        self.reader.read_alias()
     }
 }
 
-impl<'a> SectionReader for ComponentAliasSectionReader<'a> {
-    type Item = ComponentAlias<'a>;
+impl<'a> SectionReader for AliasSectionReader<'a> {
+    type Item = Alias<'a>;
 
     fn read(&mut self) -> Result<Self::Item> {
         Self::read(self)
@@ -89,14 +80,14 @@ impl<'a> SectionReader for ComponentAliasSectionReader<'a> {
     }
 }
 
-impl<'a> SectionWithLimitedItems for ComponentAliasSectionReader<'a> {
+impl<'a> SectionWithLimitedItems for AliasSectionReader<'a> {
     fn get_count(&self) -> u32 {
         Self::get_count(self)
     }
 }
 
-impl<'a> IntoIterator for ComponentAliasSectionReader<'a> {
-    type Item = Result<ComponentAlias<'a>>;
+impl<'a> IntoIterator for AliasSectionReader<'a> {
+    type Item = Result<Alias<'a>>;
     type IntoIter = SectionIteratorLimited<Self>;
 
     fn into_iter(self) -> Self::IntoIter {

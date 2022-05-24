@@ -15,7 +15,7 @@
 
 use crate::{
     BinaryReader, BinaryReaderError, OperatorsReader, Result, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems, Type,
+    SectionReader, SectionWithLimitedItems, ValType,
 };
 use std::ops::Range;
 
@@ -112,15 +112,15 @@ impl<'a> LocalsReader<'a> {
     }
 
     /// Reads an item from the reader.
-    pub fn read(&mut self) -> Result<(u32, Type)> {
+    pub fn read(&mut self) -> Result<(u32, ValType)> {
         let count = self.reader.read_var_u32()?;
-        let value_type = self.reader.read_type()?;
+        let value_type = self.reader.read_val_type()?;
         Ok((count, value_type))
     }
 }
 
 impl<'a> IntoIterator for LocalsReader<'a> {
-    type Item = Result<(u32, Type)>;
+    type Item = Result<(u32, ValType)>;
     type IntoIter = LocalsIterator<'a>;
     fn into_iter(self) -> Self::IntoIter {
         let count = self.count;
@@ -140,7 +140,7 @@ pub struct LocalsIterator<'a> {
 }
 
 impl<'a> Iterator for LocalsIterator<'a> {
-    type Item = Result<(u32, Type)>;
+    type Item = Result<(u32, ValType)>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.err || self.left == 0 {
             return None;

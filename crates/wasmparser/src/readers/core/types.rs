@@ -13,49 +13,72 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use crate::{
+    BinaryReader, Import, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+    TypeRef,
+};
 use std::ops::Range;
 
 /// Represents the types of values in a WebAssembly module.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Type {
-    /// The type is i32.
+pub enum ValType {
+    /// The value type is i32.
     I32,
-    /// The type is i64.
+    /// The value type is i64.
     I64,
-    /// The type is f32.
+    /// The value type is f32.
     F32,
-    /// The type is f64.
+    /// The value type is f64.
     F64,
-    /// The type is v128.
+    /// The value type is v128.
     V128,
-    /// The type is a function reference.
+    /// The value type is a function reference.
     FuncRef,
-    /// The type is an extern reference.
+    /// The value type is an extern reference.
     ExternRef,
 }
 
-/// Represents a type defined in a WebAssembly module.
+/// Represents a type in a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum TypeDef {
-    /// The type is a function.
+pub enum Type<'a> {
+    /// The type is for a function.
     Func(FuncType),
+    /// The type is for a module.
+    ///
+    /// Currently this variant is only used when parsing components.
+    Module(Box<[ModuleTypeDeclaration<'a>]>),
+}
+
+/// Represents a module type declaration in a WebAssembly component.
+#[derive(Debug, Clone)]
+pub enum ModuleTypeDeclaration<'a> {
+    /// The module type definition is for a type.
+    Type(Type<'a>),
+    /// The module type definition is for an export.
+    Export {
+        /// The name of the exported item.
+        name: &'a str,
+        /// The type reference of the export.
+        ty: TypeRef,
+    },
+    /// The module type definition is for an import.
+    Import(Import<'a>),
 }
 
 /// Represents a type of a function in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
     /// The function parameter types.
-    pub params: Box<[Type]>,
+    pub params: Box<[ValType]>,
     /// The function result types.
-    pub returns: Box<[Type]>,
+    pub returns: Box<[ValType]>,
 }
 
 /// Represents a table's type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TableType {
     /// The table's element type.
-    pub element_type: Type,
+    pub element_type: ValType,
     /// Initial size of this table, in elements.
     pub initial: u32,
     /// Optional maximum size of the table, in elements.
@@ -94,11 +117,11 @@ pub struct MemoryType {
 
 impl MemoryType {
     /// Gets the index type for the memory.
-    pub fn index_type(&self) -> Type {
+    pub fn index_type(&self) -> ValType {
         if self.memory64 {
-            Type::I64
+            ValType::I64
         } else {
-            Type::I32
+            ValType::I32
         }
     }
 }
@@ -107,7 +130,7 @@ impl MemoryType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct GlobalType {
     /// The global's type.
-    pub content_type: Type,
+    pub content_type: ValType,
     /// Whether or not the global is mutable.
     pub mutable: bool,
 }
@@ -165,13 +188,13 @@ impl<'a> TypeSectionReader<'a> {
     ///     println!("Type {:?}", ty);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<TypeDef> {
-        self.reader.read_type_def()
+    pub fn read(&mut self) -> Result<Type<'a>> {
+        self.reader.read_type()
     }
 }
 
 impl<'a> SectionReader for TypeSectionReader<'a> {
-    type Item = TypeDef;
+    type Item = Type<'a>;
 
     fn read(&mut self) -> Result<Self::Item> {
         Self::read(self)
@@ -197,7 +220,7 @@ impl<'a> SectionWithLimitedItems for TypeSectionReader<'a> {
 }
 
 impl<'a> IntoIterator for TypeSectionReader<'a> {
-    type Item = Result<TypeDef>;
+    type Item = Result<Type<'a>>;
     type IntoIter = SectionIteratorLimited<Self>;
 
     /// Implements iterator over the type section.

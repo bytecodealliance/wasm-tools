@@ -31,6 +31,14 @@ pub enum ExternalKind {
     Global,
     /// The external kind is a tag.
     Tag,
+    /// The external kind is a module.
+    ///
+    /// This is used with the component model proposal.
+    Module,
+    /// The external kind is an instance of a module.
+    ///
+    /// This is used with the component model proposal.
+    Instance,
 }
 
 /// Represents an export in a WebAssembly module.

@@ -1,5 +1,5 @@
 use super::operators::OperatorValidator;
-use crate::{BinaryReader, Result, Type};
+use crate::{BinaryReader, Result, ValType};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 
 /// Validation context for a WebAssembly function.
@@ -69,7 +69,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         for _ in 0..reader.read_var_u32()? {
             let offset = reader.original_position();
             let cnt = reader.read_var_u32()?;
-            let ty = reader.read_type()?;
+            let ty = reader.read_val_type()?;
             self.define_locals(offset, cnt, ty)?;
         }
         Ok(())
@@ -79,7 +79,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     ///
     /// This should be used if the application is already reading local
     /// definitions and there's no need to re-parse the function again.
-    pub fn define_locals(&mut self, offset: usize, count: u32, ty: Type) -> Result<()> {
+    pub fn define_locals(&mut self, offset: usize, count: u32, ty: ValType) -> Result<()> {
         self.validator.define_locals(offset, count, ty)
     }
 
@@ -143,7 +143,7 @@ mod tests {
         fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
             todo!()
         }
-        fn element_type_at(&self, _at: u32) -> Option<Type> {
+        fn element_type_at(&self, _at: u32) -> Option<ValType> {
             todo!()
         }
         fn element_count(&self) -> u32 {
@@ -166,10 +166,10 @@ mod tests {
         fn len_outputs(&self) -> usize {
             0
         }
-        fn input_at(&self, _at: u32) -> Option<Type> {
+        fn input_at(&self, _at: u32) -> Option<ValType> {
             todo!()
         }
-        fn output_at(&self, _at: u32) -> Option<Type> {
+        fn output_at(&self, _at: u32) -> Option<ValType> {
             todo!()
         }
     }

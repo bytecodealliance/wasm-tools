@@ -1,3 +1,4 @@
+mod aliases;
 mod code;
 mod custom;
 mod data;
@@ -7,6 +8,7 @@ mod functions;
 mod globals;
 mod imports;
 mod init;
+mod instances;
 mod linking;
 mod memories;
 mod names;
@@ -17,6 +19,7 @@ mod tables;
 mod tags;
 mod types;
 
+pub use self::aliases::*;
 pub use self::code::*;
 pub use self::custom::*;
 pub use self::data::*;
@@ -26,6 +29,7 @@ pub use self::functions::*;
 pub use self::globals::*;
 pub use self::imports::*;
 pub use self::init::*;
+pub use self::instances::*;
 pub use self::linking::*;
 pub use self::memories::*;
 pub use self::names::*;
