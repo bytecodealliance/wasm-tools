@@ -395,6 +395,7 @@ impl<'a> Expander<'a> {
         let inline = match ty {
             InterTypeRef::Primitive(_) | InterTypeRef::Ref(_) => return,
             InterTypeRef::Inline(inline) => {
+                self.expand_intertype(inline);
                 mem::replace(inline, InterType::Primitive(Primitive::Unit))
             }
         };

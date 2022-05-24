@@ -215,3 +215,7 @@
     (type $f (func (param "" string)))
   )
   "function parameter name cannot be empty")
+
+(component
+  (type $t (func (result (tuple (list u8) u32))))
+)
