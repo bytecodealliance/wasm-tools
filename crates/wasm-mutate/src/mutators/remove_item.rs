@@ -191,6 +191,7 @@ impl RemoveItem {
                                 }
                                 tag += 1;
                             }
+                            wasmparser::TypeRef::Module(_) => return Err(Error::unsupported("module imports are not supported")),
                         }
                     }
                     module.section(&result);
@@ -266,6 +267,8 @@ impl RemoveItem {
                             ExternalKind::Global => {
                                 Export::Global(self.remap(Item::Global, item.index)?)
                             }
+                            ExternalKind::Module => return Err(Error::unsupported("module exports are not supported")),
+                            ExternalKind::Instance => return Err(Error::unsupported("instance exports are not supported")),
                         };
                         result.export(item.name, e);
                     }

@@ -3,10 +3,9 @@
 
 use crate::mutators::translate::{self, InitExprKind, Item, Translator};
 use crate::{Error, Mutator, Result};
-
 use rand::Rng;
 use wasm_encoder::{ElementSection, GlobalSection, Instruction};
-use wasmparser::{ElementSectionReader, GlobalSectionReader, InitExpr, Operator, Type};
+use wasmparser::{ElementSectionReader, GlobalSectionReader, InitExpr, Operator, ValType};
 
 #[derive(Copy, Clone)]
 pub enum InitExpressionMutator {
@@ -60,10 +59,10 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
     fn translate_init_expr(
         &mut self,
         e: &InitExpr<'_>,
-        ty: &Type,
+        ty: &ValType,
         kind: InitExprKind,
     ) -> Result<Instruction<'static>> {
-        use {Instruction as I, Operator as O, Type as T};
+        use {Instruction as I, Operator as O, ValType as T};
         if kind != self.kind || !self.should_process() {
             return translate::init_expr(self.as_obj(), e);
         }

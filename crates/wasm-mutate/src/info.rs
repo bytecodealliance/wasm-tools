@@ -1,6 +1,6 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
-    Result,
+    Error, Result,
 };
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -129,6 +129,9 @@ impl<'a> ModuleInfo<'a> {
                             wasmparser::TypeRef::Tag(_ty) => {
                                 info.tag_count += 1;
                                 info.imported_tags_count += 1;
+                            }
+                            wasmparser::TypeRef::Module(_) => {
+                                return Err(Error::unsupported("module imports are not supported"))
                             }
                         }
                     }

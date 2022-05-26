@@ -1,8 +1,7 @@
 use super::translate::InitExprKind;
 use super::Mutator;
-use crate::{Result, WasmMutate};
-
 use crate::mutators::{DefaultTranslator, Translator};
+use crate::{Result, WasmMutate};
 use rand::Rng;
 use wasm_encoder::{DataSection, DataSegment, DataSegmentMode, Module};
 use wasmparser::{DataKind, DataSectionReader};
@@ -37,7 +36,7 @@ impl Mutator for ModifyDataMutator {
                 } => {
                     offset = DefaultTranslator.translate_init_expr(
                         init_expr,
-                        &wasmparser::Type::I32,
+                        &wasmparser::ValType::I32,
                         InitExprKind::DataOffset,
                     )?;
                     DataSegmentMode::Active {
