@@ -145,13 +145,6 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 assert_eq!(a.get_binary_reader().range(), b.get_binary_reader().range());
             }
 
-            (ComponentTypeSection(a), ComponentTypeSection(b)) => assert_eq!(a.range(), b.range()),
-            (ComponentImportSection(a), ComponentImportSection(b)) => {
-                assert_eq!(a.range(), b.range())
-            }
-            (ComponentFunctionSection(a), ComponentFunctionSection(b)) => {
-                assert_eq!(a.range(), b.range())
-            }
             (
                 ModuleSection {
                     parser: p,
@@ -163,6 +156,8 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 stack.push(parser);
                 parser = p;
             }
+            (InstanceSection(a), InstanceSection(b)) => assert_eq!(a.range(), b.range()),
+            (AliasSection(a), AliasSection(b)) => assert_eq!(a.range(), b.range()),
             (
                 ComponentSection {
                     parser: p,
@@ -174,14 +169,25 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 stack.push(parser);
                 parser = p;
             }
-            (InstanceSection(a), InstanceSection(b)) => assert_eq!(a.range(), b.range()),
-            (ComponentExportSection(a), ComponentExportSection(b)) => {
+            (ComponentInstanceSection(a), ComponentInstanceSection(b)) => {
+                assert_eq!(a.range(), b.range())
+            }
+            (ComponentAliasSection(a), ComponentAliasSection(b)) => {
+                assert_eq!(a.range(), b.range())
+            }
+            (ComponentTypeSection(a), ComponentTypeSection(b)) => assert_eq!(a.range(), b.range()),
+            (ComponentCanonicalSection(a), ComponentCanonicalSection(b)) => {
                 assert_eq!(a.range(), b.range())
             }
             (ComponentStartSection(a), ComponentStartSection(b)) => {
                 assert_eq!(a.range(), b.range())
             }
-            (AliasSection(a), AliasSection(b)) => assert_eq!(a.range(), b.range()),
+            (ComponentImportSection(a), ComponentImportSection(b)) => {
+                assert_eq!(a.range(), b.range())
+            }
+            (ComponentExportSection(a), ComponentExportSection(b)) => {
+                assert_eq!(a.range(), b.range())
+            }
 
             (
                 UnknownSection {
