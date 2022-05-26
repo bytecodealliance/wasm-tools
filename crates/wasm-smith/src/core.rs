@@ -537,7 +537,7 @@ impl Module {
         // index in our newly generated module. Initially the option is `None` and will become a
         // `Some` when we encounter an import that uses this signature in the next portion of this
         // function. See also the `make_func_type` closure below.
-        let mut available_types = Vec::<(wasmparser::TypeDef, Option<u32>)>::new();
+        let mut available_types = Vec::<(wasmparser::Type, Option<u32>)>::new();
         let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
@@ -577,7 +577,7 @@ impl Module {
             let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
                 None => panic!("signature index refers to a type out of bounds"),
                 Some((_, Some(idx))) => *idx as usize,
-                Some((wasmparser::TypeDef::Func(func_type), index_store)) => {
+                Some((wasmparser::Type::Func(func_type), index_store)) => {
                     let multi_value_required = func_type.returns.len() > 1;
                     let new_index = first_type_index + new_types.len();
                     if new_index >= max_types || (multi_value_required && !multi_value_enabled) {
@@ -591,6 +591,7 @@ impl Module {
                     new_types.push(Type::Func(Rc::clone(&func_type)));
                     new_index
                 }
+                Some((wasmparser::Type::Module(_), _)) => unimplemented!(),
             };
             match &new_types[serialized_sig_idx - first_type_index] {
                 Type::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
@@ -681,6 +682,8 @@ impl Module {
                     self.globals.push(global_ty);
                     entity
                 }
+
+                wasmparser::TypeRef::Module(_) => unimplemented!(),
             };
             new_imports.push(Import {
                 module: import.module.to_string(),
@@ -1508,9 +1511,9 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     Ok(u.bytes(size)?.to_vec())
 }
 
-/// Convert a wasmparser's `Type` to a `wasm_encoder::ValType`.
-fn convert_type(parsed_type: wasmparser::Type) -> ValType {
-    use wasmparser::Type::*;
+/// Convert a wasmparser's `ValType` to a `wasm_encoder::ValType`.
+fn convert_type(parsed_type: wasmparser::ValType) -> ValType {
+    use wasmparser::ValType::*;
     match parsed_type {
         I32 => ValType::I32,
         I64 => ValType::I64,
