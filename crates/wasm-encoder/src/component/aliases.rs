@@ -1,7 +1,7 @@
 use crate::{
     encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode,
     CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_INSTANCE_SORT, CORE_MEMORY_SORT, CORE_MODULE_SORT,
-    CORE_TABLE_SORT, CORE_TYPE_SORT,
+    CORE_TABLE_SORT, CORE_TAG_SORT, CORE_TYPE_SORT,
 };
 
 use super::{COMPONENT_SORT, CORE_SORT, FUNCTION_SORT, INSTANCE_SORT, TYPE_SORT, VALUE_SORT};
@@ -17,6 +17,8 @@ pub enum CoreAliasKind {
     Memory,
     /// The alias is to a global.
     Global,
+    /// The alias is to a tag.
+    Tag,
     /// The alias is to a core type.
     Type,
     /// The alias is to a core module.
@@ -32,6 +34,7 @@ impl Encode for CoreAliasKind {
             Self::Table => sink.push(CORE_TABLE_SORT),
             Self::Memory => sink.push(CORE_MEMORY_SORT),
             Self::Global => sink.push(CORE_GLOBAL_SORT),
+            Self::Tag => sink.push(CORE_TAG_SORT),
             Self::Type => sink.push(CORE_TYPE_SORT),
             Self::Module => sink.push(CORE_MODULE_SORT),
             Self::Instance => sink.push(CORE_INSTANCE_SORT),

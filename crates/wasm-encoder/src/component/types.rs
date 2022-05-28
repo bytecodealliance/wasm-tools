@@ -104,7 +104,7 @@ impl InstanceType {
         Self::default()
     }
 
-    /// Define a core type in this component type.
+    /// Define a core type in this instance type.
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
@@ -147,7 +147,7 @@ impl InstanceType {
         self
     }
 
-    /// Gets the number of core types that have been added to this component type.
+    /// Gets the number of core types that have been added to this instance type.
     pub fn core_type_count(&self) -> u32 {
         self.core_types_added
     }
