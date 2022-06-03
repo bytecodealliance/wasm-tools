@@ -145,6 +145,6 @@ impl Encode for ComponentAliasSection {
 
 impl ComponentSection for ComponentAliasSection {
     fn id(&self) -> u8 {
-        ComponentSectionId::CoreCustom.into()
+        ComponentSectionId::Alias.into()
     }
 }
