@@ -601,7 +601,13 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolve_label(i)?;
             }
 
-            BrOnCast(l) | BrOnFunc(l) | BrOnData(l) | BrOnI31(l) => {
+            BrOnCast(i) | BrOnCastFail(i) => {
+                self.resolve_label(&mut i.label)?;
+                self.resolver.resolve(&mut i.r#type, Ns::Type)?;
+            }
+
+            BrOnFunc(l) | BrOnData(l) | BrOnI31(l) | BrOnArray(l) |
+            BrOnNonFunc(l) | BrOnNonData(l) | BrOnNonI31(l) | BrOnNonArray(l) => {
                 self.resolve_label(l)?;
             }
 
@@ -613,11 +619,12 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 }
             }
 
-            StructNew(i)
-            | StructNewWithRtt(i)
-            | StructNewDefaultWithRtt(i)
-            | ArrayNewWithRtt(i)
-            | ArrayNewDefaultWithRtt(i)
+            RefTest(i)
+            | RefCast(i)
+            | StructNew(i)
+            | StructNewDefault(i)
+            | ArrayNew(i)
+            | ArrayNewDefault(i)
             | ArrayGet(i)
             | ArrayGetS(i)
             | ArrayGetU(i)
@@ -625,16 +632,22 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | ArrayLen(i) => {
                 self.resolver.resolve(i, Ns::Type)?;
             }
-            RTTCanon(i) => {
-                self.resolver.resolve(i, Ns::Type)?;
-            }
-            RTTSub(i) => {
-                self.resolver.resolve(i, Ns::Type)?;
-            }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
                 self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
                 self.resolver.fields.resolve(&mut s.field, "field")?;
+            }
+
+            ArrayCopy(a) => {
+                self.resolver.resolve(&mut a.dest_array, Ns::Type)?;
+                self.resolver.resolve(&mut a.src_array, Ns::Type)?;
+            }
+            ArrayInit(a) => {
+                self.resolver.resolve(&mut a.array, Ns::Type)?;
+            }
+            ArrayInitFromData(a) => {
+                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.datas.resolve(&mut a.data_idx, "data")?;
             }
 
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,

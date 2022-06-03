@@ -1046,3 +1046,31 @@ impl Encode for StructAccess<'_> {
         self.field.encode(e);
     }
 }
+
+impl Encode for ArrayCopy<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.dest_array.encode(e);
+        self.src_array.encode(e);
+    }
+}
+
+impl Encode for ArrayInit<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.array.encode(e);
+        self.length.encode(e);
+    }
+}
+
+impl Encode for ArrayInitFromData<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.array.encode(e);
+        self.data_idx.encode(e);
+    }
+}
+
+impl Encode for BrOnCast<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.label.encode(e);
+        self.r#type.encode(e);
+    }
+}
