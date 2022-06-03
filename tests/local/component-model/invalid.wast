@@ -1,6 +1,6 @@
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (import "" "" (func (type 1)))
     ))
     (type (func))
@@ -14,7 +14,7 @@
       (alias outer 1 $f (func $f))
     )
   )
-  "invalid leading byte")
+  "outer aliases may only be made to types, modules, and components")
 
 (assert_malformed
   (component quote

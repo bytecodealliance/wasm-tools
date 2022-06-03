@@ -22,9 +22,7 @@
   (type $A15b (variant (case "x" unit)))
   (type $A15c (variant (case "x" $A1)))
 
-  ;; FIXME(#594) should implement this
-  (; (type $A15d (variant (case "x" unit (defaults-to "x")))) ;)
-  (; (type $A15e (variant (case "x" $A2 (defaults-to "x")))) ;)
+  (type $A15d (variant (case "x" unit (refines "y")) (case "y" string)))
 
   (type $A16a (list unit))
   (type $A16b (list $A3))
@@ -54,31 +52,39 @@
 
 (assert_invalid
   (component
-    (type $t (module))
+    (type $t (variant (case "x" string (refines "x"))))
+  )
+  "variant case cannot refine itself"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case "x" $t (refines "z"))))
+  )
+  "variant case `z` not found"
+)
+
+(assert_invalid
+  (component
+    (type $t (func))
     (type (func (param $t)))
   )
-  "not an interface type")
+  "type index 0 is not a defined type")
 
 (assert_invalid
   (component
-    (type $t (module))
+    (type $t (instance))
     (type (func (result $t)))
   )
-  "not an interface type")
+  "type index 0 is not a defined type")
 
 (assert_invalid
   (component
-    (type $t (module))
-    (type (value $t))
-  )
-  "not an interface type")
-
-(assert_invalid
-  (component
-    (type $t (module))
+    (type $t (component))
     (type (option $t))
   )
-  "not an interface type")
+  "type index 0 is not a defined type")
 
 (assert_invalid
   (component (type (option 0)))

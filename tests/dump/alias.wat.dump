@@ -1,31 +1,57 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 14       | type section
-0x000a | 03          | 3 count
-0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
-0x000e | 60 01 7f 00 | [type 1] Func(FuncType { params: [I32], returns: [] })
-0x0012 | 62 02 02 66 | [type 2] Instance(InstanceType { exports: [ExportType { name: "f1", ty: Function(0) }, ExportType { name: "f2", ty: Function(1) }] })
-       | 31 00 00 02
-       | 66 32 00 01
-0x001e | 02 07       | import section
-0x0020 | 01          | 1 count
-0x0021 | 01 69 00 ff | import [instance 0] Import { module: "i", field: None, ty: Instance(2) }
-       | 06 02      
-0x0027 | 10 07       | alias section
-0x0029 | 01          | 1 count
-0x002a | 00 00 00 02 | [alias] InstanceExport { instance: 0, kind: Function, export: "f1" }
-       | 66 31      
-0x0030 | 03 02       | func section
-0x0032 | 01          | 1 count
-0x0033 | 00          | [func 1] type 0
-0x0034 | 07 07       | export section
-0x0036 | 01          | 1 count
-0x0037 | 03 72 75 6e | export Export { name: "run", kind: Function, index: 1 }
-       | 00 01      
-0x003d | 0a 06       | code section
-0x003f | 01          | 1 count
-============== func 1 ====================
-0x0040 | 04          | size of function
-0x0041 | 00          | 0 local blocks
-0x0042 | 10 00       | Call { function_index: 0 }
-0x0044 | 0b          | End
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 08 19       | component type section
+  0xa | 01          | 1 count
+  0xb | 42 04 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Export { name: "f1", ty: Func(0) }, Type(Func(ComponentFuncType { params: [(None, Primitive(String))], result: Primitive(Unit) })), Export { name: "f2", ty: Func(1) }])
+      | 00 7f 04 02
+      | 66 31 01 00
+      | 01 40 01 00
+      | 72 7f 04 02
+      | 66 32 01 01
+ 0x23 | 0b 05       | component import section
+ 0x25 | 01          | 1 count
+ 0x26 | 01 69 05 00 | [instance 0] ComponentImport { name: "i", ty: Instance(0) }
+ 0x2a | 07 13       | component alias section
+ 0x2c | 03          | 3 count
+ 0x2d | 01 00 00 02 | alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "f1" }
+      | 66 31      
+ 0x33 | 01 00 00 02 | alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "f2" }
+      | 66 32      
+ 0x39 | 01 00 00 02 | alias [func 2] InstanceExport { kind: Func, instance_index: 0, name: "f1" }
+      | 66 31      
+ 0x3f | 09 05       | canonical function section
+ 0x41 | 01          | 1 count
+ 0x42 | 01 00 02 00 | [core func 0] Lower { func_index: 2, options: [] }
+ 0x46 | 01 2b       | [core module 0] inline size
+   0x48 | 00 61 73 6d | version 1 (Module)
+        | 01 00 00 00
+   0x50 | 01 04       | type section
+   0x52 | 01          | 1 count
+   0x53 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x56 | 03 02       | func section
+   0x58 | 01          | 1 count
+   0x59 | 00          | [func 0] type 0
+   0x5a | 07 06       | export section
+   0x5c | 01          | 1 count
+   0x5d | 02 66 33 00 | export Export { name: "f3", kind: Func, index: 0 }
+        | 00         
+   0x62 | 0a 04       | code section
+   0x64 | 01          | 1 count
+============== func 0 ====================
+   0x65 | 02          | size of function
+   0x66 | 00          | 0 local blocks
+   0x67 | 0b          | End
+   0x68 | 00 09       | custom section
+   0x6a | 04 6e 61 6d | name: "name"
+        | 65         
+   0x6f | 00 02       | module name
+   0x71 | 01 6d       | "m"
+ 0x73 | 02 04       | core instance section
+ 0x75 | 01          | 1 count
+ 0x76 | 00 00 00    | [core instance 0] Instantiate { module_index: 0, args: [] }
+ 0x79 | 03 0d       | core alias section
+ 0x7b | 02          | 2 count
+ 0x7c | 00 00 00 02 | core alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "f3" }
+      | 66 33      
+ 0x82 | 00 00 00 02 | core alias [func 2] InstanceExport { kind: Func, instance_index: 0, name: "f3" }
+      | 66 33      

@@ -1,4 +1,4 @@
-(module
+(component
   (type $i (instance
     (export "" (func))
   ))

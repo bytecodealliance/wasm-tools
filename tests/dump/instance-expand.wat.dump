@@ -1,17 +1,10 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 09       | type section
-0x000a | 02          | 2 count
-0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
-0x000e | 62 01 00 00 | [type 1] Instance(InstanceType { exports: [ExportType { name: "", ty: Function(0) }] })
-       | 00         
-0x0013 | 02 06       | import section
-0x0015 | 01          | 1 count
-0x0016 | 00 00 ff 06 | import [instance 0] Import { module: "", field: None, ty: Instance(1) }
-       | 01         
-0x001b | 00 0b       | custom section
-0x001d | 04 6e 61 6d | name: "name"
-       | 65         
-0x0022 | 04 04       | type names
-0x0024 | 01          | 1 count
-0x0025 | 01 01 69    | Naming { index: 1, name: "i" }
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 08 0b       | component type section
+  0xa | 01          | 1 count
+  0xb | 42 02 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Export { name: "", ty: Func(0) }])
+      | 00 7f 04 00
+      | 01 00      
+ 0x15 | 0b 04       | component import section
+ 0x17 | 01          | 1 count
+ 0x18 | 00 05 00    | [instance 0] ComponentImport { name: "", ty: Instance(0) }

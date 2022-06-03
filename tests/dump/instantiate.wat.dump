@@ -1,68 +1,18 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 04       | type section
-0x000a | 01          | 1 count
-0x000b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
-0x000e | 02 0d       | import section
-0x0010 | 02          | 2 count
-0x0011 | 01 61 00 ff | import [module 0] Import { module: "a", field: None, ty: Module(0) }
-       | 05 00      
-0x0017 | 01 62 00 ff | import [module 1] Import { module: "b", field: None, ty: Module(0) }
-       | 05 00      
-0x001d | 01 03       | type section
-0x001f | 01          | 1 count
-0x0020 | 62 00       | [type 1] Instance(InstanceType { exports: [] })
-0x0022 | 02 07       | import section
-0x0024 | 01          | 1 count
-0x0025 | 01 63 00 ff | import [instance 0] Import { module: "c", field: None, ty: Instance(1) }
-       | 06 01      
-0x002b | 0f 1c       | instance section
-0x002d | 01          | 1 count
-0x002e | 00 00       | [instance 1] instantiate module:0
-0x0030 | 06          | 6 count
-0x0031 | 01 61 05 01 | [instantiate arg] InstanceArg { name: "a", kind: Module, index: 1 }
-0x0035 | 01 62 00 00 | [instantiate arg] InstanceArg { name: "b", kind: Function, index: 0 }
-0x0039 | 01 63 03 00 | [instantiate arg] InstanceArg { name: "c", kind: Global, index: 0 }
-0x003d | 01 64 06 00 | [instantiate arg] InstanceArg { name: "d", kind: Instance, index: 0 }
-0x0041 | 01 65 02 00 | [instantiate arg] InstanceArg { name: "e", kind: Memory, index: 0 }
-0x0045 | 01 66 01 00 | [instantiate arg] InstanceArg { name: "f", kind: Table, index: 0 }
-0x0049 | 01 04       | type section
-0x004b | 01          | 1 count
-0x004c | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x004f | 03 02       | func section
-0x0051 | 01          | 1 count
-0x0052 | 02          | [func 0] type 2
-0x0053 | 04 04       | table section
-0x0055 | 01          | 1 count
-0x0056 | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
-0x0059 | 05 03       | memory section
-0x005b | 01          | 1 count
-0x005c | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
-0x005e | 06 06       | global section
-0x0060 | 01          | 1 count
-0x0061 | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
-0x0063 | 41 00       | I32Const { value: 0 }
-0x0065 | 0b          | End
-0x0066 | 0a 04       | code section
-0x0068 | 01          | 1 count
-============== func 0 ====================
-0x0069 | 02          | size of function
-0x006a | 00          | 0 local blocks
-0x006b | 0b          | End
-0x006c | 00 23       | custom section
-0x006e | 04 6e 61 6d | name: "name"
-       | 65         
-0x0073 | 01 04       | function names
-0x0075 | 01          | 1 count
-0x0076 | 00 01 66    | Naming { index: 0, name: "f" }
-0x0079 | 05 08       | table names
-0x007b | 01          | 1 count
-0x007c | 00 05 74 61 | Naming { index: 0, name: "table" }
-       | 62 6c 65   
-0x0083 | 06 06       | memory names
-0x0085 | 01          | 1 count
-0x0086 | 00 03 6d 65 | Naming { index: 0, name: "mem" }
-       | 6d         
-0x008b | 07 04       | global names
-0x008d | 01          | 1 count
-0x008e | 00 01 67    | Naming { index: 0, name: "g" }
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 08 03       | component type section
+  0xa | 01          | 1 count
+  0xb | 41 00       | [type 0] Component([])
+  0xd | 0b 05       | component import section
+  0xf | 01          | 1 count
+ 0x10 | 01 61 04 00 | [component 0] ComponentImport { name: "a", ty: Component(0) }
+ 0x14 | 08 04       | component type section
+ 0x16 | 01          | 1 count
+ 0x17 | 40 00 7f    | [type 1] Func(ComponentFuncType { params: [], result: Primitive(Unit) })
+ 0x1a | 0b 05       | component import section
+ 0x1c | 01          | 1 count
+ 0x1d | 01 66 01 01 | [func 0] ComponentImport { name: "f", ty: Func(1) }
+ 0x21 | 06 08       | component instance section
+ 0x23 | 01          | 1 count
+ 0x24 | 00 00 01 01 | [instance 0] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "a", kind: Func, index: 0 }] }
+      | 61 01 00   

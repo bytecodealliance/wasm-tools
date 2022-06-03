@@ -3,7 +3,7 @@
     (export "")
     (import "")
   )
-  (module
+  (core module
     (export "a")
     (import "a")
   )

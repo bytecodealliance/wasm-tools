@@ -1,16 +1,11 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 0f       | type section
-0x000a | 04          | 4 count
-0x000b | 62 00       | [type 0] Instance(InstanceType { exports: [] })
-0x000d | 62 01 00 06 | [type 1] Instance(InstanceType { exports: [ExportType { name: "", ty: Instance(0) }] })
-       | 00         
-0x0012 | 62 00       | [type 2] Instance(InstanceType { exports: [] })
-0x0014 | 62 01 00 06 | [type 3] Instance(InstanceType { exports: [ExportType { name: "", ty: Instance(2) }] })
-       | 02         
-0x0019 | 00 0b       | custom section
-0x001b | 04 6e 61 6d | name: "name"
-       | 65         
-0x0020 | 04 04       | type names
-0x0022 | 01          | 1 count
-0x0023 | 02 01 78    | Naming { index: 2, name: "x" }
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 08 16       | component type section
+  0xa | 04          | 4 count
+  0xb | 42 00       | [type 0] Instance([])
+  0xd | 42 01 04 00 | [type 1] Instance([Export { name: "", ty: Instance(0) }])
+      | 05 00      
+ 0x13 | 42 00       | [type 2] Instance([])
+ 0x15 | 42 02 02 03 | [type 3] Instance([Alias(Outer { kind: Type, count: 1, index: 2 }), Export { name: "", ty: Instance(0) }])
+      | 01 01 02 04
+      | 00 05 00   
