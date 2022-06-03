@@ -242,6 +242,7 @@ impl<'a> Encode for HeapType<'a> {
             HeapType::Any => e.push(0x6e),
             HeapType::Eq => e.push(0x6d),
             HeapType::Data => e.push(0x67),
+            HeapType::Array => e.push(0x66),
             HeapType::I31 => e.push(0x6a),
             HeapType::Index(index) => {
                 index.encode(e);

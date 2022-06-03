@@ -74,6 +74,8 @@ pub enum HeapType<'a> {
     Eq,
     /// A reference to a GC object. This is part of the GC proposal.
     Data,
+    /// A reference to a GC array. This is part of the GC proposal.
+    Array,
     /// An unboxed 31-bit integer: i31ref. This may be going away if there is no common
     /// supertype of all reference types. Part of the GC proposal.
     I31,
@@ -100,6 +102,9 @@ impl<'a> Parse<'a> for HeapType<'a> {
         } else if l.peek::<kw::data>() {
             parser.parse::<kw::data>()?;
             Ok(HeapType::Data)
+        } else if l.peek::<kw::array>() {
+            parser.parse::<kw::array>()?;
+            Ok(HeapType::Array)
         } else if l.peek::<kw::i31>() {
             parser.parse::<kw::i31>()?;
             Ok(HeapType::I31)
@@ -118,6 +123,7 @@ impl<'a> Peek for HeapType<'a> {
             || kw::any::peek(cursor)
             || kw::eq::peek(cursor)
             || kw::data::peek(cursor)
+            || kw::array::peek(cursor)
             || kw::i31::peek(cursor)
             || (LParen::peek(cursor) && kw::r#type::peek2(cursor))
     }
@@ -175,6 +181,14 @@ impl<'a> RefType<'a> {
         }
     }
 
+    /// An `arrayref` as an abbreviation for `(ref null array)`.
+    pub fn array() -> Self {
+        RefType {
+            nullable: true,
+            heap: HeapType::Array,
+        }
+    }
+
     /// An `i31ref` as an abbreviation for `(ref null i31)`.
     pub fn i31() -> Self {
         RefType {
@@ -205,6 +219,9 @@ impl<'a> Parse<'a> for RefType<'a> {
         } else if l.peek::<kw::dataref>() {
             parser.parse::<kw::dataref>()?;
             Ok(RefType::data())
+        } else if l.peek::<kw::arrayref>() {
+            parser.parse::<kw::arrayref>()?;
+            Ok(RefType::array())
         } else if l.peek::<kw::i31ref>() {
             parser.parse::<kw::i31ref>()?;
             Ok(RefType::i31())
@@ -242,6 +259,7 @@ impl<'a> Peek for RefType<'a> {
             || kw::anyref::peek(cursor)
             || kw::eqref::peek(cursor)
             || kw::dataref::peek(cursor)
+            || kw::arrayref::peek(cursor)
             || kw::i31ref::peek(cursor)
             || (LParen::peek(cursor) && kw::r#ref::peek2(cursor))
     }

@@ -382,6 +382,7 @@ pub mod kw {
     custom_keyword!(anyref);
     custom_keyword!(arg);
     custom_keyword!(array);
+    custom_keyword!(arrayref);
     custom_keyword!(assert_exception);
     custom_keyword!(assert_exhaustion);
     custom_keyword!(assert_invalid);
