@@ -176,6 +176,11 @@ impl Encode for RecOrType<'_> {
 
 impl Encode for Type<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
+        if let Some(parent) = &self.parent {
+            e.push(0x50);
+            (1 as usize).encode(e);
+            parent.encode(e);
+        }
         match &self.def {
             TypeDef::Func(func) => {
                 e.push(0x60);

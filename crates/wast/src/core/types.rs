@@ -663,10 +663,12 @@ pub struct Type<'a> {
     pub name: Option<NameAnnotation<'a>>,
     /// The type that we're declaring.
     pub def: TypeDef<'a>,
+    /// The declared parent type of this definition.
+    pub parent: Option<Index<'a>>,
 }
 
-impl<'a> Parse<'a> for Type<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
+impl<'a> Type<'a> {
+    fn parse_inner(parser: Parser<'a>, parent: Option<Index<'a>>) -> Result<Self> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
@@ -676,7 +678,35 @@ impl<'a> Parse<'a> for Type<'a> {
             id,
             name,
             def,
+            parent,
         })
+    }
+}
+
+impl<'a> Peek for Type<'a> {
+    fn peek(cursor: Cursor<'_>) -> bool {
+        kw::r#type::peek(cursor) ||
+        kw::sub::peek(cursor)
+    }
+    fn display() -> &'static str {
+        "type"
+    }
+}
+
+impl<'a> Parse<'a> for Type<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        if parser.peek::<kw::sub>() {
+            parser.parse::<kw::sub>()?;
+            let parent = if parser.peek::<Index<'a>>() {
+                parser.parse()?
+            } else {
+                None
+            };
+            return parser.parens(|parser| {
+                Type::parse_inner(parser, parent)
+            });
+        }
+        Type::parse_inner(parser, None)
     }
 }
 
@@ -693,7 +723,7 @@ impl<'a> Parse<'a> for Rec<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::r#rec>()?.0;
         let mut types = Vec::new();
-        while parser.peek2::<kw::r#type>() {
+        while parser.peek2::<Type<'a>>() {
             types.push(parser.parens(|p| {
                 p.parse()
             })?);

@@ -165,7 +165,7 @@ impl<'a> ModuleField<'a> {
 
 impl<'a> Parse<'a> for ModuleField<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<kw::r#type>() {
+        if parser.peek::<Type<'a>>() {
             return Ok(ModuleField::Type(parser.parse()?));
         }
         if parser.peek::<kw::rec>() {

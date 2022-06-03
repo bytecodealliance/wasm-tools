@@ -125,6 +125,9 @@ impl<'a> Resolver<'a> {
             }
             TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
         }
+        if let Some(parent) = &mut ty.parent {
+            self.resolve(parent, Ns::Type)?;
+        }
         Ok(())
     }
 
