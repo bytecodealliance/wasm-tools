@@ -121,6 +121,7 @@ impl ComponentAliasSection {
         self.bytes.push(0x00);
         instance_index.encode(&mut self.bytes);
         name.encode(&mut self.bytes);
+        self.num_added += 1;
         self
     }
 
@@ -133,6 +134,7 @@ impl ComponentAliasSection {
         self.bytes.push(0x01);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
+        self.num_added += 1;
         self
     }
 }

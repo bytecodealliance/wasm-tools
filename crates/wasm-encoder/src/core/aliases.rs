@@ -48,6 +48,7 @@ impl AliasSection {
         self.bytes.push(0x00);
         instance_index.encode(&mut self.bytes);
         name.encode(&mut self.bytes);
+        self.num_added += 1;
         self
     }
 }
