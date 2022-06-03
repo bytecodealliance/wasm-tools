@@ -725,6 +725,12 @@ impl ComponentState {
 
         for decl in decls {
             match decl {
+                crate::ComponentTypeDeclaration::CoreType(ty) => {
+                    components
+                        .last_mut()
+                        .unwrap()
+                        .add_core_type(ty, features, types, offset, true)?;
+                }
                 crate::ComponentTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
                 }
@@ -775,6 +781,9 @@ impl ComponentState {
 
         for decl in decls {
             match decl {
+                crate::InstanceTypeDeclaration::CoreType(ty) => {
+                    components.last_mut().unwrap().add_core_type(ty, features, types, offset, true)?;
+                }
                 crate::InstanceTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
                 }

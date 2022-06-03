@@ -335,7 +335,7 @@ impl<'a> BinaryReader<'a> {
         // Component types are effectively instance types with the additional
         // variant of imports; check for imports here or delegate to
         // `read_instance_type_decl` with the appropriate conversions.
-        if self.peek()? == 0x00 {
+        if self.peek()? == 0x03 {
             self.position += 1;
             return Ok(ComponentTypeDeclaration::Import(
                 self.read_component_import()?,
@@ -343,6 +343,7 @@ impl<'a> BinaryReader<'a> {
         }
 
         Ok(match self.read_instance_type_decl()? {
+            InstanceTypeDeclaration::CoreType(t) => ComponentTypeDeclaration::CoreType(t),
             InstanceTypeDeclaration::Type(t) => ComponentTypeDeclaration::Type(t),
             InstanceTypeDeclaration::Alias(a) => ComponentTypeDeclaration::Alias(a),
             InstanceTypeDeclaration::Export { name, ty } => {
@@ -353,9 +354,10 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_instance_type_decl(&mut self) -> Result<InstanceTypeDeclaration<'a>> {
         Ok(match self.read_u8()? {
+            0x00 => InstanceTypeDeclaration::CoreType(self.read_type()?),
             0x01 => InstanceTypeDeclaration::Type(self.read_component_type()?),
             0x02 => InstanceTypeDeclaration::Alias(self.read_component_alias()?),
-            0x03 => InstanceTypeDeclaration::Export {
+            0x04 => InstanceTypeDeclaration::Export {
                 name: self.read_string()?,
                 ty: self.read_component_type_ref()?,
             },

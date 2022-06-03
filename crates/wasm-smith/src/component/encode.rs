@@ -162,6 +162,9 @@ impl Type {
                         ComponentTypeDef::Import(imp) => {
                             enc_comp_ty.import(&imp.name, imp.ty);
                         }
+                        ComponentTypeDef::CoreType(ty) => {
+                            ty.encode(enc_comp_ty.core_type());
+                        }
                         ComponentTypeDef::Type(ty) => {
                             ty.encode(enc_comp_ty.ty());
                         }
@@ -184,6 +187,9 @@ impl Type {
                 let mut enc_inst_ty = wasm_encoder::InstanceType::new();
                 for def in &inst_ty.defs {
                     match def {
+                        InstanceTypeDef::CoreType(ty) => {
+                            ty.encode(enc_inst_ty.core_type());
+                        }
                         InstanceTypeDef::Type(ty) => {
                             ty.encode(enc_inst_ty.ty());
                         }

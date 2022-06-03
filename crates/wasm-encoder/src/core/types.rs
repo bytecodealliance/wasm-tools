@@ -100,7 +100,7 @@ impl Encode for ModuleType {
 
 /// Used to encode core types.
 #[derive(Debug)]
-pub struct TypeEncoder<'a>(&'a mut Vec<u8>);
+pub struct TypeEncoder<'a>(pub(crate) &'a mut Vec<u8>);
 
 impl<'a> TypeEncoder<'a> {
     /// Define a function type.

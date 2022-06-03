@@ -1066,6 +1066,13 @@ impl ComponentBuilder {
             });
         }
 
+        // Core type definition.
+        choices.push(|me, _exports, u, type_fuel| {
+            let ty = me.arbitrary_core_type(u, type_fuel)?;
+            me.current_type_scope_mut().push_core(ty.clone());
+            Ok(InstanceTypeDef::CoreType(ty))
+        });
+
         // Type definition.
         choices.push(|me, _exports, u, type_fuel| {
             let ty = me.arbitrary_type(u, type_fuel)?;
@@ -1760,7 +1767,7 @@ struct TypeSection {
     types: Vec<Rc<Type>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum CoreType {
     Module(Rc<ModuleType>),
 }
@@ -1828,18 +1835,20 @@ struct ComponentType {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum ComponentTypeDef {
-    Import(Import),
+    CoreType(Rc<CoreType>),
     Type(Rc<Type>),
-    Export { name: String, ty: ComponentTypeRef },
     Alias(Alias),
+    Import(Import),
+    Export { name: String, ty: ComponentTypeRef },
 }
 
 impl From<InstanceTypeDef> for ComponentTypeDef {
     fn from(def: InstanceTypeDef) -> Self {
         match def {
-            InstanceTypeDef::Type(t) => ComponentTypeDef::Type(t),
-            InstanceTypeDef::Export { name, ty } => ComponentTypeDef::Export { name, ty },
-            InstanceTypeDef::Alias(a) => ComponentTypeDef::Alias(a),
+            InstanceTypeDef::CoreType(t) => Self::CoreType(t),
+            InstanceTypeDef::Type(t) => Self::Type(t),
+            InstanceTypeDef::Export { name, ty } => Self::Export { name, ty },
+            InstanceTypeDef::Alias(a) => Self::Alias(a),
         }
     }
 }
@@ -1851,9 +1860,10 @@ struct InstanceType {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum InstanceTypeDef {
+    CoreType(Rc<CoreType>),
     Type(Rc<Type>),
-    Export { name: String, ty: ComponentTypeRef },
     Alias(Alias),
+    Export { name: String, ty: ComponentTypeRef },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

@@ -1,6 +1,6 @@
 use crate::{
     encode_section, ComponentAliasKind, ComponentSection, ComponentSectionId, ComponentTypeRef,
-    Encode,
+    Encode, TypeEncoder,
 };
 
 /// Represents a component type.
@@ -8,6 +8,7 @@ use crate::{
 pub struct ComponentType {
     bytes: Vec<u8>,
     num_added: u32,
+    core_types_added: u32,
     types_added: u32,
 }
 
@@ -17,13 +18,15 @@ impl ComponentType {
         Self::default()
     }
 
-    /// Defines an import in this component type.
-    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    /// Define a core type in this component type.
+    ///
+    /// The returned encoder must be used before adding another definition.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn core_type(&mut self) -> TypeEncoder {
         self.bytes.push(0x00);
-        name.encode(&mut self.bytes);
-        ty.encode(&mut self.bytes);
         self.num_added += 1;
-        self
+        self.core_types_added += 1;
+        TypeEncoder(&mut self.bytes)
     }
 
     /// Define a type in this component type.
@@ -49,13 +52,27 @@ impl ComponentType {
         self
     }
 
-    /// Defines an export in this component type.
-    pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    /// Defines an import in this component type.
+    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
         self.bytes.push(0x03);
         name.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
+    }
+
+    /// Defines an export in this component type.
+    pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+        self.bytes.push(0x04);
+        name.encode(&mut self.bytes);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Gets the number of core types that have been added to this component type.
+    pub fn core_type_count(&self) -> u32 {
+        self.core_types_added
     }
 
     /// Gets the number of types that have been added or aliased in this component type.
@@ -77,6 +94,7 @@ impl Encode for ComponentType {
 pub struct InstanceType {
     bytes: Vec<u8>,
     num_added: u32,
+    core_types_added: u32,
     types_added: u32,
 }
 
@@ -84,6 +102,17 @@ impl InstanceType {
     /// Creates a new instance type.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Define a core type in this component type.
+    ///
+    /// The returned encoder must be used before adding another definition.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn core_type(&mut self) -> TypeEncoder {
+        self.bytes.push(0x00);
+        self.num_added += 1;
+        self.core_types_added += 1;
+        TypeEncoder(&mut self.bytes)
     }
 
     /// Define a type in this instance type.
@@ -111,11 +140,16 @@ impl InstanceType {
 
     /// Defines an export in this instance type.
     pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
-        self.bytes.push(0x03);
+        self.bytes.push(0x04);
         name.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
+    }
+
+    /// Gets the number of core types that have been added to this component type.
+    pub fn core_type_count(&self) -> u32 {
+        self.core_types_added
     }
 
     /// Gets the number of types that have been added or aliased in this instance type.

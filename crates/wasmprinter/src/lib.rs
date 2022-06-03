@@ -2441,6 +2441,9 @@ impl Printer {
         for decl in decls {
             self.newline();
             match decl {
+                ComponentTypeDeclaration::CoreType(ty) => {
+                    self.print_type(states.last_mut().unwrap(), types, ty)?
+                }
                 ComponentTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
                 }
@@ -2480,6 +2483,9 @@ impl Printer {
         for decl in decls {
             self.newline();
             match decl {
+                InstanceTypeDeclaration::CoreType(ty) => {
+                    self.print_type(states.last_mut().unwrap(), types, ty)?
+                }
                 InstanceTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
                 }

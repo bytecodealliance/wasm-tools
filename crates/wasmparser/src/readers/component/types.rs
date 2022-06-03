@@ -1,6 +1,6 @@
 use crate::{
     BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, Result,
-    SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
+    SectionIteratorLimited, SectionReader, SectionWithLimitedItems, Type,
 };
 use std::ops::Range;
 
@@ -104,6 +104,8 @@ pub enum ComponentType<'a> {
 /// Represents part of a component type declaration in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub enum ComponentTypeDeclaration<'a> {
+    /// The component type declaration is for a core type.
+    CoreType(Type<'a>),
     /// The component type declaration is for a type.
     Type(ComponentType<'a>),
     /// The component type declaration is for an alias.
@@ -122,6 +124,8 @@ pub enum ComponentTypeDeclaration<'a> {
 /// Represents an instance type declaration in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub enum InstanceTypeDeclaration<'a> {
+    /// The component type declaration is for a core type.
+    CoreType(Type<'a>),
     /// The instance type declaration is for a type.
     Type(ComponentType<'a>),
     /// The instance type declaration is for an alias.
