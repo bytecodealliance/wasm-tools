@@ -460,7 +460,6 @@ pub mod kw {
     custom_keyword!(register);
     custom_keyword!(rec);
     custom_keyword!(result);
-    custom_keyword!(rtt);
     custom_keyword!(shared);
     custom_keyword!(start);
     custom_keyword!(r#struct = "struct");

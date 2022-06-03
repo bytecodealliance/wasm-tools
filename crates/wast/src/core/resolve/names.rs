@@ -275,9 +275,6 @@ impl<'a> Resolver<'a> {
     fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
         match ty {
             ValType::Ref(ty) => self.resolve_heaptype(&mut ty.heap)?,
-            ValType::Rtt(_d, i) => {
-                self.resolve(i, Ns::Type)?;
-            }
             _ => {}
         }
         Ok(())

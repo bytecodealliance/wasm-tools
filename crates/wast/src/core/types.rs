@@ -14,7 +14,6 @@ pub enum ValType<'a> {
     F64,
     V128,
     Ref(RefType<'a>),
-    Rtt(Option<u32>, Index<'a>),
 }
 
 impl<'a> Parse<'a> for ValType<'a> {
@@ -37,16 +36,6 @@ impl<'a> Parse<'a> for ValType<'a> {
             Ok(ValType::V128)
         } else if l.peek::<RefType>() {
             Ok(ValType::Ref(parser.parse()?))
-        } else if l.peek::<LParen>() {
-            parser.parens(|p| {
-                let mut l = p.lookahead1();
-                if l.peek::<kw::rtt>() {
-                    p.parse::<kw::rtt>()?;
-                    Ok(ValType::Rtt(p.parse()?, p.parse()?))
-                } else {
-                    Err(l.error())
-                }
-            })
         } else {
             Err(l.error())
         }
@@ -60,7 +49,6 @@ impl<'a> Peek for ValType<'a> {
             || kw::f32::peek(cursor)
             || kw::f64::peek(cursor)
             || kw::v128::peek(cursor)
-            || (LParen::peek(cursor) && kw::rtt::peek2(cursor))
             || RefType::peek(cursor)
     }
     fn display() -> &'static str {

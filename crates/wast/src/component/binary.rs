@@ -419,9 +419,6 @@ impl From<core::ValType<'_>> for wasm_encoder::ValType {
             core::ValType::F64 => Self::F64,
             core::ValType::V128 => Self::V128,
             core::ValType::Ref(r) => r.into(),
-            core::ValType::Rtt(..) => {
-                todo!("encoding of GC proposal types not yet implemented")
-            }
         }
     }
 }
