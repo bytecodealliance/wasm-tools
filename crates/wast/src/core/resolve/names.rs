@@ -45,6 +45,40 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    fn register_type(&mut self, ty: &Type<'a>) -> Result<(), Error> {
+        match &ty.def {
+            // For GC structure types we need to be sure to populate the
+            // field namespace here as well.
+            //
+            // The field namespace is global, but the resolved indices
+            // are relative to the struct they are defined in
+            TypeDef::Struct(r#struct) => {
+                for (i, field) in r#struct.fields.iter().enumerate() {
+                    if let Some(id) = field.id {
+                        self.fields.register_specific(id, i as u32, "field")?;
+                    }
+                }
+            }
+
+            TypeDef::Array(_) | TypeDef::Func(_) => {}
+        }
+
+        // Record function signatures as we see them to so we can
+        // generate errors for mismatches in references such as
+        // `call_indirect`.
+        match &ty.def {
+            TypeDef::Func(f) => {
+                let params = f.params.iter().map(|p| p.2).collect();
+                let results = f.results.clone();
+                self.type_info.push(TypeInfo::Func { params, results });
+            }
+            _ => self.type_info.push(TypeInfo::Other),
+        }
+
+        self.types.register(ty.id, "type")?;
+        Ok(())
+    }
+
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
             ModuleField::Import(i) => match &i.item.kind {
@@ -60,36 +94,13 @@ impl<'a> Resolver<'a> {
             ModuleField::Table(i) => self.tables.register(i.id, "table")?,
 
             ModuleField::Type(i) => {
-                match &i.def {
-                    // For GC structure types we need to be sure to populate the
-                    // field namespace here as well.
-                    //
-                    // The field namespace is global, but the resolved indices
-                    // are relative to the struct they are defined in
-                    TypeDef::Struct(r#struct) => {
-                        for (i, field) in r#struct.fields.iter().enumerate() {
-                            if let Some(id) = field.id {
-                                self.fields.register_specific(id, i as u32, "field")?;
-                            }
-                        }
-                    }
-
-                    TypeDef::Array(_) | TypeDef::Func(_) => {}
+                return self.register_type(i);
+            },
+            ModuleField::Rec(i) => {
+                for ty in &i.types {
+                    self.register_type(ty)?;
                 }
-
-                // Record function signatures as we see them to so we can
-                // generate errors for mismatches in references such as
-                // `call_indirect`.
-                match &i.def {
-                    TypeDef::Func(f) => {
-                        let params = f.params.iter().map(|p| p.2).collect();
-                        let results = f.results.clone();
-                        self.type_info.push(TypeInfo::Func { params, results });
-                    }
-                    _ => self.type_info.push(TypeInfo::Other),
-                }
-
-                self.types.register(i.id, "type")?
+                return Ok(())
             }
             ModuleField::Elem(e) => self.elems.register(e.id, "elem")?,
             ModuleField::Data(d) => self.datas.register(d.id, "data")?,
@@ -104,6 +115,19 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    fn resolve_type(&self, ty: &mut Type<'a>) -> Result<(), Error> {
+        match &mut ty.def {
+            TypeDef::Func(func) => func.resolve(self)?,
+            TypeDef::Struct(struct_) => {
+                for field in &mut struct_.fields {
+                    self.resolve_storagetype(&mut field.ty)?;
+                }
+            }
+            TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
+        }
+        Ok(())
+    }
+
     fn resolve_field(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
@@ -111,15 +135,10 @@ impl<'a> Resolver<'a> {
                 Ok(())
             }
 
-            ModuleField::Type(ty) => {
-                match &mut ty.def {
-                    TypeDef::Func(func) => func.resolve(self)?,
-                    TypeDef::Struct(struct_) => {
-                        for field in &mut struct_.fields {
-                            self.resolve_storagetype(&mut field.ty)?;
-                        }
-                    }
-                    TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
+            ModuleField::Type(ty) => self.resolve_type(ty),
+            ModuleField::Rec(rec) => {
+                for ty in &mut rec.types {
+                    self.resolve_type(ty)?;
                 }
                 Ok(())
             }

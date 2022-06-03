@@ -458,6 +458,7 @@ pub mod kw {
     custom_keyword!(ref_func = "ref.func");
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
+    custom_keyword!(rec);
     custom_keyword!(result);
     custom_keyword!(rtt);
     custom_keyword!(shared);

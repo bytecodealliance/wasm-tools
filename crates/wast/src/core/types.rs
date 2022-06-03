@@ -680,6 +680,31 @@ impl<'a> Parse<'a> for Type<'a> {
     }
 }
 
+/// A recursion group declaration in a module
+#[derive(Debug)]
+pub struct Rec<'a> {
+    /// Where this recursion group was defined.
+    pub span: Span,
+    /// The types that we're defining in this group.
+    pub types: Vec<Type<'a>>,
+}
+
+impl<'a> Parse<'a> for Rec<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let span = parser.parse::<kw::r#rec>()?.0;
+        let mut types = Vec::new();
+        while parser.peek2::<kw::r#type>() {
+            types.push(parser.parens(|p| {
+                p.parse()
+            })?);
+        }
+        Ok(Rec {
+            span,
+            types
+        })
+    }
+}
+
 /// A reference to a type defined in this module.
 #[derive(Clone, Debug)]
 pub struct TypeUse<'a, T> {

@@ -24,7 +24,8 @@ pub fn encode(
     let mut customs = Vec::new();
     for field in fields {
         match field {
-            ModuleField::Type(i) => types.push(i),
+            ModuleField::Type(i) => types.push(RecOrType::Type(i)),
+            ModuleField::Rec(i) => types.push(RecOrType::Rec(i)),
             ModuleField::Import(i) => imports.push(i),
             ModuleField::Func(i) => funcs.push(i),
             ModuleField::Table(i) => tables.push(i),
@@ -159,6 +160,20 @@ impl Encode for ExportType<'_> {
     }
 }
 
+enum RecOrType<'a> {
+    Type(&'a Type<'a>),
+    Rec(&'a Rec<'a>),
+}
+
+impl Encode for RecOrType<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            RecOrType::Type(ty) => ty.encode(e),
+            RecOrType::Rec(rec) => rec.encode(e),
+        }
+    }
+}
+
 impl Encode for Type<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         match &self.def {
@@ -174,6 +189,21 @@ impl Encode for Type<'_> {
                 e.push(0x5e);
                 array.encode(e)
             }
+        }
+    }
+}
+
+impl Encode for Rec<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        if self.types.len() == 1 {
+            self.types[0].encode(e);
+            return;
+        }
+
+        e.push(0x45);
+        self.types.len().encode(e);
+        for ty in &self.types {
+            ty.encode(e);
         }
     }
 }
@@ -774,6 +804,7 @@ fn find_names<'a>(
 
     let mut ret = Names::default();
     ret.module = get_name(module_id, module_name);
+    let mut names = Vec::new();
     for field in fields {
         // Extract the kind/id/name from whatever kind of field this is...
         let (kind, id, name) = match field {
@@ -793,12 +824,21 @@ fn find_names<'a>(
             ModuleField::Memory(m) => (Name::Memory, &m.id, &m.name),
             ModuleField::Tag(t) => (Name::Tag, &t.id, &t.name),
             ModuleField::Type(t) => (Name::Type, &t.id, &t.name),
+            ModuleField::Rec(r) => {
+                for ty in &r.types {
+                    names.push((Name::Type, &ty.id, &ty.name, field));
+                }
+                continue;
+            },
             ModuleField::Elem(e) => (Name::Elem, &e.id, &e.name),
             ModuleField::Data(d) => (Name::Data, &d.id, &d.name),
             ModuleField::Func(f) => (Name::Func, &f.id, &f.name),
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => continue,
         };
+        names.push((kind, id, name, field));
+    }
 
+    for (kind, id, name, field) in names {
         // .. and using the kind we can figure out where to place this name
         let (list, idx) = match kind {
             Name::Func => (&mut ret.funcs, &mut ret.func_idx),
