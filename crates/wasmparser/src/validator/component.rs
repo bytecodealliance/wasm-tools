@@ -499,7 +499,7 @@ impl ComponentState {
                         Some(existing) => {
                             return Err(BinaryReaderError::new(
                                 format!(
-                                    "canonical option `{}` conflicts with option `{}`",
+                                    "canonical encoding option `{}` conflicts with option `{}`",
                                     display(existing),
                                     display(*option)
                                 ),
@@ -526,7 +526,7 @@ impl ComponentState {
                 CanonicalOption::Realloc(idx) => {
                     realloc = match realloc {
                         None => {
-                            let ty = types[self.function_at(*idx, offset)?]
+                            let ty = types[self.core_function_at(*idx, offset)?]
                                 .as_func_type()
                                 .unwrap();
                             if ty.params.as_ref()
@@ -551,7 +551,7 @@ impl ComponentState {
                 CanonicalOption::PostReturn(idx) => {
                     post_return = match post_return {
                         None => {
-                            let ty = types[self.function_at(*idx, offset)?]
+                            let ty = types[self.core_function_at(*idx, offset)?]
                                 .as_func_type()
                                 .unwrap();
                             if !ty.params.as_ref().is_empty() || !ty.returns.as_ref().is_empty() {
