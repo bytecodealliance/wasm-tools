@@ -343,7 +343,11 @@ impl Printer {
                     match encoding {
                         Encoding::Module => {
                             states.push(State::new(Encoding::Module));
-                            self.start_group("module");
+                            if states.len() > 1 {
+                                self.start_group("core module");
+                            } else {
+                                self.start_group("module");
+                            }
 
                             if states.len() > 1 {
                                 let parent = &states[states.len() - 2];
@@ -606,11 +610,16 @@ impl Printer {
 
     fn print_type(
         &mut self,
+        core: bool,
         state: &mut State,
         types: &mut Vec<Type>,
         ty: wasmparser::Type,
     ) -> Result<()> {
-        self.start_group("type ");
+        if core {
+            self.start_group("core type ");
+        } else {
+            self.start_group("type ");
+        }
         self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
         self.result.push(' ');
         let ty = match ty {
@@ -640,7 +649,15 @@ impl Printer {
     ) -> Result<()> {
         for ty in parser {
             self.newline();
-            self.print_type(state, types, ty?)?;
+            self.print_type(
+                match state.encoding {
+                    Encoding::Component => true,
+                    Encoding::Module => false,
+                },
+                state,
+                types,
+                ty?,
+            )?;
         }
 
         Ok(())
@@ -2409,7 +2426,7 @@ impl Printer {
             match decl {
                 ModuleTypeDeclaration::Type(ty) => match ty {
                     wasmparser::Type::Func(ty) => {
-                        self.print_type(&mut state, types, wasmparser::Type::Func(ty))?
+                        self.print_type(false, &mut state, types, wasmparser::Type::Func(ty))?
                     }
                     wasmparser::Type::Module(_) => bail!("invalid nested module type"),
                 },
@@ -2442,7 +2459,7 @@ impl Printer {
             self.newline();
             match decl {
                 ComponentTypeDeclaration::CoreType(ty) => {
-                    self.print_type(states.last_mut().unwrap(), types, ty)?
+                    self.print_type(true, states.last_mut().unwrap(), types, ty)?
                 }
                 ComponentTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
@@ -2461,6 +2478,16 @@ impl Printer {
                     self.result.push(' ');
                     self.print_component_import_ty(states.last().unwrap(), &ty, false)?;
                     self.end_group();
+                    match ty {
+                        ComponentTypeRef::Func(idx)
+                        | ComponentTypeRef::Instance(idx)
+                        | ComponentTypeRef::Component(idx) => {
+                            let state = states.last_mut().unwrap();
+                            let idx = state.ty(idx)?;
+                            state.add_component_export(name, idx)?;
+                        }
+                        _ => {}
+                    }
                 }
                 ComponentTypeDeclaration::Import(import) => {
                     self.print_component_import(states.last_mut().unwrap(), &import, false)?
@@ -2484,7 +2511,7 @@ impl Printer {
             self.newline();
             match decl {
                 InstanceTypeDeclaration::CoreType(ty) => {
-                    self.print_type(states.last_mut().unwrap(), types, ty)?
+                    self.print_type(true, states.last_mut().unwrap(), types, ty)?
                 }
                 InstanceTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
@@ -2503,6 +2530,16 @@ impl Printer {
                     self.result.push(' ');
                     self.print_component_import_ty(states.last().unwrap(), &ty, false)?;
                     self.end_group();
+                    match ty {
+                        ComponentTypeRef::Func(idx)
+                        | ComponentTypeRef::Instance(idx)
+                        | ComponentTypeRef::Component(idx) => {
+                            let state = states.last_mut().unwrap();
+                            let idx = state.ty(idx)?;
+                            state.add_component_export(name, idx)?;
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
@@ -2550,7 +2587,7 @@ impl Printer {
                 ComponentExternalKind::Module => {
                     self.print_idx(&outer.core.module_names, index)?;
                     self.result.push(' ');
-                    self.start_group("module ");
+                    self.start_group("core module ");
                     self.print_name(&state.core.module_names, state.core.modules)?;
                     None
                 }
@@ -2737,7 +2774,7 @@ impl Printer {
     ) -> Result<()> {
         match ty {
             ComponentTypeRef::Module(idx) => {
-                self.start_group("module");
+                self.start_group("core module");
                 if index {
                     self.result.push(' ');
                     self.print_name(&state.core.module_names, state.core.modules as u32)?;
@@ -2758,10 +2795,10 @@ impl Printer {
                 self.end_group();
             }
             ComponentTypeRef::Value(ty) => {
-                self.start_group("value");
+                self.start_group("value ");
                 if index {
-                    self.result.push(' ');
                     self.print_name(&state.component.value_names, state.component.values as u32)?;
+                    self.result.push(' ');
                 }
                 match ty {
                     ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty),
@@ -2849,7 +2886,7 @@ impl Printer {
     ) -> Result<()> {
         match kind {
             ComponentExternalKind::Module => {
-                self.start_group("module ");
+                self.start_group("core module ");
                 self.print_idx(&state.core.module_names, index)?;
             }
             ComponentExternalKind::Component => {
@@ -2931,7 +2968,7 @@ impl Printer {
                     options,
                 } => {
                     self.start_group("func ");
-                    self.print_idx(
+                    self.print_name(
                         &state.component.func_names,
                         state.component.funcs.len() as u32,
                     )?;
@@ -2954,7 +2991,7 @@ impl Printer {
                     options,
                 } => {
                     self.start_group("core func ");
-                    self.print_idx(&state.core.func_names, state.core.funcs.len() as u32)?;
+                    self.print_name(&state.core.func_names, state.core.funcs.len() as u32)?;
                     self.result.push(' ');
                     self.start_group("canon lower ");
                     self.start_group("func ");
@@ -2978,15 +3015,13 @@ impl Printer {
     fn print_instances(&mut self, state: &mut State, parser: InstanceSectionReader) -> Result<()> {
         for instance in parser {
             self.newline();
-            self.start_group("instance ");
+            self.start_group("core instance ");
             self.print_name(&state.core.instance_names, state.core.instances)?;
+            self.result.push(' ');
             match instance? {
                 Instance::Instantiate { module_index, args } => {
-                    self.result.push(' ');
                     self.start_group("instantiate ");
-                    self.start_group("module ");
                     self.print_idx(&state.core.module_names, module_index)?;
-                    self.end_group();
                     for arg in args.iter() {
                         self.newline();
                         self.print_instantiation_arg(state, arg)?;
@@ -2995,7 +3030,6 @@ impl Printer {
                     state.core.instances += 1;
                 }
                 Instance::FromExports(exports) => {
-                    self.result.push_str(" core");
                     for export in exports.iter() {
                         self.newline();
                         self.print_export(state, export)?;
@@ -3028,9 +3062,7 @@ impl Printer {
                 } => {
                     self.result.push(' ');
                     self.start_group("instantiate ");
-                    self.start_group("component ");
                     self.print_idx(&state.component.component_names, component_index)?;
-                    self.end_group();
                     for arg in args.iter() {
                         self.newline();
                         self.print_component_instantiation_arg(state, arg)?;
@@ -3232,7 +3264,7 @@ impl Printer {
                     self.result.push(' ');
                     match kind {
                         ComponentExternalKind::Module => {
-                            self.start_group("module ");
+                            self.start_group("core module ");
                             self.print_name(&state.core.module_names, state.core.modules)?;
                             self.end_group();
                             state.core.modules += 1;
