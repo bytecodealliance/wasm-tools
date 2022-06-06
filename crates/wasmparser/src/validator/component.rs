@@ -305,7 +305,7 @@ impl ComponentState {
             ));
         }
 
-        self.check_options(ty, &options, types, offset)?;
+        self.check_options(ty, Some(core_ty), &options, types, offset)?;
         self.funcs.push(self.types[type_index as usize]);
 
         Ok(())
@@ -322,7 +322,7 @@ impl ComponentState {
             .as_component_func_type()
             .unwrap();
 
-        self.check_options(ty, &options, types, offset)?;
+        self.check_options(ty, None, &options, types, offset)?;
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
@@ -472,6 +472,7 @@ impl ComponentState {
     fn check_options(
         &self,
         ty: &ComponentFuncType,
+        core_ty: Option<&FuncType>,
         options: &[CanonicalOption],
         types: &TypeList,
         offset: usize,
@@ -501,7 +502,7 @@ impl ComponentState {
                                 format!(
                                     "canonical encoding option `{}` conflicts with option `{}`",
                                     display(existing),
-                                    display(*option)
+                                    display(*option),
                                 ),
                                 offset,
                             ))
@@ -534,7 +535,7 @@ impl ComponentState {
                                 || ty.returns.as_ref() != [ValType::I32]
                             {
                                 return Err(BinaryReaderError::new(
-                                    "invalid realloc function signature",
+                                    "canonical option `realloc` uses a core function with an incorrect signature",
                                     offset,
                                 ));
                             }
@@ -551,12 +552,20 @@ impl ComponentState {
                 CanonicalOption::PostReturn(idx) => {
                     post_return = match post_return {
                         None => {
+                            let core_ty = core_ty.ok_or_else(|| {
+                                BinaryReaderError::new(
+                                    "canonical option `post-return` cannot be specified for lowerings",
+                                    offset,
+                                )
+                            })?;
+
                             let ty = types[self.core_function_at(*idx, offset)?]
                                 .as_func_type()
                                 .unwrap();
-                            if !ty.params.as_ref().is_empty() || !ty.returns.as_ref().is_empty() {
+
+                            if ty.params != core_ty.returns || !ty.returns.is_empty() {
                                 return Err(BinaryReaderError::new(
-                                    "invalid post-return function signature",
+                                    "canonical option `post-return` uses a core function with an incorrect signature",
                                     offset,
                                 ));
                             }
