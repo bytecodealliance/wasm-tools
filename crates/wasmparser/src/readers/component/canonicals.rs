@@ -19,10 +19,8 @@ pub enum CanonicalOption {
     ///
     /// The value is an index to a core function of type `(func (param i32 i32 i32 i32) (result i32))`.
     Realloc(u32),
-    /// The post-return function to use if the lifting or lowering of a function requires
+    /// The post-return function to use if the lifting of a function requires
     /// cleanup after the function returns.
-    ///
-    /// The value is an index to a core function of type `(func)`.
     PostReturn(u32),
 }
 
