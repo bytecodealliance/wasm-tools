@@ -224,12 +224,17 @@ impl Encoder {
             InstanceKind::Instantiate { component, args } => {
                 self.instances.instantiate(
                     (*component).into(),
-                    args.iter().map(|arg| (arg.name, (&arg.kind).into())),
+                    args.iter().map(|arg| {
+                        let (kind, index) = (&arg.kind).into();
+                        (arg.name, kind, index)
+                    }),
                 );
             }
             InstanceKind::BundleOfExports(exports) => {
-                self.instances
-                    .export_items(exports.iter().map(|e| (e.name, (&e.kind).into())));
+                self.instances.export_items(exports.iter().map(|e| {
+                    let (kind, index) = (&e.kind).into();
+                    (e.name, kind, index)
+                }));
             }
         }
 
@@ -290,7 +295,8 @@ impl Encoder {
     }
 
     fn encode_export(&mut self, export: &ComponentExport) {
-        self.exports.export(export.name, (&export.kind).into());
+        let (kind, index) = (&export.kind).into();
+        self.exports.export(export.name, kind, index);
         self.flush(Some(self.exports.id()));
     }
 
@@ -510,21 +516,6 @@ impl From<&CoreItemRef<'_, core::ExportKind>> for wasm_encoder::Export {
     }
 }
 
-impl From<CoreAliasKind> for wasm_encoder::CoreAliasKind {
-    fn from(kind: CoreAliasKind) -> Self {
-        match kind {
-            CoreAliasKind::Func => Self::Func,
-            CoreAliasKind::Table => Self::Table,
-            CoreAliasKind::Memory => Self::Memory,
-            CoreAliasKind::Global => Self::Global,
-            CoreAliasKind::Tag => Self::Tag,
-            CoreAliasKind::Type => Self::Type,
-            CoreAliasKind::Module => Self::Module,
-            CoreAliasKind::Instance => Self::Instance,
-        }
-    }
-}
-
 impl From<CoreAliasKind> for wasm_encoder::ExportKind {
     fn from(kind: CoreAliasKind) -> Self {
         match kind {
@@ -714,7 +705,7 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
     }
 }
 
-impl From<&InstantiationArgKind<'_>> for wasm_encoder::ComponentExport {
+impl From<&InstantiationArgKind<'_>> for (wasm_encoder::ComponentExportKind, u32) {
     fn from(kind: &InstantiationArgKind) -> Self {
         match kind {
             InstantiationArgKind::Item(i) => i.into(),
@@ -723,34 +714,35 @@ impl From<&InstantiationArgKind<'_>> for wasm_encoder::ComponentExport {
     }
 }
 
-impl From<&ComponentExportKind<'_>> for wasm_encoder::ComponentExport {
+impl From<&ComponentExportKind<'_>> for (wasm_encoder::ComponentExportKind, u32) {
     fn from(kind: &ComponentExportKind) -> Self {
         match kind {
             ComponentExportKind::CoreModule(m) => {
-                wasm_encoder::ComponentExport::Module(m.idx.into())
+                (wasm_encoder::ComponentExportKind::Module, m.idx.into())
             }
-            ComponentExportKind::Func(f) => wasm_encoder::ComponentExport::Func(f.idx.into()),
-            ComponentExportKind::Value(v) => wasm_encoder::ComponentExport::Value(v.idx.into()),
-            ComponentExportKind::Type(t) => wasm_encoder::ComponentExport::Type(t.idx.into()),
+            ComponentExportKind::Func(f) => (wasm_encoder::ComponentExportKind::Func, f.idx.into()),
+            ComponentExportKind::Value(v) => {
+                (wasm_encoder::ComponentExportKind::Value, v.idx.into())
+            }
+            ComponentExportKind::Type(t) => (wasm_encoder::ComponentExportKind::Type, t.idx.into()),
             ComponentExportKind::Component(c) => {
-                wasm_encoder::ComponentExport::Component(c.idx.into())
+                (wasm_encoder::ComponentExportKind::Component, c.idx.into())
             }
             ComponentExportKind::Instance(i) => {
-                wasm_encoder::ComponentExport::Instance(i.idx.into())
+                (wasm_encoder::ComponentExportKind::Instance, i.idx.into())
             }
         }
     }
 }
 
-impl From<AliasKind> for wasm_encoder::ComponentAliasKind {
+impl From<AliasKind> for wasm_encoder::ComponentOuterAliasKind {
     fn from(kind: AliasKind) -> Self {
         match kind {
-            AliasKind::Core(k) => Self::Core(k.into()),
-            AliasKind::Func => Self::Func,
-            AliasKind::Value => Self::Value,
+            AliasKind::Core(CoreAliasKind::Module) => Self::CoreModule,
+            AliasKind::Core(CoreAliasKind::Type) => Self::CoreType,
             AliasKind::Type => Self::Type,
             AliasKind::Component => Self::Component,
-            AliasKind::Instance => Self::Instance,
+            _ => unreachable!("not representable as an outer alias ({:?})", kind),
         }
     }
 }

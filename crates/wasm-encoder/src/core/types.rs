@@ -122,6 +122,8 @@ impl<'a> TypeEncoder<'a> {
     }
 
     /// Define a module type.
+    ///
+    /// Currently this is only used for core type sections in components.
     pub fn module(self, ty: &ModuleType) {
         ty.encode(self.0);
     }

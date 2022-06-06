@@ -19,7 +19,12 @@ pub use self::start::*;
 pub use self::types::*;
 
 use crate::TypeSection;
-use crate::{AliasSection, CustomSection, Encode, InstanceSection};
+use crate::{CustomSection, Encode};
+
+// Core sorts extended by the component model
+const CORE_TYPE_SORT: u8 = 0x10;
+const CORE_MODULE_SORT: u8 = 0x11;
+const CORE_INSTANCE_SORT: u8 = 0x12;
 
 const CORE_SORT: u8 = 0x00;
 const FUNCTION_SORT: u8 = 0x01;
@@ -129,18 +134,6 @@ impl Default for Component {
 impl ComponentSection for CustomSection<'_> {
     fn id(&self) -> u8 {
         ComponentSectionId::CoreCustom.into()
-    }
-}
-
-impl ComponentSection for InstanceSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::CoreInstance.into()
-    }
-}
-
-impl ComponentSection for AliasSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::CoreAlias.into()
     }
 }
 

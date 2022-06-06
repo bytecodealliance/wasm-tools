@@ -1,76 +1,99 @@
+use super::{COMPONENT_SORT, CORE_MODULE_SORT, CORE_SORT, CORE_TYPE_SORT, TYPE_SORT};
 use crate::{
-    encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode,
-    CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_INSTANCE_SORT, CORE_MEMORY_SORT, CORE_MODULE_SORT,
-    CORE_TABLE_SORT, CORE_TAG_SORT, CORE_TYPE_SORT,
+    encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
 };
 
-use super::{COMPONENT_SORT, CORE_SORT, FUNCTION_SORT, INSTANCE_SORT, TYPE_SORT, VALUE_SORT};
-
-/// Represents the kinds of aliasable core items.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreAliasKind {
-    /// The alias is to a core function.
-    Func,
-    /// The alias is to a table.
-    Table,
-    /// The alias is to a memory.
-    Memory,
-    /// The alias is to a global.
-    Global,
-    /// The alias is to a tag.
-    Tag,
-    /// The alias is to a core type.
-    Type,
-    /// The alias is to a core module.
-    Module,
-    /// The alias is to a core instance.
-    Instance,
+/// An encoder for the core alias section of WebAssembly components.
+///
+/// # Example
+///
+/// ```rust
+/// use wasm_encoder::{Component, AliasSection, ExportKind};
+///
+/// let mut aliases = AliasSection::new();
+/// aliases.instance_export(0, ExportKind::Func, "f");
+///
+/// let mut component = Component::new();
+/// component.section(&aliases);
+///
+/// let bytes = component.finish();
+/// ```
+#[derive(Clone, Debug, Default)]
+pub struct AliasSection {
+    bytes: Vec<u8>,
+    num_added: u32,
 }
 
-impl Encode for CoreAliasKind {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        match self {
-            Self::Func => sink.push(CORE_FUNCTION_SORT),
-            Self::Table => sink.push(CORE_TABLE_SORT),
-            Self::Memory => sink.push(CORE_MEMORY_SORT),
-            Self::Global => sink.push(CORE_GLOBAL_SORT),
-            Self::Tag => sink.push(CORE_TAG_SORT),
-            Self::Type => sink.push(CORE_TYPE_SORT),
-            Self::Module => sink.push(CORE_MODULE_SORT),
-            Self::Instance => sink.push(CORE_INSTANCE_SORT),
-        }
+impl AliasSection {
+    /// Create a new core alias section encoder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The number of aliases in the section.
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+
+    /// Determines if the section is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
+    /// Define an alias to an instance's export.
+    pub fn instance_export(
+        &mut self,
+        instance_index: u32,
+        kind: ExportKind,
+        name: &str,
+    ) -> &mut Self {
+        kind.encode(&mut self.bytes);
+        self.bytes.push(0x00);
+        instance_index.encode(&mut self.bytes);
+        name.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
     }
 }
 
-/// Represents the kinds of aliasable component items.
+impl Encode for AliasSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        encode_section(sink, self.num_added, &self.bytes);
+    }
+}
+
+impl ComponentSection for AliasSection {
+    fn id(&self) -> u8 {
+        ComponentSectionId::CoreAlias.into()
+    }
+}
+
+/// Represents the kinds of outer aliasable items in a component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ComponentAliasKind {
-    /// The alias is to a core item.
-    Core(CoreAliasKind),
-    /// The alias is to a function.
-    Func,
-    /// The alias is to a value.
-    Value,
+pub enum ComponentOuterAliasKind {
+    /// The alias is to a core module.
+    CoreModule,
+    /// The alias is to a core type.
+    CoreType,
     /// The alias is to a type.
     Type,
     /// The alias is to a component.
     Component,
-    /// The alias is to an instance.
-    Instance,
 }
 
-impl Encode for ComponentAliasKind {
+impl Encode for ComponentOuterAliasKind {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            Self::Core(kind) => {
+            Self::CoreModule => {
                 sink.push(CORE_SORT);
-                kind.encode(sink);
+                sink.push(CORE_MODULE_SORT);
             }
-            Self::Func => sink.push(FUNCTION_SORT),
-            Self::Value => sink.push(VALUE_SORT),
+            Self::CoreType => {
+                sink.push(CORE_SORT);
+                sink.push(CORE_TYPE_SORT);
+            }
             Self::Type => sink.push(TYPE_SORT),
             Self::Component => sink.push(COMPONENT_SORT),
-            Self::Instance => sink.push(INSTANCE_SORT),
         }
     }
 }
@@ -80,11 +103,11 @@ impl Encode for ComponentAliasKind {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentAliasSection, ComponentExportKind, ComponentAliasKind};
+/// use wasm_encoder::{Component, ComponentAliasSection, ComponentExportKind, ComponentOuterAliasKind};
 ///
 /// let mut aliases = ComponentAliasSection::new();
 /// aliases.instance_export(0, ComponentExportKind::Func, "f");
-/// aliases.outer(0, ComponentAliasKind::Instance, 1);
+/// aliases.outer(0, ComponentOuterAliasKind::Type, 1);
 ///
 /// let mut component = Component::new();
 /// component.section(&aliases);
@@ -132,7 +155,7 @@ impl ComponentAliasSection {
     ///
     /// The count starts at 0 to indicate the current component, 1 indicates the direct
     /// parent, 2 the grandparent, etc.
-    pub fn outer(&mut self, count: u32, kind: ComponentAliasKind, index: u32) -> &mut Self {
+    pub fn outer(&mut self, count: u32, kind: ComponentOuterAliasKind, index: u32) -> &mut Self {
         kind.encode(&mut self.bytes);
         self.bytes.push(0x01);
         count.encode(&mut self.bytes);

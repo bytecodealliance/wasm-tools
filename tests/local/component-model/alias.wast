@@ -98,22 +98,6 @@
 )
 
 (assert_invalid
-  (component $outer
-    (import "" (instance $i (export "a" (func))))
-
-    (import "a" (component $m
-      (import "" (component (export "a" (func))))
-    ))
-
-    (component $local
-      (alias outer $outer $i (instance))
-    )
-
-    (instance (instantiate $m (with "" (component $local))))
-  )
-  "outer aliases may only be made to types, modules, and components")
-
-(assert_invalid
   (component
     (import "" (instance (export "" (func))))
     (export "" (core module 0 ""))

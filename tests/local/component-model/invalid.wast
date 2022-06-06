@@ -7,15 +7,6 @@
   )
   "type index out of bounds")
 
-(assert_invalid
-  (component
-    (import "" (func $f))
-    (component
-      (alias outer 1 $f (func $f))
-    )
-  )
-  "outer aliases may only be made to types, modules, and components")
-
 (assert_malformed
   (component quote
     "(export \"\" (func $foo))"

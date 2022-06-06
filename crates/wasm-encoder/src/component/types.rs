@@ -1,6 +1,6 @@
 use crate::{
-    encode_section, ComponentAliasKind, ComponentSection, ComponentSectionId, ComponentTypeRef,
-    Encode, TypeEncoder,
+    encode_section, ComponentOuterAliasKind, ComponentSection, ComponentSectionId,
+    ComponentTypeRef, Encode, TypeEncoder,
 };
 
 /// Represents a component type.
@@ -43,7 +43,7 @@ impl ComponentType {
     /// Defines an alias in this component type.
     pub fn alias_outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
-        ComponentAliasKind::Type.encode(&mut self.bytes);
+        ComponentOuterAliasKind::Type.encode(&mut self.bytes);
         self.bytes.push(0x01);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
@@ -129,7 +129,7 @@ impl InstanceType {
     /// Defines an alias in this instance type.
     pub fn alias_outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
-        ComponentAliasKind::Type.encode(&mut self.bytes);
+        ComponentOuterAliasKind::Type.encode(&mut self.bytes);
         self.bytes.push(0x01);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
