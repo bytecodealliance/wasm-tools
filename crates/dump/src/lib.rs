@@ -238,7 +238,7 @@ impl<'a> Dump<'a> {
                 Payload::ModuleSection { range, .. } => {
                     write!(
                         self.state,
-                        "[module {}] inline size",
+                        "[core module {}] inline size",
                         inc(&mut i.core_modules)
                     )?;
                     self.print(range.start)?;
@@ -247,29 +247,29 @@ impl<'a> Dump<'a> {
                     i = Indices::default();
                 }
 
-                Payload::InstanceSection(s) => self.section(s, "instance", |me, end, e| {
+                Payload::InstanceSection(s) => self.section(s, "core instance", |me, end, e| {
                     write!(
                         me.state,
-                        "[instance {}] {:?}",
+                        "[core instance {}] {:?}",
                         inc(&mut i.core_instances),
                         e
                     )?;
                     me.print(end)
                 })?,
 
-                Payload::AliasSection(s) => self.section(s, "alias", |me, end, a| {
+                Payload::AliasSection(s) => self.section(s, "core alias", |me, end, a| {
                     let (kind, num) = match a {
                         Alias::InstanceExport { kind, .. } => match kind {
-                            ExternalKind::Func => ("core func", inc(&mut i.core_funcs)),
+                            ExternalKind::Func => ("func", inc(&mut i.core_funcs)),
                             ExternalKind::Table => ("table", inc(&mut i.core_tables)),
                             ExternalKind::Memory => ("memory", inc(&mut i.core_memories)),
                             ExternalKind::Global => ("global", inc(&mut i.core_globals)),
                             ExternalKind::Tag => ("tag", inc(&mut i.core_tags)),
                             ExternalKind::Module => ("module", inc(&mut i.core_modules)),
-                            ExternalKind::Instance => ("core instance", inc(&mut i.core_instances)),
+                            ExternalKind::Instance => ("instance", inc(&mut i.core_instances)),
                         },
                     };
-                    write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
+                    write!(me.state, "core alias [{} {}] {:?}", kind, num, a)?;
                     me.print(end)
                 })?,
 
