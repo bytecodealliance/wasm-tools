@@ -3153,12 +3153,12 @@ impl Printer {
             }
         };
 
+        self.newline();
         self.start_group("start ");
-        self.start_group("func ");
         self.print_idx(&state.component.func_names, start.func_index)?;
-        self.end_group();
 
         for arg in start.arguments.iter() {
+            self.result.push(' ');
             self.start_group("value ");
             self.print_idx(&state.component.value_names, *arg)?;
             self.end_group();
