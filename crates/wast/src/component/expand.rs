@@ -259,8 +259,8 @@ impl<'a> Expander<'a> {
                 target: CoreAliasTarget::Export {
                     instance: a.instance,
                     name: a.name,
+                    kind: core::ExportKind::Func,
                 },
-                kind: CoreAliasKind::Func,
             })),
             CoreFuncKind::Lower(info) => Some(ComponentField::CanonicalFunc(CanonicalFunc {
                 span: func.span,
@@ -314,8 +314,8 @@ impl<'a> Expander<'a> {
                 target: AliasTarget::Export {
                     instance: a.instance,
                     name: a.name,
+                    kind: ComponentExportAliasKind::Func,
                 },
-                kind: AliasKind::Func,
             })),
         }
     }
@@ -566,7 +566,7 @@ impl<'a> Expander<'a> {
             let ret = CoreItemRef {
                 idx,
                 kind: kw::r#type(span),
-                export_names: Vec::new(),
+                export_name: None,
             };
             *item = CoreTypeUse::Ref(ret.clone());
             return ret;
@@ -582,7 +582,7 @@ impl<'a> Expander<'a> {
         let ret = CoreItemRef {
             idx,
             kind: kw::r#type(span),
-            export_names: Vec::new(),
+            export_name: None,
         };
 
         *item = CoreTypeUse::Ref(ret.clone());
@@ -658,7 +658,7 @@ impl<'a> Expander<'a> {
         *arg = CoreInstantiationArgKind::Instance(CoreItemRef {
             kind: kw::instance(span),
             idx: Index::Id(id),
-            export_names: Default::default(),
+            export_name: None,
         });
     }
 

@@ -255,7 +255,7 @@ impl Default for CanonLift<'_> {
             func: CoreItemRef {
                 kind: kw::func(span),
                 idx: Index::Num(0, span),
-                export_names: Vec::new(),
+                export_name: None,
             },
             opts: Vec::new(),
         }

@@ -40,7 +40,19 @@ impl ComponentType {
         ComponentTypeEncoder(&mut self.bytes)
     }
 
-    /// Defines an alias in this component type.
+    /// Defines an outer core type alias in this component type.
+    pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        ComponentOuterAliasKind::CoreType.encode(&mut self.bytes);
+        self.bytes.push(0x01);
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self.types_added += 1;
+        self
+    }
+
+    /// Defines an outer type alias in this component type.
     pub fn alias_outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         ComponentOuterAliasKind::Type.encode(&mut self.bytes);
@@ -124,6 +136,18 @@ impl InstanceType {
         self.num_added += 1;
         self.types_added += 1;
         ComponentTypeEncoder(&mut self.bytes)
+    }
+
+    /// Defines an outer core type alias in this component type.
+    pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        ComponentOuterAliasKind::CoreType.encode(&mut self.bytes);
+        self.bytes.push(0x01);
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self.types_added += 1;
+        self
     }
 
     /// Defines an alias in this instance type.

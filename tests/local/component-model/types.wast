@@ -35,7 +35,7 @@
       (import "" (core module (type $t)))
     ))
   )
-  "outer aliases can only be made to modules, components, and component types")
+  "core type index 0 is not a module type")
 
 (assert_invalid
   (component

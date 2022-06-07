@@ -187,9 +187,13 @@ impl Encoder {
 
     fn encode_core_alias(&mut self, alias: &CoreAlias) {
         match &alias.target {
-            CoreAliasTarget::Export { instance, name } => {
+            CoreAliasTarget::Export {
+                instance,
+                name,
+                kind,
+            } => {
                 self.core_aliases
-                    .instance_export((*instance).into(), alias.kind.into(), name);
+                    .instance_export((*instance).into(), (*kind).into(), name);
             }
         }
 
@@ -243,13 +247,17 @@ impl Encoder {
 
     fn encode_alias(&mut self, alias: &Alias) {
         match &alias.target {
-            AliasTarget::Export { instance, name } => {
+            AliasTarget::Export {
+                instance,
+                name,
+                kind,
+            } => {
                 self.aliases
-                    .instance_export((*instance).into(), alias.kind.into(), name);
+                    .instance_export((*instance).into(), (*kind).into(), name);
             }
-            AliasTarget::Outer { outer, index } => {
+            AliasTarget::Outer { outer, index, kind } => {
                 self.aliases
-                    .outer((*outer).into(), alias.kind.into(), (*index).into());
+                    .outer((*outer).into(), (*kind).into(), (*index).into());
             }
         }
 
@@ -516,18 +524,14 @@ impl From<&CoreItemRef<'_, core::ExportKind>> for wasm_encoder::Export {
     }
 }
 
-impl From<CoreAliasKind> for wasm_encoder::ExportKind {
-    fn from(kind: CoreAliasKind) -> Self {
+impl From<core::ExportKind> for wasm_encoder::ExportKind {
+    fn from(kind: core::ExportKind) -> Self {
         match kind {
-            CoreAliasKind::Func => Self::Func,
-            CoreAliasKind::Table => Self::Table,
-            CoreAliasKind::Memory => Self::Memory,
-            CoreAliasKind::Global => Self::Global,
-            CoreAliasKind::Tag => Self::Tag,
-            // These forms should only be used from component aliases
-            CoreAliasKind::Type | CoreAliasKind::Module | CoreAliasKind::Instance => {
-                unreachable!("unparsable core alias kind")
-            }
+            core::ExportKind::Func => Self::Func,
+            core::ExportKind::Table => Self::Table,
+            core::ExportKind::Memory => Self::Memory,
+            core::ExportKind::Global => Self::Global,
+            core::ExportKind::Tag => Self::Tag,
         }
     }
 }
@@ -627,12 +631,21 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                     encode_type(encoded.ty(), &t.def);
                 }
                 ComponentTypeDecl::Alias(a) => match &a.target {
-                    AliasTarget::Export { .. } => {
-                        unreachable!("cannot encode export aliases for types")
+                    AliasTarget::Outer {
+                        outer,
+                        index,
+                        kind: ComponentOuterAliasKind::CoreType,
+                    } => {
+                        encoded.alias_outer_core_type(u32::from(*outer), u32::from(*index));
                     }
-                    AliasTarget::Outer { outer, index } => {
+                    AliasTarget::Outer {
+                        outer,
+                        index,
+                        kind: ComponentOuterAliasKind::Type,
+                    } => {
                         encoded.alias_outer_type(u32::from(*outer), u32::from(*index));
                     }
+                    _ => unreachable!("only outer type aliases are supported"),
                 },
                 ComponentTypeDecl::Import(i) => {
                     encoded.import(i.name, (&i.item.kind).into());
@@ -660,12 +673,21 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                     encode_type(encoded.ty(), &t.def);
                 }
                 InstanceTypeDecl::Alias(a) => match &a.target {
-                    AliasTarget::Export { .. } => {
-                        unreachable!("cannot encode export aliases for types")
+                    AliasTarget::Outer {
+                        outer,
+                        index,
+                        kind: ComponentOuterAliasKind::CoreType,
+                    } => {
+                        encoded.alias_outer_core_type(u32::from(*outer), u32::from(*index));
                     }
-                    AliasTarget::Outer { outer, index } => {
+                    AliasTarget::Outer {
+                        outer,
+                        index,
+                        kind: ComponentOuterAliasKind::Type,
+                    } => {
                         encoded.alias_outer_type(u32::from(*outer), u32::from(*index));
                     }
+                    _ => unreachable!("only outer type aliases are supported"),
                 },
                 InstanceTypeDecl::Export(e) => {
                     encoded.export(e.name, (&e.item.kind).into());
@@ -735,28 +757,26 @@ impl From<&ComponentExportKind<'_>> for (wasm_encoder::ComponentExportKind, u32)
     }
 }
 
-impl From<AliasKind> for wasm_encoder::ComponentOuterAliasKind {
-    fn from(kind: AliasKind) -> Self {
+impl From<ComponentOuterAliasKind> for wasm_encoder::ComponentOuterAliasKind {
+    fn from(kind: ComponentOuterAliasKind) -> Self {
         match kind {
-            AliasKind::Core(CoreAliasKind::Module) => Self::CoreModule,
-            AliasKind::Core(CoreAliasKind::Type) => Self::CoreType,
-            AliasKind::Type => Self::Type,
-            AliasKind::Component => Self::Component,
-            _ => unreachable!("not representable as an outer alias ({:?})", kind),
+            ComponentOuterAliasKind::CoreModule => Self::CoreModule,
+            ComponentOuterAliasKind::CoreType => Self::CoreType,
+            ComponentOuterAliasKind::Type => Self::Type,
+            ComponentOuterAliasKind::Component => Self::Component,
         }
     }
 }
 
-impl From<AliasKind> for wasm_encoder::ComponentExportKind {
-    fn from(kind: AliasKind) -> Self {
+impl From<ComponentExportAliasKind> for wasm_encoder::ComponentExportKind {
+    fn from(kind: ComponentExportAliasKind) -> Self {
         match kind {
-            AliasKind::Core(CoreAliasKind::Module) => Self::Module,
-            AliasKind::Core(_) => unreachable!("only modules may be aliased for instance exports"),
-            AliasKind::Func => Self::Func,
-            AliasKind::Value => Self::Value,
-            AliasKind::Type => Self::Type,
-            AliasKind::Component => Self::Component,
-            AliasKind::Instance => Self::Instance,
+            ComponentExportAliasKind::CoreModule => Self::Module,
+            ComponentExportAliasKind::Func => Self::Func,
+            ComponentExportAliasKind::Value => Self::Value,
+            ComponentExportAliasKind::Type => Self::Type,
+            ComponentExportAliasKind::Component => Self::Component,
+            ComponentExportAliasKind::Instance => Self::Instance,
         }
     }
 }

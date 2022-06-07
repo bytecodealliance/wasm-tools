@@ -1,6 +1,4 @@
 (component
-  ;; TODO: ideally share this same core libc instance between all subcomponents
-  ;;       this isn't currently possible with the component model proposal
   (core module $libc
     (memory (export "mem") 0)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32)
@@ -8,23 +6,15 @@
     )
   )
   (core instance $libc (instantiate $libc))
-    
+
   (component $child
     (import "wasi-file" (instance $wasi-file
       (export "read" (func $read (param u32) (result (list u8))))
       (export "write" (func $write (param (list u8)) (result u32)))
     ))
 
-    ;; TODO: see comment above
-    (core module $libc
-      (memory (export "mem") 0)
-      (func (export "realloc") (param i32 i32 i32 i32) (result i32)
-        unreachable
-      )
-    )
-
     (core instance $libc (instantiate $libc))
-  
+
     (core module $m
       (import "wasi-file" "read" (func $read (param i32 i32)))
       (func $play (export "play")
@@ -75,6 +65,7 @@
         (export "play" (func $play))
       )
     )
+
     (instance $virt-wasi (instantiate $VIRTUALIZE (with "wasi_file" (instance $real-wasi))))
     (instance $child (instantiate $CHILD (with "wasi_file" (instance $virt-wasi))))
 
@@ -88,14 +79,6 @@
     ))
     (import "wasi_file" (instance $real-wasi (type $WasiFile)))
 
-    ;; TODO: see comment above
-    (core module $libc
-      (memory (export "mem") 0)
-      (func (export "realloc") (param i32 i32 i32 i32) (result i32)
-        unreachable
-      )
-    )
-    
     (core instance $libc (instantiate $libc))
 
     (core module $CHILD

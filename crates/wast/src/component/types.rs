@@ -686,7 +686,7 @@ impl<'a> Parse<'a> for ComponentTypeDecl<'a> {
         } else if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
         } else if l.peek::<kw::alias>() {
-            Ok(Self::Alias(Alias::parse_outer(parser)?))
+            Ok(Self::Alias(Alias::parse_outer_type_alias(parser)?))
         } else if l.peek::<kw::import>() {
             Ok(Self::Import(parser.parse()?))
         } else if l.peek::<kw::export>() {
@@ -744,7 +744,7 @@ impl<'a> Parse<'a> for InstanceTypeDecl<'a> {
         } else if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
         } else if l.peek::<kw::alias>() {
-            Ok(Self::Alias(Alias::parse_outer(parser)?))
+            Ok(Self::Alias(Alias::parse_outer_type_alias(parser)?))
         } else if l.peek::<kw::export>() {
             Ok(Self::Export(parser.parse()?))
         } else {
@@ -792,7 +792,7 @@ impl<T> Default for CoreTypeUse<'_, T> {
         Self::Ref(CoreItemRef {
             idx: Index::Num(0, span),
             kind: kw::r#type(span),
-            export_names: Vec::new(),
+            export_name: None,
         })
     }
 }

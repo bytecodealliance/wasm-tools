@@ -275,16 +275,22 @@ impl<'a> Resolver<'a> {
 
     fn core_alias(&mut self, alias: &mut CoreAlias<'a>) -> Result<(), Error> {
         match &mut alias.target {
-            CoreAliasTarget::Export { instance, name: _ } => {
-                self.resolve_ns(instance, Ns::CoreInstance)
-            }
+            CoreAliasTarget::Export {
+                instance,
+                name: _,
+                kind: _,
+            } => self.resolve_ns(instance, Ns::CoreInstance),
         }
     }
 
     fn alias(&mut self, alias: &mut Alias<'a>) -> Result<(), Error> {
         match &mut alias.target {
-            AliasTarget::Export { instance, name: _ } => self.resolve_ns(instance, Ns::Instance),
-            AliasTarget::Outer { outer, index } => {
+            AliasTarget::Export {
+                instance,
+                name: _,
+                kind: _,
+            } => self.resolve_ns(instance, Ns::Instance),
+            AliasTarget::Outer { outer, index, kind } => {
                 // Short-circuit when both indices are already resolved as this
                 // helps to write tests for invalid modules where wasmparser should
                 // be the one returning the error.
@@ -325,7 +331,7 @@ impl<'a> Resolver<'a> {
 
                 // Resolve `index` within the computed scope depth.
                 let computed = self.stack.len() - 1 - depth as usize;
-                self.stack[computed].resolve(alias.kind.into(), index)?;
+                self.stack[computed].resolve((*kind).into(), index)?;
 
                 Ok(())
             }
@@ -535,7 +541,7 @@ impl<'a> Resolver<'a> {
         K: CoreItem + Copy,
     {
         // Check for not being an instance export reference
-        if item.export_names.is_empty() {
+        if item.export_name.is_none() {
             self.resolve_ns(&mut item.idx, item.kind.ns())?;
             return Ok(());
         }
@@ -544,31 +550,24 @@ impl<'a> Resolver<'a> {
         let mut index = item.idx;
         self.resolve_ns(&mut index, Ns::CoreInstance)?;
 
+        // Record an alias to reference the export
         let span = item.idx.span();
-        for (pos, export_name) in item.export_names.iter().enumerate() {
-            // Record an alias to reference the export
-            let alias = CoreAlias {
-                span,
-                id: None,
-                name: None,
-                target: CoreAliasTarget::Export {
-                    instance: index,
-                    name: export_name,
-                },
-                kind: if pos == item.export_names.len() - 1 {
-                    item.kind.ns()
-                } else {
-                    Ns::Instance
-                }
-                .into(),
-            };
+        let alias = CoreAlias {
+            span,
+            id: None,
+            name: None,
+            target: CoreAliasTarget::Export {
+                instance: index,
+                name: item.export_name.unwrap(),
+                kind: item.kind.ns().into(),
+            },
+        };
 
-            index = Index::Num(self.current().register_core_alias(None, alias.kind)?, span);
-            self.aliases_to_insert.push(AnyAlias::Core(alias));
-        }
+        index = Index::Num(self.current().register_core_alias(&alias)?, span);
+        self.aliases_to_insert.push(AnyAlias::Core(alias));
 
         item.idx = index;
-        item.export_names = Vec::new();
+        item.export_name = None;
 
         Ok(())
     }
@@ -597,13 +596,12 @@ impl<'a> Resolver<'a> {
                 target: AliasTarget::Export {
                     instance: index,
                     name: export_name,
+                    kind: if pos == item.export_names.len() - 1 {
+                        item.kind.ns().into()
+                    } else {
+                        ComponentExportAliasKind::Instance
+                    },
                 },
-                kind: if pos == item.export_names.len() - 1 {
-                    item.kind.ns()
-                } else {
-                    Ns::Instance
-                }
-                .into(),
             };
 
             index = Index::Num(self.current().register_alias(&alias)?, span);
@@ -644,15 +642,6 @@ impl<'a> Resolver<'a> {
             // When resolution succeeds in a parent then an outer alias is
             // automatically inserted here in this component.
             let span = idx.span();
-
-            if !ns.can_alias_outer() {
-                return Err(Error::new(
-                    span,
-                    "outer aliases can only be made to modules, components, and component types"
-                        .to_string(),
-                ));
-            }
-
             let alias = Alias {
                 span,
                 id: Some(id),
@@ -660,8 +649,8 @@ impl<'a> Resolver<'a> {
                 target: AliasTarget::Outer {
                     outer: Index::Num(depth, span),
                     index: Index::Num(found, span),
+                    kind: ns.into(),
                 },
-                kind: ns.into(),
             };
             let local_index = self.current().register_alias(&alias)?;
             self.aliases_to_insert.push(AnyAlias::Component(alias));
@@ -732,7 +721,7 @@ impl<'a> ComponentState<'a> {
             ComponentField::CoreInstance(i) => {
                 self.core_instances.register(i.id, "core instance")?
             }
-            ComponentField::CoreAlias(a) => self.register_core_alias(a.id, a.kind)?,
+            ComponentField::CoreAlias(a) => self.register_core_alias(a)?,
             ComponentField::CoreType(t) => self.core_types.register(t.id, "core type")?,
             ComponentField::Component(c) => self.components.register(c.id, "component")?,
             ComponentField::Instance(i) => self.instances.register(i.id, "instance")?,
@@ -766,30 +755,59 @@ impl<'a> ComponentState<'a> {
     }
 
     fn register_alias(&mut self, alias: &Alias<'a>) -> Result<u32, Error> {
-        match alias.kind {
-            AliasKind::Core(k) => self.register_core_alias(alias.id, k),
-            AliasKind::Func => self.funcs.register(alias.id, "func"),
-            AliasKind::Value => self.values.register(alias.id, "value"),
-            AliasKind::Type => self.types.register(alias.id, "type"),
-            AliasKind::Component => self.components.register(alias.id, "component"),
-            AliasKind::Instance => self.instances.register(alias.id, "instance"),
+        match alias.target {
+            AliasTarget::Export {
+                kind: ComponentExportAliasKind::Component,
+                ..
+            }
+            | AliasTarget::Outer {
+                kind: ComponentOuterAliasKind::Component,
+                ..
+            } => self.components.register(alias.id, "component"),
+            AliasTarget::Export {
+                kind: ComponentExportAliasKind::CoreModule,
+                ..
+            }
+            | AliasTarget::Outer {
+                kind: ComponentOuterAliasKind::CoreModule,
+                ..
+            } => self.core_modules.register(alias.id, "core module"),
+            AliasTarget::Export {
+                kind: ComponentExportAliasKind::Type,
+                ..
+            }
+            | AliasTarget::Outer {
+                kind: ComponentOuterAliasKind::Type,
+                ..
+            } => self.types.register(alias.id, "type"),
+            AliasTarget::Outer {
+                kind: ComponentOuterAliasKind::CoreType,
+                ..
+            } => self.core_types.register(alias.id, "core type"),
+            AliasTarget::Export {
+                kind: ComponentExportAliasKind::Func,
+                ..
+            } => self.funcs.register(alias.id, "func"),
+            AliasTarget::Export {
+                kind: ComponentExportAliasKind::Value,
+                ..
+            } => self.values.register(alias.id, "value"),
+            AliasTarget::Export {
+                kind: ComponentExportAliasKind::Instance,
+                ..
+            } => self.instances.register(alias.id, "instance"),
         }
     }
 
-    fn register_core_alias(
-        &mut self,
-        id: Option<Id<'a>>,
-        kind: CoreAliasKind,
-    ) -> Result<u32, Error> {
-        match kind {
-            CoreAliasKind::Func => self.core_funcs.register(id, "core func"),
-            CoreAliasKind::Table => self.core_tables.register(id, "core table"),
-            CoreAliasKind::Memory => self.core_memories.register(id, "core memory"),
-            CoreAliasKind::Global => self.core_globals.register(id, "core global"),
-            CoreAliasKind::Tag => self.core_tags.register(id, "core tag"),
-            CoreAliasKind::Type => self.core_types.register(id, "core type"),
-            CoreAliasKind::Module => self.core_modules.register(id, "core module"),
-            CoreAliasKind::Instance => self.core_instances.register(id, "core instance"),
+    fn register_core_alias(&mut self, alias: &CoreAlias<'a>) -> Result<u32, Error> {
+        match alias.target {
+            CoreAliasTarget::Export { kind, .. } => match kind {
+                core::ExportKind::Func => self.core_funcs.register(alias.id, "core func"),
+                core::ExportKind::Table => self.core_tables.register(alias.id, "core table"),
+                core::ExportKind::Memory => self.core_memories.register(alias.id, "core memory"),
+                core::ExportKind::Global => self.core_globals.register(alias.id, "core global"),
+                core::ExportKind::Tag => self.core_tags.register(alias.id, "core tag"),
+            },
         }
     }
 }
@@ -809,15 +827,6 @@ enum Ns {
     Instance,
     Component,
     Value,
-}
-
-impl Ns {
-    fn can_alias_outer(&self) -> bool {
-        match self {
-            Ns::Type | Ns::CoreModule | Ns::Component => true,
-            _ => false,
-        }
-    }
 }
 
 trait ComponentItem {
@@ -860,66 +869,52 @@ core_item!(kw::memory, CoreMemory);
 core_item!(kw::r#type, CoreType);
 core_item!(kw::r#instance, CoreInstance);
 
-impl From<Ns> for CoreAliasKind {
+impl From<Ns> for ComponentExportAliasKind {
     fn from(ns: Ns) -> Self {
         match ns {
-            Ns::CoreFunc => CoreAliasKind::Func,
-            Ns::CoreGlobal => CoreAliasKind::Global,
-            Ns::CoreTable => CoreAliasKind::Table,
-            Ns::CoreMemory => CoreAliasKind::Memory,
-            Ns::CoreType => CoreAliasKind::Type,
-            Ns::CoreTag => CoreAliasKind::Tag,
-            Ns::CoreInstance => CoreAliasKind::Instance,
-            Ns::CoreModule => CoreAliasKind::Module,
-            _ => unreachable!("not a core namespace"),
-        }
-    }
-}
-
-impl From<Ns> for AliasKind {
-    fn from(ns: Ns) -> Self {
-        match ns {
-            Ns::CoreFunc
-            | Ns::CoreGlobal
-            | Ns::CoreTable
-            | Ns::CoreMemory
-            | Ns::CoreType
-            | Ns::CoreTag
-            | Ns::CoreInstance
-            | Ns::CoreModule => Self::Core(ns.into()),
+            Ns::CoreModule => Self::CoreModule,
             Ns::Func => Self::Func,
             Ns::Type => Self::Type,
             Ns::Instance => Self::Instance,
             Ns::Component => Self::Component,
             Ns::Value => Self::Value,
+            _ => unreachable!("not a component exportable namespace"),
         }
     }
 }
 
-impl From<CoreAliasKind> for Ns {
-    fn from(kind: CoreAliasKind) -> Self {
-        match kind {
-            CoreAliasKind::Func => Ns::CoreFunc,
-            CoreAliasKind::Table => Ns::CoreTable,
-            CoreAliasKind::Memory => Ns::CoreMemory,
-            CoreAliasKind::Global => Ns::CoreGlobal,
-            CoreAliasKind::Tag => Ns::CoreTag,
-            CoreAliasKind::Type => Ns::CoreType,
-            CoreAliasKind::Module => Ns::CoreModule,
-            CoreAliasKind::Instance => Ns::CoreInstance,
+impl From<Ns> for ComponentOuterAliasKind {
+    fn from(ns: Ns) -> Self {
+        match ns {
+            Ns::CoreModule => Self::CoreModule,
+            Ns::CoreType => Self::CoreType,
+            Ns::Type => Self::Type,
+            Ns::Component => Self::Component,
+            _ => unreachable!("not an outer alias namespace"),
         }
     }
 }
 
-impl From<AliasKind> for Ns {
-    fn from(kind: AliasKind) -> Self {
+impl From<Ns> for core::ExportKind {
+    fn from(ns: Ns) -> Self {
+        match ns {
+            Ns::CoreFunc => Self::Func,
+            Ns::CoreTable => Self::Table,
+            Ns::CoreGlobal => Self::Global,
+            Ns::CoreMemory => Self::Memory,
+            Ns::CoreTag => Self::Tag,
+            _ => unreachable!("not a core exportable namespace"),
+        }
+    }
+}
+
+impl From<ComponentOuterAliasKind> for Ns {
+    fn from(kind: ComponentOuterAliasKind) -> Self {
         match kind {
-            AliasKind::Core(kind) => kind.into(),
-            AliasKind::Func => Ns::Func,
-            AliasKind::Value => Ns::Value,
-            AliasKind::Type => Ns::Type,
-            AliasKind::Instance => Ns::Instance,
-            AliasKind::Component => Ns::Component,
+            ComponentOuterAliasKind::CoreModule => Self::CoreModule,
+            ComponentOuterAliasKind::CoreType => Self::CoreType,
+            ComponentOuterAliasKind::Type => Self::Type,
+            ComponentOuterAliasKind::Component => Self::Component,
         }
     }
 }

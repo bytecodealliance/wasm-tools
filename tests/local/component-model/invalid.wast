@@ -15,12 +15,12 @@
 
 (assert_malformed
   (component quote
-    "(alias outer 100 $foo (func $foo))"
+    "(alias outer 100 $foo (type $foo))"
   )
   "component depth of `100` is too large")
 
 (assert_malformed
   (component quote
-    "(alias outer $nonexistent $foo (func $foo))"
+    "(alias outer $nonexistent $foo (type $foo))"
   )
   "outer component `nonexistent` not found")

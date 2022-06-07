@@ -37,19 +37,6 @@ fn peek<K: Peek>(cursor: Cursor) -> bool {
     }
 }
 
-fn parse<'a, K: Parse<'a>>(parser: Parser<'a>) -> Result<(K, Index<'a>, Vec<&'a str>)> {
-    // This does not parse the surrounding `(` and `)` because
-    // core prefix is context dependent and only the caller knows if it should be
-    // present for core references; therefore, the caller parses the parens and any core prefix
-    let kind = parser.parse::<K>()?;
-    let idx = parser.parse()?;
-    let mut names = Vec::new();
-    while !parser.is_empty() {
-        names.push(parser.parse()?);
-    }
-    Ok((kind, idx, names))
-}
-
 /// Parses core item references.
 #[derive(Clone, Debug)]
 pub struct CoreItemRef<'a, K> {
@@ -57,17 +44,22 @@ pub struct CoreItemRef<'a, K> {
     pub kind: K,
     /// The item or instance reference.
     pub idx: Index<'a>,
-    /// Export names to resolve the item from.
-    pub export_names: Vec<&'a str>,
+    /// Export name to resolve the item from.
+    pub export_name: Option<&'a str>,
 }
 
 impl<'a, K: Parse<'a>> Parse<'a> for CoreItemRef<'a, K> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (kind, idx, export_names) = parse(parser)?;
+        // This does not parse the surrounding `(` and `)` because
+        // core prefix is context dependent and only the caller knows if it should be
+        // present for core references; therefore, the caller parses the parens and any core prefix
+        let kind = parser.parse::<K>()?;
+        let idx = parser.parse()?;
+        let export_name = parser.parse()?;
         Ok(Self {
             kind,
             idx,
-            export_names,
+            export_name,
         })
     }
 }
@@ -95,7 +87,12 @@ pub struct ItemRef<'a, K> {
 
 impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let (kind, idx, export_names) = parse(parser)?;
+        let kind = parser.parse::<K>()?;
+        let idx = parser.parse()?;
+        let mut export_names = Vec::new();
+        while !parser.is_empty() {
+            export_names.push(parser.parse()?);
+        }
         Ok(Self {
             kind,
             idx,
