@@ -177,8 +177,10 @@ impl Encoder {
                 );
             }
             CoreInstanceKind::BundleOfExports(exports) => {
-                self.core_instances
-                    .export_items(exports.iter().map(|e| (e.name, (&e.item).into())));
+                self.core_instances.export_items(exports.iter().map(|e| {
+                    let (kind, index) = (&e.item).into();
+                    (e.name, kind, index)
+                }));
             }
         }
 
@@ -512,14 +514,14 @@ impl From<&CoreInstantiationArgKind<'_>> for wasm_encoder::ModuleArg {
     }
 }
 
-impl From<&CoreItemRef<'_, core::ExportKind>> for wasm_encoder::Export {
+impl From<&CoreItemRef<'_, core::ExportKind>> for (wasm_encoder::ExportKind, u32) {
     fn from(item: &CoreItemRef<'_, core::ExportKind>) -> Self {
         match &item.kind {
-            core::ExportKind::Func => wasm_encoder::Export::Func(item.idx.into()),
-            core::ExportKind::Table => wasm_encoder::Export::Table(item.idx.into()),
-            core::ExportKind::Memory => wasm_encoder::Export::Memory(item.idx.into()),
-            core::ExportKind::Global => wasm_encoder::Export::Global(item.idx.into()),
-            core::ExportKind::Tag => wasm_encoder::Export::Tag(item.idx.into()),
+            core::ExportKind::Func => (wasm_encoder::ExportKind::Func, item.idx.into()),
+            core::ExportKind::Table => (wasm_encoder::ExportKind::Table, item.idx.into()),
+            core::ExportKind::Memory => (wasm_encoder::ExportKind::Memory, item.idx.into()),
+            core::ExportKind::Global => (wasm_encoder::ExportKind::Global, item.idx.into()),
+            core::ExportKind::Tag => (wasm_encoder::ExportKind::Tag, item.idx.into()),
         }
     }
 }

@@ -30,59 +30,15 @@ impl Encode for ExportKind {
     }
 }
 
-/// Represents an export from a WebAssembly module.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Export {
-    /// The export is a function.
-    Func(u32),
-    /// The export is a table.
-    Table(u32),
-    /// The export is a memory.
-    Memory(u32),
-    /// The export is a global.
-    Global(u32),
-    /// The export is a tag.
-    ///
-    /// This variant is used with the exception handling proposal.
-    Tag(u32),
-}
-
-impl Export {
-    /// Gets the kind of the export.
-    pub fn kind(&self) -> ExportKind {
-        match self {
-            Self::Func(_) => ExportKind::Func,
-            Self::Table(_) => ExportKind::Table,
-            Self::Memory(_) => ExportKind::Memory,
-            Self::Global(_) => ExportKind::Global,
-            Self::Tag(_) => ExportKind::Tag,
-        }
-    }
-
-    /// Gets the index of the export.
-    fn index(&self) -> u32 {
-        match self {
-            Self::Func(i) | Self::Table(i) | Self::Memory(i) | Self::Global(i) | Self::Tag(i) => *i,
-        }
-    }
-}
-
-impl Encode for Export {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.kind().encode(sink);
-        self.index().encode(sink);
-    }
-}
-
 /// An encoder for the export section of WebAssembly module.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Module, ExportSection, Export};
+/// use wasm_encoder::{Module, ExportSection, ExportKind};
 ///
 /// let mut exports = ExportSection::new();
-/// exports.export("foo", Export::Func(0));
+/// exports.export("foo", ExportKind::Func, 0);
 ///
 /// let mut module = Module::new();
 /// module.section(&exports);
@@ -112,9 +68,10 @@ impl ExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export(&mut self, name: &str, export: Export) -> &mut Self {
+    pub fn export(&mut self, name: &str, kind: ExportKind, index: u32) -> &mut Self {
         name.encode(&mut self.bytes);
-        export.encode(&mut self.bytes);
+        kind.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

@@ -123,8 +123,8 @@ impl Module {
             return;
         }
         let mut exports = wasm_encoder::ExportSection::new();
-        for (name, export) in &self.exports {
-            exports.export(name, *export);
+        for (name, kind, idx) in &self.exports {
+            exports.export(name, *kind, *idx);
         }
         module.section(&exports);
     }

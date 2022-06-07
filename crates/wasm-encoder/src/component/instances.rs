@@ -1,6 +1,6 @@
 use super::CORE_INSTANCE_SORT;
 use crate::{
-    encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, Export,
+    encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
 };
 
 /// Represents an argument to a module instantiation.
@@ -25,10 +25,10 @@ impl Encode for ModuleArg {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, InstanceSection, Export, ModuleArg};
+/// use wasm_encoder::{Component, InstanceSection, ExportKind, ModuleArg};
 ///
 /// let mut instances = InstanceSection::new();
-/// instances.export_items([("foo", Export::Func(0))]);
+/// instances.export_items([("foo", ExportKind::Func, 0)]);
 /// instances.instantiate(1, [("foo", ModuleArg::Instance(0))]);
 ///
 /// let mut component = Component::new();
@@ -79,15 +79,16 @@ impl InstanceSection {
     /// Define an instance by exporting core WebAssembly items.
     pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
     where
-        E: IntoIterator<Item = (&'a str, Export)>,
+        E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
     {
         let exports = exports.into_iter();
         self.bytes.push(0x01);
         exports.len().encode(&mut self.bytes);
-        for (name, export) in exports {
+        for (name, kind, index) in exports {
             name.encode(&mut self.bytes);
-            export.encode(&mut self.bytes);
+            kind.encode(&mut self.bytes);
+            index.encode(&mut self.bytes);
         }
         self.num_added += 1;
         self

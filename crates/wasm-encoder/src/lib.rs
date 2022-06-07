@@ -26,7 +26,7 @@
 //!
 //! ```
 //! use wasm_encoder::{
-//!     CodeSection, Export, ExportSection, Function, FunctionSection, Instruction,
+//!     CodeSection, ExportKind, ExportSection, Function, FunctionSection, Instruction,
 //!     Module, TypeSection, ValType,
 //! };
 //!
@@ -47,7 +47,7 @@
 //!
 //! // Encode the export section.
 //! let mut exports = ExportSection::new();
-//! exports.export("f", Export::Func(0));
+//! exports.export("f", ExportKind::Func, 0);
 //! module.section(&exports);
 //!
 //! // Encode the code section.

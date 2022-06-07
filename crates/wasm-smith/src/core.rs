@@ -14,7 +14,7 @@ use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
-use wasm_encoder::{BlockType, Export, ValType};
+use wasm_encoder::{BlockType, ExportKind, ValType};
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
 // NB: these constants are used to control the rate at which various events
@@ -110,7 +110,7 @@ pub struct Module {
     /// entry is the type of each memory.
     memories: Vec<MemoryType>,
 
-    exports: Vec<(String, Export)>,
+    exports: Vec<(String, ExportKind, u32)>,
     start: Option<u32>,
     elems: Vec<ElementSegment>,
     code: Vec<Code>,
@@ -700,16 +700,16 @@ impl Module {
         Ok(true)
     }
 
-    fn type_of(&self, item: &Export) -> EntityType {
-        match *item {
-            Export::Global(idx) => EntityType::Global(self.globals[idx as usize]),
-            Export::Memory(idx) => EntityType::Memory(self.memories[idx as usize]),
-            Export::Table(idx) => EntityType::Table(self.tables[idx as usize]),
-            Export::Func(idx) => {
-                let (_idx, ty) = &self.funcs[idx as usize];
+    fn type_of(&self, kind: ExportKind, index: u32) -> EntityType {
+        match kind {
+            ExportKind::Global => EntityType::Global(self.globals[index as usize]),
+            ExportKind::Memory => EntityType::Memory(self.memories[index as usize]),
+            ExportKind::Table => EntityType::Table(self.tables[index as usize]),
+            ExportKind::Func => {
+                let (_idx, ty) = &self.funcs[index as usize];
                 EntityType::Func(u32::max_value(), ty.clone())
             }
-            Export::Tag(idx) => EntityType::Tag(self.tags[idx as usize].clone()),
+            ExportKind::Tag => EntityType::Tag(self.tags[index as usize].clone()),
         }
     }
 
@@ -897,25 +897,25 @@ impl Module {
         }
 
         // Build up a list of candidates for each class of import
-        let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
+        let mut choices: Vec<Vec<(ExportKind, u32)>> = Vec::with_capacity(6);
         choices.push(
             (0..self.funcs.len())
-                .map(|i| Export::Func(i as u32))
+                .map(|i| (ExportKind::Func, i as u32))
                 .collect(),
         );
         choices.push(
             (0..self.tables.len())
-                .map(|i| Export::Table(i as u32))
+                .map(|i| (ExportKind::Table, i as u32))
                 .collect(),
         );
         choices.push(
             (0..self.memories.len())
-                .map(|i| Export::Memory(i as u32))
+                .map(|i| (ExportKind::Memory, i as u32))
                 .collect(),
         );
         choices.push(
             (0..self.globals.len())
-                .map(|i| Export::Global(i as u32))
+                .map(|i| (ExportKind::Global, i as u32))
                 .collect(),
         );
 
@@ -932,7 +932,7 @@ impl Module {
                 // If there's nothing remaining after this, then we're done.
                 let max_size = self.config.max_type_size() - self.type_size;
                 for list in choices.iter_mut() {
-                    list.retain(|c| self.type_of(c).size() + 1 < max_size);
+                    list.retain(|(kind, idx)| self.type_of(*kind, *idx).size() + 1 < max_size);
                 }
                 choices.retain(|list| !list.is_empty());
                 if choices.is_empty() {
@@ -943,10 +943,10 @@ impl Module {
                 // information about the chosen export.
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let list = u.choose(&choices)?;
-                let export = u.choose(list)?;
-                let ty = self.type_of(export);
+                let (kind, idx) = *u.choose(list)?;
+                let ty = self.type_of(kind, idx);
                 self.type_size += 1 + ty.size();
-                self.exports.push((name, *export));
+                self.exports.push((name, kind, idx));
                 Ok(true)
             },
         )
