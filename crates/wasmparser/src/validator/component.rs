@@ -1651,10 +1651,10 @@ impl ComponentState {
             .iter()
             .map(|case| {
                 Self::check_name(case.name, "variant case", offset)?;
-                if let Some(default_to) = case.default_to {
-                    if default_to >= cases.len() as u32 {
+                if let Some(refines) = case.refines {
+                    if refines >= cases.len() as u32 {
                         return Err(BinaryReaderError::new(
-                            format!("variant case default index {} is out of bounds", default_to),
+                            format!("variant case refines index {} is out of bounds", refines),
                             offset,
                         ));
                     }
@@ -1665,7 +1665,7 @@ impl ComponentState {
                     case.name.to_string(),
                     VariantCase {
                         ty,
-                        default_to: case.default_to.map(|i| cases[i as usize].name.to_string()),
+                        refines: case.refines.map(|i| cases[i as usize].name.to_string()),
                     },
                 ))
             })

@@ -237,7 +237,7 @@ impl DefinedType {
                 enc.variant(
                     ty.cases
                         .iter()
-                        .map(|(ty, default_to)| (ty.name.as_str(), ty.ty, *default_to)),
+                        .map(|(ty, refines)| (ty.name.as_str(), ty.ty, *refines)),
                 );
             }
             Self::List(ty) => {

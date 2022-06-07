@@ -155,8 +155,8 @@ pub struct VariantCase<'a> {
     pub name: &'a str,
     /// The value type of the variant case.
     pub ty: ComponentValType,
-    /// The default-to case index to use when this case is not present.
-    pub default_to: Option<u32>,
+    /// The index of the variant case that is refined by this one.
+    pub refines: Option<u32>,
 }
 
 /// Represents a defined type in a WebAssembly component.

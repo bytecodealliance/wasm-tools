@@ -412,7 +412,7 @@ impl<'a> BinaryReader<'a> {
         Ok(VariantCase {
             name: self.read_string()?,
             ty: self.read_component_val_type()?,
-            default_to: match self.read_u8()? {
+            refines: match self.read_u8()? {
                 0x0 => None,
                 0x1 => Some(self.read_var_u32()?),
                 x => return self.invalid_leading_byte(x, "variant case default"),

@@ -703,8 +703,8 @@ impl ComponentFuncType {
 pub struct VariantCase {
     /// The variant case type.
     pub ty: ComponentValType,
-    /// The value of the variant to default to.
-    pub default_to: Option<String>,
+    /// The name of the variant case refined by this one.
+    pub refines: Option<String>,
 }
 
 /// Represents a record type.
@@ -815,9 +815,9 @@ impl ComponentDefinedType {
                         if !case.ty.is_subtype_of(&other_case.ty, types) {
                             return false;
                         }
-                    } else if let Some(default) = &case.default_to {
-                        if !other_v.cases.contains_key(default) {
-                            // The default is not in the supertype
+                    } else if let Some(refines) = &case.refines {
+                        if !other_v.cases.contains_key(refines) {
+                            // The refined value is not in the supertype
                             return false;
                         }
                     } else {

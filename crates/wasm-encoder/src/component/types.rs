@@ -355,10 +355,10 @@ impl ComponentDefinedTypeEncoder<'_> {
         let cases = cases.into_iter();
         self.0.push(0x70);
         cases.len().encode(self.0);
-        for (name, ty, default_to) in cases {
+        for (name, ty, refines) in cases {
             name.encode(self.0);
             ty.into().encode(self.0);
-            if let Some(default) = default_to {
+            if let Some(default) = refines {
                 self.0.push(0x01);
                 default.encode(self.0);
             } else {

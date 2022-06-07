@@ -2297,7 +2297,7 @@ impl Printer {
             self.result.push(' ');
             self.print_component_val_type(state, &case.ty)?;
 
-            if let Some(default) = case.default_to {
+            if let Some(default) = case.refines {
                 match cases.get(default as usize) {
                     Some(default) => {
                         self.start_group("refines ");
@@ -2305,7 +2305,7 @@ impl Printer {
                         self.end_group();
                     }
                     None => {
-                        bail!("variant case default index out of bounds");
+                        bail!("variant case refines index out of bounds");
                     }
                 }
             }
