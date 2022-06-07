@@ -153,6 +153,7 @@ pub fn memory_type(
         memory64: ty.memory64,
         minimum: ty.initial,
         maximum: ty.maximum,
+        shared: ty.shared,
     })
 }
 

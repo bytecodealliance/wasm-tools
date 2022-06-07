@@ -418,6 +418,18 @@ pub trait Config: 'static + std::fmt::Debug {
     fn generate_custom_sections(&self) -> bool {
         false
     }
+
+    /// Determines whether the threads proposal is enabled.
+    ///
+    /// The [threads proposal] involves shared linear memory, new atomic
+    /// instructions, and new `wait` and `notify` instructions.
+    ///
+    /// [threads proposal]: https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
+    ///
+    /// Defaults to `false`.
+    fn threads_enabled(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
