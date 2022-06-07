@@ -5,7 +5,6 @@ use crate::{FuncType, GlobalType, MemoryType, PrimitiveValType, TableType, ValTy
 use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Borrow,
-    collections::HashMap,
     hash::{Hash, Hasher},
     mem,
     sync::Arc,
@@ -397,9 +396,9 @@ pub struct ModuleType {
     /// The effective type size for the module type.
     pub(crate) type_size: usize,
     /// The imports of the module type.
-    pub imports: HashMap<(String, String), EntityType>,
+    pub imports: IndexMap<(String, String), EntityType>,
     /// The exports of the module type.
-    pub exports: HashMap<String, EntityType>,
+    pub exports: IndexMap<String, EntityType>,
 }
 
 impl ModuleType {
@@ -438,7 +437,7 @@ pub enum InstanceTypeKind {
     /// The instance type is the result of instantiating a module type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(HashMap<String, EntityType>),
+    Exports(IndexMap<String, EntityType>),
 }
 
 /// Represents a module instance type.
@@ -451,7 +450,7 @@ pub struct InstanceType {
 }
 
 impl InstanceType {
-    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a HashMap<String, EntityType> {
+    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a IndexMap<String, EntityType> {
         match &self.kind {
             InstanceTypeKind::Instantiated(id) => &types[*id].as_module_type().unwrap().exports,
             InstanceTypeKind::Exports(exports) => exports,
@@ -536,9 +535,9 @@ pub struct ComponentType {
     /// The effective type size for the component type.
     pub(crate) type_size: usize,
     /// The imports of the component type.
-    pub imports: HashMap<String, ComponentEntityType>,
+    pub imports: IndexMap<String, ComponentEntityType>,
     /// The exports of the component type.
-    pub exports: HashMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentEntityType>,
 }
 
 impl ComponentType {
@@ -568,11 +567,11 @@ impl ComponentType {
 #[derive(Debug, Clone)]
 pub enum ComponentInstanceTypeKind {
     /// The instance type is from a definition.
-    Defined(HashMap<String, ComponentEntityType>),
+    Defined(IndexMap<String, ComponentEntityType>),
     /// The instance type is the result of instantiating a component type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(HashMap<String, ComponentEntityType>),
+    Exports(IndexMap<String, ComponentEntityType>),
 }
 
 /// Represents a type of a component instance.
@@ -588,7 +587,7 @@ impl ComponentInstanceType {
     pub(crate) fn exports<'a>(
         &'a self,
         types: &'a TypeList,
-    ) -> &'a HashMap<String, ComponentEntityType> {
+    ) -> &'a IndexMap<String, ComponentEntityType> {
         match &self.kind {
             ComponentInstanceTypeKind::Defined(exports)
             | ComponentInstanceTypeKind::Exports(exports) => exports,

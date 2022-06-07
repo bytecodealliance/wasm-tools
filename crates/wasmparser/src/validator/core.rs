@@ -10,10 +10,8 @@ use crate::{
     FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType,
     TypeRef, ValType, WasmFeatures, WasmModuleResources,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use indexmap::IndexMap;
+use std::{collections::HashSet, sync::Arc};
 
 fn check_value_type(ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
     match features.check_value_type(ty) {
@@ -362,8 +360,8 @@ pub(crate) struct Module {
     pub functions: Vec<u32>,
     pub tags: Vec<TypeId>,
     pub function_references: HashSet<u32>,
-    pub imports: HashMap<(String, String), Vec<EntityType>>,
-    pub exports: HashMap<String, EntityType>,
+    pub imports: IndexMap<(String, String), Vec<EntityType>>,
+    pub exports: IndexMap<String, EntityType>,
     pub type_size: usize,
     num_imported_globals: u32,
     num_imported_functions: u32,
@@ -670,7 +668,7 @@ impl Module {
     pub(crate) fn imports_for_module_type(
         &self,
         offset: usize,
-    ) -> Result<HashMap<(String, String), EntityType>> {
+    ) -> Result<IndexMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model
         self.imports.iter().map(|((module, name), types)| {
             if types.len() != 1 {
