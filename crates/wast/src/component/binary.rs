@@ -5,7 +5,8 @@ use wasm_encoder::{
     AliasSection, CanonicalFunctionSection, ComponentAliasSection, ComponentDefinedTypeEncoder,
     ComponentExportSection, ComponentImportSection, ComponentInstanceSection, ComponentSection,
     ComponentSectionId, ComponentStartSection, ComponentTypeEncoder, ComponentTypeSection,
-    InstanceSection, NestedComponentSection, RawSection, SectionId, TypeEncoder, TypeSection,
+    CoreTypeEncoder, CoreTypeSection, InstanceSection, NestedComponentSection, RawSection,
+    SectionId,
 };
 
 pub fn encode(component: &Component<'_>) -> Vec<u8> {
@@ -54,7 +55,7 @@ fn encode_fields(
     e.component
 }
 
-fn encode_core_type(encoder: TypeEncoder, ty: &CoreTypeDef) {
+fn encode_core_type(encoder: CoreTypeEncoder, ty: &CoreTypeDef) {
     match ty {
         CoreTypeDef::Def(core::TypeDef::Func(f)) => {
             encoder.function(
@@ -132,7 +133,7 @@ struct Encoder {
     // Note: module sections are written immediately
     core_instances: InstanceSection,
     core_aliases: AliasSection,
-    core_types: TypeSection,
+    core_types: CoreTypeSection,
 
     // Component sections
     // Note: custom, component, start sections are written immediately

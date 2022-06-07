@@ -104,7 +104,7 @@ impl CanonicalSection {
 
 impl CoreTypeSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
-        let mut sec = wasm_encoder::TypeSection::new();
+        let mut sec = wasm_encoder::CoreTypeSection::new();
         for ty in &self.types {
             ty.encode(sec.ty());
         }
@@ -113,7 +113,7 @@ impl CoreTypeSection {
 }
 
 impl CoreType {
-    fn encode(&self, enc: wasm_encoder::TypeEncoder<'_>) {
+    fn encode(&self, enc: wasm_encoder::CoreTypeEncoder<'_>) {
         match self {
             Self::Module(mod_ty) => {
                 let mut enc_mod_ty = wasm_encoder::ModuleType::new();

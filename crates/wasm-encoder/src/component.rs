@@ -18,7 +18,6 @@ pub use self::modules::*;
 pub use self::start::*;
 pub use self::types::*;
 
-use crate::TypeSection;
 use crate::{CustomSection, Encode};
 
 // Core sorts extended by the component model
@@ -134,11 +133,5 @@ impl Default for Component {
 impl ComponentSection for CustomSection<'_> {
     fn id(&self) -> u8 {
         ComponentSectionId::CoreCustom.into()
-    }
-}
-
-impl ComponentSection for TypeSection {
-    fn id(&self) -> u8 {
-        ComponentSectionId::CoreType.into()
     }
 }
