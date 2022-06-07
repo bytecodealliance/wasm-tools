@@ -38,12 +38,6 @@ pub enum TypeRef {
     ///
     /// The value is an index in the types index space.
     Tag(TagType),
-    /// The type is a module.
-    ///
-    /// The value is an index into the the type section.
-    ///
-    /// This variant is currently only used with the component model proposal.
-    Module(u32),
 }
 
 /// Represents an import in a WebAssembly module.

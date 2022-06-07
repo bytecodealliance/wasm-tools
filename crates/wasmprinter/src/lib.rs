@@ -761,7 +761,6 @@ impl Printer {
                 TypeRef::Memory(_) => state.core.memories += 1,
                 TypeRef::Tag(_) => state.core.tags += 1,
                 TypeRef::Global(_) => state.core.globals += 1,
-                TypeRef::Module(_) => bail!("core module imports are not supported"),
             }
         }
         Ok(())
@@ -804,7 +803,6 @@ impl Printer {
             TypeRef::Memory(f) => self.print_memory_type(state, f, index)?,
             TypeRef::Tag(f) => self.print_tag_type(state, types, f, index)?,
             TypeRef::Global(f) => self.print_global_type(state, f, index)?,
-            TypeRef::Module(_) => bail!("core module imports are not supported"),
         }
         self.end_group();
         Ok(())

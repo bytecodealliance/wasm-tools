@@ -108,9 +108,6 @@ impl<'a> Dump<'a> {
                         TypeRef::Global(_) => {
                             write!(me.state, "[global {}]", inc(&mut i.core_globals))?
                         }
-                        TypeRef::Module(_) => {
-                            write!(me.state, "[module {}]", inc(&mut i.core_modules))?
-                        }
                     }
                     write!(me.state, " {:?}", imp)?;
                     me.print(end)

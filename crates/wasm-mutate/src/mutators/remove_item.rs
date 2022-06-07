@@ -191,7 +191,6 @@ impl RemoveItem {
                                 }
                                 tag += 1;
                             }
-                            wasmparser::TypeRef::Module(_) => return Err(Error::unsupported("module imports are not supported")),
                         }
                     }
                     module.section(&result);

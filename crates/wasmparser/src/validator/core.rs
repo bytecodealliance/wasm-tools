@@ -450,7 +450,6 @@ impl Module {
                 self.num_imported_globals += 1;
                 (self.globals.len(), MAX_WASM_GLOBALS, "globals")
             }
-            TypeRef::Module(_) => unreachable!(),
         };
 
         check_max(len, 0, max, desc, offset)?;
@@ -592,13 +591,6 @@ impl Module {
             TypeRef::Global(t) => {
                 self.check_global_type(t, features, offset)?;
                 EntityType::Global(*t)
-            }
-            TypeRef::Module(_) => {
-                // Currently an error, but may be supported with a future module linking proposal.
-                return Err(BinaryReaderError::new(
-                    "modules cannot import other modules",
-                    offset,
-                ));
             }
         })
     }

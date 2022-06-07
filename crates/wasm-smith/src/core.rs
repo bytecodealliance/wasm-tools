@@ -682,8 +682,6 @@ impl Module {
                     self.globals.push(global_ty);
                     entity
                 }
-
-                wasmparser::TypeRef::Module(_) => unimplemented!(),
             };
             new_imports.push(Import {
                 module: import.module.to_string(),
