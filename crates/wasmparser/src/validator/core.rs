@@ -806,20 +806,6 @@ impl Module {
                 check("tag", export.index, self.tags.len())?;
                 EntityType::Tag(self.tags[export.index as usize])
             }
-            ExternalKind::Module => {
-                // May be supported with a module linking proposal in the future
-                return Err(BinaryReaderError::new(
-                    "module exports are not allowed in core modules",
-                    offset,
-                ));
-            }
-            ExternalKind::Instance => {
-                // May be supported with a module linking proposal in the future
-                return Err(BinaryReaderError::new(
-                    "instance exports are not allowed in core modules",
-                    offset,
-                ));
-            }
         })
     }
 

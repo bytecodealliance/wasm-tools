@@ -2063,14 +2063,6 @@ impl Printer {
                 self.print_idx(&state.core.memory_names, index)?;
             }
             ExternalKind::Tag => write!(self.result, "tag {}", index)?,
-            ExternalKind::Module => {
-                self.result.push_str("module ");
-                self.print_idx(&state.core.module_names, index)?;
-            }
-            ExternalKind::Instance => {
-                self.result.push_str("instance ");
-                self.print_idx(&state.core.instance_names, index)?;
-            }
         }
         self.result.push(')');
         Ok(())
@@ -2559,7 +2551,7 @@ impl Printer {
     fn print_outer_alias(
         &mut self,
         states: &mut [State],
-        kind: ComponentExternalKind,
+        kind: ComponentOuterAliasKind,
         count: u32,
         index: u32,
     ) -> Result<()> {
@@ -2574,7 +2566,21 @@ impl Printer {
             }
             self.result.push(' ');
             let index = match kind {
-                ComponentExternalKind::Type => {
+                ComponentOuterAliasKind::CoreModule => {
+                    self.print_idx(&outer.core.module_names, index)?;
+                    self.result.push(' ');
+                    self.start_group("core module ");
+                    self.print_name(&state.core.module_names, state.core.modules)?;
+                    None
+                }
+                ComponentOuterAliasKind::CoreType => {
+                    self.print_idx(&outer.core.type_names, index)?;
+                    self.result.push(' ');
+                    self.start_group("core type ");
+                    self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+                    Some(outer.core_ty(index)?)
+                }
+                ComponentOuterAliasKind::Type => {
                     self.print_idx(&outer.component.type_names, index)?;
                     self.result.push(' ');
                     self.start_group("type ");
@@ -2584,14 +2590,7 @@ impl Printer {
                     )?;
                     Some(outer.ty(index)?)
                 }
-                ComponentExternalKind::Module => {
-                    self.print_idx(&outer.core.module_names, index)?;
-                    self.result.push(' ');
-                    self.start_group("core module ");
-                    self.print_name(&state.core.module_names, state.core.modules)?;
-                    None
-                }
-                ComponentExternalKind::Component => {
+                ComponentOuterAliasKind::Component => {
                     self.print_idx(&outer.component.component_names, index)?;
                     self.result.push(' ');
                     self.start_group("component ");
@@ -2601,7 +2600,6 @@ impl Printer {
                     )?;
                     Some(outer.component(index)?)
                 }
-                _ => bail!("invalid outer alias kind"),
             };
             self.end_group(); // kind
             self.end_group(); // alias
@@ -2610,10 +2608,10 @@ impl Printer {
 
         let state = states.last_mut().unwrap();
         match kind {
-            ComponentExternalKind::Type => state.component.types.push(index.unwrap()),
-            ComponentExternalKind::Module => state.core.modules += 1,
-            ComponentExternalKind::Component => state.component.components.push(index.unwrap()),
-            _ => unreachable!(),
+            ComponentOuterAliasKind::CoreModule => state.core.modules += 1,
+            ComponentOuterAliasKind::CoreType => state.core.types.push(index.unwrap()),
+            ComponentOuterAliasKind::Type => state.component.types.push(index.unwrap()),
+            ComponentOuterAliasKind::Component => state.component.components.push(index.unwrap()),
         }
 
         Ok(())
@@ -3108,12 +3106,11 @@ impl Printer {
         self.print_str(arg.name)?;
         self.result.push(' ');
         match arg.kind {
-            ExternalKind::Instance => {
+            InstantiationArgKind::Instance => {
                 self.start_group("instance ");
                 self.print_idx(&state.core.instance_names, arg.index)?;
                 self.end_group();
             }
-            _ => bail!("only instances are supported for module instantiation arguments"),
         }
         self.end_group();
         Ok(())
@@ -3230,9 +3227,6 @@ impl Printer {
                             write!(self.result, "(;{};)", state.core.tags)?;
                             self.end_group();
                             state.core.tags += 1;
-                        }
-                        ExternalKind::Module | ExternalKind::Instance => {
-                            bail!("core export alias for modules and instances is not supported")
                         }
                     }
                     self.end_group(); // alias export

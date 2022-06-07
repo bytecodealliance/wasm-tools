@@ -265,8 +265,6 @@ impl<'a> Dump<'a> {
                             ExternalKind::Memory => ("memory", inc(&mut i.core_memories)),
                             ExternalKind::Global => ("global", inc(&mut i.core_globals)),
                             ExternalKind::Tag => ("tag", inc(&mut i.core_tags)),
-                            ExternalKind::Module => ("module", inc(&mut i.core_modules)),
-                            ExternalKind::Instance => ("instance", inc(&mut i.core_instances)),
                         },
                     };
                     write!(me.state, "core alias [{} {}] {:?}", kind, num, a)?;
@@ -294,21 +292,49 @@ impl<'a> Dump<'a> {
 
                 Payload::ComponentAliasSection(s) => {
                     self.section(s, "component alias", |me, end, a| {
-                        let kind = match a {
-                            ComponentAlias::InstanceExport { kind, .. } => kind,
-                            ComponentAlias::Outer { kind, .. } => kind,
+                        let (kind, num) = match a {
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Module,
+                                ..
+                            }
+                            | ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::CoreModule,
+                                ..
+                            } => ("module", inc(&mut i.core_modules)),
+                            ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::CoreType,
+                                ..
+                            } => ("core type", inc(&mut i.core_types)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Func,
+                                ..
+                            } => ("func", inc(&mut i.funcs)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Value,
+                                ..
+                            } => ("value", inc(&mut i.values)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Type,
+                                ..
+                            }
+                            | ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::Type,
+                                ..
+                            } => ("type", inc(&mut i.types)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Instance,
+                                ..
+                            } => ("instance", inc(&mut i.instances)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Component,
+                                ..
+                            }
+                            | ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::Component,
+                                ..
+                            } => ("component", inc(&mut i.components)),
                         };
 
-                        let (kind, num) = match kind {
-                            ComponentExternalKind::Module => ("module", inc(&mut i.core_modules)),
-                            ComponentExternalKind::Func => ("func", inc(&mut i.funcs)),
-                            ComponentExternalKind::Value => ("value", inc(&mut i.values)),
-                            ComponentExternalKind::Type => ("type", inc(&mut i.types)),
-                            ComponentExternalKind::Instance => ("instance", inc(&mut i.instances)),
-                            ComponentExternalKind::Component => {
-                                ("component", inc(&mut i.components))
-                            }
-                        };
                         write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
                         me.print(end)
                     })?

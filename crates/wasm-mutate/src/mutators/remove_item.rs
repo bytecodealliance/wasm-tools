@@ -267,8 +267,6 @@ impl RemoveItem {
                             ExternalKind::Global => {
                                 Export::Global(self.remap(Item::Global, item.index)?)
                             }
-                            ExternalKind::Module => return Err(Error::unsupported("module exports are not supported")),
-                            ExternalKind::Instance => return Err(Error::unsupported("instance exports are not supported")),
                         };
                         result.export(item.name, e);
                     }

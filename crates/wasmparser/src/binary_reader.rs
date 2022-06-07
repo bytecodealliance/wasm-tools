@@ -216,28 +216,51 @@ impl<'a> BinaryReader<'a> {
             0x02 => Ok(ExternalKind::Memory),
             0x03 => Ok(ExternalKind::Global),
             0x04 => Ok(ExternalKind::Tag),
-            0x11 => Ok(ExternalKind::Module),
-            0x12 => Ok(ExternalKind::Instance),
             x => self.invalid_leading_byte(x, "external kind"),
         }
     }
 
-    pub(crate) fn read_component_external_kind(&mut self) -> Result<ComponentExternalKind> {
-        match self.read_u8()? {
-            0x00 => match self.read_external_kind()? {
-                ExternalKind::Module => Ok(ComponentExternalKind::Module),
-                _ => Err(BinaryReaderError::new(
-                    "only core modules are allowed for component external kind",
-                    self.original_position() - 1,
-                )),
+    fn component_external_kind_from_bytes(
+        byte1: u8,
+        byte2: Option<u8>,
+        offset: usize,
+    ) -> Result<ComponentExternalKind> {
+        Ok(match byte1 {
+            0x00 => match byte2.unwrap() {
+                0x11 => ComponentExternalKind::Module,
+                x => {
+                    return Err(Self::invalid_leading_byte_error(
+                        x,
+                        "component external kind",
+                        offset + 1,
+                    ))
+                }
             },
-            0x01 => Ok(ComponentExternalKind::Func),
-            0x02 => Ok(ComponentExternalKind::Value),
-            0x03 => Ok(ComponentExternalKind::Type),
-            0x04 => Ok(ComponentExternalKind::Component),
-            0x05 => Ok(ComponentExternalKind::Instance),
-            x => self.invalid_leading_byte(x, "component external kind"),
-        }
+            0x01 => ComponentExternalKind::Func,
+            0x02 => ComponentExternalKind::Value,
+            0x03 => ComponentExternalKind::Type,
+            0x04 => ComponentExternalKind::Component,
+            0x05 => ComponentExternalKind::Instance,
+            x => {
+                return Err(Self::invalid_leading_byte_error(
+                    x,
+                    "component external kind",
+                    offset,
+                ))
+            }
+        })
+    }
+
+    pub(crate) fn read_component_external_kind(&mut self) -> Result<ComponentExternalKind> {
+        let offset = self.original_position();
+        let byte1 = self.read_u8()?;
+        let byte2 = if byte1 == 0x00 {
+            Some(self.read_u8()?)
+        } else {
+            None
+        };
+
+        Self::component_external_kind_from_bytes(byte1, byte2, offset)
     }
 
     pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
@@ -595,21 +618,17 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_instantiation_arg(&mut self) -> Result<InstantiationArg<'a>> {
-        let name = self.read_string()?;
-        let kind = match self.read_external_kind()? {
-            ExternalKind::Instance => ExternalKind::Instance,
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "only instances are supported for module instantiation arguments",
-                    self.original_position() - 1,
-                ))
-            }
-        };
+    pub(crate) fn read_instantiation_arg_kind(&mut self) -> Result<InstantiationArgKind> {
+        Ok(match self.read_u8()? {
+            0x12 => InstantiationArgKind::Instance,
+            x => return self.invalid_leading_byte(x, "instantiation arg kind"),
+        })
+    }
 
+    pub(crate) fn read_instantiation_arg(&mut self) -> Result<InstantiationArg<'a>> {
         Ok(InstantiationArg {
-            name,
-            kind,
+            name: self.read_string()?,
+            kind: self.read_instantiation_arg_kind()?,
             index: self.read_var_u32()?,
         })
     }
@@ -637,17 +656,53 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    fn component_outer_alias_kind_from_bytes(
+        byte1: u8,
+        byte2: Option<u8>,
+        offset: usize,
+    ) -> Result<ComponentOuterAliasKind> {
+        Ok(match byte1 {
+            0x00 => match byte2.unwrap() {
+                0x10 => ComponentOuterAliasKind::CoreType,
+                0x11 => ComponentOuterAliasKind::CoreModule,
+                x => {
+                    return Err(Self::invalid_leading_byte_error(
+                        x,
+                        "component outer alias kind",
+                        offset + 1,
+                    ))
+                }
+            },
+            0x03 => ComponentOuterAliasKind::Type,
+            0x04 => ComponentOuterAliasKind::Component,
+            x => {
+                return Err(Self::invalid_leading_byte_error(
+                    x,
+                    "component outer alias kind",
+                    offset,
+                ))
+            }
+        })
+    }
+
     pub(crate) fn read_component_alias(&mut self) -> Result<ComponentAlias<'a>> {
-        let kind = self.read_component_external_kind()?;
+        // We don't know what type of alias it is yet, so just read the sort bytes
+        let offset = self.original_position();
+        let byte1 = self.read_u8()?;
+        let byte2 = if byte1 == 0x00 {
+            Some(self.read_u8()?)
+        } else {
+            None
+        };
 
         Ok(match self.read_u8()? {
             0x00 => ComponentAlias::InstanceExport {
-                kind,
+                kind: Self::component_external_kind_from_bytes(byte1, byte2, offset)?,
                 instance_index: self.read_var_u32()?,
                 name: self.read_string()?,
             },
             0x01 => ComponentAlias::Outer {
-                kind,
+                kind: Self::component_outer_alias_kind_from_bytes(byte1, byte2, offset)?,
                 count: self.read_var_u32()?,
                 index: self.read_var_u32()?,
             },
@@ -662,13 +717,6 @@ impl<'a> BinaryReader<'a> {
             ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),
             ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
             ExternalKind::Tag => TypeRef::Tag(self.read_tag_type()?),
-            ExternalKind::Module => TypeRef::Module(self.read_var_u32()?),
-            ExternalKind::Instance => {
-                return Err(BinaryReaderError::new(
-                    "references to core instances is not currently supported",
-                    self.original_position() - 1,
-                ))
-            }
         })
     }
 

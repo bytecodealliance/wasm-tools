@@ -15,9 +15,9 @@ use crate::{
         ComponentDefinedType, ComponentEntityType, InstanceTypeKind, TupleType, UnionType,
         VariantType,
     },
-    BinaryReaderError, CanonicalOption, ComponentExternalKind, ComponentTypeRef, ExternalKind,
-    FuncType, GlobalType, MemoryType, PrimitiveValType, Result, TableType, TypeBounds, ValType,
-    WasmFeatures,
+    BinaryReaderError, CanonicalOption, ComponentExternalKind, ComponentOuterAliasKind,
+    ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType,
+    PrimitiveValType, Result, TableType, TypeBounds, ValType, WasmFeatures,
 };
 use std::{collections::HashMap, mem};
 
@@ -398,19 +398,16 @@ impl ComponentState {
                 offset,
             ),
             crate::ComponentAlias::Outer { kind, count, index } => match kind {
-                ComponentExternalKind::Module => {
+                ComponentOuterAliasKind::CoreModule => {
                     Self::alias_module(components, count, index, offset)
                 }
-                ComponentExternalKind::Type => Self::alias_type(components, count, index, offset),
-                ComponentExternalKind::Component => {
+                ComponentOuterAliasKind::CoreType => {
+                    Self::alias_core_type(components, count, index, offset)
+                }
+                ComponentOuterAliasKind::Type => Self::alias_type(components, count, index, offset),
+                ComponentOuterAliasKind::Component => {
                     Self::alias_component(components, count, index, offset)
                 }
-                ComponentExternalKind::Func
-                | ComponentExternalKind::Value
-                | ComponentExternalKind::Instance => Err(BinaryReaderError::new(
-                    "outer aliases may only be made to types, modules, and components",
-                    offset,
-                )),
             },
         }
     }
@@ -757,9 +754,18 @@ impl ComponentState {
                 crate::ComponentTypeDeclaration::Alias(alias) => {
                     match alias {
                         crate::ComponentAlias::Outer { kind, count, index }
-                            if kind == ComponentExternalKind::Type =>
+                            if kind == ComponentOuterAliasKind::CoreType
+                                || kind == ComponentOuterAliasKind::Type =>
                         {
-                            Self::alias_type(components, count, index, offset)?;
+                            match kind {
+                                ComponentOuterAliasKind::CoreType => {
+                                    Self::alias_core_type(components, count, index, offset)?
+                                }
+                                ComponentOuterAliasKind::Type => {
+                                    Self::alias_type(components, count, index, offset)?
+                                }
+                                _ => unreachable!(),
+                            }
                         }
                         _ => return Err(BinaryReaderError::new(
                             "only outer type aliases are allowed in component type declarations",
@@ -791,29 +797,41 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::InstanceTypeDeclaration::CoreType(ty) => {
-                    components.last_mut().unwrap().add_core_type(ty, features, types, offset, true)?;
+                    components
+                        .last_mut()
+                        .unwrap()
+                        .add_core_type(ty, features, types, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
                 }
-                crate::InstanceTypeDeclaration::Export{ name, ty } => {
+                crate::InstanceTypeDeclaration::Export { name, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
                     current.add_export(name, ty, offset, true)?;
                 }
-                crate::InstanceTypeDeclaration::Alias(alias) => {
-                    match alias {
-                        crate::ComponentAlias::Outer { kind, count, index }
-                            if kind == ComponentExternalKind::Type =>
-                        {
-                            Self::alias_type(components, count, index, offset)?;
+                crate::InstanceTypeDeclaration::Alias(alias) => match alias {
+                    crate::ComponentAlias::Outer { kind, count, index }
+                        if kind == ComponentOuterAliasKind::CoreType
+                            || kind == ComponentOuterAliasKind::Type =>
+                    {
+                        match kind {
+                            ComponentOuterAliasKind::CoreType => {
+                                Self::alias_core_type(components, count, index, offset)?
+                            }
+                            ComponentOuterAliasKind::Type => {
+                                Self::alias_type(components, count, index, offset)?
+                            }
+                            _ => unreachable!(),
                         }
-                        _ => return Err(BinaryReaderError::new(
-                            "only outer type aliases are allowed in component instance type declarations",
-                            offset,
-                        )),
                     }
-                }
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            "only outer type aliases are allowed in instance type declarations",
+                            offset,
+                        ))
+                    }
+                },
             };
         }
 
@@ -900,19 +918,13 @@ impl ComponentState {
         // Populate the arguments
         for module_arg in module_args {
             match module_arg.kind {
-                ExternalKind::Instance => {
+                InstantiationArgKind::Instance => {
                     let instance_type = types[self.core_instance_at(module_arg.index, offset)?]
                         .as_instance_type()
                         .unwrap();
                     for (name, ty) in instance_type.exports(types).iter() {
                         insert_arg(module_arg.name, name, *ty, &mut args, offset)?;
                     }
-                }
-                _ => {
-                    return Err(BinaryReaderError::new(
-                        "only instance instantiation arguments are allowed",
-                        offset,
-                    ));
                 }
             }
         }
@@ -1304,12 +1316,6 @@ impl ComponentState {
                     &mut type_size,
                     offset,
                 )?,
-                ExternalKind::Module | ExternalKind::Instance => {
-                    return Err(BinaryReaderError::new(
-                        "cannot create a core instance from a module or instance export",
-                        offset,
-                    ))
-                }
             }
         }
 
@@ -1395,10 +1401,6 @@ impl ComponentState {
                 check_max(self.core_tags.len(), 1, MAX_WASM_TAGS, "tags", offset)?;
                 push_module_export!(EntityType::Tag, core_tags, "tag")
             }
-            ExternalKind::Module | ExternalKind::Instance => Err(BinaryReaderError::new(
-                "aliases to core modules or instances is not supported",
-                offset,
-            )),
         }
     }
 
@@ -1532,6 +1534,22 @@ impl ComponentState {
         )?;
 
         current.components.push(ty);
+        Ok(())
+    }
+
+    fn alias_core_type(
+        components: &mut [Self],
+        count: u32,
+        index: u32,
+        offset: usize,
+    ) -> Result<()> {
+        let component = Self::check_alias_count(components, count, offset)?;
+        let ty = component.type_at(index, true, offset)?;
+
+        let current = components.last_mut().unwrap();
+        check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
+
+        current.core_types.push(ty);
         Ok(())
     }
 
