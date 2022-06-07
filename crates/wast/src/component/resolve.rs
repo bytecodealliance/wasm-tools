@@ -400,8 +400,8 @@ impl<'a> Resolver<'a> {
                     self.component_val_type(&mut case.ty)?;
 
                     if let Some(refines) = &mut case.refines {
-                        if let Refinement::Id(span, id) = refines {
-                            let resolved = ns.resolve(&mut Index::Id(*id), "variant case")?;
+                        if let Refinement::Index(span, idx) = refines {
+                            let resolved = ns.resolve(idx, "variant case")?;
                             if resolved == index {
                                 return Err(Error::new(
                                     *span,
@@ -409,7 +409,7 @@ impl<'a> Resolver<'a> {
                                 ));
                             }
 
-                            *refines = Refinement::Index(resolved);
+                            *refines = Refinement::Resolved(resolved);
                         }
                     }
                 }

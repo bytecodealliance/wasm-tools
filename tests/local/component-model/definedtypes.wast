@@ -22,6 +22,7 @@
   (type $A15b (variant (case "x" unit)))
   (type $A15c (variant (case "x" $A1)))
   (type $A15e (variant (case $x "x" unit) (case $y "y" string (refines $x)) (case "z" string (refines $y))))
+  (type $A15f (variant (case "x" unit) (case "y" string (refines 0)) (case "z" string (refines 1))))
 
   (type $A16a (list unit))
   (type $A16b (list $A3))
@@ -69,6 +70,14 @@
     (type $v (variant (case "x" $t (refines $z))))
   )
   "failed to find variant case named `$z`"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case "x" $t (refines 1))))
+  )
+  "variant case refines index 1 is out of bounds"
 )
 
 (assert_invalid

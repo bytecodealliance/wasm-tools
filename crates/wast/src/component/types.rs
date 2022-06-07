@@ -436,11 +436,11 @@ impl<'a> Parse<'a> for VariantCase<'a> {
 /// A refinement for a variant case.
 #[derive(Debug)]
 pub enum Refinement<'a> {
-    /// The refinement is referenced by identifier.
-    Id(Span, Id<'a>),
+    /// The refinement is referenced by index.
+    Index(Span, Index<'a>),
     /// The refinement has been resolved to an index into
     /// the cases of the variant.
-    Index(u32),
+    Resolved(u32),
 }
 
 impl<'a> Parse<'a> for Refinement<'a> {
@@ -448,7 +448,7 @@ impl<'a> Parse<'a> for Refinement<'a> {
         parser.parens(|parser| {
             let span = parser.parse::<kw::refines>()?.0;
             let id = parser.parse()?;
-            Ok(Self::Id(span, id))
+            Ok(Self::Index(span, id))
         })
     }
 }
