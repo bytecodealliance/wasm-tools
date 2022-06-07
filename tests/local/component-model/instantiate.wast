@@ -556,3 +556,35 @@
     (export "" (instance 100 ""))
   )
   "index out of bounds")
+
+(assert_invalid
+  (component
+    (import "" (core module $libc
+      (export "memory" (memory 1))
+      (export "table" (table 0 funcref))
+      (export "func" (func))
+      (export "global" (global i32))
+      (export "global mut" (global (mut i64)))
+    ))
+    (core instance $libc (instantiate $libc))
+    (core alias export $libc "memory" (memory $mem))
+    (core alias export $libc "table" (table $tbl))
+    (core alias export $libc "func" (func $func))
+    (core alias export $libc "global" (global $global))
+    (core alias export $libc "global mut" (global $global_mut))
+
+    (import "x" (core module $needs_libc
+      (import "" "memory" (memory 1))
+      (import "" "table" (table 0 funcref))
+      (import "" "func" (func))
+      (import "" "global" (global i32))
+      (import "" "global mut" (global (mut i64)))
+    ))
+
+    (core instance
+      (instantiate $needs_libc
+        (with "" (instance (export "memory" (memory $mem))))
+      )
+    )
+  )
+  "missing module instantiation argument named `::table`")

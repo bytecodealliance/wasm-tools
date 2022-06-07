@@ -19,7 +19,8 @@ use crate::{
     ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType,
     PrimitiveValType, Result, TableType, TypeBounds, ValType, WasmFeatures,
 };
-use std::{collections::HashMap, mem};
+use indexmap::IndexMap;
+use std::mem;
 
 pub(crate) struct ComponentState {
     // Core index spaces
@@ -39,8 +40,8 @@ pub(crate) struct ComponentState {
     pub instances: Vec<TypeId>,
     pub components: Vec<TypeId>,
 
-    pub imports: HashMap<String, ComponentEntityType>,
-    pub exports: HashMap<String, ComponentEntityType>,
+    pub imports: IndexMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentEntityType>,
     has_start: bool,
     type_size: usize,
 }
@@ -896,7 +897,7 @@ impl ComponentState {
             module: &'a str,
             name: &'a str,
             arg: EntityType,
-            args: &mut HashMap<(&'a str, &'a str), EntityType>,
+            args: &mut IndexMap<(&'a str, &'a str), EntityType>,
             offset: usize,
         ) -> Result<()> {
             if args.insert((module, name), arg).is_some() {
@@ -913,7 +914,7 @@ impl ComponentState {
         }
 
         let module_type_id = self.module_at(module_index, offset)?;
-        let mut args = HashMap::new();
+        let mut args = IndexMap::new();
 
         // Populate the arguments
         for module_arg in module_args {
@@ -1003,7 +1004,7 @@ impl ComponentState {
         fn insert_arg<'a>(
             name: &'a str,
             arg: ComponentEntityType,
-            args: &mut HashMap<&'a str, ComponentEntityType>,
+            args: &mut IndexMap<&'a str, ComponentEntityType>,
             offset: usize,
         ) -> Result<()> {
             if args.insert(name, arg).is_some() {
@@ -1020,7 +1021,7 @@ impl ComponentState {
         }
 
         let component_type_id = self.component_at(component_index, offset)?;
-        let mut args = HashMap::new();
+        let mut args = IndexMap::new();
 
         // Populate the arguments
         for component_arg in component_args {
@@ -1150,7 +1151,7 @@ impl ComponentState {
         fn insert_export(
             name: &str,
             export: ComponentEntityType,
-            exports: &mut HashMap<String, ComponentEntityType>,
+            exports: &mut IndexMap<String, ComponentEntityType>,
             type_size: &mut usize,
             offset: usize,
         ) -> Result<()> {
@@ -1170,7 +1171,7 @@ impl ComponentState {
         }
 
         let mut type_size = 1;
-        let mut inst_exports = HashMap::new();
+        let mut inst_exports = IndexMap::new();
         for export in exports {
             match export.kind {
                 ComponentExternalKind::Module => {
@@ -1254,7 +1255,7 @@ impl ComponentState {
         fn insert_export(
             name: &str,
             export: EntityType,
-            exports: &mut HashMap<String, EntityType>,
+            exports: &mut IndexMap<String, EntityType>,
             type_size: &mut usize,
             offset: usize,
         ) -> Result<()> {
@@ -1274,7 +1275,7 @@ impl ComponentState {
         }
 
         let mut type_size = 1;
-        let mut inst_exports = HashMap::new();
+        let mut inst_exports = IndexMap::new();
         for export in exports {
             match export.kind {
                 ExternalKind::Func => {
