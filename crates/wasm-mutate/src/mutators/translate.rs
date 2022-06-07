@@ -131,7 +131,6 @@ pub fn type_def(t: &mut dyn Translator, ty: Type, s: &mut TypeSection) -> Result
             );
             Ok(())
         }
-        Type::Module(_) => Err(Error::unsupported("module types are not supported")),
     }
 }
 

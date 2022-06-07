@@ -13,10 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Import, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems,
-    TypeRef,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
 use std::ops::Range;
 
 /// Represents the types of values in a WebAssembly module.
@@ -40,29 +37,9 @@ pub enum ValType {
 
 /// Represents a type in a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum Type<'a> {
+pub enum Type {
     /// The type is for a function.
     Func(FuncType),
-    /// The type is for a module.
-    ///
-    /// Currently this variant is only used when parsing components.
-    Module(Box<[ModuleTypeDeclaration<'a>]>),
-}
-
-/// Represents a module type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
-pub enum ModuleTypeDeclaration<'a> {
-    /// The module type definition is for a type.
-    Type(Type<'a>),
-    /// The module type definition is for an export.
-    Export {
-        /// The name of the exported item.
-        name: &'a str,
-        /// The type reference of the export.
-        ty: TypeRef,
-    },
-    /// The module type definition is for an import.
-    Import(Import<'a>),
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -188,13 +165,13 @@ impl<'a> TypeSectionReader<'a> {
     ///     println!("Type {:?}", ty);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<Type<'a>> {
+    pub fn read(&mut self) -> Result<Type> {
         self.reader.read_type()
     }
 }
 
 impl<'a> SectionReader for TypeSectionReader<'a> {
-    type Item = Type<'a>;
+    type Item = Type;
 
     fn read(&mut self) -> Result<Self::Item> {
         Self::read(self)
@@ -220,7 +197,7 @@ impl<'a> SectionWithLimitedItems for TypeSectionReader<'a> {
 }
 
 impl<'a> IntoIterator for TypeSectionReader<'a> {
-    type Item = Result<Type<'a>>;
+    type Item = Result<Type>;
     type IntoIter = SectionIteratorLimited<Self>;
 
     /// Implements iterator over the type section.

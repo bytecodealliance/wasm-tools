@@ -70,11 +70,6 @@ impl Mutator for AddTypeMutator {
                             .collect::<Result<Vec<_>, _>>()?;
                         types.function(params, results);
                     }
-                    wasmparser::Type::Module(_) => {
-                        return Err(crate::Error::unsupported(
-                            "module types in core sections are not supported",
-                        ));
-                    }
                 }
             }
             // And then add our new type.

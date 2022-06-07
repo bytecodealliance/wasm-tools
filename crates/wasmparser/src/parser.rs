@@ -1,3 +1,4 @@
+use crate::CoreTypeSectionReader;
 use crate::{
     limits::MAX_WASM_MODULE_SIZE, AliasSectionReader, BinaryReader, BinaryReaderError,
     ComponentAliasSectionReader, ComponentCanonicalSectionReader, ComponentExportSectionReader,
@@ -213,6 +214,11 @@ pub enum Payload<'a> {
     ///
     /// Currently this section is only parsed in a component.
     AliasSection(AliasSectionReader<'a>),
+    /// A core type section was received and the provided parser can be
+    /// used to parse the contents of the core type section.
+    ///
+    /// Currently this section is only parsed in a component.
+    CoreTypeSection(CoreTypeSectionReader<'a>),
     /// A component section from a WebAssembly component was received and the
     /// provided parser can be used to parse the nested component.
     ///
@@ -400,6 +406,7 @@ impl Parser {
     ///             ModuleSection { .. } => { /* ... */ }
     ///             InstanceSection(_) => { /* ... */ }
     ///             AliasSection(_) => { /* ... */ }
+    ///             CoreTypeSection(_) => { /* ... */ }
     ///             ComponentSection { .. } => { /* ... */ }
     ///             ComponentInstanceSection(_) => { /* ... */ }
     ///             ComponentAliasSection(_) => { /* ... */ }
@@ -626,7 +633,7 @@ impl Parser {
                         section(reader, len, AliasSectionReader::new, AliasSection)
                     }
                     (Encoding::Component, 4) => {
-                        section(reader, len, TypeSectionReader::new, TypeSection)
+                        section(reader, len, CoreTypeSectionReader::new, CoreTypeSection)
                     }
                     // Section 5 handled above
                     (Encoding::Component, 6) => section(
@@ -985,6 +992,7 @@ impl fmt::Debug for Payload<'_> {
                 .finish(),
             InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
             AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
+            CoreTypeSection(_) => f.debug_tuple("CoreTypeSection").field(&"...").finish(),
             ComponentSection { parser: _, range } => f
                 .debug_struct("ComponentSection")
                 .field("range", range)

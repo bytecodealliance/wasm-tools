@@ -6,9 +6,9 @@
   0xd | 0b 04       | component import section
   0xf | 01          | 1 count
  0x10 | 00 04 00    | [component 0] ComponentImport { name: "", ty: Component(0) }
- 0x13 | 04 03       | type section
+ 0x13 | 04 03       | core type section
  0x15 | 01          | 1 count
- 0x16 | 50 00       | [type 0] Module([])
+ 0x16 | 50 00       | [core type 0] Module([])
  0x18 | 0b 06       | component import section
  0x1a | 01          | 1 count
  0x1b | 01 61 00 11 | [module 0] ComponentImport { name: "a", ty: Module(0) }

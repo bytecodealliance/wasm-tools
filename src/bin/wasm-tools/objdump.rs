@@ -48,8 +48,9 @@ impl Opts {
                     printer.section_raw(range, 1, "module")?;
                     printer.start(Encoding::Module)?;
                 }
-                InstanceSection(s) => printer.section(s, "instances")?,
-                AliasSection(s) => printer.section(s, "aliases")?,
+                InstanceSection(s) => printer.section(s, "core instances")?,
+                AliasSection(s) => printer.section(s, "core aliases")?,
+                CoreTypeSection(s) => printer.section(s, "core types")?,
                 ComponentSection { range, .. } => {
                     printer.section_raw(range, 1, "component")?;
                     printer.indices.push(IndexSpace::default());

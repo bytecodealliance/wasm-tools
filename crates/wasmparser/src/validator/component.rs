@@ -60,15 +60,15 @@ impl ComponentState {
 
     pub fn add_core_type(
         &mut self,
-        ty: crate::Type,
+        ty: crate::CoreType,
         features: &WasmFeatures,
         types: &mut TypeList,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
         let ty = match ty {
-            crate::Type::Func(ty) => Type::Func(ty),
-            crate::Type::Module(decls) => {
+            crate::CoreType::Func(ty) => Type::Func(ty),
+            crate::CoreType::Module(decls) => {
                 Type::Module(self.create_module_type(decls.into_vec(), features, types, offset)?)
             }
         };

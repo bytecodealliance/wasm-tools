@@ -418,6 +418,7 @@ impl Validator {
             }
             InstanceSection(s) => self.instance_section(s)?,
             AliasSection(s) => self.alias_section(s)?,
+            CoreTypeSection(s) => self.core_type_section(s)?,
             ComponentSection { parser, range, .. } => {
                 self.component_section(range)?;
                 return Ok(ValidPayload::Parser(parser.clone()));
@@ -495,55 +496,29 @@ impl Validator {
 
     /// Validates [`Payload::TypeSection`](crate::Payload).
     pub fn type_section(&mut self, section: &crate::TypeSectionReader<'_>) -> Result<()> {
-        self.state.ensure_parsable(section.range().start)?;
-
-        match self.state {
-            State::Module => {
-                self.process_module_section(
-                    Order::Type,
-                    section,
-                    "type",
-                    |state, _, types, count, offset| {
-                        check_max(
-                            state.module.types.len(),
-                            count,
-                            MAX_WASM_TYPES,
-                            "types",
-                            offset,
-                        )?;
-                        types.reserve(count as usize);
-                        state.module.assert_mut().types.reserve(count as usize);
-                        Ok(())
-                    },
-                    |state, features, types, def, offset| {
-                        state
-                            .module
-                            .assert_mut()
-                            .add_type(def, features, types, offset, false /* checked above */)
-                    },
-                )
-            }
-            State::Component => {
-                self.process_component_section(
-                    section,
-                    "core type",
-                    |components, types, count, offset| {
-                        let current = components.last_mut().unwrap();
-                        check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
-                        types.reserve(count as usize);
-                        current.core_types.reserve(count as usize);
-                        Ok(())
-                    },
-                    |components, types, features, ty, offset| {
-                        let current = components.last_mut().unwrap();
-                        current.add_core_type(
-                            ty, features, types, offset, false, /* checked above */
-                        )
-                    },
-                )
-            }
-            _ => unreachable!(),
-        }
+        self.process_module_section(
+            Order::Type,
+            section,
+            "type",
+            |state, _, types, count, offset| {
+                check_max(
+                    state.module.types.len(),
+                    count,
+                    MAX_WASM_TYPES,
+                    "types",
+                    offset,
+                )?;
+                types.reserve(count as usize);
+                state.module.assert_mut().types.reserve(count as usize);
+                Ok(())
+            },
+            |state, features, types, def, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_type(def, features, types, offset, false /* checked above */)
+            },
+        )
     }
 
     /// Validates [`Payload::ImportSection`](crate::Payload).
@@ -887,6 +862,118 @@ impl Validator {
         )
     }
 
+    /// Validates [`Payload::ModuleSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn module_section(&mut self, range: &Range<usize>) -> Result<()> {
+        self.state.ensure_component("module", range.start)?;
+
+        let current = self.components.last_mut().unwrap();
+        check_max(
+            current.core_modules.len(),
+            1,
+            MAX_WASM_MODULES,
+            "modules",
+            range.start,
+        )?;
+
+        match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Module))) {
+            State::Component => {}
+            _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+
+    /// Validates [`Payload::InstanceSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn instance_section(&mut self, section: &crate::InstanceSectionReader) -> Result<()> {
+        self.process_component_section(
+            section,
+            "core instance",
+            |components, _, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(
+                    current.instance_count(),
+                    count,
+                    MAX_WASM_INSTANCES,
+                    "instances",
+                    offset,
+                )?;
+                current.core_instances.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, _, instance, offset| {
+                components
+                    .last_mut()
+                    .unwrap()
+                    .add_core_instance(instance, types, offset)
+            },
+        )
+    }
+
+    /// Validates [`Payload::AliasSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn alias_section(&mut self, section: &crate::AliasSectionReader) -> Result<()> {
+        self.process_component_section(
+            section,
+            "core alias",
+            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
+            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
+                components
+                    .last_mut()
+                    .unwrap()
+                    .add_core_alias(alias, types, offset)
+            },
+        )
+    }
+
+    /// Validates [`Payload::CoreTypeSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn core_type_section(&mut self, section: &crate::CoreTypeSectionReader<'_>) -> Result<()> {
+        self.process_component_section(
+            section,
+            "core type",
+            |components, types, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
+                types.reserve(count as usize);
+                current.core_types.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, features, ty, offset| {
+                let current = components.last_mut().unwrap();
+                current.add_core_type(ty, features, types, offset, false /* checked above */)
+            },
+        )
+    }
+
+    /// Validates [`Payload::ComponentSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_section(&mut self, range: &Range<usize>) -> Result<()> {
+        self.state.ensure_component("component", range.start)?;
+
+        let current = self.components.last_mut().unwrap();
+        check_max(
+            current.components.len(),
+            1,
+            MAX_WASM_COMPONENTS,
+            "components",
+            range.start,
+        )?;
+
+        match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Component))) {
+            State::Component => {}
+            _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+
     /// Validates [`Payload::ComponentInstanceSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
@@ -960,26 +1047,6 @@ impl Validator {
         )
     }
 
-    /// Validates [`Payload::ComponentImportSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn component_import_section(
-        &mut self,
-        section: &crate::ComponentImportSectionReader,
-    ) -> Result<()> {
-        self.process_component_section(
-            section,
-            "import",
-            |_, _, _, _| Ok(()), // add_import will check limits
-            |components, types, _, import, offset| {
-                components
-                    .last_mut()
-                    .unwrap()
-                    .add_import(import, types, offset)
-            },
-        )
-    }
-
     /// Validates [`Payload::ComponentCanonicalSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
@@ -1025,76 +1092,42 @@ impl Validator {
         )
     }
 
-    /// Validates [`Payload::ModuleSection`](crate::Payload).
+    /// Validates [`Payload::ComponentStartSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
-    pub fn module_section(&mut self, range: &Range<usize>) -> Result<()> {
-        self.state.ensure_component("module", range.start)?;
+    pub fn component_start_section(
+        &mut self,
+        section: &crate::ComponentStartSectionReader,
+    ) -> Result<()> {
+        let range = section.range();
+        self.state.ensure_component("start", range.start)?;
 
-        let current = self.components.last_mut().unwrap();
-        check_max(
-            current.core_modules.len(),
-            1,
-            MAX_WASM_MODULES,
-            "modules",
+        let f = section.clone().read()?;
+
+        self.components.last_mut().unwrap().add_start(
+            f.func_index,
+            &f.arguments,
+            &self.types,
             range.start,
-        )?;
-
-        match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Module))) {
-            State::Component => {}
-            _ => unreachable!(),
-        }
-
-        Ok(())
+        )
     }
 
-    /// Validates [`Payload::ComponentSection`](crate::Payload).
+    /// Validates [`Payload::ComponentImportSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
-    pub fn component_section(&mut self, range: &Range<usize>) -> Result<()> {
-        self.state.ensure_component("component", range.start)?;
-
-        let current = self.components.last_mut().unwrap();
-        check_max(
-            current.components.len(),
-            1,
-            MAX_WASM_COMPONENTS,
-            "components",
-            range.start,
-        )?;
-
-        match mem::replace(&mut self.state, State::Unparsed(Some(Encoding::Component))) {
-            State::Component => {}
-            _ => unreachable!(),
-        }
-
-        Ok(())
-    }
-
-    /// Validates [`Payload::InstanceSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn instance_section(&mut self, section: &crate::InstanceSectionReader) -> Result<()> {
+    pub fn component_import_section(
+        &mut self,
+        section: &crate::ComponentImportSectionReader,
+    ) -> Result<()> {
         self.process_component_section(
             section,
-            "core instance",
-            |components, _, count, offset| {
-                let current = components.last_mut().unwrap();
-                check_max(
-                    current.instance_count(),
-                    count,
-                    MAX_WASM_INSTANCES,
-                    "instances",
-                    offset,
-                )?;
-                current.core_instances.reserve(count as usize);
-                Ok(())
-            },
-            |components, types, _, instance, offset| {
+            "import",
+            |_, _, _, _| Ok(()), // add_import will check limits
+            |components, types, _, import, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_core_instance(instance, types, offset)
+                    .add_import(import, types, offset)
             },
         )
     }
@@ -1125,43 +1158,6 @@ impl Validator {
                 let current = components.last_mut().unwrap();
                 let ty = current.export_to_entity_type(&export, offset)?;
                 current.add_export(export.name, ty, offset, false /* checked above */)
-            },
-        )
-    }
-
-    /// Validates [`Payload::ComponentStartSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn component_start_section(
-        &mut self,
-        section: &crate::ComponentStartSectionReader,
-    ) -> Result<()> {
-        let range = section.range();
-        self.state.ensure_component("start", range.start)?;
-
-        let f = section.clone().read()?;
-
-        self.components.last_mut().unwrap().add_start(
-            f.func_index,
-            &f.arguments,
-            &self.types,
-            range.start,
-        )
-    }
-
-    /// Validates [`Payload::AliasSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn alias_section(&mut self, section: &crate::AliasSectionReader) -> Result<()> {
-        self.process_component_section(
-            section,
-            "core alias",
-            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
-            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
-                components
-                    .last_mut()
-                    .unwrap()
-                    .add_core_alias(alias, types, offset)
             },
         )
     }

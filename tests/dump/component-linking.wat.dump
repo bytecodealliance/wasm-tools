@@ -19,9 +19,9 @@
  0x3a | 05 3e       | [component 0] inline size
    0x3c | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x44 | 04 03       | type section
+   0x44 | 04 03       | core type section
    0x46 | 01          | 1 count
-   0x47 | 50 00       | [type 0] Module([])
+   0x47 | 50 00       | [core type 0] Module([])
    0x49 | 0b 06       | component import section
    0x4b | 01          | 1 count
    0x4c | 01 31 00 11 | [module 0] ComponentImport { name: "1", ty: Module(0) }

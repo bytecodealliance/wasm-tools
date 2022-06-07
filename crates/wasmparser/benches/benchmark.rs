@@ -168,6 +168,11 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
+            CoreTypeSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
             ComponentSection { .. } => {}
             ComponentInstanceSection(s) => {
                 for item in s {

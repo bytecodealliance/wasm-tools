@@ -132,7 +132,6 @@ fn smoke_test_imports_config() {
                     while let Ok(ty) = rdr.read() {
                         match ty {
                             wasmparser::Type::Func(ft) => sig_types.push(ft),
-                            wasmparser::Type::Module(_) => unreachable!(),
                         }
                     }
                 } else if let wasmparser::Payload::ImportSection(mut rdr) = payload {

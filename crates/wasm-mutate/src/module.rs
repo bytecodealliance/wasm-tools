@@ -40,10 +40,10 @@ impl From<wasmparser::ValType> for PrimitiveTypeInfo {
     }
 }
 
-impl TryFrom<wasmparser::Type<'_>> for TypeInfo {
+impl TryFrom<wasmparser::Type> for TypeInfo {
     type Error = Error;
 
-    fn try_from(value: wasmparser::Type<'_>) -> Result<Self> {
+    fn try_from(value: wasmparser::Type) -> Result<Self> {
         match value {
             wasmparser::Type::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
@@ -57,9 +57,6 @@ impl TryFrom<wasmparser::Type<'_>> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
             })),
-            wasmparser::Type::Module(_) => Err(Error::unsupported(
-                "module types in core sections are not supported",
-            )),
         }
     }
 }

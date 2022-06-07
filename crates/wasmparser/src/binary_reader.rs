@@ -280,18 +280,25 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_type(&mut self) -> Result<Type<'a>> {
+    pub(crate) fn read_type(&mut self) -> Result<Type> {
         Ok(match self.read_u8()? {
             0x60 => Type::Func(self.read_func_type()?),
+            x => return self.invalid_leading_byte(x, "type"),
+        })
+    }
+
+    pub(crate) fn read_core_type(&mut self) -> Result<CoreType<'a>> {
+        Ok(match self.read_u8()? {
+            0x60 => CoreType::Func(self.read_func_type()?),
             0x50 => {
                 let size = self.read_size(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?;
-                Type::Module(
+                CoreType::Module(
                     (0..size)
                         .map(|_| self.read_module_type_decl())
                         .collect::<Result<_>>()?,
                 )
             }
-            x => return self.invalid_leading_byte(x, "type"),
+            x => return self.invalid_leading_byte(x, "core type"),
         })
     }
 
@@ -377,7 +384,7 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_instance_type_decl(&mut self) -> Result<InstanceTypeDeclaration<'a>> {
         Ok(match self.read_u8()? {
-            0x00 => InstanceTypeDeclaration::CoreType(self.read_type()?),
+            0x00 => InstanceTypeDeclaration::CoreType(self.read_core_type()?),
             0x01 => InstanceTypeDeclaration::Type(self.read_component_type()?),
             0x02 => InstanceTypeDeclaration::Alias(self.read_component_alias()?),
             0x04 => InstanceTypeDeclaration::Export {

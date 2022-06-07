@@ -392,7 +392,6 @@ impl Printer {
                     self.printers = printers;
                 }
                 Payload::TypeSection(s) => {
-                    // This section is supported by both modules and components.
                     self.print_types(states.last_mut().unwrap(), &mut types, s)?
                 }
                 Payload::ImportSection(s) => {
@@ -471,6 +470,9 @@ impl Printer {
                 Payload::AliasSection(s) => {
                     Self::ensure_component(&states)?;
                     self.print_aliases(states.last_mut().unwrap(), &mut types, s)?;
+                }
+                Payload::CoreTypeSection(s) => {
+                    self.print_core_types(states.last_mut().unwrap(), &mut types, s)?
                 }
                 Payload::ComponentSection { parser: inner, .. } => {
                     Self::ensure_component(&states)?;
@@ -608,18 +610,41 @@ impl Printer {
         Ok(())
     }
 
+    fn print_core_type(
+        &mut self,
+        state: &mut State,
+        types: &mut Vec<Type>,
+        ty: wasmparser::CoreType,
+    ) -> Result<()> {
+        self.start_group("core type ");
+        self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+        self.result.push(' ');
+        let ty = match ty {
+            wasmparser::CoreType::Func(ty) => {
+                self.start_group("func");
+                self.print_func_type(state, &ty, None)?;
+                self.end_group();
+                Type::Func(Some(ty))
+            }
+            wasmparser::CoreType::Module(decls) => {
+                self.print_module_type(types, decls.into_vec())?;
+                Type::Module
+            }
+        };
+        self.end_group(); // `core type` itself
+
+        state.core.types.push(types.len());
+        types.push(ty);
+        Ok(())
+    }
+
     fn print_type(
         &mut self,
-        core: bool,
         state: &mut State,
         types: &mut Vec<Type>,
         ty: wasmparser::Type,
     ) -> Result<()> {
-        if core {
-            self.start_group("core type ");
-        } else {
-            self.start_group("type ");
-        }
+        self.start_group("type ");
         self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
         self.result.push(' ');
         let ty = match ty {
@@ -629,15 +654,25 @@ impl Printer {
                 self.end_group();
                 Type::Func(Some(ty))
             }
-            wasmparser::Type::Module(decls) => {
-                self.print_module_type(types, decls.into_vec())?;
-                Type::Module
-            }
         };
         self.end_group(); // `type` itself
 
         state.core.types.push(types.len());
         types.push(ty);
+        Ok(())
+    }
+
+    fn print_core_types(
+        &mut self,
+        state: &mut State,
+        types: &mut Vec<Type>,
+        parser: CoreTypeSectionReader<'_>,
+    ) -> Result<()> {
+        for ty in parser {
+            self.newline();
+            self.print_core_type(state, types, ty?)?;
+        }
+
         Ok(())
     }
 
@@ -649,15 +684,7 @@ impl Printer {
     ) -> Result<()> {
         for ty in parser {
             self.newline();
-            self.print_type(
-                match state.encoding {
-                    Encoding::Component => true,
-                    Encoding::Module => false,
-                },
-                state,
-                types,
-                ty?,
-            )?;
+            self.print_type(state, types, ty?)?;
         }
 
         Ok(())
@@ -2411,12 +2438,7 @@ impl Printer {
         for decl in decls {
             self.newline();
             match decl {
-                ModuleTypeDeclaration::Type(ty) => match ty {
-                    wasmparser::Type::Func(ty) => {
-                        self.print_type(false, &mut state, types, wasmparser::Type::Func(ty))?
-                    }
-                    wasmparser::Type::Module(_) => bail!("invalid nested module type"),
-                },
+                ModuleTypeDeclaration::Type(ty) => self.print_type(&mut state, types, ty)?,
                 ModuleTypeDeclaration::Export { name, ty } => {
                     self.start_group("export ");
                     self.print_str(name)?;
@@ -2446,7 +2468,7 @@ impl Printer {
             self.newline();
             match decl {
                 ComponentTypeDeclaration::CoreType(ty) => {
-                    self.print_type(true, states.last_mut().unwrap(), types, ty)?
+                    self.print_core_type(states.last_mut().unwrap(), types, ty)?
                 }
                 ComponentTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
@@ -2498,7 +2520,7 @@ impl Printer {
             self.newline();
             match decl {
                 InstanceTypeDeclaration::CoreType(ty) => {
-                    self.print_type(true, states.last_mut().unwrap(), types, ty)?
+                    self.print_core_type(states.last_mut().unwrap(), types, ty)?
                 }
                 InstanceTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?

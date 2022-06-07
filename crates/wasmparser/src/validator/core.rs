@@ -391,13 +391,6 @@ impl Module {
                 }
                 Type::Func(t)
             }
-            crate::Type::Module(_) => {
-                // Currently an error, but may be supported with a future module linking proposal.
-                return Err(BinaryReaderError::new(
-                    "module types are not currently supported in core modules",
-                    offset,
-                ));
-            }
         };
 
         if check_limit {

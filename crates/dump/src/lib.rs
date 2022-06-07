@@ -268,6 +268,11 @@ impl<'a> Dump<'a> {
                     me.print(end)
                 })?,
 
+                Payload::CoreTypeSection(s) => self.section(s, "core type", |me, end, t| {
+                    write!(me.state, "[core type {}] {:?}", inc(&mut i.core_types), t)?;
+                    me.print(end)
+                })?,
+
                 Payload::ComponentSection { range, .. } => {
                     write!(
                         self.state,
