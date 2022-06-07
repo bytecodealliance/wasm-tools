@@ -101,6 +101,9 @@ impl InterfacePrinter {
                         self.output.push('>');
                     }
                     TypeDefKind::Type(ty) => self.print_type_name(interface, ty)?,
+                    TypeDefKind::Stream(_) => {
+                        todo!("interface has an unnamed stream type")
+                    }
                 }
             }
 
@@ -194,6 +197,7 @@ impl InterfacePrinter {
                         }
                         None => bail!("unnamed type in interface"),
                     },
+                    TypeDefKind::Stream(_) => todo!("declare stream"),
                 }
             }
 

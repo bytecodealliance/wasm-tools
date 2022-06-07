@@ -287,6 +287,7 @@ impl Hash for TypeDefKey<'_> {
                     .hash(state);
                 }
             }
+            TypeDefKind::Stream(_) => todo!("hash for stream"),
         }
     }
 }
@@ -479,6 +480,7 @@ impl<'a> TypeEncoder<'a> {
                             InterfaceTypeRef::Type(index)
                         }
                         TypeDefKind::Type(ty) => self.encode_type(interface, instance, ty)?,
+                        TypeDefKind::Stream(_) => todo!("encoding for stream type"),
                     };
 
                     if ty.name.is_some() {
@@ -717,6 +719,7 @@ impl RequiredOptions {
                     Self::for_type(interface, t) | Self::Into
                 }
                 TypeDefKind::Type(t) => Self::for_type(interface, t),
+                TypeDefKind::Stream(_) => todo!("encoding for stream"),
             },
             Type::String => Self::Encoding,
             _ => Self::None,
