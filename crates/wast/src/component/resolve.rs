@@ -393,24 +393,23 @@ impl<'a> Resolver<'a> {
                 }
             }
             ComponentDefinedType::Variant(v) => {
-                let names: Vec<_> = v.cases.iter().map(|c| c.name).collect();
-
+                // Namespace for case identifier resolution
+                let mut ns = Namespace::default();
                 for case in v.cases.iter_mut() {
+                    let index = ns.register(case.id, "variant case")?;
                     self.component_val_type(&mut case.ty)?;
+
                     if let Some(refines) = &mut case.refines {
-                        if let Refinement::Named(span, name) = refines {
-                            if *name == case.name {
+                        if let Refinement::Id(span, id) = refines {
+                            let resolved = ns.resolve(&mut Index::Id(*id), "variant case")?;
+                            if resolved == index {
                                 return Err(Error::new(
                                     *span,
                                     "variant case cannot refine itself".to_string(),
                                 ));
                             }
 
-                            let index = names.iter().position(|n| n == name).ok_or_else(|| {
-                                Error::new(*span, format!("variant case `{}` not found", name))
-                            })?;
-
-                            *refines = Refinement::Index(index as u32);
+                            *refines = Refinement::Index(resolved);
                         }
                     }
                 }

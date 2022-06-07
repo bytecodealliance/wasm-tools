@@ -21,8 +21,7 @@
   (type $A15a (variant))
   (type $A15b (variant (case "x" unit)))
   (type $A15c (variant (case "x" $A1)))
-
-  (type $A15d (variant (case "x" unit (refines "y")) (case "y" string)))
+  (type $A15e (variant (case $x "x" unit) (case $y "y" string (refines $x)) (case "z" string (refines $y))))
 
   (type $A16a (list unit))
   (type $A16b (list $A3))
@@ -52,17 +51,32 @@
 
 (assert_invalid
   (component
-    (type $t (variant (case "x" string (refines "x"))))
+    (type $t (variant (case $x "x" string (refines $x))))
   )
   "variant case cannot refine itself"
 )
 
 (assert_invalid
   (component
-    (type $t string)
-    (type $v (variant (case "x" $t (refines "z"))))
+    (type $t (variant (case "x" unit (refines $y)) (case $y "y" string)))
   )
-  "variant case `z` not found"
+  "failed to find variant case named `$y`"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case "x" $t (refines $z))))
+  )
+  "failed to find variant case named `$z`"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case $x "x" $t) (case $x "y" $t)))
+  )
+  "duplicate variant case identifier"
 )
 
 (assert_invalid

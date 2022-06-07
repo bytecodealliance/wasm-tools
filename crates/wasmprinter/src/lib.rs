@@ -2290,24 +2290,21 @@ impl Printer {
 
     fn print_variant_type(&mut self, state: &State, cases: &[VariantCase]) -> Result<()> {
         self.start_group("variant");
-        for case in cases.iter() {
+        for (i, case) in cases.iter().enumerate() {
             self.result.push(' ');
             self.start_group("case ");
+            // TODO: use the identifier from the name section when there is one
+            write!(&mut self.result, "$c{} ", i)?;
             self.print_str(case.name)?;
             self.result.push(' ');
             self.print_component_val_type(state, &case.ty)?;
 
-            if let Some(default) = case.refines {
-                match cases.get(default as usize) {
-                    Some(default) => {
-                        self.start_group("refines ");
-                        self.print_str(default.name)?;
-                        self.end_group();
-                    }
-                    None => {
-                        bail!("variant case refines index out of bounds");
-                    }
-                }
+            if let Some(refines) = case.refines {
+                self.result.push(' ');
+                self.start_group("refines ");
+                // TODO: use the identifier from the name section when there is one
+                write!(&mut self.result, "$c{}", refines)?;
+                self.end_group();
             }
             self.end_group()
         }

@@ -599,7 +599,7 @@ impl From<PrimitiveValType> for wasm_encoder::PrimitiveValType {
 impl From<&Refinement<'_>> for u32 {
     fn from(r: &Refinement) -> Self {
         match r {
-            Refinement::Named(..) => unreachable!("should be expanded by now"),
+            Refinement::Id(..) => unreachable!("should be resolved by now"),
             Refinement::Index(i) => *i,
         }
     }

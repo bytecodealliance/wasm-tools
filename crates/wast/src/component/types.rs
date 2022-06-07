@@ -399,10 +399,13 @@ impl<'a> Parse<'a> for Variant<'a> {
 /// A case of a variant type.
 #[derive(Debug)]
 pub struct VariantCase<'a> {
-    /// The name of the case.
-    pub name: &'a str,
     /// Where this `case` was defined
     pub span: Span,
+    /// An optional identifier to refer to this case by as part of name
+    /// resolution.
+    pub id: Option<Id<'a>>,
+    /// The name of the case.
+    pub name: &'a str,
     /// The type of the case.
     pub ty: ComponentValType<'a>,
     /// The optional refinement.
@@ -412,6 +415,7 @@ pub struct VariantCase<'a> {
 impl<'a> Parse<'a> for VariantCase<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::case>()?.0;
+        let id = parser.parse()?;
         let name = parser.parse()?;
         let ty = parser.parse()?;
         let refines = if !parser.is_empty() {
@@ -420,8 +424,9 @@ impl<'a> Parse<'a> for VariantCase<'a> {
             None
         };
         Ok(Self {
-            name,
             span,
+            id,
+            name,
             ty,
             refines,
         })
@@ -431,8 +436,8 @@ impl<'a> Parse<'a> for VariantCase<'a> {
 /// A refinement for a variant case.
 #[derive(Debug)]
 pub enum Refinement<'a> {
-    /// The refinement is named.
-    Named(Span, &'a str),
+    /// The refinement is referenced by identifier.
+    Id(Span, Id<'a>),
     /// The refinement has been resolved to an index into
     /// the cases of the variant.
     Index(u32),
@@ -442,8 +447,8 @@ impl<'a> Parse<'a> for Refinement<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|parser| {
             let span = parser.parse::<kw::refines>()?.0;
-            let name = parser.parse()?;
-            Ok(Self::Named(span, name))
+            let id = parser.parse()?;
+            Ok(Self::Id(span, id))
         })
     }
 }
