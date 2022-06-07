@@ -1,0 +1,67 @@
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 08 2a       | component type section
+  0xa | 01          | 1 count
+  0xb | 42 09 00 50 | [type 0] Instance([CoreType(Module([])), Export { name: "1", ty: Module(0) }, Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Export { name: "2", ty: Func(0) }, Export { name: "3", ty: Value(Primitive(String)) }, Type(Instance([])), Export { name: "4", ty: Instance(1) }, Type(Component([])), Export { name: "5", ty: Component(2) }])
+      | 00 04 01 31
+      | 00 11 00 01
+      | 40 00 7f 04
+      | 01 32 01 00
+      | 04 01 33 02
+      | 72 01 42 00
+      | 04 01 34 05
+      | 01 01 41 00
+      | 04 01 35 04
+      | 02         
+ 0x34 | 0b 04       | component import section
+ 0x36 | 01          | 1 count
+ 0x37 | 00 05 00    | [instance 0] ComponentImport { name: "", ty: Instance(0) }
+ 0x3a | 05 3e       | [component 0] inline size
+   0x3c | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x44 | 04 03       | core type section
+   0x46 | 01          | 1 count
+   0x47 | 50 00       | [core type 0] Module([])
+   0x49 | 0b 06       | component import section
+   0x4b | 01          | 1 count
+   0x4c | 01 31 00 11 | [module 0] ComponentImport { name: "1", ty: Module(0) }
+        | 00         
+   0x51 | 08 04       | component type section
+   0x53 | 01          | 1 count
+   0x54 | 40 00 7f    | [type 0] Func(ComponentFuncType { params: [], result: Primitive(Unit) })
+   0x57 | 0b 09       | component import section
+   0x59 | 02          | 2 count
+   0x5a | 01 32 01 00 | [func 0] ComponentImport { name: "2", ty: Func(0) }
+   0x5e | 01 33 02 72 | [value 0] ComponentImport { name: "3", ty: Value(Primitive(String)) }
+   0x62 | 08 03       | component type section
+   0x64 | 01          | 1 count
+   0x65 | 42 00       | [type 1] Instance([])
+   0x67 | 0b 05       | component import section
+   0x69 | 01          | 1 count
+   0x6a | 01 34 05 01 | [instance 0] ComponentImport { name: "4", ty: Instance(1) }
+   0x6e | 08 03       | component type section
+   0x70 | 01          | 1 count
+   0x71 | 41 00       | [type 2] Component([])
+   0x73 | 0b 05       | component import section
+   0x75 | 01          | 1 count
+   0x76 | 01 35 04 02 | [component 0] ComponentImport { name: "5", ty: Component(2) }
+ 0x7a | 07 1b       | component alias section
+ 0x7c | 05          | 5 count
+ 0x7d | 00 11 00 00 | alias [module 0] InstanceExport { kind: Module, instance_index: 0, name: "1" }
+      | 01 31      
+ 0x83 | 01 00 00 01 | alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "2" }
+      | 32         
+ 0x88 | 02 00 00 01 | alias [value 0] InstanceExport { kind: Value, instance_index: 0, name: "4" }
+      | 34         
+ 0x8d | 05 00 00 01 | alias [instance 1] InstanceExport { kind: Instance, instance_index: 0, name: "3" }
+      | 33         
+ 0x92 | 04 00 00 01 | alias [component 1] InstanceExport { kind: Component, instance_index: 0, name: "5" }
+      | 35         
+ 0x97 | 06 19       | component instance section
+ 0x99 | 01          | 1 count
+ 0x9a | 00 00 05 01 | [instance 2] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "1", kind: Module, index: 0 }, ComponentInstantiationArg { name: "2", kind: Func, index: 0 }, ComponentInstantiationArg { name: "3", kind: Value, index: 0 }, ComponentInstantiationArg { name: "4", kind: Instance, index: 1 }, ComponentInstantiationArg { name: "5", kind: Component, index: 1 }] }
+      | 31 00 11 00
+      | 01 32 01 00
+      | 01 33 02 00
+      | 01 34 05 01
+      | 01 35 04 01

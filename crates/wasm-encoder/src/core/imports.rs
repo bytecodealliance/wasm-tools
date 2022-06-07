@@ -1,5 +1,6 @@
 use crate::{
     encode_section, Encode, GlobalType, MemoryType, Section, SectionId, TableType, TagType,
+    CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT,
 };
 
 /// The type of an entity.
@@ -25,23 +26,23 @@ impl Encode for EntityType {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Function(i) => {
-                sink.push(0x00);
+                sink.push(CORE_FUNCTION_SORT);
                 i.encode(sink);
             }
             Self::Table(t) => {
-                sink.push(0x01);
+                sink.push(CORE_TABLE_SORT);
                 t.encode(sink);
             }
             Self::Memory(t) => {
-                sink.push(0x02);
+                sink.push(CORE_MEMORY_SORT);
                 t.encode(sink);
             }
             Self::Global(t) => {
-                sink.push(0x03);
+                sink.push(CORE_GLOBAL_SORT);
                 t.encode(sink);
             }
             Self::Tag(t) => {
-                sink.push(0x04);
+                sink.push(CORE_TAG_SORT);
                 t.encode(sink);
             }
         }
@@ -129,8 +130,12 @@ impl ImportSection {
 
 impl Encode for ImportSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Import, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for ImportSection {}
+impl Section for ImportSection {
+    fn id(&self) -> u8 {
+        SectionId::Import.into()
+    }
+}

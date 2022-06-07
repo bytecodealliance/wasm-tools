@@ -1,0 +1,59 @@
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 08 03       | component type section
+  0xa | 01          | 1 count
+  0xb | 41 00       | [type 0] Component([])
+  0xd | 0b 04       | component import section
+  0xf | 01          | 1 count
+ 0x10 | 00 04 00    | [component 0] ComponentImport { name: "", ty: Component(0) }
+ 0x13 | 05 08       | [component 1] inline size
+   0x15 | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+ 0x1d | 05 08       | [component 2] inline size
+   0x1f | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+ 0x27 | 05 08       | [component 3] inline size
+   0x29 | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+ 0x31 | 05 12       | [component 4] inline size
+   0x33 | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x3b | 05 08       | [component 0] inline size
+     0x3d | 00 61 73 6d | version 65546 (Component)
+          | 0a 00 01 00
+ 0x45 | 05 4e       | [component 5] inline size
+   0x47 | 00 61 73 6d | version 65546 (Component)
+        | 0a 00 01 00
+   0x4f | 01 13       | [core module 0] inline size
+     0x51 | 00 61 73 6d | version 1 (Module)
+          | 01 00 00 00
+     0x59 | 00 09       | custom section
+     0x5b | 04 6e 61 6d | name: "name"
+          | 65         
+     0x60 | 00 02       | module name
+     0x62 | 01 6d       | "m"
+   0x64 | 08 06       | component type section
+   0x66 | 01          | 1 count
+   0x67 | 40 01 00 72 | [type 0] Func(ComponentFuncType { params: [(None, Primitive(String))], result: Primitive(Unit) })
+        | 7f         
+   0x6c | 0b 04       | component import section
+   0x6e | 01          | 1 count
+   0x6f | 00 01 00    | [func 0] ComponentImport { name: "", ty: Func(0) }
+   0x72 | 0c 06       | component export section
+   0x74 | 01          | 1 count
+   0x75 | 01 61 00 11 | export ComponentExport { name: "a", kind: Module, index: 0 }
+        | 00         
+   0x7a | 08 0c       | component type section
+   0x7c | 01          | 1 count
+   0x7d | 42 02 01 40 | [type 1] Instance([Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Export { name: "b", ty: Func(0) }])
+        | 00 7f 04 01
+        | 62 01 00   
+   0x88 | 0b 04       | component import section
+   0x8a | 01          | 1 count
+   0x8b | 00 05 01    | [instance 0] ComponentImport { name: "", ty: Instance(1) }
+   0x8e | 0c 05       | component export section
+   0x90 | 01          | 1 count
+   0x91 | 01 62 05 00 | export ComponentExport { name: "b", kind: Instance, index: 0 }
+ 0x95 | 0c 05       | component export section
+ 0x97 | 01          | 1 count
+ 0x98 | 01 78 04 03 | export ComponentExport { name: "x", kind: Component, index: 3 }

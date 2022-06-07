@@ -1,5 +1,3 @@
-;; FIXME(#588) should be valid
-(assert_invalid
 (component
   (import "i" (instance $i
     (export "f1" (func $f1))
@@ -7,48 +5,44 @@
   ))
   (export "run" (func $i "f1"))
 )
-"instance 0 is not a module instance")
 
-;; FIXME(#588) should be valid
-(assert_invalid
 (component
   (import "i" (component $c
     (export "f1" (func $f1))
     (export "f2" (func $f2 (param string)))
   ))
-  (instance $i (instantiate (component $c)))
+  (instance $i (instantiate $c))
   (export "run" (func $i "f1"))
 )
-"instance 0 is not a module instance")
 
 (component
-  (import "i" (module $m
+  (import "i" (core module $m
     (export "f1" (func $f1))
     (export "f2" (func $f2 (param i32)))
   ))
-  (instance $i (instantiate (module $m)))
+  (core instance $i (instantiate $m))
 
-  (module $m2 (import "" "" (func)))
+  (core module $m2 (import "" "" (func)))
 
-  (instance (instantiate (module $m2) (with "" (instance (export "" (func $i "f1"))))))
+  (core instance (instantiate $m2 (with "" (instance (export "" (func $i "f1"))))))
 )
 
 (component
-  (import "" (module $libc
+  (import "" (core module $libc
     (export "memory" (memory 1))
     (export "table" (table 0 funcref))
     (export "func" (func))
     (export "global" (global i32))
     (export "global mut" (global (mut i64)))
   ))
-  (instance $libc (instantiate (module $libc)))
-  (alias export $libc "memory" (memory $mem))
-  (alias export $libc "table" (table $tbl))
-  (alias export $libc "func" (func $func))
-  (alias export $libc "global" (global $global))
-  (alias export $libc "global mut" (global $global_mut))
+  (core instance $libc (instantiate $libc))
+  (core alias export $libc "memory" (memory $mem))
+  (core alias export $libc "table" (table $tbl))
+  (core alias export $libc "func" (func $func))
+  (core alias export $libc "global" (global $global))
+  (core alias export $libc "global mut" (global $global_mut))
 
-  (import "x" (module $needs_libc
+  (import "x" (core module $needs_libc
     (import "" "memory" (memory 1))
     (import "" "table" (table 0 funcref))
     (import "" "func" (func))
@@ -56,7 +50,7 @@
     (import "" "global mut" (global (mut i64)))
   ))
 
-  (instance (instantiate (module $needs_libc) (with "" (instance
+  (core instance (instantiate $needs_libc (with "" (instance
     (export "memory" (memory $mem))
     (export "table" (table $tbl))
     (export "func" (func $func))
@@ -65,22 +59,19 @@
   ))))
 )
 
-;; FIXME(#588) should be valid
-(assert_invalid
 (component
   (import "" (instance $i
     (export "1" (func))
-    (export "2" (module))
+    (export "2" (core module))
     (export "3" (instance))
   ))
   (export "1" (func $i "1"))
-  (export "2" (module $i "2"))
+  (export "2" (core module $i "2"))
   (export "3" (instance $i "3"))
 )
-"instance 0 is not a module instance")
 
 (component
-  (import "" (module $libc
+  (import "" (core module $libc
     (export "memory" (memory 1))
     (export "table" (table 0 funcref))
     (export "func" (func))
@@ -88,7 +79,7 @@
     (export "global mut" (global (mut i64)))
   ))
 
-  (import "x" (module $needs_libc
+  (import "x" (core module $needs_libc
     (import "" "memory" (memory 1))
     (import "" "table" (table 0 funcref))
     (import "" "func" (func))
@@ -96,8 +87,8 @@
     (import "" "global mut" (global (mut i64)))
   ))
 
-  (instance $libc (instantiate (module $libc)))
-  (instance (instantiate (module $needs_libc) (with "" (instance
+  (core instance $libc (instantiate $libc))
+  (core instance (instantiate $needs_libc (with "" (instance
     (export "memory" (memory $libc "memory"))
     (export "table" (table $libc "table"))
     (export "func" (func $libc "func"))
@@ -107,25 +98,9 @@
 )
 
 (assert_invalid
-  (component $outer
-    (import "" (instance $i (export "a" (func))))
-
-    (import "a" (component $m
-      (import "" (component (export "a" (func))))
-    ))
-
-    (component $local
-      (alias outer $outer $i (instance))
-    )
-
-    (instance (instantiate (component $m) (with "" (component $local))))
-  )
-  "invalid leading byte (0xff) for outer alias")
-
-(assert_invalid
   (component
     (import "" (instance (export "" (func))))
-    (export "" (module 0 ""))
+    (export "" (core module 0 ""))
   )
   "export `` for instance 0 is not a module")
 
@@ -134,44 +109,42 @@
     (component
       (component (export ""))
     )
-    (instance (instantiate (component 0)))
-    (export "" (module 0 ""))
+    (instance (instantiate 0))
+    (export "" (core module 0 ""))
   )
   "export `` for instance 0 is not a module")
 
 (assert_invalid
   (component
-    (import "" (module))
-    (instance (instantiate (module 0)))
-    (alias export 0 "" (func))
+    (import "" (core module))
+    (core instance (instantiate 0))
+    (core alias export 0 "" (func))
   )
-  "instance 0 has no export named ``")
+  "core instance 0 has no export named ``")
 
 (assert_invalid
   (component
-    (module)
-    (instance (instantiate (module 0)))
-    (alias export 0 "" (func))
+    (core module)
+    (core instance (instantiate 0))
+    (core alias export 0 "" (func))
   )
-  "instance 0 has no export named ``")
+  "core instance 0 has no export named ``")
 
-;; FIXME(#588) should have a different error
 (assert_invalid
   (component
     (import "" (component))
-    (instance (instantiate (component 0)))
+    (instance (instantiate 0))
     (alias export 0 "" (func))
   )
-  "instance 0 is not a module instance")
-  (; "instance 0 has no export named ``") ;)
+  "instance 0 has no export named ``")
 
 (assert_invalid
   (component
-    (import "a" (module $a (export "" (func))))
-    (import "b" (module $b (import "" "" (func (param i32)))))
+    (import "a" (core module $a (export "" (func))))
+    (import "b" (core module $b (import "" "" (func (param i32)))))
 
-    (instance $a (instantiate (module $a)))
-    (instance $b (instantiate (module $b) (with "" (instance $a))))
+    (core instance $a (instantiate $a))
+    (core instance $b (instantiate $b (with "" (instance $a))))
   )
   "type mismatch")
 
@@ -207,7 +180,7 @@
           (import "c" (func (result s32)))
         ))
 
-        (instance (instantiate (component $C)
+        (instance (instantiate $C
           (with "a" (func $a))
           (with "b" (func $b))
           (with "c" (func $c))
@@ -218,8 +191,6 @@
 )
 
 ;; multiple projections in alias sugar
-;; FIXME(#588) should be valid
-(assert_invalid
 (component $a
   (import "" (instance $a
     (export "b" (instance
@@ -233,11 +204,10 @@
 
   (import "b" (component $b (import "" (func))))
 
-  (instance (instantiate (component $b)
+  (instance (instantiate $b
     (with "" (func $a "b" "c" "d" "f"))
   ))
 )
-"instance 3 is not a module instance")
 
 ;; alias some constructs
 (component
@@ -251,14 +221,14 @@
 )
 
 (component
-  (import "" (instance $foo (export "v" (module))))
-  (export "v" (module $foo "v"))
+  (import "" (instance $foo (export "v" (core module))))
+  (export "v" (core module $foo "v"))
 )
 
 (component $C
-  (module $m)
-  (alias outer $C $m (module $target))
-  (export "v" (module $target))
+  (core module $m)
+  (alias outer $C $m (core module $target))
+  (export "v" (core module $target))
 )
 
 (component $C
@@ -268,11 +238,11 @@
 )
 
 (assert_invalid
-  (component (alias outer 100 0 (module)))
+  (component (alias outer 100 0 (core module)))
   "invalid outer alias count of 100")
 
 (assert_invalid
-  (component (alias outer 0 0 (module)))
+  (component (alias outer 0 0 (core module)))
   "index out of bounds")
 
 (assert_invalid

@@ -26,7 +26,7 @@
 //!
 //! ```
 //! use wasm_encoder::{
-//!     CodeSection, Export, ExportSection, Function, FunctionSection, Instruction,
+//!     CodeSection, ExportKind, ExportSection, Function, FunctionSection, Instruction,
 //!     Module, TypeSection, ValType,
 //! };
 //!
@@ -47,7 +47,7 @@
 //!
 //! // Encode the export section.
 //! let mut exports = ExportSection::new();
-//! exports.export("f", Export::Function(0));
+//! exports.export("f", ExportKind::Func, 0);
 //! module.section(&exports);
 //!
 //! // Encode the code section.
@@ -72,12 +72,10 @@
 
 mod component;
 mod core;
-mod custom;
 mod raw;
 
 pub use self::component::*;
 pub use self::core::*;
-pub use self::custom::*;
 pub use self::raw::*;
 
 /// Implemented by types that can be encoded into a byte sink.
@@ -151,8 +149,7 @@ fn encoding_size(n: u32) -> usize {
     leb128::write::unsigned(&mut &mut buf[..], n.into()).unwrap()
 }
 
-fn encode_section(sink: &mut Vec<u8>, id: impl Into<u8>, count: u32, bytes: &[u8]) {
-    sink.push(id.into());
+fn encode_section(sink: &mut Vec<u8>, count: u32, bytes: &[u8]) {
     (encoding_size(count) + bytes.len()).encode(sink);
     count.encode(sink);
     sink.extend(bytes);

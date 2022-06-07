@@ -252,22 +252,22 @@ impl RemoveItem {
                     let mut result = ExportSection::new();
                     for item in ExportSectionReader::new(section.data, 0)? {
                         let item = item?;
-                        let e = match &item.kind {
+                        let (kind, index) = match &item.kind {
                             ExternalKind::Func => {
-                                Export::Function(self.remap(Item::Function, item.index)?)
+                                (ExportKind::Func, self.remap(Item::Function, item.index)?)
                             }
                             ExternalKind::Table => {
-                                Export::Table(self.remap(Item::Table, item.index)?)
+                                (ExportKind::Table, self.remap(Item::Table, item.index)?)
                             }
                             ExternalKind::Memory => {
-                                Export::Memory(self.remap(Item::Memory, item.index)?)
+                                (ExportKind::Memory, self.remap(Item::Memory, item.index)?)
                             }
-                            ExternalKind::Tag => Export::Tag(self.remap(Item::Tag, item.index)?),
+                            ExternalKind::Tag => (ExportKind::Tag, self.remap(Item::Tag, item.index)?),
                             ExternalKind::Global => {
-                                Export::Global(self.remap(Item::Global, item.index)?)
+                                (ExportKind::Global, self.remap(Item::Global, item.index)?)
                             }
                         };
-                        result.export(item.name, e);
+                        result.export(item.name, kind, index);
                     }
                     module.section(&result);
                 },

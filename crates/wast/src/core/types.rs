@@ -633,12 +633,30 @@ pub enum TypeDef<'a> {
     Array(ArrayType<'a>),
 }
 
+impl<'a> Parse<'a> for TypeDef<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::func>() {
+            parser.parse::<kw::func>()?;
+            Ok(TypeDef::Func(parser.parse()?))
+        } else if l.peek::<kw::r#struct>() {
+            parser.parse::<kw::r#struct>()?;
+            Ok(TypeDef::Struct(parser.parse()?))
+        } else if l.peek::<kw::array>() {
+            parser.parse::<kw::array>()?;
+            Ok(TypeDef::Array(parser.parse()?))
+        } else {
+            Err(l.error())
+        }
+    }
+}
+
 /// A type declaration in a module
 #[derive(Debug)]
 pub struct Type<'a> {
     /// Where this type was defined.
     pub span: Span,
-    /// An optional identifer to refer to this `type` by as part of name
+    /// An optional identifier to refer to this `type` by as part of name
     /// resolution.
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
@@ -652,21 +670,7 @@ impl<'a> Parse<'a> for Type<'a> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
-        let def = parser.parens(|parser| {
-            let mut l = parser.lookahead1();
-            if l.peek::<kw::func>() {
-                parser.parse::<kw::func>()?;
-                Ok(TypeDef::Func(parser.parse()?))
-            } else if l.peek::<kw::r#struct>() {
-                parser.parse::<kw::r#struct>()?;
-                Ok(TypeDef::Struct(parser.parse()?))
-            } else if l.peek::<kw::array>() {
-                parser.parse::<kw::array>()?;
-                Ok(TypeDef::Array(parser.parse()?))
-            } else {
-                Err(l.error())
-            }
-        })?;
+        let def = parser.parens(|parser| parser.parse())?;
         Ok(Type {
             span,
             id,

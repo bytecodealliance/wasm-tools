@@ -1,11 +1,11 @@
 (component
-  (module $m
+  (core module $m
     (func (export ""))
   )
-  (module $m2 (import "" "a" (func)))
-  (instance $M (instantiate (module $m)))
-  (alias export $M "" (func $f))
-  (instance (instantiate (module $m2) (with "" (instance
+  (core module $m2 (import "" "a" (func)))
+  (core instance $M (instantiate $m))
+  (core alias export $M "" (func $f))
+  (core instance (instantiate $m2 (with "" (instance
     (export "a" (func $f))
   ))))
 )

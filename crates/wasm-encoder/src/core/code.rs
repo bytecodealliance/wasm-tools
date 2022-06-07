@@ -96,11 +96,15 @@ impl CodeSection {
 
 impl Encode for CodeSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Code, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for CodeSection {}
+impl Section for CodeSection {
+    fn id(&self) -> u8 {
+        SectionId::Code.into()
+    }
+}
 
 /// An encoder for a function body within the code section.
 ///

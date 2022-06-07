@@ -6,31 +6,36 @@
     (export "" (func))
   ))
   (import "d" (component
-    (import "" (module))
+    (import "" (core module))
     (export "" (func))
   ))
 )
 
-;; TODO: these tests will all eventually fail once the binary format is updated
-;; again. Currently the text parser ignores the "kind" on the import field but
-;; it will one day be encode as part of the binary format.
-(component
-  (type $f (func))
-  (import "" (instance (type $f)))
-)
-(component
-  (type $f (func))
-  (import "" (module (type $f)))
-)
-(component
-  (type $f (module))
-  (import "" (func (type $f)))
-)
+(assert_invalid
+  (component
+    (type $f (func))
+    (import "" (instance (type $f)))
+  )
+  "type index 0 is not an instance type")
+
+(assert_invalid
+  (component
+    (core type $f (func))
+    (import "" (core module (type $f)))
+  )
+  "core type index 0 is not a module type")
+
+(assert_invalid
+  (component
+    (type $f string)
+    (import "" (func (type $f)))
+  )
+  "type index 0 is not a function type")
 
 ;; Disallow duplicate imports for core wasm modules
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (import "" "" (func))
       (import "" "" (func))
     ))
@@ -38,7 +43,7 @@
   "duplicate import name `:`")
 (assert_invalid
   (component
-    (module
+    (core module
       (import "" "" (func))
       (import "" "" (func))
     )
@@ -46,7 +51,7 @@
   "duplicate import name `:`")
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (import "" "a" (func))
       (import "" "a" (func))
     ))
@@ -54,7 +59,7 @@
   "duplicate import name `:a`")
 (assert_invalid
   (component
-    (module
+    (core module
       (import "" "a" (func))
       (import "" "a" (func))
     )
@@ -85,9 +90,9 @@
 
 (assert_invalid
   (component
-    (module $m (func (export "")))
-    (instance $i (instantiate (module $m)))
-    (func (canon.lift (type 100) (func $i "")))
+    (core module $m (func (export "")))
+    (core instance $i (instantiate $m))
+    (func (type 100) (canon lift (core func $i "")))
   )
   "type index out of bounds")
 

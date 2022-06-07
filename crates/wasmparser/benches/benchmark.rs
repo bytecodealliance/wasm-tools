@@ -157,35 +157,50 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             }
 
             // Component sections
-            ComponentTypeSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentImportSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentFunctionSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
             ModuleSection { .. } => {}
-            ComponentSection { .. } => {}
             InstanceSection(s) => {
                 for item in s {
                     item?;
                 }
             }
-            ComponentExportSection(s) => {
+            AliasSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            CoreTypeSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            ComponentSection { .. } => {}
+            ComponentInstanceSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            ComponentAliasSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            ComponentTypeSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            ComponentCanonicalSection(s) => {
                 for item in s {
                     item?;
                 }
             }
             ComponentStartSection { .. } => {}
-            AliasSection(s) => {
+            ComponentImportSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            ComponentExportSection(s) => {
                 for item in s {
                     item?;
                 }

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{FuncType, GlobalType, MemoryType, TableType, Type};
+use crate::{FuncType, GlobalType, MemoryType, TableType, ValType};
 use std::ops::Range;
 
 /// Types that qualify as Wasm function types for validation purposes.
@@ -28,14 +28,14 @@ pub trait WasmFuncType {
     ///
     /// The returned type may be wrapped by the user crate and thus
     /// the actually returned type only has to be comparable to a Wasm type.
-    fn input_at(&self, at: u32) -> Option<Type>;
+    fn input_at(&self, at: u32) -> Option<ValType>;
     /// Returns the type at given index if any.
     ///
     /// # Note
     ///
     /// The returned type may be wrapped by the user crate and thus
     /// the actually returned type only has to be comparable to a Wasm type.
-    fn output_at(&self, at: u32) -> Option<Type>;
+    fn output_at(&self, at: u32) -> Option<ValType>;
 
     /// Returns the list of inputs as an iterator.
     fn inputs(&self) -> WasmFuncTypeInputs<'_, Self>
@@ -70,10 +70,10 @@ where
     fn len_outputs(&self) -> usize {
         T::len_outputs(self)
     }
-    fn input_at(&self, at: u32) -> Option<Type> {
+    fn input_at(&self, at: u32) -> Option<ValType> {
         T::input_at(self, at)
     }
-    fn output_at(&self, at: u32) -> Option<Type> {
+    fn output_at(&self, at: u32) -> Option<ValType> {
         T::output_at(self, at)
     }
 }
@@ -90,7 +90,7 @@ impl<T> Iterator for WasmFuncTypeInputs<'_, T>
 where
     T: WasmFuncType,
 {
-    type Item = crate::Type;
+    type Item = crate::ValType;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range
@@ -144,7 +144,7 @@ impl<T> Iterator for WasmFuncTypeOutputs<'_, T>
 where
     T: WasmFuncType,
 {
-    type Item = crate::Type;
+    type Item = crate::ValType;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range
@@ -211,7 +211,7 @@ pub trait WasmModuleResources {
     /// Returns the `FuncType` associated with the given function index.
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType>;
     /// Returns the element type at the given index.
-    fn element_type_at(&self, at: u32) -> Option<Type>;
+    fn element_type_at(&self, at: u32) -> Option<ValType>;
 
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
@@ -246,7 +246,7 @@ where
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
         T::type_of_function(self, func_idx)
     }
-    fn element_type_at(&self, at: u32) -> Option<Type> {
+    fn element_type_at(&self, at: u32) -> Option<ValType> {
         T::element_type_at(self, at)
     }
 
@@ -291,7 +291,7 @@ where
         T::type_of_function(self, func_idx)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<Type> {
+    fn element_type_at(&self, at: u32) -> Option<ValType> {
         T::element_type_at(self, at)
     }
 
@@ -317,11 +317,11 @@ impl WasmFuncType for FuncType {
         self.returns.len()
     }
 
-    fn input_at(&self, at: u32) -> Option<Type> {
+    fn input_at(&self, at: u32) -> Option<ValType> {
         self.params.get(at as usize).copied()
     }
 
-    fn output_at(&self, at: u32) -> Option<Type> {
+    fn output_at(&self, at: u32) -> Option<ValType> {
         self.returns.get(at as usize).copied()
     }
 }

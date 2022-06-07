@@ -1,7 +1,6 @@
 use crate::{Error, Result};
 use std::convert::TryFrom;
 use wasm_encoder::{BlockType, ValType};
-use wasmparser::{Type, TypeDef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
@@ -27,26 +26,26 @@ pub enum TypeInfo {
     // TODO: module linking support will require instance and module types.
 }
 
-impl From<Type> for PrimitiveTypeInfo {
-    fn from(value: Type) -> Self {
+impl From<wasmparser::ValType> for PrimitiveTypeInfo {
+    fn from(value: wasmparser::ValType) -> Self {
         match value {
-            Type::I32 => PrimitiveTypeInfo::I32,
-            Type::I64 => PrimitiveTypeInfo::I64,
-            Type::F32 => PrimitiveTypeInfo::F32,
-            Type::F64 => PrimitiveTypeInfo::F64,
-            Type::V128 => PrimitiveTypeInfo::V128,
-            Type::FuncRef => PrimitiveTypeInfo::FuncRef,
-            Type::ExternRef => PrimitiveTypeInfo::ExternRef,
+            wasmparser::ValType::I32 => PrimitiveTypeInfo::I32,
+            wasmparser::ValType::I64 => PrimitiveTypeInfo::I64,
+            wasmparser::ValType::F32 => PrimitiveTypeInfo::F32,
+            wasmparser::ValType::F64 => PrimitiveTypeInfo::F64,
+            wasmparser::ValType::V128 => PrimitiveTypeInfo::V128,
+            wasmparser::ValType::FuncRef => PrimitiveTypeInfo::FuncRef,
+            wasmparser::ValType::ExternRef => PrimitiveTypeInfo::ExternRef,
         }
     }
 }
 
-impl TryFrom<TypeDef> for TypeInfo {
+impl TryFrom<wasmparser::Type> for TypeInfo {
     type Error = Error;
 
-    fn try_from(value: TypeDef) -> Result<Self> {
+    fn try_from(value: wasmparser::Type) -> Result<Self> {
         match value {
-            TypeDef::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
+            wasmparser::Type::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
                     .params
                     .iter()
@@ -62,15 +61,15 @@ impl TryFrom<TypeDef> for TypeInfo {
     }
 }
 
-pub fn map_type(tpe: Type) -> Result<ValType> {
+pub fn map_type(tpe: wasmparser::ValType) -> Result<ValType> {
     match tpe {
-        Type::I32 => Ok(ValType::I32),
-        Type::I64 => Ok(ValType::I64),
-        Type::F32 => Ok(ValType::F32),
-        Type::F64 => Ok(ValType::F64),
-        Type::V128 => Ok(ValType::V128),
-        Type::FuncRef => Ok(ValType::FuncRef),
-        Type::ExternRef => Ok(ValType::ExternRef),
+        wasmparser::ValType::I32 => Ok(ValType::I32),
+        wasmparser::ValType::I64 => Ok(ValType::I64),
+        wasmparser::ValType::F32 => Ok(ValType::F32),
+        wasmparser::ValType::F64 => Ok(ValType::F64),
+        wasmparser::ValType::V128 => Ok(ValType::V128),
+        wasmparser::ValType::FuncRef => Ok(ValType::FuncRef),
+        wasmparser::ValType::ExternRef => Ok(ValType::ExternRef),
     }
 }
 

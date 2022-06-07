@@ -14,7 +14,7 @@ use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
-use wasm_encoder::{BlockType, Export, ValType};
+use wasm_encoder::{BlockType, ExportKind, ValType};
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
 // NB: these constants are used to control the rate at which various events
@@ -110,7 +110,7 @@ pub struct Module {
     /// entry is the type of each memory.
     memories: Vec<MemoryType>,
 
-    exports: Vec<(String, Export)>,
+    exports: Vec<(String, ExportKind, u32)>,
     start: Option<u32>,
     elems: Vec<ElementSegment>,
     code: Vec<Code>,
@@ -409,7 +409,7 @@ impl Module {
     }
 
     fn can_add_local_or_import_func(&self) -> bool {
-        self.func_types.len() > 0 && self.funcs.len() < self.config.max_funcs()
+        !self.func_types.is_empty() && self.funcs.len() < self.config.max_funcs()
     }
 
     fn can_add_local_or_import_table(&self) -> bool {
@@ -502,15 +502,15 @@ impl Module {
             match &entity_type {
                 EntityType::Tag(ty) => self.tags.push(ty.clone()),
                 EntityType::Func(idx, ty) => self.funcs.push((*idx, ty.clone())),
-                EntityType::Global(ty) => self.globals.push(ty.clone()),
-                EntityType::Table(ty) => self.tables.push(ty.clone()),
-                EntityType::Memory(ty) => self.memories.push(ty.clone()),
+                EntityType::Global(ty) => self.globals.push(*ty),
+                EntityType::Table(ty) => self.tables.push(*ty),
+                EntityType::Memory(ty) => self.memories.push(*ty),
             }
 
             self.num_imports += 1;
             self.imports.push(Import {
-                module: module.into(),
-                field: field.into(),
+                module,
+                field,
                 entity_type,
             });
             Ok(true)
@@ -537,7 +537,7 @@ impl Module {
         // index in our newly generated module. Initially the option is `None` and will become a
         // `Some` when we encounter an import that uses this signature in the next portion of this
         // function. See also the `make_func_type` closure below.
-        let mut available_types = Vec::<(wasmparser::TypeDef, Option<u32>)>::new();
+        let mut available_types = Vec::<(wasmparser::Type, Option<u32>)>::new();
         let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
@@ -577,10 +577,10 @@ impl Module {
             let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
                 None => panic!("signature index refers to a type out of bounds"),
                 Some((_, Some(idx))) => *idx as usize,
-                Some((wasmparser::TypeDef::Func(func_type), index_store)) => {
+                Some((wasmparser::Type::Func(func_type), index_store)) => {
                     let multi_value_required = func_type.returns.len() > 1;
                     let new_index = first_type_index + new_types.len();
-                    if new_index >= max_types || multi_value_required > multi_value_enabled {
+                    if new_index >= max_types || (multi_value_required && !multi_value_enabled) {
                         return None;
                     }
                     let func_type = Rc::new(FuncType {
@@ -657,7 +657,7 @@ impl Module {
                         maximum: memory_ty.maximum,
                         memory64: memory_ty.memory64,
                     };
-                    let entity = EntityType::Memory(memory_ty.clone());
+                    let entity = EntityType::Memory(memory_ty);
                     let type_size = entity.size();
                     if type_size_budget < type_size || !self.can_add_local_or_import_memory() {
                         continue;
@@ -697,16 +697,16 @@ impl Module {
         Ok(true)
     }
 
-    fn type_of(&self, item: &Export) -> EntityType {
-        match *item {
-            Export::Global(idx) => EntityType::Global(self.globals[idx as usize].clone()),
-            Export::Memory(idx) => EntityType::Memory(self.memories[idx as usize].clone()),
-            Export::Table(idx) => EntityType::Table(self.tables[idx as usize].clone()),
-            Export::Function(idx) => {
-                let (_idx, ty) = &self.funcs[idx as usize];
+    fn type_of(&self, kind: ExportKind, index: u32) -> EntityType {
+        match kind {
+            ExportKind::Global => EntityType::Global(self.globals[index as usize]),
+            ExportKind::Memory => EntityType::Memory(self.memories[index as usize]),
+            ExportKind::Table => EntityType::Table(self.tables[index as usize]),
+            ExportKind::Func => {
+                let (_idx, ty) = &self.funcs[index as usize];
                 EntityType::Func(u32::max_value(), ty.clone())
             }
-            Export::Tag(idx) => EntityType::Tag(self.tags[idx as usize].clone()),
+            ExportKind::Tag => EntityType::Tag(self.tags[index as usize].clone()),
         }
     }
 
@@ -714,7 +714,7 @@ impl Module {
         &self.types[idx as usize]
     }
 
-    fn func_types<'a>(&'a self) -> impl Iterator<Item = (u32, &'a FuncType)> + 'a {
+    fn func_types(&self) -> impl Iterator<Item = (u32, &FuncType)> + '_ {
         self.func_types
             .iter()
             .copied()
@@ -727,14 +727,14 @@ impl Module {
         }
     }
 
-    fn tags<'a>(&'a self) -> impl Iterator<Item = (u32, &'a TagType)> + 'a {
+    fn tags(&self) -> impl Iterator<Item = (u32, &TagType)> + '_ {
         self.tags
             .iter()
             .enumerate()
             .map(move |(i, ty)| (i as u32, ty))
     }
 
-    fn funcs<'a>(&'a self) -> impl Iterator<Item = (u32, &'a Rc<FuncType>)> + 'a {
+    fn funcs(&self) -> impl Iterator<Item = (u32, &Rc<FuncType>)> + '_ {
         self.funcs
             .iter()
             .enumerate()
@@ -745,11 +745,11 @@ impl Module {
         self.tag_func_types().next().is_some()
     }
 
-    fn tag_func_types<'a>(&'a self) -> impl Iterator<Item = u32> + 'a {
+    fn tag_func_types(&self) -> impl Iterator<Item = u32> + '_ {
         self.func_types
             .iter()
             .copied()
-            .filter(move |i| self.func_type(*i).results.len() == 0)
+            .filter(move |i| self.func_type(*i).results.is_empty())
     }
 
     fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
@@ -894,25 +894,25 @@ impl Module {
         }
 
         // Build up a list of candidates for each class of import
-        let mut choices: Vec<Vec<Export>> = Vec::with_capacity(6);
+        let mut choices: Vec<Vec<(ExportKind, u32)>> = Vec::with_capacity(6);
         choices.push(
             (0..self.funcs.len())
-                .map(|i| Export::Function(i as u32))
+                .map(|i| (ExportKind::Func, i as u32))
                 .collect(),
         );
         choices.push(
             (0..self.tables.len())
-                .map(|i| Export::Table(i as u32))
+                .map(|i| (ExportKind::Table, i as u32))
                 .collect(),
         );
         choices.push(
             (0..self.memories.len())
-                .map(|i| Export::Memory(i as u32))
+                .map(|i| (ExportKind::Memory, i as u32))
                 .collect(),
         );
         choices.push(
             (0..self.globals.len())
-                .map(|i| Export::Global(i as u32))
+                .map(|i| (ExportKind::Global, i as u32))
                 .collect(),
         );
 
@@ -929,10 +929,10 @@ impl Module {
                 // If there's nothing remaining after this, then we're done.
                 let max_size = self.config.max_type_size() - self.type_size;
                 for list in choices.iter_mut() {
-                    list.retain(|c| self.type_of(c).size() + 1 < max_size);
+                    list.retain(|(kind, idx)| self.type_of(*kind, *idx).size() + 1 < max_size);
                 }
-                choices.retain(|list| list.len() > 0);
-                if choices.len() == 0 {
+                choices.retain(|list| !list.is_empty());
+                if choices.is_empty() {
                     return Ok(false);
                 }
 
@@ -940,10 +940,10 @@ impl Module {
                 // information about the chosen export.
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let list = u.choose(&choices)?;
-                let export = u.choose(list)?;
-                let ty = self.type_of(export);
+                let (kind, idx) = *u.choose(list)?;
+                let ty = self.type_of(kind, idx);
                 self.type_size += 1 + ty.size();
-                self.exports.push((name, *export));
+                self.exports.push((name, kind, idx));
                 Ok(true)
             },
         )
@@ -1062,10 +1062,10 @@ impl Module {
 
                 // Select a kind for this segment now that we know the number of
                 // items the segment will hold.
-                let (kind, max_size_hint) = u.choose(&kind_candidates)?(u)?;
+                let (kind, max_size_hint) = u.choose(kind_candidates)?(u)?;
                 let max = max_size_hint
                     .map(|i| usize::try_from(i).unwrap())
-                    .unwrap_or(self.config.max_elements());
+                    .unwrap_or_else(|| self.config.max_elements());
 
                 // Pick whether we're going to use expression elements or
                 // indices. Note that externrefs must use expressions,
@@ -1207,7 +1207,7 @@ impl Module {
         // With memories we can generate data segments, and with bulk memory we
         // can generate passive segments. Without these though we can't create
         // a valid module with data segments.
-        if memories.len() == 0 && !self.config.bulk_memory_enabled() {
+        if memories.is_empty() && !self.config.bulk_memory_enabled() {
             return Ok(());
         }
 
@@ -1317,10 +1317,7 @@ pub(crate) fn arbitrary_func_type(
         results.push(arbitrary_valtype(u, valtypes)?);
         Ok(true)
     })?;
-    Ok(Rc::new(FuncType {
-        params: params.into(),
-        results: results.into(),
-    }))
+    Ok(Rc::new(FuncType { params, results }))
 }
 
 fn arbitrary_valtype(u: &mut Unstructured, valtypes: &[ValType]) -> Result<ValType> {
@@ -1435,13 +1432,13 @@ fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -
             output.end
         );
 
-        let x = map_linear(value, input.clone(), 0.0..1.0);
+        let x = map_linear(value, input, 0.0..1.0);
         let result = if x < PCT_INBOUNDS {
             if output_inbounds.start == output_inbounds.end {
                 output_inbounds.start
             } else {
                 let unscaled = x * x * x * x * x * x;
-                map_linear(unscaled, 0.0..1.0, output_inbounds.clone())
+                map_linear(unscaled, 0.0..1.0, output_inbounds)
             }
         } else {
             map_linear(x, 0.0..1.0, output.clone())
@@ -1511,9 +1508,9 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
     Ok(u.bytes(size)?.to_vec())
 }
 
-/// Convert a wasmparser's `Type` to a `wasm_encoder::ValType`.
-fn convert_type(parsed_type: wasmparser::Type) -> ValType {
-    use wasmparser::Type::*;
+/// Convert a wasmparser's `ValType` to a `wasm_encoder::ValType`.
+fn convert_type(parsed_type: wasmparser::ValType) -> ValType {
+    use wasmparser::ValType::*;
     match parsed_type {
         I32 => ValType::I32,
         I64 => ValType::I64,

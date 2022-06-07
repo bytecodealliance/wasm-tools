@@ -1,55 +1,54 @@
-;; FIXME(#590) these should be invalid
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (instance))
     (import "" (func (type $t)))
   )
-  (; "type index is not a function") ;)
+  "type index 0 is not a function type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
-    (type $t (instance))
-    (import "" (module (type $t)))
+    (core type $t (func))
+    (import "" (core module (type $t)))
   )
-  (; "type index is not a module") ;)
+  "core type index 0 is not a module type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (func))
     (import "" (instance (type $t)))
   )
-  (; "type index is not an instance") ;)
+  "type index 0 is not an instance type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (func))
     (type (component
       (import "" (instance (type $t)))
     ))
   )
-  (; "type index is not an instance") ;)
+  "type index 0 is not an instance type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
-    (type $t (func))
+    (core type $t (func))
     (type (component
-      (import "" (module (type $t)))
+      (import "" (core module (type $t)))
     ))
   )
-  (; "type index is not a module") ;)
+  "core type index 0 is not a module type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (instance))
     (type (component
       (import "" (func (type $t)))
     ))
   )
-  (; "type index is not a func") ;)
+  "type index 0 is not a function type")
 
 (assert_invalid
   (component
-    (export "" (module 0))
+    (export "" (core module 0))
   )
   "module index out of bounds")
 
@@ -61,7 +60,7 @@
 
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (export "" (func (type 0)))
     ))
   )
@@ -69,7 +68,7 @@
 
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (export "" (func))
       (export "" (func))
     ))
@@ -78,7 +77,7 @@
 
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (import "" "" (func))
       (import "" "" (func))
     ))
@@ -87,7 +86,7 @@
 
 (assert_invalid
   (component
-    (type (module
+    (core type (module
       (import "" "" (memory 70000))
     ))
   )
@@ -148,7 +147,7 @@
   (component $c
     (type $f (func))
     (type $t (component
-      (type (module
+      (core type (module
         (export "" (func))
         (export "" (func))
       ))
@@ -202,7 +201,7 @@
   (component $c
     (type $f (func))
     (type $t (instance
-      (type (module
+      (core type (module
         (export "" (func))
         (export "" (func))
       ))

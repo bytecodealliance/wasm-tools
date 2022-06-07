@@ -478,7 +478,7 @@ pub mod kw {
     custom_keyword!(u64);
     custom_keyword!(char);
     custom_keyword!(case);
-    custom_keyword!(defaults_to = "defaults-to");
+    custom_keyword!(refines);
     custom_keyword!(record);
     custom_keyword!(string);
     custom_keyword!(bool_ = "bool");
@@ -492,13 +492,15 @@ pub mod kw {
     custom_keyword!(list);
     custom_keyword!(union);
     custom_keyword!(expected);
-    custom_keyword!(canon_lift = "canon.lift");
-    custom_keyword!(canon_lower = "canon.lower");
+    custom_keyword!(canon);
+    custom_keyword!(lift);
+    custom_keyword!(lower);
     custom_keyword!(enum_ = "enum");
-    custom_keyword!(string_utf8 = "string=utf8");
-    custom_keyword!(string_utf16 = "string=utf16");
-    custom_keyword!(string_latin1_utf16 = "string=latin1+utf16");
-    custom_keyword!(into);
+    custom_keyword!(string_utf8 = "string-encoding=utf8");
+    custom_keyword!(string_utf16 = "string-encoding=utf16");
+    custom_keyword!(string_latin1_utf16 = "string-encoding=latin1+utf16");
+    custom_keyword!(realloc);
+    custom_keyword!(post_return = "post-return");
     custom_keyword!(with);
     custom_keyword!(core);
 }

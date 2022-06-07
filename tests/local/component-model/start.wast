@@ -45,11 +45,3 @@
     (start $f (result))
   )
   "cannot have more than one start")
-
-(assert_invalid
-  (component
-    (module $m (func (export "")))
-    (instance $i (instantiate (module $m)))
-    (start (func $i "") (result))
-  )
-  "not a component function")

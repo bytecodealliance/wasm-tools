@@ -1,12 +1,13 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 01 20       | type section
+  0x8 | 08 23       | component type section
   0xa | 01          | 1 count
-  0xb | 4d 03 01 4c | [type 0] Instance([Type(Function(ComponentFuncType { params: [], result: Primitive(Unit) })), Type(Component([Type(Function(ComponentFuncType { params: [], result: Primitive(Unit) })), OuterType { count: 1, index: 0 }, Import(ComponentImport { name: "1", ty: 0 }), Export { name: "1", ty: 1 }])), Export { name: "c5", ty: 1 }])
-      | 00 7f 01 4e
-      | 04 01 4c 00
-      | 7f 09 02 05
-      | 01 00 02 01
-      | 31 00 07 01
-      | 31 01 07 02
-      | 63 35 01   
+  0xb | 42 03 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Type(Component([Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Alias(Outer { kind: Type, count: 1, index: 0 }), Import(ComponentImport { name: "1", ty: Func(0) }), Export { name: "1", ty: Func(1) }])), Export { name: "c5", ty: Component(1) }])
+      | 00 7f 01 41
+      | 04 01 40 00
+      | 7f 02 03 01
+      | 01 00 03 01
+      | 31 01 00 04
+      | 01 31 01 01
+      | 04 02 63 35
+      | 04 01      

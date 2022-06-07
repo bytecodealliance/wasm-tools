@@ -19,7 +19,7 @@ use crate::{
 };
 use std::ops::Range;
 
-/// Represents a reference to a type definition.
+/// Represents a reference to a type definition in a WebAssembly module.
 #[derive(Debug, Clone, Copy)]
 pub enum TypeRef {
     /// The type is a function.

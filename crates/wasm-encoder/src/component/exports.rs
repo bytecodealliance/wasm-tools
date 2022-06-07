@@ -1,18 +1,62 @@
-use crate::{encode_section, ComponentArg, ComponentSection, ComponentSectionId, Encode};
+use super::{
+    COMPONENT_SORT, CORE_MODULE_SORT, CORE_SORT, FUNCTION_SORT, INSTANCE_SORT, TYPE_SORT,
+    VALUE_SORT,
+};
+use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
 
-/// Represents an export for a WebAssembly component.
-pub type ComponentExport = ComponentArg;
+/// Represents the kind of an export from a WebAssembly component.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ComponentExportKind {
+    /// The export is a core module.
+    Module,
+    /// The export is a function.
+    Func,
+    /// The export is a value.
+    Value,
+    /// The export is a type.
+    Type,
+    /// The export is an instance.
+    Instance,
+    /// The export is a component.
+    Component,
+}
+
+impl Encode for ComponentExportKind {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            Self::Module => {
+                sink.push(CORE_SORT);
+                sink.push(CORE_MODULE_SORT);
+            }
+            Self::Func => {
+                sink.push(FUNCTION_SORT);
+            }
+            Self::Value => {
+                sink.push(VALUE_SORT);
+            }
+            Self::Type => {
+                sink.push(TYPE_SORT);
+            }
+            Self::Instance => {
+                sink.push(INSTANCE_SORT);
+            }
+            Self::Component => {
+                sink.push(COMPONENT_SORT);
+            }
+        }
+    }
+}
 
 /// An encoder for the export section of WebAssembly component.
 ///
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentExportSection, ComponentExport};
+/// use wasm_encoder::{Component, ComponentExportSection, ComponentExportKind};
 ///
-/// // This exports an instance named "foo" that exports a function named "bar".
+/// // This exports a function named "foo"
 /// let mut exports = ComponentExportSection::new();
-/// exports.export("foo", ComponentExport::Function(0));
+/// exports.export("foo", ComponentExportKind::Func, 0);
 ///
 /// let mut component = Component::new();
 /// component.section(&exports);
@@ -42,9 +86,10 @@ impl ComponentExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export(&mut self, name: &str, export: impl Into<ComponentExport>) -> &mut Self {
+    pub fn export(&mut self, name: &str, kind: ComponentExportKind, index: u32) -> &mut Self {
         name.encode(&mut self.bytes);
-        export.into().encode(&mut self.bytes);
+        kind.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -52,13 +97,12 @@ impl ComponentExportSection {
 
 impl Encode for ComponentExportSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(
-            sink,
-            ComponentSectionId::Export,
-            self.num_added,
-            &self.bytes,
-        );
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl ComponentSection for ComponentExportSection {}
+impl ComponentSection for ComponentExportSection {
+    fn id(&self) -> u8 {
+        ComponentSectionId::Export.into()
+    }
+}

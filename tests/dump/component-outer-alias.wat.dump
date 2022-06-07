@@ -1,40 +1,40 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 01 0c       | type section
+  0x8 | 08 0d       | component type section
   0xa | 02          | 2 count
-  0xb | 72          | [type 0] Interface(Primitive(String))
-  0xc | 4e 02 09 02 | [type 1] Component([OuterType { count: 1, index: 0 }, Type(Value(Type(0)))])
-      | 05 01 00 01
-      | 4b 00      
- 0x16 | 05 14       | [component 0] inline size
-   0x18 | 00 61 73 6d | version 65546 (Component)
+  0xb | 72          | [type 0] Defined(Primitive(String))
+  0xc | 41 02 02 03 | [type 1] Component([Alias(Outer { kind: Type, count: 1, index: 0 }), Type(Func(ComponentFuncType { params: [], result: Type(0) }))])
+      | 01 01 00 01
+      | 40 00 00   
+ 0x17 | 05 15       | [component 0] inline size
+   0x19 | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x20 | 09 05       | alias section
-   0x22 | 01          | 1 count
-   0x23 | 02 05 01 00 | alias [type 0] OuterType { count: 1, index: 0 }
-   0x27 | 01 03       | type section
-   0x29 | 01          | 1 count
-   0x2a | 4b 00       | [type 1] Value(Type(0))
- 0x2c | 05 16       | [component 1] inline size
-   0x2e | 00 61 73 6d | version 65546 (Component)
+   0x21 | 07 05       | component alias section
+   0x23 | 01          | 1 count
+   0x24 | 03 01 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
+   0x28 | 08 04       | component type section
+   0x2a | 01          | 1 count
+   0x2b | 40 00 00    | [type 1] Func(ComponentFuncType { params: [], result: Type(0) })
+ 0x2e | 05 18       | [component 1] inline size
+   0x30 | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x36 | 09 05       | alias section
-   0x38 | 01          | 1 count
-   0x39 | 02 05 01 00 | alias [type 0] OuterType { count: 1, index: 0 }
-   0x3d | 01 05       | type section
-   0x3f | 02          | 2 count
-   0x40 | 4b 00       | [type 1] Value(Type(0))
-   0x42 | 4b 00       | [type 2] Value(Type(0))
- 0x44 | 01 02       | type section
- 0x46 | 01          | 1 count
- 0x47 | 7c          | [type 2] Interface(Primitive(U8))
- 0x48 | 05 16       | [component 2] inline size
-   0x4a | 00 61 73 6d | version 65546 (Component)
+   0x38 | 07 05       | component alias section
+   0x3a | 01          | 1 count
+   0x3b | 03 01 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
+   0x3f | 08 07       | component type section
+   0x41 | 02          | 2 count
+   0x42 | 40 00 00    | [type 1] Func(ComponentFuncType { params: [], result: Type(0) })
+   0x45 | 40 00 00    | [type 2] Func(ComponentFuncType { params: [], result: Type(0) })
+ 0x48 | 08 02       | component type section
+ 0x4a | 01          | 1 count
+ 0x4b | 7c          | [type 2] Defined(Primitive(U8))
+ 0x4c | 05 18       | [component 2] inline size
+   0x4e | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x52 | 09 05       | alias section
-   0x54 | 01          | 1 count
-   0x55 | 02 05 01 02 | alias [type 0] OuterType { count: 1, index: 2 }
-   0x59 | 01 05       | type section
-   0x5b | 02          | 2 count
-   0x5c | 4b 00       | [type 1] Value(Type(0))
-   0x5e | 4b 00       | [type 2] Value(Type(0))
+   0x56 | 07 05       | component alias section
+   0x58 | 01          | 1 count
+   0x59 | 03 01 01 02 | alias [type 0] Outer { kind: Type, count: 1, index: 2 }
+   0x5d | 08 07       | component type section
+   0x5f | 02          | 2 count
+   0x60 | 40 00 00    | [type 1] Func(ComponentFuncType { params: [], result: Type(0) })
+   0x63 | 40 00 00    | [type 2] Func(ComponentFuncType { params: [], result: Type(0) })

@@ -29,15 +29,21 @@ struct Dump<'a> {
 
 #[derive(Default)]
 struct Indices {
-    funcs: u32,
-    globals: u32,
-    tables: u32,
-    memories: u32,
-    tags: u32,
+    // Core module indexes
+    core_types: u32,
+    core_funcs: u32,
+    core_globals: u32,
+    core_tables: u32,
+    core_memories: u32,
+    core_tags: u32,
+    core_modules: u32,
+    core_instances: u32,
+
+    // Component indexes
     types: u32,
-    instances: u32,
+    funcs: u32,
     components: u32,
-    modules: u32,
+    instances: u32,
     values: u32,
 }
 
@@ -45,9 +51,7 @@ enum ComponentTypeKind {
     Func,
     Component,
     Instance,
-    Module,
-    Value,
-    Type,
+    DefinedType,
 }
 
 const NBYTES: usize = 4;
@@ -87,40 +91,44 @@ impl<'a> Dump<'a> {
                     self.print(range.end)?;
                 }
                 Payload::TypeSection(s) => self.section(s, "type", |me, end, t| {
-                    write!(me.state, "[type {}] {:?}", inc(&mut i.types), t)?;
+                    write!(me.state, "[type {}] {:?}", inc(&mut i.core_types), t)?;
                     me.print(end)
                 })?,
                 Payload::ImportSection(s) => self.section(s, "import", |me, end, imp| {
                     write!(me.state, "import ")?;
                     match imp.ty {
-                        TypeRef::Func(_) => write!(me.state, "[func {}]", inc(&mut i.funcs))?,
+                        TypeRef::Func(_) => write!(me.state, "[func {}]", inc(&mut i.core_funcs))?,
                         TypeRef::Memory(_) => {
-                            write!(me.state, "[memory {}]", inc(&mut i.memories))?
+                            write!(me.state, "[memory {}]", inc(&mut i.core_memories))?
                         }
-                        TypeRef::Tag(_) => write!(me.state, "[tag {}]", inc(&mut i.tags))?,
-                        TypeRef::Table(_) => write!(me.state, "[table {}]", inc(&mut i.tables))?,
-                        TypeRef::Global(_) => write!(me.state, "[global {}]", inc(&mut i.globals))?,
+                        TypeRef::Tag(_) => write!(me.state, "[tag {}]", inc(&mut i.core_tags))?,
+                        TypeRef::Table(_) => {
+                            write!(me.state, "[table {}]", inc(&mut i.core_tables))?
+                        }
+                        TypeRef::Global(_) => {
+                            write!(me.state, "[global {}]", inc(&mut i.core_globals))?
+                        }
                     }
                     write!(me.state, " {:?}", imp)?;
                     me.print(end)
                 })?,
                 Payload::FunctionSection(s) => {
-                    let mut cnt = i.funcs;
+                    let mut cnt = i.core_funcs;
                     self.section(s, "func", |me, end, f| {
                         write!(me.state, "[func {}] type {:?}", inc(&mut cnt), f)?;
                         me.print(end)
                     })?
                 }
                 Payload::TableSection(s) => self.section(s, "table", |me, end, t| {
-                    write!(me.state, "[table {}] {:?}", inc(&mut i.tables), t)?;
+                    write!(me.state, "[table {}] {:?}", inc(&mut i.core_tables), t)?;
                     me.print(end)
                 })?,
                 Payload::MemorySection(s) => self.section(s, "memory", |me, end, m| {
-                    write!(me.state, "[memory {}] {:?}", inc(&mut i.memories), m)?;
+                    write!(me.state, "[memory {}] {:?}", inc(&mut i.core_memories), m)?;
                     me.print(end)
                 })?,
                 Payload::TagSection(s) => self.section(s, "tag", |me, end, m| {
-                    write!(me.state, "[tag {}] {:?}", inc(&mut i.tags), m)?;
+                    write!(me.state, "[tag {}] {:?}", inc(&mut i.core_tags), m)?;
                     me.print(end)
                 })?,
                 Payload::ExportSection(s) => self.section(s, "export", |me, end, e| {
@@ -128,7 +136,7 @@ impl<'a> Dump<'a> {
                     me.print(end)
                 })?,
                 Payload::GlobalSection(s) => self.section(s, "global", |me, _end, g| {
-                    write!(me.state, "[global {}] {:?}", inc(&mut i.globals), g.ty)?;
+                    write!(me.state, "[global {}] {:?}", inc(&mut i.core_globals), g.ty)?;
                     me.print(g.init_expr.get_binary_reader().original_position())?;
                     me.print_ops(g.init_expr.get_operators_reader())
                 })?,
@@ -192,7 +200,7 @@ impl<'a> Dump<'a> {
                     for _ in 0..NBYTES {
                         write!(me.dst, "---")?;
                     }
-                    write!(me.dst, "-| ... {} bytes of data\n", i.data.len())?;
+                    writeln!(me.dst, "-| ... {} bytes of data", i.data.len())?;
                     me.cur = end;
                     Ok(())
                 })?,
@@ -205,10 +213,10 @@ impl<'a> Dump<'a> {
                 }
 
                 Payload::CodeSectionEntry(body) => {
-                    write!(
+                    writeln!(
                         self.dst,
-                        "============== func {} ====================\n",
-                        inc(&mut i.funcs),
+                        "============== func {} ====================",
+                        inc(&mut i.core_funcs),
                     )?;
                     write!(self.state, "size of function")?;
                     self.print(body.get_binary_reader().original_position())?;
@@ -224,53 +232,46 @@ impl<'a> Dump<'a> {
                 }
 
                 // Component sections
-                Payload::ComponentTypeSection(s) => self.section(s, "type", |me, end, t| {
-                    write!(me.state, "[type {}] {:?}", inc(&mut i.types), t)?;
-                    component_types.push(match t {
-                        ComponentTypeDef::Module(_) => ComponentTypeKind::Module,
-                        ComponentTypeDef::Component(_) => ComponentTypeKind::Component,
-                        ComponentTypeDef::Instance(_) => ComponentTypeKind::Instance,
-                        ComponentTypeDef::Function(_) => ComponentTypeKind::Func,
-                        ComponentTypeDef::Value(_) => ComponentTypeKind::Value,
-                        ComponentTypeDef::Interface(_) => ComponentTypeKind::Type,
-                    });
-                    me.print(end)
-                })?,
-
-                Payload::ComponentImportSection(s) => {
-                    self.section(s, "import", |me, end, item| {
-                        let (desc, idx) = match component_types.get(item.ty as usize) {
-                            Some(ComponentTypeKind::Func) => ("func", inc(&mut i.funcs)),
-                            Some(ComponentTypeKind::Component) => {
-                                ("component", inc(&mut i.components))
-                            }
-                            Some(ComponentTypeKind::Module) => ("module", inc(&mut i.modules)),
-                            Some(ComponentTypeKind::Instance) => {
-                                ("instance", inc(&mut i.instances))
-                            }
-                            Some(ComponentTypeKind::Value) => ("value", inc(&mut i.values)),
-                            Some(ComponentTypeKind::Type) => ("type", inc(&mut i.types)),
-                            None => ("???", 0),
-                        };
-                        write!(me.state, "[{desc} {idx}] {item:?}")?;
-                        me.print(end)
-                    })?
-                }
-
-                Payload::ComponentFunctionSection(s) => {
-                    self.section(s, "component function", |me, end, f| {
-                        write!(me.state, "[func {}] {:?}", inc(&mut i.funcs), f)?;
-                        me.print(end)
-                    })?
-                }
-
                 Payload::ModuleSection { range, .. } => {
-                    write!(self.state, "[module {}] inline size", inc(&mut i.modules))?;
+                    write!(
+                        self.state,
+                        "[core module {}] inline size",
+                        inc(&mut i.core_modules)
+                    )?;
                     self.print(range.start)?;
                     self.nesting += 1;
                     stack.push(i);
                     i = Indices::default();
                 }
+
+                Payload::InstanceSection(s) => self.section(s, "core instance", |me, end, e| {
+                    write!(
+                        me.state,
+                        "[core instance {}] {:?}",
+                        inc(&mut i.core_instances),
+                        e
+                    )?;
+                    me.print(end)
+                })?,
+
+                Payload::AliasSection(s) => self.section(s, "core alias", |me, end, a| {
+                    let (kind, num) = match a {
+                        Alias::InstanceExport { kind, .. } => match kind {
+                            ExternalKind::Func => ("func", inc(&mut i.core_funcs)),
+                            ExternalKind::Table => ("table", inc(&mut i.core_tables)),
+                            ExternalKind::Memory => ("memory", inc(&mut i.core_memories)),
+                            ExternalKind::Global => ("global", inc(&mut i.core_globals)),
+                            ExternalKind::Tag => ("tag", inc(&mut i.core_tags)),
+                        },
+                    };
+                    write!(me.state, "core alias [{} {}] {:?}", kind, num, a)?;
+                    me.print(end)
+                })?,
+
+                Payload::CoreTypeSection(s) => self.section(s, "core type", |me, end, t| {
+                    write!(me.state, "[core type {}] {:?}", inc(&mut i.core_types), t)?;
+                    me.print(end)
+                })?,
 
                 Payload::ComponentSection { range, .. } => {
                     write!(
@@ -284,13 +285,107 @@ impl<'a> Dump<'a> {
                     i = Indices::default();
                 }
 
-                Payload::InstanceSection(s) => self.section(s, "instance", |me, end, e| {
-                    write!(me.state, "[instance {}] {:?}", inc(&mut i.instances), e)?;
-                    me.print(end)
-                })?,
+                Payload::ComponentInstanceSection(s) => {
+                    self.section(s, "component instance", |me, end, e| {
+                        write!(me.state, "[instance {}] {:?}", inc(&mut i.instances), e)?;
+                        me.print(end)
+                    })?
+                }
+
+                Payload::ComponentAliasSection(s) => {
+                    self.section(s, "component alias", |me, end, a| {
+                        let (kind, num) = match a {
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Module,
+                                ..
+                            }
+                            | ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::CoreModule,
+                                ..
+                            } => ("module", inc(&mut i.core_modules)),
+                            ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::CoreType,
+                                ..
+                            } => ("core type", inc(&mut i.core_types)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Func,
+                                ..
+                            } => ("func", inc(&mut i.funcs)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Value,
+                                ..
+                            } => ("value", inc(&mut i.values)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Type,
+                                ..
+                            }
+                            | ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::Type,
+                                ..
+                            } => ("type", inc(&mut i.types)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Instance,
+                                ..
+                            } => ("instance", inc(&mut i.instances)),
+                            ComponentAlias::InstanceExport {
+                                kind: ComponentExternalKind::Component,
+                                ..
+                            }
+                            | ComponentAlias::Outer {
+                                kind: ComponentOuterAliasKind::Component,
+                                ..
+                            } => ("component", inc(&mut i.components)),
+                        };
+
+                        write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
+                        me.print(end)
+                    })?
+                }
+
+                Payload::ComponentTypeSection(s) => {
+                    self.section(s, "component type", |me, end, t| {
+                        write!(me.state, "[type {}] {:?}", inc(&mut i.types), t)?;
+                        component_types.push(match t {
+                            ComponentType::Defined(_) => ComponentTypeKind::DefinedType,
+                            ComponentType::Func(_) => ComponentTypeKind::Func,
+                            ComponentType::Component(_) => ComponentTypeKind::Component,
+                            ComponentType::Instance(_) => ComponentTypeKind::Instance,
+                        });
+                        me.print(end)
+                    })?
+                }
+
+                Payload::ComponentImportSection(s) => {
+                    self.section(s, "component import", |me, end, item| {
+                        let (desc, idx) = match item.ty {
+                            ComponentTypeRef::Module(..) => ("module", inc(&mut i.core_modules)),
+                            ComponentTypeRef::Func(..) => ("func", inc(&mut i.funcs)),
+                            ComponentTypeRef::Value(..) => ("value", inc(&mut i.values)),
+                            ComponentTypeRef::Type(..) => ("type", inc(&mut i.types)),
+                            ComponentTypeRef::Instance(..) => ("instance", inc(&mut i.instances)),
+                            ComponentTypeRef::Component(..) => {
+                                ("component", inc(&mut i.components))
+                            }
+                        };
+                        write!(me.state, "[{desc} {idx}] {item:?}")?;
+                        me.print(end)
+                    })?
+                }
+
+                Payload::ComponentCanonicalSection(s) => {
+                    self.section(s, "canonical function", |me, end, f| {
+                        let (name, col) = match &f {
+                            CanonicalFunction::Lift { .. } => ("func", &mut i.funcs),
+                            CanonicalFunction::Lower { .. } => ("core func", &mut i.core_funcs),
+                        };
+
+                        write!(me.state, "[{} {}] {:?}", name, inc(col), f)?;
+                        me.print(end)
+                    })?
+                }
 
                 Payload::ComponentExportSection(s) => {
-                    self.section(s, "component-export", |me, end, e| {
+                    self.section(s, "component export", |me, end, e| {
                         write!(me.state, "export {:?}", e)?;
                         me.print(end)
                     })?
@@ -302,28 +397,6 @@ impl<'a> Dump<'a> {
                     write!(self.state, "{:?}", s.read()?)?;
                     self.print(s.range().end)?;
                 }
-
-                Payload::AliasSection(s) => self.section(s, "alias", |me, end, a| {
-                    let (kind, num) = match a {
-                        Alias::InstanceExport { kind, .. } => match kind {
-                            AliasKind::Module => ("module", inc(&mut i.modules)),
-                            AliasKind::Component => ("component", inc(&mut i.components)),
-                            AliasKind::Instance => ("instance", inc(&mut i.instances)),
-                            AliasKind::ComponentFunc => ("component func", inc(&mut i.funcs)),
-                            AliasKind::Value => ("value", inc(&mut i.values)),
-                            AliasKind::Func => ("func", inc(&mut i.funcs)),
-                            AliasKind::Table => ("table", inc(&mut i.tables)),
-                            AliasKind::Memory => ("memory", inc(&mut i.memories)),
-                            AliasKind::Global => ("global", inc(&mut i.globals)),
-                            AliasKind::Tag => ("tag", inc(&mut i.tags)),
-                        },
-                        Alias::OuterModule { .. } => ("module", inc(&mut i.modules)),
-                        Alias::OuterComponent { .. } => ("component", inc(&mut i.components)),
-                        Alias::OuterType { .. } => ("type", inc(&mut i.types)),
-                    };
-                    write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
-                    me.print(end)
-                })?,
 
                 Payload::CustomSection(c) => {
                     write!(self.state, "custom section")?;
@@ -340,7 +413,7 @@ impl<'a> Dump<'a> {
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
-                        write!(self.dst, "-| ... {} bytes of data\n", c.data().len())?;
+                        writeln!(self.dst, "-| ... {} bytes of data", c.data().len())?;
                         self.cur += c.data().len();
                     }
                 }
@@ -355,7 +428,7 @@ impl<'a> Dump<'a> {
                     for _ in 0..NBYTES {
                         write!(self.dst, "---")?;
                     }
-                    write!(self.dst, "-| ... {} bytes of data\n", contents.len())?;
+                    writeln!(self.dst, "-| ... {} bytes of data", contents.len())?;
                     self.cur += contents.len();
                 }
                 Payload::End(_) => {
@@ -515,7 +588,7 @@ impl<'a> Dump<'a> {
                 write!(self.dst, "{}", &self.state)?;
                 self.state.truncate(0);
             }
-            write!(self.dst, "\n")?;
+            writeln!(self.dst)?;
         }
         self.cur = end;
         Ok(())
@@ -538,5 +611,5 @@ impl<'a> Dump<'a> {
 fn inc(spot: &mut u32) -> u32 {
     let ret = *spot;
     *spot += 1;
-    return ret;
+    ret
 }

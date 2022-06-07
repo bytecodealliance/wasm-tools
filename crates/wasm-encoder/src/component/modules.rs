@@ -18,9 +18,12 @@ pub struct ModuleSection<'a>(pub &'a Module);
 
 impl Encode for ModuleSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
-        ComponentSectionId::Module.encode(sink);
         self.0.bytes.encode(sink);
     }
 }
 
-impl ComponentSection for ModuleSection<'_> {}
+impl ComponentSection for ModuleSection<'_> {
+    fn id(&self) -> u8 {
+        ComponentSectionId::CoreModule.into()
+    }
+}

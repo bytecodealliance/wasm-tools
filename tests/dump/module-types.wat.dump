@@ -1,28 +1,19 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 2e       | type section
-0x000a | 04          | 4 count
-0x000b | 62 00       | [type 0] Instance(InstanceType { exports: [] })
-0x000d | 61 00 00    | [type 1] Module(ModuleType { imports: [], exports: [] })
-0x0010 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x0013 | 61 06 00 00 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(1) }, Import { module: "", field: None, ty: Function(2) }, Import { module: "", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }, Import { module: "", field: None, ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }, Import { module: "", field: None, ty: Instance(0) }, Import { module: "", field: None, ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) }], exports: [] })
-       | ff 05 01 00
-       | 00 ff 00 02
-       | 00 00 ff 03
-       | 7f 00 00 00
-       | ff 01 70 00
-       | 01 00 00 ff
-       | 06 00 00 00
-       | ff 02 00 01
-       | 00         
-0x0038 | 02 06       | import section
-0x003a | 01          | 1 count
-0x003b | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(3) }
-       | 03         
-0x0040 | 00 0f       | custom section
-0x0042 | 04 6e 61 6d | name: "name"
-       | 65         
-0x0047 | 04 08       | type names
-0x0049 | 01          | 1 count
-0x004a | 00 05 65 6d | Naming { index: 0, name: "empty" }
-       | 70 74 79   
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 04 23       | core type section
+  0xa | 01          | 1 count
+  0xb | 50 05 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) }), Import(Import { module: "", name: "g", ty: Global(GlobalType { content_type: I32, mutable: false }) }), Import(Import { module: "", name: "t", ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }), Import(Import { module: "", name: "m", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) })])
+      | 00 00 00 00
+      | 01 66 00 00
+      | 00 00 01 67
+      | 03 7f 00 00
+      | 00 01 74 01
+      | 70 00 01 00
+      | 00 01 6d 02
+      | 00 01      
+ 0x2d | 0b 05       | component import section
+ 0x2f | 01          | 1 count
+ 0x30 | 00 00 11 00 | [module 0] ComponentImport { name: "", ty: Module(0) }
+ 0x34 | 08 03       | component type section
+ 0x36 | 01          | 1 count
+ 0x37 | 42 00       | [type 0] Instance([])

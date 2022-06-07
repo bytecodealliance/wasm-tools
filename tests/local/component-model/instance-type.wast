@@ -6,7 +6,7 @@
 
   (type $t (func (result string)))
 
-  (type (module
+  (core type (module
     (type $local_type (func))
     ;; functions
     (export "a" (func))
@@ -81,7 +81,7 @@
 
 ;; recursive
 (component
-  (type (instance (export "" (module
+  (type (instance (export "" (core module
     (type $functype (func))
 
     (export "a" (func))
@@ -105,14 +105,14 @@
 
 ;; modules
 (component
-  (type (module))
+  (core type (module))
 
-  (type $foo (module))
+  (core type $foo (module))
 
   (type $empty (func))
   (type $i (instance))
 
-  (type (module
+  (core type (module
     (type $empty (func))
     (import "" "a" (func))
     (import "" "b" (func (type $empty)))
@@ -146,8 +146,8 @@
       (export "c" (func (param s32)))
     ))
 
-    (import "k" (module))
-    (import "l" (module
+    (import "k" (core module))
+    (import "l" (core module
       (type $empty (func))
       (import "" "a" (func (type $empty)))
       (import "" "b" (func (param i32)))
@@ -165,7 +165,7 @@
       (export "c" (func (param s32)))
     ))
 
-    (export "h" (module
+    (export "h" (core module
       (type $empty (func))
       (import "" "a" (func (type $empty)))
       (import "" "b" (func (param i32)))
@@ -182,56 +182,47 @@
       (export "" (func)))))
   "duplicate export name")
 
-;; FIXME(#590) these should all be invalid
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (func))
     (type (instance
       (export "" (instance (type $t)))
     )))
-  (; "type index is not an instance") ;)
+  "type index 0 is not an instance type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
-    (type $t (module))
+    (core type $t (func))
     (type (instance
-      (export "" (instance (type $t)))
+      (export "" (core module (type $t)))
     )))
-  (; "type index is not an instance") ;)
+  "core type index 0 is not a module type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (func))
     (type (instance
-      (export "" (module (type $t)))
+      (export "" (core module (type $t)))
     )))
-  (; "type index is not a module") ;)
+  "failed to find core type named `$t`")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
-    (type $t (instance))
-    (type (instance
-      (export "" (module (type $t)))
-    )))
-  (; "type index is not a module") ;)
-
-(; (assert_invalid ;)
-  (component
-    (type $t (module))
+    (type $t (record (field "a" string)))
     (type (instance
       (export "" (func (type $t)))
     )))
-  (; "type index is not a function") ;)
+  "type index 0 is not a function type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (instance))
     (type (instance
       (export "" (func (type $t)))
     )))
-  (; "type index is not a function") ;)
+  "type index 0 is not a function type")
 
-(; (assert_invalid ;)
+(assert_invalid
   (component
     (type $t (instance))
     (type (instance
@@ -239,4 +230,4 @@
         (export "" (func (type $t)))
       ))
     )))
-  (; "type index is not a function") ;)
+  "type index 0 is not a function type")

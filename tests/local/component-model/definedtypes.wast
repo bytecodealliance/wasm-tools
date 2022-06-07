@@ -21,10 +21,8 @@
   (type $A15a (variant))
   (type $A15b (variant (case "x" unit)))
   (type $A15c (variant (case "x" $A1)))
-
-  ;; FIXME(#594) should implement this
-  (; (type $A15d (variant (case "x" unit (defaults-to "x")))) ;)
-  (; (type $A15e (variant (case "x" $A2 (defaults-to "x")))) ;)
+  (type $A15e (variant (case $x "x" unit) (case $y "y" string (refines $x)) (case "z" string (refines $y))))
+  (type $A15f (variant (case "x" unit) (case "y" string (refines 0)) (case "z" string (refines 1))))
 
   (type $A16a (list unit))
   (type $A16b (list $A3))
@@ -54,31 +52,62 @@
 
 (assert_invalid
   (component
-    (type $t (module))
+    (type $t (variant (case $x "x" string (refines $x))))
+  )
+  "variant case cannot refine itself"
+)
+
+(assert_invalid
+  (component
+    (type $t (variant (case "x" unit (refines $y)) (case $y "y" string)))
+  )
+  "failed to find variant case named `$y`"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case "x" $t (refines $z))))
+  )
+  "failed to find variant case named `$z`"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case "x" $t (refines 1))))
+  )
+  "variant case refines index 1 is out of bounds"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case $x "x" $t) (case $x "y" $t)))
+  )
+  "duplicate variant case identifier"
+)
+
+(assert_invalid
+  (component
+    (type $t (func))
     (type (func (param $t)))
   )
-  "not an interface type")
+  "type index 0 is not a defined type")
 
 (assert_invalid
   (component
-    (type $t (module))
+    (type $t (instance))
     (type (func (result $t)))
   )
-  "not an interface type")
+  "type index 0 is not a defined type")
 
 (assert_invalid
   (component
-    (type $t (module))
-    (type (value $t))
-  )
-  "not an interface type")
-
-(assert_invalid
-  (component
-    (type $t (module))
+    (type $t (component))
     (type (option $t))
   )
-  "not an interface type")
+  "type index 0 is not a defined type")
 
 (assert_invalid
   (component (type (option 0)))

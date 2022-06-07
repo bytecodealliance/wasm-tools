@@ -18,9 +18,12 @@ pub struct NestedComponentSection<'a>(pub &'a Component);
 
 impl Encode for NestedComponentSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
-        ComponentSectionId::Component.encode(sink);
         self.0.bytes.encode(sink);
     }
 }
 
-impl ComponentSection for NestedComponentSection<'_> {}
+impl ComponentSection for NestedComponentSection<'_> {
+    fn id(&self) -> u8 {
+        ComponentSectionId::Component.into()
+    }
+}

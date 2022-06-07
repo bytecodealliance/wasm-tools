@@ -1,98 +1,134 @@
 use crate::{
-    BinaryReader, ComponentImport, Import, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems, TypeDef, TypeRef,
+    BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, FuncType, Import, Result,
+    SectionIteratorLimited, SectionReader, SectionWithLimitedItems, Type, TypeRef,
 };
 use std::ops::Range;
 
-/// Represents a type defined in a WebAssembly component.
+/// Represents a core type in a WebAssembly component.
 #[derive(Debug, Clone)]
-pub enum ComponentTypeDef<'a> {
-    /// The type is a module type.
-    Module(Box<[ModuleType<'a>]>),
-    /// The type is a component type.
-    Component(Box<[ComponentType<'a>]>),
-    /// The type is an instance type.
-    Instance(Box<[InstanceType<'a>]>),
-    /// The type is a function type.
-    Function(ComponentFuncType<'a>),
-    /// The type is for a value type.
-    Value(InterfaceTypeRef),
-    /// The type is for an interface type.
-    Interface(InterfaceType<'a>),
+pub enum CoreType<'a> {
+    /// The type is for a core function.
+    Func(FuncType),
+    /// The type is for a core module.
+    Module(Box<[ModuleTypeDeclaration<'a>]>),
 }
 
-/// Represents a module type definition in a WebAssembly component.
+/// Represents a module type declaration in a WebAssembly component.
 #[derive(Debug, Clone)]
-pub enum ModuleType<'a> {
+pub enum ModuleTypeDeclaration<'a> {
     /// The module type definition is for a type.
-    Type(TypeDef),
+    Type(Type),
     /// The module type definition is for an export.
     Export {
         /// The name of the exported item.
         name: &'a str,
-        /// The type of the exported item.
+        /// The type reference of the export.
         ty: TypeRef,
     },
     /// The module type definition is for an import.
     Import(Import<'a>),
 }
 
-/// Represents a component type definition in a WebAssembly component.
-#[derive(Debug, Clone)]
-pub enum ComponentType<'a> {
-    /// The component type definition is for a type.
-    Type(ComponentTypeDef<'a>),
-    /// The component type definition is for an alias to an outer type.
-    OuterType {
-        /// The enclosing module count, starting at zero for current module.
-        count: u32,
-        /// The outer type index being aliased.
-        index: u32,
-    },
-    /// The component type definition is for an export.
-    Export {
-        /// The name of the exported item.
-        name: &'a str,
-        /// The type index of the exported item.
-        ty: u32,
-    },
-    /// The component type definition is for an import.
-    Import(ComponentImport<'a>),
+/// A reader for the core type section of a WebAssembly component.
+#[derive(Clone)]
+pub struct CoreTypeSectionReader<'a> {
+    reader: BinaryReader<'a>,
+    count: u32,
 }
 
-/// Represents an instance type definition in a WebAssembly component.
-#[derive(Debug, Clone)]
-pub enum InstanceType<'a> {
-    /// The instance type definition is for a type.
-    Type(ComponentTypeDef<'a>),
-    /// The instance type definition is for an alias to an outer type.
-    OuterType {
-        /// The enclosing module count, starting at zero for current module.
-        count: u32,
-        /// The outer type index being aliased.
-        index: u32,
-    },
-    /// The instance type definition is for an export.
-    Export {
-        /// The name of the exported item.
-        name: &'a str,
-        /// The type index of the exported item.
-        ty: u32,
-    },
+impl<'a> CoreTypeSectionReader<'a> {
+    /// Constructs a new `CoreTypeSectionReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
+        let mut reader = BinaryReader::new_with_offset(data, offset);
+        let count = reader.read_var_u32()?;
+        Ok(Self { reader, count })
+    }
+
+    /// Gets the original position of the reader.
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+
+    /// Gets a count of items in the section.
+    pub fn get_count(&self) -> u32 {
+        self.count
+    }
+
+    /// Reads content of the type section.
+    ///
+    /// # Examples
+    /// ```
+    /// use wasmparser::CoreTypeSectionReader;
+    /// let data: &[u8] = &[0x01, 0x60, 0x00, 0x00];
+    /// let mut reader = CoreTypeSectionReader::new(data, 0).unwrap();
+    /// for _ in 0..reader.get_count() {
+    ///     let ty = reader.read().expect("type");
+    ///     println!("Type {:?}", ty);
+    /// }
+    /// ```
+    pub fn read(&mut self) -> Result<CoreType<'a>> {
+        self.reader.read_core_type()
+    }
 }
 
-/// Represents a type of a function in a WebAssembly component.
-#[derive(Debug, Clone)]
-pub struct ComponentFuncType<'a> {
-    /// The function parameter types.
-    pub params: Box<[(Option<&'a str>, InterfaceTypeRef)]>,
-    /// The function result type.
-    pub result: InterfaceTypeRef,
+impl<'a> SectionReader for CoreTypeSectionReader<'a> {
+    type Item = CoreType<'a>;
+
+    fn read(&mut self) -> Result<Self::Item> {
+        Self::read(self)
+    }
+
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+
+    fn original_position(&self) -> usize {
+        Self::original_position(self)
+    }
+
+    fn range(&self) -> Range<usize> {
+        self.reader.range()
+    }
 }
 
-/// Represents a primitive interface type.
+impl<'a> SectionWithLimitedItems for CoreTypeSectionReader<'a> {
+    fn get_count(&self) -> u32 {
+        Self::get_count(self)
+    }
+}
+
+impl<'a> IntoIterator for CoreTypeSectionReader<'a> {
+    type Item = Result<CoreType<'a>>;
+    type IntoIter = SectionIteratorLimited<Self>;
+
+    /// Implements iterator over the type section.
+    ///
+    /// # Examples
+    /// ```
+    /// use wasmparser::CoreTypeSectionReader;
+    /// # let data: &[u8] = &[0x01, 0x60, 0x00, 0x00];
+    /// let mut reader = CoreTypeSectionReader::new(data, 0).unwrap();
+    /// for ty in reader {
+    ///     println!("Type {:?}", ty.expect("type"));
+    /// }
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        SectionIteratorLimited::new(self)
+    }
+}
+
+/// Represents a value type in a WebAssembly component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PrimitiveInterfaceType {
+pub enum ComponentValType {
+    /// The value type is a primitive type.
+    Primitive(PrimitiveValType),
+    /// The value type is a reference to a defined type.
+    Type(u32),
+}
+
+/// Represents a primitive value type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveValType {
     /// The type is the unit type.
     Unit,
     /// The type is a boolean.
@@ -123,40 +159,37 @@ pub enum PrimitiveInterfaceType {
     String,
 }
 
-impl PrimitiveInterfaceType {
-    pub(crate) fn requires_into_option(&self) -> bool {
-        matches!(self, PrimitiveInterfaceType::String)
+impl PrimitiveValType {
+    pub(crate) fn requires_realloc(&self) -> bool {
+        matches!(self, Self::String)
     }
 
     pub(crate) fn is_subtype_of(&self, other: &Self) -> bool {
-        // Interface subtyping rules according to
+        // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
         self == other
             || matches!(
                 (self, other),
-                (_, PrimitiveInterfaceType::Unit)
-                    | (PrimitiveInterfaceType::S8, PrimitiveInterfaceType::S16)
-                    | (PrimitiveInterfaceType::S8, PrimitiveInterfaceType::S32)
-                    | (PrimitiveInterfaceType::S8, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::U16)
-                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::U32)
-                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::U64)
-                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::S16)
-                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::S32)
-                    | (PrimitiveInterfaceType::U8, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::S16, PrimitiveInterfaceType::S32)
-                    | (PrimitiveInterfaceType::S16, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::U32)
-                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::U64)
-                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::S32)
-                    | (PrimitiveInterfaceType::U16, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::S32, PrimitiveInterfaceType::S64)
-                    | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::U64)
-                    | (PrimitiveInterfaceType::U32, PrimitiveInterfaceType::S64)
-                    | (
-                        PrimitiveInterfaceType::Float32,
-                        PrimitiveInterfaceType::Float64
-                    )
+                (_, Self::Unit)
+                    | (Self::S8, Self::S16)
+                    | (Self::S8, Self::S32)
+                    | (Self::S8, Self::S64)
+                    | (Self::U8, Self::U16)
+                    | (Self::U8, Self::U32)
+                    | (Self::U8, Self::U64)
+                    | (Self::U8, Self::S16)
+                    | (Self::U8, Self::S32)
+                    | (Self::U8, Self::S64)
+                    | (Self::S16, Self::S32)
+                    | (Self::S16, Self::S64)
+                    | (Self::U16, Self::U32)
+                    | (Self::U16, Self::U64)
+                    | (Self::U16, Self::S32)
+                    | (Self::U16, Self::S64)
+                    | (Self::S32, Self::S64)
+                    | (Self::U32, Self::U64)
+                    | (Self::U32, Self::S64)
+                    | (Self::Float32, Self::Float64)
             )
     }
 
@@ -168,53 +201,104 @@ impl PrimitiveInterfaceType {
     }
 }
 
-/// Represents a reference to an interface type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InterfaceTypeRef {
-    /// The reference is to a primitive interface type.
-    Primitive(PrimitiveInterfaceType),
-    /// The reference is to an interface type defined in a type section.
-    Type(u32),
+/// Represents a type in a WebAssembly component.
+#[derive(Debug, Clone)]
+pub enum ComponentType<'a> {
+    /// The type is a component defined type.
+    Defined(ComponentDefinedType<'a>),
+    /// The type is a function type.
+    Func(ComponentFuncType<'a>),
+    /// The type is a component type.
+    Component(Box<[ComponentTypeDeclaration<'a>]>),
+    /// The type is an instance type.
+    Instance(Box<[InstanceTypeDeclaration<'a>]>),
 }
 
-/// Represents a case in a variant interface type.
+/// Represents part of a component type declaration in a WebAssembly component.
+#[derive(Debug, Clone)]
+pub enum ComponentTypeDeclaration<'a> {
+    /// The component type declaration is for a core type.
+    CoreType(CoreType<'a>),
+    /// The component type declaration is for a type.
+    Type(ComponentType<'a>),
+    /// The component type declaration is for an alias.
+    Alias(ComponentAlias<'a>),
+    /// The component type declaration is for an export.
+    Export {
+        /// The name of the export.
+        name: &'a str,
+        /// The type reference for the export.
+        ty: ComponentTypeRef,
+    },
+    /// The component type declaration is for an import.
+    Import(ComponentImport<'a>),
+}
+
+/// Represents an instance type declaration in a WebAssembly component.
+#[derive(Debug, Clone)]
+pub enum InstanceTypeDeclaration<'a> {
+    /// The component type declaration is for a core type.
+    CoreType(CoreType<'a>),
+    /// The instance type declaration is for a type.
+    Type(ComponentType<'a>),
+    /// The instance type declaration is for an alias.
+    Alias(ComponentAlias<'a>),
+    /// The instance type declaration is for an export.
+    Export {
+        /// The name of the export.
+        name: &'a str,
+        /// The type reference for the export.
+        ty: ComponentTypeRef,
+    },
+}
+
+/// Represents a type of a function in a WebAssembly component.
+#[derive(Debug, Clone)]
+pub struct ComponentFuncType<'a> {
+    /// The function parameter types.
+    pub params: Box<[(Option<&'a str>, ComponentValType)]>,
+    /// The function result type.
+    pub result: ComponentValType,
+}
+
+/// Represents a case in a variant type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VariantCase<'a> {
     /// The name of the variant case.
     pub name: &'a str,
-    /// The interface type of the variant case.
-    pub ty: InterfaceTypeRef,
-    /// The default-to case index to use when this case is not present.
-    pub default_to: Option<u32>,
+    /// The value type of the variant case.
+    pub ty: ComponentValType,
+    /// The index of the variant case that is refined by this one.
+    pub refines: Option<u32>,
 }
 
-/// Represents an interface type.
+/// Represents a defined type in a WebAssembly component.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InterfaceType<'a> {
-    /// The interface type is one of the primitive types.
-    Primitive(PrimitiveInterfaceType),
+pub enum ComponentDefinedType<'a> {
+    /// The type is one of the primitive value types.
+    Primitive(PrimitiveValType),
     /// The type is a record with the given fields.
-    Record(Box<[(&'a str, InterfaceTypeRef)]>),
+    Record(Box<[(&'a str, ComponentValType)]>),
     /// The type is a variant with the given cases.
     Variant(Box<[VariantCase<'a>]>),
-    /// The type is a list of the given interface type.
-    List(InterfaceTypeRef),
-    /// The type is a tuple of the given interface types.
-    Tuple(Box<[InterfaceTypeRef]>),
+    /// The type is a list of the given value type.
+    List(ComponentValType),
+    /// The type is a tuple of the given value types.
+    Tuple(Box<[ComponentValType]>),
     /// The type is flags with the given names.
     Flags(Box<[&'a str]>),
     /// The type is an enum with the given tags.
     Enum(Box<[&'a str]>),
-    /// The type is a union of the given interface types.
-    Union(Box<[InterfaceTypeRef]>),
-    /// The type is an option of the given interface type.
-    Option(InterfaceTypeRef),
+    /// The type is a union of the given value types.
+    Union(Box<[ComponentValType]>),
+    /// The type is an option of the given value type.
+    Option(ComponentValType),
     /// The type is an expected type.
     Expected {
         /// The type returned for success.
-        ok: InterfaceTypeRef,
+        ok: ComponentValType,
         /// The type returned for failure.
-        error: InterfaceTypeRef,
+        error: ComponentValType,
     },
 }
 
@@ -248,20 +332,20 @@ impl<'a> ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// let data: &[u8] = &[0x01, 0x4c, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let ty = reader.read().expect("type");
     ///     println!("Type {:?}", ty);
     /// }
     /// ```
-    pub fn read(&mut self) -> Result<ComponentTypeDef<'a>> {
-        self.reader.read_component_type_def()
+    pub fn read(&mut self) -> Result<ComponentType<'a>> {
+        self.reader.read_component_type()
     }
 }
 
 impl<'a> SectionReader for ComponentTypeSectionReader<'a> {
-    type Item = ComponentTypeDef<'a>;
+    type Item = ComponentType<'a>;
 
     fn read(&mut self) -> Result<Self::Item> {
         Self::read(self)
@@ -287,7 +371,7 @@ impl<'a> SectionWithLimitedItems for ComponentTypeSectionReader<'a> {
 }
 
 impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
-    type Item = Result<ComponentTypeDef<'a>>;
+    type Item = Result<ComponentType<'a>>;
     type IntoIter = SectionIteratorLimited<Self>;
 
     /// Implements iterator over the type section.
@@ -295,7 +379,7 @@ impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// # let data: &[u8] = &[0x01, 0x4c, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
     ///     println!("Type {:?}", ty.expect("type"));

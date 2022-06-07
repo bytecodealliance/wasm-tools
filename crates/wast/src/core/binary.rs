@@ -446,7 +446,6 @@ impl Encode for ExportKind {
             ExportKind::Memory => e.push(0x02),
             ExportKind::Global => e.push(0x03),
             ExportKind::Tag => e.push(0x04),
-            ExportKind::Type => e.push(0x07),
         }
     }
 }

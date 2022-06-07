@@ -1,7 +1,7 @@
 //! Types relating to type information provided by validation.
 
 use super::{component::ComponentState, core::Module};
-use crate::{FuncType, GlobalType, MemoryType, PrimitiveInterfaceType, TableType, Type};
+use crate::{FuncType, GlobalType, MemoryType, PrimitiveValType, TableType, ValType};
 use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Borrow,
@@ -27,7 +27,7 @@ const MAX_LOWERED_TYPES: usize = MAX_FLAT_FUNC_PARAMS + 1;
 
 /// A simple alloc-free list of types used for calculating lowered function signatures.
 pub(crate) struct LoweredTypes {
-    types: [Type; MAX_LOWERED_TYPES],
+    types: [ValType; MAX_LOWERED_TYPES],
     len: usize,
     max: usize,
 }
@@ -36,7 +36,7 @@ impl LoweredTypes {
     fn new(max: usize) -> Self {
         assert!(max <= MAX_LOWERED_TYPES);
         Self {
-            types: [Type::I32; MAX_LOWERED_TYPES],
+            types: [ValType::I32; MAX_LOWERED_TYPES],
             len: 0,
             max,
         }
@@ -50,7 +50,7 @@ impl LoweredTypes {
         self.len == self.max
     }
 
-    fn get_mut(&mut self, index: usize) -> Option<&mut Type> {
+    fn get_mut(&mut self, index: usize) -> Option<&mut ValType> {
         if index < self.len {
             Some(&mut self.types[index])
         } else {
@@ -58,7 +58,7 @@ impl LoweredTypes {
         }
     }
 
-    fn push(&mut self, ty: Type) -> bool {
+    fn push(&mut self, ty: ValType) -> bool {
         if self.maxed() {
             return false;
         }
@@ -72,34 +72,31 @@ impl LoweredTypes {
         self.len = 0;
     }
 
-    pub fn as_slice(&self) -> &[Type] {
+    pub fn as_slice(&self) -> &[ValType] {
         &self.types[..self.len]
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Type> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = ValType> + '_ {
         self.as_slice().iter().copied()
     }
 }
 
-fn push_primitive_wasm_types(
-    ty: &PrimitiveInterfaceType,
-    lowered_types: &mut LoweredTypes,
-) -> bool {
+fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredTypes) -> bool {
     match ty {
-        PrimitiveInterfaceType::Unit => true,
-        PrimitiveInterfaceType::Bool
-        | PrimitiveInterfaceType::S8
-        | PrimitiveInterfaceType::U8
-        | PrimitiveInterfaceType::S16
-        | PrimitiveInterfaceType::U16
-        | PrimitiveInterfaceType::S32
-        | PrimitiveInterfaceType::U32
-        | PrimitiveInterfaceType::Char => lowered_types.push(Type::I32),
-        PrimitiveInterfaceType::S64 | PrimitiveInterfaceType::U64 => lowered_types.push(Type::I64),
-        PrimitiveInterfaceType::Float32 => lowered_types.push(Type::F32),
-        PrimitiveInterfaceType::Float64 => lowered_types.push(Type::F64),
-        PrimitiveInterfaceType::String => {
-            lowered_types.push(Type::I32) && lowered_types.push(Type::I32)
+        PrimitiveValType::Unit => true,
+        PrimitiveValType::Bool
+        | PrimitiveValType::S8
+        | PrimitiveValType::U8
+        | PrimitiveValType::S16
+        | PrimitiveValType::U16
+        | PrimitiveValType::S32
+        | PrimitiveValType::U32
+        | PrimitiveValType::Char => lowered_types.push(ValType::I32),
+        PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.push(ValType::I64),
+        PrimitiveValType::Float32 => lowered_types.push(ValType::F32),
+        PrimitiveValType::Float64 => lowered_types.push(ValType::F64),
+        PrimitiveValType::String => {
+            lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32)
         }
     }
 }
@@ -116,87 +113,91 @@ pub struct TypeId {
     pub(crate) index: usize,
 }
 
-/// A unified type definition for inspecting WebAssembly modules and components.
-pub enum TypeDef {
+/// A unified type definition for validating WebAssembly modules and components.
+#[derive(Debug)]
+pub enum Type {
     /// The definition is for a core function type.
     Func(FuncType),
-    /// The definition is for a module type.
+    /// The definition is for a core module type.
     ///
     /// This variant is only supported when parsing a component.
     Module(ModuleType),
-    /// The definition is for a module instance type.
+    /// The definition is for a core module instance type.
     ///
     /// This variant is only supported when parsing a component.
-    ModuleInstance(ModuleInstanceType),
+    Instance(InstanceType),
     /// The definition is for a component type.
     ///
     /// This variant is only supported when parsing a component.
     Component(ComponentType),
-    /// The definition is for an instance type.
+    /// The definition is for a component instance type.
     ///
     /// This variant is only supported when parsing a component.
-    Instance(InstanceType),
+    ComponentInstance(ComponentInstanceType),
     /// The definition is for a component function type.
     ///
     /// This variant is only supported when parsing a component.
     ComponentFunc(ComponentFuncType),
-    /// The definition is for a value type.
+    /// The definition is for a component defined type.
     ///
     /// This variant is only supported when parsing a component.
-    Value(InterfaceTypeRef),
-    /// The definition is for an interface type.
-    ///
-    /// This variant is only supported when parsing a component.
-    Interface(InterfaceType),
+    Defined(ComponentDefinedType),
 }
 
-impl TypeDef {
-    pub(crate) fn unwrap_func_type(&self) -> &FuncType {
+impl Type {
+    /// Converts the type to a core function type.
+    pub fn as_func_type(&self) -> Option<&FuncType> {
         match self {
-            Self::Func(ty) => ty,
-            _ => panic!("expected function type"),
+            Self::Func(ty) => Some(ty),
+            _ => None,
         }
     }
 
-    pub(crate) fn unwrap_module_type(&self) -> &ModuleType {
+    /// Converts the type to a core module type.
+    pub fn as_module_type(&self) -> Option<&ModuleType> {
         match self {
-            Self::Module(ty) => ty,
-            _ => panic!("expected module type"),
+            Self::Module(ty) => Some(ty),
+            _ => None,
         }
     }
 
-    pub(crate) fn unwrap_module_instance_type(&self) -> &ModuleInstanceType {
+    /// Converts the type to a core module instance type.
+    pub fn as_instance_type(&self) -> Option<&InstanceType> {
         match self {
-            Self::ModuleInstance(ty) => ty,
-            _ => panic!("expected module instance type"),
+            Self::Instance(ty) => Some(ty),
+            _ => None,
         }
     }
 
-    pub(crate) fn unwrap_component_type(&self) -> &ComponentType {
+    /// Converts the type to a component type.
+    pub fn as_component_type(&self) -> Option<&ComponentType> {
         match self {
-            Self::Component(ty) => ty,
-            _ => panic!("expected component type"),
+            Self::Component(ty) => Some(ty),
+            _ => None,
         }
     }
 
-    pub(crate) fn unwrap_instance_type(&self) -> &InstanceType {
+    /// Converts the type to a component instance type.
+    pub fn as_component_instance_type(&self) -> Option<&ComponentInstanceType> {
         match self {
-            Self::Instance(ty) => ty,
-            _ => panic!("expected instance type"),
+            Self::ComponentInstance(ty) => Some(ty),
+            _ => None,
         }
     }
 
-    pub(crate) fn unwrap_component_func_type(&self) -> &ComponentFuncType {
+    /// Converts the type to a component function type.
+    pub fn as_component_func_type(&self) -> Option<&ComponentFuncType> {
         match self {
-            Self::ComponentFunc(ty) => ty,
-            _ => panic!("expected component function type"),
+            Self::ComponentFunc(ty) => Some(ty),
+            _ => None,
         }
     }
 
-    pub(crate) fn unwrap_interface_type(&self) -> &InterfaceType {
+    /// Converts the type to a component defined type.
+    pub fn as_defined_type(&self) -> Option<&ComponentDefinedType> {
         match self {
-            Self::Interface(ty) => ty,
-            _ => panic!("expected interface type"),
+            Self::Defined(ty) => Some(ty),
+            _ => None,
         }
     }
 
@@ -204,52 +205,56 @@ impl TypeDef {
         match self {
             Self::Func(ty) => 1 + ty.params.len() + ty.returns.len(),
             Self::Module(ty) => ty.type_size,
-            Self::ModuleInstance(ty) => ty.type_size,
-            Self::Component(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
+            Self::Component(ty) => ty.type_size,
+            Self::ComponentInstance(ty) => ty.type_size,
             Self::ComponentFunc(ty) => ty.type_size,
-            Self::Value(ty) => ty.type_size(),
-            Self::Interface(ty) => ty.type_size(),
+            Self::Defined(ty) => ty.type_size(),
         }
     }
 }
 
-/// A reference to an interface type.
+/// A component value type.
 #[derive(Debug, Clone, Copy)]
-pub enum InterfaceTypeRef {
-    /// The interface type is one of the primitive types.
-    Primitive(PrimitiveInterfaceType),
-    /// The interface type is represented with the given type identifier.
+pub enum ComponentValType {
+    /// The value type is one of the primitive types.
+    Primitive(PrimitiveValType),
+    /// The type is represented with the given type identifier.
     Type(TypeId),
 }
 
-impl InterfaceTypeRef {
-    pub(crate) fn requires_into_option(&self, types: &TypeList) -> bool {
+impl ComponentValType {
+    pub(crate) fn requires_realloc(&self, types: &TypeList) -> bool {
         match self {
-            InterfaceTypeRef::Primitive(ty) => ty.requires_into_option(),
-            InterfaceTypeRef::Type(ty) => types[*ty]
-                .unwrap_interface_type()
-                .requires_into_option(types),
+            ComponentValType::Primitive(ty) => ty.requires_realloc(),
+            ComponentValType::Type(ty) => types[*ty]
+                .as_defined_type()
+                .unwrap()
+                .requires_realloc(types),
         }
     }
 
     pub(crate) fn is_optional(&self, types: &TypeList) -> bool {
         match self {
-            InterfaceTypeRef::Primitive(_) => false,
-            InterfaceTypeRef::Type(ty) => {
-                matches!(types[*ty].unwrap_interface_type(), InterfaceType::Option(_))
+            ComponentValType::Primitive(_) => false,
+            ComponentValType::Type(ty) => {
+                matches!(
+                    types[*ty].as_defined_type().unwrap(),
+                    ComponentDefinedType::Option(_)
+                )
             }
         }
     }
 
     pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         match (self, other) {
-            (InterfaceTypeRef::Primitive(ty), InterfaceTypeRef::Primitive(other_ty)) => {
+            (ComponentValType::Primitive(ty), ComponentValType::Primitive(other_ty)) => {
                 ty.is_subtype_of(other_ty)
             }
-            (InterfaceTypeRef::Type(ty), InterfaceTypeRef::Type(other_ty)) => types[*ty]
-                .unwrap_interface_type()
-                .is_subtype_of(types[*other_ty].unwrap_interface_type(), types),
+            (ComponentValType::Type(ty), ComponentValType::Type(other_ty)) => types[*ty]
+                .as_defined_type()
+                .unwrap()
+                .is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
             _ => false,
         }
     }
@@ -258,7 +263,8 @@ impl InterfaceTypeRef {
         match self {
             Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
             Self::Type(id) => types[*id]
-                .unwrap_interface_type()
+                .as_defined_type()
+                .unwrap()
                 .push_wasm_types(types, lowered_types),
         }
     }
@@ -305,7 +311,7 @@ impl EntityType {
 
         match (self, b) {
             (EntityType::Func(a), EntityType::Func(b)) => {
-                types[*a].unwrap_func_type() == types[*b].unwrap_func_type()
+                types[*a].as_func_type().unwrap() == types[*b].as_func_type().unwrap()
             }
             (EntityType::Table(a), EntityType::Table(b)) => {
                 a.element_type == b.element_type && limits_match!(a, b)
@@ -315,7 +321,7 @@ impl EntityType {
             }
             (EntityType::Global(a), EntityType::Global(b)) => a == b,
             (EntityType::Tag(a), EntityType::Tag(b)) => {
-                types[*a].unwrap_func_type() == types[*b].unwrap_func_type()
+                types[*a].as_func_type().unwrap() == types[*b].as_func_type().unwrap()
             }
             _ => false,
         }
@@ -385,8 +391,8 @@ impl ModuleImportKey for (&str, &str) {
     }
 }
 
-/// Represents a module type.
-#[derive(Clone)]
+/// Represents a core module type.
+#[derive(Debug, Clone)]
 pub struct ModuleType {
     /// The effective type size for the module type.
     pub(crate) type_size: usize,
@@ -427,8 +433,8 @@ impl ModuleType {
 }
 
 /// Represents the kind of module instance type.
-#[derive(Clone)]
-pub enum ModuleInstanceTypeKind {
+#[derive(Debug, Clone)]
+pub enum InstanceTypeKind {
     /// The instance type is the result of instantiating a module type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
@@ -436,19 +442,19 @@ pub enum ModuleInstanceTypeKind {
 }
 
 /// Represents a module instance type.
-#[derive(Clone)]
-pub struct ModuleInstanceType {
+#[derive(Debug, Clone)]
+pub struct InstanceType {
     /// The effective type size for the module instance type.
     pub(crate) type_size: usize,
     /// The kind of module instance type.
-    pub kind: ModuleInstanceTypeKind,
+    pub kind: InstanceTypeKind,
 }
 
-impl ModuleInstanceType {
+impl InstanceType {
     pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a HashMap<String, EntityType> {
         match &self.kind {
-            ModuleInstanceTypeKind::Instantiated(id) => &types[*id].unwrap_module_type().exports,
-            ModuleInstanceTypeKind::Exports(exports) => exports,
+            InstanceTypeKind::Instantiated(id) => &types[*id].as_module_type().unwrap().exports,
+            InstanceTypeKind::Exports(exports) => exports,
         }
     }
 }
@@ -456,39 +462,47 @@ impl ModuleInstanceType {
 /// The entity type for imports and exports of a component.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentEntityType {
-    /// The entity is a module.
+    /// The entity is a core module.
     Module(TypeId),
-    /// The entity is a component.
-    Component(TypeId),
-    /// The entity is an instance.
-    Instance(TypeId),
-    /// The entity is a component function.
+    /// The entity is a function.
     Func(TypeId),
     /// The entity is a value.
-    Value(InterfaceTypeRef),
+    Value(ComponentValType),
     /// The entity is a type.
     Type(TypeId),
+    /// The entity is a component instance.
+    Instance(TypeId),
+    /// The entity is a component.
+    Component(TypeId),
 }
 
 impl ComponentEntityType {
     pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         match (self, other) {
             (Self::Module(ty), Self::Module(other_ty)) => types[*ty]
-                .unwrap_module_type()
-                .is_subtype_of(types[*other_ty].unwrap_module_type(), types),
-            (Self::Component(ty), Self::Component(other_ty)) => types[*ty]
-                .unwrap_component_type()
-                .is_subtype_of(types[*other_ty].unwrap_component_type(), types),
-            (Self::Instance(ty), Self::Instance(other_ty)) => types[*ty]
-                .unwrap_instance_type()
-                .is_subtype_of(types[*other_ty].unwrap_instance_type(), types),
+                .as_module_type()
+                .unwrap()
+                .is_subtype_of(types[*other_ty].as_module_type().unwrap(), types),
             (Self::Func(ty), Self::Func(other_ty)) => types[*ty]
-                .unwrap_component_func_type()
-                .is_subtype_of(types[*other_ty].unwrap_component_func_type(), types),
+                .as_component_func_type()
+                .unwrap()
+                .is_subtype_of(types[*other_ty].as_component_func_type().unwrap(), types),
             (Self::Value(ty), Self::Value(other_ty)) => ty.is_subtype_of(other_ty, types),
             (Self::Type(ty), Self::Type(other_ty)) => types[*ty]
-                .unwrap_interface_type()
-                .is_subtype_of(types[*other_ty].unwrap_interface_type(), types),
+                .as_defined_type()
+                .unwrap()
+                .is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
+            (Self::Instance(ty), Self::Instance(other_ty)) => types[*ty]
+                .as_component_instance_type()
+                .unwrap()
+                .is_subtype_of(
+                    types[*other_ty].as_component_instance_type().unwrap(),
+                    types,
+                ),
+            (Self::Component(ty), Self::Component(other_ty)) => types[*ty]
+                .as_component_type()
+                .unwrap()
+                .is_subtype_of(types[*other_ty].as_component_type().unwrap(), types),
             _ => false,
         }
     }
@@ -496,28 +510,28 @@ impl ComponentEntityType {
     pub(crate) fn desc(&self) -> &'static str {
         match self {
             Self::Module(_) => "module",
-            Self::Component(_) => "component",
-            Self::Instance(_) => "instance",
             Self::Func(_) => "function",
             Self::Value(_) => "value",
             Self::Type(_) => "type",
+            Self::Instance(_) => "instance",
+            Self::Component(_) => "component",
         }
     }
 
     pub(crate) fn type_size(&self) -> usize {
         match self {
             Self::Module(ty)
-            | Self::Component(ty)
-            | Self::Instance(ty)
             | Self::Func(ty)
-            | Self::Type(ty) => ty.type_size,
+            | Self::Type(ty)
+            | Self::Instance(ty)
+            | Self::Component(ty) => ty.type_size,
             Self::Value(ty) => ty.type_size(),
         }
     }
 }
 
 /// Represents a type of a component.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ComponentType {
     /// The effective type size for the component type.
     pub(crate) type_size: usize,
@@ -550,9 +564,9 @@ impl ComponentType {
     }
 }
 
-/// Represents the kind of instance type.
-#[derive(Clone)]
-pub enum InstanceTypeKind {
+/// Represents the kind of a component instance.
+#[derive(Debug, Clone)]
+pub enum ComponentInstanceTypeKind {
     /// The instance type is from a definition.
     Defined(HashMap<String, ComponentEntityType>),
     /// The instance type is the result of instantiating a component type.
@@ -562,22 +576,25 @@ pub enum InstanceTypeKind {
 }
 
 /// Represents a type of a component instance.
-#[derive(Clone)]
-pub struct InstanceType {
+#[derive(Debug, Clone)]
+pub struct ComponentInstanceType {
     /// The effective type size for the instance type.
     pub(crate) type_size: usize,
     /// The kind of instance type.
-    pub kind: InstanceTypeKind,
+    pub kind: ComponentInstanceTypeKind,
 }
 
-impl InstanceType {
+impl ComponentInstanceType {
     pub(crate) fn exports<'a>(
         &'a self,
         types: &'a TypeList,
     ) -> &'a HashMap<String, ComponentEntityType> {
         match &self.kind {
-            InstanceTypeKind::Defined(exports) | InstanceTypeKind::Exports(exports) => exports,
-            InstanceTypeKind::Instantiated(id) => &types[*id].unwrap_component_type().exports,
+            ComponentInstanceTypeKind::Defined(exports)
+            | ComponentInstanceTypeKind::Exports(exports) => exports,
+            ComponentInstanceTypeKind::Instantiated(id) => {
+                &types[*id].as_component_type().unwrap().exports
+            }
         }
     }
 
@@ -598,23 +615,20 @@ impl InstanceType {
 }
 
 /// Represents a type of a component function.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ComponentFuncType {
     /// The effective type size for the component function type.
     pub(crate) type_size: usize,
     /// The function parameters.
-    pub params: Box<[(Option<String>, InterfaceTypeRef)]>,
+    pub params: Box<[(Option<String>, ComponentValType)]>,
     /// The function's result type.
-    pub result: InterfaceTypeRef,
+    pub result: ComponentValType,
 }
 
 impl ComponentFuncType {
-    pub(crate) fn requires_into_option(&self, types: &TypeList) -> bool {
-        self.result.requires_into_option(types)
-            || self
-                .params
-                .iter()
-                .any(|(_, ty)| ty.requires_into_option(types))
+    pub(crate) fn requires_realloc(&self, types: &TypeList) -> bool {
+        self.result.requires_realloc(types)
+            || self.params.iter().any(|(_, ty)| ty.requires_realloc(types))
     }
 
     pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
@@ -663,7 +677,7 @@ impl ComponentFuncType {
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
                 params.clear();
-                assert!(params.push(Type::I32));
+                assert!(params.push(ValType::I32));
                 break;
             }
         }
@@ -674,9 +688,9 @@ impl ComponentFuncType {
             results.clear();
             if import {
                 params.max = MAX_LOWERED_TYPES;
-                assert!(params.push(Type::I32));
+                assert!(params.push(ValType::I32));
             } else {
-                assert!(results.push(Type::I32));
+                assert!(results.push(ValType::I32));
             }
         }
 
@@ -688,9 +702,9 @@ impl ComponentFuncType {
 #[derive(Debug, Clone)]
 pub struct VariantCase {
     /// The variant case type.
-    pub ty: InterfaceTypeRef,
-    /// The value of the variant to default to.
-    pub default_to: Option<String>,
+    pub ty: ComponentValType,
+    /// The name of the variant case refined by this one.
+    pub refines: Option<String>,
 }
 
 /// Represents a record type.
@@ -699,7 +713,7 @@ pub struct RecordType {
     /// The effective type size for the record type.
     pub(crate) type_size: usize,
     /// The map of record fields.
-    pub fields: IndexMap<String, InterfaceTypeRef>,
+    pub fields: IndexMap<String, ComponentValType>,
 }
 
 /// Represents a variant type.
@@ -717,7 +731,7 @@ pub struct TupleType {
     /// The effective type size for the tuple type.
     pub(crate) type_size: usize,
     /// The types of the tuple.
-    pub types: Box<[InterfaceTypeRef]>,
+    pub types: Box<[ComponentValType]>,
 }
 
 /// Represents a union type.
@@ -726,20 +740,20 @@ pub struct UnionType {
     /// The inclusive type count for the union type.
     pub(crate) type_size: usize,
     /// The types of the union.
-    pub types: Box<[InterfaceTypeRef]>,
+    pub types: Box<[ComponentValType]>,
 }
 
-/// Represents an interface type.
+/// Represents a component defined type.
 #[derive(Debug, Clone)]
-pub enum InterfaceType {
-    /// The type is a primitive interface type.
-    Primitive(PrimitiveInterfaceType),
+pub enum ComponentDefinedType {
+    /// The type is a primitive value type.
+    Primitive(PrimitiveValType),
     /// The type is a record.
     Record(RecordType),
     /// The type is a variant.
     Variant(VariantType),
     /// The type is a list.
-    List(InterfaceTypeRef),
+    List(ComponentValType),
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
@@ -749,27 +763,24 @@ pub enum InterfaceType {
     /// The type is a union.
     Union(UnionType),
     /// The type is an `option`.
-    Option(InterfaceTypeRef),
+    Option(ComponentValType),
     /// The type is an `expected`.
-    Expected(InterfaceTypeRef, InterfaceTypeRef),
+    Expected(ComponentValType, ComponentValType),
 }
 
-impl InterfaceType {
-    pub(crate) fn requires_into_option(&self, types: &TypeList) -> bool {
+impl ComponentDefinedType {
+    pub(crate) fn requires_realloc(&self, types: &TypeList) -> bool {
         match self {
-            InterfaceType::Primitive(ty) => ty.requires_into_option(),
-            InterfaceType::Record(r) => r.fields.values().any(|ty| ty.requires_into_option(types)),
-            InterfaceType::Variant(v) => v
-                .cases
-                .values()
-                .any(|case| case.ty.requires_into_option(types)),
-            InterfaceType::List(_) => true,
-            InterfaceType::Tuple(t) => t.types.iter().any(|ty| ty.requires_into_option(types)),
-            InterfaceType::Union(u) => u.types.iter().any(|ty| ty.requires_into_option(types)),
-            InterfaceType::Flags(_) | InterfaceType::Enum(_) => false,
-            InterfaceType::Option(ty) => ty.requires_into_option(types),
-            InterfaceType::Expected(ok, error) => {
-                ok.requires_into_option(types) || error.requires_into_option(types)
+            Self::Primitive(ty) => ty.requires_realloc(),
+            Self::Record(r) => r.fields.values().any(|ty| ty.requires_realloc(types)),
+            Self::Variant(v) => v.cases.values().any(|case| case.ty.requires_realloc(types)),
+            Self::List(_) => true,
+            Self::Tuple(t) => t.types.iter().any(|ty| ty.requires_realloc(types)),
+            Self::Union(u) => u.types.iter().any(|ty| ty.requires_realloc(types)),
+            Self::Flags(_) | Self::Enum(_) => false,
+            Self::Option(ty) => ty.requires_realloc(types),
+            Self::Expected(ok, error) => {
+                ok.requires_realloc(types) || error.requires_realloc(types)
             }
         }
     }
@@ -778,10 +789,8 @@ impl InterfaceType {
         // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
         match (self, other) {
-            (InterfaceType::Primitive(ty), InterfaceType::Primitive(other_ty)) => {
-                ty.is_subtype_of(other_ty)
-            }
-            (InterfaceType::Record(r), InterfaceType::Record(other_r)) => {
+            (Self::Primitive(ty), Self::Primitive(other_ty)) => ty.is_subtype_of(other_ty),
+            (Self::Record(r), Self::Record(other_r)) => {
                 for (name, ty) in r.fields.iter() {
                     if let Some(other_ty) = other_r.fields.get(name) {
                         if !ty.is_subtype_of(other_ty, types) {
@@ -799,16 +808,16 @@ impl InterfaceType {
                 }
                 true
             }
-            (InterfaceType::Variant(v), InterfaceType::Variant(other_v)) => {
+            (Self::Variant(v), Self::Variant(other_v)) => {
                 for (name, case) in v.cases.iter() {
                     if let Some(other_case) = other_v.cases.get(name) {
                         // Covariant subtype on the case type
                         if !case.ty.is_subtype_of(&other_case.ty, types) {
                             return false;
                         }
-                    } else if let Some(default) = &case.default_to {
-                        if !other_v.cases.contains_key(default) {
-                            // The default is not in the supertype
+                    } else if let Some(refines) = &case.refines {
+                        if !other_v.cases.contains_key(refines) {
+                            // The refined value is not in the supertype
                             return false;
                         }
                     } else {
@@ -819,11 +828,10 @@ impl InterfaceType {
                 }
                 true
             }
-            (InterfaceType::List(ty), InterfaceType::List(other_ty))
-            | (InterfaceType::Option(ty), InterfaceType::Option(other_ty)) => {
+            (Self::List(ty), Self::List(other_ty)) | (Self::Option(ty), Self::Option(other_ty)) => {
                 ty.is_subtype_of(other_ty, types)
             }
-            (InterfaceType::Tuple(t), InterfaceType::Tuple(other_t)) => {
+            (Self::Tuple(t), Self::Tuple(other_t)) => {
                 if t.types.len() != other_t.types.len() {
                     return false;
                 }
@@ -832,7 +840,7 @@ impl InterfaceType {
                     .zip(other_t.types.iter())
                     .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
             }
-            (InterfaceType::Union(u), InterfaceType::Union(other_u)) => {
+            (Self::Union(u), Self::Union(other_u)) => {
                 if u.types.len() != other_u.types.len() {
                     return false;
                 }
@@ -841,14 +849,11 @@ impl InterfaceType {
                     .zip(other_u.types.iter())
                     .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
             }
-            (InterfaceType::Flags(set), InterfaceType::Flags(other_set))
-            | (InterfaceType::Enum(set), InterfaceType::Enum(other_set)) => {
-                set.is_subset(other_set)
+            (Self::Flags(set), Self::Flags(other_set))
+            | (Self::Enum(set), Self::Enum(other_set)) => set.is_subset(other_set),
+            (Self::Expected(ok, error), Self::Expected(other_ok, other_error)) => {
+                ok.is_subtype_of(other_ok, types) && error.is_subtype_of(other_error, types)
             }
-            (
-                InterfaceType::Expected(ok, error),
-                InterfaceType::Expected(other_ok, other_error),
-            ) => ok.is_subtype_of(other_ok, types) && error.is_subtype_of(other_error, types),
             _ => false,
         }
     }
@@ -873,37 +878,39 @@ impl InterfaceType {
                 .fields
                 .iter()
                 .all(|(_, ty)| ty.push_wasm_types(types, lowered_types)),
-            Self::Variant(v) => Self::push_variant_types(
+            Self::Variant(v) => Self::push_variant_wasm_types(
                 v.cases.iter().map(|(_, case)| &case.ty),
                 types,
                 lowered_types,
             ),
-            Self::List(_) => lowered_types.push(Type::I32) && lowered_types.push(Type::I32),
+            Self::List(_) => lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32),
             Self::Tuple(t) => t
                 .types
                 .iter()
                 .all(|ty| ty.push_wasm_types(types, lowered_types)),
             Self::Flags(names) => {
-                (0..(names.len() + 31) / 32).all(|_| lowered_types.push(Type::I32))
+                (0..(names.len() + 31) / 32).all(|_| lowered_types.push(ValType::I32))
             }
-            Self::Enum(_) => lowered_types.push(Type::I32),
-            Self::Union(u) => Self::push_variant_types(u.types.iter(), types, lowered_types),
-            Self::Option(ty) => Self::push_variant_types([ty].into_iter(), types, lowered_types),
+            Self::Enum(_) => lowered_types.push(ValType::I32),
+            Self::Union(u) => Self::push_variant_wasm_types(u.types.iter(), types, lowered_types),
+            Self::Option(ty) => {
+                Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
+            }
             Self::Expected(ok, error) => {
-                Self::push_variant_types([ok, error].into_iter(), types, lowered_types)
+                Self::push_variant_wasm_types([ok, error].into_iter(), types, lowered_types)
             }
         }
     }
 
-    fn push_variant_types<'a>(
-        cases: impl ExactSizeIterator<Item = &'a InterfaceTypeRef>,
+    fn push_variant_wasm_types<'a>(
+        cases: impl ExactSizeIterator<Item = &'a ComponentValType>,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
         let pushed = if cases.len() <= u32::max_value() as usize {
-            lowered_types.push(Type::I32)
+            lowered_types.push(ValType::I32)
         } else {
-            lowered_types.push(Type::I64)
+            lowered_types.push(ValType::I64)
         };
 
         if !pushed {
@@ -934,8 +941,8 @@ impl InterfaceType {
         true
     }
 
-    fn join_types(a: Type, b: Type) -> Type {
-        use Type::*;
+    fn join_types(a: ValType, b: ValType) -> ValType {
+        use ValType::*;
 
         match (a, b) {
             (I32, I32) | (I64, I64) | (F32, F32) | (F64, F64) => a,
@@ -975,51 +982,61 @@ impl Types {
         }
     }
 
+    fn types(&self, core: bool) -> Option<&Vec<TypeId>> {
+        Some(match &self.kind {
+            TypesKind::Module(module) => {
+                if core {
+                    &module.types
+                } else {
+                    return None;
+                }
+            }
+            TypesKind::Component(component) => {
+                if core {
+                    &component.core_types
+                } else {
+                    &component.types
+                }
+            }
+        })
+    }
+
     /// Gets a type based on its type id.
     ///
     /// Returns `None` if the type id is unknown.
-    pub fn type_from_id(&self, id: TypeId) -> Option<&TypeDef> {
+    pub fn type_from_id(&self, id: TypeId) -> Option<&Type> {
         self.types.get(id.index)
     }
 
     /// Gets a type id from a type index.
     ///
     /// Returns `None` if the type index is out of bounds.
-    pub fn id_from_type_index(&self, index: u32) -> Option<TypeId> {
-        let types = match &self.kind {
-            TypesKind::Module(module) => &module.types,
-            TypesKind::Component(component) => &component.types,
-        };
-
-        types.get(index as usize).copied()
+    pub fn id_from_type_index(&self, index: u32, core: bool) -> Option<TypeId> {
+        self.types(core)?.get(index as usize).copied()
     }
 
-    /// Gets a defined type at the given type index.
+    /// Gets a type at the given type index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn type_at(&self, index: u32) -> Option<&TypeDef> {
-        self.type_from_id(self.id_from_type_index(index)?)
+    pub fn type_at(&self, index: u32, core: bool) -> Option<&Type> {
+        self.type_from_id(*self.types(core)?.get(index as usize)?)
     }
 
     /// Gets a defined core function type at the given type index.
     ///
     /// Returns `None` if the index is out of bounds.
-    ///
-    /// Additionally, this method always returns `None` for components
-    /// because core function types are never present in a component's
-    /// type index space.
     pub fn func_type_at(&self, index: u32) -> Option<&FuncType> {
-        match self.type_at(index)? {
-            TypeDef::Func(ty) => Some(ty),
+        match self.type_at(index, true)? {
+            Type::Func(ty) => Some(ty),
             _ => None,
         }
     }
 
-    /// Gets the count of defined types.
+    /// Gets the count of core types.
     pub fn type_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(module) => module.types.len(),
-            TypesKind::Component(component) => component.types.len(),
+            TypesKind::Component(component) => component.core_types.len(),
         }
     }
 
@@ -1029,7 +1046,7 @@ impl Types {
     pub fn table_at(&self, index: u32) -> Option<TableType> {
         let tables = match &self.kind {
             TypesKind::Module(module) => &module.tables,
-            TypesKind::Component(component) => &component.tables,
+            TypesKind::Component(component) => &component.core_tables,
         };
 
         tables.get(index as usize).copied()
@@ -1039,7 +1056,7 @@ impl Types {
     pub fn table_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(module) => module.tables.len(),
-            TypesKind::Component(component) => component.tables.len(),
+            TypesKind::Component(component) => component.core_tables.len(),
         }
     }
 
@@ -1049,7 +1066,7 @@ impl Types {
     pub fn memory_at(&self, index: u32) -> Option<MemoryType> {
         let memories = match &self.kind {
             TypesKind::Module(module) => &module.memories,
-            TypesKind::Component(component) => &component.memories,
+            TypesKind::Component(component) => &component.core_memories,
         };
 
         memories.get(index as usize).copied()
@@ -1059,7 +1076,7 @@ impl Types {
     pub fn memory_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(module) => module.memories.len(),
-            TypesKind::Component(component) => component.memories.len(),
+            TypesKind::Component(component) => component.core_memories.len(),
         }
     }
 
@@ -1069,7 +1086,7 @@ impl Types {
     pub fn global_at(&self, index: u32) -> Option<GlobalType> {
         let globals = match &self.kind {
             TypesKind::Module(module) => &module.globals,
-            TypesKind::Component(component) => &component.globals,
+            TypesKind::Component(component) => &component.core_globals,
         };
 
         globals.get(index as usize).copied()
@@ -1079,7 +1096,7 @@ impl Types {
     pub fn global_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(module) => module.globals.len(),
-            TypesKind::Component(component) => component.globals.len(),
+            TypesKind::Component(component) => component.core_globals.len(),
         }
     }
 
@@ -1089,70 +1106,55 @@ impl Types {
     pub fn tag_at(&self, index: u32) -> Option<&FuncType> {
         let tags = match &self.kind {
             TypesKind::Module(module) => &module.tags,
-            TypesKind::Component(component) => &component.tags,
+            TypesKind::Component(component) => &component.core_tags,
         };
 
-        Some(self.types[*tags.get(index as usize)?].unwrap_func_type())
+        Some(
+            self.types[*tags.get(index as usize)?]
+                .as_func_type()
+                .unwrap(),
+        )
     }
 
     /// Gets the count of imported and defined tags.
     pub fn tag_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(module) => module.tags.len(),
-            TypesKind::Component(component) => component.tags.len(),
+            TypesKind::Component(component) => component.core_tags.len(),
         }
     }
 
     /// Gets the type of a core function at the given function index.
     ///
-    /// Returns `None` if the index is out of bounds or when parsing
-    /// a component and the function at the given index is not a core
-    /// function type.
+    /// Returns `None` if the index is out of bounds.
     pub fn function_at(&self, index: u32) -> Option<&FuncType> {
         let id = match &self.kind {
             TypesKind::Module(module) => {
                 &module.types[*module.functions.get(index as usize)? as usize]
             }
-            TypesKind::Component(component) => component.functions.get(index as usize)?,
+            TypesKind::Component(component) => component.core_funcs.get(index as usize)?,
         };
 
         match &self.types[*id] {
-            TypeDef::Func(ty) => Some(ty),
+            Type::Func(ty) => Some(ty),
             _ => None,
         }
     }
 
-    /// Gets the type of a component function at the given function index.
+    /// Gets the count of imported and defined core functions.
     ///
-    /// Returns `None` if the index is out of bounds or if the function at
-    /// the given index is not a component function type.
-    pub fn component_function_at(&self, index: u32) -> Option<&ComponentFuncType> {
-        match &self.kind {
-            TypesKind::Module(_) => None,
-            TypesKind::Component(component) => {
-                let id = component.functions.get(index as usize)?;
-                match &self.types[*id] {
-                    TypeDef::ComponentFunc(ty) => Some(ty),
-                    _ => None,
-                }
-            }
-        }
-    }
-
-    /// Gets the count of imported and defined functions.
-    ///
-    /// The count also includes aliased functions in components.
+    /// The count also includes aliased core functions in components.
     pub fn function_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(module) => module.functions.len(),
-            TypesKind::Component(component) => component.functions.len(),
+            TypesKind::Component(component) => component.core_funcs.len(),
         }
     }
 
     /// Gets the type of an element segment at the given element segment index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn element_at(&self, index: u32) -> Option<Type> {
+    pub fn element_at(&self, index: u32) -> Option<ValType> {
         match &self.kind {
             TypesKind::Module(module) => module.element_types.get(index as usize).copied(),
             TypesKind::Component(_) => None,
@@ -1167,15 +1169,39 @@ impl Types {
         }
     }
 
+    /// Gets the type of a component function at the given function index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    pub fn component_function_at(&self, index: u32) -> Option<&ComponentFuncType> {
+        match &self.kind {
+            TypesKind::Module(_) => None,
+            TypesKind::Component(component) => Some(
+                self.types[*component.funcs.get(index as usize)?]
+                    .as_component_func_type()
+                    .unwrap(),
+            ),
+        }
+    }
+
+    /// Gets the count of imported, exported, or aliased component functions.
+    pub fn component_function_count(&self) -> usize {
+        match &self.kind {
+            TypesKind::Module(_) => 0,
+            TypesKind::Component(component) => component.funcs.len(),
+        }
+    }
+
     /// Gets the type of a module at the given module index.
     ///
     /// Returns `None` if the index is out of bounds.
     pub fn module_at(&self, index: u32) -> Option<&ModuleType> {
         match &self.kind {
             TypesKind::Module(_) => None,
-            TypesKind::Component(component) => {
-                Some(self.types[*component.modules.get(index as usize)?].unwrap_module_type())
-            }
+            TypesKind::Component(component) => Some(
+                self.types[*component.core_modules.get(index as usize)?]
+                    .as_module_type()
+                    .unwrap(),
+            ),
         }
     }
 
@@ -1183,7 +1209,31 @@ impl Types {
     pub fn module_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(_) => 0,
-            TypesKind::Component(component) => component.modules.len(),
+            TypesKind::Component(component) => component.core_modules.len(),
+        }
+    }
+
+    /// Gets the type of a module instance at the given module instance index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    pub fn instance_at(&self, index: u32) -> Option<&InstanceType> {
+        match &self.kind {
+            TypesKind::Module(_) => None,
+            TypesKind::Component(component) => {
+                let id = component.core_instances.get(index as usize)?;
+                match &self.types[*id] {
+                    Type::Instance(ty) => Some(ty),
+                    _ => None,
+                }
+            }
+        }
+    }
+
+    /// Gets the count of imported, exported, or aliased core module instances.
+    pub fn instance_count(&self) -> usize {
+        match &self.kind {
+            TypesKind::Module(_) => 0,
+            TypesKind::Component(component) => component.core_instances.len(),
         }
     }
 
@@ -1193,9 +1243,11 @@ impl Types {
     pub fn component_at(&self, index: u32) -> Option<&ComponentType> {
         match &self.kind {
             TypesKind::Module(_) => None,
-            TypesKind::Component(component) => {
-                Some(self.types[*component.components.get(index as usize)?].unwrap_component_type())
-            }
+            TypesKind::Component(component) => Some(
+                self.types[*component.components.get(index as usize)?]
+                    .as_component_type()
+                    .unwrap(),
+            ),
         }
     }
 
@@ -1207,42 +1259,24 @@ impl Types {
         }
     }
 
-    /// Gets the type of an instance at the given instance index.
+    /// Gets the type of an component instance at the given component instance index.
     ///
-    /// Returns `None` if the index is out of bounds or if the instance is not
-    /// a component instance.
-    pub fn instance_at(&self, index: u32) -> Option<&InstanceType> {
+    /// Returns `None` if the index is out of bounds.
+    pub fn component_instance_at(&self, index: u32) -> Option<&ComponentInstanceType> {
         match &self.kind {
             TypesKind::Module(_) => None,
             TypesKind::Component(component) => {
                 let id = component.instances.get(index as usize)?;
                 match &self.types[*id] {
-                    TypeDef::Instance(ty) => Some(ty),
+                    Type::ComponentInstance(ty) => Some(ty),
                     _ => None,
                 }
             }
         }
     }
 
-    /// Gets the type of a core module instance at the given instance index.
-    ///
-    /// Returns `None` if the index is out of bounds or if the instance is not
-    /// a module instance.
-    pub fn module_instance_at(&self, index: u32) -> Option<&ModuleType> {
-        match &self.kind {
-            TypesKind::Module(_) => None,
-            TypesKind::Component(component) => {
-                let id = component.instances.get(index as usize)?;
-                match &self.types[*id] {
-                    TypeDef::Module(ty) => Some(ty),
-                    _ => None,
-                }
-            }
-        }
-    }
-
-    /// Gets the count of imported, exported, or aliased instances.
-    pub fn instance_count(&self) -> usize {
+    /// Gets the count of imported, exported, or aliased component instances.
+    pub fn component_instance_count(&self) -> usize {
         match &self.kind {
             TypesKind::Module(_) => 0,
             TypesKind::Component(component) => component.instances.len(),
@@ -1252,7 +1286,7 @@ impl Types {
     /// Gets the type of a value at the given value index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn value_at(&self, index: u32) -> Option<InterfaceTypeRef> {
+    pub fn value_at(&self, index: u32) -> Option<ComponentValType> {
         match &self.kind {
             TypesKind::Module(_) => None,
             TypesKind::Component(component) => {
@@ -1413,4 +1447,4 @@ impl<T> Default for SnapshotList<T> {
     }
 }
 
-pub(crate) type TypeList = SnapshotList<TypeDef>;
+pub(crate) type TypeList = SnapshotList<Type>;

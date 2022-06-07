@@ -1218,8 +1218,7 @@ pub struct BrTableIndices<'a> {
 
 impl<'a> Parse<'a> for BrTableIndices<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut labels = Vec::new();
-        labels.push(parser.parse()?);
+        let mut labels = vec![parser.parse()?];
         while parser.peek::<Index>() {
             labels.push(parser.parse()?);
         }
@@ -1286,7 +1285,7 @@ impl<'a> MemArg<'a> {
                     return Ok((None, c));
                 }
                 let kw = &kw[name.len()..];
-                if !kw.starts_with("=") {
+                if !kw.starts_with('=') {
                     return Ok((None, c));
                 }
                 let num = &kw[1..];
@@ -1314,7 +1313,7 @@ impl<'a> MemArg<'a> {
 
         let memory = parser
             .parse::<Option<_>>()?
-            .unwrap_or(Index::Num(0, parser.prev_span()));
+            .unwrap_or_else(|| Index::Num(0, parser.prev_span()));
         let offset = parse_u64("offset", parser)?.unwrap_or(0);
         let align = match parse_u32("align", parser)? {
             Some(n) if !n.is_power_of_two() => {

@@ -44,23 +44,26 @@ impl Opts {
                 }
                 CodeSectionEntry(_) => {}
 
-                ComponentTypeSection(s) => printer.section(s, "types")?,
-                ComponentImportSection(s) => printer.section(s, "imports")?,
-                ComponentFunctionSection(s) => printer.section(s, "functions")?,
                 ModuleSection { range, .. } => {
                     printer.section_raw(range, 1, "module")?;
                     printer.start(Encoding::Module)?;
                 }
+                InstanceSection(s) => printer.section(s, "core instances")?,
+                AliasSection(s) => printer.section(s, "core aliases")?,
+                CoreTypeSection(s) => printer.section(s, "core types")?,
                 ComponentSection { range, .. } => {
                     printer.section_raw(range, 1, "component")?;
                     printer.indices.push(IndexSpace::default());
                     printer.start(Encoding::Component)?;
                 }
-                InstanceSection(s) => printer.section(s, "instances")?,
-                ComponentExportSection(s) => printer.section(s, "exports")?,
-                ComponentStartSection(s) => printer.section_raw(s.range(), 1, "start")?,
-                AliasSection(s) => printer.section(s, "alias")?,
-
+                ComponentInstanceSection(s) => printer.section(s, "component instances")?,
+                ComponentAliasSection(s) => printer.section(s, "component alias")?,
+                ComponentTypeSection(s) => printer.section(s, "component types")?,
+                ComponentCanonicalSection(s) => printer.section(s, "canonical functions")?,
+                ComponentStartSection(s) => printer.section_raw(s.range(), 1, "component start")?,
+                ComponentImportSection(s) => printer.section(s, "component imports")?,
+                ComponentExportSection(s) => printer.section(s, "component exports")?,
+                
                 CustomSection(c) => printer.section_raw(
                     c.data_offset()..c.data_offset() + c.data().len(),
                     1,

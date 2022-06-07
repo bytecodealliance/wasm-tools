@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, BinaryReaderError, Result, Type};
+use crate::{BinaryReader, BinaryReaderError, Result, ValType};
 
 /// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub enum BlockType {
     /// The block produces consumes nor produces any values.
     Empty,
     /// The block produces a singular value of the given type ([] -> \[t]).
-    Type(Type),
+    Type(ValType),
     /// The block is described by a function type.
     ///
     /// The index is to a function type in the types section.
@@ -166,7 +166,7 @@ pub enum Operator<'a> {
     Drop,
     Select,
     TypedSelect {
-        ty: Type,
+        ty: ValType,
     },
     LocalGet {
         local_index: u32,
@@ -273,7 +273,7 @@ pub enum Operator<'a> {
         value: Ieee64,
     },
     RefNull {
-        ty: Type,
+        ty: ValType,
     },
     RefIsNull,
     RefFunc {

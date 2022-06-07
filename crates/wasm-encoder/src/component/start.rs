@@ -32,10 +32,15 @@ where
         let mut bytes = Vec::new();
         self.function_index.encode(&mut bytes);
         self.args.as_ref().encode(&mut bytes);
-
-        ComponentSectionId::Start.encode(sink);
         bytes.encode(sink);
     }
 }
 
-impl<A> ComponentSection for ComponentStartSection<A> where A: AsRef<[u32]> {}
+impl<A> ComponentSection for ComponentStartSection<A>
+where
+    A: AsRef<[u32]>,
+{
+    fn id(&self) -> u8 {
+        ComponentSectionId::Start.into()
+    }
+}

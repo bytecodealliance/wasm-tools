@@ -57,7 +57,7 @@ impl Mutator for AddTypeMutator {
             for _ in 0..reader.get_count() {
                 let ty = reader.read()?;
                 match ty {
-                    wasmparser::TypeDef::Func(ty) => {
+                    wasmparser::Type::Func(ty) => {
                         let params = ty
                             .params
                             .iter()
@@ -87,15 +87,15 @@ impl Mutator for AddTypeMutator {
     }
 }
 
-fn translate_type(ty: &wasmparser::Type) -> Result<wasm_encoder::ValType> {
+fn translate_type(ty: &wasmparser::ValType) -> Result<wasm_encoder::ValType> {
     Ok(match ty {
-        wasmparser::Type::I32 => wasm_encoder::ValType::I32,
-        wasmparser::Type::I64 => wasm_encoder::ValType::I64,
-        wasmparser::Type::F32 => wasm_encoder::ValType::F32,
-        wasmparser::Type::F64 => wasm_encoder::ValType::F64,
-        wasmparser::Type::V128 => wasm_encoder::ValType::V128,
-        wasmparser::Type::FuncRef => wasm_encoder::ValType::FuncRef,
-        wasmparser::Type::ExternRef => wasm_encoder::ValType::ExternRef,
+        wasmparser::ValType::I32 => wasm_encoder::ValType::I32,
+        wasmparser::ValType::I64 => wasm_encoder::ValType::I64,
+        wasmparser::ValType::F32 => wasm_encoder::ValType::F32,
+        wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
+        wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
+        wasmparser::ValType::FuncRef => wasm_encoder::ValType::FuncRef,
+        wasmparser::ValType::ExternRef => wasm_encoder::ValType::ExternRef,
     })
 }
 

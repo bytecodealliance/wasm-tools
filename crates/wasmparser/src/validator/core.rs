@@ -3,19 +3,19 @@
 use super::{
     check_max, combine_type_sizes,
     operators::OperatorValidator,
-    types::{EntityType, TypeDef, TypeId, TypeList},
+    types::{EntityType, Type, TypeId, TypeList},
 };
 use crate::{
     limits::*, BinaryReaderError, Data, DataKind, Element, ElementItem, ElementKind, ExternalKind,
-    FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType, Type,
-    TypeRef, WasmFeatures, WasmModuleResources,
+    FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType,
+    TypeRef, ValType, WasmFeatures, WasmModuleResources,
 };
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 
-fn check_value_type(ty: Type, features: &WasmFeatures, offset: usize) -> Result<()> {
+fn check_value_type(ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
     match features.check_value_type(ty) {
         Ok(()) => Ok(()),
         Err(e) => Err(BinaryReaderError::new(e, offset)),
@@ -51,26 +51,26 @@ impl Default for Order {
 }
 
 #[derive(Default)]
-pub struct ModuleState {
+pub(crate) struct ModuleState {
     /// Internal state that is incrementally built-up for the module being
     /// validated. This houses type information for all wasm items, like
     /// functions. Note that this starts out as a solely owned `Arc<T>` so we can
     /// get mutable access, but after we get to the code section this is never
     /// mutated to we can clone it cheaply and hand it to sub-validators.
-    pub(crate) module: arc::MaybeOwned<Module>,
+    pub module: arc::MaybeOwned<Module>,
 
     /// Where we are, order-wise, in the wasm binary.
     order: Order,
 
     /// The number of data segments in the data section (if present).
-    pub(crate) data_segment_count: u32,
+    pub data_segment_count: u32,
 
     /// The number of functions we expect to be defined in the code section, or
     /// basically the length of the function section if it was found. The next
     /// index is where we are, in the code section index space, for the next
     /// entry in the code section (used to figure out what type is next for the
     /// function being validated).
-    pub(crate) expected_code_bodies: Option<u32>,
+    pub expected_code_bodies: Option<u32>,
 
     /// When parsing the code section, represents the current index in the section.
     code_section_index: Option<usize>,
@@ -129,7 +129,7 @@ impl ModuleState {
         Ok(ty)
     }
 
-    pub(super) fn add_global(
+    pub fn add_global(
         &mut self,
         global: Global,
         features: &WasmFeatures,
@@ -149,7 +149,7 @@ impl ModuleState {
         Ok(())
     }
 
-    pub(super) fn add_data_segment(
+    pub fn add_data_segment(
         &mut self,
         data: Data,
         features: &WasmFeatures,
@@ -168,7 +168,7 @@ impl ModuleState {
         }
     }
 
-    pub(super) fn add_element_segment(
+    pub fn add_element_segment(
         &mut self,
         e: Element,
         features: &WasmFeatures,
@@ -176,9 +176,9 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         match e.ty {
-            Type::FuncRef => {}
-            Type::ExternRef if features.reference_types => {}
-            Type::ExternRef => {
+            ValType::FuncRef => {}
+            ValType::ExternRef if features.reference_types => {}
+            ValType::ExternRef => {
                 return Err(BinaryReaderError::new(
                     "reference types must be enabled for externref elem segment",
                     offset,
@@ -199,7 +199,7 @@ impl ModuleState {
                     ));
                 }
 
-                self.check_init_expr(&init_expr, Type::I32, features, types, offset)?;
+                self.check_init_expr(&init_expr, ValType::I32, features, types, offset)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !features.bulk_memory {
@@ -224,7 +224,7 @@ impl ModuleState {
                     self.check_init_expr(&expr, e.ty, features, types, offset)?;
                 }
                 ElementItem::Func(f) => {
-                    if e.ty != Type::FuncRef {
+                    if e.ty != ValType::FuncRef {
                         return Err(BinaryReaderError::new(
                             "type mismatch: segment does not have funcref type",
                             offset,
@@ -243,7 +243,7 @@ impl ModuleState {
     fn check_init_expr(
         &mut self,
         expr: &InitExpr<'_>,
-        expected_ty: Type,
+        expected_ty: ValType,
         features: &WasmFeatures,
         types: &TypeList,
         offset: usize,
@@ -346,17 +346,17 @@ impl ModuleState {
     }
 }
 
-pub struct Module {
+pub(crate) struct Module {
     // This is set once the code section starts.
     // `WasmModuleResources` implementations use the snapshot to
     // enable parallel validation of functions.
-    pub(super) snapshot: Option<Arc<TypeList>>,
+    pub snapshot: Option<Arc<TypeList>>,
     // Stores indexes into the validator's types list.
     pub types: Vec<TypeId>,
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
     pub globals: Vec<GlobalType>,
-    pub element_types: Vec<Type>,
+    pub element_types: Vec<ValType>,
     pub data_count: Option<u32>,
     // Stores indexes into `types`.
     pub functions: Vec<u32>,
@@ -370,16 +370,16 @@ pub struct Module {
 }
 
 impl Module {
-    pub(super) fn add_type(
+    pub fn add_type(
         &mut self,
-        def: crate::TypeDef,
+        ty: crate::Type,
         features: &WasmFeatures,
         types: &mut TypeList,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        let ty = match def {
-            crate::TypeDef::Func(t) => {
+        let ty = match ty {
+            crate::Type::Func(t) => {
                 for ty in t.params.iter().chain(t.returns.iter()) {
                     check_value_type(*ty, features, offset)?;
                 }
@@ -389,7 +389,7 @@ impl Module {
                         offset,
                     ));
                 }
-                TypeDef::Func(t)
+                Type::Func(t)
             }
         };
 
@@ -405,7 +405,7 @@ impl Module {
         Ok(())
     }
 
-    pub(super) fn add_import(
+    pub fn add_import(
         &mut self,
         import: crate::Import,
         features: &WasmFeatures,
@@ -457,7 +457,7 @@ impl Module {
         Ok(())
     }
 
-    pub(super) fn add_export(
+    pub fn add_export(
         &mut self,
         name: &str,
         ty: EntityType,
@@ -491,12 +491,7 @@ impl Module {
         }
     }
 
-    pub(super) fn add_function(
-        &mut self,
-        type_index: u32,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
+    pub fn add_function(&mut self, type_index: u32, types: &TypeList, offset: usize) -> Result<()> {
         self.func_type_at(type_index, types, offset)?;
         self.functions.push(type_index);
         Ok(())
@@ -524,7 +519,7 @@ impl Module {
         Ok(())
     }
 
-    pub(super) fn add_tag(
+    pub fn add_tag(
         &mut self,
         ty: TagType,
         features: &WasmFeatures,
@@ -536,7 +531,7 @@ impl Module {
         Ok(())
     }
 
-    fn type_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<&'a TypeDef> {
+    fn type_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<&'a Type> {
         match self.types.get(idx as usize) {
             Some(id) => Ok(&types[*id]),
             None => Err(BinaryReaderError::new(
@@ -552,10 +547,17 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        Ok(self.type_at(type_index, types, offset)?.unwrap_func_type())
+        self.type_at(type_index, types, offset)?
+            .as_func_type()
+            .ok_or_else(|| {
+                BinaryReaderError::new(
+                    format!("type index {} is not a function type", type_index),
+                    offset,
+                )
+            })
     }
 
-    pub(super) fn check_type_ref(
+    pub fn check_type_ref(
         &self,
         type_ref: &TypeRef,
         features: &WasmFeatures,
@@ -593,8 +595,8 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         match ty.element_type {
-            Type::FuncRef => {}
-            Type::ExternRef => {
+            ValType::FuncRef => {}
+            ValType::ExternRef => {
                 if !features.reference_types {
                     return Err(BinaryReaderError::new("element is not anyfunc", offset));
                 }
@@ -792,7 +794,7 @@ impl Module {
         })
     }
 
-    pub(super) fn get_func_type<'a>(
+    pub fn get_func_type<'a>(
         &self,
         func_idx: u32,
         types: &'a TypeList,
@@ -877,7 +879,11 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.types[*self.module.tags.get(at as usize)?].unwrap_func_type())
+        Some(
+            self.types[*self.module.tags.get(at as usize)?]
+                .as_func_type()
+                .unwrap(),
+        )
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -885,14 +891,18 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.types[*self.module.types.get(at as usize)?].unwrap_func_type())
+        Some(
+            self.types[*self.module.types.get(at as usize)?]
+                .as_func_type()
+                .unwrap(),
+        )
     }
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
         self.func_type_at(*self.module.functions.get(at as usize)?)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<Type> {
+    fn element_type_at(&self, at: u32) -> Option<ValType> {
         self.module.element_types.get(at as usize).cloned()
     }
 
@@ -925,7 +935,11 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?].unwrap_func_type())
+        Some(
+            self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?]
+                .as_func_type()
+                .unwrap(),
+        )
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -933,14 +947,18 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?].unwrap_func_type())
+        Some(
+            self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?]
+                .as_func_type()
+                .unwrap(),
+        )
     }
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
         self.func_type_at(*self.0.functions.get(at as usize)?)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<Type> {
+    fn element_type_at(&self, at: u32) -> Option<ValType> {
         self.0.element_types.get(at as usize).cloned()
     }
 

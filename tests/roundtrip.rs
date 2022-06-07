@@ -524,7 +524,7 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "malformed import kind" {
-        return error.contains("invalid external kind")
+        return error.contains("invalid leading byte")
             // wasmparser understands more import kinds than the default spec
             // interpreter
             || error.contains("unexpected end-of-file");

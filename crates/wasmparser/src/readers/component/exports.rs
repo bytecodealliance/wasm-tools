@@ -1,11 +1,22 @@
-use crate::{
-    BinaryReader, ComponentArgKind, Result, SectionIteratorLimited, SectionReader,
-    SectionWithLimitedItems,
-};
+use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
 use std::ops::Range;
 
-/// Represents the kind of export in a WebAssembly component.
-pub type ComponentExportKind = ComponentArgKind;
+/// Represents the kind of an external items of a WebAssembly component.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ComponentExternalKind {
+    /// The external kind is a core module.
+    Module,
+    /// The external kind is a function.
+    Func,
+    /// The external kind is a value.
+    Value,
+    /// The external kind is a type.
+    Type,
+    /// The external kind is an instance.
+    Instance,
+    /// The external kind is a component.
+    Component,
+}
 
 /// Represents an export in a WebAssembly component.
 #[derive(Debug, Clone)]
@@ -13,7 +24,9 @@ pub struct ComponentExport<'a> {
     /// The name of the exported item.
     pub name: &'a str,
     /// The kind of the export.
-    pub kind: ComponentExportKind,
+    pub kind: ComponentExternalKind,
+    /// The index of the exported item.
+    pub index: u32,
 }
 
 /// A reader for the export section of a WebAssembly component.
@@ -47,7 +60,7 @@ impl<'a> ComponentExportSectionReader<'a> {
     /// ```
     /// use wasmparser::ComponentExportSectionReader;
     ///
-    /// # let data: &[u8] = &[0x01, 0x03, b'f', b'o', b'o', 0x00, 0x03, 0x00];
+    /// # let data: &[u8] = &[0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
     /// let mut reader = ComponentExportSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let export = reader.read().expect("export");

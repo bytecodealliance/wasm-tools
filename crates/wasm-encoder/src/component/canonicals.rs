@@ -1,6 +1,6 @@
 use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
 
-/// Represents options for component functions.
+/// Represents options for canonical function definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalOption {
     /// The string types in the function signature are UTF-8 encoded.
@@ -9,12 +9,18 @@ pub enum CanonicalOption {
     UTF16,
     /// The string types in the function signature are compact UTF-16 encoded.
     CompactUTF16,
-    /// The lifting or lowering operation requires access to a memory, realloc, or
-    /// free function.
+    /// The memory to use if the lifting or lowering of a function requires memory access.
     ///
-    /// The value is expected to be an instance exporting the canonical ABI memory
-    /// and functions.
-    Into(u32),
+    /// The value is an index to a core memory.
+    Memory(u32),
+    /// The realloc function to use if the lifting or lowering of a function requires memory
+    /// allocation.
+    ///
+    /// The value is an index to a core function of type `(func (param i32 i32 i32 i32) (result i32))`.
+    Realloc(u32),
+    /// The post-return function to use if the lifting of a function requires
+    /// cleanup after the function returns.
+    PostReturn(u32),
 }
 
 impl Encode for CanonicalOption {
@@ -23,23 +29,31 @@ impl Encode for CanonicalOption {
             Self::UTF8 => sink.push(0x00),
             Self::UTF16 => sink.push(0x01),
             Self::CompactUTF16 => sink.push(0x02),
-            Self::Into(index) => {
+            Self::Memory(idx) => {
                 sink.push(0x03);
-                index.encode(sink);
+                idx.encode(sink);
+            }
+            Self::Realloc(idx) => {
+                sink.push(0x04);
+                idx.encode(sink);
+            }
+            Self::PostReturn(idx) => {
+                sink.push(0x05);
+                idx.encode(sink);
             }
         }
     }
 }
 
-/// An encoder for the function section of WebAssembly components.
+/// An encoder for the canonical function section of WebAssembly components.
 ///
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{Component, ComponentFunctionSection, CanonicalOption};
+/// use wasm_encoder::{Component, CanonicalFunctionSection, CanonicalOption};
 ///
-/// let mut functions = ComponentFunctionSection::new();
-/// functions.lift(0, 0, [CanonicalOption::UTF8, CanonicalOption::Into(0)]);
+/// let mut functions = CanonicalFunctionSection::new();
+/// functions.lift(0, 0, [CanonicalOption::UTF8]);
 ///
 /// let mut component = Component::new();
 /// component.section(&functions);
@@ -47,12 +61,12 @@ impl Encode for CanonicalOption {
 /// let bytes = component.finish();
 /// ```
 #[derive(Clone, Debug, Default)]
-pub struct ComponentFunctionSection {
+pub struct CanonicalFunctionSection {
     bytes: Vec<u8>,
     num_added: u32,
 }
 
-impl ComponentFunctionSection {
+impl CanonicalFunctionSection {
     /// Construct a new component function section encoder.
     pub fn new() -> Self {
         Self::default()
@@ -68,25 +82,26 @@ impl ComponentFunctionSection {
         self.num_added == 0
     }
 
-    /// Define a function that will lift a core WebAssembly function to the canonical interface ABI.
-    pub fn lift<O>(&mut self, type_index: u32, func_index: u32, options: O) -> &mut Self
+    /// Define a function that will lift a core WebAssembly function to the canonical ABI.
+    pub fn lift<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
     {
         let options = options.into_iter();
         self.bytes.push(0x00);
-        type_index.encode(&mut self.bytes);
+        self.bytes.push(0x00);
+        core_func_index.encode(&mut self.bytes);
         options.len().encode(&mut self.bytes);
         for option in options {
             option.encode(&mut self.bytes);
         }
-        func_index.encode(&mut self.bytes);
+        type_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 
-    /// Define a function that will lower a canonical interface ABI function to a core WebAssembly function.
+    /// Define a function that will lower a canonical ABI function to a core WebAssembly function.
     pub fn lower<O>(&mut self, func_index: u32, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
@@ -94,25 +109,25 @@ impl ComponentFunctionSection {
     {
         let options = options.into_iter();
         self.bytes.push(0x01);
+        self.bytes.push(0x00);
+        func_index.encode(&mut self.bytes);
         options.len().encode(&mut self.bytes);
         for option in options {
             option.encode(&mut self.bytes);
         }
-        func_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 }
 
-impl Encode for ComponentFunctionSection {
+impl Encode for CanonicalFunctionSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(
-            sink,
-            ComponentSectionId::Function,
-            self.num_added,
-            &self.bytes,
-        );
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl ComponentSection for ComponentFunctionSection {}
+impl ComponentSection for CanonicalFunctionSection {
+    fn id(&self) -> u8 {
+        ComponentSectionId::CanonicalFunction.into()
+    }
+}

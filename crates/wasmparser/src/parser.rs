@@ -1,14 +1,12 @@
-use crate::limits::MAX_WASM_MODULE_SIZE;
+use crate::CoreTypeSectionReader;
 use crate::{
-    AliasSectionReader, ComponentExportSectionReader, ComponentFunctionSectionReader,
-    ComponentImportSectionReader, ComponentStartSectionReader, ComponentTypeSectionReader,
-    InstanceSectionReader,
-};
-use crate::{
-    BinaryReader, BinaryReaderError, CustomSectionReader, DataSectionReader, ElementSectionReader,
+    limits::MAX_WASM_MODULE_SIZE, AliasSectionReader, BinaryReader, BinaryReaderError,
+    ComponentAliasSectionReader, ComponentCanonicalSectionReader, ComponentExportSectionReader,
+    ComponentImportSectionReader, ComponentInstanceSectionReader, ComponentStartSectionReader,
+    ComponentTypeSectionReader, CustomSectionReader, DataSectionReader, ElementSectionReader,
     ExportSectionReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
-    ImportSectionReader, MemorySectionReader, Result, TableSectionReader, TagSectionReader,
-    TypeSectionReader,
+    ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result, TableSectionReader,
+    TagSectionReader, TypeSectionReader,
 };
 use std::convert::TryInto;
 use std::fmt;
@@ -109,28 +107,28 @@ pub enum Payload<'a> {
 
     /// A module type section was received and the provided reader can be
     /// used to parse the contents of the type section.
-    TypeSection(crate::TypeSectionReader<'a>),
+    TypeSection(TypeSectionReader<'a>),
     /// A module import section was received and the provided reader can be
     /// used to parse the contents of the import section.
-    ImportSection(crate::ImportSectionReader<'a>),
+    ImportSection(ImportSectionReader<'a>),
     /// A module function section was received and the provided reader can be
     /// used to parse the contents of the function section.
-    FunctionSection(crate::FunctionSectionReader<'a>),
+    FunctionSection(FunctionSectionReader<'a>),
     /// A module table section was received and the provided reader can be
     /// used to parse the contents of the table section.
-    TableSection(crate::TableSectionReader<'a>),
+    TableSection(TableSectionReader<'a>),
     /// A module memory section was received and the provided reader can be
     /// used to parse the contents of the memory section.
-    MemorySection(crate::MemorySectionReader<'a>),
+    MemorySection(MemorySectionReader<'a>),
     /// A module tag section was received, and the provided reader can be
     /// used to parse the contents of the tag section.
-    TagSection(crate::TagSectionReader<'a>),
+    TagSection(TagSectionReader<'a>),
     /// A module global section was received and the provided reader can be
     /// used to parse the contents of the global section.
-    GlobalSection(crate::GlobalSectionReader<'a>),
+    GlobalSection(GlobalSectionReader<'a>),
     /// A module export section was received, and the provided reader can be
     /// used to parse the contents of the export section.
-    ExportSection(crate::ExportSectionReader<'a>),
+    ExportSection(ExportSectionReader<'a>),
     /// A module start section was received.
     StartSection {
         /// The start function index
@@ -141,7 +139,7 @@ pub enum Payload<'a> {
     },
     /// A module element section was received and the provided reader can be
     /// used to parse the contents of the element section.
-    ElementSection(crate::ElementSectionReader<'a>),
+    ElementSection(ElementSectionReader<'a>),
     /// A module data count section was received.
     DataCountSection {
         /// The number of data segments.
@@ -152,68 +150,7 @@ pub enum Payload<'a> {
     },
     /// A module data section was received and the provided reader can be
     /// used to parse the contents of the data section.
-    DataSection(crate::DataSectionReader<'a>),
-
-    /// A component type section was received and the provided reader can be
-    /// used to parse the contents of the type section.
-    ComponentTypeSection(crate::ComponentTypeSectionReader<'a>),
-    /// A component import section was received and the provided reader can be
-    /// used to parse the contents of the import section.
-    ComponentImportSection(crate::ComponentImportSectionReader<'a>),
-    /// A component function section was received and the provided reader can be
-    /// used to parse the contents of the function section.
-    ComponentFunctionSection(crate::ComponentFunctionSectionReader<'a>),
-    /// A component module section was received and the provided parser can be
-    /// used to parse the nested module.
-    ///
-    /// This variant is special in that it returns a sub-`Parser`. Upon
-    /// receiving a `ModuleSection` it is expected that the returned
-    /// `Parser` will be used instead of the parent `Parser` until the parse has
-    /// finished. You'll need to feed data into the `Parser` returned until it
-    /// returns `Payload::End`. After that you'll switch back to the parent
-    /// parser to resume parsing the rest of the current component.
-    ///
-    /// Note that binaries will not be parsed correctly if you feed the data for
-    /// a nested module into the parent [`Parser`].
-    ModuleSection {
-        /// The parser for the nested module.
-        parser: Parser,
-        /// The range of bytes that represent the nested module in the
-        /// original byte stream.
-        range: Range<usize>,
-    },
-    /// A component section from a WebAssembly component was received and the
-    /// provided parser can be used to parse the nested component.
-    ///
-    /// This variant is special in that it returns a sub-`Parser`. Upon
-    /// receiving a `ComponentSection` it is expected that the returned
-    /// `Parser` will be used instead of the parent `Parser` until the parse has
-    /// finished. You'll need to feed data into the `Parser` returned until it
-    /// returns `Payload::End`. After that you'll switch back to the parent
-    /// parser to resume parsing the rest of the current component.
-    ///
-    /// Note that binaries will not be parsed correctly if you feed the data for
-    /// a nested component into the parent [`Parser`].
-    ComponentSection {
-        /// The parser for the nested component.
-        parser: Parser,
-        /// The range of bytes that represent the nested component in the
-        /// original byte stream.
-        range: Range<usize>,
-    },
-    /// A component instance section was received and the provided reader can be
-    /// used to parse the contents of the instance section.
-    InstanceSection(crate::InstanceSectionReader<'a>),
-    /// A component export section was received, and the provided reader can be
-    /// used to parse the contents of the export section.
-    ComponentExportSection(crate::ComponentExportSectionReader<'a>),
-    /// A component start section was received, and the provided reader can be
-    /// used to parse the contents of the start section.
-    ComponentStartSection(crate::ComponentStartSectionReader<'a>),
-    /// A component alias section was received and the provided reader can be
-    /// used to parse the contents of the alias section.
-    AliasSection(crate::AliasSectionReader<'a>),
-
+    DataSection(DataSectionReader<'a>),
     /// Indicator of the start of the code section of a WebAssembly module.
     ///
     /// This entry is returned whenever the code section starts. The `count`
@@ -246,10 +183,85 @@ pub enum Payload<'a> {
     /// where the function resides. Note that the function itself has not been
     /// parsed, it's only been outlined. You'll need to process the
     /// `FunctionBody` provided to test whether it parses and/or is valid.
-    CodeSectionEntry(crate::FunctionBody<'a>),
+    CodeSectionEntry(FunctionBody<'a>),
+
+    /// A core module section was received and the provided parser can be
+    /// used to parse the nested module.
+    ///
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ModuleSection` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the current component.
+    ///
+    /// Note that binaries will not be parsed correctly if you feed the data for
+    /// a nested module into the parent [`Parser`].
+    ModuleSection {
+        /// The parser for the nested module.
+        parser: Parser,
+        /// The range of bytes that represent the nested module in the
+        /// original byte stream.
+        range: Range<usize>,
+    },
+    /// A core instance section was received and the provided parser can be
+    /// used to parse the contents of the core instance section.
+    ///
+    /// Currently this section is only parsed in a component.
+    InstanceSection(InstanceSectionReader<'a>),
+    /// A core alias section was received and the provided parser can be
+    /// used to parse the contents of the core alias section.
+    ///
+    /// Currently this section is only parsed in a component.
+    AliasSection(AliasSectionReader<'a>),
+    /// A core type section was received and the provided parser can be
+    /// used to parse the contents of the core type section.
+    ///
+    /// Currently this section is only parsed in a component.
+    CoreTypeSection(CoreTypeSectionReader<'a>),
+    /// A component section from a WebAssembly component was received and the
+    /// provided parser can be used to parse the nested component.
+    ///
+    /// This variant is special in that it returns a sub-`Parser`. Upon
+    /// receiving a `ComponentSection` it is expected that the returned
+    /// `Parser` will be used instead of the parent `Parser` until the parse has
+    /// finished. You'll need to feed data into the `Parser` returned until it
+    /// returns `Payload::End`. After that you'll switch back to the parent
+    /// parser to resume parsing the rest of the current component.
+    ///
+    /// Note that binaries will not be parsed correctly if you feed the data for
+    /// a nested component into the parent [`Parser`].
+    ComponentSection {
+        /// The parser for the nested component.
+        parser: Parser,
+        /// The range of bytes that represent the nested component in the
+        /// original byte stream.
+        range: Range<usize>,
+    },
+    /// A component instance section was received and the provided reader can be
+    /// used to parse the contents of the component instance section.
+    ComponentInstanceSection(ComponentInstanceSectionReader<'a>),
+    /// A component alias section was received and the provided reader can be
+    /// used to parse the contents of the component alias section.
+    ComponentAliasSection(ComponentAliasSectionReader<'a>),
+    /// A component type section was received and the provided reader can be
+    /// used to parse the contents of the component type section.
+    ComponentTypeSection(ComponentTypeSectionReader<'a>),
+    /// A component canonical section was received and the provided reader can be
+    /// used to parse the contents of the component canonical section.
+    ComponentCanonicalSection(ComponentCanonicalSectionReader<'a>),
+    /// A component start section was received, and the provided reader can be
+    /// used to parse the contents of the component start section.
+    ComponentStartSection(ComponentStartSectionReader<'a>),
+    /// A component import section was received and the provided reader can be
+    /// used to parse the contents of the component import section.
+    ComponentImportSection(ComponentImportSectionReader<'a>),
+    /// A component export section was received, and the provided reader can be
+    /// used to parse the contents of the component export section.
+    ComponentExportSection(ComponentExportSectionReader<'a>),
 
     /// A module or component custom section was received.
-    CustomSection(crate::CustomSectionReader<'a>),
+    CustomSection(CustomSectionReader<'a>),
 
     /// An unknown section was found.
     ///
@@ -391,15 +403,18 @@ impl Parser {
     ///             }
     ///
     ///             // Sections for WebAssembly components
-    ///             ComponentTypeSection(_) => { /* ... */ }
-    ///             ComponentImportSection(_) => { /* ... */ }
-    ///             ComponentFunctionSection(_) => { /* ... */ }
     ///             ModuleSection { .. } => { /* ... */ }
-    ///             ComponentSection { .. } => { /* ... */ }
     ///             InstanceSection(_) => { /* ... */ }
-    ///             ComponentExportSection(_) => { /* ... */ }
-    ///             ComponentStartSection { .. } => { /* ... */ }
     ///             AliasSection(_) => { /* ... */ }
+    ///             CoreTypeSection(_) => { /* ... */ }
+    ///             ComponentSection { .. } => { /* ... */ }
+    ///             ComponentInstanceSection(_) => { /* ... */ }
+    ///             ComponentAliasSection(_) => { /* ... */ }
+    ///             ComponentTypeSection(_) => { /* ... */ }
+    ///             ComponentCanonicalSection(_) => { /* ... */ }
+    ///             ComponentStartSection { .. } => { /* ... */ }
+    ///             ComponentImportSection(_) => { /* ... */ }
+    ///             ComponentExportSection(_) => { /* ... */ }
     ///
     ///             CustomSection(_) => { /* ... */ }
     ///
@@ -586,30 +601,13 @@ impl Parser {
                     }
 
                     // Component sections
-                    (Encoding::Component, 1) => section(
-                        reader,
-                        len,
-                        ComponentTypeSectionReader::new,
-                        ComponentTypeSection,
-                    ),
-                    (Encoding::Component, 2) => section(
-                        reader,
-                        len,
-                        ComponentImportSectionReader::new,
-                        ComponentImportSection,
-                    ),
-                    (Encoding::Component, 3) => section(
-                        reader,
-                        len,
-                        ComponentFunctionSectionReader::new,
-                        ComponentFunctionSection,
-                    ),
-                    (Encoding::Component, 4) | (Encoding::Component, 5) => {
+                    (Encoding::Component, 1 /* module */)
+                    | (Encoding::Component, 5 /* component */) => {
                         if len as usize > MAX_WASM_MODULE_SIZE {
                             return Err(BinaryReaderError::new(
                                 format!(
                                     "{} section is too large",
-                                    if id == 4 { "module" } else { "component " }
+                                    if id == 1 { "module" } else { "component " }
                                 ),
                                 len_pos,
                             ));
@@ -623,29 +621,63 @@ impl Parser {
                         parser.max_size = len.into();
 
                         Ok(match id {
-                            4 => ModuleSection { parser, range },
+                            1 => ModuleSection { parser, range },
                             5 => ComponentSection { parser, range },
                             _ => unreachable!(),
                         })
                     }
-                    (Encoding::Component, 6) => {
+                    (Encoding::Component, 2) => {
                         section(reader, len, InstanceSectionReader::new, InstanceSection)
                     }
+                    (Encoding::Component, 3) => {
+                        section(reader, len, AliasSectionReader::new, AliasSection)
+                    }
+                    (Encoding::Component, 4) => {
+                        section(reader, len, CoreTypeSectionReader::new, CoreTypeSection)
+                    }
+                    // Section 5 handled above
+                    (Encoding::Component, 6) => section(
+                        reader,
+                        len,
+                        ComponentInstanceSectionReader::new,
+                        ComponentInstanceSection,
+                    ),
                     (Encoding::Component, 7) => section(
                         reader,
                         len,
-                        ComponentExportSectionReader::new,
-                        ComponentExportSection,
+                        ComponentAliasSectionReader::new,
+                        ComponentAliasSection,
                     ),
                     (Encoding::Component, 8) => section(
+                        reader,
+                        len,
+                        ComponentTypeSectionReader::new,
+                        ComponentTypeSection,
+                    ),
+                    (Encoding::Component, 9) => section(
+                        reader,
+                        len,
+                        ComponentCanonicalSectionReader::new,
+                        ComponentCanonicalSection,
+                    ),
+                    (Encoding::Component, 10) => section(
                         reader,
                         len,
                         ComponentStartSectionReader::new,
                         ComponentStartSection,
                     ),
-                    (Encoding::Component, 9) => {
-                        section(reader, len, AliasSectionReader::new, AliasSection)
-                    }
+                    (Encoding::Component, 11) => section(
+                        reader,
+                        len,
+                        ComponentImportSectionReader::new,
+                        ComponentImportSection,
+                    ),
+                    (Encoding::Component, 12) => section(
+                        reader,
+                        len,
+                        ComponentExportSectionReader::new,
+                        ComponentExportSection,
+                    ),
                     (_, id) => {
                         let offset = reader.original_position();
                         let contents = reader.read_bytes(len as usize)?;
@@ -954,33 +986,42 @@ impl fmt::Debug for Payload<'_> {
             CodeSectionEntry(_) => f.debug_tuple("CodeSectionEntry").field(&"...").finish(),
 
             // Component sections
-            ComponentTypeSection(_) => f.debug_tuple("ComponentTypeSection").field(&"...").finish(),
-            ComponentImportSection(_) => f
-                .debug_tuple("ComponentImportSection")
-                .field(&"...")
-                .finish(),
-            ComponentFunctionSection(_) => f
-                .debug_tuple("ComponentFunctionSection")
-                .field(&"...")
-                .finish(),
             ModuleSection { parser: _, range } => f
                 .debug_struct("ModuleSection")
                 .field("range", range)
                 .finish(),
+            InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
+            AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
+            CoreTypeSection(_) => f.debug_tuple("CoreTypeSection").field(&"...").finish(),
             ComponentSection { parser: _, range } => f
                 .debug_struct("ComponentSection")
                 .field("range", range)
                 .finish(),
-            InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
-            ComponentExportSection(_) => f
-                .debug_tuple("ComponentExportSection")
+            ComponentInstanceSection(_) => f
+                .debug_tuple("ComponentInstanceSection")
+                .field(&"...")
+                .finish(),
+            ComponentAliasSection(_) => f
+                .debug_tuple("ComponentAliasSection")
+                .field(&"...")
+                .finish(),
+            ComponentTypeSection(_) => f.debug_tuple("ComponentTypeSection").field(&"...").finish(),
+            ComponentCanonicalSection(_) => f
+                .debug_tuple("ComponentCanonicalSection")
                 .field(&"...")
                 .finish(),
             ComponentStartSection(_) => f
                 .debug_tuple("ComponentStartSection")
                 .field(&"...")
                 .finish(),
-            AliasSection(_) => f.debug_tuple("AliasSection").field(&"...").finish(),
+            ComponentImportSection(_) => f
+                .debug_tuple("ComponentImportSection")
+                .field(&"...")
+                .finish(),
+            ComponentExportSection(_) => f
+                .debug_tuple("ComponentExportSection")
+                .field(&"...")
+                .finish(),
 
             CustomSection(c) => f.debug_tuple("CustomSection").field(c).finish(),
 
@@ -1312,7 +1353,7 @@ mod tests {
         assert_matches!(p.parse(&[4], false), Ok(Chunk::NeedMoreData(1)));
 
         // A module that's 8 bytes in length
-        let mut sub = match p.parse(&[4, 8], false) {
+        let mut sub = match p.parse(&[1, 8], false) {
             Ok(Chunk::Parsed {
                 consumed: 2,
                 payload: Payload::ModuleSection { parser, .. },
@@ -1363,7 +1404,7 @@ mod tests {
         let mut p = parser_after_component_header();
 
         // A module that's 10 bytes in length
-        let mut sub = match p.parse(&[4, 10], false) {
+        let mut sub = match p.parse(&[1, 10], false) {
             Ok(Chunk::Parsed {
                 consumed: 2,
                 payload: Payload::ModuleSection { parser, .. },

@@ -15,7 +15,7 @@
 
 use crate::{
     limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Result, SectionReader,
-    SectionWithLimitedItems, Type, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    SectionWithLimitedItems, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
 use std::ops::Range;
@@ -131,6 +131,7 @@ pub struct Validator {
     features: WasmFeatures,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum State {
     /// A header has not yet been parsed.
     ///
@@ -150,15 +151,24 @@ enum State {
 }
 
 impl State {
-    fn ensure_module_state(&mut self, section: &str, offset: usize) -> Result<()> {
+    fn ensure_parsable(&self, offset: usize) -> Result<()> {
         match self {
+            Self::Module | Self::Component => Ok(()),
             Self::Unparsed(_) => Err(BinaryReaderError::new(
-                format!(
-                    "unexpected module {} section before header was parsed",
-                    section
-                ),
+                "unexpected section before header was parsed",
                 offset,
             )),
+            Self::End => Err(BinaryReaderError::new(
+                "unexpected section after parsing has completed",
+                offset,
+            )),
+        }
+    }
+
+    fn ensure_module(&self, section: &str, offset: usize) -> Result<()> {
+        self.ensure_parsable(offset)?;
+
+        match self {
             Self::Module => Ok(()),
             Self::Component => Err(BinaryReaderError::new(
                 format!(
@@ -167,25 +177,15 @@ impl State {
                 ),
                 offset,
             )),
-            Self::End => Err(BinaryReaderError::new(
-                format!(
-                    "unexpected module {} section after parsing has completed",
-                    section
-                ),
-                offset,
-            )),
+            _ => unreachable!(),
         }
     }
 
-    fn ensure_component_state(&self, section: &str, offset: usize) -> Result<()> {
+    fn ensure_component(&self, section: &str, offset: usize) -> Result<()> {
+        self.ensure_parsable(offset)?;
+
         match self {
-            Self::Unparsed(_) => Err(BinaryReaderError::new(
-                format!(
-                    "unexpected component {} section before header was parsed",
-                    section
-                ),
-                offset,
-            )),
+            Self::Component => Ok(()),
             Self::Module => Err(BinaryReaderError::new(
                 format!(
                     "unexpected component {} section while parsing a module",
@@ -193,14 +193,7 @@ impl State {
                 ),
                 offset,
             )),
-            Self::Component => Ok(()),
-            Self::End => Err(BinaryReaderError::new(
-                format!(
-                    "unexpected component {} section after parsing has completed",
-                    section
-                ),
-                offset,
-            )),
+            _ => unreachable!(),
         }
     }
 }
@@ -249,17 +242,17 @@ pub struct WasmFeatures {
 }
 
 impl WasmFeatures {
-    pub(crate) fn check_value_type(&self, ty: Type) -> Result<(), &'static str> {
+    pub(crate) fn check_value_type(&self, ty: ValType) -> Result<(), &'static str> {
         match ty {
-            Type::I32 | Type::I64 | Type::F32 | Type::F64 => Ok(()),
-            Type::FuncRef | Type::ExternRef => {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 => Ok(()),
+            ValType::FuncRef | ValType::ExternRef => {
                 if self.reference_types {
                     Ok(())
                 } else {
                     Err("reference types support is not enabled")
                 }
             }
-            Type::V128 => {
+            ValType::V128 => {
                 if self.simd {
                     Ok(())
                 } else {
@@ -419,21 +412,24 @@ impl Validator {
             DataSection(s) => self.data_section(s)?,
 
             // Component sections
-            ComponentTypeSection(s) => self.component_type_section(s)?,
-            ComponentImportSection(s) => self.component_import_section(s)?,
-            ComponentFunctionSection(s) => self.component_function_section(s)?,
             ModuleSection { parser, range, .. } => {
                 self.module_section(range)?;
                 return Ok(ValidPayload::Parser(parser.clone()));
             }
+            InstanceSection(s) => self.instance_section(s)?,
+            AliasSection(s) => self.alias_section(s)?,
+            CoreTypeSection(s) => self.core_type_section(s)?,
             ComponentSection { parser, range, .. } => {
                 self.component_section(range)?;
                 return Ok(ValidPayload::Parser(parser.clone()));
             }
-            InstanceSection(s) => self.instance_section(s)?,
-            ComponentExportSection(s) => self.component_export_section(s)?,
+            ComponentInstanceSection(s) => self.component_instance_section(s)?,
+            ComponentAliasSection(s) => self.component_alias_section(s)?,
+            ComponentTypeSection(s) => self.component_type_section(s)?,
+            ComponentCanonicalSection(s) => self.component_canonical_section(s)?,
             ComponentStartSection(s) => self.component_start_section(s)?,
-            AliasSection(s) => self.alias_section(s)?,
+            ComponentImportSection(s) => self.component_import_section(s)?,
+            ComponentExportSection(s) => self.component_export_section(s)?,
 
             End(offset) => return Ok(ValidPayload::End(self.end(*offset)?)),
 
@@ -499,10 +495,8 @@ impl Validator {
     }
 
     /// Validates [`Payload::TypeSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a module.
     pub fn type_section(&mut self, section: &crate::TypeSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Type,
             section,
             "type",
@@ -531,7 +525,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Import,
             section,
             "import",
@@ -549,7 +543,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn function_section(&mut self, section: &crate::FunctionSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Function,
             section,
             "function",
@@ -575,7 +569,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn table_section(&mut self, section: &crate::TableSectionReader<'_>) -> Result<()> {
         let features = self.features;
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Table,
             section,
             "table",
@@ -600,7 +594,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn memory_section(&mut self, section: &crate::MemorySectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Memory,
             section,
             "memory",
@@ -632,7 +626,7 @@ impl Validator {
             ));
         }
 
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Tag,
             section,
             "tag",
@@ -660,7 +654,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn global_section(&mut self, section: &crate::GlobalSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Global,
             section,
             "global",
@@ -685,7 +679,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn export_section(&mut self, section: &crate::ExportSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Export,
             section,
             "export",
@@ -701,9 +695,9 @@ impl Validator {
                 Ok(())
             },
             |state, features, _, e, offset| {
-                let module = state.module.assert_mut();
-                let ty = module.export_to_entity_type(&e, offset)?;
-                module.add_export(e.name, ty, features, offset, false /* checked above */)
+                let state = state.module.assert_mut();
+                let ty = state.export_to_entity_type(&e, offset)?;
+                state.add_export(e.name, ty, features, offset, false /* checked above */)
             },
         )
     }
@@ -713,7 +707,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn start_section(&mut self, func: u32, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
-        self.state.ensure_module_state("start", offset)?;
+        self.state.ensure_module("start", offset)?;
         let state = self.module.as_mut().unwrap();
         state.update_order(Order::Start, offset)?;
 
@@ -732,7 +726,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn element_section(&mut self, section: &crate::ElementSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Element,
             section,
             "element",
@@ -762,7 +756,8 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn data_count_section(&mut self, count: u32, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
-        self.state.ensure_module_state("data count", offset)?;
+        self.state.ensure_module("data count", offset)?;
+
         let state = self.module.as_mut().unwrap();
         state.update_order(Order::DataCount, offset)?;
 
@@ -782,7 +777,8 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn code_section_start(&mut self, count: u32, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
-        self.state.ensure_module_state("code", offset)?;
+        self.state.ensure_module("code", offset)?;
+
         let state = self.module.as_mut().unwrap();
         state.update_order(Order::Code, offset)?;
 
@@ -831,7 +827,8 @@ impl Validator {
         body: &crate::FunctionBody,
     ) -> Result<FuncValidator<ValidatorResources>> {
         let offset = body.range().start;
-        self.state.ensure_module_state("code", offset)?;
+        self.state.ensure_module("code", offset)?;
+
         let state = self.module.as_mut().unwrap();
 
         Ok(FuncValidator::new(
@@ -847,7 +844,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn data_section(&mut self, section: &crate::DataSectionReader<'_>) -> Result<()> {
-        self.ensure_module_section(
+        self.process_module_section(
             Order::Data,
             section,
             "data",
@@ -865,104 +862,15 @@ impl Validator {
         )
     }
 
-    /// Validates [`Payload::ComponentTypeSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn component_type_section(
-        &mut self,
-        section: &crate::ComponentTypeSectionReader,
-    ) -> Result<()> {
-        self.ensure_component_section(
-            section,
-            "type",
-            |components, types, count, offset| {
-                let current = components.last_mut().unwrap();
-                check_max(current.types.len(), count, MAX_WASM_TYPES, "types", offset)?;
-                types.reserve(count as usize);
-                current.types.reserve(count as usize);
-                Ok(())
-            },
-            |components, types, features, ty, offset| {
-                ComponentState::add_type(
-                    components, ty, features, types, offset, false, /* checked above */
-                )
-            },
-        )
-    }
-
-    /// Validates [`Payload::ComponentImportSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn component_import_section(
-        &mut self,
-        section: &crate::ComponentImportSectionReader,
-    ) -> Result<()> {
-        self.ensure_component_section(
-            section,
-            "import",
-            |_, _, _, _| Ok(()), // add_import will check limits
-            |components, types, _, import, offset| {
-                components
-                    .last_mut()
-                    .unwrap()
-                    .add_import(import, types, offset)
-            },
-        )
-    }
-
-    /// Validates [`Payload::ComponentFunctionSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn component_function_section(
-        &mut self,
-        section: &crate::ComponentFunctionSectionReader,
-    ) -> Result<()> {
-        self.ensure_component_section(
-            section,
-            "function",
-            |components, _, count, offset| {
-                let current = components.last_mut().unwrap();
-                check_max(
-                    current.functions.len(),
-                    count,
-                    MAX_WASM_FUNCTIONS,
-                    "functions",
-                    offset,
-                )?;
-                current.functions.reserve(count as usize);
-                Ok(())
-            },
-            |components, types, _, func, offset| {
-                let current = components.last_mut().unwrap();
-                match func {
-                    crate::ComponentFunction::Lift {
-                        type_index,
-                        func_index,
-                        options,
-                    } => current.lift_function(
-                        type_index,
-                        func_index,
-                        options.into_vec(),
-                        types,
-                        offset,
-                    ),
-                    crate::ComponentFunction::Lower {
-                        func_index,
-                        options,
-                    } => current.lower_function(func_index, options.into_vec(), types, offset),
-                }
-            },
-        )
-    }
-
     /// Validates [`Payload::ModuleSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
     pub fn module_section(&mut self, range: &Range<usize>) -> Result<()> {
-        self.state.ensure_component_state("module", range.start)?;
+        self.state.ensure_component("module", range.start)?;
+
         let current = self.components.last_mut().unwrap();
         check_max(
-            current.modules.len(),
+            current.core_modules.len(),
             1,
             MAX_WASM_MODULES,
             "modules",
@@ -977,12 +885,78 @@ impl Validator {
         Ok(())
     }
 
+    /// Validates [`Payload::InstanceSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn instance_section(&mut self, section: &crate::InstanceSectionReader) -> Result<()> {
+        self.process_component_section(
+            section,
+            "core instance",
+            |components, _, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(
+                    current.instance_count(),
+                    count,
+                    MAX_WASM_INSTANCES,
+                    "instances",
+                    offset,
+                )?;
+                current.core_instances.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, _, instance, offset| {
+                components
+                    .last_mut()
+                    .unwrap()
+                    .add_core_instance(instance, types, offset)
+            },
+        )
+    }
+
+    /// Validates [`Payload::AliasSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn alias_section(&mut self, section: &crate::AliasSectionReader) -> Result<()> {
+        self.process_component_section(
+            section,
+            "core alias",
+            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
+            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
+                components
+                    .last_mut()
+                    .unwrap()
+                    .add_core_alias(alias, types, offset)
+            },
+        )
+    }
+
+    /// Validates [`Payload::CoreTypeSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn core_type_section(&mut self, section: &crate::CoreTypeSectionReader<'_>) -> Result<()> {
+        self.process_component_section(
+            section,
+            "core type",
+            |components, types, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
+                types.reserve(count as usize);
+                current.core_types.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, features, ty, offset| {
+                let current = components.last_mut().unwrap();
+                current.add_core_type(ty, features, types, offset, false /* checked above */)
+            },
+        )
+    }
+
     /// Validates [`Payload::ComponentSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
     pub fn component_section(&mut self, range: &Range<usize>) -> Result<()> {
-        self.state
-            .ensure_component_state("component", range.start)?;
+        self.state.ensure_component("component", range.start)?;
+
         let current = self.components.last_mut().unwrap();
         check_max(
             current.components.len(),
@@ -1000,17 +974,20 @@ impl Validator {
         Ok(())
     }
 
-    /// Validates [`Payload::InstanceSection`](crate::Payload).
+    /// Validates [`Payload::ComponentInstanceSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
-    pub fn instance_section(&mut self, section: &crate::InstanceSectionReader) -> Result<()> {
-        self.ensure_component_section(
+    pub fn component_instance_section(
+        &mut self,
+        section: &crate::ComponentInstanceSectionReader,
+    ) -> Result<()> {
+        self.process_component_section(
             section,
             "instance",
             |components, _, count, offset| {
                 let current = components.last_mut().unwrap();
                 check_max(
-                    current.instances.len(),
+                    current.instance_count(),
                     count,
                     MAX_WASM_INSTANCES,
                     "instances",
@@ -1028,6 +1005,133 @@ impl Validator {
         )
     }
 
+    /// Validates [`Payload::ComponentAliasSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_alias_section(
+        &mut self,
+        section: &crate::ComponentAliasSectionReader,
+    ) -> Result<()> {
+        self.process_component_section(
+            section,
+            "alias",
+            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
+            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
+                ComponentState::add_alias(components, alias, types, offset)
+            },
+        )
+    }
+
+    /// Validates [`Payload::ComponentTypeSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_type_section(
+        &mut self,
+        section: &crate::ComponentTypeSectionReader,
+    ) -> Result<()> {
+        self.process_component_section(
+            section,
+            "type",
+            |components, types, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
+                types.reserve(count as usize);
+                current.types.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, features, ty, offset| {
+                ComponentState::add_type(
+                    components, ty, features, types, offset, false, /* checked above */
+                )
+            },
+        )
+    }
+
+    /// Validates [`Payload::ComponentCanonicalSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_canonical_section(
+        &mut self,
+        section: &crate::ComponentCanonicalSectionReader,
+    ) -> Result<()> {
+        self.process_component_section(
+            section,
+            "function",
+            |components, _, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(
+                    current.function_count(),
+                    count,
+                    MAX_WASM_FUNCTIONS,
+                    "functions",
+                    offset,
+                )?;
+                current.funcs.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, _, func, offset| {
+                let current = components.last_mut().unwrap();
+                match func {
+                    crate::CanonicalFunction::Lift {
+                        core_func_index,
+                        type_index,
+                        options,
+                    } => current.lift_function(
+                        core_func_index,
+                        type_index,
+                        options.into_vec(),
+                        types,
+                        offset,
+                    ),
+                    crate::CanonicalFunction::Lower {
+                        func_index,
+                        options,
+                    } => current.lower_function(func_index, options.into_vec(), types, offset),
+                }
+            },
+        )
+    }
+
+    /// Validates [`Payload::ComponentStartSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_start_section(
+        &mut self,
+        section: &crate::ComponentStartSectionReader,
+    ) -> Result<()> {
+        let range = section.range();
+        self.state.ensure_component("start", range.start)?;
+
+        let f = section.clone().read()?;
+
+        self.components.last_mut().unwrap().add_start(
+            f.func_index,
+            &f.arguments,
+            &self.types,
+            range.start,
+        )
+    }
+
+    /// Validates [`Payload::ComponentImportSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_import_section(
+        &mut self,
+        section: &crate::ComponentImportSectionReader,
+    ) -> Result<()> {
+        self.process_component_section(
+            section,
+            "import",
+            |_, _, _, _| Ok(()), // add_import will check limits
+            |components, types, _, import, offset| {
+                components
+                    .last_mut()
+                    .unwrap()
+                    .add_import(import, types, offset)
+            },
+        )
+    }
+
     /// Validates [`Payload::ComponentExportSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a component.
@@ -1035,7 +1139,7 @@ impl Validator {
         &mut self,
         section: &crate::ComponentExportSectionReader,
     ) -> Result<()> {
-        self.ensure_component_section(
+        self.process_component_section(
             section,
             "export",
             |components, _, count, offset| {
@@ -1050,43 +1154,10 @@ impl Validator {
                 current.exports.reserve(count as usize);
                 Ok(())
             },
-            |components, types, _, export, offset| {
+            |components, _, _, export, offset| {
                 let current = components.last_mut().unwrap();
-                let ty = current.export_to_entity_type(&export, types, offset)?;
+                let ty = current.export_to_entity_type(&export, offset)?;
                 current.add_export(export.name, ty, offset, false /* checked above */)
-            },
-        )
-    }
-
-    /// Validates [`Payload::ComponentStartSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn component_start_section(
-        &mut self,
-        section: &crate::ComponentStartSectionReader,
-    ) -> Result<()> {
-        let range = section.range();
-        self.state.ensure_component_state("start", range.start)?;
-        let f = section.clone().read()?;
-
-        self.components.last_mut().unwrap().add_start(
-            f.func_index,
-            &f.arguments,
-            &self.types,
-            range.start,
-        )
-    }
-
-    /// Validates [`Payload::AliasSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn alias_section(&mut self, section: &crate::AliasSectionReader) -> Result<()> {
-        self.ensure_component_section(
-            section,
-            "alias",
-            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
-            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
-                ComponentState::add_alias(components, alias, types, offset)
             },
         )
     }
@@ -1121,7 +1192,7 @@ impl Validator {
                 // If there's a parent component, we'll add a module to the parent state
                 // and continue to validate the component
                 if let Some(parent) = self.components.last_mut() {
-                    parent.add_module(&state.module, &mut self.types, offset)?;
+                    parent.add_core_module(&state.module, &mut self.types, offset)?;
                     self.state = State::Component;
                 }
 
@@ -1145,7 +1216,7 @@ impl Validator {
         }
     }
 
-    fn ensure_module_section<T>(
+    fn process_module_section<T>(
         &mut self,
         order: Order,
         section: &T,
@@ -1169,7 +1240,7 @@ impl Validator {
         T: SectionReader + Clone + SectionWithLimitedItems,
     {
         let offset = section.range().start;
-        self.state.ensure_module_state(name, offset)?;
+        self.state.ensure_module(name, offset)?;
 
         let state = self.module.as_mut().unwrap();
         state.update_order(order, offset)?;
@@ -1194,7 +1265,7 @@ impl Validator {
         Ok(())
     }
 
-    fn ensure_component_section<T>(
+    fn process_component_section<T>(
         &mut self,
         section: &T,
         name: &str,
@@ -1219,7 +1290,7 @@ impl Validator {
             ));
         }
 
-        self.state.ensure_component_state(name, offset)?;
+        self.state.ensure_component(name, offset)?;
         validate_section(
             &mut self.components,
             &mut self.types,
@@ -1248,7 +1319,7 @@ impl Validator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{GlobalType, MemoryType, TableType, Type, Validator, WasmFeatures};
+    use crate::{GlobalType, MemoryType, TableType, ValType, Validator, WasmFeatures};
     use anyhow::Result;
 
     #[test]
@@ -1288,15 +1359,15 @@ mod tests {
 
         match types.func_type_at(0) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [Type::I32, Type::I64]);
-                assert_eq!(ty.returns.as_ref(), [Type::I32]);
+                assert_eq!(ty.params.as_ref(), [ValType::I32, ValType::I64]);
+                assert_eq!(ty.returns.as_ref(), [ValType::I32]);
             }
             _ => unreachable!(),
         }
 
         match types.func_type_at(1) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [Type::I64, Type::I32]);
+                assert_eq!(ty.params.as_ref(), [ValType::I64, ValType::I32]);
                 assert_eq!(ty.returns.as_ref(), []);
             }
             _ => unreachable!(),
@@ -1317,35 +1388,35 @@ mod tests {
             Some(TableType {
                 initial: 10,
                 maximum: None,
-                element_type: Type::FuncRef,
+                element_type: ValType::FuncRef,
             })
         );
 
         assert_eq!(
             types.global_at(0),
             Some(GlobalType {
-                content_type: Type::I32,
+                content_type: ValType::I32,
                 mutable: true
             })
         );
 
         match types.function_at(0) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [Type::I32, Type::I64]);
-                assert_eq!(ty.returns.as_ref(), [Type::I32]);
+                assert_eq!(ty.params.as_ref(), [ValType::I32, ValType::I64]);
+                assert_eq!(ty.returns.as_ref(), [ValType::I32]);
             }
             _ => unreachable!(),
         }
 
         match types.tag_at(0) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [Type::I64, Type::I32]);
+                assert_eq!(ty.params.as_ref(), [ValType::I64, ValType::I32]);
                 assert_eq!(ty.returns.as_ref(), []);
             }
             _ => unreachable!(),
         }
 
-        assert_eq!(types.element_at(0), Some(Type::FuncRef));
+        assert_eq!(types.element_at(0), Some(ValType::FuncRef));
 
         Ok(())
     }

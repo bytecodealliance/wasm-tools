@@ -1,25 +1,38 @@
-0x0000 | 00 61 73 6d | version 1 (Module)
-       | 01 00 00 00
-0x0008 | 01 0c       | type section
-0x000a | 02          | 2 count
-0x000b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
-0x000e | 61 01 00 00 | [type 1] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(0) }], exports: [] })
-       | ff 05 00 00
-0x0016 | 02 06       | import section
-0x0018 | 01          | 1 count
-0x0019 | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(1) }
-       | 01         
-0x001e | 01 0c       | type section
-0x0020 | 02          | 2 count
-0x0021 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
-0x0024 | 61 01 00 00 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Function(2) }], exports: [] })
-       | ff 00 02 00
-0x002c | 02 06       | import section
-0x002e | 01          | 1 count
-0x002f | 00 00 ff 05 | import [module 1] Import { module: "", field: None, ty: Module(3) }
-       | 03         
-0x0034 | 0f 07       | instance section
-0x0036 | 01          | 1 count
-0x0037 | 00 00       | [instance 0] instantiate module:0
-0x0039 | 01          | 1 count
-0x003a | 00 05 01    | [instantiate arg] InstanceArg { name: "", kind: Module, index: 1 }
+  0x0 | 00 61 73 6d | version 65546 (Component)
+      | 0a 00 01 00
+  0x8 | 04 0d       | core type section
+  0xa | 01          | 1 count
+  0xb | 50 02 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) })])
+      | 00 00 00 00
+      | 01 66 00 00
+ 0x17 | 0b 05       | component import section
+ 0x19 | 01          | 1 count
+ 0x1a | 00 00 11 00 | [module 0] ComponentImport { name: "", ty: Module(0) }
+ 0x1e | 01 2b       | [core module 1] inline size
+   0x20 | 00 61 73 6d | version 1 (Module)
+        | 01 00 00 00
+   0x28 | 01 04       | type section
+   0x2a | 01          | 1 count
+   0x2b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x2e | 03 02       | func section
+   0x30 | 01          | 1 count
+   0x31 | 00          | [func 0] type 0
+   0x32 | 07 05       | export section
+   0x34 | 01          | 1 count
+   0x35 | 01 66 00 00 | export Export { name: "f", kind: Func, index: 0 }
+   0x39 | 0a 04       | code section
+   0x3b | 01          | 1 count
+============== func 0 ====================
+   0x3c | 02          | size of function
+   0x3d | 00          | 0 local blocks
+   0x3e | 0b          | End
+   0x3f | 00 0a       | custom section
+   0x41 | 04 6e 61 6d | name: "name"
+        | 65         
+   0x46 | 00 03       | module name
+   0x48 | 02 6d 32    | "m2"
+ 0x4b | 02 0a       | core instance section
+ 0x4d | 02          | 2 count
+ 0x4e | 00 01 00    | [core instance 0] Instantiate { module_index: 1, args: [] }
+ 0x51 | 00 00 01 00 | [core instance 1] Instantiate { module_index: 0, args: [InstantiationArg { name: "", kind: Instance, index: 0 }] }
+      | 12 00      

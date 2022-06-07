@@ -1,4 +1,4 @@
-(module
+(component
   (type (instance
     (export "" (func))
   ))

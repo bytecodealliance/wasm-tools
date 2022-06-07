@@ -1,4 +1,4 @@
-use crate::{encoding_size, ComponentSection, Encode, Section, SectionId};
+use crate::{encoding_size, Encode, Section, SectionId};
 
 /// A custom section holding arbitrary data.
 #[derive(Clone, Debug)]
@@ -12,15 +12,17 @@ pub struct CustomSection<'a> {
 impl Encode for CustomSection<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
         let encoded_name_len = encoding_size(u32::try_from(self.name.len()).unwrap());
-        SectionId::Custom.encode(sink);
         (encoded_name_len + self.name.len() + self.data.len()).encode(sink);
         self.name.encode(sink);
         sink.extend(self.data);
     }
 }
 
-impl Section for CustomSection<'_> {}
-impl ComponentSection for CustomSection<'_> {}
+impl Section for CustomSection<'_> {
+    fn id(&self) -> u8 {
+        SectionId::Custom.into()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -38,8 +40,6 @@ mod tests {
 
         #[rustfmt::skip]
         assert_eq!(encoded, vec![
-            // Section ID
-            0,
             // LEB128 length of section.
             9,
             // LEB128 length of name.

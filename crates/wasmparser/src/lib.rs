@@ -26,14 +26,14 @@
 #![deny(missing_docs)]
 
 pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
-pub use crate::module_resources::*;
 pub use crate::parser::*;
 pub use crate::readers::*;
+pub use crate::resources::*;
 pub use crate::validator::*;
 
 mod binary_reader;
 mod limits;
-mod module_resources;
 mod parser;
 mod readers;
+mod resources;
 mod validator;

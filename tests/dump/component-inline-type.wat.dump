@@ -1,26 +1,26 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 01 03       | type section
+  0x8 | 08 03       | component type section
   0xa | 01          | 1 count
-  0xb | 4e 00       | [type 0] Component([])
-  0xd | 02 03       | import section
+  0xb | 41 00       | [type 0] Component([])
+  0xd | 0b 04       | component import section
   0xf | 01          | 1 count
- 0x10 | 00 00       | [component 0] ComponentImport { name: "", ty: 0 }
- 0x12 | 01 03       | type section
- 0x14 | 01          | 1 count
- 0x15 | 4f 00       | [type 1] Module([])
- 0x17 | 02 03       | import section
- 0x19 | 01          | 1 count
- 0x1a | 00 01       | [module 0] ComponentImport { name: "", ty: 1 }
- 0x1c | 01 03       | type section
- 0x1e | 01          | 1 count
- 0x1f | 4d 00       | [type 2] Instance([])
- 0x21 | 02 03       | import section
- 0x23 | 01          | 1 count
- 0x24 | 00 02       | [instance 0] ComponentImport { name: "", ty: 2 }
- 0x26 | 01 04       | type section
- 0x28 | 01          | 1 count
- 0x29 | 4c 00 7f    | [type 3] Function(ComponentFuncType { params: [], result: Primitive(Unit) })
- 0x2c | 02 03       | import section
- 0x2e | 01          | 1 count
- 0x2f | 00 03       | [func 0] ComponentImport { name: "", ty: 3 }
+ 0x10 | 00 04 00    | [component 0] ComponentImport { name: "", ty: Component(0) }
+ 0x13 | 04 03       | core type section
+ 0x15 | 01          | 1 count
+ 0x16 | 50 00       | [core type 0] Module([])
+ 0x18 | 0b 05       | component import section
+ 0x1a | 01          | 1 count
+ 0x1b | 00 00 11 00 | [module 0] ComponentImport { name: "", ty: Module(0) }
+ 0x1f | 08 03       | component type section
+ 0x21 | 01          | 1 count
+ 0x22 | 42 00       | [type 1] Instance([])
+ 0x24 | 0b 04       | component import section
+ 0x26 | 01          | 1 count
+ 0x27 | 00 05 01    | [instance 0] ComponentImport { name: "", ty: Instance(1) }
+ 0x2a | 08 04       | component type section
+ 0x2c | 01          | 1 count
+ 0x2d | 40 00 7f    | [type 2] Func(ComponentFuncType { params: [], result: Primitive(Unit) })
+ 0x30 | 0b 04       | component import section
+ 0x32 | 01          | 1 count
+ 0x33 | 00 01 02    | [func 0] ComponentImport { name: "", ty: Func(2) }

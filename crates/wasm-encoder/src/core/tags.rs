@@ -50,11 +50,15 @@ impl TagSection {
 
 impl Encode for TagSection {
     fn encode(&self, sink: &mut Vec<u8>) {
-        encode_section(sink, SectionId::Tag, self.num_added, &self.bytes);
+        encode_section(sink, self.num_added, &self.bytes);
     }
 }
 
-impl Section for TagSection {}
+impl Section for TagSection {
+    fn id(&self) -> u8 {
+        SectionId::Tag.into()
+    }
+}
 
 /// Represents a tag kind.
 #[repr(u8)]

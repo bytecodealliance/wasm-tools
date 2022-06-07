@@ -217,7 +217,6 @@ impl<'a> Resolver<'a> {
                         ExportKind::Memory => Ns::Memory,
                         ExportKind::Global => Ns::Global,
                         ExportKind::Tag => Ns::Tag,
-                        ExportKind::Type => Ns::Type,
                     },
                 )?;
                 Ok(())
