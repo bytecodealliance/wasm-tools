@@ -90,10 +90,17 @@ enum ComponentOrCoreFuncType {
 }
 
 impl ComponentOrCoreFuncType {
-    fn unwrap_core(self) -> Rc<crate::core::FuncType> {
+    fn as_core(&self) -> &Rc<crate::core::FuncType> {
         match self {
-            ComponentOrCoreFuncType::Core(f) => f,
+            ComponentOrCoreFuncType::Core(t) => t,
             ComponentOrCoreFuncType::Component(_) => panic!("not a core func type"),
+        }
+    }
+
+    fn as_component(&self) -> &Rc<FuncType> {
+        match self {
+            ComponentOrCoreFuncType::Core(_) => panic!("not a component func type"),
+            ComponentOrCoreFuncType::Component(t) => t,
         }
     }
 }
@@ -123,7 +130,7 @@ struct ComponentContext {
     // Which entries in `funcs` are component functions?
     component_funcs: Vec<u32>,
 
-    // Which entries in `funcs` are component functions that only use scalar
+    // Which entries in `component_funcs` are component functions that only use scalar
     // types?
     scalar_component_funcs: Vec<u32>,
 
@@ -1049,19 +1056,24 @@ impl ComponentBuilder {
         }
 
         // Outer type alias.
-        if self.types.iter().any(|scope| !scope.types.is_empty()) {
+        if self
+            .types
+            .iter()
+            .any(|scope| !scope.types.is_empty() || !scope.core_types.is_empty())
+        {
             choices.push(|me, _exports, u, _type_fuel| {
                 let alias = me.arbitrary_outer_type_alias(u)?;
-                let (count, i) = match alias {
+                match &alias {
                     Alias::Outer {
-                        count,
-                        i,
-                        kind: OuterAliasKind::Type(_),
-                    } => (count, i),
+                        kind: OuterAliasKind::Type(ty),
+                        ..
+                    } => me.current_type_scope_mut().push(ty.clone()),
+                    Alias::Outer {
+                        kind: OuterAliasKind::CoreType(ty),
+                        ..
+                    } => me.current_type_scope_mut().push_core(ty.clone()),
                     _ => unreachable!(),
                 };
-                let ty = me.outer_type(count, i).clone();
-                me.current_type_scope_mut().push(ty);
                 Ok(InstanceTypeDef::Alias(alias))
             });
         }
@@ -1090,7 +1102,7 @@ impl ComponentBuilder {
             .iter()
             .rev()
             .enumerate()
-            .filter(|(_, scope)| !scope.types.is_empty())
+            .filter(|(_, scope)| !scope.types.is_empty() || !scope.core_types.is_empty())
             .collect();
         assert!(
             !non_empty_types_scopes.is_empty(),
@@ -1099,17 +1111,22 @@ impl ComponentBuilder {
 
         let (count, scope) = u.choose(&non_empty_types_scopes)?;
         let count = u32::try_from(*count).unwrap();
-        assert!(!scope.types.is_empty());
+        assert!(!scope.types.is_empty() || !scope.core_types.is_empty());
 
-        let max_type_in_scope = u32::try_from(scope.types.len() - 1).unwrap();
+        let max_type_in_scope = scope.types.len() + scope.core_types.len() - 1;
         let i = u.int_in_range(0..=max_type_in_scope)?;
-        let ty = Rc::clone(scope.get(i));
 
-        Ok(Alias::Outer {
-            count,
-            i,
-            kind: OuterAliasKind::Type(ty),
-        })
+        let (i, kind) = if i < scope.types.len() {
+            let i = u32::try_from(i).unwrap();
+            (i, OuterAliasKind::Type(Rc::clone(scope.get(i))))
+        } else if i - scope.types.len() < scope.core_types.len() {
+            let i = u32::try_from(i - scope.types.len()).unwrap();
+            (i, OuterAliasKind::CoreType(Rc::clone(scope.get_core(i))))
+        } else {
+            unreachable!()
+        };
+
+        Ok(Alias::Outer { count, i, kind })
     }
 
     fn arbitrary_func_type(
@@ -1369,16 +1386,18 @@ impl ComponentBuilder {
                     Type::Func(ty) => ty.clone(),
                     _ => unreachable!(),
                 };
-                let is_scalar = func_ty.is_scalar();
+
+                if func_ty.is_scalar() {
+                    let func_index = u32::try_from(self.component().component_funcs.len()).unwrap();
+                    self.component_mut().scalar_component_funcs.push(func_index);
+                }
+
                 let func_index = u32::try_from(self.component().funcs.len()).unwrap();
                 self.component_mut()
                     .funcs
                     .push(ComponentOrCoreFuncType::Component(func_ty));
 
                 self.component_mut().component_funcs.push(func_index);
-                if is_scalar {
-                    self.component_mut().scalar_component_funcs.push(func_index);
-                }
             }
             ComponentTypeRef::Value(ty) => {
                 self.total_values += 1;
@@ -1406,11 +1425,14 @@ impl ComponentBuilder {
         }
     }
 
+    fn core_function_type(&self, core_func_index: u32) -> &Rc<crate::core::FuncType> {
+        self.component().funcs[self.component().core_funcs[core_func_index as usize] as usize]
+            .as_core()
+    }
+
     fn component_function_type(&self, func_index: u32) -> &Rc<FuncType> {
-        match &self.component().funcs[func_index as usize] {
-            ComponentOrCoreFuncType::Component(ty) => ty,
-            ComponentOrCoreFuncType::Core(_) => panic!("not a component function"),
-        }
+        self.component().funcs[self.component().component_funcs[func_index as usize] as usize]
+            .as_component()
     }
 
     fn push_func(&mut self, func: Func) {
@@ -1427,11 +1449,12 @@ impl ComponentBuilder {
 
         let ty = match &func {
             Func::CanonLift { func_ty, .. } => {
-                self.component_mut().component_funcs.push(func_index);
                 let ty = Rc::clone(self.current_type_scope().get_func(*func_ty));
                 if ty.is_scalar() {
+                    let func_index = u32::try_from(self.component().component_funcs.len()).unwrap();
                     self.component_mut().scalar_component_funcs.push(func_index);
                 }
+                self.component_mut().component_funcs.push(func_index);
                 ComponentOrCoreFuncType::Component(ty)
             }
             Func::CanonLower {
@@ -1540,11 +1563,8 @@ impl ComponentBuilder {
                     let core_func_index = u.int_in_range(
                         0..=u32::try_from(c.component().core_funcs.len() - 1).unwrap(),
                     )?;
-                    let core_func_ty = c.component().funcs
-                        [c.component().core_funcs[core_func_index as usize] as usize]
-                        .clone()
-                        .unwrap_core();
-                    let comp_func_ty = inverse_scalar_canonical_abi_for(u, &core_func_ty)?;
+                    let core_func_ty = c.core_function_type(core_func_index);
+                    let comp_func_ty = inverse_scalar_canonical_abi_for(u, core_func_ty)?;
 
                     let func_ty = if let Some(indices) = c
                         .current_type_scope()
@@ -1825,6 +1845,7 @@ enum InstanceExportAliasKind {
 enum OuterAliasKind {
     Module,
     Component,
+    CoreType(Rc<CoreType>),
     Type(Rc<Type>),
 }
 

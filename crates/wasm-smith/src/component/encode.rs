@@ -178,6 +178,13 @@ impl Type {
                         }) => {
                             enc_comp_ty.alias_outer_type(*count, *i);
                         }
+                        ComponentTypeDef::Alias(Alias::Outer {
+                            count,
+                            i,
+                            kind: OuterAliasKind::CoreType(_),
+                        }) => {
+                            enc_comp_ty.alias_outer_core_type(*count, *i);
+                        }
                         ComponentTypeDef::Alias(_) => unreachable!(),
                     }
                 }
@@ -202,6 +209,13 @@ impl Type {
                             kind: OuterAliasKind::Type(_),
                         }) => {
                             enc_inst_ty.alias_outer_type(*count, *i);
+                        }
+                        InstanceTypeDef::Alias(Alias::Outer {
+                            count,
+                            i,
+                            kind: OuterAliasKind::CoreType(_),
+                        }) => {
+                            enc_inst_ty.alias_outer_core_type(*count, *i);
                         }
                         InstanceTypeDef::Alias(_) => unreachable!(),
                     }
