@@ -666,9 +666,14 @@ impl ComponentFuncType {
 
     /// Lowers the component function type to core parameter and result types for the
     /// canonical ABI.
-    pub(crate) fn lower(&self, types: &TypeList, import: bool) -> (LoweredTypes, LoweredTypes) {
+    pub(crate) fn lower(
+        &self,
+        types: &TypeList,
+        import: bool,
+    ) -> (LoweredTypes, LoweredTypes, bool) {
         let mut params = LoweredTypes::new(MAX_FLAT_FUNC_PARAMS);
         let mut results = LoweredTypes::new(MAX_FLAT_FUNC_RESULTS);
+        let mut requires_memory = false;
 
         for (_, ty) in self.params.iter() {
             if !ty.push_wasm_types(types, &mut params) {
@@ -677,6 +682,7 @@ impl ComponentFuncType {
                 // via linear memory
                 params.clear();
                 assert!(params.push(ValType::I32));
+                requires_memory = true;
                 break;
             }
         }
@@ -691,9 +697,10 @@ impl ComponentFuncType {
             } else {
                 assert!(results.push(ValType::I32));
             }
+            requires_memory = true;
         }
 
-        (params, results)
+        (params, results, requires_memory)
     }
 }
 
