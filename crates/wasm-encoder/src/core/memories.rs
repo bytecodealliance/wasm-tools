@@ -14,6 +14,7 @@ use crate::{encode_section, Encode, Section, SectionId};
 ///     minimum: 1,
 ///     maximum: None,
 ///     memory64: false,
+///     shared: false,
 /// });
 ///
 /// let mut module = Module::new();
