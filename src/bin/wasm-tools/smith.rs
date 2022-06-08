@@ -178,6 +178,9 @@ struct Config {
     /// `--allowed-instructions numeric,control,parametric`
     #[clap(long = "allowed-instructions", use_value_delimiter = true)]
     allowed_instructions: Option<Vec<InstructionKind>>,
+    #[clap(long = "threads")]
+    #[serde(rename = "threads")]
+    threads_enabled: Option<bool>,
 }
 
 impl Opts {
@@ -295,6 +298,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_type_size, u32, 1000),
         (canonicalize_nans, bool, false),
         (generate_custom_sections, bool, false),
+        (threads_enabled, bool, false),
     }
 
     fn max_memory_pages(&self, _is_64: bool) -> u64 {

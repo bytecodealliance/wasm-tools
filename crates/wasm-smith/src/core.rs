@@ -656,6 +656,7 @@ impl Module {
                         minimum: memory_ty.initial,
                         maximum: memory_ty.maximum,
                         memory64: memory_ty.memory64,
+                        shared: memory_ty.shared,
                     };
                     let entity = EntityType::Memory(memory_ty);
                     let type_size = entity.size();
@@ -1352,10 +1353,14 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &dyn Config) -> Re
         config.memory_max_size_required(),
         max_inbounds.min(max_pages),
     )?;
+    // When threads are enabled, we only want to generate shared memories about
+    // 25% of the time.
+    let shared = config.threads_enabled() && u.ratio(1, 4)?;
     Ok(MemoryType {
         minimum,
         maximum,
         memory64,
+        shared,
     })
 }
 

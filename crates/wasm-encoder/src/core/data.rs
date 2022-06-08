@@ -17,6 +17,7 @@ use crate::{encode_section, encoding_size, Encode, Instruction, Section, Section
 ///     minimum: 1,
 ///     maximum: None,
 ///     memory64: false,
+///     shared: false,
 /// });
 ///
 /// let mut data = DataSection::new();

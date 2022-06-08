@@ -458,17 +458,18 @@ impl From<core::TableType<'_>> for wasm_encoder::TableType {
 
 impl From<core::MemoryType> for wasm_encoder::MemoryType {
     fn from(ty: core::MemoryType) -> Self {
-        let (minimum, maximum, memory64) = match ty {
-            core::MemoryType::B32 { limits, shared: _ } => {
-                (limits.min.into(), limits.max.map(Into::into), false)
+        let (minimum, maximum, memory64, shared) = match ty {
+            core::MemoryType::B32 { limits, shared } => {
+                (limits.min.into(), limits.max.map(Into::into), false, shared)
             }
-            core::MemoryType::B64 { limits, shared: _ } => (limits.min, limits.max, true),
+            core::MemoryType::B64 { limits, shared } => (limits.min, limits.max, true, shared),
         };
 
         Self {
             minimum,
             maximum,
             memory64,
+            shared,
         }
     }
 }

@@ -88,6 +88,7 @@ impl From<TagType> for EntityType {
 ///         minimum: 1,
 ///         maximum: None,
 ///         memory64: false,
+///         shared: false,
 ///     }
 /// );
 ///

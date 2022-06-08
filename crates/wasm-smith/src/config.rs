@@ -418,6 +418,18 @@ pub trait Config: 'static + std::fmt::Debug {
     fn generate_custom_sections(&self) -> bool {
         false
     }
+
+    /// Determines whether the threads proposal is enabled.
+    ///
+    /// The [threads proposal] involves shared linear memory, new atomic
+    /// instructions, and new `wait` and `notify` instructions.
+    ///
+    /// [threads proposal]: https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
+    ///
+    /// Defaults to `false`.
+    fn threads_enabled(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.
@@ -487,6 +499,7 @@ pub struct SwarmConfig {
     pub saturating_float_to_int_enabled: bool,
     pub sign_extension_enabled: bool,
     pub simd_enabled: bool,
+    pub threads_enabled: bool,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -547,6 +560,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_type_size: 1000,
             canonicalize_nans: false,
             available_imports: None,
+            threads_enabled: false,
         })
     }
 }
@@ -724,5 +738,9 @@ impl Config for SwarmConfig {
 
     fn canonicalize_nans(&self) -> bool {
         self.canonicalize_nans
+    }
+
+    fn threads_enabled(&self) -> bool {
+        self.threads_enabled
     }
 }

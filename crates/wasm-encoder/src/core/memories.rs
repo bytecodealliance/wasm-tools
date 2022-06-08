@@ -14,6 +14,7 @@ use crate::{encode_section, Encode, Section, SectionId};
 ///     minimum: 1,
 ///     maximum: None,
 ///     memory64: false,
+///     shared: false,
 /// });
 ///
 /// let mut module = Module::new();
@@ -72,6 +73,8 @@ pub struct MemoryType {
     pub maximum: Option<u64>,
     /// Whether or not this is a 64-bit memory.
     pub memory64: bool,
+    /// Whether or not this memory is shared.
+    pub shared: bool,
 }
 
 impl Encode for MemoryType {
@@ -79,6 +82,9 @@ impl Encode for MemoryType {
         let mut flags = 0;
         if self.maximum.is_some() {
             flags |= 0b001;
+        }
+        if self.shared {
+            flags |= 0b010;
         }
         if self.memory64 {
             flags |= 0b100;
