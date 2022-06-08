@@ -19,7 +19,7 @@ use std::ops::Range;
 /// External types as defined [here].
 ///
 /// [here]: https://webassembly.github.io/spec/core/syntax/types.html#external-types
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ExternalKind {
     /// The external kind is a function.
     Func,
