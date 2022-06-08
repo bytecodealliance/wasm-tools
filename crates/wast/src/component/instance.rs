@@ -2,7 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
-use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use crate::token::{Id, LParen, NameAnnotation, Span};
 
 /// A core instance defined by instantiation or exporting core items.
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub enum CoreInstanceKind<'a> {
     /// Instantiate a core module.
     Instantiate {
         /// The module being instantiated.
-        module: Index<'a>,
+        module: ItemRef<'a, kw::module>,
         /// Arguments used to instantiate the instance.
         args: Vec<CoreInstantiationArg<'a>>,
     },
@@ -55,13 +55,19 @@ impl<'a> Parse<'a> for CoreInstanceKind<'a> {
             parser.parens(|parser| {
                 parser.parse::<kw::instantiate>()?;
                 Ok(Self::Instantiate {
-                    module: parser.parse()?,
+                    module: parser.parse::<IndexOrRef<'_, _>>()?.0,
                     args: parser.parse()?,
                 })
             })
         } else {
             Ok(Self::BundleOfExports(parser.parse()?))
         }
+    }
+}
+
+impl Default for kw::module {
+    fn default() -> kw::module {
+        kw::module(Span::from_offset(0))
     }
 }
 
@@ -198,7 +204,7 @@ pub enum InstanceKind<'a> {
     /// Instantiate a component.
     Instantiate {
         /// The component being instantiated.
-        component: Index<'a>,
+        component: ItemRef<'a, kw::component>,
         /// Arguments used to instantiate the instance.
         args: Vec<InstantiationArg<'a>>,
     },
@@ -219,13 +225,19 @@ impl<'a> Parse<'a> for InstanceKind<'a> {
             parser.parens(|parser| {
                 parser.parse::<kw::instantiate>()?;
                 Ok(Self::Instantiate {
-                    component: parser.parse()?,
+                    component: parser.parse::<IndexOrRef<'_, _>>()?.0,
                     args: parser.parse()?,
                 })
             })
         } else {
             Ok(Self::BundleOfExports(parser.parse()?))
         }
+    }
+}
+
+impl Default for kw::component {
+    fn default() -> kw::component {
+        kw::component(Span::from_offset(0))
     }
 }
 
