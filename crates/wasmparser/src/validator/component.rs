@@ -894,18 +894,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<TypeId> {
         fn insert_arg<'a>(
-            module: &'a str,
             name: &'a str,
-            arg: EntityType,
-            args: &mut IndexMap<(&'a str, &'a str), EntityType>,
+            arg: &'a InstanceType,
+            args: &mut IndexMap<&'a str, &'a InstanceType>,
             offset: usize,
         ) -> Result<()> {
-            if args.insert((module, name), arg).is_some() {
+            if args.insert(name, arg).is_some() {
                 return Err(BinaryReaderError::new(
-                    format!(
-                        "duplicate instantiation argument name `{}::{}` already defined",
-                        module, name
-                    ),
+                    format!("duplicate module instantiation argument named `{}`", name),
                     offset,
                 ));
             }
@@ -923,56 +919,60 @@ impl ComponentState {
                     let instance_type = types[self.core_instance_at(module_arg.index, offset)?]
                         .as_instance_type()
                         .unwrap();
-                    for (name, ty) in instance_type.exports(types).iter() {
-                        insert_arg(module_arg.name, name, *ty, &mut args, offset)?;
-                    }
+                    insert_arg(module_arg.name, instance_type, &mut args, offset)?;
                 }
             }
         }
 
         // Validate the arguments
         let module_type = types[module_type_id].as_module_type().unwrap();
-        for ((module, name), b) in module_type.imports.iter() {
-            match args.get(&(module.as_str(), name.as_str())) {
-                Some(a) => {
-                    let desc = match (a, b) {
-                        (EntityType::Func(_), EntityType::Func(_)) => "function",
-                        (EntityType::Table(_), EntityType::Table(_)) => "table",
-                        (EntityType::Memory(_), EntityType::Memory(_)) => "memory",
-                        (EntityType::Global(_), EntityType::Global(_)) => "global",
-                        (EntityType::Tag(_), EntityType::Tag(_)) => "tag",
-                        _ => {
-                            return Err(BinaryReaderError::new(
-                                format!(
-                                "expected module instantiation argument `{}::{}` to be of type `{}`",
-                                module,
-                                name,
-                                b.desc()
-                            ),
-                                offset,
-                            ))
-                        }
-                    };
+        for ((module, name), expected) in module_type.imports.iter() {
+            let instance = args.get(module.as_str()).ok_or_else(|| {
+                BinaryReaderError::new(
+                    format!("missing module instantiation argument named `{}`", module),
+                    offset,
+                )
+            })?;
 
-                    if !a.is_subtype_of(b, types) {
-                        return Err(BinaryReaderError::new(
-                            format!(
-                                "{} type mismatch for module instantiation argument `{}::{}`",
-                                desc, module, name
-                            ),
-                            offset,
-                        ));
-                    }
-                }
-                None => {
+            let arg = instance.exports(types).get(name.as_str()).ok_or_else(|| {
+                BinaryReaderError::new(
+                    format!(
+                        "module instantiation argument `{}` does not export an item named `{}`",
+                        module, name,
+                    ),
+                    offset,
+                )
+            })?;
+
+            match (arg, expected) {
+                (EntityType::Func(_), EntityType::Func(_)) |
+                (EntityType::Table(_), EntityType::Table(_)) |
+                (EntityType::Memory(_), EntityType::Memory(_)) |
+                (EntityType::Global(_), EntityType::Global(_)) |
+                (EntityType::Tag(_), EntityType::Tag(_)) => {},
+                _ => {
                     return Err(BinaryReaderError::new(
                         format!(
-                            "missing module instantiation argument named `{}::{}`",
-                            module, name
+                            "module instantiation argument `{}` exports an item named `{}` but it is not a {}",
+                            module,
+                            name,
+                            expected.desc()
                         ),
                         offset,
-                    ));
+                    ))
                 }
+            }
+
+            if !arg.is_subtype_of(expected, types) {
+                return Err(BinaryReaderError::new(
+                    format!(
+                        "{} type mismatch for export `{}` of module instantiation argument `{}`",
+                        expected.desc(),
+                        name,
+                        module,
+                    ),
+                    offset,
+                ));
             }
         }
 
@@ -1010,7 +1010,7 @@ impl ComponentState {
             if args.insert(name, arg).is_some() {
                 return Err(BinaryReaderError::new(
                     format!(
-                        "duplicate instantiation argument name `{}` already defined",
+                        "duplicate component instantiation argument named `{}`",
                         name
                     ),
                     offset,
@@ -1078,38 +1078,33 @@ impl ComponentState {
 
         // Validate the arguments
         let component_type = types[component_type_id].as_component_type().unwrap();
-        for (name, b) in component_type.imports.iter() {
+        for (name, expected) in component_type.imports.iter() {
             match args.get(name.as_str()) {
-                Some(a) => {
-                    let desc = match (a, b) {
-                        (ComponentEntityType::Module(_), ComponentEntityType::Module(_)) => {
-                            "module"
-                        }
-                        (ComponentEntityType::Component(_), ComponentEntityType::Component(_)) => {
-                            "component"
-                        }
-                        (ComponentEntityType::Instance(_), ComponentEntityType::Instance(_)) => {
-                            "instance"
-                        }
-                        (ComponentEntityType::Func(_), ComponentEntityType::Func(_)) => "function",
-                        (ComponentEntityType::Value(_), ComponentEntityType::Value(_)) => "value",
+                Some(arg) => {
+                    match (arg, expected) {
+                        (ComponentEntityType::Module(_), ComponentEntityType::Module(_))
+                        | (ComponentEntityType::Component(_), ComponentEntityType::Component(_))
+                        | (ComponentEntityType::Instance(_), ComponentEntityType::Instance(_))
+                        | (ComponentEntityType::Func(_), ComponentEntityType::Func(_))
+                        | (ComponentEntityType::Value(_), ComponentEntityType::Value(_)) => {}
                         _ => {
                             return Err(BinaryReaderError::new(
                                 format!(
                                 "expected component instantiation argument `{}` to be of type `{}`",
                                 name,
-                                b.desc()
+                                expected.desc()
                             ),
                                 offset,
                             ))
                         }
                     };
 
-                    if !a.is_subtype_of(b, types) {
+                    if !arg.is_subtype_of(expected, types) {
                         return Err(BinaryReaderError::new(
                             format!(
                                 "{} type mismatch for component instantiation argument `{}`",
-                                desc, name
+                                expected.desc(),
+                                name
                             ),
                             offset,
                         ));
