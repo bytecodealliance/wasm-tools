@@ -290,7 +290,8 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let (params, results) = ty.lower(types, false);
+        let (params, results, requires_memory) = ty.lower(types, false);
+        self.check_options(ty, Some(core_ty), requires_memory, &options, types, offset)?;
 
         if core_ty.params.as_ref() != params.as_slice() {
             return Err(BinaryReaderError::new(
@@ -306,7 +307,6 @@ impl ComponentState {
             ));
         }
 
-        self.check_options(ty, Some(core_ty), &options, types, offset)?;
         self.funcs.push(self.types[type_index as usize]);
 
         Ok(())
@@ -323,11 +323,11 @@ impl ComponentState {
             .as_component_func_type()
             .unwrap();
 
-        self.check_options(ty, None, &options, types, offset)?;
-
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let (params, results) = ty.lower(types, true);
+        let (params, results, requires_memory) = ty.lower(types, true);
+
+        self.check_options(ty, None, requires_memory, &options, types, offset)?;
 
         let lowered_ty = Type::Func(FuncType {
             params: params.as_slice().to_vec().into_boxed_slice(),
@@ -471,6 +471,7 @@ impl ComponentState {
         &self,
         ty: &ComponentFuncType,
         core_ty: Option<&FuncType>,
+        requires_memory: bool,
         options: &[CanonicalOption],
         types: &TypeList,
         offset: usize,
@@ -580,20 +581,19 @@ impl ComponentState {
             }
         }
 
-        if ty.requires_realloc(types) {
-            if memory.is_none() {
-                return Err(BinaryReaderError::new(
-                    "canonical option `memory` is required",
-                    offset,
-                ));
-            }
+        let requires_realloc = ty.requires_realloc(types);
+        if (requires_realloc || requires_memory) && memory.is_none() {
+            return Err(BinaryReaderError::new(
+                "canonical option `memory` is required",
+                offset,
+            ));
+        }
 
-            if realloc.is_none() {
-                return Err(BinaryReaderError::new(
-                    "canonical option `realloc` is required",
-                    offset,
-                ));
-            }
+        if requires_realloc && realloc.is_none() {
+            return Err(BinaryReaderError::new(
+                "canonical option `realloc` is required",
+                offset,
+            ));
         }
 
         Ok(())
