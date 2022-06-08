@@ -173,7 +173,7 @@ impl Encoder {
         match &instance.kind {
             CoreInstanceKind::Instantiate { module, args } => {
                 self.core_instances.instantiate(
-                    (*module).into(),
+                    module.into(),
                     args.iter().map(|arg| (arg.name, (&arg.kind).into())),
                 );
             }
@@ -230,7 +230,7 @@ impl Encoder {
             InstanceKind::Import { .. } => unreachable!("should be expanded already"),
             InstanceKind::Instantiate { component, args } => {
                 self.instances.instantiate(
-                    (*component).into(),
+                    component.into(),
                     args.iter().map(|arg| {
                         let (kind, index) = (&arg.kind).into();
                         (arg.name, kind, index)
@@ -545,6 +545,13 @@ impl From<Index<'_>> for u32 {
             Index::Num(i, _) => i,
             Index::Id(_) => unreachable!("unresolved index in encoding: {:?}", i),
         }
+    }
+}
+
+impl<T> From<&ItemRef<'_, T>> for u32 {
+    fn from(i: &ItemRef<'_, T>) -> Self {
+        assert!(i.export_names.is_empty());
+        i.idx.into()
     }
 }
 

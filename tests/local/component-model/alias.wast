@@ -252,3 +252,19 @@
 (assert_invalid
   (component (alias outer 0 0 (component)))
   "index out of bounds")
+
+(component
+  (import "" (instance $i
+     (export "x" (core module))
+  ))
+  ;; inline alias injection sugar works for module references
+  (core instance (instantiate (module $i "x")))
+)
+
+(component
+  (import "" (instance $i
+     (export "x" (component))
+  ))
+  ;; inline alias injection sugar works for component references
+  (instance (instantiate (component $i "x")))
+)

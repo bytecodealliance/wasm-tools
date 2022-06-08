@@ -190,7 +190,7 @@ impl<'a> Resolver<'a> {
     fn core_instance(&mut self, instance: &mut CoreInstance<'a>) -> Result<(), Error> {
         match &mut instance.kind {
             CoreInstanceKind::Instantiate { module, args } => {
-                self.resolve_ns(module, Ns::CoreModule)?;
+                self.component_item_ref(module)?;
                 for arg in args {
                     match &mut arg.kind {
                         CoreInstantiationArgKind::Instance(i) => {
@@ -214,7 +214,7 @@ impl<'a> Resolver<'a> {
     fn instance(&mut self, instance: &mut Instance<'a>) -> Result<(), Error> {
         match &mut instance.kind {
             InstanceKind::Instantiate { component, args } => {
-                self.resolve_ns(component, Ns::Component)?;
+                self.component_item_ref(component)?;
                 for arg in args {
                     match &mut arg.kind {
                         InstantiationArgKind::Item(e) => {
