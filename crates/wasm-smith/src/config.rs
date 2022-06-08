@@ -499,6 +499,7 @@ pub struct SwarmConfig {
     pub saturating_float_to_int_enabled: bool,
     pub sign_extension_enabled: bool,
     pub simd_enabled: bool,
+    pub threads_enabled: bool,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -531,6 +532,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_nesting_depth: u.int_in_range(0..=10)?,
             saturating_float_to_int_enabled: u.arbitrary()?,
             sign_extension_enabled: u.arbitrary()?,
+            threads_enabled: u.arbitrary()?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
@@ -736,5 +738,9 @@ impl Config for SwarmConfig {
 
     fn canonicalize_nans(&self) -> bool {
         self.canonicalize_nans
+    }
+
+    fn threads_enabled(&self) -> bool {
+        self.threads_enabled
     }
 }
