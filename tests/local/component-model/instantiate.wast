@@ -395,13 +395,16 @@
   (component (core instance (export "" (memory 0))))
   "index out of bounds")
 
-(component
-  (core module $m)
-  (core instance $i (instantiate $m))
-  (core instance (instantiate $m
-    (with "" (instance $i))
-    (with "" (instance $i))
-  ))
+(assert_invalid
+  (component
+    (core module $m)
+    (core instance $i (instantiate $m))
+    (core instance (instantiate $m
+      (with "" (instance $i))
+      (with "" (instance $i))
+    ))
+  )
+  "duplicate module instantiation argument named ``"
 )
 
 (assert_invalid
@@ -413,7 +416,7 @@
       (with "" (instance $i))
     ))
   )
-  "duplicate instantiation argument name")
+  "duplicate module instantiation argument named ``")
 
 (assert_invalid
   (component
@@ -424,7 +427,7 @@
       (with "" (instance $i))
     ))
   )
-  "expected module instantiation argument `::` to be of type `global`")
+  "module instantiation argument `` exports an item named `` but it is not a global")
 
 (assert_invalid
   (component
@@ -435,7 +438,7 @@
       (with "" (instance $i))
     ))
   )
-  "name `` already defined")
+  "duplicate component instantiation argument named ``")
 
 (assert_invalid
   (component
@@ -587,4 +590,4 @@
       )
     )
   )
-  "missing module instantiation argument named `::table`")
+  "module instantiation argument `` does not export an item named `table`")
