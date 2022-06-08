@@ -1342,7 +1342,6 @@ pub(crate) fn arbitrary_table_type(u: &mut Unstructured, config: &dyn Config) ->
 }
 
 pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &dyn Config) -> Result<MemoryType> {
-    let threads = config.threads_enabled() && u.arbitrary()?;
     let memory64 = config.memory64_enabled() && u.arbitrary()?;
     // We want to favor memories <= 1gb in size, allocate at most 16k pages,
     // depending on the maximum number of memories.
@@ -1354,7 +1353,9 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &dyn Config) -> Re
         config.memory_max_size_required(),
         max_inbounds.min(max_pages),
     )?;
-    let shared = threads && u.arbitrary()?;
+    // When threads are enabled, we only want to generate shared memories about
+    // 25% of the time.
+    let shared = config.threads_enabled() && u.ratio(1, 4)?;
     Ok(MemoryType {
         minimum,
         maximum,
