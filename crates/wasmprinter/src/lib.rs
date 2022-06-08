@@ -2944,23 +2944,17 @@ impl Printer {
                 }
                 CanonicalOption::Memory(idx) => {
                     self.start_group("memory ");
-                    self.start_group("core memory ");
                     self.print_idx(&state.core.memory_names, *idx)?;
-                    self.end_group();
                     self.end_group();
                 }
                 CanonicalOption::Realloc(idx) => {
                     self.start_group("realloc ");
-                    self.start_group("core func ");
                     self.print_idx(&state.core.func_names, *idx)?;
-                    self.end_group();
                     self.end_group();
                 }
                 CanonicalOption::PostReturn(idx) => {
                     self.start_group("post-return ");
-                    self.start_group("core func ");
                     self.print_idx(&state.core.func_names, *idx)?;
-                    self.end_group();
                     self.end_group();
                 }
             }
