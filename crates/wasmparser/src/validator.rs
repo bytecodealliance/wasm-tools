@@ -1204,6 +1204,14 @@ impl Validator {
             State::Component => {
                 let mut component = self.components.pop().unwrap();
 
+                // Validate that all values were used for the component
+                if let Some(index) = component.values.iter().position(|(_, used)| !*used) {
+                    return Err(BinaryReaderError::new(
+                        format!("value index {index} was not used as part of an instantiation, start function, or export"),
+                        offset,
+                    ));
+                }
+
                 // If there's a parent component, pop the stack, add it to the parent,
                 // and continue to validate the component
                 if let Some(parent) = self.components.last_mut() {

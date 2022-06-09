@@ -4,7 +4,7 @@
 (component
   (import "one" (func))
 
-  (import "two" (value string))
+  (import "two" (value $v string))
   (import "three" (instance
     (export "four" (instance
       (export "five" (core module
@@ -13,5 +13,7 @@
       ))
     ))
   ))
+
+  (export "one" (value $v))
   ;; ...
 )

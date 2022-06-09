@@ -628,9 +628,11 @@ impl ComponentBuilder {
             });
         }
 
-        if for_type_def || !for_import || self.total_values < self.config.max_values() {
-            choices.push(|me, u| Ok(ComponentTypeRef::Value(me.arbitrary_component_val_type(u)?)));
-        }
+        // TODO: wasm-smith needs to ensure that every arbitrary value gets used exactly once.
+        //       until that time, don't import values
+        // if for_type_def || !for_import || self.total_values < self.config.max_values() {
+        //     choices.push(|me, u| Ok(ComponentTypeRef::Value(me.arbitrary_component_val_type(u)?)));
+        // }
 
         if !scope.func_types.is_empty()
             && (for_type_def
@@ -989,17 +991,19 @@ impl ComponentBuilder {
                 }
 
                 if me.current_type_scope().can_ref_type() && u.int_in_range::<u8>(0..=3)? == 0 {
-                    // Imports.
-                    let name = crate::unique_string(100, &mut imports, u)?;
-                    defs.push(ComponentTypeDef::Import(Import {
-                        name,
-                        ty: me.arbitrary_type_ref(u, true, true)?.unwrap(),
-                    }));
-                } else {
-                    // Type definitions, exports, and aliases.
-                    let def = me.arbitrary_instance_type_def(u, &mut exports, type_fuel)?;
-                    defs.push(def.into());
+                    if let Some(ty) = me.arbitrary_type_ref(u, true, true)? {
+                        // Imports.
+                        let name = crate::unique_string(100, &mut imports, u)?;
+                        defs.push(ComponentTypeDef::Import(Import { name, ty }));
+                        return Ok(true);
+                    }
+
+                    // Can't reference an arbitrary type, fallback to another definition.
                 }
+
+                // Type definitions, exports, and aliases.
+                let def = me.arbitrary_instance_type_def(u, &mut exports, type_fuel)?;
+                defs.push(def.into());
                 Ok(true)
             })
         })?;
@@ -1240,7 +1244,7 @@ impl ComponentBuilder {
     ) -> Result<VariantType> {
         let mut cases = vec![];
         let mut case_names = HashSet::new();
-        arbitrary_loop(u, 0, 100, |u| {
+        arbitrary_loop(u, 1, 100, |u| {
             *type_fuel = type_fuel.saturating_sub(1);
             if *type_fuel == 0 {
                 return Ok(false);

@@ -18,11 +18,10 @@
   (type $A14b (record (field "x" unit)))
   (type $A14c (record (field "x" $A0)))
 
-  (type $A15a (variant))
-  (type $A15b (variant (case "x" unit)))
-  (type $A15c (variant (case "x" $A1)))
-  (type $A15e (variant (case $x "x" unit) (case $y "y" string (refines $x)) (case "z" string (refines $y))))
-  (type $A15f (variant (case "x" unit) (case "y" string (refines 0)) (case "z" string (refines 1))))
+  (type $A15a (variant (case "x" unit)))
+  (type $A15b (variant (case "x" $A1)))
+  (type $A15c (variant (case $x "x" unit) (case $y "y" string (refines $x)) (case "z" string (refines $y))))
+  (type $A15d (variant (case "x" unit) (case "y" string (refines 0)) (case "z" string (refines 1))))
 
   (type $A16a (list unit))
   (type $A16b (list $A3))
@@ -77,7 +76,15 @@
     (type $t string)
     (type $v (variant (case "x" $t (refines 1))))
   )
-  "variant case refines index 1 is out of bounds"
+  "variant case can only refine a previously defined case"
+)
+
+(assert_invalid
+  (component
+    (type $t string)
+    (type $v (variant (case "x" $t) (case "y" u64 (refines 2)) (case "z" string)))
+  )
+  "variant case can only refine a previously defined case"
 )
 
 (assert_invalid
@@ -132,17 +139,31 @@
   "index out of bounds")
 
 (assert_invalid
+  (component (type (record (field "x" string) (field "x" u8))))
+  "duplicate field named `x` in record type")
+(assert_invalid
+  (component (type (variant (case "x" s64) (case "x" s64))))
+  "duplicate case named `x` in variant type")
+(assert_invalid
+  (component (type (flags "x" "y" "x")))
+  "duplicate flag named `x`")
+(assert_invalid
+  (component (type (enum "x" "y" "x")))
+  "duplicate enum tag named `x`")
+
+(assert_invalid
   (component (type (record (field "" s32))))
   "name cannot be empty")
-
 (assert_invalid
   (component (type (variant (case "" s32))))
   "name cannot be empty")
-
 (assert_invalid
   (component (type (flags "")))
   "name cannot be empty")
-
 (assert_invalid
   (component (type (enum "")))
   "name cannot be empty")
+
+(assert_invalid
+  (component (type (variant)))
+  "variant type must have at least one case")

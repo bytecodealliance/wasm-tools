@@ -19,7 +19,7 @@ use crate::{
     ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType,
     PrimitiveValType, Result, TableType, TypeBounds, ValType, WasmFeatures,
 };
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::mem;
 
 pub(crate) struct ComponentState {
@@ -1623,19 +1623,24 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut type_size = 1;
-        let fields = fields
-            .iter()
-            .map(|(name, ty)| {
-                Self::check_name(name, "record field", offset)?;
-                let ty = self.create_component_val_type(*ty, types, offset)?;
-                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
-                Ok((name.to_string(), ty))
-            })
-            .collect::<Result<_>>()?;
+        let mut field_map = IndexMap::with_capacity(fields.len());
+
+        for (name, ty) in fields {
+            Self::check_name(name, "record field", offset)?;
+            let ty = self.create_component_val_type(*ty, types, offset)?;
+            type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+
+            if field_map.insert(name.to_string(), ty).is_some() {
+                return Err(BinaryReaderError::new(
+                    format!("duplicate field named `{}` in record type", name),
+                    offset,
+                ));
+            }
+        }
 
         Ok(ComponentDefinedType::Record(RecordType {
             type_size,
-            fields,
+            fields: field_map,
         }))
     }
 
@@ -1646,33 +1651,48 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut type_size = 1;
-        let cases = cases
-            .iter()
-            .map(|case| {
-                Self::check_name(case.name, "variant case", offset)?;
-                if let Some(refines) = case.refines {
-                    if refines >= cases.len() as u32 {
-                        return Err(BinaryReaderError::new(
-                            format!("variant case refines index {} is out of bounds", refines),
-                            offset,
-                        ));
-                    }
+        let mut case_map = IndexMap::with_capacity(cases.len());
+
+        if cases.is_empty() {
+            return Err(BinaryReaderError::new(
+                "variant type must have at least one case",
+                offset,
+            ));
+        }
+
+        for (i, case) in cases.iter().enumerate() {
+            Self::check_name(case.name, "variant case", offset)?;
+            if let Some(refines) = case.refines {
+                if refines >= i as u32 {
+                    return Err(BinaryReaderError::new(
+                        "variant case can only refine a previously defined case",
+                        offset,
+                    ));
                 }
-                let ty = self.create_component_val_type(case.ty, types, offset)?;
-                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
-                Ok((
+            }
+            let ty = self.create_component_val_type(case.ty, types, offset)?;
+            type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+
+            if case_map
+                .insert(
                     case.name.to_string(),
                     VariantCase {
                         ty,
                         refines: case.refines.map(|i| cases[i as usize].name.to_string()),
                     },
-                ))
-            })
-            .collect::<Result<_>>()?;
+                )
+                .is_some()
+            {
+                return Err(BinaryReaderError::new(
+                    format!("duplicate case named `{}` in variant type", case.name),
+                    offset,
+                ));
+            }
+        }
 
         Ok(ComponentDefinedType::Variant(VariantType {
             type_size,
-            cases,
+            cases: case_map,
         }))
     }
 
@@ -1696,15 +1716,19 @@ impl ComponentState {
     }
 
     fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
-        Ok(ComponentDefinedType::Flags(
-            names
-                .iter()
-                .map(|name| {
-                    Self::check_name(name, "flag", offset)?;
-                    Ok(name.to_string())
-                })
-                .collect::<Result<_>>()?,
-        ))
+        let mut names_set = IndexSet::with_capacity(names.len());
+
+        for name in names {
+            Self::check_name(name, "flag", offset)?;
+            if !names_set.insert(name.to_string()) {
+                return Err(BinaryReaderError::new(
+                    format!("duplicate flag named `{}`", name),
+                    offset,
+                ));
+            }
+        }
+
+        Ok(ComponentDefinedType::Flags(names_set))
     }
 
     fn create_enum_type(&self, cases: &[&str], offset: usize) -> Result<ComponentDefinedType> {
@@ -1715,15 +1739,19 @@ impl ComponentState {
             ));
         }
 
-        Ok(ComponentDefinedType::Enum(
-            cases
-                .iter()
-                .map(|name| {
-                    Self::check_name(name, "enum tag", offset)?;
-                    Ok(name.to_string())
-                })
-                .collect::<Result<_>>()?,
-        ))
+        let mut tags = IndexSet::with_capacity(cases.len());
+
+        for tag in cases {
+            Self::check_name(tag, "enum tag", offset)?;
+            if !tags.insert(tag.to_string()) {
+                return Err(BinaryReaderError::new(
+                    format!("duplicate enum tag named `{}`", tag),
+                    offset,
+                ));
+            }
+        }
+
+        Ok(ComponentDefinedType::Enum(tags))
     }
 
     fn create_union_type(
