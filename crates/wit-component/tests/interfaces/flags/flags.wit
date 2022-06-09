@@ -146,17 +146,17 @@ flags flag64 {
   b63,
 }
 
-roundtrip-flag1: function(x: flag1) -> flag1
+roundtrip-flag1: func(x: flag1) -> flag1
 
-roundtrip-flag2: function(x: flag2) -> flag2
+roundtrip-flag2: func(x: flag2) -> flag2
 
-roundtrip-flag4: function(x: flag4) -> flag4
+roundtrip-flag4: func(x: flag4) -> flag4
 
-roundtrip-flag8: function(x: flag8) -> flag8
+roundtrip-flag8: func(x: flag8) -> flag8
 
-roundtrip-flag16: function(x: flag16) -> flag16
+roundtrip-flag16: func(x: flag16) -> flag16
 
-roundtrip-flag32: function(x: flag32) -> flag32
+roundtrip-flag32: func(x: flag32) -> flag32
 
-roundtrip-flag64: function(x: flag64) -> flag64
+roundtrip-flag64: func(x: flag64) -> flag64
 

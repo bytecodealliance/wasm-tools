@@ -1,1 +1,1 @@
-bar: function(s: string)
+bar: func(s: string)

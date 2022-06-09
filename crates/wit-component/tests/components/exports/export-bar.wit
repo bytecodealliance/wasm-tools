@@ -4,4 +4,4 @@ flags x {
     c
 }
 
-a: function(x: x)
+a: func(x: x)

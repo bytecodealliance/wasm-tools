@@ -31,59 +31,59 @@ variant some-variant {
 
 type load-store-all-sizes = list<tuple<string, u8, s8, u16, s16, u32, s32, u64, s64, float32, float64, char>>
 
-list-u8-param: function(x: list<u8>)
+list-u8-param: func(x: list<u8>)
 
-list-u16-param: function(x: list<u16>)
+list-u16-param: func(x: list<u16>)
 
-list-u32-param: function(x: list<u32>)
+list-u32-param: func(x: list<u32>)
 
-list-u64-param: function(x: list<u64>)
+list-u64-param: func(x: list<u64>)
 
-list-s8-param: function(x: list<s8>)
+list-s8-param: func(x: list<s8>)
 
-list-s16-param: function(x: list<s16>)
+list-s16-param: func(x: list<s16>)
 
-list-s32-param: function(x: list<s32>)
+list-s32-param: func(x: list<s32>)
 
-list-s64-param: function(x: list<s64>)
+list-s64-param: func(x: list<s64>)
 
-list-float32-param: function(x: list<float32>)
+list-float32-param: func(x: list<float32>)
 
-list-float64-param: function(x: list<float64>)
+list-float64-param: func(x: list<float64>)
 
-list-u8-ret: function() -> list<u8>
+list-u8-ret: func() -> list<u8>
 
-list-u16-ret: function() -> list<u16>
+list-u16-ret: func() -> list<u16>
 
-list-u32-ret: function() -> list<u32>
+list-u32-ret: func() -> list<u32>
 
-list-u64-ret: function() -> list<u64>
+list-u64-ret: func() -> list<u64>
 
-list-s8-ret: function() -> list<s8>
+list-s8-ret: func() -> list<s8>
 
-list-s16-ret: function() -> list<s16>
+list-s16-ret: func() -> list<s16>
 
-list-s32-ret: function() -> list<s32>
+list-s32-ret: func() -> list<s32>
 
-list-s64-ret: function() -> list<s64>
+list-s64-ret: func() -> list<s64>
 
-list-float32-ret: function() -> list<float32>
+list-float32-ret: func() -> list<float32>
 
-list-float64-ret: function() -> list<float64>
+list-float64-ret: func() -> list<float64>
 
-tuple-list: function(x: list<tuple<u8, s8>>) -> list<tuple<s64, u32>>
+tuple-list: func(x: list<tuple<u8, s8>>) -> list<tuple<s64, u32>>
 
-string-list-arg: function(a: list<string>)
+string-list-arg: func(a: list<string>)
 
-string-list-ret: function() -> list<string>
+string-list-ret: func() -> list<string>
 
-tuple-string-list: function(x: list<tuple<u8, string>>) -> list<tuple<string, u8>>
+tuple-string-list: func(x: list<tuple<u8, string>>) -> list<tuple<string, u8>>
 
-string-list: function(x: list<string>) -> list<string>
+string-list: func(x: list<string>) -> list<string>
 
-record-list: function(x: list<some-record>) -> list<other-record>
+record-list: func(x: list<some-record>) -> list<other-record>
 
-variant-list: function(x: list<some-variant>) -> list<other-variant>
+variant-list: func(x: list<some-variant>) -> list<other-variant>
 
-load-store-everything: function(a: load-store-all-sizes) -> load-store-all-sizes
+load-store-everything: func(a: load-store-all-sizes) -> load-store-all-sizes
 

@@ -1,38 +1,38 @@
-a1: function(x: u8)
+a1: func(x: u8)
 
-a2: function(x: s8)
+a2: func(x: s8)
 
-a3: function(x: u16)
+a3: func(x: u16)
 
-a4: function(x: s16)
+a4: func(x: s16)
 
-a5: function(x: u32)
+a5: func(x: u32)
 
-a6: function(x: s32)
+a6: func(x: s32)
 
-a7: function(x: u64)
+a7: func(x: u64)
 
-a8: function(x: s64)
+a8: func(x: s64)
 
-a9: function(p1: u8, p2: s8, p3: u16, p4: s16, p5: u32, p6: s32, p7: u64, p8: s64)
+a9: func(p1: u8, p2: s8, p3: u16, p4: s16, p5: u32, p6: s32, p7: u64, p8: s64)
 
-r1: function() -> u8
+r1: func() -> u8
 
-r2: function() -> s8
+r2: func() -> s8
 
-r3: function() -> u16
+r3: func() -> u16
 
-r4: function() -> s16
+r4: func() -> s16
 
-r5: function() -> u32
+r5: func() -> u32
 
-r6: function() -> s32
+r6: func() -> s32
 
-r7: function() -> u64
+r7: func() -> u64
 
-r8: function() -> s64
+r8: func() -> s64
 
-pair-ret: function() -> tuple<s64, u8>
+pair-ret: func() -> tuple<s64, u8>
 
-multi-ret: function() -> tuple<s64, u8>
+multi-ret: func() -> tuple<s64, u8>
 

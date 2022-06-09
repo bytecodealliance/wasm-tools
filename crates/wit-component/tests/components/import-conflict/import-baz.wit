@@ -1,1 +1,1 @@
-baz: function(x: list<u8>) -> list<u8>
+baz: func(x: list<u8>) -> list<u8>

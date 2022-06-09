@@ -1,2 +1,2 @@
-a: function()
-b: function() -> string
+a: func()
+b: func() -> string

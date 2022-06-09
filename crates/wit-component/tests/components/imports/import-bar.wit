@@ -2,5 +2,5 @@ record x {
     a: u8
 }
 
-bar1: function(x: string)
-bar2: function(x: x)
+bar1: func(x: string)
+bar2: func(x: x)

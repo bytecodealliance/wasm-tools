@@ -22,7 +22,7 @@ impl InterfacePrinter {
         }
 
         for func in &interface.functions {
-            write!(&mut self.output, "{}: function(", func.name)?;
+            write!(&mut self.output, "{}: func(", func.name)?;
             for (i, (name, ty)) in func.params.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");

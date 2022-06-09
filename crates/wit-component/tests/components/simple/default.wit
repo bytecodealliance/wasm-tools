@@ -1,6 +1,6 @@
 type x = list<string>
 
-a: function()
-b: function() -> string
-c: function(x: string) -> string
-d: function(x: x)
+a: func()
+b: func() -> string
+c: func(x: string) -> string
+d: func(x: x)

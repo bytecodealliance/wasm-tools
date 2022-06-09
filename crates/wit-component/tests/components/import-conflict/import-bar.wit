@@ -1,1 +1,1 @@
-a: function(x: u64, y: string)
+a: func(x: u64, y: string)

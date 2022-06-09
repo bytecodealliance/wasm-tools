@@ -30,25 +30,25 @@ type int-typedef = s32
 
 type tuple-typedef2 = tuple<int-typedef>
 
-tuple-arg: function(x: tuple<char, u32>)
+tuple-arg: func(x: tuple<char, u32>)
 
-tuple-result: function() -> tuple<char, u32>
+tuple-result: func() -> tuple<char, u32>
 
-empty-arg: function(x: empty)
+empty-arg: func(x: empty)
 
-empty-result: function() -> empty
+empty-result: func() -> empty
 
-scalar-arg: function(x: scalars)
+scalar-arg: func(x: scalars)
 
-scalar-result: function() -> scalars
+scalar-result: func() -> scalars
 
-flags-arg: function(x: really-flags)
+flags-arg: func(x: really-flags)
 
-flags-result: function() -> really-flags
+flags-result: func() -> really-flags
 
-aggregate-arg: function(x: aggregates)
+aggregate-arg: func(x: aggregates)
 
-aggregate-result: function() -> aggregates
+aggregate-result: func() -> aggregates
 
-typedef-inout: function(e: tuple-typedef2) -> s32
+typedef-inout: func(e: tuple-typedef2) -> s32
 

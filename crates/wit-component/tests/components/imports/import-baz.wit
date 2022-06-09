@@ -1,5 +1,5 @@
 type x = s8
 
-baz1: function(x: list<string>)
-baz2: function()
-baz3: function(x: x)
+baz1: func(x: list<string>)
+baz2: func()
+baz3: func(x: x)

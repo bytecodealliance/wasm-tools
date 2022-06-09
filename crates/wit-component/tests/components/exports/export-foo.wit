@@ -4,6 +4,6 @@ variant x {
     c(s64)
 }
 
-a: function()
-b: function(x: string) -> x
-c: function(x: x) -> string
+a: func()
+b: func(x: string) -> x
+c: func(x: x) -> string

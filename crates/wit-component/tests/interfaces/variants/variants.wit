@@ -55,43 +55,43 @@ enum my-errno {
   bad2,
 }
 
-e1-arg: function(x: e1)
+e1-arg: func(x: e1)
 
-e1-result: function() -> e1
+e1-result: func() -> e1
 
-u1-arg: function(x: u1)
+u1-arg: func(x: u1)
 
-u1-result: function() -> u1
+u1-result: func() -> u1
 
-v1-arg: function(x: v1)
+v1-arg: func(x: v1)
 
-v1-result: function() -> v1
+v1-result: func() -> v1
 
-bool-arg: function(x: bool)
+bool-arg: func(x: bool)
 
-bool-result: function() -> bool
+bool-result: func() -> bool
 
-option-arg: function(a: option<bool>, b: option<tuple<>>, c: option<u32>, d: option<e1>, e: option<float32>, f: option<u1>, g: option<option<bool>>)
+option-arg: func(a: option<bool>, b: option<tuple<>>, c: option<u32>, d: option<e1>, e: option<float32>, f: option<u1>, g: option<option<bool>>)
 
-option-result: function() -> tuple<option<bool>, option<tuple<>>, option<u32>, option<e1>, option<float32>, option<u1>, option<option<bool>>>
+option-result: func() -> tuple<option<bool>, option<tuple<>>, option<u32>, option<e1>, option<float32>, option<u1>, option<option<bool>>>
 
-casts: function(a: casts1, b: casts2, c: casts3, d: casts4, e: casts5, f: casts6) -> tuple<casts1, casts2, casts3, casts4, casts5, casts6>
+casts: func(a: casts1, b: casts2, c: casts3, d: casts4, e: casts5, f: casts6) -> tuple<casts1, casts2, casts3, casts4, casts5, casts6>
 
-expected-arg: function(a: expected<unit, unit>, b: expected<unit, e1>, c: expected<e1, unit>, d: expected<tuple<>, tuple<>>, e: expected<u32, v1>, f: expected<string, list<u8>>)
+expected-arg: func(a: expected<unit, unit>, b: expected<unit, e1>, c: expected<e1, unit>, d: expected<tuple<>, tuple<>>, e: expected<u32, v1>, f: expected<string, list<u8>>)
 
-expected-result: function() -> tuple<expected<unit, unit>, expected<unit, e1>, expected<e1, unit>, expected<tuple<>, tuple<>>, expected<u32, v1>, expected<string, list<u8>>>
+expected-result: func() -> tuple<expected<unit, unit>, expected<unit, e1>, expected<e1, unit>, expected<tuple<>, tuple<>>, expected<u32, v1>, expected<string, list<u8>>>
 
-return-expected-sugar: function() -> expected<s32, my-errno>
+return-expected-sugar: func() -> expected<s32, my-errno>
 
-return-expected-sugar2: function() -> expected<unit, my-errno>
+return-expected-sugar2: func() -> expected<unit, my-errno>
 
-return-expected-sugar3: function() -> expected<my-errno, my-errno>
+return-expected-sugar3: func() -> expected<my-errno, my-errno>
 
-return-expected-sugar4: function() -> expected<tuple<s32, u32>, my-errno>
+return-expected-sugar4: func() -> expected<tuple<s32, u32>, my-errno>
 
-return-option-sugar: function() -> option<s32>
+return-option-sugar: func() -> option<s32>
 
-return-option-sugar2: function() -> option<my-errno>
+return-option-sugar2: func() -> option<my-errno>
 
-expected-simple: function() -> expected<u32, s32>
+expected-simple: func() -> expected<u32, s32>
 

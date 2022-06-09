@@ -14,19 +14,19 @@ variant v-no-string {
     s(u32)
 }
 
-a: function()
-b: function(x: list<string>)
-c: function(x: r)
-d: function(x: v)
-e: function(x: r-no-string)
-f: function(x: v-no-string)
-g: function(x: list<r>)
-h: function(x: list<v>)
-i: function(x: list<u32>)
-j: function(x: u32)
-k: function() -> tuple<u32, u32>
-l: function() -> string
-m: function() -> list<u32>
-n: function() -> u32
-o: function() -> v
-p: function() -> list<v-no-string>
+a: func()
+b: func(x: list<string>)
+c: func(x: r)
+d: func(x: v)
+e: func(x: r-no-string)
+f: func(x: v-no-string)
+g: func(x: list<r>)
+h: func(x: list<v>)
+i: func(x: list<u32>)
+j: func(x: u32)
+k: func() -> tuple<u32, u32>
+l: func() -> string
+m: func() -> list<u32>
+n: func() -> u32
+o: func() -> v
+p: func() -> list<v-no-string>

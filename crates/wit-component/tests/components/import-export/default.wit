@@ -1,1 +1,1 @@
-a: function(x: string) -> tuple<string, u32, string>
+a: func(x: string) -> tuple<string, u32, string>
