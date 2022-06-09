@@ -188,6 +188,9 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             (ComponentExportSection(a), ComponentExportSection(b)) => {
                 assert_eq!(a.range(), b.range())
             }
+            (CoreTypeSection(a), CoreTypeSection(b)) => {
+                assert_eq!(a.range(), b.range())
+            }
 
             (
                 UnknownSection {
