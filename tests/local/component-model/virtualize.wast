@@ -24,8 +24,8 @@
 
     (core func $wasi_file_read
       (canon lower (func $wasi-file "read")
-        (memory (core memory $libc "mem"))
-        (realloc (core func $libc "realloc"))
+        (memory $libc "mem")
+        (realloc (func $libc "realloc"))
       )
     )
 
@@ -100,8 +100,8 @@
 
     (core func $real-wasi-read
       (canon lower (func $real-wasi "read")
-        (memory (core memory $libc "mem"))
-        (realloc (core func $libc "realloc"))
+        (memory $libc "mem")
+        (realloc (func $libc "realloc"))
       )
     )
 
@@ -109,8 +109,8 @@
     (core instance $child (instantiate $CHILD (with "wasi_file" (instance $virt-wasi))))
     (func (export "work")
       (canon lift (core func $child "play")
-        (memory (core memory $libc "mem"))
-        (realloc (core func $libc "realloc"))
+        (memory $libc "mem")
+        (realloc (func $libc "realloc"))
       )
     )
   )

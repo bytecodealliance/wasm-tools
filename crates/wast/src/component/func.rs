@@ -329,23 +329,21 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
             parser.parens(|parser| {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::memory>() {
-                    parser.parse::<kw::memory>()?;
-                    Ok(CanonOpt::Memory(parser.parens(|parser| {
-                        parser.parse::<kw::core>()?;
-                        parser.parse()
-                    })?))
+                    let span = parser.parse::<kw::memory>()?.0;
+                    Ok(CanonOpt::Memory(parse_trailing_item_ref(
+                        kw::memory(span),
+                        parser,
+                    )?))
                 } else if l.peek::<kw::realloc>() {
                     parser.parse::<kw::realloc>()?;
-                    Ok(CanonOpt::Realloc(parser.parens(|parser| {
-                        parser.parse::<kw::core>()?;
-                        parser.parse()
-                    })?))
+                    Ok(CanonOpt::Realloc(
+                        parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
+                    ))
                 } else if l.peek::<kw::post_return>() {
                     parser.parse::<kw::post_return>()?;
-                    Ok(CanonOpt::PostReturn(parser.parens(|parser| {
-                        parser.parse::<kw::core>()?;
-                        parser.parse()
-                    })?))
+                    Ok(CanonOpt::PostReturn(
+                        parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
+                    ))
                 } else {
                     Err(l.error())
                 }
@@ -354,6 +352,14 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
             Err(l.error())
         }
     }
+}
+
+fn parse_trailing_item_ref<'a, T>(kind: T, parser: Parser<'a>) -> Result<CoreItemRef<'a, T>> {
+    Ok(CoreItemRef {
+        kind,
+        idx: parser.parse()?,
+        export_name: parser.parse()?,
+    })
 }
 
 impl<'a> Parse<'a> for Vec<CanonOpt<'a>> {
