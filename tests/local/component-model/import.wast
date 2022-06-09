@@ -96,6 +96,13 @@
   )
   "type index out of bounds")
 
+(assert_invalid
+  (component
+    (import "" (value string))
+  )
+  "value index 0 was not used as part of an instantiation, start function, or export")
+
 (component
   (import "" (value string))
+  (export "" (value 0))
 )
