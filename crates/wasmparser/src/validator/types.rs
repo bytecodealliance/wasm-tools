@@ -80,6 +80,34 @@ impl LoweredTypes {
     }
 }
 
+/// Represents information about a component function type lowering.
+pub(crate) struct LoweringInfo {
+    pub(crate) params: LoweredTypes,
+    pub(crate) results: LoweredTypes,
+    pub(crate) requires_memory: bool,
+    pub(crate) requires_realloc: bool,
+}
+
+impl LoweringInfo {
+    pub(crate) fn into_func_type(self) -> FuncType {
+        FuncType {
+            params: self.params.as_slice().to_vec().into_boxed_slice(),
+            returns: self.results.as_slice().to_vec().into_boxed_slice(),
+        }
+    }
+}
+
+impl Default for LoweringInfo {
+    fn default() -> Self {
+        Self {
+            params: LoweredTypes::new(MAX_FLAT_FUNC_PARAMS),
+            results: LoweredTypes::new(MAX_FLAT_FUNC_RESULTS),
+            requires_memory: false,
+            requires_realloc: false,
+        }
+    }
+}
+
 fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredTypes) -> bool {
     match ty {
         PrimitiveValType::Unit => true,
@@ -625,11 +653,6 @@ pub struct ComponentFuncType {
 }
 
 impl ComponentFuncType {
-    pub(crate) fn requires_realloc(&self, types: &TypeList) -> bool {
-        self.result.requires_realloc(types)
-            || self.params.iter().any(|(_, ty)| ty.requires_realloc(types))
-    }
-
     pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
@@ -666,41 +689,50 @@ impl ComponentFuncType {
 
     /// Lowers the component function type to core parameter and result types for the
     /// canonical ABI.
-    pub(crate) fn lower(
-        &self,
-        types: &TypeList,
-        import: bool,
-    ) -> (LoweredTypes, LoweredTypes, bool) {
-        let mut params = LoweredTypes::new(MAX_FLAT_FUNC_PARAMS);
-        let mut results = LoweredTypes::new(MAX_FLAT_FUNC_RESULTS);
-        let mut requires_memory = false;
+    pub(crate) fn lower(&self, types: &TypeList, import: bool) -> LoweringInfo {
+        let mut info = LoweringInfo::default();
 
         for (_, ty) in self.params.iter() {
-            if !ty.push_wasm_types(types, &mut params) {
+            // When `import` is false, it means we're lifting a core function,
+            // check if the parameters needs realloc
+            if !import {
+                info.requires_realloc = info.requires_realloc || ty.requires_realloc(types);
+            }
+
+            if !ty.push_wasm_types(types, &mut info.params) {
                 // Too many parameters to pass directly
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
-                params.clear();
-                assert!(params.push(ValType::I32));
-                requires_memory = true;
+                info.params.clear();
+                assert!(info.params.push(ValType::I32));
+                info.requires_memory = true;
                 break;
             }
         }
 
-        if !self.result.push_wasm_types(types, &mut results) {
-            // Too many results to return directly, either a retptr parameter will be used (import)
-            // or a single pointer will be returned (export)
-            results.clear();
-            if import {
-                params.max = MAX_LOWERED_TYPES;
-                assert!(params.push(ValType::I32));
-            } else {
-                assert!(results.push(ValType::I32));
-            }
-            requires_memory = true;
+        // When `import` is true, it means we're lowering a component function,
+        // check if the result needs realloc
+        if import {
+            info.requires_realloc = info.requires_realloc || self.result.requires_realloc(types);
         }
 
-        (params, results, requires_memory)
+        if !self.result.push_wasm_types(types, &mut info.results) {
+            // Too many results to return directly, either a retptr parameter will be used (import)
+            // or a single pointer will be returned (export)
+            info.results.clear();
+            if import {
+                info.params.max = MAX_LOWERED_TYPES;
+                assert!(info.params.push(ValType::I32));
+            } else {
+                assert!(info.results.push(ValType::I32));
+            }
+            info.requires_memory = true;
+        }
+
+        // Memory is always required when realloc is required
+        info.requires_memory |= info.requires_realloc;
+
+        info
     }
 }
 
