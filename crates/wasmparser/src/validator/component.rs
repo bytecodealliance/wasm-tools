@@ -12,8 +12,8 @@ use super::{
 use crate::{
     limits::*,
     types::{
-        ComponentDefinedType, ComponentEntityType, InstanceTypeKind, TupleType, UnionType,
-        VariantType,
+        ComponentDefinedType, ComponentEntityType, InstanceTypeKind, LoweringInfo, TupleType,
+        UnionType, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExternalKind, ComponentOuterAliasKind,
     ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType,
@@ -290,19 +290,27 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let (params, results, requires_memory) = ty.lower(types, false);
-        self.check_options(ty, Some(core_ty), requires_memory, &options, types, offset)?;
+        let info = ty.lower(types, false);
+        self.check_options(Some(core_ty), &info, &options, types, offset)?;
 
-        if core_ty.params.as_ref() != params.as_slice() {
+        if core_ty.params.as_ref() != info.params.as_slice() {
             return Err(BinaryReaderError::new(
-                format!("lowered parameter types `{:?}` do not match parameter types `{:?}` of core function {core_func_index}", params.as_slice(), core_ty.params),
+                format!(
+                    "lowered parameter types `{:?}` do not match parameter types `{:?}` of core function {core_func_index}",
+                    info.params.as_slice(),
+                    core_ty.params
+                ),
                 offset,
             ));
         }
 
-        if core_ty.returns.as_ref() != results.as_slice() {
+        if core_ty.returns.as_ref() != info.results.as_slice() {
             return Err(BinaryReaderError::new(
-                format!("lowered result types `{:?}` do not match result types `{:?}` of core function {core_func_index}", results.as_slice(), core_ty.returns),
+                format!(
+                    "lowered result types `{:?}` do not match result types `{:?}` of core function {core_func_index}",
+                    info.results.as_slice(),
+                    core_ty.returns
+                ),
                 offset,
             ));
         }
@@ -325,14 +333,11 @@ impl ComponentState {
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let (params, results, requires_memory) = ty.lower(types, true);
+        let info = ty.lower(types, true);
 
-        self.check_options(ty, None, requires_memory, &options, types, offset)?;
+        self.check_options(None, &info, &options, types, offset)?;
 
-        let lowered_ty = Type::Func(FuncType {
-            params: params.as_slice().to_vec().into_boxed_slice(),
-            returns: results.as_slice().to_vec().into_boxed_slice(),
-        });
+        let lowered_ty = Type::Func(info.into_func_type());
 
         self.core_funcs.push(TypeId {
             type_size: lowered_ty.type_size(),
@@ -469,9 +474,8 @@ impl ComponentState {
 
     fn check_options(
         &self,
-        ty: &ComponentFuncType,
         core_ty: Option<&FuncType>,
-        requires_memory: bool,
+        info: &LoweringInfo,
         options: &[CanonicalOption],
         types: &TypeList,
         offset: usize,
@@ -581,15 +585,14 @@ impl ComponentState {
             }
         }
 
-        let requires_realloc = ty.requires_realloc(types);
-        if (requires_realloc || requires_memory) && memory.is_none() {
+        if info.requires_memory && memory.is_none() {
             return Err(BinaryReaderError::new(
                 "canonical option `memory` is required",
                 offset,
             ));
         }
 
-        if requires_realloc && realloc.is_none() {
+        if info.requires_realloc && realloc.is_none() {
             return Err(BinaryReaderError::new(
                 "canonical option `realloc` is required",
                 offset,
