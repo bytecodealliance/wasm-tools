@@ -1,6 +1,6 @@
 [package]
 name = "wasm-mutate"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-mutate"
@@ -9,8 +9,8 @@ description = "A WebAssembly test case mutator"
 [dependencies]
 clap = { optional = true, version = "3.0", features = ['derive'] }
 thiserror = "1.0.28"
-wasmparser = { version = "0.85.0", path = "../wasmparser" }
-wasm-encoder = { version = "0.12.0", path = "../wasm-encoder"}
+wasmparser = { version = "0.86.0", path = "../wasmparser" }
+wasm-encoder = { version = "0.13.0", path = "../wasm-encoder"}
 rand = { version = "0.8.0", features = ["small_rng"] }
 log = "0.4.14"
 egg = "0.6.0"

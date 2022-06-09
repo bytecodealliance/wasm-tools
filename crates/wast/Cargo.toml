@@ -1,6 +1,6 @@
 [package]
 name = "wast"
-version = "41.0.0"
+version = "42.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"
@@ -16,7 +16,7 @@ Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 leb128 = "0.2"
 unicode-width = "0.1.9"
 memchr = "2.4.1"
-wasm-encoder = { version = "0.12.0", path = "../wasm-encoder" }
+wasm-encoder = { version = "0.13.0", path = "../wasm-encoder" }
 
 [dev-dependencies]
 anyhow = "1.0"
