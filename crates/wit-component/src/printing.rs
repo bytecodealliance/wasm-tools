@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use std::collections::HashSet;
+use indexmap::IndexSet;
 use std::fmt::Write;
 use wit_parser::{
     Enum, Expected, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Union, Variant,
@@ -9,7 +9,7 @@ use wit_parser::{
 #[derive(Default)]
 pub struct InterfacePrinter {
     output: String,
-    declared: HashSet<TypeId>,
+    declared: IndexSet<TypeId>,
 }
 
 impl InterfacePrinter {
@@ -247,7 +247,7 @@ impl InterfacePrinter {
             self.print_tuple_type(interface, tuple)?;
             self.output.push_str("\n\n");
         }
-        return Ok(());
+        Ok(())
     }
 
     fn declare_flags(&mut self, name: Option<&str>, flags: &Flags) -> Result<()> {

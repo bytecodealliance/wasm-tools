@@ -17,7 +17,7 @@
   (type (;15;) (func (result u64)))
   (type (;16;) (func (result s64)))
   (type (;17;) (tuple s64 u8))
-  (type (;18;) (func (result (type 17))))
+  (type (;18;) (func (result 17)))
   (export "a1" (type 0))
   (export "a2" (type 1))
   (export "a3" (type 2))

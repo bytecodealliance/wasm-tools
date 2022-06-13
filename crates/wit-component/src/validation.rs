@@ -1,11 +1,9 @@
 use anyhow::{anyhow, bail, Result};
-use std::{
-    borrow::Cow,
-    collections::{hash_map::Entry, HashMap, HashSet},
-};
+use indexmap::{map::Entry, IndexMap, IndexSet};
+use std::borrow::Cow;
 use wasmparser::{
-    types::Types, Encoding, ExternalKind, FuncType, Parser, Payload, Type, TypeRef, ValidPayload,
-    Validator,
+    types::Types, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType,
+    ValidPayload, Validator,
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
@@ -30,12 +28,12 @@ pub fn expected_export_name<'a>(interface: Option<&str>, func: &'a str) -> Cow<'
 }
 
 fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
-    fn from_wasm_type(ty: &WasmType) -> Type {
+    fn from_wasm_type(ty: &WasmType) -> ValType {
         match ty {
-            WasmType::I32 => Type::I32,
-            WasmType::I64 => Type::I64,
-            WasmType::F32 => Type::F32,
-            WasmType::F64 => Type::F64,
+            WasmType::I32 => ValType::I32,
+            WasmType::I64 => ValType::I64,
+            WasmType::F32 => ValType::F32,
+            WasmType::F64 => ValType::F64,
         }
     }
 
@@ -60,20 +58,25 @@ fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
 /// * The module's imports are all satisfied by the given import interfaces.
 /// * The given default and exported interfaces are satisfied by the module's exports.
 ///
-/// Returns the set of imported interfaces required by the module.
+/// Returns a tuple of the set of imported interfaces required by the module, whether
+/// the module exports a memory, and whether the module exports a realloc function.
 pub fn validate_module<'a>(
     bytes: &'a [u8],
     interface: &Option<&Interface>,
     imports: &[Interface],
     exports: &[Interface],
-) -> Result<HashSet<&'a str>> {
-    let imports: HashMap<&str, &Interface> = imports.iter().map(|i| (i.name.as_str(), i)).collect();
-    let exports: HashMap<&str, &Interface> = exports.iter().map(|i| (i.name.as_str(), i)).collect();
+) -> Result<(IndexSet<&'a str>, bool, bool)> {
+    let imports: IndexMap<&str, &Interface> =
+        imports.iter().map(|i| (i.name.as_str(), i)).collect();
+    let exports: IndexMap<&str, &Interface> =
+        exports.iter().map(|i| (i.name.as_str(), i)).collect();
 
     let mut validator = Validator::new();
     let mut types = None;
-    let mut import_funcs = HashMap::new();
-    let mut export_funcs = HashMap::new();
+    let mut import_funcs = IndexMap::new();
+    let mut export_funcs = IndexMap::new();
+    let mut has_memory = false;
+    let mut has_realloc = false;
 
     for payload in Parser::new(0).parse_all(bytes) {
         let payload = payload?;
@@ -96,7 +99,7 @@ pub fn validate_module<'a>(
                         TypeRef::Func(ty) => {
                             let map = match import_funcs.entry(import.module) {
                                 Entry::Occupied(e) => e.into_mut(),
-                                Entry::Vacant(e) => e.insert(HashMap::new()),
+                                Entry::Vacant(e) => e.insert(IndexMap::new()),
                             };
 
                             assert!(map.insert(import.name, ty).is_none());
@@ -112,10 +115,19 @@ pub fn validate_module<'a>(
                     match export.kind {
                         ExternalKind::Func => {
                             if is_canonical_function(export.name) {
+                                if export.name == "canonical_abi_realloc" {
+                                    // TODO: validate that the canonical_abi_realloc function is [i32, i32, i32, i32] -> [i32]
+                                    has_realloc = true;
+                                }
                                 continue;
                             }
 
                             assert!(export_funcs.insert(export.name, export.index).is_none())
+                        }
+                        ExternalKind::Memory => {
+                            if export.name == "memory" {
+                                has_memory = true;
+                            }
                         }
                         _ => continue,
                     }
@@ -152,13 +164,17 @@ pub fn validate_module<'a>(
         validate_exported_interface(interface, Some(name), &export_funcs, &types)?;
     }
 
-    Ok(import_funcs.keys().copied().collect())
+    Ok((
+        import_funcs.keys().cloned().collect(),
+        has_memory,
+        has_realloc,
+    ))
 }
 
 fn validate_imported_interface(
     interface: &Interface,
     name: &str,
-    imports: &HashMap<&str, u32>,
+    imports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
     for (func_name, ty) in imports {
@@ -195,7 +211,7 @@ fn validate_imported_interface(
 fn validate_exported_interface(
     interface: &Interface,
     name: Option<&str>,
-    exports: &HashMap<&str, u32>,
+    exports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
     for f in &interface.functions {
