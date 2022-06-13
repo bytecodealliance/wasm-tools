@@ -41,6 +41,7 @@ fuzz_target!(|data: &[u8]| {
         simd: config.simd_enabled,
         relaxed_simd: config.relaxed_simd_enabled,
         memory64: config.memory64_enabled,
+        threads: config.threads_enabled,
         exceptions: config.exceptions_enabled,
         ..wasmparser::WasmFeatures::default()
     });

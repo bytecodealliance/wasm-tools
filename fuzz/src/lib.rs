@@ -13,6 +13,7 @@ pub fn generate_valid_module(
     config.simd_enabled = u.arbitrary()?;
     config.relaxed_simd_enabled = config.simd_enabled && u.arbitrary()?;
     config.memory64_enabled = u.arbitrary()?;
+    config.threads_enabled = u.arbitrary()?;
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
 
