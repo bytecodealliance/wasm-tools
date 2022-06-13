@@ -263,6 +263,9 @@ impl<'a> Dump<'a> {
                             ExternalKind::Global => ("global", inc(&mut i.core_globals)),
                             ExternalKind::Tag => ("tag", inc(&mut i.core_tags)),
                         },
+                        Alias::Outer { kind, .. } => match kind {
+                            OuterAliasKind::Type => ("type", inc(&mut i.core_types)),
+                        },
                     };
                     write!(me.state, "core alias [{} {}] {:?}", kind, num, a)?;
                     me.print(end)
