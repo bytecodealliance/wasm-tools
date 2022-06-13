@@ -922,10 +922,7 @@ impl Validator {
             "core alias",
             |_, _, _, _| Ok(()), // maximums checked via `add_alias`
             |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
-                components
-                    .last_mut()
-                    .unwrap()
-                    .add_core_alias(alias, types, offset)
+                ComponentState::add_core_alias(components, alias, types, offset)
             },
         )
     }
@@ -945,8 +942,9 @@ impl Validator {
                 Ok(())
             },
             |components, types, features, ty, offset| {
-                let current = components.last_mut().unwrap();
-                current.add_core_type(ty, features, types, offset, false /* checked above */)
+                ComponentState::add_core_type(
+                    components, ty, features, types, offset, false, /* checked above */
+                )
             },
         )
     }

@@ -529,14 +529,13 @@ impl Module {
         Ok(())
     }
 
-    fn type_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<&'a Type> {
-        match self.types.get(idx as usize) {
-            Some(id) => Ok(&types[*id]),
-            None => Err(BinaryReaderError::new(
+    pub fn type_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+        self.types.get(idx as usize).copied().ok_or_else(|| {
+            BinaryReaderError::new(
                 format!("unknown type {}: type index out of bounds", idx),
                 offset,
-            )),
-        }
+            )
+        })
     }
 
     fn func_type_at<'a>(
@@ -545,7 +544,7 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        self.type_at(type_index, types, offset)?
+        types[self.type_at(type_index, offset)?]
             .as_func_type()
             .ok_or_else(|| {
                 BinaryReaderError::new(

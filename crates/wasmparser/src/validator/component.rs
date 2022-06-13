@@ -60,7 +60,7 @@ impl ComponentState {
     }
 
     pub fn add_core_type(
-        &mut self,
+        components: &mut [Self],
         ty: crate::CoreType,
         features: &WasmFeatures,
         types: &mut TypeList,
@@ -69,16 +69,22 @@ impl ComponentState {
     ) -> Result<()> {
         let ty = match ty {
             crate::CoreType::Func(ty) => Type::Func(ty),
-            crate::CoreType::Module(decls) => {
-                Type::Module(self.create_module_type(decls.into_vec(), features, types, offset)?)
-            }
+            crate::CoreType::Module(decls) => Type::Module(Self::create_module_type(
+                components,
+                decls.into_vec(),
+                features,
+                types,
+                offset,
+            )?),
         };
 
+        let current = components.last_mut().unwrap();
+
         if check_limit {
-            check_max(self.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
+            check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        self.core_types.push(TypeId {
+        current.core_types.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
         });
@@ -135,7 +141,7 @@ impl ComponentState {
     }
 
     pub fn add_core_alias(
-        &mut self,
+        components: &mut [Self],
         alias: crate::Alias,
         types: &TypeList,
         offset: usize,
@@ -145,7 +151,18 @@ impl ComponentState {
                 instance_index,
                 kind,
                 name,
-            } => self.alias_core_instance_export(instance_index, kind, name, types, offset),
+            } => components.last_mut().unwrap().alias_core_instance_export(
+                instance_index,
+                kind,
+                name,
+                types,
+                offset,
+            ),
+            crate::Alias::Outer { kind, count, index } => match kind {
+                crate::OuterAliasKind::Type => {
+                    Self::alias_core_type(components, count, index, offset)
+                }
+            },
         }
     }
 
@@ -692,7 +709,7 @@ impl ComponentState {
     }
 
     fn create_module_type(
-        &self,
+        components: &[Self],
         decls: Vec<crate::ModuleTypeDeclaration>,
         features: &WasmFeatures,
         types: &mut TypeList,
@@ -709,6 +726,39 @@ impl ComponentState {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;
                     state.add_export(name, ty, features, offset, true)?;
                 }
+                crate::ModuleTypeDeclaration::Alias(alias) => match alias {
+                    crate::Alias::InstanceExport { .. } => {
+                        return Err(BinaryReaderError::new(
+                            "only outer type aliases are allowed in module type declarations",
+                            offset,
+                        ))
+                    }
+                    crate::Alias::Outer { kind, count, index } => {
+                        if count > 1 {
+                            return Err(BinaryReaderError::new(
+                                    "outer type aliases in module type declarations are limited to a maximum count of 1",
+                                    offset,
+                                ));
+                        }
+                        match kind {
+                            crate::OuterAliasKind::Type => {
+                                let ty = if count == 0 {
+                                    // Local alias, check the local module state
+                                    state.type_at(index, offset)?
+                                } else {
+                                    // Otherwise, check the enclosing component state
+                                    let component =
+                                        Self::check_alias_count(components, count - 1, offset)?;
+                                    component.type_at(index, true, offset)?
+                                };
+
+                                check_max(state.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
+
+                                state.types.push(ty);
+                            }
+                        }
+                    }
+                },
                 crate::ModuleTypeDeclaration::Import(import) => {
                     state.add_import(import, features, types, offset)?;
                 }
@@ -736,10 +786,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::ComponentTypeDeclaration::CoreType(ty) => {
-                    components
-                        .last_mut()
-                        .unwrap()
-                        .add_core_type(ty, features, types, offset, true)?;
+                    Self::add_core_type(components, ty, features, types, offset, true)?;
                 }
                 crate::ComponentTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
@@ -801,10 +848,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::InstanceTypeDeclaration::CoreType(ty) => {
-                    components
-                        .last_mut()
-                        .unwrap()
-                        .add_core_type(ty, features, types, offset, true)?;
+                    Self::add_core_type(components, ty, features, types, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
