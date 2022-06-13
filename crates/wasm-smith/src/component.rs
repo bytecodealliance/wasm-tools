@@ -222,6 +222,9 @@ struct TypesScope {
     // All core types in this scope, regardless of kind.
     core_types: Vec<Rc<CoreType>>,
 
+    // The indices of all the entries in `core_types` that are core function types.
+    core_func_types: Vec<u32>,
+
     // The indices of all the entries in `core_types` that are module types.
     module_types: Vec<u32>,
 
@@ -270,6 +273,7 @@ impl TypesScope {
         let ty_idx = u32::try_from(self.core_types.len()).unwrap();
 
         let kind_list = match &*ty {
+            CoreType::Func(_) => &mut self.core_func_types,
             CoreType::Module(_) => &mut self.module_types,
         };
         kind_list.push(ty_idx);
@@ -564,8 +568,17 @@ impl ComponentBuilder {
             return Ok(Rc::new(CoreType::Module(Rc::new(ModuleType::default()))));
         }
 
-        let ty = match u.int_in_range::<u8>(0..=0)? {
-            0 => CoreType::Module(self.arbitrary_module_type(u, type_fuel)?),
+        let ty = match u.int_in_range::<u8>(0..=1)? {
+            0 => CoreType::Func(crate::core::arbitrary_func_type(
+                u,
+                &self.core_valtypes,
+                if self.config.multi_value_enabled() {
+                    None
+                } else {
+                    Some(1)
+                },
+            )?),
+            1 => CoreType::Module(self.arbitrary_module_type(u, type_fuel)?),
             _ => unreachable!(),
         };
         Ok(Rc::new(ty))
@@ -782,8 +795,19 @@ impl ComponentBuilder {
             }
 
             let max_choice = if types.len() < self.config.max_types() {
-                2
+                // Check if the parent scope has core function types to alias
+                if !types.is_empty()
+                    || (!self.types.is_empty()
+                        && !self.types.last().unwrap().core_func_types.is_empty())
+                {
+                    // Imports, exports, types, and aliases
+                    3
+                } else {
+                    // Imports, exports, and types
+                    2
+                }
             } else {
+                // Imports and exports
                 1
             };
 
@@ -825,7 +849,7 @@ impl ComponentBuilder {
                 }
 
                 // Type definition.
-                _ => {
+                2 => {
                     let ty = crate::core::arbitrary_func_type(
                         u,
                         &self.core_valtypes,
@@ -838,6 +862,23 @@ impl ComponentBuilder {
                     types.push(ty.clone());
                     defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(ty)));
                 }
+
+                // Alias
+                3 => {
+                    let alias = self.arbitrary_outer_core_type_alias(u, &types)?;
+                    let ty = match &alias {
+                        CoreAlias::InstanceExport { .. } => unreachable!(),
+                        CoreAlias::Outer {
+                            count,
+                            i,
+                            kind: CoreOuterAliasKind::Type(ty),
+                        } => ty,
+                    };
+                    types.push(ty.clone());
+                    defs.push(ModuleTypeDef::Alias(alias));
+                }
+
+                _ => unreachable!(),
             }
 
             Ok(true)
@@ -1100,7 +1141,52 @@ impl ComponentBuilder {
         f(self, exports, u, type_fuel)
     }
 
-    fn arbitrary_outer_type_alias(&mut self, u: &mut Unstructured) -> Result<Alias> {
+    fn arbitrary_outer_core_type_alias(
+        &self,
+        u: &mut Unstructured,
+        local_types: &[Rc<crate::core::FuncType>],
+    ) -> Result<CoreAlias> {
+        assert!(!local_types.is_empty() || !self.types.is_empty());
+
+        let enclosing_type_max = if !self.types.is_empty() {
+            let enclosing = self.types.last().unwrap();
+            if enclosing.core_func_types.is_empty() {
+                0
+            } else {
+                enclosing.core_func_types.len() - 1
+            }
+        } else {
+            0
+        };
+
+        let max = enclosing_type_max + local_types.len() - 1;
+        let i = u.int_in_range(0..=max)?;
+        let (count, index, ty) = if i < enclosing_type_max {
+            let enclosing = self.types.last().unwrap();
+            let index = enclosing.core_func_types[i];
+            (
+                1,
+                index,
+                match enclosing.get_core(index).as_ref() {
+                    CoreType::Func(ty) => ty.clone(),
+                    CoreType::Module(_) => unreachable!(),
+                },
+            )
+        } else if i - enclosing_type_max < local_types.len() {
+            let i = i - enclosing_type_max;
+            (0, u32::try_from(i).unwrap(), local_types[i].clone())
+        } else {
+            unreachable!()
+        };
+
+        Ok(CoreAlias::Outer {
+            count,
+            i: index,
+            kind: CoreOuterAliasKind::Type(ty),
+        })
+    }
+
+    fn arbitrary_outer_type_alias(&self, u: &mut Unstructured) -> Result<Alias> {
         let non_empty_types_scopes: Vec<_> = self
             .types
             .iter()
@@ -1793,6 +1879,7 @@ struct TypeSection {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum CoreType {
+    Func(Rc<crate::core::FuncType>),
     Module(Rc<ModuleType>),
 }
 
@@ -1808,6 +1895,7 @@ struct ModuleType {
 enum ModuleTypeDef {
     TypeDef(crate::core::Type),
     Import(crate::core::Import),
+    Alias(CoreAlias),
     Export(String, crate::core::EntityType),
 }
 
@@ -1817,6 +1905,34 @@ enum Type {
     Func(Rc<FuncType>),
     Component(Rc<ComponentType>),
     Instance(Rc<InstanceType>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum CoreAlias {
+    InstanceExport {
+        instance: u32,
+        name: String,
+        kind: CoreInstanceExportAliasKind,
+    },
+    Outer {
+        count: u32,
+        i: u32,
+        kind: CoreOuterAliasKind,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum CoreInstanceExportAliasKind {
+    Func,
+    Table,
+    Memory,
+    Global,
+    Tag,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum CoreOuterAliasKind {
+    Type(Rc<crate::core::FuncType>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

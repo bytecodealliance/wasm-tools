@@ -115,6 +115,9 @@ impl CoreTypeSection {
 impl CoreType {
     fn encode(&self, enc: wasm_encoder::CoreTypeEncoder<'_>) {
         match self {
+            Self::Func(ty) => {
+                enc.function(ty.params.iter().copied(), ty.results.iter().copied());
+            }
             Self::Module(mod_ty) => {
                 let mut enc_mod_ty = wasm_encoder::ModuleType::new();
                 for def in &mod_ty.defs {
@@ -125,6 +128,16 @@ impl CoreType {
                                 func_ty.results.iter().copied(),
                             );
                         }
+                        ModuleTypeDef::Alias(alias) => match alias {
+                            CoreAlias::Outer {
+                                count,
+                                i,
+                                kind: CoreOuterAliasKind::Type(_),
+                            } => {
+                                enc_mod_ty.alias_outer_core_type(*count, *i);
+                            }
+                            CoreAlias::InstanceExport { .. } => unreachable!(),
+                        },
                         ModuleTypeDef::Import(imp) => {
                             enc_mod_ty.import(
                                 &imp.module,
