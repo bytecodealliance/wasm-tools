@@ -3,6 +3,23 @@ use crate::{
     encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
 };
 
+/// Represents the kinds of outer core aliasable items in a component.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreOuterAliasKind {
+    /// The alias is to a core type.
+    Type,
+}
+
+impl Encode for CoreOuterAliasKind {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            Self::Type => {
+                sink.push(CORE_TYPE_SORT);
+            }
+        }
+    }
+}
+
 /// An encoder for the core alias section of WebAssembly components.
 ///
 /// # Example
@@ -51,6 +68,19 @@ impl AliasSection {
         self.bytes.push(0x00);
         instance_index.encode(&mut self.bytes);
         name.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Define an alias to an outer core item.
+    ///
+    /// The count starts at 0 to indicate the current component, 1 indicates the direct
+    /// parent, 2 the grandparent, etc.
+    pub fn outer(&mut self, count: u32, kind: CoreOuterAliasKind, index: u32) -> &mut Self {
+        kind.encode(&mut self.bytes);
+        self.bytes.push(0x01);
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

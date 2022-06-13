@@ -1,6 +1,6 @@
 use crate::{
     encode_section, ComponentOuterAliasKind, ComponentSection, ComponentSectionId,
-    ComponentTypeRef, Encode, EntityType, ValType,
+    ComponentTypeRef, CoreOuterAliasKind, Encode, EntityType, ValType,
 };
 
 /// Represents the type of a core module.
@@ -15,6 +15,18 @@ impl ModuleType {
     /// Creates a new core module type.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Defines an outer core type alias in this module type.
+    pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        CoreOuterAliasKind::Type.encode(&mut self.bytes);
+        self.bytes.push(0x01);
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self.types_added += 1;
+        self
     }
 
     /// Defines an import in this module type.
