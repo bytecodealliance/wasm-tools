@@ -120,6 +120,31 @@
 
 (assert_invalid
   (component $c
+    (core type $t (module
+      (alias outer $c $t (type))
+    ))
+  )
+  "failed to find core type named `$t`")
+
+(assert_invalid
+  (component $c
+    (core type $t (module
+      (alias outer $c 0 (type))
+    ))
+  )
+  "type index out of bounds")
+
+(assert_invalid
+  (component $c
+    (type $f (func))
+    (core type $t (module
+      (alias outer 100 0 (type))
+    ))
+  )
+  "outer type aliases in module type declarations are limited to a maximum count of 1")
+
+(assert_invalid
+  (component $c
     (type $t (component
       (alias outer $c $t (type))
     ))
@@ -217,4 +242,35 @@
 
 (component
   (type $t (func (result (tuple (list u8) u32))))
+)
+
+(component $C
+  (core type $t (func))
+  (core type (module
+    (alias outer $C $t (type $a))
+    (import "" "" (func (type $a)))
+  ))
+)
+
+(component $C
+  (component $C2
+    (core type $t (func))
+    (core type (module
+      (alias outer $C2 $t (type $a))
+      (import "" "" (func (type $a)))
+    ))
+  )
+)
+
+(assert_invalid
+  (component $C
+    (core type $t (func))
+    (component $C2
+      (core type (module
+        (alias outer $C $t (type $a))
+        (import "" "" (func (type $a)))
+      ))
+    )
+  )
+  "only the local or enclosing scope can be aliased"
 )

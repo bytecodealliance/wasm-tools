@@ -380,6 +380,7 @@ impl<'a> Expander<'a> {
                     core::TypeDef::Struct(_) => {}
                     core::TypeDef::Array(_) => {}
                 },
+                ModuleTypeDecl::Alias(_) => {},
                 ModuleTypeDecl::Import(ty) => {
                     expand_sig(&mut ty.item, &mut to_prepend, &mut func_type_to_idx);
                 }

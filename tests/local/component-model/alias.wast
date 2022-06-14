@@ -226,6 +226,17 @@
 )
 
 (component $C
+  (core type $t (func))
+  (component $C2
+    (core alias outer $C $t (type $t2))
+    (component
+      (core alias outer $C $t (type))
+      (core alias outer $C2 $t2 (type))
+    )
+  )
+)
+
+(component $C
   (core module $m)
   (alias outer $C $m (core module $target))
   (export "v" (core module $target))
@@ -236,6 +247,14 @@
   (alias outer $C $m (component $target))
   (export "v" (component $target))
 )
+
+(assert_invalid
+  (component (core alias outer 100 0 (type)))
+  "invalid outer alias count of 100")
+
+(assert_invalid
+  (component (core alias outer 0 0 (type)))
+  "index out of bounds")
 
 (assert_invalid
   (component (alias outer 100 0 (core module)))

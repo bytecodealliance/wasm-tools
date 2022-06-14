@@ -2,6 +2,7 @@ use crate::component::*;
 use crate::core;
 use crate::kw;
 use crate::names::Namespace;
+use crate::token::Span;
 use crate::token::{Id, Index};
 use crate::Error;
 
@@ -30,10 +31,19 @@ impl<'a> From<AnyAlias<'a>> for ComponentField<'a> {
     }
 }
 
+impl<'a> From<AnyAlias<'a>> for ModuleTypeDecl<'a> {
+    fn from(a: AnyAlias<'a>) -> Self {
+        match a {
+            AnyAlias::Core(a) => Self::Alias(a),
+            AnyAlias::Component(_) => unreachable!("should be core alias"),
+        }
+    }
+}
+
 impl<'a> From<AnyAlias<'a>> for ComponentTypeDecl<'a> {
     fn from(a: AnyAlias<'a>) -> Self {
         match a {
-            AnyAlias::Core(_) => unreachable!("cannot alias core instance export from type decl"),
+            AnyAlias::Core(_) => unreachable!("should be component alias"),
             AnyAlias::Component(a) => Self::Alias(a),
         }
     }
@@ -42,7 +52,7 @@ impl<'a> From<AnyAlias<'a>> for ComponentTypeDecl<'a> {
 impl<'a> From<AnyAlias<'a>> for InstanceTypeDecl<'a> {
     fn from(a: AnyAlias<'a>) -> Self {
         match a {
-            AnyAlias::Core(_) => unreachable!("cannot alias core instance export from type decl"),
+            AnyAlias::Core(_) => unreachable!("should be component alias"),
             AnyAlias::Component(a) => Self::Alias(a),
         }
     }
@@ -150,7 +160,7 @@ impl<'a> Resolver<'a> {
         match field {
             ComponentField::CoreModule(m) => self.core_module(m),
             ComponentField::CoreInstance(i) => self.core_instance(i),
-            ComponentField::CoreAlias(a) => self.core_alias(a),
+            ComponentField::CoreAlias(a) => self.core_alias(a, false),
             ComponentField::CoreType(t) => self.core_ty(t),
             ComponentField::Component(c) => self.component(c),
             ComponentField::Instance(i) => self.instance(i),
@@ -273,13 +283,78 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn core_alias(&mut self, alias: &mut CoreAlias<'a>) -> Result<(), Error> {
+    fn outer_alias<T: Into<Ns>>(
+        &mut self,
+        outer: &mut Index<'a>,
+        index: &mut Index<'a>,
+        kind: T,
+        span: Span,
+        enclosing_only: bool,
+    ) -> Result<(), Error> {
+        // Short-circuit when both indices are already resolved as this
+        // helps to write tests for invalid modules where wasmparser should
+        // be the one returning the error.
+        if let Index::Num(..) = outer {
+            if let Index::Num(..) = index {
+                return Ok(());
+            }
+        }
+
+        // Resolve `outer`, and compute the depth at which to look up
+        // `index`.
+        let depth = match outer {
+            Index::Id(id) => {
+                let mut depth = 0;
+                for resolver in self.stack.iter().rev() {
+                    if resolver.id == Some(*id) {
+                        break;
+                    }
+                    depth += 1;
+                }
+                if depth as usize == self.stack.len() {
+                    return Err(Error::new(
+                        span,
+                        format!("outer component `{}` not found", id.name()),
+                    ));
+                }
+                depth
+            }
+            Index::Num(n, _span) => *n,
+        };
+
+        if depth as usize >= self.stack.len() {
+            return Err(Error::new(
+                span,
+                format!("outer count of `{}` is too large", depth),
+            ));
+        }
+
+        if enclosing_only && depth > 1 {
+            return Err(Error::new(
+                span,
+                "only the local or enclosing scope can be aliased".to_string(),
+            ));
+        }
+
+        *outer = Index::Num(depth, span);
+
+        // Resolve `index` within the computed scope depth.
+        let computed = self.stack.len() - 1 - depth as usize;
+        self.stack[computed].resolve(kind.into(), index)?;
+
+        Ok(())
+    }
+
+    fn core_alias(&mut self, alias: &mut CoreAlias<'a>, enclosing_only: bool) -> Result<(), Error> {
         match &mut alias.target {
             CoreAliasTarget::Export {
                 instance,
                 name: _,
                 kind: _,
             } => self.resolve_ns(instance, Ns::CoreInstance),
+            CoreAliasTarget::Outer { outer, index, kind } => {
+                self.outer_alias(outer, index, *kind, alias.span, enclosing_only)
+            }
         }
     }
 
@@ -291,49 +366,7 @@ impl<'a> Resolver<'a> {
                 kind: _,
             } => self.resolve_ns(instance, Ns::Instance),
             AliasTarget::Outer { outer, index, kind } => {
-                // Short-circuit when both indices are already resolved as this
-                // helps to write tests for invalid modules where wasmparser should
-                // be the one returning the error.
-                if let Index::Num(..) = outer {
-                    if let Index::Num(..) = index {
-                        return Ok(());
-                    }
-                }
-
-                // Resolve `outer`, and compute the depth at which to look up
-                // `index`.
-                let depth = match outer {
-                    Index::Id(id) => {
-                        let mut depth = 0;
-                        for resolver in self.stack.iter_mut().rev() {
-                            if resolver.id == Some(*id) {
-                                break;
-                            }
-                            depth += 1;
-                        }
-                        if depth as usize == self.stack.len() {
-                            return Err(Error::new(
-                                alias.span,
-                                format!("outer component `{}` not found", id.name()),
-                            ));
-                        }
-                        depth
-                    }
-                    Index::Num(n, _span) => *n,
-                };
-                *outer = Index::Num(depth, alias.span);
-                if depth as usize >= self.stack.len() {
-                    return Err(Error::new(
-                        alias.span,
-                        format!("component depth of `{}` is too large", depth),
-                    ));
-                }
-
-                // Resolve `index` within the computed scope depth.
-                let computed = self.stack.len() - 1 - depth as usize;
-                self.stack[computed].resolve((*kind).into(), index)?;
-
-                Ok(())
+                self.outer_alias(outer, index, *kind, alias.span, false)
             }
         }
     }
@@ -448,9 +481,14 @@ impl<'a> Resolver<'a> {
 
     fn core_ty(&mut self, field: &mut CoreType<'a>) -> Result<(), Error> {
         match &mut field.def {
-            CoreTypeDef::Def(_) => Ok(()),
-            CoreTypeDef::Module(t) => self.module_type(t),
+            CoreTypeDef::Def(_) => {}
+            CoreTypeDef::Module(t) => {
+                self.stack.push(ComponentState::new(field.id));
+                self.module_type(t)?;
+                self.stack.pop();
+            }
         }
+        Ok(())
     }
 
     fn ty(&mut self, field: &mut Type<'a>) -> Result<(), Error> {
@@ -663,27 +701,44 @@ impl<'a> Resolver<'a> {
         unreachable!()
     }
 
-    fn module_type(&mut self, ty: &mut ModuleType<'_>) -> Result<(), Error> {
-        let mut types = Namespace::default();
-        for decl in ty.decls.iter_mut() {
-            match decl {
-                ModuleTypeDecl::Type(t) => {
-                    types.register(t.id, "type")?;
+    fn module_type(&mut self, ty: &mut ModuleType<'a>) -> Result<(), Error> {
+        return self.resolve_prepending_aliases(
+            &mut ty.decls,
+            |resolver, decl| match decl {
+                ModuleTypeDecl::Alias(alias) => resolver.core_alias(alias, true),
+                ModuleTypeDecl::Type(_) => Ok(()),
+                ModuleTypeDecl::Import(import) => resolve_item_sig(resolver, &mut import.item),
+                ModuleTypeDecl::Export(_, item) => resolve_item_sig(resolver, item),
+            },
+            |state, decl| {
+                match decl {
+                    ModuleTypeDecl::Alias(alias) => {
+                        state.register_core_alias(alias)?;
+                    }
+                    ModuleTypeDecl::Type(ty) => {
+                        state.core_types.register(ty.id, "type")?;
+                    }
+                    // Only the type namespace is populated within the module type
+                    // namespace so these are ignored here.
+                    ModuleTypeDecl::Import(_) | ModuleTypeDecl::Export(..) => {}
                 }
-                ModuleTypeDecl::Import(t) => resolve_item_sig(&mut t.item, &types)?,
-                ModuleTypeDecl::Export(_, t) => resolve_item_sig(t, &types)?,
-            }
-        }
-        return Ok(());
+                Ok(())
+            },
+        );
 
         fn resolve_item_sig<'a>(
+            resolver: &Resolver<'a>,
             sig: &mut core::ItemSig<'a>,
-            names: &Namespace<'a>,
         ) -> Result<(), Error> {
             match &mut sig.kind {
                 core::ItemKind::Func(ty) | core::ItemKind::Tag(core::TagType::Exception(ty)) => {
                     let idx = ty.index.as_mut().expect("index should be filled in");
-                    names.resolve(idx, "type")?;
+                    resolver
+                        .stack
+                        .last()
+                        .unwrap()
+                        .core_types
+                        .resolve(idx, "type")?;
                 }
                 core::ItemKind::Memory(_)
                 | core::ItemKind::Global(_)
@@ -807,6 +862,11 @@ impl<'a> ComponentState<'a> {
                 core::ExportKind::Global => self.core_globals.register(alias.id, "core global"),
                 core::ExportKind::Tag => self.core_tags.register(alias.id, "core tag"),
             },
+            CoreAliasTarget::Outer {
+                outer: _,
+                index: _,
+                kind: CoreOuterAliasKind::Type,
+            } => self.core_types.register(alias.id, "core type"),
         }
     }
 }
@@ -914,6 +974,14 @@ impl From<ComponentOuterAliasKind> for Ns {
             ComponentOuterAliasKind::CoreType => Self::CoreType,
             ComponentOuterAliasKind::Type => Self::Type,
             ComponentOuterAliasKind::Component => Self::Component,
+        }
+    }
+}
+
+impl From<CoreOuterAliasKind> for Ns {
+    fn from(kind: CoreOuterAliasKind) -> Self {
+        match kind {
+            CoreOuterAliasKind::Type => Self::CoreType,
         }
     }
 }
