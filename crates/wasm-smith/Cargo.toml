@@ -8,7 +8,7 @@ license = "Apache-2.0 WITH LLVM-exception"
 name = "wasm-smith"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-smith"
-version = "0.11.0"
+version = "0.11.1"
 exclude = ["/benches/corpus"]
 
 [[bench]]
