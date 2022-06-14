@@ -140,7 +140,7 @@ impl State {
             .types
             .get(index as usize)
             .copied()
-            .ok_or_else(|| anyhow!("type index {} out of bounds", index))
+            .ok_or_else(|| anyhow!("core type index {} out of bounds", index))
     }
 
     fn ty(&self, index: u32) -> Result<usize> {
@@ -469,11 +469,9 @@ impl Printer {
                 }
                 Payload::AliasSection(s) => {
                     Self::ensure_component(&states)?;
-                    self.print_aliases(states.last_mut().unwrap(), &mut types, s)?;
+                    self.print_aliases(&mut states, &mut types, s)?;
                 }
-                Payload::CoreTypeSection(s) => {
-                    self.print_core_types(states.last_mut().unwrap(), &mut types, s)?
-                }
+                Payload::CoreTypeSection(s) => self.print_core_types(&mut states, &mut types, s)?,
                 Payload::ComponentSection { parser: inner, .. } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Component);
@@ -612,28 +610,31 @@ impl Printer {
 
     fn print_core_type(
         &mut self,
-        state: &mut State,
+        states: &mut Vec<State>,
         types: &mut Vec<Type>,
         ty: wasmparser::CoreType,
     ) -> Result<()> {
         self.start_group("core type ");
-        self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+        self.print_name(
+            &states.last().unwrap().core.type_names,
+            states.last().unwrap().core.types.len() as u32,
+        )?;
         self.result.push(' ');
         let ty = match ty {
             wasmparser::CoreType::Func(ty) => {
                 self.start_group("func");
-                self.print_func_type(state, &ty, None)?;
+                self.print_func_type(states.last().unwrap(), &ty, None)?;
                 self.end_group();
                 Type::Func(Some(ty))
             }
             wasmparser::CoreType::Module(decls) => {
-                self.print_module_type(types, decls.into_vec())?;
+                self.print_module_type(states, types, decls.into_vec())?;
                 Type::Module
             }
         };
         self.end_group(); // `core type` itself
 
-        state.core.types.push(types.len());
+        states.last_mut().unwrap().core.types.push(types.len());
         types.push(ty);
         Ok(())
     }
@@ -664,13 +665,13 @@ impl Printer {
 
     fn print_core_types(
         &mut self,
-        state: &mut State,
+        states: &mut Vec<State>,
         types: &mut Vec<Type>,
         parser: CoreTypeSectionReader<'_>,
     ) -> Result<()> {
         for ty in parser {
             self.newline();
-            self.print_core_type(state, types, ty?)?;
+            self.print_core_type(states, types, ty?)?;
         }
 
         Ok(())
@@ -2429,29 +2430,36 @@ impl Printer {
 
     fn print_module_type(
         &mut self,
+        states: &mut Vec<State>,
         types: &mut Vec<Type>,
         decls: Vec<ModuleTypeDeclaration>,
     ) -> Result<()> {
-        let mut state = State::new(Encoding::Module);
+        states.push(State::new(Encoding::Module));
         self.newline();
         self.start_group("module");
         for decl in decls {
             self.newline();
             match decl {
-                ModuleTypeDeclaration::Type(ty) => self.print_type(&mut state, types, ty)?,
+                ModuleTypeDeclaration::Type(ty) => {
+                    self.print_type(states.last_mut().unwrap(), types, ty)?
+                }
+                ModuleTypeDeclaration::Alias(alias) => {
+                    self.print_alias(states, types, alias, false)?
+                }
                 ModuleTypeDeclaration::Export { name, ty } => {
                     self.start_group("export ");
                     self.print_str(name)?;
                     self.result.push(' ');
-                    self.print_import_ty(&state, types, &ty, false)?;
+                    self.print_import_ty(states.last_mut().unwrap(), types, &ty, false)?;
                     self.end_group();
                 }
                 ModuleTypeDeclaration::Import(import) => {
-                    self.print_import(&state, types, &import, false)?;
+                    self.print_import(states.last_mut().unwrap(), types, &import, false)?;
                 }
             }
         }
         self.end_group();
+        states.pop();
         Ok(())
     }
 
@@ -2468,7 +2476,7 @@ impl Printer {
             self.newline();
             match decl {
                 ComponentTypeDeclaration::CoreType(ty) => {
-                    self.print_core_type(states.last_mut().unwrap(), types, ty)?
+                    self.print_core_type(states, types, ty)?
                 }
                 ComponentTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
@@ -2478,7 +2486,7 @@ impl Printer {
                         bail!("component types cannot alias instance exports")
                     }
                     ComponentAlias::Outer { kind, count, index } => {
-                        self.print_outer_alias(states, kind, count, index)?
+                        self.print_component_outer_alias(states, kind, count, index)?
                     }
                 },
                 ComponentTypeDeclaration::Export { name, ty } => {
@@ -2519,9 +2527,7 @@ impl Printer {
         for decl in decls {
             self.newline();
             match decl {
-                InstanceTypeDeclaration::CoreType(ty) => {
-                    self.print_core_type(states.last_mut().unwrap(), types, ty)?
-                }
+                InstanceTypeDeclaration::CoreType(ty) => self.print_core_type(states, types, ty)?,
                 InstanceTypeDeclaration::Type(ty) => {
                     self.print_component_type_def(states, types, ty)?
                 }
@@ -2530,7 +2536,7 @@ impl Printer {
                         bail!("instance types cannot alias instance exports")
                     }
                     ComponentAlias::Outer { kind, count, index } => {
-                        self.print_outer_alias(states, kind, count, index)?
+                        self.print_component_outer_alias(states, kind, count, index)?
                     }
                 },
                 InstanceTypeDeclaration::Export { name, ty } => {
@@ -2566,6 +2572,50 @@ impl Printer {
     }
 
     fn print_outer_alias(
+        &mut self,
+        states: &mut [State],
+        kind: OuterAliasKind,
+        count: u32,
+        index: u32,
+        core_prefix: bool,
+    ) -> Result<()> {
+        let index = {
+            let state = states.last().unwrap();
+            let outer = Self::outer_state(states, count)?;
+            self.start_group(if core_prefix {
+                "core alias outer "
+            } else {
+                "alias outer "
+            });
+            if let Some(name) = outer.name.as_ref() {
+                name.write(&mut self.result);
+            } else {
+                self.result.push_str(count.to_string().as_str());
+            }
+            self.result.push(' ');
+            let index = match kind {
+                OuterAliasKind::Type => {
+                    self.print_idx(&outer.core.type_names, index)?;
+                    self.result.push(' ');
+                    self.start_group("type ");
+                    self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+                    Some(outer.core_ty(index)?)
+                }
+            };
+            self.end_group(); // kind
+            self.end_group(); // alias
+            index
+        };
+
+        let state = states.last_mut().unwrap();
+        match kind {
+            OuterAliasKind::Type => state.core.types.push(index.unwrap()),
+        }
+
+        Ok(())
+    }
+
+    fn print_component_outer_alias(
         &mut self,
         states: &mut [State],
         kind: ComponentOuterAliasKind,
@@ -3188,61 +3238,80 @@ impl Printer {
         Ok(())
     }
 
+    fn print_alias(
+        &mut self,
+        states: &mut [State],
+        types: &mut Vec<Type>,
+        alias: Alias,
+        core_prefix: bool,
+    ) -> Result<()> {
+        match alias {
+            Alias::InstanceExport {
+                instance_index,
+                kind,
+                name,
+            } => {
+                let state = states.last_mut().unwrap();
+                self.start_group(if core_prefix {
+                    "core alias export "
+                } else {
+                    "alias export "
+                });
+                self.print_idx(&state.core.instance_names, instance_index)?;
+                self.result.push(' ');
+                self.print_str(name)?;
+                self.result.push(' ');
+                match kind {
+                    ExternalKind::Func => {
+                        self.start_group("func ");
+                        self.print_name(&state.core.func_names, state.core.funcs.len() as u32)?;
+                        self.end_group();
+                        state.core.funcs.push(types.len());
+                        types.push(Type::Func(None));
+                    }
+                    ExternalKind::Table => {
+                        self.start_group("table ");
+                        self.print_name(&state.core.table_names, state.core.tables)?;
+                        self.end_group();
+                        state.core.tables += 1;
+                    }
+                    ExternalKind::Memory => {
+                        self.start_group("memory ");
+                        self.print_name(&state.core.memory_names, state.core.memories)?;
+                        self.end_group();
+                        state.core.memories += 1;
+                    }
+                    ExternalKind::Global => {
+                        self.start_group("global ");
+                        self.print_name(&state.core.global_names, state.core.globals)?;
+                        self.end_group();
+                        state.core.globals += 1;
+                    }
+                    ExternalKind::Tag => {
+                        self.start_group("tag ");
+                        write!(self.result, "(;{};)", state.core.tags)?;
+                        self.end_group();
+                        state.core.tags += 1;
+                    }
+                }
+                self.end_group(); // alias export
+            }
+            Alias::Outer { kind, count, index } => {
+                self.print_outer_alias(states, kind, count, index, core_prefix)?;
+            }
+        }
+        Ok(())
+    }
+
     fn print_aliases(
         &mut self,
-        state: &mut State,
+        states: &mut Vec<State>,
         types: &mut Vec<Type>,
         parser: AliasSectionReader,
     ) -> Result<()> {
         for alias in parser {
             self.newline();
-            match alias? {
-                Alias::InstanceExport {
-                    instance_index,
-                    kind,
-                    name,
-                } => {
-                    self.start_group("core alias export ");
-                    self.print_idx(&state.core.instance_names, instance_index)?;
-                    self.result.push(' ');
-                    self.print_str(name)?;
-                    self.result.push(' ');
-                    match kind {
-                        ExternalKind::Func => {
-                            self.start_group("func ");
-                            self.print_name(&state.core.func_names, state.core.funcs.len() as u32)?;
-                            self.end_group();
-                            state.core.funcs.push(types.len());
-                            types.push(Type::Func(None));
-                        }
-                        ExternalKind::Table => {
-                            self.start_group("table ");
-                            self.print_name(&state.core.table_names, state.core.tables)?;
-                            self.end_group();
-                            state.core.tables += 1;
-                        }
-                        ExternalKind::Memory => {
-                            self.start_group("memory ");
-                            self.print_name(&state.core.memory_names, state.core.memories)?;
-                            self.end_group();
-                            state.core.memories += 1;
-                        }
-                        ExternalKind::Global => {
-                            self.start_group("global ");
-                            self.print_name(&state.core.global_names, state.core.globals)?;
-                            self.end_group();
-                            state.core.globals += 1;
-                        }
-                        ExternalKind::Tag => {
-                            self.start_group("tag ");
-                            write!(self.result, "(;{};)", state.core.tags)?;
-                            self.end_group();
-                            state.core.tags += 1;
-                        }
-                    }
-                    self.end_group(); // alias export
-                }
-            }
+            self.print_alias(states, types, alias?, true)?;
         }
         Ok(())
     }
@@ -3357,7 +3426,7 @@ impl Printer {
                     self.end_group(); // alias export
                 }
                 ComponentAlias::Outer { kind, count, index } => {
-                    self.print_outer_alias(states, kind, count, index)?
+                    self.print_component_outer_alias(states, kind, count, index)?
                 }
             }
         }
