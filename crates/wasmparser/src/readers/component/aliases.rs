@@ -4,6 +4,13 @@ use crate::{
 };
 use std::ops::Range;
 
+/// Represents the kind of an outer core alias in a WebAssembly component.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OuterAliasKind {
+    /// The alias is to a core type.
+    Type,
+}
+
 /// Represents a core alias for a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum Alias<'a> {
@@ -15,6 +22,15 @@ pub enum Alias<'a> {
         instance_index: u32,
         /// The export name.
         name: &'a str,
+    },
+    /// The alias is to an outer item.
+    Outer {
+        /// The alias kind.
+        kind: OuterAliasKind,
+        /// The outward count, starting at zero for the current component.
+        count: u32,
+        /// The index of the item within the outer component.
+        index: u32,
     },
 }
 

@@ -198,6 +198,10 @@ impl Encoder {
                 self.core_aliases
                     .instance_export((*instance).into(), (*kind).into(), name);
             }
+            CoreAliasTarget::Outer { outer, index, kind } => {
+                self.core_aliases
+                    .outer((*outer).into(), (*kind).into(), (*index).into());
+            }
         }
 
         self.flush(Some(self.core_aliases.id()));
@@ -725,6 +729,16 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
                         todo!("encoding of GC proposal types not yet implemented")
                     }
                 },
+                ModuleTypeDecl::Alias(a) => match &a.target {
+                    CoreAliasTarget::Outer {
+                        outer,
+                        index,
+                        kind: CoreOuterAliasKind::Type,
+                    } => {
+                        encoded.alias_outer_core_type(u32::from(*outer), u32::from(*index));
+                    }
+                    _ => unreachable!("only outer type aliases are supported"),
+                },
                 ModuleTypeDecl::Import(i) => {
                     encoded.import(i.module, i.field, (&i.item.kind).into());
                 }
@@ -764,6 +778,14 @@ impl From<&ComponentExportKind<'_>> for (wasm_encoder::ComponentExportKind, u32)
             ComponentExportKind::Instance(i) => {
                 (wasm_encoder::ComponentExportKind::Instance, i.idx.into())
             }
+        }
+    }
+}
+
+impl From<CoreOuterAliasKind> for wasm_encoder::CoreOuterAliasKind {
+    fn from(kind: CoreOuterAliasKind) -> Self {
+        match kind {
+            CoreOuterAliasKind::Type => Self::Type,
         }
     }
 }

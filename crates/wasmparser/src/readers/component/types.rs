@@ -1,6 +1,6 @@
 use crate::{
-    BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, FuncType, Import, Result,
-    SectionIteratorLimited, SectionReader, SectionWithLimitedItems, Type, TypeRef,
+    Alias, BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, FuncType, Import,
+    Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems, Type, TypeRef,
 };
 use std::ops::Range;
 
@@ -25,6 +25,8 @@ pub enum ModuleTypeDeclaration<'a> {
         /// The type reference of the export.
         ty: TypeRef,
     },
+    /// The module type declaration is for an alias.
+    Alias(Alias<'a>),
     /// The module type definition is for an import.
     Import(Import<'a>),
 }

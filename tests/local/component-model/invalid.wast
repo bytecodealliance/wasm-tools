@@ -17,7 +17,7 @@
   (component quote
     "(alias outer 100 $foo (type $foo))"
   )
-  "component depth of `100` is too large")
+  "outer count of `100` is too large")
 
 (assert_malformed
   (component quote

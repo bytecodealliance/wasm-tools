@@ -82,6 +82,8 @@ impl<'a> Parse<'a> for ModuleType<'a> {
 pub enum ModuleTypeDecl<'a> {
     /// A core type.
     Type(core::Type<'a>),
+    /// An alias local to the module type.
+    Alias(CoreAlias<'a>),
     /// An import.
     Import(core::Import<'a>),
     /// An export.
@@ -93,6 +95,11 @@ impl<'a> Parse<'a> for ModuleTypeDecl<'a> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
+        } else if l.peek::<kw::alias>() {
+            let span = parser.parse::<kw::alias>()?.0;
+            Ok(Self::Alias(CoreAlias::parse_outer_type_alias(
+                span, parser,
+            )?))
         } else if l.peek::<kw::import>() {
             Ok(Self::Import(parser.parse()?))
         } else if l.peek::<kw::export>() {
