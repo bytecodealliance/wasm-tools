@@ -96,7 +96,10 @@ impl<'a> Parse<'a> for ModuleTypeDecl<'a> {
         if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
         } else if l.peek::<kw::alias>() {
-            Ok(Self::Alias(CoreAlias::parse_outer_type_alias(parser)?))
+            let span = parser.parse::<kw::alias>()?.0;
+            Ok(Self::Alias(CoreAlias::parse_outer_type_alias(
+                span, parser,
+            )?))
         } else if l.peek::<kw::import>() {
             Ok(Self::Import(parser.parse()?))
         } else if l.peek::<kw::export>() {

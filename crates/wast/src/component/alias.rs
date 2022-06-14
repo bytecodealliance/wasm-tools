@@ -38,8 +38,7 @@ pub struct CoreAlias<'a> {
 
 impl<'a> CoreAlias<'a> {
     /// Parses only an outer type alias.
-    pub fn parse_outer_type_alias(parser: Parser<'a>) -> Result<Self> {
-        let span = parser.parse::<kw::alias>()?.0;
+    pub fn parse_outer_type_alias(span: Span, parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::outer>()?;
         let outer = parser.parse()?;
         let index = parser.parse()?;
@@ -63,14 +62,10 @@ impl<'a> Parse<'a> for CoreAlias<'a> {
 
         let mut l = parser.lookahead1();
 
-        let (target, id, name) = if l.peek::<kw::outer>() {
-            parser.parse::<kw::outer>()?;
-            let outer = parser.parse()?;
-            let index = parser.parse()?;
-            let (kind, id, name) =
-                parser.parens(|parser| Ok((parser.parse()?, parser.parse()?, parser.parse()?)))?;
-
-            (CoreAliasTarget::Outer { outer, index, kind }, id, name)
+        if l.peek::<kw::outer>() {
+            // As only types are supported for outer core aliases, delegate
+            // to `parse_outer_type_alias`
+            Self::parse_outer_type_alias(span, parser)
         } else if l.peek::<kw::export>() {
             parser.parse::<kw::export>()?;
             let instance = parser.parse()?;
@@ -78,25 +73,19 @@ impl<'a> Parse<'a> for CoreAlias<'a> {
             let (kind, id, name) =
                 parser.parens(|parser| Ok((parser.parse()?, parser.parse()?, parser.parse()?)))?;
 
-            (
-                CoreAliasTarget::Export {
+            Ok(Self {
+                span,
+                target: CoreAliasTarget::Export {
                     instance,
                     name: export_name,
                     kind,
                 },
                 id,
                 name,
-            )
+            })
         } else {
-            return Err(l.error());
-        };
-
-        Ok(Self {
-            span,
-            target,
-            id,
-            name,
-        })
+            Err(l.error())
+        }
     }
 }
 
