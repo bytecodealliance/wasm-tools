@@ -1146,22 +1146,17 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         local_types: &[Rc<crate::core::FuncType>],
     ) -> Result<CoreAlias> {
-        assert!(!local_types.is_empty() || !self.types.is_empty());
-
-        let enclosing_type_max = if !self.types.is_empty() {
-            let enclosing = self.types.last().unwrap();
-            if enclosing.core_func_types.is_empty() {
-                0
-            } else {
-                enclosing.core_func_types.len() - 1
-            }
+        let enclosing_type_len = if !self.types.is_empty() {
+            self.types.last().unwrap().core_func_types.len()
         } else {
             0
         };
 
-        let max = enclosing_type_max + local_types.len() - 1;
+        assert!(!local_types.is_empty() || enclosing_type_len > 0);
+
+        let max = enclosing_type_len + local_types.len() - 1;
         let i = u.int_in_range(0..=max)?;
-        let (count, index, ty) = if i < enclosing_type_max {
+        let (count, index, ty) = if i < enclosing_type_len {
             let enclosing = self.types.last().unwrap();
             let index = enclosing.core_func_types[i];
             (
@@ -1172,8 +1167,8 @@ impl ComponentBuilder {
                     CoreType::Module(_) => unreachable!(),
                 },
             )
-        } else if i - enclosing_type_max < local_types.len() {
-            let i = i - enclosing_type_max;
+        } else if i - enclosing_type_len < local_types.len() {
+            let i = i - enclosing_type_len;
             (0, u32::try_from(i).unwrap(), local_types[i].clone())
         } else {
             unreachable!()
