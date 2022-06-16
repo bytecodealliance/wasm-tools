@@ -1221,7 +1221,17 @@ impl ComponentBuilder {
     ) -> Result<Rc<FuncType>> {
         let mut params = vec![];
         let mut param_names = HashSet::new();
-        arbitrary_loop(u, 0, 20, |u| {
+
+        // Note: parameters are currently limited to a maximum of 16
+        // because any additional parameters will require indirect access
+        // via a pointer argument; when this occurs, validation of any
+        // lowered function will fail because it will be missing a
+        // memory option (not yet implemented).
+        //
+        // When options are correctly specified on canonical functions,
+        // we should increase this maximum to test indirect parameter
+        // passing.
+        arbitrary_loop(u, 0, 16, |u| {
             *type_fuel = type_fuel.saturating_sub(1);
             if *type_fuel == 0 {
                 return Ok(false);
