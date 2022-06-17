@@ -2318,11 +2318,9 @@ impl Printer {
 
     fn print_variant_type(&mut self, state: &State, cases: &[VariantCase]) -> Result<()> {
         self.start_group("variant");
-        for (i, case) in cases.iter().enumerate() {
+        for case in cases {
             self.result.push(' ');
             self.start_group("case ");
-            // TODO: use the identifier from the name section when there is one
-            write!(&mut self.result, "$c{} ", i)?;
             self.print_str(case.name)?;
             self.result.push(' ');
             self.print_component_val_type(state, &case.ty)?;
@@ -2330,8 +2328,7 @@ impl Printer {
             if let Some(refines) = case.refines {
                 self.result.push(' ');
                 self.start_group("refines ");
-                // TODO: use the identifier from the name section when there is one
-                write!(&mut self.result, "$c{}", refines)?;
+                write!(&mut self.result, "{}", refines)?;
                 self.end_group();
             }
             self.end_group()
