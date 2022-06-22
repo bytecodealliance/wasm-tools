@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{FuncType, GlobalType, MemoryType, TableType, ValType};
+use crate::{FuncType, GlobalType, MemoryType, RefType, TableType, ValType};
 use std::ops::Range;
 
 /// Types that qualify as Wasm function types for validation purposes.
@@ -211,7 +211,7 @@ pub trait WasmModuleResources {
     /// Returns the `FuncType` associated with the given function index.
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType>;
     /// Returns the element type at the given index.
-    fn element_type_at(&self, at: u32) -> Option<ValType>;
+    fn element_type_at(&self, at: u32) -> Option<RefType>;
 
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
@@ -246,7 +246,7 @@ where
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
         T::type_of_function(self, func_idx)
     }
-    fn element_type_at(&self, at: u32) -> Option<ValType> {
+    fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
     }
 
@@ -291,7 +291,7 @@ where
         T::type_of_function(self, func_idx)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<ValType> {
+    fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
     }
 

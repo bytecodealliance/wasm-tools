@@ -29,10 +29,11 @@ pub enum ValType {
     F64,
     /// The value type is v128.
     V128,
-    /// The value type is a function reference.
-    FuncRef,
-    /// The value type is an extern reference.
-    ExternRef,
+    /// The value type is a reference. Which type of reference is decided by
+    /// RefType. This is a change in syntax from the function references proposal,
+    /// which now provides FuncRef and ExternRef as sugar for the generic ref
+    /// construct
+    Ref(RefType),
 }
 
 /// Reference type from function references
@@ -56,6 +57,17 @@ pub enum HeapType {
     Extern,
 }
 
+/// An internal shortcut for the desugaring of (funcref)
+pub(crate) const FUNC_REF: RefType = RefType {
+    nullable: true,
+    heap_type: HeapType::Func,
+};
+/// An internal shortcut for the desugaring of (externref)
+pub(crate) const EXTERN_REF: RefType = RefType {
+    nullable: true,
+    heap_type: HeapType::Extern,
+};
+
 /// Represents a type in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum Type {
@@ -76,7 +88,7 @@ pub struct FuncType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TableType {
     /// The table's element type.
-    pub element_type: ValType,
+    pub element_type: RefType,
     /// Initial size of this table, in elements.
     pub initial: u32,
     /// Optional maximum size of the table, in elements.

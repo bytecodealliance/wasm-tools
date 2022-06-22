@@ -24,7 +24,8 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, MemoryImmediate, Operator,
-    Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
+    RefType, Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
+    FUNC_REF,
 };
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
@@ -486,9 +487,7 @@ impl OperatorValidator {
             | BlockType::Type(ValType::I64)
             | BlockType::Type(ValType::F32)
             | BlockType::Type(ValType::F64) => Ok(()),
-            BlockType::Type(ValType::ExternRef) | BlockType::Type(ValType::FuncRef) => {
-                self.check_reference_types_enabled()
-            }
+            BlockType::Type(ValType::Ref(_)) => self.check_reference_types_enabled(),
             BlockType::Type(ValType::V128) => self.check_simd_enabled(),
             BlockType::FuncType(idx) => {
                 if !self.features.multi_value {
@@ -542,7 +541,7 @@ impl OperatorValidator {
                 ));
             }
             Some(tab) => {
-                if tab.element_type != ValType::FuncRef {
+                if tab.element_type != FUNC_REF {
                     return Err(OperatorValidatorError::new(
                         "indirect calls must go through a table of funcref",
                     ));
@@ -1410,7 +1409,7 @@ impl OperatorValidator {
             Operator::RefNull { ty } => {
                 self.check_reference_types_enabled()?;
                 match ty {
-                    ValType::FuncRef | ValType::ExternRef => {}
+                    ValType::Ref(_) => {}
                     _ => {
                         return Err(OperatorValidatorError::new(
                             "invalid reference type in ref.null",
@@ -1422,7 +1421,7 @@ impl OperatorValidator {
             Operator::RefIsNull => {
                 self.check_reference_types_enabled()?;
                 match self.pop_operand(None)? {
-                    None | Some(ValType::FuncRef) | Some(ValType::ExternRef) => {}
+                    None | Some(ValType::Ref(RefType { nullable: true, .. })) => {}
                     _ => {
                         return Err(OperatorValidatorError::new(
                             "type mismatch: invalid reference type in ref.is_null",
@@ -1442,7 +1441,11 @@ impl OperatorValidator {
                 if !resources.is_function_referenced(function_index) {
                     return Err(OperatorValidatorError::new("undeclared function reference"));
                 }
-                self.push_operand(ValType::FuncRef)?;
+                if self.features.function_references {
+                    todo!("typed functions!")
+                } else {
+                    self.push_operand(ValType::Ref(FUNC_REF))?;
+                }
             }
             Operator::V128Load { memarg } => {
                 self.check_simd_enabled()?;
@@ -2036,7 +2039,7 @@ impl OperatorValidator {
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ty)?;
+                self.push_operand(ValType::Ref(ty))?;
             }
             Operator::TableSet { table } => {
                 self.check_reference_types_enabled()?;
@@ -2044,7 +2047,7 @@ impl OperatorValidator {
                     Some(ty) => ty.element_type,
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
-                self.pop_operand(Some(ty))?;
+                self.pop_operand(Some(ValType::Ref(ty)))?;
                 self.pop_operand(Some(ValType::I32))?;
             }
             Operator::TableGrow { table } => {
@@ -2054,7 +2057,7 @@ impl OperatorValidator {
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
+                self.pop_operand(Some(ValType::Ref(ty)))?;
                 self.push_operand(ValType::I32)?;
             }
             Operator::TableSize { table } => {
@@ -2071,7 +2074,7 @@ impl OperatorValidator {
                     None => return Err(OperatorValidatorError::new("table index out of bounds")),
                 };
                 self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
+                self.pop_operand(Some(ValType::Ref(ty)))?;
                 self.pop_operand(Some(ValType::I32))?;
             }
         }
@@ -2188,7 +2191,7 @@ fn ty_to_str(ty: ValType) -> &'static str {
         ValType::F32 => "f32",
         ValType::F64 => "f64",
         ValType::V128 => "v128",
-        ValType::FuncRef => "funcref",
-        ValType::ExternRef => "externref",
+        // TODO(luna): this can no longer be a static string, it must be computed based on ref
+        ValType::Ref(_) => "ref (of some kind)",
     }
 }

@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Result, SectionReader,
-    SectionWithLimitedItems, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    limits::*, BinaryReaderError, Encoding, FunctionBody, HeapType, Parser, Payload, Result,
+    SectionReader, SectionWithLimitedItems, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
 use std::ops::Range;
@@ -239,15 +239,29 @@ pub struct WasmFeatures {
     pub extended_const: bool,
     /// The WebAssembly component model proposal.
     pub component_model: bool,
+    /// The WebAssembly typed function references proposal
+    pub function_references: bool,
 }
 
 impl WasmFeatures {
     pub(crate) fn check_value_type(&self, ty: ValType) -> Result<(), &'static str> {
         match ty {
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 => Ok(()),
-            ValType::FuncRef | ValType::ExternRef => {
+            ValType::Ref(r) => {
                 if self.reference_types {
-                    Ok(())
+                    if !self.function_references {
+                        match (r.heap_type, r.nullable) {
+                            (_, false) => {
+                                Err("function references required for non-nullable types")
+                            }
+                            (HeapType::Index(_), _) => {
+                                Err("function references required for index reference types")
+                            }
+                            _ => Ok(()),
+                        }
+                    } else {
+                        Ok(())
+                    }
                 } else {
                     Err("reference types support is not enabled")
                 }
@@ -276,6 +290,7 @@ impl Default for WasmFeatures {
             extended_const: false,
             component_model: false,
             deterministic_only: cfg!(feature = "deterministic"),
+            function_references: false,
 
             // on-by-default features
             mutable_global: true,

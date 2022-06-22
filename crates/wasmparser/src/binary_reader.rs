@@ -195,6 +195,16 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    pub(crate) fn read_ref_type(&mut self) -> Result<RefType> {
+        match self.read_val_type()? {
+            ValType::Ref(r) => Ok(r),
+            _ => Err(BinaryReaderError::new(
+                "expected ref type but found another type",
+                self.original_position() - 1,
+            )),
+        }
+    }
+
     pub(crate) fn read_component_start(&mut self) -> Result<ComponentStartFunction> {
         let func_index = self.read_var_u32()?;
         let size = self.read_size(MAX_WASM_START_ARGS, "start function arguments")?;
@@ -745,7 +755,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
-        let element_type = self.read_val_type()?;
+        let element_type = self.read_ref_type()?;
         let has_max = match self.read_u8()? {
             0x00 => false,
             0x01 => true,
@@ -1555,18 +1565,12 @@ impl<'a> BinaryReader<'a> {
             }
             0x70 => {
                 self.position += 1;
-                let rt = RefType {
-                    nullable: true,
-                    heap_type: HeapType::Func,
-                };
+                let rt = FUNC_REF;
                 panic!("good. the reftype is {:?}", rt);
             }
             0x6F => {
                 self.position += 1;
-                let rt = RefType {
-                    nullable: true,
-                    heap_type: HeapType::Extern,
-                };
+                let rt = EXTERN_REF;
                 panic!("good. the reftype is {:?}", rt);
             }
             x @ (0x6C | 0x6D) => {

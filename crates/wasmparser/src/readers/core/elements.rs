@@ -15,7 +15,7 @@
 
 use crate::{
     BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, Result, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems, ValType,
+    SectionReader, SectionWithLimitedItems, ValType, RefType, FUNC_REF,
 };
 use std::ops::Range;
 
@@ -27,7 +27,7 @@ pub struct Element<'a> {
     /// The initial elements of the element segment.
     pub items: ElementItems<'a>,
     /// The type of the elements.
-    pub ty: ValType,
+    pub ty: RefType,
     /// The range of the the element segment.
     pub range: Range<usize>,
 }
@@ -256,10 +256,10 @@ impl<'a> ElementSectionReader<'a> {
         let exprs = flags & 0b100 != 0;
         let ty = if flags & 0b011 != 0 {
             if exprs {
-                self.reader.read_val_type()?
+                self.reader.read_ref_type()?
             } else {
                 match self.reader.read_external_kind()? {
-                    ExternalKind::Func => ValType::FuncRef,
+                    ExternalKind::Func => FUNC_REF,
                     _ => {
                         return Err(BinaryReaderError::new(
                             "only the function external type is supported in elem segment",
@@ -269,7 +269,7 @@ impl<'a> ElementSectionReader<'a> {
                 }
             }
         } else {
-            ValType::FuncRef
+            FUNC_REF
         };
         let data_start = self.reader.position;
         let items_count = self.reader.read_var_u32()?;
