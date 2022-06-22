@@ -35,6 +35,27 @@ pub enum ValType {
     ExternRef,
 }
 
+/// Reference type from function references
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct RefType {
+    /// Whether it's nullable
+    pub nullable: bool,
+    /// The relevant heap type
+    pub heap_type: HeapType,
+}
+
+/// See proposal
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum HeapType {
+    /// It seems by example that u32s are directly used for arbitrary indexes,
+    /// but maybe a higher-level structure like TypeRef is relevant here?
+    Index(u32),
+    /// From reference types
+    Func,
+    /// From reference types
+    Extern,
+}
+
 /// Represents a type in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum Type {

@@ -186,11 +186,8 @@ impl<'a> BinaryReader<'a> {
 
     /// Reads a core WebAssembly value type from the binary reader.
     pub fn read_val_type(&mut self) -> Result<ValType> {
-        match Self::val_type_from_byte(self.peek()?) {
-            Some(ty) => {
-                self.position += 1;
-                Ok(ty)
-            }
+        match self.maybe_read_val_type()? {
+            Some(ty) => Ok(ty),
             None => Err(BinaryReaderError::new(
                 "invalid value type",
                 self.original_position(),
@@ -1502,6 +1499,7 @@ impl<'a> BinaryReader<'a> {
 
     #[cold]
     fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> BinaryReaderError {
+        panic!("invalid leading byte");
         BinaryReaderError::new(
             format!("invalid leading byte (0x{:x}) for {}", byte, desc),
             offset,
@@ -1513,17 +1511,63 @@ impl<'a> BinaryReader<'a> {
         Ok(self.buffer[self.position])
     }
 
-    fn val_type_from_byte(byte: u8) -> Option<ValType> {
-        match byte {
-            0x7F => Some(ValType::I32),
-            0x7E => Some(ValType::I64),
-            0x7D => Some(ValType::F32),
-            0x7C => Some(ValType::F64),
-            0x7B => Some(ValType::V128),
-            0x70 => Some(ValType::FuncRef),
-            0x6F => Some(ValType::ExternRef),
-            _ => None,
+    fn read_heap_type(&mut self) -> Result<HeapType> {
+        match self.peek()? {
+            0x70 => {
+                self.position += 1;
+                Ok(HeapType::Func)
+            }
+            0x6F => {
+                self.position += 1;
+                Ok(HeapType::Extern)
+            }
+            x if 0xf0 & x == 0 => {
+                self.position += 1;
+                Ok(HeapType::Index(x as u32))
+            }
+            x => Err(BinaryReaderError::new(
+                format!("unknown heap type subopcode: 0x{:x}", x),
+                self.original_position(),
+            )),
         }
+    }
+
+    fn maybe_read_val_type(&mut self) -> Result<Option<ValType>> {
+        Ok(match self.peek()? {
+            0x7F => {
+                self.position += 1;
+                Some(ValType::I32)
+            }
+            0x7E => {
+                self.position += 1;
+                Some(ValType::I64)
+            }
+            0x7D => {
+                self.position += 1;
+                Some(ValType::F32)
+            }
+            0x7C => {
+                self.position += 1;
+                Some(ValType::F64)
+            }
+            0x7B => {
+                self.position += 1;
+                Some(ValType::V128)
+            }
+            0x70 => todo!("desugar funcref"),
+            0x6F => todo!("desugar externref"),
+            0x6D => todo!("(ref null ...)"),
+            0x6C => {
+                self.position += 1;
+                let heap_type = self.read_heap_type()?;
+                let rt = RefType {
+                    nullable: false,
+                    heap_type,
+                };
+                panic!("good. the reftype is {:?}", rt);
+            }
+            _ => None,
+        })
     }
 
     fn read_block_type(&mut self) -> Result<BlockType> {
@@ -1536,8 +1580,7 @@ impl<'a> BinaryReader<'a> {
         }
 
         // Check for a block type of form [] -> [t].
-        if let Some(ty) = Self::val_type_from_byte(b) {
-            self.position += 1;
+        if let Some(ty) = self.maybe_read_val_type()? {
             return Ok(BlockType::Type(ty));
         }
 
