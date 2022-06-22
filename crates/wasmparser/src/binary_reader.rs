@@ -1499,7 +1499,6 @@ impl<'a> BinaryReader<'a> {
 
     #[cold]
     fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> BinaryReaderError {
-        panic!("invalid leading byte");
         BinaryReaderError::new(
             format!("invalid leading byte (0x{:x}) for {}", byte, desc),
             offset,
@@ -1554,15 +1553,27 @@ impl<'a> BinaryReader<'a> {
                 self.position += 1;
                 Some(ValType::V128)
             }
-            0x70 => todo!("desugar funcref"),
-            0x6F => todo!("desugar externref"),
-            0x6D => todo!("(ref null ...)"),
-            0x6C => {
+            0x70 => {
                 self.position += 1;
-                let heap_type = self.read_heap_type()?;
                 let rt = RefType {
-                    nullable: false,
-                    heap_type,
+                    nullable: true,
+                    heap_type: HeapType::Func,
+                };
+                panic!("good. the reftype is {:?}", rt);
+            }
+            0x6F => {
+                self.position += 1;
+                let rt = RefType {
+                    nullable: true,
+                    heap_type: HeapType::Extern,
+                };
+                panic!("good. the reftype is {:?}", rt);
+            }
+            x @ (0x6C | 0x6D) => {
+                self.position += 1;
+                let rt = RefType {
+                    nullable: x == 0x6D,
+                    heap_type: self.read_heap_type()?,
                 };
                 panic!("good. the reftype is {:?}", rt);
             }
