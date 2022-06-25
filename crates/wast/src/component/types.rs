@@ -692,6 +692,7 @@ pub enum ComponentTypeDecl<'a> {
 
 impl<'a> Parse<'a> for ComponentTypeDecl<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.depth_check()?;
         let mut l = parser.lookahead1();
         if l.peek::<kw::core>() {
             Ok(Self::CoreType(parser.parse()?))
