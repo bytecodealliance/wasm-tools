@@ -1393,7 +1393,7 @@ impl ComponentBuilder {
     fn arbitrary_enum_type(&self, u: &mut Unstructured, type_fuel: &mut u32) -> Result<EnumType> {
         let mut variants = vec![];
         let mut variant_names = HashSet::new();
-        arbitrary_loop(u, 0, 100, |u| {
+        arbitrary_loop(u, 1, 100, |u| {
             *type_fuel = type_fuel.saturating_sub(1);
             if *type_fuel == 0 {
                 return Ok(false);
@@ -1407,7 +1407,7 @@ impl ComponentBuilder {
 
     fn arbitrary_union_type(&self, u: &mut Unstructured, type_fuel: &mut u32) -> Result<UnionType> {
         let mut variants = vec![];
-        arbitrary_loop(u, 0, 100, |u| {
+        arbitrary_loop(u, 1, 100, |u| {
             *type_fuel = type_fuel.saturating_sub(1);
             if *type_fuel == 0 {
                 return Ok(false);
