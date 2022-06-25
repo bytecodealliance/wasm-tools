@@ -73,6 +73,7 @@ fuzz_target!(|bytes: &[u8]| {
     features.relaxed_simd = config.relaxed_simd_enabled;
     features.multi_memory = config.max_memories > 1;
     features.memory64 = config.memory64_enabled;
+    features.threads = config.threads_enabled;
 
     for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
