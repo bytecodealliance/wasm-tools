@@ -57,7 +57,6 @@
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
 #![recursion_limit = "512"]
 
-mod api;
 mod component;
 mod config;
 mod core;

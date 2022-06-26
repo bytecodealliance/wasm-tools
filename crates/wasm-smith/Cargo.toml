@@ -11,9 +11,6 @@ repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wa
 version = "0.11.1"
 exclude = ["/benches/corpus"]
 
-[lib]
-crate-type = ["cdylib"]
-
 [[bench]]
 name = "corpus"
 harness = false
