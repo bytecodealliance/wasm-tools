@@ -1,10 +1,10 @@
 [package]
+name = "wasm-tools-c-api"
 authors = ["Addison Hart <tgr@tgrcode.com>"]
 categories = ["development-tools", "development-tools::testing", "wasm"]
 description = "C API to expose wasm-tools"
 edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"
-name = "wasm-tools-c-api"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/c-api"
 version = "0.1.1"

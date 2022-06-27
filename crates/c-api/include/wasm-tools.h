@@ -55,7 +55,7 @@ enum wasm_tools_error {
  * \param bytes this is the input pointer for the wasm_tools_byte_vec_t
  *   instance to be deleted
  */
-void wasm_tools_byte_vec_delete(wasm_tools_byte_vec_t* bytes);
+void wasm_tools_byte_vec_delete(struct wasm_tools_byte_vec_t* bytes);
 
 /**
  * \brief Generates a random valid wasm module using default settings.
@@ -69,7 +69,7 @@ void wasm_tools_byte_vec_delete(wasm_tools_byte_vec_t* bytes);
  *
  * This function does not take ownership of `seed`
  */
-wasm_tools_error wasm_smith_create(const char* seed, size_t seed_len, wasm_tools_byte_vec_t* bytes);
+enum wasm_tools_error wasm_smith_create(const char* seed, size_t seed_len, struct wasm_tools_byte_vec_t* bytes);
 
 #ifdef __cplusplus
 } // extern "C"
