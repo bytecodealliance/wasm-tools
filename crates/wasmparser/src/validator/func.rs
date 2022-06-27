@@ -152,7 +152,7 @@ mod tests {
         fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
             todo!()
         }
-        fn element_type_at(&self, _at: u32) -> Option<ValType> {
+        fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {
             todo!()
         }
         fn element_count(&self) -> u32 {

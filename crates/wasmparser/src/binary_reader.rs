@@ -1565,21 +1565,18 @@ impl<'a> BinaryReader<'a> {
             }
             0x70 => {
                 self.position += 1;
-                let rt = FUNC_REF;
-                panic!("good. the reftype is {:?}", rt);
+                Some(ValType::Ref(FUNC_REF))
             }
             0x6F => {
                 self.position += 1;
-                let rt = EXTERN_REF;
-                panic!("good. the reftype is {:?}", rt);
+                Some(ValType::Ref(EXTERN_REF))
             }
             x @ (0x6C | 0x6D) => {
                 self.position += 1;
-                let rt = RefType {
+                Some(ValType::Ref(RefType {
                     nullable: x == 0x6D,
                     heap_type: self.read_heap_type()?,
-                };
-                panic!("good. the reftype is {:?}", rt);
+                }))
             }
             _ => None,
         })
