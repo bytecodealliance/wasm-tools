@@ -233,6 +233,68 @@ impl<'a> Arbitrary<'a> for MaybeInvalidModule {
     }
 }
 
+pub struct SingleFunctionModule {
+    signature: FuncType,
+    module: Module,
+}
+
+impl SingleFunctionModule {
+    /// Encode this Wasm module into bytes.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.module.to_bytes()
+    }
+
+    /// Build a Wasm module containing a single function with the following
+    /// characteristics:
+    /// - exports the function as `"generated_function"`
+    /// - the function matches the parameters and results of the given
+    ///   `signature` function type
+    /// - the module may contain other Wasm objects (e.g., memories, tables) and
+    ///   these may or may not be exported
+    pub fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
+        let ty = Type::Func(self.signature.into());
+        self.module.valtypes = configured_valtypes(&*self.module.config);
+
+        // Record the type of the single function. Since the module should only
+        // have one function, we do not import additional functions (i.e.,
+        // `arbitrary_imports()`) or other function types (i.e.,
+        // `arbitrary_types()`).
+        self.module.types.push(ty);
+        let ty_idx = self.module.types.len().try_into().unwrap();
+
+        self.module.record_type(&ty);
+        self.module.arbitrary_tags(u)?;
+
+        // Since this module will have a single function, this block replaces
+        // `arbitrary_funcs()`.
+        self.module
+            .funcs
+            .push((ty_idx, self.module.func_type(ty_idx).clone()));
+        self.module.num_defined_funcs += 1;
+
+        self.module.arbitrary_tables(u)?;
+        self.module.arbitrary_memories(u)?;
+        self.module.arbitrary_globals(u)?;
+
+        // The module will always export its single function.
+        // `arbitrary_exports()` may re-export it, but this is acceptable.
+        assert_eq!(self.module.funcs.len(), 1);
+        assert_eq!(self.module.num_defined_funcs, 1);
+        self.module
+            .exports
+            .push(("generated_function".into(), ExportKind::Func, 0));
+        self.module.arbitrary_exports(u)?;
+
+        self.module.arbitrary_start(u)?;
+        self.module.arbitrary_elems(u)?;
+        self.module.arbitrary_data(u)?;
+
+        // No need to modify the generated code.
+        self.module.arbitrary_code(u, allow_invalid)?;
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Type {
     Func(Rc<FuncType>),
