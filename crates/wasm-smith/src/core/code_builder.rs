@@ -73,7 +73,10 @@ macro_rules! instructions {
 // 2. The function to generate the instruction, given that we've made this
 //    choice.
 //
-// 3. An optional number used to weight how often this instruction is chosen.
+// 3. The `InstructionKind` the instruction belongs to; this allows filtering
+//    out instructions by category.
+//
+// 4. An optional number used to weight how often this instruction is chosen.
 //    Higher numbers are less likely to be chosen, and number specified must be
 //    less than 1000.
 instructions! {
