@@ -147,5 +147,6 @@ pub(crate) fn unique_non_empty_string(
         use std::fmt::Write;
         write!(&mut s, "{}", names.len()).unwrap();
     }
+    names.insert(s.clone());
     Ok(s)
 }
