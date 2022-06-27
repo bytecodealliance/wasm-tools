@@ -8,3 +8,7 @@ fn test_wasm_smith() {
         let wasm_buffer = module.to_bytes();
     }
 }
+
+fn main() {
+    test_wasm_smith();
+}
