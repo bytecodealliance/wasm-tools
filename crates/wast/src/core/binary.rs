@@ -643,8 +643,8 @@ impl Encode for MemArg<'_> {
             }
             _ => {
                 (self.align.trailing_zeros() | (1 << 6)).encode(e);
-                self.offset.encode(e);
                 self.memory.encode(e);
+                self.offset.encode(e);
             }
         }
     }

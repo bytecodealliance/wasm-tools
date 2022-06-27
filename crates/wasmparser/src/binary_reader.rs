@@ -859,11 +859,6 @@ impl<'a> BinaryReader<'a> {
     fn read_memarg(&mut self) -> Result<MemoryImmediate> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
-        let offset = if self.allow_memarg64 {
-            self.read_var_u64()?
-        } else {
-            u64::from(self.read_var_u32()?)
-        };
         let memory = if flags & (1 << 6) != 0 {
             flags ^= 1 << 6;
             self.read_var_u32()?
@@ -874,6 +869,11 @@ impl<'a> BinaryReader<'a> {
             return Err(BinaryReaderError::new("alignment too large", flags_pos));
         } else {
             flags as u8
+        };
+        let offset = if self.allow_memarg64 {
+            self.read_var_u64()?
+        } else {
+            u64::from(self.read_var_u32()?)
         };
         Ok(MemoryImmediate {
             align,

@@ -250,8 +250,8 @@ impl Encode for MemArg {
             self.offset.encode(sink);
         } else {
             (self.align | (1 << 6)).encode(sink);
-            self.offset.encode(sink);
             self.memory_index.encode(sink);
+            self.offset.encode(sink);
         }
     }
 }
