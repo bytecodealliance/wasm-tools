@@ -637,17 +637,20 @@ impl Printer {
             ValType::F32 => self.result.push_str("f32"),
             ValType::F64 => self.result.push_str("f64"),
             ValType::V128 => self.result.push_str("v128"),
-            ValType::FuncRef => self.result.push_str("funcref"),
-            ValType::ExternRef => self.result.push_str("externref"),
+            ValType::Ref(rt) => self.print_reftype(rt)?,
         }
         Ok(())
     }
 
-    fn print_reftype(&mut self, ty: ValType) -> Result<()> {
-        match ty {
-            ValType::FuncRef => self.result.push_str("func"),
-            ValType::ExternRef => self.result.push_str("extern"),
-            _ => bail!("invalid reference type {:?}", ty),
+    fn print_reftype(&mut self, ty: RefType) -> Result<()> {
+        self.result.push_str("(ref ");
+        if ty.nullable {
+            self.result.push_str("null ");
+        }
+        match ty.heap_type {
+            HeapType::Func => self.result.push_str("func"),
+            HeapType::Extern => self.result.push_str("extern"),
+            HeapType::Index(i) => self.result.push_str(&format!("{}", i)),
         }
         Ok(())
     }
@@ -706,7 +709,7 @@ impl Printer {
         }
         self.print_limits(ty.initial, ty.maximum)?;
         self.result.push(' ');
-        self.print_valtype(ty.element_type)?;
+        self.print_reftype(ty.element_type)?;
         Ok(())
     }
 
@@ -1111,7 +1114,7 @@ impl Printer {
 
             RefNull { ty } => {
                 self.result.push_str("ref.null ");
-                self.print_reftype(*ty)?;
+                self.print_valtype(*ty)?;
             }
             RefIsNull => self.result.push_str("ref.is_null"),
             RefFunc { function_index } => {
@@ -2009,11 +2012,7 @@ impl Printer {
             }
             let mut items_reader = elem.items.get_items_reader()?;
             self.result.push(' ');
-            if items_reader.uses_exprs() {
-                self.print_valtype(elem.ty)?;
-            } else {
-                self.print_reftype(elem.ty)?;
-            }
+            self.print_reftype(elem.ty)?;
             for _ in 0..items_reader.get_count() {
                 self.result.push(' ');
                 match items_reader.read()? {
