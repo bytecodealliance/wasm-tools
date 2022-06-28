@@ -11,7 +11,7 @@ version = "0.1.1"
 publish = false
 
 [lib]
-name = "libwasmtools"
+name = "wasmtools"
 crate-type = ["cdylib"]
 doc = false
 test = false

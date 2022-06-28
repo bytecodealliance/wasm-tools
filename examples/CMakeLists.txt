@@ -1,16 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(wasm-tools-examples)
 
-if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
-	add_link_options(-g -O0)
-endif()
-
-add_executable(wasm-tools-examples ${APPLICATION_TYPE}
-	main.c
+add_library(wasm-tools-examples STATIC
 	wasm-smith.c
 )
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/wasm-tools)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../crates/c-api ${CMAKE_CURRENT_BINARY_DIR}/wasm-tools)
 
 target_compile_options(wasm-tools-examples PRIVATE -Wall -Wextra -Wno-deprecated-declarations)
 
