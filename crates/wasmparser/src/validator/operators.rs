@@ -23,9 +23,9 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, MemoryImmediate, Operator,
-    RefType, Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
-    FUNC_REF,
+    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, HeapType, MemoryImmediate,
+    Operator, RefType, Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType,
+    WasmModuleResources, FUNC_REF,
 };
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
@@ -1442,7 +1442,10 @@ impl OperatorValidator {
                     return Err(OperatorValidatorError::new("undeclared function reference"));
                 }
                 if self.features.function_references {
-                    todo!("typed functions!")
+                    self.push_operand(ValType::Ref(RefType {
+                        nullable: false,
+                        heap_type: HeapType::Index(function_index),
+                    }))?;
                 } else {
                     self.push_operand(ValType::Ref(FUNC_REF))?;
                 }

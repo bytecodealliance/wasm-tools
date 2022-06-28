@@ -425,6 +425,7 @@ impl TestState {
             saturating_float_to_int: true,
             sign_extension: true,
             mutable_global: true,
+            function_references: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -438,6 +439,7 @@ impl TestState {
                     features.saturating_float_to_int = false;
                     features.mutable_global = false;
                     features.bulk_memory = false;
+                    features.function_references = false;
                 }
                 "threads" => {
                     features.threads = true;

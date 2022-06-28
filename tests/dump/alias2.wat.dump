@@ -107,7 +107,7 @@
    0x119 | 00          | [func 0] type 0
    0x11a | 04 04       | table section
    0x11c | 01          | 1 count
-   0x11d | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
+   0x11d | 70 00 01    | [table 0] TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }
    0x120 | 05 03       | memory section
    0x122 | 01          | 1 count
    0x123 | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
@@ -146,7 +146,7 @@
          | 00 01      
    0x16e | 00 01 33 03 | import [global 0] Import { module: "", name: "3", ty: Global(GlobalType { content_type: I32, mutable: false }) }
          | 7f 00      
-   0x174 | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }
+   0x174 | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }) }
          | 70 00 01   
    0x17b | 00 0a       | custom section
    0x17d | 04 6e 61 6d | name: "name"
