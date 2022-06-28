@@ -890,7 +890,7 @@ impl Module {
     }
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
-        if self.config.max_type_size() < self.type_size {
+        if self.config.max_type_size() < self.type_size && !self.config.export_everything() {
             return Ok(());
         }
 
@@ -918,36 +918,48 @@ impl Module {
         );
 
         let mut export_names = HashSet::new();
-        arbitrary_loop(
-            u,
-            self.config.min_exports(),
-            self.config.max_exports(),
-            |u| {
-                // Remove all candidates for export whose type size exceeds our
-                // remaining budget for type size. Then also remove any classes
-                // of exports which no longer have any candidates.
-                //
-                // If there's nothing remaining after this, then we're done.
-                let max_size = self.config.max_type_size() - self.type_size;
-                for list in choices.iter_mut() {
-                    list.retain(|(kind, idx)| self.type_of(*kind, *idx).size() + 1 < max_size);
+        if self.config.export_everything() {
+            for choices_by_kind in choices {
+                for (kind, idx) in choices_by_kind {
+                    let name = unique_string(1_000, &mut export_names, u)?;
+                    let ty = self.type_of(kind, idx);
+                    self.type_size += 1 + ty.size();
+                    self.exports.push((name, kind, idx));
                 }
-                choices.retain(|list| !list.is_empty());
-                if choices.is_empty() {
-                    return Ok(false);
-                }
+            }
+            Ok(())
+        } else {
+            arbitrary_loop(
+                u,
+                self.config.min_exports(),
+                self.config.max_exports(),
+                |u| {
+                    // Remove all candidates for export whose type size exceeds our
+                    // remaining budget for type size. Then also remove any classes
+                    // of exports which no longer have any candidates.
+                    //
+                    // If there's nothing remaining after this, then we're done.
+                    let max_size = self.config.max_type_size() - self.type_size;
+                    for list in choices.iter_mut() {
+                        list.retain(|(kind, idx)| self.type_of(*kind, *idx).size() + 1 < max_size);
+                    }
+                    choices.retain(|list| !list.is_empty());
+                    if choices.is_empty() {
+                        return Ok(false);
+                    }
 
-                // Pick a name, then pick the export, and then we can record
-                // information about the chosen export.
-                let name = unique_string(1_000, &mut export_names, u)?;
-                let list = u.choose(&choices)?;
-                let (kind, idx) = *u.choose(list)?;
-                let ty = self.type_of(kind, idx);
-                self.type_size += 1 + ty.size();
-                self.exports.push((name, kind, idx));
-                Ok(true)
-            },
-        )
+                    // Pick a name, then pick the export, and then we can record
+                    // information about the chosen export.
+                    let name = unique_string(1_000, &mut export_names, u)?;
+                    let list = u.choose(&choices)?;
+                    let (kind, idx) = *u.choose(list)?;
+                    let ty = self.type_of(kind, idx);
+                    self.type_size += 1 + ty.size();
+                    self.exports.push((name, kind, idx));
+                    Ok(true)
+                },
+            )
+        }
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {

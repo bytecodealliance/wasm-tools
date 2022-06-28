@@ -129,6 +129,12 @@ pub trait Config: 'static + std::fmt::Debug {
         100
     }
 
+    /// Export all WebAssembly objects in the module. This overrides
+    /// [`Config::min_exports`] and [`Config::max_exports`]. Defaults to false.
+    fn export_everything(&self) -> bool {
+        false
+    }
+
     /// The minimum number of element segments to generate. Defaults to 0.
     fn min_element_segments(&self) -> usize {
         0
