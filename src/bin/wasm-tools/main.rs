@@ -43,6 +43,7 @@ subcommands! {
     (mutate, "mutate")
     (dump, "dump")
     (objdump, "objdump")
+    (strip, "strip")
 }
 
 fn main() -> Result<()> {
