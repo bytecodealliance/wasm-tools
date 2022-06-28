@@ -237,14 +237,112 @@ impl Module {
                     Instruction::MemoryFill(_) => todo!(),
                     Instruction::MemoryInit { mem, data } => todo!(),
 
-                    Instruction::I32DivS => todo!(),
-                    Instruction::I32DivU => todo!(),
-                    Instruction::I32RemS => todo!(),
-                    Instruction::I32RemU => todo!(),
-                    Instruction::I64DivS => todo!(),
-                    Instruction::I64DivU => todo!(),
-                    Instruction::I64RemS => todo!(),
-                    Instruction::I64RemU => todo!(),
+                    /*
+                    Unsigned integer division and remainder will trap when
+                    the divisor is 0. To avoid the trap, we will set any 0
+                    divisors to 1 prior to the operation
+                    The code below is equivalent to this expression:
+
+                        local.set $temp_divisor
+                        (select (i32.eqz (local.get $temp_divisor) (i32.const 1) (local.get $temp_divisor))
+                    */
+                    Instruction::I32RemU
+                    | Instruction::I64RemU
+                    | Instruction::I64DivU
+                    | Instruction::I32DivU => {
+                        let op_type = type_of_integer_operation(&inst);
+                        let temp_divisor = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(op_type);
+                        let temp_divisor = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(op_type);
+
+                        // [dividend:op_type divisor:op_type]
+                        new_insts.push(Instruction::LocalSet(temp_divisor));
+                        // [dividend:op_type]
+                        new_insts.push(int_const_inst(op_type, 1));
+                        // [dividend:op_type 1:op_type]
+                        new_insts.push(Instruction::LocalGet(temp_divisor));
+                        // [dividend:op_type 1:op_type divisor:op_type]
+                        new_insts.push(Instruction::LocalGet(temp_divisor));
+                        // [dividend:op_type 1:op_type divisor:op_type divisor:op_type]
+                        new_insts.push(eqz_inst(op_type));
+                        // [dividend:op_type 1:op_type divisor:op_type is_zero:i32]
+                        new_insts.push(Instruction::Select);
+                        // [dividend:op_type divisor:op_type]
+                        new_insts.push(inst);
+                        // [result:op_type]
+                    }
+
+                    /*
+                    Signed division and remainder will trap in the following instances:
+                        - The divisor is 0
+                        - The result of the division is 2^(n-1)
+                    */
+                    Instruction::I32DivS
+                    | Instruction::I32RemS
+                    | Instruction::I64DivS
+                    | Instruction::I64RemS => {
+                        // If divisor is 0, replace with 1
+                        let op_type = type_of_integer_operation(&inst);
+                        let temp_divisor = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(op_type);
+
+                        // [dividend:op_type divisor:op_type]
+                        new_insts.push(Instruction::LocalSet(temp_divisor));
+                        // [dividend:op_type]
+                        new_insts.push(int_const_inst(op_type, 1));
+                        // [dividend:op_type 1:op_type]
+                        new_insts.push(Instruction::LocalGet(temp_divisor));
+                        // [dividend:op_type 1:op_type divisor:op_type]
+                        new_insts.push(Instruction::LocalGet(temp_divisor));
+                        // [dividend:op_type 1:op_type divisor:op_type divisor:op_type]
+                        new_insts.push(eqz_inst(op_type));
+                        // [dividend:op_type 1:op_type divisor:op_type is_zero:i32]
+                        new_insts.push(Instruction::Select);
+                        // [dividend:op_type divisor:op_type]
+
+                        // If dividend and divisor are -int.max and -1, replace
+                        // divisor with 1?
+                        let temp_dividend = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(op_type);
+                        new_insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
+                        {
+                            new_insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
+                            {
+                                // [dividend:op_type divisor:op_type]
+                                new_insts.push(Instruction::LocalSet(temp_divisor));
+                                // [dividend:op_type]
+                                new_insts.push(Instruction::LocalTee(temp_dividend));
+                                // [dividend:op_type]
+                                new_insts.push(int_min_const_inst(op_type));
+                                // [dividend:op_type int_min:op_type]
+                                new_insts.push(int_ne_inst(op_type));
+                                // [not_int_min:i32]
+                                new_insts.push(Instruction::BrIf(0));
+                                // []
+                                new_insts.push(Instruction::LocalGet(temp_divisor));
+                                // [divisor:op_type]
+                                new_insts.push(int_const_inst(op_type, -1));
+                                // [divisor:op_type -1:op_type]
+                                new_insts.push(int_ne_inst(op_type));
+                                // [not_neg_one:i32]
+                                new_insts.push(Instruction::BrIf(0));
+                                // []
+                                new_insts.push(Instruction::LocalGet(temp_dividend));
+                                // [dividend:op_type]
+                                new_insts.push(int_const_inst(op_type, 1));
+                                // [dividend:op_type divisor:op_type]
+                                new_insts.push(Instruction::Br(1));
+                            }
+                            // []
+                            new_insts.push(Instruction::LocalGet(temp_dividend));
+                            // [dividend:op_type]
+                            new_insts.push(Instruction::LocalGet(temp_divisor));
+                            // [dividend:op_type divisor:op_type]
+                        }
+                        // [dividend:op_type divisor:op_type]
+                        new_insts.push(inst);
+                    }
 
                     Instruction::I32TruncF32S => todo!(),
                     Instruction::I32TruncF32U => todo!(),
@@ -367,6 +465,28 @@ fn dummy_value_inst<'a>(ty: ValType) -> Instruction<'a> {
     }
 }
 
+fn eqz_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::I32 => Instruction::I32Eqz,
+        ValType::I64 => Instruction::I64Eqz,
+        _ => panic!("not an integer type"),
+    }
+}
+
+fn type_of_integer_operation(inst: &Instruction) -> ValType {
+    match inst {
+        Instruction::I32DivU
+        | Instruction::I32DivS
+        | Instruction::I32RemU
+        | Instruction::I32RemS => ValType::I32,
+        Instruction::I64RemU
+        | Instruction::I64DivU
+        | Instruction::I64DivS
+        | Instruction::I64RemS => ValType::I64,
+        _ => panic!("not integer division or remainder"),
+    }
+}
+
 fn type_of_memory_access(inst: &Instruction) -> ValType {
     match inst {
         Instruction::I32Load(_)
@@ -405,6 +525,14 @@ fn type_of_memory_access(inst: &Instruction) -> ValType {
     }
 }
 
+fn int_min_const_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::I32 => Instruction::I32Const(i32::MIN),
+        ValType::I64 => Instruction::I64Const(i64::MIN),
+        _ => panic!("not an int type"),
+    }
+}
+
 fn int_const_inst<'a>(ty: ValType, x: i64) -> Instruction<'a> {
     match ty {
         ValType::I32 => Instruction::I32Const(x as i32),
@@ -433,6 +561,14 @@ fn int_le_u_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
         ValType::I32 => Instruction::I32LeU,
         ValType::I64 => Instruction::I64LeU,
+        _ => panic!("not an int type"),
+    }
+}
+
+fn int_ne_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::I32 => Instruction::I32Ne,
+        ValType::I64 => Instruction::I64Ne,
         _ => panic!("not an int type"),
     }
 }
