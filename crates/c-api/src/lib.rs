@@ -6,7 +6,7 @@
 
 #![allow(non_snake_case, non_camel_case_types, non_upper_case_globals)]
 
-use arbitrary::Unstructured;
+use arbitrary::{Error, Unstructured};
 use wasm_smith::{DefaultConfig, Module};
 
 #[repr(C)]
@@ -18,7 +18,7 @@ pub struct wasm_tools_byte_vec_t {
 #[repr(i32)]
 pub enum wasm_tools_error {
     WASM_TOOLS_SUCCESS = 0,
-    WASM_TOOLS_INVALID_POINTER = -1,
+    WASM_TOOLS_ERROR = -1,
     WASM_TOOLS_INSUFFICIENT_ENTROPY = -2,
 }
 
@@ -35,27 +35,31 @@ pub extern "C" fn wasm_tools_byte_vec_delete(bytes: *mut wasm_tools_byte_vec_t) 
 pub extern "C" fn wasm_smith_create(
     seed: *const u8,
     seed_len: usize,
-    bytes: *mut wasm_tools_byte_vec_t,
+    bytes: &mut wasm_tools_byte_vec_t,
 ) -> wasm_tools_error {
-    if !seed.is_null() && seed_len != 0 && !bytes.is_null() {
-        let seed_bytes = unsafe { std::slice::from_raw_parts(seed, seed_len) };
+    // seed == NULL is acceptable as long as seed_len is zero
+    let seed_bytes = if seed_len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(seed, seed_len) }
+    };
 
-        if let Ok(bytes) = unsafe { bytes.as_mut().ok_or(0) } {
-            let mut u = Unstructured::new(seed_bytes);
-            return if let Ok(module) = Module::new(DefaultConfig::default(), &mut u) {
-                let mut wasm_buffer = module.to_bytes();
-                bytes.data = wasm_buffer.as_mut_ptr();
-                bytes.size = wasm_buffer.len();
-                std::mem::forget(wasm_buffer);
-
-                wasm_tools_error::WASM_TOOLS_SUCCESS
-            } else {
-                bytes.data = std::ptr::null_mut();
-
-                wasm_tools_error::WASM_TOOLS_INSUFFICIENT_ENTROPY
-            };
+    let mut u = Unstructured::new(seed_bytes);
+    return match Module::new(DefaultConfig::default(), &mut u) {
+        Ok(module) => {
+            let mut wasm_buffer = module.to_bytes();
+            bytes.data = wasm_buffer.as_mut_ptr();
+            bytes.size = wasm_buffer.len();
+            std::mem::forget(wasm_buffer);
+            wasm_tools_error::WASM_TOOLS_SUCCESS
         }
-    }
-
-    wasm_tools_error::WASM_TOOLS_INVALID_POINTER
+        Err(Error::NotEnoughData) => {
+            bytes.data = std::ptr::null_mut();
+            wasm_tools_error::WASM_TOOLS_INSUFFICIENT_ENTROPY
+        }
+        Err(_e) => {
+            bytes.data = std::ptr::null_mut();
+            wasm_tools_error::WASM_TOOLS_ERROR
+        }
+    };
 }

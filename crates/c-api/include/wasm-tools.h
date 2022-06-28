@@ -45,7 +45,7 @@ struct wasm_tools_byte_vec_t {
  */
 enum wasm_tools_error {
 	WASM_TOOLS_SUCCESS              = 0,  ///< success
-	WASM_TOOLS_INVALID_POINTER      = -1, ///< null pointer passed
+	WASM_TOOLS_ERROR                = -1, ///< generic error
 	WASM_TOOLS_INSUFFICIENT_ENTROPY = -2, ///< wasm-smith seed too short
 };
 
