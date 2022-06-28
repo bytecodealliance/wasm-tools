@@ -647,7 +647,13 @@ impl Printer {
         if ty.nullable {
             self.result.push_str("null ");
         }
-        match ty.heap_type {
+        self.print_heaptype(ty.heap_type)?;
+        self.result.push_str(")");
+        Ok(())
+    }
+
+    fn print_heaptype(&mut self, ty: HeapType) -> Result<()> {
+        match ty {
             HeapType::Func => self.result.push_str("func"),
             HeapType::Extern => self.result.push_str("extern"),
             HeapType::Index(i) => self.result.push_str(&format!("{}", i)),
@@ -1114,7 +1120,10 @@ impl Printer {
 
             RefNull { ty } => {
                 self.result.push_str("ref.null ");
-                self.print_valtype(*ty)?;
+                match ty {
+                    ValType::Ref(RefType { heap_type, .. }) => self.print_heaptype(*heap_type)?,
+                    _ => panic!("ref.null must take a heap type immediate"),
+                }
             }
             RefIsNull => self.result.push_str("ref.is_null"),
             RefFunc { function_index } => {

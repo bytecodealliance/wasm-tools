@@ -185,11 +185,13 @@ impl TestState {
         // If we can, convert the string back to bytes and assert it has the
         // same binary representation.
         if test_roundtrip {
-            let binary2 =
-                wat::parse_str(&string).context("failed to parse `wat` from `wasmprinter`")?;
+            let binary2 = wat::parse_str(&string)
+                .context("failed to parse `wat` from `wasmprinter`")
+                .context(format!("text:\n{}", string))?;
             self.bump_ntests();
             self.binary_compare(&binary2, contents)
-                .context("failed to compare original `wat` with roundtrip `wat`")?;
+                .context("failed to compare original `wat` with roundtrip `wat`")
+                .context(format!("as parsed:\n{}", string))?;
         }
 
         Ok(())
