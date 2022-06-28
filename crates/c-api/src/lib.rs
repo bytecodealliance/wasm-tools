@@ -23,12 +23,8 @@ pub enum wasm_tools_error {
 }
 
 #[no_mangle]
-pub extern "C" fn wasm_tools_byte_vec_delete(bytes: *mut wasm_tools_byte_vec_t) {
-    if !bytes.is_null() {
-        if let Ok(bytes) = unsafe { bytes.as_mut().ok_or(0) } {
-            std::mem::drop(bytes.data)
-        }
-    }
+pub extern "C" fn wasm_tools_byte_vec_delete(bytes: &mut wasm_tools_byte_vec_t) {
+    std::mem::drop(bytes.data)
 }
 
 #[no_mangle]
