@@ -2,41 +2,94 @@ use crate::{encode_section, Encode, Section, SectionId};
 
 /// The type of a core WebAssembly value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
-#[repr(u8)]
 pub enum ValType {
     /// The `i32` type.
-    I32 = 0x7F,
+    I32,
     /// The `i64` type.
-    I64 = 0x7E,
+    I64,
     /// The `f32` type.
-    F32 = 0x7D,
+    F32,
     /// The `f64` type.
-    F64 = 0x7C,
+    F64,
     /// The `v128` type.
     ///
     /// Part of the SIMD proposal.
-    V128 = 0x7B,
+    V128,
     /// The `funcref` type.
     ///
     /// Part of the reference types proposal when used anywhere other than a
     /// table's element type.
-    FuncRef = 0x70,
+    FuncRef,
     /// The `externref` type.
     ///
     /// Part of the reference types proposal.
-    ExternRef = 0x6F,
-}
-
-impl From<ValType> for u8 {
-    #[inline]
-    fn from(t: ValType) -> u8 {
-        t as u8
-    }
+    ExternRef,
+    /// A reference type from typed function references. In the proposal
+    /// `funcref` and `externref` are generalized to a reference type with the heap
+    /// type `func` or `extern.` This crate draws a distinction between `funcref`
+    /// and `(ref null func)` (similarly for extern) because the latter cannot be read by an
+    /// implementation that implements reference types but not function
+    /// references. When function references are enabled, there is no
+    /// difference, but the distinction is maintained.
+    ///
+    /// Part of the reference types proposal when used anywhere other than a
+    /// table's element type.
+    Ref(RefType),
 }
 
 impl Encode for ValType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        sink.push(*self as u8);
+        match self {
+            ValType::I32 => sink.push(0x7F),
+            ValType::I64 => sink.push(0x7E),
+            ValType::F32 => sink.push(0x7D),
+            ValType::F64 => sink.push(0x7C),
+            ValType::V128 => sink.push(0x7B),
+            ValType::FuncRef => sink.push(0x70),
+            ValType::ExternRef => sink.push(0x6F),
+            ValType::Ref(rt) => rt.encode(sink),
+        }
+    }
+}
+
+/// Part of the typed function references proposal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct RefType {
+    nullable: bool,
+    heap_type: HeapType,
+}
+
+impl Encode for RefType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        panic!("debugging panic.  this is a good path, but not on any tests i know of");
+        if self.nullable {
+            sink.push(0x6C);
+        } else {
+            sink.push(0x6B);
+        }
+        self.heap_type.encode(sink);
+    }
+}
+
+/// Part of the typed function references proposal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum HeapType {
+    /// A function reference. When nullable, equivalent to `funcref`
+    Func,
+    /// An extern reference. When nullable, equivalent to `externref`
+    Extern,
+    /// A reference to a particular index in a table.
+    Index(u32),
+}
+
+impl Encode for HeapType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            HeapType::Func => sink.push(0x70),
+            HeapType::Extern => sink.push(0x6F),
+            HeapType::Index(i) if i & 0x80 != 0 => i.encode(sink),
+            _ => panic!("invalid heap_type"),
+        }
     }
 }
 
@@ -91,9 +144,9 @@ impl TypeSection {
 
         self.bytes.push(0x60);
         params.len().encode(&mut self.bytes);
-        self.bytes.extend(params.map(u8::from));
+        params.for_each(|p| p.encode(&mut self.bytes));
         results.len().encode(&mut self.bytes);
-        self.bytes.extend(results.map(u8::from));
+        results.for_each(|p| p.encode(&mut self.bytes));
         self.num_added += 1;
         self
     }

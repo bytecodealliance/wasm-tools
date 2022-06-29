@@ -104,7 +104,10 @@ impl ElementSection {
     /// Define an element segment.
     pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> &mut Self {
         let expr_bit = match segment.elements {
-            Elements::Expressions(_) => 0b100u32,
+            Elements::Expressions(_) => {
+                panic!("this should be impossible");
+                0b100u32
+            }
             Elements::Functions(_) => 0b000u32,
         };
         match &segment.mode {

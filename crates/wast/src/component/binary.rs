@@ -425,9 +425,9 @@ impl From<core::ValType<'_>> for wasm_encoder::ValType {
 
 impl From<core::RefType<'_>> for wasm_encoder::ValType {
     fn from(r: core::RefType<'_>) -> Self {
-        match r.heap {
-            core::HeapType::Func => Self::FuncRef,
-            core::HeapType::Extern => Self::ExternRef,
+        match (r.nullable, r.heap) {
+            (true, core::HeapType::Func) => Self::FuncRef,
+            (true, core::HeapType::Extern) => Self::ExternRef,
             _ => {
                 todo!("encoding of GC proposal types not yet implemented")
             }
