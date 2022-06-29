@@ -129,6 +129,12 @@ pub trait Config: 'static + std::fmt::Debug {
         100
     }
 
+    /// Export all WebAssembly objects in the module. This overrides
+    /// [`Config::min_exports`] and [`Config::max_exports`]. Defaults to false.
+    fn export_everything(&self) -> bool {
+        false
+    }
+
     /// The minimum number of element segments to generate. Defaults to 0.
     fn min_element_segments(&self) -> usize {
         0
@@ -458,6 +464,7 @@ pub struct SwarmConfig {
     pub bulk_memory_enabled: bool,
     pub canonicalize_nans: bool,
     pub exceptions_enabled: bool,
+    pub export_everything: bool,
     pub max_aliases: usize,
     pub max_components: usize,
     pub max_data_segments: usize,
@@ -561,6 +568,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             canonicalize_nans: false,
             available_imports: None,
             threads_enabled: false,
+            export_everything: false,
         })
     }
 }
@@ -610,6 +618,10 @@ impl Config for SwarmConfig {
 
     fn max_exports(&self) -> usize {
         self.max_exports
+    }
+
+    fn export_everything(&self) -> bool {
+        self.export_everything
     }
 
     fn min_element_segments(&self) -> usize {

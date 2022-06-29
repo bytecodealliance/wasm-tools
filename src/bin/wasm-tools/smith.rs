@@ -104,6 +104,8 @@ struct Config {
     min_exports: Option<usize>,
     #[clap(long = "max-exports")]
     max_exports: Option<usize>,
+    #[clap(long = "export-everything")]
+    export_everything: Option<bool>,
     #[clap(long = "min-element-segments")]
     min_element_segments: Option<usize>,
     #[clap(long = "max-element-segments")]
@@ -270,6 +272,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (max_globals, usize, 100),
         (min_exports, usize, 0),
         (max_exports, usize, 100),
+        (export_everything, bool, false),
         (min_element_segments, usize, 0),
         (max_element_segments, usize, 100),
         (min_data_segments, usize, 0),
