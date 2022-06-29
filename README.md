@@ -44,6 +44,7 @@ programmatically as well:
 | `wasm-tools shrink` | [wasm-shrink] | Shrink a wasm file while preserving a predicate |
 | `wasm-tools dump` |   | Print debugging information about the binary format |
 | `wasm-tools objdump` |   | Print debugging information about section headers |
+| `wasm-tools strip` |   | Remove custom sections from a WebAssembly file |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat
