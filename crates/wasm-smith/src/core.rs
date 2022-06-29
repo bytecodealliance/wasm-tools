@@ -925,9 +925,7 @@ impl Module {
             for choices_by_kind in choices {
                 for (kind, idx) in choices_by_kind {
                     let name = unique_string(1_000, &mut export_names, u)?;
-                    let ty = self.type_of(kind, idx);
-                    self.type_size += 1 + ty.size();
-                    self.exports.push((name, kind, idx));
+                    self.add_arbitrary_export(name, kind, idx)?;
                 }
             }
             return Ok(());
@@ -957,12 +955,24 @@ impl Module {
                 let name = unique_string(1_000, &mut export_names, u)?;
                 let list = u.choose(&choices)?;
                 let (kind, idx) = *u.choose(list)?;
-                let ty = self.type_of(kind, idx);
-                self.type_size += 1 + ty.size();
-                self.exports.push((name, kind, idx));
+                self.add_arbitrary_export(name, kind, idx)?;
                 Ok(true)
             },
         )
+    }
+
+    fn add_arbitrary_export(&mut self, name: String, kind: ExportKind, idx: u32) -> Result<()> {
+        let ty = self.type_of(kind, idx);
+        self.type_size += 1 + ty.size();
+        if self.type_size <= self.config.max_type_size() {
+            self.exports.push((name, kind, idx));
+            Ok(())
+        } else {
+            // If our addition of exports takes us above the allowed number of
+            // types, we fail; this error code is not the most illustrative of
+            // the cause but is the best available from `arbitrary`.
+            Err(arbitrary::Error::IncorrectFormat)
+        }
     }
 
     fn arbitrary_start(&mut self, u: &mut Unstructured) -> Result<()> {
