@@ -47,8 +47,6 @@ enum wasm_tools_error {
 	WASM_TOOLS_SUCCESS              = 0,  ///< success
 	WASM_TOOLS_ERROR                = -1, ///< generic error
 	WASM_TOOLS_INSUFFICIENT_ENTROPY = -2, ///< wasm-smith seed too short
-	WASM_TOOLS_INCORRECT_FORMAT     = -3, ///< wasm-smith seed arbitrary::Error::IncorrectFormat
-	WASM_TOOLS_EMPTY_CHOOSE         = -4, ///< wasm-smith seed arbitrary::Error::EmptyChoose
 };
 
 /**

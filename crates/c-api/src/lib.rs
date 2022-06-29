@@ -20,8 +20,6 @@ pub enum wasm_tools_error {
     WASM_TOOLS_SUCCESS = 0,
     WASM_TOOLS_ERROR = -1,
     WASM_TOOLS_INSUFFICIENT_ENTROPY = -2,
-    WASM_TOOLS_INCORRECT_FORMAT = -3,
-    WASM_TOOLS_EMPTY_CHOOSE = -4,
 }
 use wasm_tools_error::*;
 
@@ -30,7 +28,6 @@ pub extern "C" fn wasm_tools_byte_vec_delete(bytes: &mut wasm_tools_byte_vec_t) 
     unsafe {
         Vec::from_raw_parts(bytes.data, bytes.size, bytes.size);
     }
-    ()
 }
 
 #[no_mangle]
@@ -46,6 +43,7 @@ pub extern "C" fn wasm_smith_create(
         unsafe { std::slice::from_raw_parts(seed, seed_len) }
     };
 
+    bytes.data = std::ptr::null_mut();
     let mut u = Unstructured::new(seed_bytes);
     match Module::new(DefaultConfig::default(), &mut u) {
         Ok(module) => {
@@ -55,21 +53,7 @@ pub extern "C" fn wasm_smith_create(
             std::mem::forget(wasm_buffer);
             WASM_TOOLS_SUCCESS
         }
-        Err(Error::NotEnoughData) => {
-            bytes.data = std::ptr::null_mut();
-            WASM_TOOLS_INSUFFICIENT_ENTROPY
-        }
-        Err(Error::IncorrectFormat) => {
-            bytes.data = std::ptr::null_mut();
-            WASM_TOOLS_INCORRECT_FORMAT
-        }
-        Err(Error::EmptyChoose) => {
-            bytes.data = std::ptr::null_mut();
-            WASM_TOOLS_EMPTY_CHOOSE
-        }
-        Err(_e) => {
-            bytes.data = std::ptr::null_mut();
-            WASM_TOOLS_ERROR
-        }
+        Err(Error::NotEnoughData) => WASM_TOOLS_INSUFFICIENT_ENTROPY,
+        Err(_e) => WASM_TOOLS_ERROR,
     }
 }
