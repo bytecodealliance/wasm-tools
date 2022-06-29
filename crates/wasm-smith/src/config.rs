@@ -566,7 +566,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
                 InstructionKinds::new(&allowed)
             },
             table_max_size_required: u.arbitrary()?,
-            max_table_elements: u.arbitrary()?,
+            max_table_elements: u.int_in_range(0..=1_000_000)?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
