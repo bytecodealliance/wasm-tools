@@ -1354,7 +1354,13 @@ pub(crate) fn arbitrary_table_type(u: &mut Unstructured, config: &dyn Config) ->
     // We don't want to generate tables that are too large on average, so
     // keep the "inbounds" limit here a bit smaller.
     let max_inbounds = 10_000;
-    let (minimum, maximum) = arbitrary_limits32(u, 1_000_000, false, max_inbounds)?;
+    let max_elements = config.max_table_elements();
+    let (minimum, maximum) = arbitrary_limits32(
+        u,
+        max_elements,
+        config.table_max_size_required(),
+        max_inbounds.min(max_elements),
+    )?;
     Ok(TableType {
         element_type: if config.reference_types_enabled() {
             *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
