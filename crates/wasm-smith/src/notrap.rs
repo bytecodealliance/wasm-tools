@@ -214,16 +214,70 @@ impl Module {
 
                     // Stores are similar to loads: we check whether the store
                     // will trap, and if it will then we just drop the value.
-                    Instruction::I32Store(_) => todo!(),
-                    Instruction::I64Store(_) => todo!(),
-                    Instruction::F32Store(_) => todo!(),
-                    Instruction::F64Store(_) => todo!(),
-                    Instruction::I32Store8(_) => todo!(),
-                    Instruction::I32Store16(_) => todo!(),
-                    Instruction::I64Store8(_) => todo!(),
-                    Instruction::I64Store16(_) => todo!(),
-                    Instruction::I64Store32(_) => todo!(),
-                    Instruction::V128Store { memarg } => todo!(),
+                    Instruction::I32Store(memarg)
+                    | Instruction::I64Store(memarg)
+                    | Instruction::F32Store(memarg)
+                    | Instruction::F64Store(memarg)
+                    | Instruction::I32Store8(memarg)
+                    | Instruction::I32Store16(memarg)
+                    | Instruction::I64Store8(memarg)
+                    | Instruction::I64Store16(memarg)
+                    | Instruction::I64Store32(memarg)
+                    | Instruction::V128Store { memarg } => {
+                        let memory = &self.memories[memarg.memory_index as usize];
+                        let address_type = if memory.memory64 {
+                            ValType::I64
+                        } else {
+                            ValType::I32
+                        };
+
+                        // Add a temporary local to hold this store's address.
+                        let address_local = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(address_type);
+
+                        // Add a temporary local to hold the value to store.
+                        let store_type = type_of_memory_access(&inst);
+                        let value_local = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(store_type);
+
+                        // [address:address_type value:store_type]
+                        new_insts.push(Instruction::LocalSet(value_local));
+                        // [address:address_type]
+                        new_insts.push(Instruction::LocalSet(address_local));
+                        // []
+                        new_insts.push(Instruction::MemorySize(memarg.memory_index));
+                        // [mem_size_in_pages:address_type]
+                        new_insts.push(int_const_inst(address_type, 65_536));
+                        // [mem_size_in_pages:address_type wasm_page_size:address_type]
+                        new_insts.push(int_mul_inst(address_type));
+                        // [mem_size_in_bytes:address_type]
+                        new_insts.push(int_const_inst(
+                            address_type,
+                            (memarg.offset + size_of_type_in_memory(store_type)) as i64,
+                        ));
+                        // [mem_size_in_bytes:address_type offset_and_size:address_type]
+                        new_insts.push(Instruction::LocalGet(address_local));
+                        // [mem_size_in_bytes:address_type offset_and_size:address_type address:address_type]
+                        new_insts.push(int_add_inst(address_type));
+                        // [mem_size_in_bytes:address_type highest_byte_accessed:address_type]
+                        new_insts.push(int_le_u_inst(address_type));
+                        // [store_will_trap:i32]
+                        new_insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
+                        {
+                            // [store_will_trap:i32]
+                            new_insts.push(Instruction::BrIf(0));
+                            // []
+                            new_insts.push(Instruction::LocalGet(address_local));
+                            // [address:address_type]
+                            new_insts.push(Instruction::LocalGet(value_local));
+                            // [address:address_type value:store_type]
+                            new_insts.push(inst);
+                            // []
+                        }
+                        // []
+                        new_insts.push(Instruction::End);
+                    }
+
                     Instruction::V128Load8Lane { memarg, lane: _ } => todo!(),
                     Instruction::V128Load16Lane { memarg, lane: _ } => todo!(),
                     Instruction::V128Load32Lane { memarg, lane: _ } => todo!(),
@@ -335,11 +389,15 @@ impl Module {
                                 new_insts.push(Instruction::Br(1));
                             }
                             // []
+                            new_insts.push(Instruction::End);
+                            // []
                             new_insts.push(Instruction::LocalGet(temp_dividend));
                             // [dividend:op_type]
                             new_insts.push(Instruction::LocalGet(temp_divisor));
                             // [dividend:op_type divisor:op_type]
                         }
+                        // [dividend:op_type divisor:op_type]
+                        new_insts.push(Instruction::End);
                         // [dividend:op_type divisor:op_type]
                         new_insts.push(inst);
                     }
@@ -493,7 +551,10 @@ fn type_of_memory_access(inst: &Instruction) -> ValType {
         | Instruction::I32Load8_S(_)
         | Instruction::I32Load8_U(_)
         | Instruction::I32Load16_S(_)
-        | Instruction::I32Load16_U(_) => ValType::I32,
+        | Instruction::I32Load16_U(_)
+        | Instruction::I32Store(_)
+        | Instruction::I32Store8(_)
+        | Instruction::I32Store16(_) => ValType::I32,
 
         Instruction::I64Load(_)
         | Instruction::I64Load8_S(_)
@@ -501,11 +562,15 @@ fn type_of_memory_access(inst: &Instruction) -> ValType {
         | Instruction::I64Load16_S(_)
         | Instruction::I64Load16_U(_)
         | Instruction::I64Load32_S(_)
-        | Instruction::I64Load32_U(_) => ValType::I64,
+        | Instruction::I64Load32_U(_)
+        | Instruction::I64Store(_)
+        | Instruction::I64Store8(_)
+        | Instruction::I64Store16(_)
+        | Instruction::I64Store32(_) => ValType::I64,
 
-        Instruction::F32Load(_) => ValType::F32,
+        Instruction::F32Load(_) | Instruction::F32Store(_) => ValType::F32,
 
-        Instruction::F64Load(_) => ValType::F64,
+        Instruction::F64Load(_) | Instruction::F64Store(_) => ValType::F64,
 
         Instruction::V128Load { .. }
         | Instruction::V128Load8x8S { .. }
@@ -519,7 +584,8 @@ fn type_of_memory_access(inst: &Instruction) -> ValType {
         | Instruction::V128Load32Splat { .. }
         | Instruction::V128Load64Splat { .. }
         | Instruction::V128Load32Zero { .. }
-        | Instruction::V128Load64Zero { .. } => ValType::V128,
+        | Instruction::V128Load64Zero { .. }
+        | Instruction::V128Store { .. } => ValType::V128,
 
         _ => panic!("not a memory access instruction"),
     }
