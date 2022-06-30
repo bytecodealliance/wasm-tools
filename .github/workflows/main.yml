@@ -45,6 +45,8 @@ jobs:
     - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
+    - run: cmake -S ${{github.workspace}}/examples -B ${{github.workspace}}/examples/build -DCMAKE_BUILD_TYPE=Release
+    - run: cmake --build ${{github.workspace}}/examples/build --config Release
 
   rustfmt:
     name: Rustfmt

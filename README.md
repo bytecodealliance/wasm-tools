@@ -77,6 +77,10 @@ implemented in this repository as well. These libraries are:
 It's recommended to use the libraries directly rather than the CLI tooling when
 embedding into a separate project.
 
+# C/C++ bindings
+
+Using the `CMakeLists.txt` in `crates/c-api`, `wasm-tools` can be used from the [`wasm-tools.h` header](crates/c-api/include/wasm-tools.h).
+
 # License
 
 This project is licensed under the Apache 2.0 license with the LLVM exception.
