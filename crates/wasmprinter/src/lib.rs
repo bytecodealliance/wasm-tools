@@ -2021,7 +2021,14 @@ impl Printer {
             }
             let mut items_reader = elem.items.get_items_reader()?;
             self.result.push(' ');
-            self.print_reftype(elem.ty)?;
+            if items_reader.uses_exprs() {
+                self.print_reftype(elem.ty)?;
+            } else {
+                // This is semantically different from funcref in that
+                // it allows and forces index abbreviations rather than full
+                // reference expressions
+                self.result.push_str("func");
+            }
             for _ in 0..items_reader.get_count() {
                 self.result.push(' ');
                 match items_reader.read()? {
