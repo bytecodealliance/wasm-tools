@@ -10,7 +10,7 @@ arbitrary = "1.0"
 num_cpus = "1.13"
 rand = "0.8"
 wasm-smith = { path = '../wasm-smith' }
-wasmtime = "0.35.2"
+wasmtime = "0.38.1"
 
 [lib]
 doctest = false
