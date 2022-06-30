@@ -7,7 +7,11 @@ add_library(wasm-tools-examples STATIC
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../crates/c-api ${CMAKE_CURRENT_BINARY_DIR}/wasm-tools)
 
-target_compile_options(wasm-tools-examples PRIVATE -Wall -Wextra -Wno-deprecated-declarations)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(wasm-tools-examples PRIVATE -Wall -Wextra -Wno-deprecated-declarations)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	target_compile_options(wasm-tools-examples PRIVATE /W4)
+endif()
 
 set_target_properties(wasm-tools-examples PROPERTIES
 		OUTPUT_NAME "examples"
