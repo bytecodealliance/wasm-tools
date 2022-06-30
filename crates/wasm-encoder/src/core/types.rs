@@ -61,7 +61,6 @@ pub struct RefType {
 
 impl Encode for RefType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        panic!("debugging panic.  this is a good path, but not on any tests i know of");
         if self.nullable {
             sink.push(0x6C);
         } else {

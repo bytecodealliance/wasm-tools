@@ -65,7 +65,7 @@ fn main() {
 
     if !errors.is_empty() {
         for msg in errors.iter() {
-            eprintln!("{:?}", msg);
+            eprintln!("{:?}\n", msg);
         }
 
         panic!("{} tests failed", errors.len())

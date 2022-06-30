@@ -25,7 +25,7 @@
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, HeapType, MemoryImmediate,
     Operator, RefType, Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType,
-    WasmModuleResources, FUNC_REF,
+    WasmModuleResources, EXTERN_REF, FUNC_REF,
 };
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
@@ -252,7 +252,7 @@ impl OperatorValidator {
             } else {
                 let desc = match expected {
                     Some(ty) => ty_to_str(ty),
-                    None => "a type",
+                    None => "a type".into(),
                 };
                 bail_op_err!("type mismatch: expected {} but nothing on stack", desc)
             }
@@ -2187,14 +2187,28 @@ fn label_types(
     })
 }
 
-fn ty_to_str(ty: ValType) -> &'static str {
+fn ty_to_str(ty: ValType) -> String {
     match ty {
-        ValType::I32 => "i32",
-        ValType::I64 => "i64",
-        ValType::F32 => "f32",
-        ValType::F64 => "f64",
-        ValType::V128 => "v128",
-        // TODO(luna): this can no longer be a static string, it must be computed based on ref
-        ValType::Ref(_) => "ref (of some kind)",
+        ValType::I32 => "i32".into(),
+        ValType::I64 => "i64".into(),
+        ValType::F32 => "f32".into(),
+        ValType::F64 => "f64".into(),
+        ValType::V128 => "v128".into(),
+        ValType::Ref(rt) => match rt {
+            FUNC_REF => "funcref".into(),
+            EXTERN_REF => "externref".into(),
+            RefType {
+                nullable,
+                heap_type,
+            } => format!(
+                "(ref {}{})",
+                if nullable { "null " } else { "" },
+                match heap_type {
+                    HeapType::Func => "func".into(),
+                    HeapType::Extern => "extern".into(),
+                    HeapType::Index(i) => format!("{}", i),
+                }
+            ),
+        },
     }
 }
