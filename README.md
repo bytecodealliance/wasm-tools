@@ -78,7 +78,7 @@ embedding into a separate project.
 
 # C/C++ bindings
 
-Using the `CMakeLists.txt` in the root folder, `wasm-tools` can be used from the [`wasm-tools.h` header](crates/c-api/include/wasm-tools.h).
+Using the `CMakeLists.txt` in `crates/c-api`, `wasm-tools` can be used from the [`wasm-tools.h` header](crates/c-api/include/wasm-tools.h).
 
 # License
 
