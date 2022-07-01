@@ -42,7 +42,12 @@ macro_rules! instructions {
                 }
             )*
 
-            debug_assert!(cost > 0);
+            // If there aren't actually any candidate instructions due to
+            // various filters in place then return `None` to indicate the
+            // situation.
+            if cost == 0 {
+                return None;
+            }
 
             let i = u.int_in_range(0..=cost).ok()?;
             let idx = builder

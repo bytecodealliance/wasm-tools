@@ -507,6 +507,7 @@ pub struct SwarmConfig {
     pub sign_extension_enabled: bool,
     pub simd_enabled: bool,
     pub threads_enabled: bool,
+    pub allowed_instructions: InstructionKinds,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -539,6 +540,16 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_nesting_depth: u.int_in_range(0..=10)?,
             saturating_float_to_int_enabled: u.arbitrary()?,
             sign_extension_enabled: u.arbitrary()?,
+            allowed_instructions: {
+                use flagset::Flags;
+                let mut allowed = Vec::new();
+                for kind in crate::core::InstructionKind::LIST {
+                    if u.arbitrary()? {
+                        allowed.push(*kind);
+                    }
+                }
+                InstructionKinds::new(&allowed)
+            },
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
@@ -754,5 +765,9 @@ impl Config for SwarmConfig {
 
     fn threads_enabled(&self) -> bool {
         self.threads_enabled
+    }
+
+    fn allowed_instructions(&self) -> InstructionKinds {
+        self.allowed_instructions
     }
 }
