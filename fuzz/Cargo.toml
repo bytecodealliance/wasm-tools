@@ -22,6 +22,10 @@ wasmtime = { version = "0.35.2", optional = true }
 wast = { path = "../crates/wast" }
 wat = { path = "../crates/wat" }
 
+[lib]
+test = false
+doctest = false
+
 [[bin]]
 name = "text-lexer"
 path = "fuzz_targets/text-lexer.rs"
