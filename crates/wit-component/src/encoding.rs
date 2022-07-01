@@ -286,6 +286,7 @@ impl Hash for TypeDefKey<'_> {
                     .hash(state);
                 }
             }
+            TypeDefKind::Future(_) => todo!("hash for future"),
             TypeDefKind::Stream(_) => todo!("hash for stream"),
         }
     }
@@ -576,6 +577,7 @@ impl<'a> TypeEncoder<'a> {
                             ComponentValType::Type(index)
                         }
                         TypeDefKind::Type(ty) => self.encode_valtype(interface, instance, ty)?,
+                        TypeDefKind::Future(_) => todo!("encoding for future type"),
                         TypeDefKind::Stream(_) => todo!("encoding for stream type"),
                     };
 
@@ -857,6 +859,7 @@ impl RequiredOptions {
                     Self::for_type(interface, t) | Self::Realloc
                 }
                 TypeDefKind::Type(t) => Self::for_type(interface, t),
+                TypeDefKind::Future(_) => todo!("encoding for future"),
                 TypeDefKind::Stream(_) => todo!("encoding for stream"),
             },
             Type::String => Self::All,
