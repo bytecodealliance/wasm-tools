@@ -223,6 +223,19 @@ pub trait Config: 'static + std::fmt::Debug {
         false
     }
 
+    /// The maximum, elements, of any table's initial or maximum size.
+    ///
+    /// Defaults to 1 million.
+    fn max_table_elements(&self) -> u32 {
+        1_000_000
+    }
+
+    /// Whether every Wasm table must have a maximum size specified. Defaults
+    /// to `false`.
+    fn table_max_size_required(&self) -> bool {
+        false
+    }
+
     /// The maximum number of instances to use. Defaults to 10. This includes
     /// imported instances.
     ///
@@ -508,6 +521,8 @@ pub struct SwarmConfig {
     pub simd_enabled: bool,
     pub threads_enabled: bool,
     pub allowed_instructions: InstructionKinds,
+    pub max_table_elements: u32,
+    pub table_max_size_required: bool,
 }
 
 impl<'a> Arbitrary<'a> for SwarmConfig {
@@ -550,6 +565,8 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
                 }
                 InstructionKinds::new(&allowed)
             },
+            table_max_size_required: u.arbitrary()?,
+            max_table_elements: u.int_in_range(0..=1_000_000)?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
@@ -769,5 +786,13 @@ impl Config for SwarmConfig {
 
     fn allowed_instructions(&self) -> InstructionKinds {
         self.allowed_instructions
+    }
+
+    fn max_table_elements(&self) -> u32 {
+        self.max_table_elements
+    }
+
+    fn table_max_size_required(&self) -> bool {
+        self.table_max_size_required
     }
 }

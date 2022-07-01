@@ -128,6 +128,10 @@ struct Config {
     max_memory_pages: Option<u64>,
     #[clap(long = "memory-max-size-required")]
     memory_max_size_required: Option<bool>,
+    #[clap(long = "max-table-elements")]
+    max_table_elements: Option<u32>,
+    #[clap(long = "table-max-size-required")]
+    table_max_size_required: Option<bool>,
     #[clap(long = "max-instances")]
     max_instances: Option<usize>,
     #[clap(long = "max-modules")]
@@ -283,6 +287,8 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (min_tables, u32, 0),
         (max_tables, usize, 1),
         (memory_max_size_required, bool, false),
+        (max_table_elements, u32, 1_000_000),
+        (table_max_size_required, bool, false),
         (max_instances, usize, 10),
         (max_modules, usize, 10),
         (min_uleb_size, u8, 1),
