@@ -318,6 +318,7 @@ pub enum ComponentDefinedType<'a> {
 
 impl<'a> ComponentDefinedType<'a> {
     fn parse_non_primitive(parser: Parser<'a>, mut l: Lookahead1<'a>) -> Result<Self> {
+        parser.depth_check()?;
         if l.peek::<kw::record>() {
             Ok(Self::Record(parser.parse()?))
         } else if l.peek::<kw::variant>() {
@@ -692,7 +693,6 @@ pub enum ComponentTypeDecl<'a> {
 
 impl<'a> Parse<'a> for ComponentTypeDecl<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.depth_check()?;
         let mut l = parser.lookahead1();
         if l.peek::<kw::core>() {
             Ok(Self::CoreType(parser.parse()?))
