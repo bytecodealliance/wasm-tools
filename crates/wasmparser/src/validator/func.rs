@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn operand_stack_height() {
-        let mut v = FuncValidator::new(0, 0, &EmptyResources, &Default::default()).unwrap();
+        let mut v = FuncValidator::new(0, 0, 0, &EmptyResources, &Default::default()).unwrap();
 
         // Initially zero values on the stack.
         assert_eq!(v.operand_stack_height(), 0);
