@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.7"
+version = "1.0.8"
 authors = ["The Wasmtime Project Developers"]
 edition = "2021"
 description = "CLI tools for interoperating with WebAssembly files"
@@ -22,33 +22,33 @@ env_logger = "0.9"
 log = "0.4"
 clap = { version = "3.1.8", features = ['derive'] }
 tempfile = "3.2.0"
-wat = { path = "crates/wat", version = '1.0.44' }
+wat = { path = "crates/wat", version = '1.0.45' }
 
 # Dependencies of `validate`
-wasmparser = { path = "crates/wasmparser", optional = true, version = '0.86.0' }
+wasmparser = { path = "crates/wasmparser", optional = true, version = '0.87.0' }
 rayon = { version = "1.0", optional = true }
 
 # Dependencies of `print`
-wasmprinter = { path = "crates/wasmprinter", version = '0.2.36' }
+wasmprinter = { path = "crates/wasmprinter", version = '0.2.37' }
 
 # Dependencies of `smith`
 arbitrary = { version = "1.0.0", optional = true }
 serde = { version = "1", features = ['derive'], optional = true }
 serde_json = { version = "1", optional = true }
-wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"], optional = true, version = '0.11.1' }
+wasm-smith = { path = "crates/wasm-smith", features = ["_internal_cli"], optional = true, version = '0.11.2' }
 
 # Dependencies of `shrink`
-wasm-shrink = { path = "crates/wasm-shrink", features = ["clap"], optional = true, version = '0.1.6' }
+wasm-shrink = { path = "crates/wasm-shrink", features = ["clap"], optional = true, version = '0.1.7' }
 is_executable = { version = "1.0.1", optional = true }
 
 # Dependencies of `mutate`
-wasm-mutate = { path = "crates/wasm-mutate", features = ["clap"], optional = true, version = '0.2.4' }
+wasm-mutate = { path = "crates/wasm-mutate", features = ["clap"], optional = true, version = '0.2.5' }
 
 # Dependencies of `dump`
-wasmparser-dump = { path = "crates/dump", optional = true, version = '0.1.4' }
+wasmparser-dump = { path = "crates/dump", optional = true, version = '0.1.5' }
 
 # Dependencies of `strip`
-wasm-encoder = { path = "crates/wasm-encoder", optional = true, version = '0.13.0' }
+wasm-encoder = { path = "crates/wasm-encoder", optional = true, version = '0.14.0' }
 
 [dev-dependencies]
 anyhow = "1.0"

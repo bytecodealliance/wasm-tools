@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser"
-version = "0.86.0"
+version = "0.87.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"

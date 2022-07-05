@@ -8,7 +8,7 @@ license = "Apache-2.0 WITH LLVM-exception"
 name = "wasm-smith"
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-smith"
-version = "0.11.1"
+version = "0.11.2"
 exclude = ["/benches/corpus"]
 
 [[bench]]
@@ -21,8 +21,8 @@ flagset = "0.4"
 indexmap = "1.6"
 leb128 = "0.2.4"
 serde = { version = "1", features = ['derive'], optional = true }
-wasm-encoder = { version = "0.13.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.86.0", path = "../wasmparser" }
+wasm-encoder = { version = "0.14.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.87.0", path = "../wasmparser" }
 
 [dev-dependencies]
 criterion = "0.3.3"
