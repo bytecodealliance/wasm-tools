@@ -51,6 +51,15 @@ impl CodeSection {
         self.num_added
     }
 
+    /// The number of bytes already added to this section.
+    ///
+    /// This number doesn't include the vector length that precedes the
+    /// code entries, since it has a variable size that isn't known until all
+    /// functions are added.
+    pub fn byte_len(&self) -> usize {
+        self.bytes.len()
+    }
+
     /// Determines if the section is empty.
     pub fn is_empty(&self) -> bool {
         self.num_added == 0
@@ -216,6 +225,15 @@ impl Function {
     {
         self.bytes.extend(bytes);
         self
+    }
+
+    /// The number of bytes already added to this function.
+    ///
+    /// This number doesn't include the variable-width size field that `encode`
+    /// will write before the added bytes, since the size of that field isn't
+    /// known until all the instructions are added to this function.
+    pub fn byte_len(&self) -> usize {
+        self.bytes.len()
     }
 }
 
