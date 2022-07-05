@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use rayon::prelude::*;
 use std::time::Instant;
 use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
@@ -69,7 +69,11 @@ impl Opts {
         let start = Instant::now();
         functions_to_validate
             .into_par_iter()
-            .try_for_each(|(mut validator, body)| validator.validate(&body))?;
+            .try_for_each(|(mut validator, body)| {
+                validator
+                    .validate(&body)
+                    .with_context(|| format!("func {} failed to validate", validator.index()))
+            })?;
         log::info!("functions validated in {:?}", start.elapsed());
         Ok(())
     }

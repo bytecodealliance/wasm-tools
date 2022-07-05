@@ -831,8 +831,10 @@ impl Validator {
 
         let state = self.module.as_mut().unwrap();
 
+        let (index, ty) = state.next_code_index_and_type(offset)?;
         Ok(FuncValidator::new(
-            state.next_code_entry_type(offset)?,
+            index,
+            ty,
             0,
             ValidatorResources(state.module.arc().clone()),
             &self.features,
