@@ -21,8 +21,15 @@ pub fn generate_valid_module(
 
     // Use wasm-smith to generate an arbitrary module and convert it to wasm
     // bytes.
-    let module = Module::new(config.clone(), u)?;
+    let mut module = Module::new(config.clone(), u)?;
     let bytes = module.to_bytes();
+
+    // 10% of the time, ish, test that the `ensure_termination` method will
+    // still produce a valid module.
+    if u.ratio(1, 10)? {
+        log::debug!("ensuring termination with 100 fuel");
+        module.ensure_termination(100);
+    }
 
     log_wasm(&bytes, &config);
 
