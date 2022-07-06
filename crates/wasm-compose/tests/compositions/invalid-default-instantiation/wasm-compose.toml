@@ -1,0 +1,5 @@
+[imports.a]
+path = "a.wat"
+
+[exports]
+default = "a"

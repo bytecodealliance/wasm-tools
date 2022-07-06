@@ -1,0 +1,15 @@
+[package]
+name = "multiply"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component.dependencies]
+interface = { path = "../op.wit", export = true }
+
+[workspace]

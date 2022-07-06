@@ -1,0 +1,8 @@
+[imports.a]
+path = "a.wat"
+
+[instantiations.a.with]
+"" = "b"
+
+[instantiations.b]
+import = "a"

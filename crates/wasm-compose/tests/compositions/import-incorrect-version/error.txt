@@ -1,0 +1,4 @@
+failed to parse import `tests/compositions/import-incorrect-version/a.wasm`
+
+Caused by:
+    unknown binary version (at offset 0x4)

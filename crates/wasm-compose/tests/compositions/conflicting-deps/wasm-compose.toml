@@ -1,0 +1,11 @@
+[imports.a]
+path = "a.wat"
+
+[imports.b]
+path = "b.wat"
+
+[instantiations.a]
+dependencies = [ "b", "c" ]
+
+[instantiations.c]
+import = "b"

@@ -1,0 +1,19 @@
+output = "math.wasm"
+
+[imports.add]
+path = "../add/target/wasm32-unknown-unknown/release/add.wasm"
+embed = true
+
+[imports.multiply]
+path = "../multiply/target/wasm32-unknown-unknown/release/multiply.wasm"
+embed = true
+
+[imports.math]
+path = "../math/target/wasm32-unknown-unknown/release/math.wasm"
+embed = true
+
+[instantiations.math]
+dependencies = ["add"]
+
+[exports]
+default = "math"

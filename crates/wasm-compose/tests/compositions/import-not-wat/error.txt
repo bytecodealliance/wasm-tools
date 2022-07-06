@@ -1,0 +1,5 @@
+expected `(`
+     --> tests/compositions/import-not-wat/a.wat:1:1
+      |
+    1 | not valid
+      | ^

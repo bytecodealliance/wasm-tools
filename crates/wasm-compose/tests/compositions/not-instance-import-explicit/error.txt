@@ -1,0 +1,1 @@
+import `tests/compositions/not-instance-import-explicit/a.wat` has a non-instance import ``

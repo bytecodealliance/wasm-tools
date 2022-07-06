@@ -1,0 +1,4 @@
+[imports.a]
+path = "a.wat"
+
+[instantiations.a]

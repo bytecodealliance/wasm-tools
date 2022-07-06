@@ -1,0 +1,10 @@
+[package]
+name = "host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.58"
+wasmtime = { version = "0.40.0", features = ["component-model"], git = "https://github.com/bytecodealliance/wasmtime", rev = "81bff71d11103db08e112865f9fdd80c2d7593f9" }
+
+[workspace]

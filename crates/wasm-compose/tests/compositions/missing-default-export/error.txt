@@ -1,0 +1,4 @@
+failed to export default interface
+
+Caused by:
+    import `a` does not exist

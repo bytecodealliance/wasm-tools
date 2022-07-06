@@ -1,0 +1,4 @@
+failed to resolve dependency `b` for instantiation `a`
+
+Caused by:
+    import `b` does not exist

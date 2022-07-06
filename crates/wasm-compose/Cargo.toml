@@ -1,0 +1,30 @@
+[package]
+name = "wasm-compose"
+version = "0.1.0"
+edition = "2021"
+authors = ["Peter Huene <peter@huene.dev>"]
+license = "Apache-2.0 WITH LLVM-exception"
+readme = "README.md"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-compose"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-compose"
+documentation = "https://docs.rs/wasm-compose"
+description = "A library for composing WebAssembly components."
+
+[dependencies]
+wat = { version = "1.0.46", path = "../wat" }
+wasm-encoder = { version = "0.14.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.87.0", path = "../wasmparser" }
+indexmap = { version = "1.9.1", features = ["serde"] }
+clap = { version = "3.2.7", features = ["derive"] }
+anyhow = "1.0.58"
+serde = { version = "1.0.137", features = ["derive"] }
+toml = "0.5.9"
+petgraph = "0.6.2"
+log = "0.4.17"
+env_logger = "0.9.0"
+serde_yaml = "0.8.26"
+
+[dev-dependencies]
+glob = "0.3.0"
+pretty_assertions = "1.2.1"
+wasmprinter = { version = "0.2.37", path = "../wasmprinter" }

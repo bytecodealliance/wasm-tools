@@ -1,0 +1,16 @@
+[package]
+name = "math"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component.dependencies]
+import = { path = "../op.wit", version = "0.1.0" }
+interface = { path = "interface.wit", export = true }
+
+[workspace]

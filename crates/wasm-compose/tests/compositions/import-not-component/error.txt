@@ -1,0 +1,4 @@
+failed to parse import `tests/compositions/import-not-component/a.wat`
+
+Caused by:
+    import `tests/compositions/import-not-component/a.wat` is not a WebAssembly component

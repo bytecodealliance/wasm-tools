@@ -13,7 +13,7 @@ readme = "README.md"
 exclude = ['tests/wabt', 'tests/testsuite', 'publish.rs']
 
 [workspace]
-members = ['crates/c-api', 'fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-mutate-stats']
+members = ['crates/c-api', 'fuzz', 'crates/wasm-encoder', 'crates/fuzz-stats', 'crates/wasm-mutate-stats', 'crates/wasm-compose']
 
 [dependencies]
 anyhow = "1.0"

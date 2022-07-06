@@ -1,0 +1,1 @@
+instantiation `a2` and its dependencies form a cycle in the instantiation graph

@@ -1,0 +1,5 @@
+failed to parse import `tests/compositions/import-not-valid/a.wat`
+
+Caused by:
+    0: failed to validate WebAssembly component `tests/compositions/import-not-valid/a.wat`
+    1: unknown core function 0: function index out of bounds (at offset 0x11)
