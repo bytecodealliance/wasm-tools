@@ -199,7 +199,7 @@ impl<'a> BinaryReader<'a> {
         match self.read_val_type()? {
             ValType::Ref(r) => Ok(r),
             _ => Err(BinaryReaderError::new(
-                "expected ref type but found another type",
+                "malformed reference type",
                 self.original_position() - 1,
             )),
         }
