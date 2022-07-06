@@ -277,6 +277,19 @@ impl OperatorValidator {
         Ok(actual)
     }
 
+    fn pop_ref(
+        &mut self,
+        resources: &impl WasmModuleResources,
+    ) -> OperatorValidatorResult<Option<RefType>> {
+        match self.pop_operand(None, resources)? {
+            Some(vt) => match vt {
+                ValType::Ref(rt) => Ok(Some(rt)),
+                _ => bail_op_err!("type mismatch: expected ref but found {}", ty_to_str(vt)),
+            },
+            None => Ok(None),
+        }
+    }
+
     /// Flags the current control frame as unreachable, additionally truncating
     /// the currently active operand stack.
     fn unreachable(&mut self) {
@@ -2088,11 +2101,29 @@ impl OperatorValidator {
             // Function references proposal operators. TODO(dhil): Put
             // each rule in its appropriate place within the above
             // list.
-            Operator::CallRef | Operator::ReturnCallRef | Operator::RefAsNonNull => {
-                todo!("implement static semantics for function references proposal instructions.")
+            Operator::CallRef => {
+                if let Some(rt) = self.pop_ref(resources)? {
+                    match rt.heap_type {
+                        HeapType::Index(function_index) => {
+                            self.check_call(function_index, resources)?;
+                        }
+                        _ => bail_op_err!(
+                            "type mismatch: call_ref only works on index-type references"
+                        ),
+                    }
+                } else {
+                    bail_op_err!("type mismatch: expected ref but nothing on stack")
+                }
+            }
+            Operator::ReturnCallRef | Operator::RefAsNonNull => {
+                bail_op_err!(
+                    "implement static semantics for function references proposal instructions."
+                )
             }
             Operator::BrOnNull { relative_depth } | Operator::BrOnNonNull { relative_depth } => {
-                todo!("implement static semantics for function references proposal instructions.")
+                bail_op_err!(
+                    "implement static semantics for function references proposal instructions."
+                )
             }
         }
         Ok(())
@@ -2234,6 +2265,10 @@ fn eq_fns(f1: &impl WasmFuncType, f2: &impl WasmFuncType) -> bool {
         && f1.outputs().zip(f2.outputs()).all(|(t1, t2)| t1 == t2)
 }
 
+fn matches_null(null1: bool, null2: bool) -> bool {
+    null1 == null2 || null2
+}
+
 /// Returns t1 <: t2 according to the typed function references proposal
 fn subtype(t1: ValType, t2: ValType, resources: &impl WasmModuleResources) -> bool {
     // Actually, function equality is not simple. It may include a reference,
@@ -2269,7 +2304,7 @@ fn subtype(t1: ValType, t2: ValType, resources: &impl WasmModuleResources) -> bo
                     nullable: nl2,
                     heap_type: ht2,
                 },
-            ) if heap_subtype(ht1, ht2) && (nl1 == nl2 || (!nl1 && nl2)) => true,
+            ) if heap_subtype(ht1, ht2) && matches_null(nl1, nl2) => true,
             _ => false,
         },
         _ => false,
