@@ -63,12 +63,6 @@ test = false
 doc = false
 
 [[bin]]
-name = "validate-ensure-termination"
-path = "fuzz_targets/validate-ensure-termination.rs"
-test = false
-doc = false
-
-[[bin]]
 name = "print-valid-module"
 path = "fuzz_targets/print-valid-module.rs"
 test = false
