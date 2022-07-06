@@ -27,11 +27,6 @@ test = false
 doctest = false
 
 [[bin]]
-name = "text-lexer"
-path = "fuzz_targets/text-lexer.rs"
-test = false
-
-[[bin]]
 name = "text-parser"
 path = "fuzz_targets/text-parser.rs"
 test = false
