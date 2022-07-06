@@ -2,6 +2,7 @@
 
 mod code_builder;
 pub(crate) mod encode;
+mod notrap;
 mod terminate;
 
 use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
@@ -96,11 +97,11 @@ pub struct Module {
     /// All functions available to this module, sorted by their index. The list
     /// entry points to the index in this module where the function type is
     /// defined (if available) and provides the type of the function.
-    pub(crate) funcs: Vec<(u32, Rc<FuncType>)>,
+    funcs: Vec<(u32, Rc<FuncType>)>,
 
     /// All tables available to this module, sorted by their index. The list
     /// entry is the type of each table.
-    pub(crate) tables: Vec<TableType>,
+    tables: Vec<TableType>,
 
     /// All globals available to this module, sorted by their index. The list
     /// entry is the type of each global.
@@ -108,13 +109,13 @@ pub struct Module {
 
     /// All memories available to this module, sorted by their index. The list
     /// entry is the type of each memory.
-    pub(crate) memories: Vec<MemoryType>,
+    memories: Vec<MemoryType>,
 
     exports: Vec<(String, ExportKind, u32)>,
     start: Option<u32>,
-    pub(crate) elems: Vec<ElementSegment>,
-    pub(crate) code: Vec<Code>,
-    pub(crate) data: Vec<DataSegment>,
+    elems: Vec<ElementSegment>,
+    code: Vec<Code>,
+    data: Vec<DataSegment>,
 
     /// The predicted size of the effective type of this module, based on this
     /// module's size of the types of imports/exports.
@@ -283,14 +284,14 @@ pub(crate) struct TagType {
 }
 
 #[derive(Debug)]
-pub(crate) struct ElementSegment {
-    pub(crate) kind: ElementKind,
+struct ElementSegment {
+    kind: ElementKind,
     ty: ValType,
-    pub(crate) items: Elements,
+    items: Elements,
 }
 
 #[derive(Debug)]
-pub(crate) enum ElementKind {
+enum ElementKind {
     Passive,
     Declared,
     Active {
@@ -300,31 +301,31 @@ pub(crate) enum ElementKind {
 }
 
 #[derive(Debug)]
-pub(crate) enum Elements {
+enum Elements {
     Functions(Vec<u32>),
     Expressions(Vec<Option<u32>>),
 }
 
 #[derive(Debug)]
-pub(crate) struct Code {
-    pub locals: Vec<ValType>,
-    pub instructions: Instructions,
+struct Code {
+    locals: Vec<ValType>,
+    instructions: Instructions,
 }
 
 #[derive(Debug)]
-pub(crate) enum Instructions {
+enum Instructions {
     Generated(Vec<Instruction>),
     Arbitrary(Vec<u8>),
 }
 
 #[derive(Debug)]
-pub(crate) struct DataSegment {
-    pub(crate) kind: DataSegmentKind,
-    pub(crate) init: Vec<u8>,
+struct DataSegment {
+    kind: DataSegmentKind,
+    init: Vec<u8>,
 }
 
 #[derive(Debug)]
-pub(crate) enum DataSegmentKind {
+enum DataSegmentKind {
     Passive,
     Active {
         memory_index: u32,
