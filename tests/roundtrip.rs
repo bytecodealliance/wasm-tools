@@ -598,5 +598,12 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("invalid u32 number: constant out of range");
     }
 
+    // The test suite includes "bad opcodes" that later became valid opcodes
+    // (0xd3, function references proposal). However, they are still not constant
+    // expressions, so we can sidestep by checking for that error instead
+    if message == "illegal opcode" {
+        return error.contains("constant expression required");
+    }
+
     return false;
 }
