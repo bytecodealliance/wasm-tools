@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, BinaryReaderError, Result, ValType};
+use crate::{BinaryReader, BinaryReaderError, HeapType, Result, ValType};
 
 /// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -273,7 +273,7 @@ pub enum Operator<'a> {
         value: Ieee64,
     },
     RefNull {
-        ty: ValType,
+        ty: HeapType,
     },
     RefIsNull,
     RefFunc {

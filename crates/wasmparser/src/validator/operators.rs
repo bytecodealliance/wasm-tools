@@ -1414,15 +1414,10 @@ impl OperatorValidator {
             }
             Operator::RefNull { ty } => {
                 self.check_reference_types_enabled()?;
-                match ty {
-                    ValType::Ref(_) => {}
-                    _ => {
-                        return Err(OperatorValidatorError::new(
-                            "invalid reference type in ref.null",
-                        ))
-                    }
-                }
-                self.push_operand(ty)?;
+                self.push_operand(ValType::Ref(RefType {
+                    nullable: true,
+                    heap_type: ty,
+                }))?;
             }
             Operator::RefIsNull => {
                 self.check_reference_types_enabled()?;

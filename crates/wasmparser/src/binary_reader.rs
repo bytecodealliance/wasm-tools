@@ -1928,7 +1928,7 @@ impl<'a> BinaryReader<'a> {
             0xc4 => Operator::I64Extend32S,
 
             0xd0 => Operator::RefNull {
-                ty: self.read_val_type()?,
+                ty: self.read_heap_type()?,
             },
             0xd1 => Operator::RefIsNull,
             0xd2 => Operator::RefFunc {

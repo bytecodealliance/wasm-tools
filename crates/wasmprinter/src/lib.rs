@@ -1120,10 +1120,7 @@ impl Printer {
 
             RefNull { ty } => {
                 self.result.push_str("ref.null ");
-                match ty {
-                    ValType::Ref(RefType { heap_type, .. }) => self.print_heaptype(*heap_type)?,
-                    _ => panic!("ref.null must take a heap type immediate"),
-                }
+                self.print_heaptype(*ty)?;
             }
             RefIsNull => self.result.push_str("ref.is_null"),
             RefFunc { function_index } => {
