@@ -1,7 +1,7 @@
 #![allow(unused_variables)] // TODO FITZGEN
 
 use crate::core::*;
-use wasm_encoder::{Instruction, ValType};
+use wasm_encoder::{BlockType, Instruction, ValType};
 
 const WASM_PAGE_SIZE: u64 = 65_536;
 
@@ -307,8 +307,6 @@ impl Module {
                         let op_type = type_of_integer_operation(&inst);
                         let temp_divisor = u32::try_from(code.locals.len()).unwrap();
                         code.locals.push(op_type);
-                        let temp_divisor = u32::try_from(code.locals.len()).unwrap();
-                        code.locals.push(op_type);
 
                         // [dividend:op_type divisor:op_type]
                         new_insts.push(Instruction::LocalSet(temp_divisor));
@@ -402,14 +400,58 @@ impl Module {
                         new_insts.push(inst);
                     }
 
-                    Instruction::I32TruncF32S => todo!(),
-                    Instruction::I32TruncF32U => todo!(),
-                    Instruction::I32TruncF64S => todo!(),
-                    Instruction::I32TruncF64U => todo!(),
-                    Instruction::I64TruncF32S => todo!(),
-                    Instruction::I64TruncF32U => todo!(),
-                    Instruction::I64TruncF64S => todo!(),
-                    Instruction::I64TruncF64U => todo!(),
+                    Instruction::I32TruncF32S
+                    | Instruction::I32TruncF32U
+                    | Instruction::I32TruncF64S
+                    | Instruction::I32TruncF64U
+                    | Instruction::I64TruncF32S
+                    | Instruction::I64TruncF32U
+                    | Instruction::I64TruncF64S
+                    | Instruction::I64TruncF64U => {
+                        // If NaN or ±inf, replace with dummy value
+                        let conv_type = type_of_float_conversion(&inst);
+                        let temp_float = u32::try_from(code.locals.len()).unwrap();
+                        code.locals.push(conv_type);
+
+                        // [input:conv_type]
+                        new_insts.push(Instruction::LocalTee(temp_float));
+                        // [input:conv_type]
+                        new_insts.push(flt_nan_const_inst(conv_type));
+                        // [input:conv_type NaN:conv_type]
+                        new_insts.push(eq_inst(conv_type));
+                        // [is_nan:i32]
+                        new_insts.push(Instruction::LocalGet(temp_float));
+                        // [is_nan:i32 input:conv_type]
+                        new_insts.push(flt_inf_const_inst(conv_type));
+                        // [is_nan:i32 input:conv_type inf:conv_type]
+                        new_insts.push(eq_inst(conv_type));
+                        // [is_nan:i32 is_inf:i32]
+                        new_insts.push(Instruction::LocalGet(temp_float));
+                        // [is_nan:i32 is_inf:i32 input:conv_type]
+                        new_insts.push(flt_neg_inf_const_inst(conv_type));
+                        // [is_nan:i32 is_inf:i32 input:conv_type neg_inf:conv_type]
+                        new_insts.push(eq_inst(conv_type));
+                        // [is_nan:i32 is_inf:i32 is_neg_inf:i32]
+                        new_insts.push(Instruction::I32Or);
+                        // [is_nan:i32 is_±inf:i32]
+                        new_insts.push(Instruction::I32Or);
+                        // [is_nan_or_inf:i32]
+                        new_insts.push(Instruction::If(BlockType::Empty));
+                        {
+                            // []
+                            new_insts.push(dummy_value_inst(conv_type));
+                            // [0:conv_type]
+                        }
+                        new_insts.push(Instruction::Else);
+                        {
+                            // []
+                            new_insts.push(Instruction::LocalGet(temp_float));
+                            // [input:conv_type]
+                        }
+                        new_insts.push(Instruction::End);
+                        // [input_or_0:conv_type]
+                        new_insts.push(inst);
+                    }
 
                     Instruction::TableFill { table } => todo!(),
                     Instruction::TableSet { table } => todo!(),
@@ -523,6 +565,16 @@ fn dummy_value_inst<'a>(ty: ValType) -> Instruction<'a> {
     }
 }
 
+fn eq_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::F32 => Instruction::F32Eq,
+        ValType::F64 => Instruction::F64Eq,
+        ValType::I32 => Instruction::I32Eq,
+        ValType::I64 => Instruction::I64Eq,
+        _ => panic!("not a numeric type"),
+    }
+}
+
 fn eqz_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
         ValType::I32 => Instruction::I32Eqz,
@@ -542,6 +594,20 @@ fn type_of_integer_operation(inst: &Instruction) -> ValType {
         | Instruction::I64DivS
         | Instruction::I64RemS => ValType::I64,
         _ => panic!("not integer division or remainder"),
+    }
+}
+
+fn type_of_float_conversion(inst: &Instruction) -> ValType {
+    match inst {
+        Instruction::I32TruncF32S
+        | Instruction::I32TruncF32U
+        | Instruction::I64TruncF32S
+        | Instruction::I64TruncF32U => ValType::F32,
+        Instruction::I32TruncF64S
+        | Instruction::I32TruncF64U
+        | Instruction::I64TruncF64S
+        | Instruction::I64TruncF64U => ValType::F64,
+        _ => panic!("not a float -> integer conversion"),
     }
 }
 
@@ -636,6 +702,30 @@ fn int_ne_inst<'a>(ty: ValType) -> Instruction<'a> {
         ValType::I32 => Instruction::I32Ne,
         ValType::I64 => Instruction::I64Ne,
         _ => panic!("not an int type"),
+    }
+}
+
+fn flt_inf_const_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::F32 => Instruction::F32Const(f32::INFINITY),
+        ValType::F64 => Instruction::F64Const(f64::INFINITY),
+        _ => panic!("not a float type"),
+    }
+}
+
+fn flt_neg_inf_const_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::F32 => Instruction::F32Const(f32::NEG_INFINITY),
+        ValType::F64 => Instruction::F64Const(f64::NEG_INFINITY),
+        _ => panic!("not a float type"),
+    }
+}
+
+fn flt_nan_const_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::F32 => Instruction::F32Const(f32::NAN),
+        ValType::F64 => Instruction::F64Const(f64::NAN),
+        _ => panic!("not a float type"),
     }
 }
 
