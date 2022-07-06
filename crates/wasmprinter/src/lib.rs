@@ -1848,6 +1848,28 @@ impl Printer {
             F32x4RelaxedMax => self.result.push_str("f32x4.relaxed_max"),
             F64x2RelaxedMin => self.result.push_str("f64x2.relaxed_min"),
             F64x2RelaxedMax => self.result.push_str("f64x2.relaxed_max"),
+
+            // Function references proposal instructions. TODO(dhil):
+            // Merge with the above list.
+            CallRef => self.result.push_str("call_ref"),
+            ReturnCallRef => self.result.push_str("return_call_ref"),
+            RefAsNonNull => self.result.push_str("ref.as_non_null"),
+            BrOnNull { relative_depth } => {
+                write!(
+                    self.result,
+                    "br_on_null {} (;{};)",
+                    relative_depth,
+                    label(*relative_depth),
+                )?;
+            }
+            BrOnNonNull { relative_depth } => {
+                write!(
+                    self.result,
+                    "br_on_non_null {} (;{};)",
+                    relative_depth,
+                    label(*relative_depth),
+                )?;
+            }
         }
         Ok(())
     }

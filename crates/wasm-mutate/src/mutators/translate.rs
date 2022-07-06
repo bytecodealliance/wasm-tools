@@ -928,6 +928,14 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         | O::ReturnCall { .. }
         | O::ReturnCallIndirect { .. }
         | O::AtomicFence { .. } => return Err(Error::no_mutations_applicable()),
+
+        // Function references proposal instructions. TODO(dhil):
+        // Merge with the above list.
+        O::CallRef => I::CallRef,
+        O::ReturnCallRef => I::ReturnCallRef,
+        O::RefAsNonNull => I::RefAsNonNull,
+        O::BrOnNull { relative_depth } => I::BrOnNull(*relative_depth),
+        O::BrOnNonNull { relative_depth } => I::BrOnNonNull(*relative_depth),
     })
 }
 

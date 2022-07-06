@@ -1005,6 +1005,18 @@ pub enum Operator<'a> {
     F32x4RelaxedMax,
     F64x2RelaxedMin,
     F64x2RelaxedMax,
+
+    // Function references proposal operators. TODO(dhil): Put into
+    // appropriate places in the above list.
+    CallRef,
+    ReturnCallRef,
+    RefAsNonNull,
+    BrOnNull {
+        relative_depth: u32,
+    },
+    BrOnNonNull {
+        relative_depth: u32,
+    },
 }
 
 /// A reader for a core WebAssembly function's operators.

@@ -847,6 +847,14 @@ pub enum Instruction<'a> {
     I64AtomicRmw8CmpxchgU { memarg: MemArg },
     I64AtomicRmw16CmpxchgU { memarg: MemArg },
     I64AtomicRmw32CmpxchgU { memarg: MemArg },
+
+    // Function references proposal. TODO(dhil): Merge with the above
+    // list.
+    CallRef,
+    ReturnCallRef,
+    RefAsNonNull,
+    BrOnNull(u32),
+    BrOnNonNull(u32),
 }
 
 impl Encode for Instruction<'_> {
@@ -2723,6 +2731,19 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFE);
                 sink.push(0x4E);
                 memarg.encode(sink);
+
+            // Function references proposal. TODO(dhil): Merge with
+            // the above list.
+            Instruction::CallRef => sink.push(0x14),
+            Instruction::ReturnCallRef => sink.push(0x15),
+            Instruction::RefAsNonNull => sink.push(0xD3),
+            Instruction::BrOnNull(l) => {
+                sink.push(0xD4);
+                l.encode(sink);
+            }
+            Instruction::BrOnNonNull(l) => {
+                sink.push(0xD6);
+                l.encode(sink);
             }
         }
     }
