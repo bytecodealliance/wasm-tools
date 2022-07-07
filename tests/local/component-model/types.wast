@@ -274,3 +274,18 @@
   )
   "only the local or enclosing scope can be aliased"
 )
+
+(component
+  (type (instance
+    (type string)
+    (export "" (type (eq 0)))
+  ))
+)
+
+(component
+  (type (component
+    (type string)
+    (import "" (type (eq 0)))
+    (export "" (type (eq 0)))
+  ))
+)
