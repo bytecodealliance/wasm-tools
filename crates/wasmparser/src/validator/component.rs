@@ -243,11 +243,9 @@ impl ComponentState {
                 self.values.push((ty, false));
                 (self.values.len(), MAX_WASM_VALUES, "values")
             }
-            ComponentEntityType::Type(..) => {
-                return Err(BinaryReaderError::new(
-                    "component types cannot currently be imported",
-                    offset,
-                ));
+            ComponentEntityType::Type(id) => {
+                self.types.push(id);
+                (self.types.len(), MAX_WASM_TYPES, "types")
             }
         };
 

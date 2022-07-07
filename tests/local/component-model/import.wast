@@ -1,7 +1,6 @@
 (component
   (import "a" (func))
   (import "b" (instance))
-
   (import "c" (instance
     (export "" (func))
   ))
@@ -9,6 +8,8 @@
     (import "" (core module))
     (export "" (func))
   ))
+  (type $t (func))
+  (import "e" (type (eq $t)))
 )
 
 (assert_invalid

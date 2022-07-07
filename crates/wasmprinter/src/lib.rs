@@ -700,7 +700,7 @@ impl Printer {
         names_for: Option<u32>,
     ) -> Result<Option<u32>> {
         if always_print_type {
-            self.print_type_ref(state, idx, true)?;
+            self.print_type_ref(state, idx, true, None)?;
         }
 
         match &types[state.core_ty(idx)?] {
@@ -825,7 +825,7 @@ impl Printer {
                     self.result.push(' ');
                     self.print_name(&state.core.func_names, state.core.funcs.len() as u32)?;
                 }
-                self.print_type_ref(state, *f, true)?;
+                self.print_type_ref(state, *f, true, None)?;
             }
             TypeRef::Table(f) => self.print_table_type(state, f, index)?,
             TypeRef::Memory(f) => self.print_memory_type(state, f, index)?,
@@ -1169,7 +1169,7 @@ impl Printer {
                     self.result.push(' ');
                     self.print_idx(&state.core.table_names, *table_index)?;
                 }
-                self.print_type_ref(state, *index, true)?;
+                self.print_type_ref(state, *index, true, None)?;
             }
             ReturnCall { function_index } => {
                 self.result.push_str("return_call ");
@@ -1181,7 +1181,7 @@ impl Printer {
                     self.result.push(' ');
                     self.print_idx(&state.core.table_names, *table_index)?;
                 }
-                self.print_type_ref(state, *index, true)?;
+                self.print_type_ref(state, *index, true, None)?;
             }
 
             Delegate { relative_depth } => {
@@ -2094,8 +2094,21 @@ impl Printer {
         Ok(())
     }
 
-    fn print_type_ref(&mut self, state: &State, idx: u32, core: bool) -> Result<()> {
+    fn print_type_ref(
+        &mut self,
+        state: &State,
+        idx: u32,
+        core: bool,
+        bounds: Option<TypeBounds>,
+    ) -> Result<()> {
         self.result.push_str(" (type ");
+        let closing = match bounds {
+            Some(TypeBounds::Eq) => {
+                self.result.push_str("(eq ");
+                ")"
+            }
+            None => "",
+        };
         self.print_idx(
             if core {
                 &state.core.type_names
@@ -2104,6 +2117,7 @@ impl Printer {
             },
             idx,
         )?;
+        self.result.push_str(closing);
         self.result.push(')');
         Ok(())
     }
@@ -2789,7 +2803,9 @@ impl Printer {
                 ComponentTypeRef::Value(_) => {
                     state.component.values += 1;
                 }
-                ComponentTypeRef::Type(_, _) => bail!("component type imports are not supported"),
+                ComponentTypeRef::Type(TypeBounds::Eq, idx) => {
+                    state.component.types.push(state.ty(idx)?);
+                }
                 ComponentTypeRef::Instance(idx) => {
                     let ty = state.ty(idx)?;
                     match &types[ty] {
@@ -2841,7 +2857,7 @@ impl Printer {
                     self.result.push(' ');
                     self.print_name(&state.core.module_names, state.core.modules as u32)?;
                 }
-                self.print_type_ref(state, *idx, true)?;
+                self.print_type_ref(state, *idx, true, None)?;
                 self.end_group();
             }
             ComponentTypeRef::Func(idx) => {
@@ -2853,7 +2869,7 @@ impl Printer {
                         state.component.funcs.len() as u32,
                     )?;
                 }
-                self.print_type_ref(state, *idx, false)?;
+                self.print_type_ref(state, *idx, false, None)?;
                 self.end_group();
             }
             ComponentTypeRef::Value(ty) => {
@@ -2865,13 +2881,13 @@ impl Printer {
                 match ty {
                     ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty),
                     ComponentValType::Type(idx) => {
-                        self.print_type_ref(state, *idx, false)?;
+                        self.print_type_ref(state, *idx, false, None)?;
                     }
                 }
                 self.end_group();
             }
-            ComponentTypeRef::Type(_, idx) => {
-                self.print_type_ref(state, *idx, false)?;
+            ComponentTypeRef::Type(bounds, idx) => {
+                self.print_type_ref(state, *idx, false, Some(*bounds))?;
             }
             ComponentTypeRef::Instance(idx) => {
                 self.start_group("instance");
@@ -2882,7 +2898,7 @@ impl Printer {
                         state.component.instances.len() as u32,
                     )?;
                 }
-                self.print_type_ref(state, *idx, false)?;
+                self.print_type_ref(state, *idx, false, None)?;
                 self.end_group();
             }
             ComponentTypeRef::Component(idx) => {
@@ -2894,7 +2910,7 @@ impl Printer {
                         state.component.components.len() as u32,
                     )?;
                 }
-                self.print_type_ref(state, *idx, false)?;
+                self.print_type_ref(state, *idx, false, None)?;
                 self.end_group();
             }
         }
