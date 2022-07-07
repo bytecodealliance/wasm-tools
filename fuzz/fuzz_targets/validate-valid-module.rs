@@ -10,10 +10,14 @@ fuzz_target!(|data: &[u8]| {
 
     // We want to prioritize fuzzing of modules for the time being
     // so we'll only generate a component 10% of the time
-    let generate_component = match u.ratio::<u8>(1, 10) {
-        Ok(b) => b,
-        Err(_) => false,
-    };
+    //
+    // TODO: remove this `false && ...` once this fuzzer works again for
+    // components.
+    let generate_component = false
+        && match u.ratio::<u8>(1, 10) {
+            Ok(b) => b,
+            Err(_) => false,
+        };
     let (wasm_bytes, config) = if generate_component {
         match wasm_tools_fuzz::generate_valid_component(&mut u, |c, u| {
             c.max_components = u.int_in_range(0..=1_000)?;
@@ -52,5 +56,30 @@ fuzz_target!(|data: &[u8]| {
             "module"
         };
         panic!("Invalid {}: {}", component_or_module, e);
+    }
+
+    // After validation make sure that binary-to-text and text-to-binary
+    // transforms all work as well.
+    let wat_string = wasmprinter::print_bytes(&wasm_bytes).unwrap_or_else(|e| {
+        panic!(
+            "failed first disassembly of Wasm into wat with `wasmprinter::print_bytes`: {}",
+            e
+        )
+    });
+    let wasm_bytes = wat::parse_str(&wat_string).unwrap_or_else(|e| {
+        panic!(
+            "failed to assemble wat into Wasm with `wat::parse_str`: {}",
+            e
+        )
+    });
+    let wat_string2 = wasmprinter::print_bytes(&wasm_bytes).unwrap_or_else(|e| {
+        panic!(
+            "failed second disassembly of Wasm into wat with `wasmprinter::print_bytes`: {}",
+            e
+        )
+    });
+
+    if wat_string != wat_string2 {
+        panic!("failed to roundtrip valid module");
     }
 });
