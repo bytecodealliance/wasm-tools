@@ -53,7 +53,7 @@ pub struct WitComponentApp {
     #[clap(long, short = 'o', value_name = "OUTPUT")]
     pub output: Option<PathBuf>,
 
-    /// The default interface of the component.
+    /// The default interface the component exports.
     #[clap(long, short = 'i', value_name = "INTERFACE", parse(try_from_str = parse_unnamed_interface))]
     pub interface: Option<Interface>,
 
