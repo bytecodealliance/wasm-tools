@@ -1055,17 +1055,24 @@ impl Encode for ArrayCopy<'_> {
     }
 }
 
-impl Encode for ArrayInit<'_> {
+impl Encode for ArrayNewFixed<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.array.encode(e);
         self.length.encode(e);
     }
 }
 
-impl Encode for ArrayInitFromData<'_> {
+impl Encode for ArrayNewData<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.array.encode(e);
         self.data_idx.encode(e);
+    }
+}
+
+impl Encode for ArrayNewElem<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.array.encode(e);
+        self.elem_idx.encode(e);
     }
 }
 

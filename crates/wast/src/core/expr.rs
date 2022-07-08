@@ -600,14 +600,15 @@ instructions! {
         // gc proposal: array
         ArrayNew(Index<'a>) : [0xfb, 0x1b] : "array.new",
         ArrayNewDefault(Index<'a>) : [0xfb, 0x1c] : "array.new_default",
+        ArrayNewFixed(ArrayNewFixed<'a>) : [0xfb, 0x1a] : "array.new_fixed",
+        ArrayNewData(ArrayNewData<'a>) : [0xfb, 0x1d] : "array.new_data",
+        ArrayNewElem(ArrayNewElem<'a>) : [0xfb, 0x10] : "array.new_elem",
         ArrayGet(Index<'a>) : [0xfb, 0x13] : "array.get",
         ArrayGetS(Index<'a>) : [0xfb, 0x14] : "array.get_s",
         ArrayGetU(Index<'a>) : [0xfb, 0x15] : "array.get_u",
         ArraySet(Index<'a>) : [0xfb, 0x16] : "array.set",
         ArrayLen(Index<'a>) : [0xfb, 0x17] : "array.len",
         ArrayCopy(ArrayCopy<'a>) : [0xfb, 0x18] : "array.copy",
-        ArrayInit(ArrayInit<'a>) : [0xfb, 0x1a] : "array.init",
-        ArrayInitFromData(ArrayInitFromData<'a>) : [0xfb, 0x1d] : "array.init_from_data",
 
         // gc proposal, i31
         I31New : [0xfb, 0x20] : "i31.new",
@@ -1574,38 +1575,56 @@ impl<'a> Parse<'a> for ArrayCopy<'a> {
     }
 }
 
-/// Extra data associated with the `array.init` instruction
+/// Extra data associated with the `array.new_fixed` instruction
 #[derive(Debug)]
-pub struct ArrayInit<'a> {
+pub struct ArrayNewFixed<'a> {
     /// The index of the array type we're accessing.
     pub array: Index<'a>,
     /// The amount of values to initialize the array with.
     pub length: u32,
 }
 
-impl<'a> Parse<'a> for ArrayInit<'a> {
+impl<'a> Parse<'a> for ArrayNewFixed<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(ArrayInit {
+        Ok(ArrayNewFixed {
             array: parser.parse()?,
             length: parser.parse()?,
         })
     }
 }
 
-/// Extra data associated with the `array.init_from_data` instruction
+/// Extra data associated with the `array.new_data` instruction
 #[derive(Debug)]
-pub struct ArrayInitFromData<'a> {
+pub struct ArrayNewData<'a> {
     /// The index of the array type we're accessing.
     pub array: Index<'a>,
     /// The data segment to initialize from.
     pub data_idx: Index<'a>,
 }
 
-impl<'a> Parse<'a> for ArrayInitFromData<'a> {
+impl<'a> Parse<'a> for ArrayNewData<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(ArrayInitFromData {
+        Ok(ArrayNewData {
             array: parser.parse()?,
             data_idx: parser.parse()?,
+        })
+    }
+}
+
+/// Extra data associated with the `array.new_elem` instruction
+#[derive(Debug)]
+pub struct ArrayNewElem<'a> {
+    /// The index of the array type we're accessing.
+    pub array: Index<'a>,
+    /// The elem segment to initialize from.
+    pub elem_idx: Index<'a>,
+}
+
+impl<'a> Parse<'a> for ArrayNewElem<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(ArrayNewElem {
+            array: parser.parse()?,
+            elem_idx: parser.parse()?,
         })
     }
 }

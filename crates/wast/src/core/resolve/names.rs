@@ -638,16 +638,20 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.fields.resolve(&mut s.field, "field")?;
             }
 
+            ArrayNewFixed(a) => {
+                self.resolver.resolve(&mut a.array, Ns::Type)?;
+            }
+            ArrayNewData(a) => {
+                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.datas.resolve(&mut a.data_idx, "data")?;
+            }
+            ArrayNewElem(a) => {
+                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.elems.resolve(&mut a.elem_idx, "elem")?;
+            }
             ArrayCopy(a) => {
                 self.resolver.resolve(&mut a.dest_array, Ns::Type)?;
                 self.resolver.resolve(&mut a.src_array, Ns::Type)?;
-            }
-            ArrayInit(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
-            }
-            ArrayInitFromData(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
-                self.resolver.datas.resolve(&mut a.data_idx, "data")?;
             }
 
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,
