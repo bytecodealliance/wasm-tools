@@ -382,6 +382,7 @@ pub mod kw {
     custom_keyword!(anyref);
     custom_keyword!(arg);
     custom_keyword!(array);
+    custom_keyword!(arrayref);
     custom_keyword!(assert_exception);
     custom_keyword!(assert_exhaustion);
     custom_keyword!(assert_invalid);
@@ -458,11 +459,12 @@ pub mod kw {
     custom_keyword!(ref_func = "ref.func");
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
+    custom_keyword!(rec);
     custom_keyword!(result);
-    custom_keyword!(rtt);
     custom_keyword!(shared);
     custom_keyword!(start);
     custom_keyword!(r#struct = "struct");
+    custom_keyword!(sub);
     custom_keyword!(table);
     custom_keyword!(then);
     custom_keyword!(r#try = "try");

@@ -66,6 +66,7 @@ impl<'a> Expander<'a> {
         match item {
             // This is pre-expanded above
             ModuleField::Type(_) => {}
+            ModuleField::Rec(_) => {}
 
             ModuleField::Import(i) => {
                 self.expand_item_sig(&mut i.item);
@@ -208,6 +209,7 @@ impl<'a> Expander<'a> {
             id: Some(id),
             name: None,
             def: key.to_def(span),
+            parent: None,
         }));
         let idx = Index::Id(id);
         key.insert(self, idx);
