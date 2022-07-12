@@ -1005,6 +1005,7 @@ pub struct Types {
     kind: TypesKind,
 }
 
+#[derive(Clone, Copy)]
 enum TypesRefKind<'a> {
     Module(&'a Module),
     Component(&'a ComponentState),
@@ -1013,6 +1014,7 @@ enum TypesRefKind<'a> {
 /// Represents the types known to a [`crate::Validator`] during validation.
 ///
 /// Retrieved via. the [`crate::Validator::types`] method.
+#[derive(Clone, Copy)]
 pub struct TypesRef<'a> {
     types: &'a TypeList,
     kind: TypesRefKind<'a>,
