@@ -1,6 +1,6 @@
 [package]
 name = "wast"
-version = "43.0.0"
+version = "44.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"

@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["The Wasmtime Project Developers"]
 edition = "2021"
 description = "CLI tools for interoperating with WebAssembly files"
@@ -22,7 +22,7 @@ env_logger = "0.9"
 log = "0.4"
 clap = { version = "3.1.8", features = ['derive'] }
 tempfile = "3.2.0"
-wat = { path = "crates/wat", version = '1.0.45' }
+wat = { path = "crates/wat", version = '1.0.46' }
 
 # Dependencies of `validate`
 wasmparser = { path = "crates/wasmparser", optional = true, version = '0.87.0' }
