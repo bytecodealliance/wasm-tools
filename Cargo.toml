@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.9"
+version = "1.0.8"
 authors = ["The Wasmtime Project Developers"]
 edition = "2021"
 description = "CLI tools for interoperating with WebAssembly files"
