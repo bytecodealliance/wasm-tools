@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
-use wit_component::ComponentEncoder;
+use wit_component::InterfaceEncoder;
 use wit_parser::Interface;
 
 /// Tests the encoding of individual interface files.
@@ -29,9 +29,7 @@ fn interface_encoding() -> Result<()> {
 
         let interface = Interface::parse_file(&wit_path)?;
 
-        let encoder = ComponentEncoder::default()
-            .interface(&interface)
-            .types_only(true);
+        let encoder = InterfaceEncoder::new(&interface).validate(true);
 
         let bytes = encoder.encode().with_context(|| {
             format!(

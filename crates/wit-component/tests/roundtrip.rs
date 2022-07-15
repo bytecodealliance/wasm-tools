@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
-use wit_component::{decode_interface_component, ComponentEncoder, InterfacePrinter};
+use wit_component::{decode_interface_component, InterfaceEncoder, InterfacePrinter};
 use wit_parser::Interface;
 
 /// Tests the the roundtrip encoding of individual interface files.
@@ -29,9 +29,7 @@ fn roundtrip_interfaces() -> Result<()> {
 
         let interface = Interface::parse_file(&wit_path).context("failed to parse `wit` file")?;
 
-        let encoder = ComponentEncoder::default()
-            .interface(&interface)
-            .types_only(true);
+        let encoder = InterfaceEncoder::new(&interface).validate(true);
 
         let bytes = encoder.encode().with_context(|| {
             format!(
