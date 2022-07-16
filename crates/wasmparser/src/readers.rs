@@ -14,7 +14,7 @@
  */
 
 use crate::{BinaryReaderError, Result};
-use std::ops::Range;
+use ::core::ops::Range;
 
 mod component;
 mod core;

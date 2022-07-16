@@ -16,7 +16,7 @@
 use crate::{
     BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems, TableType,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// A reader for the table section of a WebAssembly module.
 #[derive(Clone)]

@@ -2,7 +2,7 @@ use crate::{
     BinaryReader, ComponentExternalKind, ExternalKind, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents the kind of an outer core alias in a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

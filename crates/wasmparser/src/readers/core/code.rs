@@ -17,7 +17,7 @@ use crate::{
     BinaryReader, BinaryReaderError, OperatorsReader, Result, SectionIteratorLimited,
     SectionReader, SectionWithLimitedItems, ValType,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents a WebAssembly function body.
 #[derive(Debug, Clone, Copy)]

@@ -1,5 +1,6 @@
 use crate::{BinaryReader, Result, SectionReader};
-use std::ops::Range;
+use core::ops::Range;
+use alloc::boxed::Box;
 
 /// Represents the start function in a WebAssembly component.
 #[derive(Debug, Clone)]

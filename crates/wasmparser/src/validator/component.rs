@@ -19,8 +19,13 @@ use crate::{
     ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType,
     PrimitiveValType, Result, TableType, TypeBounds, ValType, WasmFeatures,
 };
-use indexmap::{IndexMap, IndexSet};
-use std::mem;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use alloc::string::String;
+use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::borrow::ToOwned;
+use core::mem;
+use alloc::format;
 
 pub(crate) struct ComponentState {
     // Core index spaces
@@ -40,8 +45,8 @@ pub(crate) struct ComponentState {
     pub instances: Vec<TypeId>,
     pub components: Vec<TypeId>,
 
-    pub imports: IndexMap<String, ComponentEntityType>,
-    pub exports: IndexMap<String, ComponentEntityType>,
+    pub imports: BTreeMap<String, ComponentEntityType>,
+    pub exports: BTreeMap<String, ComponentEntityType>,
     has_start: bool,
     type_size: usize,
 }
@@ -941,7 +946,7 @@ impl ComponentState {
         fn insert_arg<'a>(
             name: &'a str,
             arg: &'a InstanceType,
-            args: &mut IndexMap<&'a str, &'a InstanceType>,
+            args: &mut BTreeMap<&'a str, &'a InstanceType>,
             offset: usize,
         ) -> Result<()> {
             if args.insert(name, arg).is_some() {
@@ -955,7 +960,7 @@ impl ComponentState {
         }
 
         let module_type_id = self.module_at(module_index, offset)?;
-        let mut args = IndexMap::new();
+        let mut args = BTreeMap::new();
 
         // Populate the arguments
         for module_arg in module_args {
@@ -1049,7 +1054,7 @@ impl ComponentState {
         fn insert_arg<'a>(
             name: &'a str,
             arg: ComponentEntityType,
-            args: &mut IndexMap<&'a str, ComponentEntityType>,
+            args: &mut BTreeMap<&'a str, ComponentEntityType>,
             offset: usize,
         ) -> Result<()> {
             if args.insert(name, arg).is_some() {
@@ -1066,7 +1071,7 @@ impl ComponentState {
         }
 
         let component_type_id = self.component_at(component_index, offset)?;
-        let mut args = IndexMap::new();
+        let mut args = BTreeMap::new();
 
         // Populate the arguments
         for component_arg in component_args {
@@ -1191,7 +1196,7 @@ impl ComponentState {
         fn insert_export(
             name: &str,
             export: ComponentEntityType,
-            exports: &mut IndexMap<String, ComponentEntityType>,
+            exports: &mut BTreeMap<String, ComponentEntityType>,
             type_size: &mut usize,
             offset: usize,
         ) -> Result<()> {
@@ -1211,7 +1216,7 @@ impl ComponentState {
         }
 
         let mut type_size = 1;
-        let mut inst_exports = IndexMap::new();
+        let mut inst_exports = BTreeMap::new();
         for export in exports {
             match export.kind {
                 ComponentExternalKind::Module => {
@@ -1295,7 +1300,7 @@ impl ComponentState {
         fn insert_export(
             name: &str,
             export: EntityType,
-            exports: &mut IndexMap<String, EntityType>,
+            exports: &mut BTreeMap<String, EntityType>,
             type_size: &mut usize,
             offset: usize,
         ) -> Result<()> {
@@ -1315,7 +1320,7 @@ impl ComponentState {
         }
 
         let mut type_size = 1;
-        let mut inst_exports = IndexMap::new();
+        let mut inst_exports = BTreeMap::new();
         for export in exports {
             match export.kind {
                 ExternalKind::Func => {
@@ -1665,7 +1670,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut type_size = 1;
-        let mut field_map = IndexMap::with_capacity(fields.len());
+        let mut field_map = BTreeMap::new();
 
         for (name, ty) in fields {
             Self::check_name(name, "record field", offset)?;
@@ -1693,7 +1698,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut type_size = 1;
-        let mut case_map = IndexMap::with_capacity(cases.len());
+        let mut case_map = BTreeMap::new();
 
         if cases.is_empty() {
             return Err(BinaryReaderError::new(
@@ -1758,7 +1763,7 @@ impl ComponentState {
     }
 
     fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
-        let mut names_set = IndexSet::with_capacity(names.len());
+        let mut names_set = BTreeSet::new();
 
         for name in names {
             Self::check_name(name, "flag", offset)?;
@@ -1781,7 +1786,7 @@ impl ComponentState {
             ));
         }
 
-        let mut tags = IndexSet::with_capacity(cases.len());
+        let mut tags = BTreeSet::new();
 
         for tag in cases {
             Self::check_name(tag, "enum tag", offset)?;

@@ -17,7 +17,7 @@ use crate::{
     BinaryReader, MemoryType, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// A reader for the memory section of a WebAssembly module.
 #[derive(Clone)]

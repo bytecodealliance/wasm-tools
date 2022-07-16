@@ -17,7 +17,7 @@ use crate::{
     BinaryReader, GlobalType, MemoryType, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems, TableType, TagType,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents a reference to a type definition in a WebAssembly module.
 #[derive(Debug, Clone, Copy)]

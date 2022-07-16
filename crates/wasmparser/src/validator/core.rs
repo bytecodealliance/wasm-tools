@@ -10,8 +10,11 @@ use crate::{
     FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType,
     TypeRef, ValType, WasmFeatures, WasmModuleResources,
 };
-use indexmap::IndexMap;
-use std::{collections::HashSet, sync::Arc};
+use alloc::{collections::{BTreeSet, BTreeMap}, sync::Arc};
+use alloc::string::ToString;
+use alloc::string::String;
+use alloc::vec::Vec;
+use alloc::format;
 
 fn check_value_type(ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
     match features.check_value_type(ty) {
@@ -359,9 +362,9 @@ pub(crate) struct Module {
     // Stores indexes into `types`.
     pub functions: Vec<u32>,
     pub tags: Vec<TypeId>,
-    pub function_references: HashSet<u32>,
-    pub imports: IndexMap<(String, String), Vec<EntityType>>,
-    pub exports: IndexMap<String, EntityType>,
+    pub function_references: BTreeSet<u32>,
+    pub imports: BTreeMap<(String, String), Vec<EntityType>>,
+    pub exports: BTreeMap<String, EntityType>,
     pub type_size: usize,
     num_imported_globals: u32,
     num_imported_functions: u32,
@@ -667,7 +670,7 @@ impl Module {
     pub(crate) fn imports_for_module_type(
         &self,
         offset: usize,
-    ) -> Result<IndexMap<(String, String), EntityType>> {
+    ) -> Result<BTreeMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model
         self.imports.iter().map(|((module, name), types)| {
             if types.len() != 1 {
@@ -983,8 +986,8 @@ const _: () = {
 };
 
 mod arc {
-    use std::ops::Deref;
-    use std::sync::Arc;
+    use core::ops::Deref;
+    use alloc::sync::Arc;
 
     pub struct MaybeOwned<T> {
         owned: bool,

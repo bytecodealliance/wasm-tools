@@ -14,7 +14,7 @@
  */
 
 use crate::{BinaryReader, BinaryReaderError, Result, SectionIterator, SectionReader};
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]

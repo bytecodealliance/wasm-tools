@@ -2,7 +2,7 @@ use crate::{
     BinaryReader, ComponentValType, Result, SectionIteratorLimited, SectionReader,
     SectionWithLimitedItems,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents the type bounds for imports and exports.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

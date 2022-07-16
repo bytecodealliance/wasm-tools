@@ -2,13 +2,16 @@
 
 use super::{component::ComponentState, core::Module};
 use crate::{FuncType, GlobalType, MemoryType, PrimitiveValType, TableType, ValType};
-use indexmap::{IndexMap, IndexSet};
-use std::{
+use core::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     mem,
-    sync::Arc,
 };
+use alloc::collections::{BTreeSet, BTreeMap};
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
+use alloc::string::String;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -390,6 +393,18 @@ impl Hash for (dyn ModuleImportKey + '_) {
     }
 }
 
+impl core::cmp::PartialOrd for (dyn ModuleImportKey + '_) {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl core::cmp::Ord for (dyn ModuleImportKey + '_) {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.module().cmp(other.module()).then_with(|| self.name().cmp(other.name()))
+    }
+}
+
 impl PartialEq for (dyn ModuleImportKey + '_) {
     fn eq(&self, other: &Self) -> bool {
         self.module() == other.module() && self.name() == other.name()
@@ -424,9 +439,9 @@ pub struct ModuleType {
     /// The effective type size for the module type.
     pub(crate) type_size: usize,
     /// The imports of the module type.
-    pub imports: IndexMap<(String, String), EntityType>,
+    pub imports: BTreeMap<(String, String), EntityType>,
     /// The exports of the module type.
-    pub exports: IndexMap<String, EntityType>,
+    pub exports: BTreeMap<String, EntityType>,
 }
 
 impl ModuleType {
@@ -465,7 +480,7 @@ pub enum InstanceTypeKind {
     /// The instance type is the result of instantiating a module type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(IndexMap<String, EntityType>),
+    Exports(BTreeMap<String, EntityType>),
 }
 
 /// Represents a module instance type.
@@ -478,7 +493,7 @@ pub struct InstanceType {
 }
 
 impl InstanceType {
-    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a IndexMap<String, EntityType> {
+    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a BTreeMap<String, EntityType> {
         match &self.kind {
             InstanceTypeKind::Instantiated(id) => &types[*id].as_module_type().unwrap().exports,
             InstanceTypeKind::Exports(exports) => exports,
@@ -563,9 +578,9 @@ pub struct ComponentType {
     /// The effective type size for the component type.
     pub(crate) type_size: usize,
     /// The imports of the component type.
-    pub imports: IndexMap<String, ComponentEntityType>,
+    pub imports: BTreeMap<String, ComponentEntityType>,
     /// The exports of the component type.
-    pub exports: IndexMap<String, ComponentEntityType>,
+    pub exports: BTreeMap<String, ComponentEntityType>,
 }
 
 impl ComponentType {
@@ -595,11 +610,11 @@ impl ComponentType {
 #[derive(Debug, Clone)]
 pub enum ComponentInstanceTypeKind {
     /// The instance type is from a definition.
-    Defined(IndexMap<String, ComponentEntityType>),
+    Defined(BTreeMap<String, ComponentEntityType>),
     /// The instance type is the result of instantiating a component type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(IndexMap<String, ComponentEntityType>),
+    Exports(BTreeMap<String, ComponentEntityType>),
 }
 
 /// Represents a type of a component instance.
@@ -615,7 +630,7 @@ impl ComponentInstanceType {
     pub(crate) fn exports<'a>(
         &'a self,
         types: &'a TypeList,
-    ) -> &'a IndexMap<String, ComponentEntityType> {
+    ) -> &'a BTreeMap<String, ComponentEntityType> {
         match &self.kind {
             ComponentInstanceTypeKind::Defined(exports)
             | ComponentInstanceTypeKind::Exports(exports) => exports,
@@ -751,7 +766,7 @@ pub struct RecordType {
     /// The effective type size for the record type.
     pub(crate) type_size: usize,
     /// The map of record fields.
-    pub fields: IndexMap<String, ComponentValType>,
+    pub fields: BTreeMap<String, ComponentValType>,
 }
 
 /// Represents a variant type.
@@ -760,7 +775,7 @@ pub struct VariantType {
     /// The effective type size for the variant type.
     pub(crate) type_size: usize,
     /// The map of variant cases.
-    pub cases: IndexMap<String, VariantCase>,
+    pub cases: BTreeMap<String, VariantCase>,
 }
 
 /// Represents a tuple type.
@@ -795,9 +810,9 @@ pub enum ComponentDefinedType {
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
-    Flags(IndexSet<String>),
+    Flags(BTreeSet<String>),
     /// The type is an enumeration.
-    Enum(IndexSet<String>),
+    Enum(BTreeSet<String>),
     /// The type is a union.
     Union(UnionType),
     /// The type is an `option`.
@@ -1615,7 +1630,7 @@ impl<T> SnapshotList<T> {
     }
 }
 
-impl<T> std::ops::Index<usize> for SnapshotList<T> {
+impl<T> core::ops::Index<usize> for SnapshotList<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &T {
@@ -1623,13 +1638,13 @@ impl<T> std::ops::Index<usize> for SnapshotList<T> {
     }
 }
 
-impl<T> std::ops::IndexMut<usize> for SnapshotList<T> {
+impl<T> core::ops::IndexMut<usize> for SnapshotList<T> {
     fn index_mut(&mut self, index: usize) -> &mut T {
         self.get_mut(index).unwrap()
     }
 }
 
-impl<T> std::ops::Index<TypeId> for SnapshotList<T> {
+impl<T> core::ops::Index<TypeId> for SnapshotList<T> {
     type Output = T;
 
     fn index(&self, id: TypeId) -> &T {
@@ -1637,7 +1652,7 @@ impl<T> std::ops::Index<TypeId> for SnapshotList<T> {
     }
 }
 
-impl<T> std::ops::IndexMut<TypeId> for SnapshotList<T> {
+impl<T> core::ops::IndexMut<TypeId> for SnapshotList<T> {
     fn index_mut(&mut self, id: TypeId) -> &mut T {
         self.get_mut(id.index).unwrap()
     }

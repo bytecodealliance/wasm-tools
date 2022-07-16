@@ -1,5 +1,5 @@
 use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents the kind of an external items of a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -16,7 +16,7 @@
 use crate::{
     BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems, TagType,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// A reader for the tags section of a WebAssembly module.
 #[derive(Clone)]

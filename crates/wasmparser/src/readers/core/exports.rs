@@ -14,7 +14,7 @@
  */
 
 use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
-use std::ops::Range;
+use core::ops::Range;
 
 /// External types as defined [here].
 ///

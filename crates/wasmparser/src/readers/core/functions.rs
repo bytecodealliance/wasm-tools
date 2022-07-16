@@ -14,7 +14,7 @@
  */
 
 use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
-use std::ops::Range;
+use core::ops::Range;
 
 /// A reader for the function section of a WebAssembly module.
 #[derive(Clone)]

@@ -1,5 +1,5 @@
 use crate::{BinaryReader, Result};
-use std::ops::Range;
+use core::ops::Range;
 
 /// A reader for custom sections of a WebAssembly module.
 #[derive(Clone)]
@@ -51,8 +51,8 @@ impl<'a> CustomSectionReader<'a> {
     }
 }
 
-impl<'a> std::fmt::Debug for CustomSectionReader<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> core::fmt::Debug for CustomSectionReader<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CustomSectionReader")
             .field("name", &self.name)
             .field("data_offset", &self.data_offset)
