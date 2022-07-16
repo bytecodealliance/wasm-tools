@@ -10,7 +10,8 @@ use crate::{
     FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType,
     TypeRef, ValType, WasmFeatures, WasmModuleResources,
 };
-use alloc::{collections::{BTreeSet, BTreeMap}, sync::Arc};
+use alloc::{collections::{BTreeSet}, sync::Arc};
+use indexmap::IndexMap;
 use alloc::string::ToString;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -363,8 +364,8 @@ pub(crate) struct Module {
     pub functions: Vec<u32>,
     pub tags: Vec<TypeId>,
     pub function_references: BTreeSet<u32>,
-    pub imports: BTreeMap<(String, String), Vec<EntityType>>,
-    pub exports: BTreeMap<String, EntityType>,
+    pub imports: IndexMap<(String, String), Vec<EntityType>>,
+    pub exports: IndexMap<String, EntityType>,
     pub type_size: usize,
     num_imported_globals: u32,
     num_imported_functions: u32,
@@ -670,7 +671,7 @@ impl Module {
     pub(crate) fn imports_for_module_type(
         &self,
         offset: usize,
-    ) -> Result<BTreeMap<(String, String), EntityType>> {
+    ) -> Result<IndexMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model
         self.imports.iter().map(|((module, name), types)| {
             if types.len() != 1 {

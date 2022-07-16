@@ -7,7 +7,7 @@ use core::{
     hash::{Hash, Hasher},
     mem,
 };
-use alloc::collections::{BTreeSet, BTreeMap};
+use indexmap::{IndexSet, IndexMap};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
@@ -439,9 +439,9 @@ pub struct ModuleType {
     /// The effective type size for the module type.
     pub(crate) type_size: usize,
     /// The imports of the module type.
-    pub imports: BTreeMap<(String, String), EntityType>,
+    pub imports: IndexMap<(String, String), EntityType>,
     /// The exports of the module type.
-    pub exports: BTreeMap<String, EntityType>,
+    pub exports: IndexMap<String, EntityType>,
 }
 
 impl ModuleType {
@@ -480,7 +480,7 @@ pub enum InstanceTypeKind {
     /// The instance type is the result of instantiating a module type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(BTreeMap<String, EntityType>),
+    Exports(IndexMap<String, EntityType>),
 }
 
 /// Represents a module instance type.
@@ -493,7 +493,7 @@ pub struct InstanceType {
 }
 
 impl InstanceType {
-    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a BTreeMap<String, EntityType> {
+    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a IndexMap<String, EntityType> {
         match &self.kind {
             InstanceTypeKind::Instantiated(id) => &types[*id].as_module_type().unwrap().exports,
             InstanceTypeKind::Exports(exports) => exports,
@@ -578,9 +578,9 @@ pub struct ComponentType {
     /// The effective type size for the component type.
     pub(crate) type_size: usize,
     /// The imports of the component type.
-    pub imports: BTreeMap<String, ComponentEntityType>,
+    pub imports: IndexMap<String, ComponentEntityType>,
     /// The exports of the component type.
-    pub exports: BTreeMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentEntityType>,
 }
 
 impl ComponentType {
@@ -610,11 +610,11 @@ impl ComponentType {
 #[derive(Debug, Clone)]
 pub enum ComponentInstanceTypeKind {
     /// The instance type is from a definition.
-    Defined(BTreeMap<String, ComponentEntityType>),
+    Defined(IndexMap<String, ComponentEntityType>),
     /// The instance type is the result of instantiating a component type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(BTreeMap<String, ComponentEntityType>),
+    Exports(IndexMap<String, ComponentEntityType>),
 }
 
 /// Represents a type of a component instance.
@@ -630,7 +630,7 @@ impl ComponentInstanceType {
     pub(crate) fn exports<'a>(
         &'a self,
         types: &'a TypeList,
-    ) -> &'a BTreeMap<String, ComponentEntityType> {
+    ) -> &'a IndexMap<String, ComponentEntityType> {
         match &self.kind {
             ComponentInstanceTypeKind::Defined(exports)
             | ComponentInstanceTypeKind::Exports(exports) => exports,
@@ -766,7 +766,7 @@ pub struct RecordType {
     /// The effective type size for the record type.
     pub(crate) type_size: usize,
     /// The map of record fields.
-    pub fields: BTreeMap<String, ComponentValType>,
+    pub fields: IndexMap<String, ComponentValType>,
 }
 
 /// Represents a variant type.
@@ -775,7 +775,7 @@ pub struct VariantType {
     /// The effective type size for the variant type.
     pub(crate) type_size: usize,
     /// The map of variant cases.
-    pub cases: BTreeMap<String, VariantCase>,
+    pub cases: IndexMap<String, VariantCase>,
 }
 
 /// Represents a tuple type.
@@ -810,9 +810,9 @@ pub enum ComponentDefinedType {
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
-    Flags(BTreeSet<String>),
+    Flags(IndexSet<String>),
     /// The type is an enumeration.
-    Enum(BTreeSet<String>),
+    Enum(IndexSet<String>),
     /// The type is a union.
     Union(UnionType),
     /// The type is an `option`.
