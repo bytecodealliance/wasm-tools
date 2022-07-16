@@ -80,7 +80,7 @@ impl<'a> ImportSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ImportSectionReader;
+    /// use wasmparser_nostd::ImportSectionReader;
     /// let data: &[u8] = &[0x01, 0x01, 0x41, 0x01, 0x66, 0x00, 0x00];
     /// let mut reader = ImportSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {

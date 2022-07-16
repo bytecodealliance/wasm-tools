@@ -76,7 +76,7 @@ impl<'a> ComponentImportSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentImportSectionReader;
+    /// use wasmparser_nostd::ComponentImportSectionReader;
     /// let data: &[u8] = &[0x01, 0x01, 0x41, 0x01, 0x66, 0x00, 0x00];
     /// let mut reader = ComponentImportSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {

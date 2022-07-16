@@ -83,7 +83,7 @@ impl<'a> DataSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::{DataSectionReader, DataKind};
+    /// use wasmparser_nostd::{DataSectionReader, DataKind};
     /// # let data: &[u8] = &[
     /// #     0x01, 0x00, 0x41, 0x80, 0x08, 0x0b, 0x04, 0x00, 0x00, 0x00, 0x00];
     /// let mut data_reader = DataSectionReader::new(data, 0).unwrap();

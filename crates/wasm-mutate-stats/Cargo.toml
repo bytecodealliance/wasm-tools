@@ -11,7 +11,7 @@ num_cpus = "1.13"
 rand = { version = "0.8.0", features = ["small_rng"] }
 wasm-mutate = { path = '../wasm-mutate' }
 wasmprinter = { path = '../wasmprinter' }
-wasmparser = { path = "../wasmparser" }
+wasmparser = { package = "wasmparser-nostd", path = "../wasmparser" }
 wasmtime = "0.38.1"
 env_logger = "0.9"
 itertools = "0.10.0"

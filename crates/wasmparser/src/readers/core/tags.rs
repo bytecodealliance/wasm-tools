@@ -47,7 +47,7 @@ impl<'a> TagSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::TagSectionReader;
+    /// use wasmparser_nostd::TagSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x01];
     /// let mut reader = TagSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {

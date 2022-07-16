@@ -66,7 +66,7 @@ impl<'a> InstanceSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::InstanceSectionReader;
+    /// use wasmparser_nostd::InstanceSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x12, 0x00];
     /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
@@ -114,7 +114,7 @@ impl<'a> IntoIterator for InstanceSectionReader<'a> {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::InstanceSectionReader;
+    /// use wasmparser_nostd::InstanceSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x12, 0x00];
     /// let mut reader = InstanceSectionReader::new(data, 0).unwrap();
     /// for inst in reader {
@@ -180,7 +180,7 @@ impl<'a> ComponentInstanceSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentInstanceSectionReader;
+    /// use wasmparser_nostd::ComponentInstanceSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
     /// let mut reader = ComponentInstanceSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
@@ -228,7 +228,7 @@ impl<'a> IntoIterator for ComponentInstanceSectionReader<'a> {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::ComponentInstanceSectionReader;
+    /// use wasmparser_nostd::ComponentInstanceSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
     /// let mut reader = ComponentInstanceSectionReader::new(data, 0).unwrap();
     /// for inst in reader {

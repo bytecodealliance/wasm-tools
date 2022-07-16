@@ -76,7 +76,7 @@ impl<'a> ComponentCanonicalSectionReader<'a> {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::ComponentCanonicalSectionReader;
+    /// use wasmparser_nostd::ComponentCanonicalSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00];
     /// let mut reader = ComponentCanonicalSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {

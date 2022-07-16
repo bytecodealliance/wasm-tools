@@ -46,7 +46,7 @@ impl<'a> FunctionSectionReader<'a> {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::FunctionSectionReader;
+    /// use wasmparser_nostd::FunctionSectionReader;
     /// # let data: &[u8] = &[0x01, 0x00];
     /// let mut reader = FunctionSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {

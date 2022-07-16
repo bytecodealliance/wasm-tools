@@ -194,7 +194,7 @@ impl<'a> CodeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::CodeSectionReader;
+    /// use wasmparser_nostd::CodeSectionReader;
     /// # let data: &[u8] = &[
     /// #     0x01, 0x03, 0x00, 0x01, 0x0b];
     /// let mut code_reader = CodeSectionReader::new(data, 0).unwrap();
@@ -253,7 +253,7 @@ impl<'a> IntoIterator for CodeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::CodeSectionReader;
+    /// use wasmparser_nostd::CodeSectionReader;
     /// # let data: &[u8] = &[
     /// #     0x01, 0x03, 0x00, 0x01, 0x0b];
     /// let mut code_reader = CodeSectionReader::new(data, 0).unwrap();

@@ -61,7 +61,7 @@ impl<'a> CoreTypeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::CoreTypeSectionReader;
+    /// use wasmparser_nostd::CoreTypeSectionReader;
     /// let data: &[u8] = &[0x01, 0x60, 0x00, 0x00];
     /// let mut reader = CoreTypeSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
@@ -108,7 +108,7 @@ impl<'a> IntoIterator for CoreTypeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::CoreTypeSectionReader;
+    /// use wasmparser_nostd::CoreTypeSectionReader;
     /// # let data: &[u8] = &[0x01, 0x60, 0x00, 0x00];
     /// let mut reader = CoreTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
@@ -334,7 +334,7 @@ impl<'a> ComponentTypeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentTypeSectionReader;
+    /// use wasmparser_nostd::ComponentTypeSectionReader;
     /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
@@ -381,7 +381,7 @@ impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentTypeSectionReader;
+    /// use wasmparser_nostd::ComponentTypeSectionReader;
     /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {

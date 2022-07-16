@@ -1,5 +1,5 @@
 [package]
-name = "wasmparser"
+name = "wasmparser-nostd"
 version = "0.87.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0 WITH LLVM-exception"

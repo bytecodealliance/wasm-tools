@@ -16,7 +16,7 @@ log = "0.4"
 tempfile = "3.0"
 wasm-mutate = { path = "../crates/wasm-mutate" }
 wasm-smith = { path = "../crates/wasm-smith" }
-wasmparser = { path = "../crates/wasmparser" }
+wasmparser = { package = "wasmparser-nostd", path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
 wasmtime = { version = "0.38.1", optional = true }
 wast = { path = "../crates/wast" }

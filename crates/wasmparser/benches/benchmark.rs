@@ -6,7 +6,7 @@ use criterion::Criterion;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use wasmparser::{DataKind, ElementKind, Parser, Payload, Validator, WasmFeatures};
+use wasmparser_nostd::{DataKind, ElementKind, Parser, Payload, Validator, WasmFeatures};
 
 /// A benchmark input.
 pub struct BenchmarkInput {

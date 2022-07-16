@@ -115,7 +115,7 @@
 
   (core instance $c (instantiate $m))
   (core instance (instantiate $m))
-  
+
   ;; inline exports/imports
   (type $empty (instance))
   (instance $d (import "i1") (type $empty))

@@ -63,7 +63,7 @@ impl Opts {
                 ComponentStartSection(s) => printer.section_raw(s.range(), 1, "component start")?,
                 ComponentImportSection(s) => printer.section(s, "component imports")?,
                 ComponentExportSection(s) => printer.section(s, "component exports")?,
-                
+
                 CustomSection(c) => printer.section_raw(
                     c.data_offset()..c.data_offset() + c.data().len(),
                     1,

@@ -48,7 +48,7 @@ impl<'a> MemorySectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::MemorySectionReader;
+    /// use wasmparser_nostd::MemorySectionReader;
     /// # let data: &[u8] = &[0x01, 0x00, 0x02];
     /// let mut memory_reader = MemorySectionReader::new(data, 0).unwrap();
     /// for _ in 0..memory_reader.get_count() {

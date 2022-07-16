@@ -47,7 +47,7 @@ impl<'a> TableSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::TableSectionReader;
+    /// use wasmparser_nostd::TableSectionReader;
     ///
     /// # let data: &[u8] = &[0x01, 0x70, 0x01, 0x01, 0x01];
     /// let mut table_reader = TableSectionReader::new(data, 0).unwrap();

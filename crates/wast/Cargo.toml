@@ -21,7 +21,7 @@ wasm-encoder = { version = "0.14.0", path = "../wasm-encoder" }
 [dev-dependencies]
 anyhow = "1.0"
 rayon = "1.0"
-wasmparser = { path = "../wasmparser" }
+wasmparser = { package = "wasmparser-nostd", path = "../wasmparser" }
 wat = { path = "../wat" }
 
 [features]

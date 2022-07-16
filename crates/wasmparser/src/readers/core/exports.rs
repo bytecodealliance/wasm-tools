@@ -73,7 +73,7 @@ impl<'a> ExportSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ExportSectionReader;
+    /// use wasmparser_nostd::ExportSectionReader;
     ///
     /// # let data: &[u8] = &[0x01, 0x01, 0x65, 0x00, 0x00];
     /// let mut reader = ExportSectionReader::new(data, 0).unwrap();

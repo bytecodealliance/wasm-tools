@@ -114,7 +114,7 @@ impl<'a> BinaryReader<'a> {
     /// # Examples
     /// ```
     /// let fn_body = &vec![0x41, 0x00, 0x10, 0x00, 0x0B];
-    /// let mut reader = wasmparser::BinaryReader::new(fn_body);
+    /// let mut reader = wasmparser_nostd::BinaryReader::new(fn_body);
     /// while !reader.eof() {
     ///     let op = reader.read_operator();
     ///     println!("{:?}", op)
@@ -2444,9 +2444,9 @@ impl<'a> BrTable<'a> {
     ///
     /// ```rust
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
-    /// let mut reader = wasmparser::BinaryReader::new(&buf);
+    /// let mut reader = wasmparser_nostd::BinaryReader::new(&buf);
     /// let op = reader.read_operator().unwrap();
-    /// if let wasmparser::Operator::BrTable { table } = op {
+    /// if let wasmparser_nostd::Operator::BrTable { table } = op {
     ///     let targets = table.targets().collect::<Result<Vec<_>, _>>().unwrap();
     ///     assert_eq!(targets, [1, 2]);
     /// }

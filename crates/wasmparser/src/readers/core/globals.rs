@@ -57,7 +57,7 @@ impl<'a> GlobalSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::GlobalSectionReader;
+    /// use wasmparser_nostd::GlobalSectionReader;
     /// # let data: &[u8] = &[0x01, 0x7F, 0x01, 0x41, 0x90, 0x88, 0x04, 0x0B];
     /// let mut global_reader = GlobalSectionReader::new(data, 0).unwrap();
     /// for _ in 0..global_reader.get_count() {

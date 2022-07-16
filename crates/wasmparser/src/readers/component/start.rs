@@ -32,7 +32,7 @@ impl<'a> ComponentStartSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentStartSectionReader;
+    /// use wasmparser_nostd::ComponentStartSectionReader;
     ///
     /// # let data: &[u8] = &[0x00, 0x03, 0x01, 0x02, 0x03];
     /// let mut reader = ComponentStartSectionReader::new(data, 0).unwrap();

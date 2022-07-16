@@ -63,7 +63,7 @@ impl<'a> AliasSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::AliasSectionReader;
+    /// use wasmparser_nostd::AliasSectionReader;
     /// let data: &[u8] = &[0x01, 0x00, 0x00, 0x00, 0x03, b'f', b'o', b'o'];
     /// let mut reader = AliasSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
@@ -176,7 +176,7 @@ impl<'a> ComponentAliasSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentAliasSectionReader;
+    /// use wasmparser_nostd::ComponentAliasSectionReader;
     /// let data: &[u8] = &[0x01, 0x01, 0x00, 0x00, 0x03, b'f', b'o', b'o'];
     /// let mut reader = ComponentAliasSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {

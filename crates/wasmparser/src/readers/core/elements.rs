@@ -189,7 +189,7 @@ impl<'a> ElementSectionReader<'a> {
     ///
     /// ```no_run
     /// # let data: &[u8] = &[];
-    /// use wasmparser::{ElementSectionReader, ElementKind};
+    /// use wasmparser_nostd::{ElementSectionReader, ElementKind};
     /// let mut element_reader = ElementSectionReader::new(data, 0).unwrap();
     /// for _ in 0..element_reader.get_count() {
     ///     let element = element_reader.read().expect("element");

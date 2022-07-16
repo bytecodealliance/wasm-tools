@@ -58,7 +58,7 @@ impl<'a> ComponentExportSectionReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::ComponentExportSectionReader;
+    /// use wasmparser_nostd::ComponentExportSectionReader;
     ///
     /// # let data: &[u8] = &[0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
     /// let mut reader = ComponentExportSectionReader::new(data, 0).unwrap();
