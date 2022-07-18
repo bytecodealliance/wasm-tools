@@ -273,7 +273,8 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component value type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         match (self, other) {
             (ComponentValType::Primitive(ty), ComponentValType::Primitive(other_ty)) => {
                 ty.is_subtype_of(other_ty)
@@ -331,7 +332,8 @@ pub enum EntityType {
 }
 
 impl EntityType {
-    pub(crate) fn is_subtype_of(&self, b: &Self, types: &TypeList) -> bool {
+    /// Determines if this entity type is a subtype of the given one.
+    pub fn is_subtype_of(&self, b: &Self, types: &TypeList) -> bool {
         macro_rules! limits_match {
             ($a:expr, $b:expr) => {{
                 let a = $a;
@@ -448,7 +450,8 @@ impl ModuleType {
         self.imports.get(&(module, name) as &dyn ModuleImportKey)
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this module type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // For module type subtyping, all exports in the other module type
         // must be present in this module type's exports (i.e. it can export
         // *more* than what this module type needs).
@@ -515,7 +518,8 @@ pub enum ComponentEntityType {
 }
 
 impl ComponentEntityType {
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component entity type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         match (self, other) {
             (Self::Module(ty), Self::Module(other_ty)) => types[*ty]
                 .as_module_type()
@@ -580,7 +584,8 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // For component type subtyping, all exports in the other component type
         // must be present in this component type's exports (i.e. it can export
         // *more* than what this component type needs).
@@ -636,7 +641,8 @@ impl ComponentInstanceType {
         }
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component instance type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         let exports = self.exports(types);
 
         // For instance type subtyping, all exports in the other instance type
@@ -664,7 +670,8 @@ pub struct ComponentFuncType {
 }
 
 impl ComponentFuncType {
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component function type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
 
@@ -834,7 +841,8 @@ impl ComponentDefinedType {
         }
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component defined type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
         match (self, other) {
@@ -1024,7 +1032,7 @@ enum TypesRefKind<'a> {
 
 /// Represents the types known to a [`crate::Validator`] during validation.
 ///
-/// Retrieved via. the [`crate::Validator::types`] method.
+/// Retrieved via the [`crate::Validator::types`] method.
 #[derive(Clone, Copy)]
 pub struct TypesRef<'a> {
     types: &'a TypeList,
@@ -1063,6 +1071,11 @@ impl<'a> TypesRef<'a> {
                 }
             }
         })
+    }
+
+    /// Gets the associated type list.
+    pub fn list(&self) -> &TypeList {
+        self.types
     }
 
     /// Gets a type based on its type id.
@@ -1302,6 +1315,11 @@ impl Types {
         }
     }
 
+    /// Gets the associated type list.
+    pub fn list(&self) -> &TypeList {
+        &self.types
+    }
+
     /// Gets a type based on its type id.
     ///
     /// Returns `None` if the type id is unknown.
@@ -1532,7 +1550,7 @@ impl Types {
 ///
 /// Otherwise, though, this type behaves as if it were a large `Vec<T>`, but
 /// it's represented by lists of contiguous chunks.
-pub(crate) struct SnapshotList<T> {
+pub struct SnapshotList<T> {
     // All previous snapshots, the "head" of the list that this type represents.
     // The first entry in this pair is the starting index for all elements
     // contained in the list, and the second element is the list itself. Note
@@ -1553,7 +1571,7 @@ pub(crate) struct SnapshotList<T> {
 
 impl<T> SnapshotList<T> {
     /// Same as `<&[T]>::get`
-    pub(crate) fn get(&self, index: usize) -> Option<&T> {
+    pub fn get(&self, index: usize) -> Option<&T> {
         // Check to see if this index falls on our local list
         if index >= self.snapshots_total {
             return self.cur.get(index - self.snapshots_total);
@@ -1578,7 +1596,7 @@ impl<T> SnapshotList<T> {
     /// previously-snapshotted list of types. This should never happen in our
     /// context and the panic is intended to weed out possible bugs in
     /// wasmparser.
-    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if index >= self.snapshots_total {
             return self.cur.get_mut(index - self.snapshots_total);
         }
@@ -1586,17 +1604,22 @@ impl<T> SnapshotList<T> {
     }
 
     /// Same as `Vec::push`
-    pub(crate) fn push(&mut self, val: T) {
+    pub fn push(&mut self, val: T) {
         self.cur.push(val);
     }
 
     /// Same as `<[T]>::len`
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.cur.len() + self.snapshots_total
     }
 
+    /// Same as `<[T]>::is_empty`.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Reserve space for an additional count of items.
-    pub(crate) fn reserve(&mut self, additional: usize) {
+    pub fn reserve(&mut self, additional: usize) {
         self.cur.reserve(additional);
     }
 
@@ -1606,7 +1629,7 @@ impl<T> SnapshotList<T> {
     /// The returned `SnapshotList` can be used to access all the same types as
     /// this list itself. This list also is not changed (from an external
     /// perspective) and can continue to access all the same types.
-    pub(crate) fn commit(&mut self) -> SnapshotList<T> {
+    pub fn commit(&mut self) -> SnapshotList<T> {
         // If the current chunk has new elements, commit them in to an
         // `Arc`-wrapped vector in the snapshots list. Note the `shrink_to_fit`
         // ahead of time to hopefully keep memory usage lower than it would
@@ -1664,4 +1687,5 @@ impl<T> Default for SnapshotList<T> {
     }
 }
 
-pub(crate) type TypeList = SnapshotList<Type>;
+/// A snapshot list of types.
+pub type TypeList = SnapshotList<Type>;
