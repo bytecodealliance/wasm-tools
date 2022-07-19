@@ -344,7 +344,6 @@ impl Validator {
     /// Upon success, the type information for the top-level module or component
     /// will be returned.
     pub fn validate_all(&mut self, bytes: &[u8]) -> Result<Types> {
-        //let mut functions_to_validate = Vec::new();
         let mut last_types = None;
         for payload in Parser::new(0).parse_all(bytes) {
             match self.payload(&payload?)? {
@@ -358,10 +357,6 @@ impl Validator {
                 _ => {}
             }
         }
-
-        // for (mut validator, body) in functions_to_validate {
-        //     validator.validate(&body)?;
-        // }
 
         Ok(last_types.unwrap())
     }

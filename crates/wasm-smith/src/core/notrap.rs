@@ -336,17 +336,17 @@ impl Module {
                     }
 
                     Instruction::V128Load8Lane { memarg: _, lane: _ }
-                    | Instruction::V128Load16Lane { memarg: _ , lane: _ }
-                    | Instruction::V128Load32Lane { memarg: _ , lane: _ }
-                    | Instruction::V128Load64Lane { memarg: _ , lane: _ }
-                    | Instruction::V128Store8Lane { memarg: _ , lane: _ }
-                    | Instruction::V128Store16Lane { memarg: _ , lane: _ }
-                    | Instruction::V128Store32Lane { memarg: _ , lane: _ }
-                    | Instruction::V128Store64Lane { memarg: _ , lane: _ } => {
+                    | Instruction::V128Load16Lane { memarg: _, lane: _ }
+                    | Instruction::V128Load32Lane { memarg: _, lane: _ }
+                    | Instruction::V128Load64Lane { memarg: _, lane: _ }
+                    | Instruction::V128Store8Lane { memarg: _, lane: _ }
+                    | Instruction::V128Store16Lane { memarg: _, lane: _ }
+                    | Instruction::V128Store32Lane { memarg: _, lane: _ }
+                    | Instruction::V128Store64Lane { memarg: _, lane: _ } => {
                         return Err(NotSupported { opcode: inst })
                     }
 
-                    Instruction::MemoryCopy { src: _, dst:_ } => todo!(),
+                    Instruction::MemoryCopy { src: _, dst: _ } => todo!(),
                     Instruction::MemoryFill(_) => todo!(),
                     Instruction::MemoryInit { mem: _, data: _ } => todo!(),
 
@@ -524,7 +524,10 @@ impl Module {
                     Instruction::TableFill { table: _ } => todo!(),
                     Instruction::TableSet { table: _ } => todo!(),
                     Instruction::TableGet { table: _ } => todo!(),
-                    Instruction::TableInit { segment: _, table: _ } => todo!(),
+                    Instruction::TableInit {
+                        segment: _,
+                        table: _,
+                    } => todo!(),
                     Instruction::TableCopy { src: _, dst: _ } => todo!(),
 
                     // None of the other instructions can trap, so just copy them over.

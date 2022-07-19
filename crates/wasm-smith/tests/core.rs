@@ -205,7 +205,6 @@ fn smoke_test_no_trapping_mode() {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
         if let Ok(mut module) = Module::arbitrary_take_rest(u) {
-            
             if module.no_traps().is_ok() {
                 let wasm_bytes = module.to_bytes();
                 let mut validator = Validator::new_with_features(wasm_features());
