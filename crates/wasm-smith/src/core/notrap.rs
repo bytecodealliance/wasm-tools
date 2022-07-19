@@ -48,7 +48,7 @@ impl Module {
             })
             .count();
         for (i, code) in self.code.iter_mut().enumerate() {
-            let func_ty = &self.funcs[i + import_count].1;
+            let this_func_ty = &self.funcs[i + import_count].1;
             let mut new_insts = vec![];
 
             let insts = match &mut code.instructions {
@@ -69,7 +69,7 @@ impl Module {
                     // `unreachable`, but also is a ton more work, and it isn't
                     // clear that it would pay for itself.
                     Instruction::Unreachable => {
-                        for ty in &func_ty.results {
+                        for ty in &this_func_ty.results {
                             new_insts.push(dummy_value_inst(*ty));
                         }
                         new_insts.push(Instruction::Return);
@@ -86,10 +86,10 @@ impl Module {
                         // usually an interesting thing to give to a Wasm
                         // compiler. Instead, prefer writing them to the first
                         // page of the first memory if possible.
-                        let func_ty = match &self.types[ty as usize] {
+                        let callee_func_ty = match &self.types[ty as usize] {
                             Type::Func(f) => f,
                         };
-                        let can_store_args_to_memory = func_ty.params.len()
+                        let can_store_args_to_memory = callee_func_ty.params.len()
                             < usize::try_from(WASM_PAGE_SIZE).unwrap()
                             && self.memories.get(0).map_or(false, |m| m.minimum > 0);
                         let memory_64 = self.memories.get(0).map_or(false, |m| m.memory64);
@@ -107,7 +107,7 @@ impl Module {
                         // handle table index if we are able, otherwise drop it
                         if can_store_args_to_memory {
                             let val_to_store =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                             code.locals.push(ValType::I32);
                             new_insts.push(Instruction::LocalSet(val_to_store));
                             new_insts.push(address.clone());
@@ -117,9 +117,9 @@ impl Module {
                             new_insts.push(Instruction::Drop);
                         }
 
-                        for ty in func_ty.params.iter().rev() {
+                        for ty in callee_func_ty.params.iter().rev() {
                             let val_to_store =
-                                u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                                u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
 
                             if let ValType::I32
                             | ValType::I64
@@ -127,8 +127,10 @@ impl Module {
                             | ValType::F64
                             | ValType::V128 = ty
                             {
-                                code.locals.push(*ty);
-                                new_insts.push(Instruction::LocalSet(val_to_store));
+                                if can_store_args_to_memory {
+                                    code.locals.push(*ty);
+                                    new_insts.push(Instruction::LocalSet(val_to_store));
+                                }
                             }
                             match ty {
                                 ValType::I32 if can_store_args_to_memory => {
@@ -162,7 +164,7 @@ impl Module {
                             }
                         }
 
-                        for ty in &func_ty.results {
+                        for ty in &callee_func_ty.results {
                             new_insts.push(dummy_value_inst(*ty));
                         }
                     }
@@ -205,13 +207,13 @@ impl Module {
                         };
                         // Add a temporary local to hold this load's address.
                         let address_local =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(address_type);
 
                         // Add a temporary local to hold the result of this load.
                         let load_type = type_of_memory_access(&inst);
                         let result_local =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(load_type);
 
                         // [address:address_type]
@@ -287,13 +289,13 @@ impl Module {
 
                         // Add a temporary local to hold this store's address.
                         let address_local =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(address_type);
 
                         // Add a temporary local to hold the value to store.
                         let store_type = type_of_memory_access(&inst);
                         let value_local =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(store_type);
 
                         // [address:address_type value:store_type]
@@ -363,7 +365,7 @@ impl Module {
                     | Instruction::I32DivU => {
                         let op_type = type_of_integer_operation(&inst);
                         let temp_divisor =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
 
                         // [dividend:op_type divisor:op_type]
@@ -395,7 +397,7 @@ impl Module {
                         // If divisor is 0, replace with 1
                         let op_type = type_of_integer_operation(&inst);
                         let temp_divisor =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
 
                         // [dividend:op_type divisor:op_type]
@@ -415,7 +417,7 @@ impl Module {
                         // If dividend and divisor are -int.max and -1, replace
                         // divisor with 1?
                         let temp_dividend =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
                         new_insts.push(Instruction::LocalSet(temp_divisor));
                         // [dividend:op_type]
@@ -478,7 +480,7 @@ impl Module {
                         // If NaN or ±inf, replace with dummy value
                         let conv_type = type_of_float_conversion(&inst);
                         let temp_float =
-                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(conv_type);
 
                         // [input:conv_type]
