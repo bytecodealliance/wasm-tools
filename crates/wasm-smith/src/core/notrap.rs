@@ -5,6 +5,22 @@ use wasm_encoder::{BlockType, Instruction, ValType};
 
 const WASM_PAGE_SIZE: u64 = 65_536;
 
+#[derive(Debug)]
+pub struct NotSupported<'a> {
+    opcode: wasm_encoder::Instruction<'a>,
+}
+
+impl std::error::Error for NotSupported<'_> {}
+impl std::fmt::Display for NotSupported<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Opcode not supported for no-trapping mode: {:?}",
+            self.opcode
+        )
+    }
+}
+
 impl Module {
     /// Ensure that this generated module will never trap.
     ///
@@ -20,12 +36,19 @@ impl Module {
     ///
     /// * Masking data and element segments' offsets to be in bounds of their
     /// associated tables or memories
-    ///
-    /// TODO: floating point conversion instructions that trap
-    pub fn no_traps(&mut self) {
+    pub fn no_traps(&mut self) -> std::result::Result<(), NotSupported> {
         self.no_trapping_segments();
 
+        let import_count = self
+            .imports
+            .iter()
+            .filter(|imp| match imp.entity_type {
+                EntityType::Func(_, _) => true,
+                _ => false,
+            })
+            .count();
         for (i, code) in self.code.iter_mut().enumerate() {
+            let func_ty = &self.funcs[i + import_count].1;
             let mut new_insts = vec![];
 
             let insts = match &mut code.instructions {
@@ -46,7 +69,6 @@ impl Module {
                     // `unreachable`, but also is a ton more work, and it isn't
                     // clear that it would pay for itself.
                     Instruction::Unreachable => {
-                        let func_ty = &self.funcs[i].1;
                         for ty in &func_ty.results {
                             new_insts.push(dummy_value_inst(*ty));
                         }
@@ -59,13 +81,14 @@ impl Module {
                     // `call_indirect` instructions. Instead, we consume the
                     // arguments and generate dummy results.
                     Instruction::CallIndirect { ty, table } => {
-                        let func_ty = &self.funcs[i].1;
-
                         // When we can, avoid emitting `drop`s to consume the
                         // arguments when possible, since dead code isn't
                         // usually an interesting thing to give to a Wasm
                         // compiler. Instead, prefer writing them to the first
                         // page of the first memory if possible.
+                        let func_ty = match &self.types[ty as usize] {
+                            Type::Func(f) => f,
+                        };
                         let can_store_args_to_memory = func_ty.params.len()
                             < usize::try_from(WASM_PAGE_SIZE).unwrap()
                             && self.memories.get(0).map_or(false, |m| m.minimum > 0);
@@ -81,26 +104,56 @@ impl Module {
                             memory_index: 0,
                         };
 
+                        // handle table index if we are able, otherwise drop it
+                        if can_store_args_to_memory {
+                            let val_to_store =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+                            code.locals.push(ValType::I32);
+                            new_insts.push(Instruction::LocalSet(val_to_store));
+                            new_insts.push(address.clone());
+                            new_insts.push(Instruction::LocalGet(val_to_store));
+                            new_insts.push(Instruction::I32Store(memarg));
+                        } else {
+                            new_insts.push(Instruction::Drop);
+                        }
+
                         for ty in func_ty.params.iter().rev() {
+                            let val_to_store =
+                                u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
+
+                            if let ValType::I32
+                            | ValType::I64
+                            | ValType::F32
+                            | ValType::F64
+                            | ValType::V128 = ty
+                            {
+                                code.locals.push(*ty);
+                                new_insts.push(Instruction::LocalSet(val_to_store));
+                            }
                             match ty {
                                 ValType::I32 if can_store_args_to_memory => {
                                     new_insts.push(address.clone());
+                                    new_insts.push(Instruction::LocalGet(val_to_store));
                                     new_insts.push(Instruction::I32Store(memarg));
                                 }
                                 ValType::I64 if can_store_args_to_memory => {
                                     new_insts.push(address.clone());
+                                    new_insts.push(Instruction::LocalGet(val_to_store));
                                     new_insts.push(Instruction::I64Store(memarg));
                                 }
                                 ValType::F32 if can_store_args_to_memory => {
                                     new_insts.push(address.clone());
+                                    new_insts.push(Instruction::LocalGet(val_to_store));
                                     new_insts.push(Instruction::F32Store(memarg));
                                 }
                                 ValType::F64 if can_store_args_to_memory => {
                                     new_insts.push(address.clone());
+                                    new_insts.push(Instruction::LocalGet(val_to_store));
                                     new_insts.push(Instruction::F64Store(memarg));
                                 }
                                 ValType::V128 if can_store_args_to_memory => {
                                     new_insts.push(address.clone());
+                                    new_insts.push(Instruction::LocalGet(val_to_store));
                                     new_insts.push(Instruction::V128Store { memarg });
                                 }
                                 _ => {
@@ -150,14 +203,15 @@ impl Module {
                         } else {
                             ValType::I32
                         };
-
                         // Add a temporary local to hold this load's address.
-                        let address_local = u32::try_from(code.locals.len()).unwrap();
+                        let address_local =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(address_type);
 
                         // Add a temporary local to hold the result of this load.
                         let load_type = type_of_memory_access(&inst);
-                        let result_local = u32::try_from(code.locals.len()).unwrap();
+                        let result_local =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(load_type);
 
                         // [address:address_type]
@@ -232,12 +286,14 @@ impl Module {
                         };
 
                         // Add a temporary local to hold this store's address.
-                        let address_local = u32::try_from(code.locals.len()).unwrap();
+                        let address_local =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(address_type);
 
                         // Add a temporary local to hold the value to store.
                         let store_type = type_of_memory_access(&inst);
-                        let value_local = u32::try_from(code.locals.len()).unwrap();
+                        let value_local =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(store_type);
 
                         // [address:address_type value:store_type]
@@ -262,10 +318,9 @@ impl Module {
                         // [mem_size_in_bytes:address_type highest_byte_accessed:address_type]
                         new_insts.push(int_le_u_inst(address_type));
                         // [store_will_trap:i32]
-                        new_insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
+                        new_insts.push(Instruction::If(BlockType::Empty));
+                        new_insts.push(Instruction::Else);
                         {
-                            // [store_will_trap:i32]
-                            new_insts.push(Instruction::BrIf(0));
                             // []
                             new_insts.push(Instruction::LocalGet(address_local));
                             // [address:address_type]
@@ -278,34 +333,37 @@ impl Module {
                         new_insts.push(Instruction::End);
                     }
 
-                    Instruction::V128Load8Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Load16Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Load32Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Load64Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Store8Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Store16Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Store32Lane { memarg, lane: _ } => todo!(),
-                    Instruction::V128Store64Lane { memarg, lane: _ } => todo!(),
+                    Instruction::V128Load8Lane { memarg, lane: _ }
+                    | Instruction::V128Load16Lane { memarg, lane: _ }
+                    | Instruction::V128Load32Lane { memarg, lane: _ }
+                    | Instruction::V128Load64Lane { memarg, lane: _ }
+                    | Instruction::V128Store8Lane { memarg, lane: _ }
+                    | Instruction::V128Store16Lane { memarg, lane: _ }
+                    | Instruction::V128Store32Lane { memarg, lane: _ }
+                    | Instruction::V128Store64Lane { memarg, lane: _ } => {
+                        return Err(NotSupported { opcode: inst })
+                    }
 
                     Instruction::MemoryCopy { src, dst } => todo!(),
                     Instruction::MemoryFill(_) => todo!(),
                     Instruction::MemoryInit { mem, data } => todo!(),
 
-                    /*
-                    Unsigned integer division and remainder will trap when
-                    the divisor is 0. To avoid the trap, we will set any 0
-                    divisors to 1 prior to the operation
-                    The code below is equivalent to this expression:
+                    // /*
+                    // Unsigned integer division and remainder will trap when
+                    // the divisor is 0. To avoid the trap, we will set any 0
+                    // divisors to 1 prior to the operation
+                    // The code below is equivalent to this expression:
 
-                        local.set $temp_divisor
-                        (select (i32.eqz (local.get $temp_divisor) (i32.const 1) (local.get $temp_divisor))
-                    */
+                    //     local.set $temp_divisor
+                    //     (select (i32.eqz (local.get $temp_divisor) (i32.const 1) (local.get $temp_divisor))
+                    // */
                     Instruction::I32RemU
                     | Instruction::I64RemU
                     | Instruction::I64DivU
                     | Instruction::I32DivU => {
                         let op_type = type_of_integer_operation(&inst);
-                        let temp_divisor = u32::try_from(code.locals.len()).unwrap();
+                        let temp_divisor =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
 
                         // [dividend:op_type divisor:op_type]
@@ -325,18 +383,19 @@ impl Module {
                         // [result:op_type]
                     }
 
-                    /*
-                    Signed division and remainder will trap in the following instances:
-                        - The divisor is 0
-                        - The result of the division is 2^(n-1)
-                    */
+                    // /*
+                    // Signed division and remainder will trap in the following instances:
+                    //     - The divisor is 0
+                    //     - The result of the division is 2^(n-1)
+                    // */
                     Instruction::I32DivS
                     | Instruction::I32RemS
                     | Instruction::I64DivS
                     | Instruction::I64RemS => {
                         // If divisor is 0, replace with 1
                         let op_type = type_of_integer_operation(&inst);
-                        let temp_divisor = u32::try_from(code.locals.len()).unwrap();
+                        let temp_divisor =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
 
                         // [dividend:op_type divisor:op_type]
@@ -355,12 +414,21 @@ impl Module {
 
                         // If dividend and divisor are -int.max and -1, replace
                         // divisor with 1?
-                        let temp_dividend = u32::try_from(code.locals.len()).unwrap();
+                        let temp_dividend =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
+                        new_insts.push(Instruction::LocalSet(temp_divisor));
+                        // [dividend:op_type]
+                        new_insts.push(Instruction::LocalSet(temp_dividend));
+                        // []
                         new_insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
                         {
                             new_insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
                             {
+                                // []
+                                new_insts.push(Instruction::LocalGet(temp_dividend));
+                                // [dividend:op_type]
+                                new_insts.push(Instruction::LocalGet(temp_divisor));
                                 // [dividend:op_type divisor:op_type]
                                 new_insts.push(Instruction::LocalSet(temp_divisor));
                                 // [dividend:op_type]
@@ -380,22 +448,21 @@ impl Module {
                                 // [not_neg_one:i32]
                                 new_insts.push(Instruction::BrIf(0));
                                 // []
-                                new_insts.push(Instruction::LocalGet(temp_dividend));
-                                // [dividend:op_type]
                                 new_insts.push(int_const_inst(op_type, 1));
-                                // [dividend:op_type divisor:op_type]
+                                // [divisor:op_type]
+                                new_insts.push(Instruction::LocalSet(temp_divisor));
+                                // []
                                 new_insts.push(Instruction::Br(1));
                             }
                             // []
                             new_insts.push(Instruction::End);
-                            // []
-                            new_insts.push(Instruction::LocalGet(temp_dividend));
-                            // [dividend:op_type]
-                            new_insts.push(Instruction::LocalGet(temp_divisor));
-                            // [dividend:op_type divisor:op_type]
                         }
-                        // [dividend:op_type divisor:op_type]
+                        // []
                         new_insts.push(Instruction::End);
+                        // []
+                        new_insts.push(Instruction::LocalGet(temp_dividend));
+                        // [dividend:op_type]
+                        new_insts.push(Instruction::LocalGet(temp_divisor));
                         // [dividend:op_type divisor:op_type]
                         new_insts.push(inst);
                     }
@@ -410,7 +477,8 @@ impl Module {
                     | Instruction::I64TruncF64U => {
                         // If NaN or ±inf, replace with dummy value
                         let conv_type = type_of_float_conversion(&inst);
-                        let temp_float = u32::try_from(code.locals.len()).unwrap();
+                        let temp_float =
+                            u32::try_from(func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(conv_type);
 
                         // [input:conv_type]
@@ -441,18 +509,16 @@ impl Module {
                             // []
                             new_insts.push(dummy_value_inst(conv_type));
                             // [0:conv_type]
-                        }
-                        new_insts.push(Instruction::Else);
-                        {
+                            new_insts.push(Instruction::LocalSet(temp_float));
                             // []
-                            new_insts.push(Instruction::LocalGet(temp_float));
-                            // [input:conv_type]
                         }
                         new_insts.push(Instruction::End);
+                        // []
+                        new_insts.push(Instruction::LocalGet(temp_float));
+
                         // [input_or_0:conv_type]
                         new_insts.push(inst);
                     }
-
                     Instruction::TableFill { table } => todo!(),
                     Instruction::TableSet { table } => todo!(),
                     Instruction::TableGet { table } => todo!(),
@@ -466,6 +532,7 @@ impl Module {
 
             code.instructions = Instructions::Generated(new_insts);
         }
+        Ok(())
     }
 
     /// Mask data and element segments' offsets to be in bounds of their
@@ -508,7 +575,17 @@ impl Module {
                                 .unwrap_or(0);
                             *offset = Instruction::I64Const(n as i64);
                         }
-                        _ => unreachable!(),
+                        Instruction::GlobalGet(_) => {
+                            *offset = int_const_inst(
+                                if mem.memory64 {
+                                    ValType::I64
+                                } else {
+                                    ValType::I32
+                                },
+                                0,
+                            );
+                        }
+                        _ => unreachable!("Unexpected instruction: {:?}", offset),
                     }
                 }
             }
@@ -545,6 +622,9 @@ impl Module {
                             let n = *n as u32;
                             let n = n.checked_rem(table.minimum - elem_len).unwrap_or(0);
                             *offset = Instruction::I32Const(n as i32);
+                        }
+                        Instruction::GlobalGet(_) => {
+                            *offset = Instruction::I32Const(0);
                         }
                         _ => unreachable!(),
                     }

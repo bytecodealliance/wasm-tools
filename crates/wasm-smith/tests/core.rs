@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use std::collections::HashMap;
+use std::{collections::HashMap, fs};
 use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Parser, TypeRef, ValType, Validator, WasmFeatures};
 
@@ -195,6 +195,33 @@ fn smoke_test_imports_config() {
     }
     assert!(global_imports_seen.values().all(|v| *v));
     assert!(n_partial > 0);
+}
+
+#[test]
+fn smoke_test_no_trapping_mode() {
+    let mut rng = SmallRng::seed_from_u64(0);
+    let mut buf = vec![0; 128];
+    for _ in 0..102400 {
+        rng.fill_bytes(&mut buf);
+        let u = Unstructured::new(&buf);
+        if let Ok(mut module) = Module::arbitrary_take_rest(u) {
+            
+            let before = format!("BEFORE ------------ {:#?}", module);
+            if module.no_traps().is_ok() {
+                let after = format!("AFTER ------------ {:#?}", module);
+                let wasm_bytes = module.to_bytes();
+                let mut validator = Validator::new_with_features(wasm_features());
+                if validator.validate_all(&wasm_bytes).is_err() {
+                    fs::write("/tmp/before", before).expect("Unable to write file");
+                    fs::write("/tmp/after", after).expect("Unable to write file");
+                    // eprintln!("{}", before);
+                    // eprintln!("{}", after);
+                }
+                let mut validator = Validator::new_with_features(wasm_features());
+                validate(&mut validator, &wasm_bytes);
+            }
+        }
+    }
 }
 
 fn wasm_features() -> WasmFeatures {
