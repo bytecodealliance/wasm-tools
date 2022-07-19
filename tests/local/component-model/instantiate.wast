@@ -74,6 +74,13 @@
 )
 
 (component
+  (type $t string)
+  (import "a" (value (type $t)))
+  (component $c (import "a" (value string)) (export "a" (value 0)))
+  (instance (instantiate $c (with "a" (value 0))))
+)
+
+(component
   (import "a" (component $m
     (import "" (instance
       (export "a" (core module))

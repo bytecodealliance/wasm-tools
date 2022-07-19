@@ -282,7 +282,18 @@ impl ComponentValType {
                 .as_defined_type()
                 .unwrap()
                 .is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
-            _ => false,
+            (ComponentValType::Primitive(ty), ComponentValType::Type(other_ty)) => {
+                match types[*other_ty].as_defined_type().unwrap() {
+                    ComponentDefinedType::Primitive(other_ty) => ty.is_subtype_of(other_ty),
+                    _ => false,
+                }
+            }
+            (ComponentValType::Type(ty), ComponentValType::Primitive(other_ty)) => {
+                match types[*ty].as_defined_type().unwrap() {
+                    ComponentDefinedType::Primitive(ty) => ty.is_subtype_of(other_ty),
+                    _ => false,
+                }
+            }
         }
     }
 
