@@ -41,6 +41,29 @@
 
 (assert_invalid
   (component
+    (core module $m
+      (memory (export "memory") 1)
+      (func (export "roundtrip") (param i32))
+    )
+    (core instance $m (instantiate $m))
+
+    (type $roundtrip (func
+      (param u32) (param u32) (param u32) (param u32) (param u32)
+      (param u32) (param u32) (param u32) (param u32) (param u32)
+      (param u32) (param u32) (param u32) (param u32) (param u32)
+      (param u32) (param u32) (param u32) (param u32) (param u32)
+    ))
+
+    (func $roundtrip (type $roundtrip)
+      (canon lift (core func $m "roundtrip") (memory $m "memory"))
+    )
+    (export "roundtrip" (func $roundtrip))
+  )
+  "canonical option `realloc` is required"
+)
+
+(assert_invalid
+  (component
     (import "" (func $log (result string)))
     (core module $libc
       (memory (export "memory") 1)
