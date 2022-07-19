@@ -273,7 +273,12 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component value type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         match (self, other) {
             (ComponentValType::Primitive(ty), ComponentValType::Primitive(other_ty)) => {
                 ty.is_subtype_of(other_ty)
@@ -281,7 +286,7 @@ impl ComponentValType {
             (ComponentValType::Type(ty), ComponentValType::Type(other_ty)) => types[*ty]
                 .as_defined_type()
                 .unwrap()
-                .is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
+                .internal_is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
             (ComponentValType::Primitive(ty), ComponentValType::Type(other_ty)) => {
                 match types[*other_ty].as_defined_type().unwrap() {
                     ComponentDefinedType::Primitive(other_ty) => ty.is_subtype_of(other_ty),
@@ -331,7 +336,12 @@ pub enum EntityType {
 }
 
 impl EntityType {
-    pub(crate) fn is_subtype_of(&self, b: &Self, types: &TypeList) -> bool {
+    /// Determines if this entity type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, b: &Self, types: &TypeList) -> bool {
         macro_rules! limits_match {
             ($a:expr, $b:expr) => {{
                 let a = $a;
@@ -448,7 +458,12 @@ impl ModuleType {
         self.imports.get(&(module, name) as &dyn ModuleImportKey)
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this module type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // For module type subtyping, all exports in the other module type
         // must be present in this module type's exports (i.e. it can export
         // *more* than what this module type needs).
@@ -457,14 +472,14 @@ impl ModuleType {
         self.imports
             .iter()
             .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other.is_subtype_of(ty, types),
+                Some(other) => other.internal_is_subtype_of(ty, types),
                 None => false,
             })
             && other
                 .exports
                 .iter()
                 .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.is_subtype_of(other, types),
+                    Some(ty) => ty.internal_is_subtype_of(other, types),
                     None => false,
                 })
     }
@@ -515,32 +530,37 @@ pub enum ComponentEntityType {
 }
 
 impl ComponentEntityType {
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component entity type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         match (self, other) {
             (Self::Module(ty), Self::Module(other_ty)) => types[*ty]
                 .as_module_type()
                 .unwrap()
-                .is_subtype_of(types[*other_ty].as_module_type().unwrap(), types),
+                .internal_is_subtype_of(types[*other_ty].as_module_type().unwrap(), types),
             (Self::Func(ty), Self::Func(other_ty)) => types[*ty]
                 .as_component_func_type()
                 .unwrap()
-                .is_subtype_of(types[*other_ty].as_component_func_type().unwrap(), types),
-            (Self::Value(ty), Self::Value(other_ty)) => ty.is_subtype_of(other_ty, types),
+                .internal_is_subtype_of(types[*other_ty].as_component_func_type().unwrap(), types),
+            (Self::Value(ty), Self::Value(other_ty)) => ty.internal_is_subtype_of(other_ty, types),
             (Self::Type(ty), Self::Type(other_ty)) => types[*ty]
                 .as_defined_type()
                 .unwrap()
-                .is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
+                .internal_is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
             (Self::Instance(ty), Self::Instance(other_ty)) => types[*ty]
                 .as_component_instance_type()
                 .unwrap()
-                .is_subtype_of(
+                .internal_is_subtype_of(
                     types[*other_ty].as_component_instance_type().unwrap(),
                     types,
                 ),
             (Self::Component(ty), Self::Component(other_ty)) => types[*ty]
                 .as_component_type()
                 .unwrap()
-                .is_subtype_of(types[*other_ty].as_component_type().unwrap(), types),
+                .internal_is_subtype_of(types[*other_ty].as_component_type().unwrap(), types),
             _ => false,
         }
     }
@@ -580,7 +600,12 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // For component type subtyping, all exports in the other component type
         // must be present in this component type's exports (i.e. it can export
         // *more* than what this component type needs).
@@ -589,14 +614,14 @@ impl ComponentType {
         self.imports
             .iter()
             .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other.is_subtype_of(ty, types),
+                Some(other) => other.internal_is_subtype_of(ty, types),
                 None => false,
             })
             && other
                 .exports
                 .iter()
                 .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.is_subtype_of(other, types),
+                    Some(ty) => ty.internal_is_subtype_of(other, types),
                     None => false,
                 })
     }
@@ -636,7 +661,12 @@ impl ComponentInstanceType {
         }
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component instance type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         let exports = self.exports(types);
 
         // For instance type subtyping, all exports in the other instance type
@@ -646,7 +676,7 @@ impl ComponentInstanceType {
             .exports(types)
             .iter()
             .all(|(k, other)| match exports.get(k) {
-                Some(ty) => ty.is_subtype_of(other, types),
+                Some(ty) => ty.internal_is_subtype_of(other, types),
                 None => false,
             })
     }
@@ -664,12 +694,17 @@ pub struct ComponentFuncType {
 }
 
 impl ComponentFuncType {
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component function type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
 
         // Covariant on return type
-        if !self.result.is_subtype_of(&other.result, types) {
+        if !self.result.internal_is_subtype_of(&other.result, types) {
             return false;
         }
 
@@ -684,7 +719,7 @@ impl ComponentFuncType {
                 return false;
             }
 
-            if !other_ty.is_subtype_of(ty, types) {
+            if !other_ty.internal_is_subtype_of(ty, types) {
                 return false;
             }
         }
@@ -834,7 +869,12 @@ impl ComponentDefinedType {
         }
     }
 
-    pub(crate) fn is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    /// Determines if this component defined type is a subtype of the given one.
+    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
+        self.internal_is_subtype_of(other, types.list)
+    }
+
+    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
         // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
         match (self, other) {
@@ -842,7 +882,7 @@ impl ComponentDefinedType {
             (Self::Record(r), Self::Record(other_r)) => {
                 for (name, ty) in r.fields.iter() {
                     if let Some(other_ty) = other_r.fields.get(name) {
-                        if !ty.is_subtype_of(other_ty, types) {
+                        if !ty.internal_is_subtype_of(other_ty, types) {
                             return false;
                         }
                     } else {
@@ -861,7 +901,7 @@ impl ComponentDefinedType {
                 for (name, case) in v.cases.iter() {
                     if let Some(other_case) = other_v.cases.get(name) {
                         // Covariant subtype on the case type
-                        if !case.ty.is_subtype_of(&other_case.ty, types) {
+                        if !case.ty.internal_is_subtype_of(&other_case.ty, types) {
                             return false;
                         }
                     } else if let Some(refines) = &case.refines {
@@ -878,7 +918,7 @@ impl ComponentDefinedType {
                 true
             }
             (Self::List(ty), Self::List(other_ty)) | (Self::Option(ty), Self::Option(other_ty)) => {
-                ty.is_subtype_of(other_ty, types)
+                ty.internal_is_subtype_of(other_ty, types)
             }
             (Self::Tuple(t), Self::Tuple(other_t)) => {
                 if t.types.len() != other_t.types.len() {
@@ -887,7 +927,7 @@ impl ComponentDefinedType {
                 t.types
                     .iter()
                     .zip(other_t.types.iter())
-                    .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
+                    .all(|(ty, other_ty)| ty.internal_is_subtype_of(other_ty, types))
             }
             (Self::Union(u), Self::Union(other_u)) => {
                 if u.types.len() != other_u.types.len() {
@@ -896,12 +936,13 @@ impl ComponentDefinedType {
                 u.types
                     .iter()
                     .zip(other_u.types.iter())
-                    .all(|(ty, other_ty)| ty.is_subtype_of(other_ty, types))
+                    .all(|(ty, other_ty)| ty.internal_is_subtype_of(other_ty, types))
             }
             (Self::Flags(set), Self::Flags(other_set))
             | (Self::Enum(set), Self::Enum(other_set)) => set.is_subset(other_set),
             (Self::Expected(ok, error), Self::Expected(other_ok, other_error)) => {
-                ok.is_subtype_of(other_ok, types) && error.is_subtype_of(other_error, types)
+                ok.internal_is_subtype_of(other_ok, types)
+                    && error.internal_is_subtype_of(other_error, types)
             }
             _ => false,
         }
@@ -1012,7 +1053,7 @@ enum TypesKind {
 ///
 /// The type information is returned via the [`crate::Validator::end`] method.
 pub struct Types {
-    types: TypeList,
+    list: TypeList,
     kind: TypesKind,
 }
 
@@ -1024,24 +1065,24 @@ enum TypesRefKind<'a> {
 
 /// Represents the types known to a [`crate::Validator`] during validation.
 ///
-/// Retrieved via. the [`crate::Validator::types`] method.
+/// Retrieved via the [`crate::Validator::types`] method.
 #[derive(Clone, Copy)]
 pub struct TypesRef<'a> {
-    types: &'a TypeList,
+    list: &'a TypeList,
     kind: TypesRefKind<'a>,
 }
 
 impl<'a> TypesRef<'a> {
     pub(crate) fn from_module(types: &'a TypeList, module: &'a Module) -> Self {
         Self {
-            types,
+            list: types,
             kind: TypesRefKind::Module(module),
         }
     }
 
     pub(crate) fn from_component(types: &'a TypeList, component: &'a ComponentState) -> Self {
         Self {
-            types,
+            list: types,
             kind: TypesRefKind::Component(component),
         }
     }
@@ -1069,7 +1110,7 @@ impl<'a> TypesRef<'a> {
     ///
     /// Returns `None` if the type id is unknown.
     pub fn type_from_id(&self, id: TypeId) -> Option<&'a Type> {
-        self.types.get(id.index)
+        self.list.get(id.index)
     }
 
     /// Gets a type id from a type index.
@@ -1149,7 +1190,7 @@ impl<'a> TypesRef<'a> {
         };
 
         Some(
-            self.types[*tags.get(index as usize)?]
+            self.list[*tags.get(index as usize)?]
                 .as_func_type()
                 .unwrap(),
         )
@@ -1167,7 +1208,7 @@ impl<'a> TypesRef<'a> {
             TypesRefKind::Component(component) => component.core_funcs.get(index as usize)?,
         };
 
-        match &self.types[*id] {
+        match &self.list[*id] {
             Type::Func(ty) => Some(ty),
             _ => None,
         }
@@ -1192,7 +1233,7 @@ impl<'a> TypesRef<'a> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => Some(
-                self.types[*component.funcs.get(index as usize)?]
+                self.list[*component.funcs.get(index as usize)?]
                     .as_component_func_type()
                     .unwrap(),
             ),
@@ -1207,7 +1248,7 @@ impl<'a> TypesRef<'a> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => Some(
-                self.types[*component.core_modules.get(index as usize)?]
+                self.list[*component.core_modules.get(index as usize)?]
                     .as_module_type()
                     .unwrap(),
             ),
@@ -1223,7 +1264,7 @@ impl<'a> TypesRef<'a> {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => {
                 let id = component.core_instances.get(index as usize)?;
-                match &self.types[*id] {
+                match &self.list[*id] {
                     Type::Instance(ty) => Some(ty),
                     _ => None,
                 }
@@ -1239,7 +1280,7 @@ impl<'a> TypesRef<'a> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => Some(
-                self.types[*component.components.get(index as usize)?]
+                self.list[*component.components.get(index as usize)?]
                     .as_component_type()
                     .unwrap(),
             ),
@@ -1255,7 +1296,7 @@ impl<'a> TypesRef<'a> {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => {
                 let id = component.instances.get(index as usize)?;
-                match &self.types[*id] {
+                match &self.list[*id] {
                     Type::ComponentInstance(ty) => Some(ty),
                     _ => None,
                 }
@@ -1280,21 +1321,22 @@ impl<'a> TypesRef<'a> {
 impl Types {
     pub(crate) fn from_module(types: TypeList, module: Arc<Module>) -> Self {
         Self {
-            types,
+            list: types,
             kind: TypesKind::Module(module),
         }
     }
 
     pub(crate) fn from_component(types: TypeList, component: ComponentState) -> Self {
         Self {
-            types,
+            list: types,
             kind: TypesKind::Component(component),
         }
     }
 
-    fn as_ref(&self) -> TypesRef {
+    /// Gets a reference to this validation type information.
+    pub fn as_ref(&self) -> TypesRef {
         TypesRef {
-            types: &self.types,
+            list: &self.list,
             kind: match &self.kind {
                 TypesKind::Module(module) => TypesRefKind::Module(module),
                 TypesKind::Component(component) => TypesRefKind::Component(component),
@@ -1664,4 +1706,5 @@ impl<T> Default for SnapshotList<T> {
     }
 }
 
+/// A snapshot list of types.
 pub(crate) type TypeList = SnapshotList<Type>;
