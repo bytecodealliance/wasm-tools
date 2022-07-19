@@ -206,17 +206,8 @@ fn smoke_test_no_trapping_mode() {
         let u = Unstructured::new(&buf);
         if let Ok(mut module) = Module::arbitrary_take_rest(u) {
             
-            let before = format!("BEFORE ------------ {:#?}", module);
             if module.no_traps().is_ok() {
-                let after = format!("AFTER ------------ {:#?}", module);
                 let wasm_bytes = module.to_bytes();
-                let mut validator = Validator::new_with_features(wasm_features());
-                if validator.validate_all(&wasm_bytes).is_err() {
-                    fs::write("/tmp/before", before).expect("Unable to write file");
-                    fs::write("/tmp/after", after).expect("Unable to write file");
-                    // eprintln!("{}", before);
-                    // eprintln!("{}", after);
-                }
                 let mut validator = Validator::new_with_features(wasm_features());
                 validate(&mut validator, &wasm_bytes);
             }

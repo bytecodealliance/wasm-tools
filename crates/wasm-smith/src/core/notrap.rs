@@ -1,5 +1,3 @@
-#![allow(unused_variables)] // TODO FITZGEN
-
 use crate::core::*;
 use wasm_encoder::{BlockType, Instruction, ValType};
 
@@ -80,7 +78,7 @@ impl Module {
                     // `call_indirect`s. Therefore, we can't emit *any*
                     // `call_indirect` instructions. Instead, we consume the
                     // arguments and generate dummy results.
-                    Instruction::CallIndirect { ty, table } => {
+                    Instruction::CallIndirect { ty, table: _ } => {
                         // When we can, avoid emitting `drop`s to consume the
                         // arguments when possible, since dead code isn't
                         // usually an interesting thing to give to a Wasm
@@ -107,7 +105,8 @@ impl Module {
                         // handle table index if we are able, otherwise drop it
                         if can_store_args_to_memory {
                             let val_to_store =
-                            u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
+                                u32::try_from(this_func_ty.params.len() + code.locals.len())
+                                    .unwrap();
                             code.locals.push(ValType::I32);
                             new_insts.push(Instruction::LocalSet(val_to_store));
                             new_insts.push(address.clone());
@@ -119,7 +118,8 @@ impl Module {
 
                         for ty in callee_func_ty.params.iter().rev() {
                             let val_to_store =
-                                u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
+                                u32::try_from(this_func_ty.params.len() + code.locals.len())
+                                    .unwrap();
 
                             if let ValType::I32
                             | ValType::I64
@@ -335,20 +335,20 @@ impl Module {
                         new_insts.push(Instruction::End);
                     }
 
-                    Instruction::V128Load8Lane { memarg, lane: _ }
-                    | Instruction::V128Load16Lane { memarg, lane: _ }
-                    | Instruction::V128Load32Lane { memarg, lane: _ }
-                    | Instruction::V128Load64Lane { memarg, lane: _ }
-                    | Instruction::V128Store8Lane { memarg, lane: _ }
-                    | Instruction::V128Store16Lane { memarg, lane: _ }
-                    | Instruction::V128Store32Lane { memarg, lane: _ }
-                    | Instruction::V128Store64Lane { memarg, lane: _ } => {
+                    Instruction::V128Load8Lane { memarg: _, lane: _ }
+                    | Instruction::V128Load16Lane { memarg: _ , lane: _ }
+                    | Instruction::V128Load32Lane { memarg: _ , lane: _ }
+                    | Instruction::V128Load64Lane { memarg: _ , lane: _ }
+                    | Instruction::V128Store8Lane { memarg: _ , lane: _ }
+                    | Instruction::V128Store16Lane { memarg: _ , lane: _ }
+                    | Instruction::V128Store32Lane { memarg: _ , lane: _ }
+                    | Instruction::V128Store64Lane { memarg: _ , lane: _ } => {
                         return Err(NotSupported { opcode: inst })
                     }
 
-                    Instruction::MemoryCopy { src, dst } => todo!(),
+                    Instruction::MemoryCopy { src: _, dst:_ } => todo!(),
                     Instruction::MemoryFill(_) => todo!(),
-                    Instruction::MemoryInit { mem, data } => todo!(),
+                    Instruction::MemoryInit { mem: _, data: _ } => todo!(),
 
                     // /*
                     // Unsigned integer division and remainder will trap when
@@ -521,11 +521,11 @@ impl Module {
                         // [input_or_0:conv_type]
                         new_insts.push(inst);
                     }
-                    Instruction::TableFill { table } => todo!(),
-                    Instruction::TableSet { table } => todo!(),
-                    Instruction::TableGet { table } => todo!(),
-                    Instruction::TableInit { segment, table } => todo!(),
-                    Instruction::TableCopy { src, dst } => todo!(),
+                    Instruction::TableFill { table: _ } => todo!(),
+                    Instruction::TableSet { table: _ } => todo!(),
+                    Instruction::TableGet { table: _ } => todo!(),
+                    Instruction::TableInit { segment: _, table: _ } => todo!(),
+                    Instruction::TableCopy { src: _, dst: _ } => todo!(),
 
                     // None of the other instructions can trap, so just copy them over.
                     inst => new_insts.push(inst),
