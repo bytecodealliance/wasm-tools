@@ -464,10 +464,12 @@ impl ComponentState {
 
         for (i, ((_, ty), arg)) in ft.params.iter().zip(args).enumerate() {
             // Ensure the value's type is a subtype of the parameter type
-            if !self
-                .value_at(*arg, offset)?
-                .internal_is_subtype_of(ty, types)
-            {
+            if !ComponentValType::internal_is_subtype_of(
+                self.value_at(*arg, offset)?,
+                types,
+                ty,
+                types,
+            ) {
                 return Err(BinaryReaderError::new(
                     format!(
                         "value type mismatch for component start function argument {}",
@@ -1011,7 +1013,7 @@ impl ComponentState {
                 }
             }
 
-            if !arg.internal_is_subtype_of(expected, types) {
+            if !EntityType::internal_is_subtype_of(arg, types, expected, types) {
                 return Err(BinaryReaderError::new(
                     format!(
                         "{} type mismatch for export `{}` of module instantiation argument `{}`",
@@ -1147,7 +1149,7 @@ impl ComponentState {
                         }
                     };
 
-                    if !arg.internal_is_subtype_of(expected, types) {
+                    if !ComponentEntityType::internal_is_subtype_of(arg, types, expected, types) {
                         return Err(BinaryReaderError::new(
                             format!(
                                 "{} type mismatch for component instantiation argument `{}`",

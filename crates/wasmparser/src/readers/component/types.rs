@@ -166,13 +166,13 @@ impl PrimitiveValType {
         matches!(self, Self::String)
     }
 
-    /// Determines if this primitive value type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self) -> bool {
+    /// Determines if primitive value type `a` is a subtype of `b`.
+    pub fn is_subtype_of(a: Self, b: Self) -> bool {
         // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
-        self == other
+        a == b
             || matches!(
-                (self, other),
+                (a, b),
                 (_, Self::Unit)
                     | (Self::S8, Self::S16)
                     | (Self::S8, Self::S32)

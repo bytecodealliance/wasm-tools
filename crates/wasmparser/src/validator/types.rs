@@ -273,29 +273,33 @@ impl ComponentValType {
         }
     }
 
-    /// Determines if this component value type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    /// Determines if component value type `a` is a subtype of `b`.
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
-        match (self, other) {
-            (ComponentValType::Primitive(ty), ComponentValType::Primitive(other_ty)) => {
-                ty.is_subtype_of(other_ty)
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
+        match (a, b) {
+            (ComponentValType::Primitive(a), ComponentValType::Primitive(b)) => {
+                PrimitiveValType::is_subtype_of(*a, *b)
             }
-            (ComponentValType::Type(ty), ComponentValType::Type(other_ty)) => types[*ty]
-                .as_defined_type()
-                .unwrap()
-                .internal_is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
-            (ComponentValType::Primitive(ty), ComponentValType::Type(other_ty)) => {
-                match types[*other_ty].as_defined_type().unwrap() {
-                    ComponentDefinedType::Primitive(other_ty) => ty.is_subtype_of(other_ty),
+            (ComponentValType::Type(a), ComponentValType::Type(b)) => {
+                ComponentDefinedType::internal_is_subtype_of(
+                    at[*a].as_defined_type().unwrap(),
+                    at,
+                    bt[*b].as_defined_type().unwrap(),
+                    bt,
+                )
+            }
+            (ComponentValType::Primitive(a), ComponentValType::Type(b)) => {
+                match bt[*b].as_defined_type().unwrap() {
+                    ComponentDefinedType::Primitive(b) => PrimitiveValType::is_subtype_of(*a, *b),
                     _ => false,
                 }
             }
-            (ComponentValType::Type(ty), ComponentValType::Primitive(other_ty)) => {
-                match types[*ty].as_defined_type().unwrap() {
-                    ComponentDefinedType::Primitive(ty) => ty.is_subtype_of(other_ty),
+            (ComponentValType::Type(a), ComponentValType::Primitive(b)) => {
+                match at[*a].as_defined_type().unwrap() {
+                    ComponentDefinedType::Primitive(a) => PrimitiveValType::is_subtype_of(*a, *b),
                     _ => false,
                 }
             }
@@ -336,12 +340,12 @@ pub enum EntityType {
 }
 
 impl EntityType {
-    /// Determines if this entity type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    /// Determines if entity type `a` is a subtype of `b`.
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, b: &Self, types: &TypeList) -> bool {
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         macro_rules! limits_match {
             ($a:expr, $b:expr) => {{
                 let a = $a;
@@ -357,9 +361,9 @@ impl EntityType {
             }};
         }
 
-        match (self, b) {
+        match (a, b) {
             (EntityType::Func(a), EntityType::Func(b)) => {
-                types[*a].as_func_type().unwrap() == types[*b].as_func_type().unwrap()
+                at[*a].as_func_type().unwrap() == bt[*b].as_func_type().unwrap()
             }
             (EntityType::Table(a), EntityType::Table(b)) => {
                 a.element_type == b.element_type && limits_match!(a, b)
@@ -369,7 +373,7 @@ impl EntityType {
             }
             (EntityType::Global(a), EntityType::Global(b)) => a == b,
             (EntityType::Tag(a), EntityType::Tag(b)) => {
-                types[*a].as_func_type().unwrap() == types[*b].as_func_type().unwrap()
+                at[*a].as_func_type().unwrap() == bt[*b].as_func_type().unwrap()
             }
             _ => false,
         }
@@ -458,30 +462,24 @@ impl ModuleType {
         self.imports.get(&(module, name) as &dyn ModuleImportKey)
     }
 
-    /// Determines if this module type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    /// Determines if module type `a` is a subtype of `b`.
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         // For module type subtyping, all exports in the other module type
         // must be present in this module type's exports (i.e. it can export
         // *more* than what this module type needs).
         // However, for imports, the check is reversed (i.e. it is okay
         // to import *less* than what this module type needs).
-        self.imports
-            .iter()
-            .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other.internal_is_subtype_of(ty, types),
-                None => false,
-            })
-            && other
-                .exports
-                .iter()
-                .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.internal_is_subtype_of(other, types),
-                    None => false,
-                })
+        a.imports.iter().all(|(k, a)| match b.imports.get(k) {
+            Some(b) => EntityType::internal_is_subtype_of(b, bt, a, at),
+            None => false,
+        }) && b.exports.iter().all(|(k, b)| match a.exports.get(k) {
+            Some(a) => EntityType::internal_is_subtype_of(a, at, b, bt),
+            None => false,
+        })
     }
 }
 
@@ -530,37 +528,48 @@ pub enum ComponentEntityType {
 }
 
 impl ComponentEntityType {
-    /// Determines if this component entity type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    /// Determines if component entity type `a` is a subtype of `b`.
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
-        match (self, other) {
-            (Self::Module(ty), Self::Module(other_ty)) => types[*ty]
-                .as_module_type()
-                .unwrap()
-                .internal_is_subtype_of(types[*other_ty].as_module_type().unwrap(), types),
-            (Self::Func(ty), Self::Func(other_ty)) => types[*ty]
-                .as_component_func_type()
-                .unwrap()
-                .internal_is_subtype_of(types[*other_ty].as_component_func_type().unwrap(), types),
-            (Self::Value(ty), Self::Value(other_ty)) => ty.internal_is_subtype_of(other_ty, types),
-            (Self::Type(ty), Self::Type(other_ty)) => types[*ty]
-                .as_defined_type()
-                .unwrap()
-                .internal_is_subtype_of(types[*other_ty].as_defined_type().unwrap(), types),
-            (Self::Instance(ty), Self::Instance(other_ty)) => types[*ty]
-                .as_component_instance_type()
-                .unwrap()
-                .internal_is_subtype_of(
-                    types[*other_ty].as_component_instance_type().unwrap(),
-                    types,
-                ),
-            (Self::Component(ty), Self::Component(other_ty)) => types[*ty]
-                .as_component_type()
-                .unwrap()
-                .internal_is_subtype_of(types[*other_ty].as_component_type().unwrap(), types),
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
+        match (a, b) {
+            (Self::Module(a), Self::Module(b)) => ModuleType::internal_is_subtype_of(
+                at[*a].as_module_type().unwrap(),
+                at,
+                bt[*b].as_module_type().unwrap(),
+                bt,
+            ),
+            (Self::Func(a), Self::Func(b)) => ComponentFuncType::internal_is_subtype_of(
+                at[*a].as_component_func_type().unwrap(),
+                at,
+                bt[*b].as_component_func_type().unwrap(),
+                bt,
+            ),
+            (Self::Value(a), Self::Value(b)) => {
+                ComponentValType::internal_is_subtype_of(a, at, b, bt)
+            }
+            (Self::Type(a), Self::Type(b)) => ComponentDefinedType::internal_is_subtype_of(
+                at[*a].as_defined_type().unwrap(),
+                at,
+                bt[*b].as_defined_type().unwrap(),
+                bt,
+            ),
+            (Self::Instance(a), Self::Instance(b)) => {
+                ComponentInstanceType::internal_is_subtype_of(
+                    at[*a].as_component_instance_type().unwrap(),
+                    at,
+                    bt[*b].as_component_instance_type().unwrap(),
+                    bt,
+                )
+            }
+            (Self::Component(a), Self::Component(b)) => ComponentType::internal_is_subtype_of(
+                at[*a].as_component_type().unwrap(),
+                at,
+                bt[*b].as_component_type().unwrap(),
+                bt,
+            ),
             _ => false,
         }
     }
@@ -600,30 +609,24 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    /// Determines if this component type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    /// Determines if component type `a` is a subtype of `b`.
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         // For component type subtyping, all exports in the other component type
         // must be present in this component type's exports (i.e. it can export
         // *more* than what this component type needs).
         // However, for imports, the check is reversed (i.e. it is okay
         // to import *less* than what this component type needs).
-        self.imports
-            .iter()
-            .all(|(k, ty)| match other.imports.get(k) {
-                Some(other) => other.internal_is_subtype_of(ty, types),
-                None => false,
-            })
-            && other
-                .exports
-                .iter()
-                .all(|(k, other)| match self.exports.get(k) {
-                    Some(ty) => ty.internal_is_subtype_of(other, types),
-                    None => false,
-                })
+        a.imports.iter().all(|(k, a)| match b.imports.get(k) {
+            Some(b) => ComponentEntityType::internal_is_subtype_of(b, bt, a, at),
+            None => false,
+        }) && b.exports.iter().all(|(k, b)| match a.exports.get(k) {
+            Some(a) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
+            None => false,
+        })
     }
 }
 
@@ -662,23 +665,20 @@ impl ComponentInstanceType {
     }
 
     /// Determines if this component instance type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
-        let exports = self.exports(types);
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
+        let exports = a.exports(at);
 
         // For instance type subtyping, all exports in the other instance type
         // must be present in this instance type's exports (i.e. it can export
         // *more* than what this instance type needs).
-        other
-            .exports(types)
-            .iter()
-            .all(|(k, other)| match exports.get(k) {
-                Some(ty) => ty.internal_is_subtype_of(other, types),
-                None => false,
-            })
+        b.exports(bt).iter().all(|(k, b)| match exports.get(k) {
+            Some(a) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
+            None => false,
+        })
     }
 }
 
@@ -695,42 +695,41 @@ pub struct ComponentFuncType {
 
 impl ComponentFuncType {
     /// Determines if this component function type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         // Subtyping rules:
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
 
         // Covariant on return type
-        if !self.result.internal_is_subtype_of(&other.result, types) {
+        if !ComponentValType::internal_is_subtype_of(&a.result, at, &b.result, bt) {
             return false;
         }
 
         // The supertype cannot have fewer parameters than the subtype.
-        if other.params.len() < self.params.len() {
+        if b.params.len() < a.params.len() {
             return false;
         }
 
         // All overlapping parameters must have the same name and are contravariant subtypes
-        for ((name, ty), (other_name, other_ty)) in self.params.iter().zip(other.params.iter()) {
-            if name != other_name {
+        for ((an, a), (bn, b)) in a.params.iter().zip(b.params.iter()) {
+            if an != bn {
                 return false;
             }
 
-            if !other_ty.internal_is_subtype_of(ty, types) {
+            if !ComponentValType::internal_is_subtype_of(b, bt, a, at) {
                 return false;
             }
         }
 
         // All remaining parameters in the supertype must be optional
         // All superfluous parameters in the subtype are ignored
-        other
-            .params
+        b.params
             .iter()
-            .skip(self.params.len())
-            .all(|(_, ty)| ty.is_optional(types))
+            .skip(a.params.len())
+            .all(|(_, b)| b.is_optional(bt))
     }
 
     /// Lowers the component function type to core parameter and result types for the
@@ -875,19 +874,19 @@ impl ComponentDefinedType {
     }
 
     /// Determines if this component defined type is a subtype of the given one.
-    pub fn is_subtype_of(&self, other: &Self, types: TypesRef) -> bool {
-        self.internal_is_subtype_of(other, types.list)
+    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+        Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
-    pub(crate) fn internal_is_subtype_of(&self, other: &Self, types: &TypeList) -> bool {
+    pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         // Subtyping rules according to
         // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
-        match (self, other) {
-            (Self::Primitive(ty), Self::Primitive(other_ty)) => ty.is_subtype_of(other_ty),
-            (Self::Record(r), Self::Record(other_r)) => {
-                for (name, ty) in r.fields.iter() {
-                    if let Some(other_ty) = other_r.fields.get(name) {
-                        if !ty.internal_is_subtype_of(other_ty, types) {
+        match (a, b) {
+            (Self::Primitive(a), Self::Primitive(b)) => PrimitiveValType::is_subtype_of(*a, *b),
+            (Self::Record(a), Self::Record(b)) => {
+                for (name, a) in a.fields.iter() {
+                    if let Some(b) = b.fields.get(name) {
+                        if !ComponentValType::internal_is_subtype_of(a, at, b, bt) {
                             return false;
                         }
                     } else {
@@ -895,22 +894,22 @@ impl ComponentDefinedType {
                     }
                 }
                 // Check for missing required fields in the supertype
-                for (other_name, other_ty) in other_r.fields.iter() {
-                    if !other_ty.is_optional(types) && !r.fields.contains_key(other_name) {
+                for (name, b) in b.fields.iter() {
+                    if !b.is_optional(bt) && !a.fields.contains_key(name) {
                         return false;
                     }
                 }
                 true
             }
-            (Self::Variant(v), Self::Variant(other_v)) => {
-                for (name, case) in v.cases.iter() {
-                    if let Some(other_case) = other_v.cases.get(name) {
+            (Self::Variant(a), Self::Variant(b)) => {
+                for (name, a) in a.cases.iter() {
+                    if let Some(b) = b.cases.get(name) {
                         // Covariant subtype on the case type
-                        if !case.ty.internal_is_subtype_of(&other_case.ty, types) {
+                        if !ComponentValType::internal_is_subtype_of(&a.ty, at, &b.ty, bt) {
                             return false;
                         }
-                    } else if let Some(refines) = &case.refines {
-                        if !other_v.cases.contains_key(refines) {
+                    } else if let Some(refines) = &a.refines {
+                        if !b.cases.contains_key(refines) {
                             // The refined value is not in the supertype
                             return false;
                         }
@@ -922,32 +921,31 @@ impl ComponentDefinedType {
                 }
                 true
             }
-            (Self::List(ty), Self::List(other_ty)) | (Self::Option(ty), Self::Option(other_ty)) => {
-                ty.internal_is_subtype_of(other_ty, types)
+            (Self::List(a), Self::List(b)) | (Self::Option(a), Self::Option(b)) => {
+                ComponentValType::internal_is_subtype_of(a, at, b, bt)
             }
-            (Self::Tuple(t), Self::Tuple(other_t)) => {
-                if t.types.len() != other_t.types.len() {
+            (Self::Tuple(a), Self::Tuple(b)) => {
+                if a.types.len() != b.types.len() {
                     return false;
                 }
-                t.types
+                a.types
                     .iter()
-                    .zip(other_t.types.iter())
-                    .all(|(ty, other_ty)| ty.internal_is_subtype_of(other_ty, types))
+                    .zip(b.types.iter())
+                    .all(|(a, b)| ComponentValType::internal_is_subtype_of(a, at, b, bt))
             }
-            (Self::Union(u), Self::Union(other_u)) => {
-                if u.types.len() != other_u.types.len() {
+            (Self::Union(a), Self::Union(b)) => {
+                if a.types.len() != b.types.len() {
                     return false;
                 }
-                u.types
+                a.types
                     .iter()
-                    .zip(other_u.types.iter())
-                    .all(|(ty, other_ty)| ty.internal_is_subtype_of(other_ty, types))
+                    .zip(b.types.iter())
+                    .all(|(a, b)| ComponentValType::internal_is_subtype_of(a, at, b, bt))
             }
-            (Self::Flags(set), Self::Flags(other_set))
-            | (Self::Enum(set), Self::Enum(other_set)) => set.is_subset(other_set),
-            (Self::Expected(ok, error), Self::Expected(other_ok, other_error)) => {
-                ok.internal_is_subtype_of(other_ok, types)
-                    && error.internal_is_subtype_of(other_error, types)
+            (Self::Flags(a), Self::Flags(b)) | (Self::Enum(a), Self::Enum(b)) => a.is_subset(b),
+            (Self::Expected(ao, ae), Self::Expected(bo, be)) => {
+                ComponentValType::internal_is_subtype_of(ao, at, bo, bt)
+                    && ComponentValType::internal_is_subtype_of(ae, at, be, bt)
             }
             _ => false,
         }
