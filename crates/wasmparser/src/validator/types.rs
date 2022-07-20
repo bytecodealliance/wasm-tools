@@ -502,7 +502,15 @@ pub struct InstanceType {
 }
 
 impl InstanceType {
-    pub(crate) fn exports<'a>(&'a self, types: &'a TypeList) -> &'a IndexMap<String, EntityType> {
+    /// Gets the exports of the instance type.
+    pub fn exports<'a>(&'a self, types: TypesRef<'a>) -> &'a IndexMap<String, EntityType> {
+        self.internal_exports(types.list)
+    }
+
+    pub(crate) fn internal_exports<'a>(
+        &'a self,
+        types: &'a TypeList,
+    ) -> &'a IndexMap<String, EntityType> {
         match &self.kind {
             InstanceTypeKind::Instantiated(id) => &types[*id].as_module_type().unwrap().exports,
             InstanceTypeKind::Exports(exports) => exports,
@@ -651,7 +659,12 @@ pub struct ComponentInstanceType {
 }
 
 impl ComponentInstanceType {
-    pub(crate) fn exports<'a>(
+    /// Gets the exports of the instance type.
+    pub fn exports<'a>(&'a self, types: TypesRef<'a>) -> &'a IndexMap<String, ComponentEntityType> {
+        self.internal_exports(types.list)
+    }
+
+    pub(crate) fn internal_exports<'a>(
         &'a self,
         types: &'a TypeList,
     ) -> &'a IndexMap<String, ComponentEntityType> {
@@ -670,15 +683,17 @@ impl ComponentInstanceType {
     }
 
     pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
-        let exports = a.exports(at);
+        let exports = a.internal_exports(at);
 
         // For instance type subtyping, all exports in the other instance type
         // must be present in this instance type's exports (i.e. it can export
         // *more* than what this instance type needs).
-        b.exports(bt).iter().all(|(k, b)| match exports.get(k) {
-            Some(a) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
-            None => false,
-        })
+        b.internal_exports(bt)
+            .iter()
+            .all(|(k, b)| match exports.get(k) {
+                Some(a) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
+                None => false,
+            })
     }
 }
 

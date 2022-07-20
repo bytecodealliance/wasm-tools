@@ -984,15 +984,18 @@ impl ComponentState {
                 )
             })?;
 
-            let arg = instance.exports(types).get(name.as_str()).ok_or_else(|| {
-                BinaryReaderError::new(
-                    format!(
-                        "module instantiation argument `{}` does not export an item named `{}`",
-                        module, name,
-                    ),
-                    offset,
-                )
-            })?;
+            let arg = instance
+                .internal_exports(types)
+                .get(name.as_str())
+                .ok_or_else(|| {
+                    BinaryReaderError::new(
+                        format!(
+                            "module instantiation argument `{}` does not export an item named `{}`",
+                            module, name,
+                        ),
+                        offset,
+                    )
+                })?;
 
             match (arg, expected) {
                 (EntityType::Func(_), EntityType::Func(_)) |
@@ -1894,7 +1897,7 @@ impl ComponentState {
         match types[self.instance_at(instance_index, offset)?]
             .as_component_instance_type()
             .unwrap()
-            .exports(types)
+            .internal_exports(types)
             .get(name)
         {
             Some(export) => Ok(export),
@@ -1981,7 +1984,7 @@ impl ComponentState {
         match types[self.core_instance_at(instance_index, offset)?]
             .as_instance_type()
             .unwrap()
-            .exports(types)
+            .internal_exports(types)
             .get(name)
         {
             Some(export) => Ok(export),

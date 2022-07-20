@@ -223,7 +223,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
 fn collect_benchmark_inputs() -> Vec<BenchmarkInput> {
     let mut ret = Vec::new();
     collect_test_files("../../tests".as_ref(), &mut ret).unwrap();
-    return ret;
+    ret
 }
 
 fn it_works_benchmark(c: &mut Criterion) {
