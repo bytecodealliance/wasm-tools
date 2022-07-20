@@ -1,6 +1,6 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use std::{collections::HashMap, fs};
+use std::collections::HashMap;
 use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
 use wasmparser::{Parser, TypeRef, ValType, Validator, WasmFeatures};
 
