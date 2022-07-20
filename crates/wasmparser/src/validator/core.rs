@@ -189,8 +189,10 @@ impl ModuleState {
                 offset_expr,
             } => {
                 let table = self.module.table_at(table_index, offset)?;
-                // This should be updated to matches(...) but Daniel has lock
-                if e.ty != table.element_type {
+                if !self
+                    .module
+                    .matches(ValType::Ref(e.ty), ValType::Ref(table.element_type), types)
+                {
                     return Err(BinaryReaderError::new(
                         format!(
                             "invalid element type {:?} for table type {:?}",
@@ -724,6 +726,58 @@ impl Module {
         Ok(())
     }
 
+    pub(crate) fn matches(&self, t1: ValType, t2: ValType, types: &TypeList) -> bool {
+        fn eq_fns(f1: &impl WasmFuncType, f2: &impl WasmFuncType) -> bool {
+            f1.len_inputs() == f2.len_inputs()
+                && f2.len_outputs() == f2.len_outputs()
+                && f1.inputs().zip(f2.inputs()).all(|(t1, t2)| t1 == t2)
+                && f1.outputs().zip(f2.outputs()).all(|(t1, t2)| t1 == t2)
+        }
+
+        fn matches_null(null1: bool, null2: bool) -> bool {
+            null1 == null2 || null2
+        }
+
+        // Actually, function equality is not simple. It may include a reference,
+        // which itself requires function equality.  Cycles? idk
+        let heap_subtype = |t1: HeapType, t2: HeapType| match (t1, t2) {
+            (HeapType::Index(_) | HeapType::Func, HeapType::Func) => true,
+            (HeapType::Extern, HeapType::Func) => {
+                eprintln!("WARNING: i'm not sure if extern is a func type");
+                false
+            }
+            (HeapType::Index(i1), HeapType::Index(i2))
+                if match (
+                    self.func_type_at(i1, types, 0),
+                    self.func_type_at(i2, types, 0),
+                ) {
+                    (Ok(t1), Ok(t2)) => eq_fns(t1, t2),
+                    _ => false,
+                } =>
+            {
+                true
+            }
+            _ => false,
+        };
+        match (t1, t2) {
+            _ if t1 == t2 => true,
+            (ValType::Ref(r1), ValType::Ref(r2)) => match (r1, r2) {
+                (
+                    RefType {
+                        nullable: nl1,
+                        heap_type: ht1,
+                    },
+                    RefType {
+                        nullable: nl2,
+                        heap_type: ht2,
+                    },
+                ) if heap_subtype(ht1, ht2) && matches_null(nl1, nl2) => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
     fn check_tag_type(
         &self,
         ty: &TagType,
@@ -954,6 +1008,10 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.element_types.get(at as usize).cloned()
     }
 
+    fn matches(&self, t1: ValType, t2: ValType) -> bool {
+        self.module.matches(t1, t2, self.types)
+    }
+
     fn element_count(&self) -> u32 {
         self.module.element_types.len() as u32
     }
@@ -1017,6 +1075,10 @@ impl WasmModuleResources for ValidatorResources {
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         self.0.element_types.get(at as usize).cloned()
+    }
+
+    fn matches(&self, t1: ValType, t2: ValType) -> bool {
+        self.0.matches(t1, t2, self.0.snapshot.as_ref().unwrap())
     }
 
     fn element_count(&self) -> u32 {

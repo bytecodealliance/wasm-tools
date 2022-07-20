@@ -217,6 +217,8 @@ pub trait WasmModuleResources {
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType>;
     /// Returns the element type at the given index.
     fn element_type_at(&self, at: u32) -> Option<RefType>;
+    /// Returns whether t1 <= t2 under function references proposal
+    fn matches(&self, t1: ValType, t2: ValType) -> bool;
     /// Check a value type. This requires using func_type_at to check references
     fn check_value_type(
         &self,
@@ -271,6 +273,9 @@ where
     }
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
+    }
+    fn matches(&self, t1: ValType, t2: ValType) -> bool {
+        T::matches(self, t1, t2)
     }
 
     fn element_count(&self) -> u32 {
@@ -329,6 +334,10 @@ where
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
+    }
+
+    fn matches(&self, t1: ValType, t2: ValType) -> bool {
+        T::matches(self, t1, t2)
     }
 
     fn element_count(&self) -> u32 {

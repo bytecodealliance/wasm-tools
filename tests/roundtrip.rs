@@ -258,9 +258,7 @@ impl TestState {
                         || t == "let-bad.wast"
                         || t == "func_bind.wast"
                         // These should work as far as i know, but don't yet
-                        // Needs subtyping on elements (Daniel has lock on subtyping)
-                        || t == "ref_is_null.wast"
-                        // Needs subtyping on elements too, i think
+                        // ???
                         || t == "br_table.wast"
                         // The test seems to assume parsing occurs before validation
                         || t == "binary.wast"
