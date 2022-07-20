@@ -1160,6 +1160,17 @@ instructions! {
     }
 }
 
+impl<'a> Instruction<'a> {
+    pub(crate) fn needs_data_count(&self) -> bool {
+        match self {
+            Instruction::MemoryInit(_) |
+            Instruction::DataDrop(_) |
+            Instruction::ArrayNewData(_) => true,
+            _ => false,
+        }
+    }
+}
+
 /// Extra information associated with block-related instructions.
 ///
 /// This is used to label blocks and also annotate what types are expected for
