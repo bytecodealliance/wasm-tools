@@ -1,7 +1,11 @@
 //! Types relating to type information provided by validation.
 
 use super::{component::ComponentState, core::Module};
-use crate::{FuncType, GlobalType, MemoryType, PrimitiveValType, TableType, ValType};
+use crate::{
+    ComponentExport, ComponentExternalKind, ComponentImport, ComponentTypeRef, Export,
+    ExternalKind, FuncType, GlobalType, Import, MemoryType, PrimitiveValType, TableType, TypeRef,
+    ValType,
+};
 use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Borrow,
@@ -1334,6 +1338,110 @@ impl<'a> TypesRef<'a> {
             }
         }
     }
+
+    /// Gets the entity type for the given import.
+    pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(match import.ty {
+                TypeRef::Func(idx) => EntityType::Func(*module.types.get(idx as usize)?),
+                TypeRef::Table(ty) => EntityType::Table(ty),
+                TypeRef::Memory(ty) => EntityType::Memory(ty),
+                TypeRef::Global(ty) => EntityType::Global(ty),
+                TypeRef::Tag(ty) => EntityType::Tag(*module.types.get(ty.func_type_idx as usize)?),
+            }),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
+    /// Gets the entity type from the given export.
+    pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(match export.kind {
+                ExternalKind::Func => EntityType::Func(
+                    module.types[*module.functions.get(export.index as usize)? as usize],
+                ),
+                ExternalKind::Table => {
+                    EntityType::Table(*module.tables.get(export.index as usize)?)
+                }
+                ExternalKind::Memory => {
+                    EntityType::Memory(*module.memories.get(export.index as usize)?)
+                }
+                ExternalKind::Global => {
+                    EntityType::Global(*module.globals.get(export.index as usize)?)
+                }
+                ExternalKind::Tag => EntityType::Tag(
+                    module.types[*module.functions.get(export.index as usize)? as usize],
+                ),
+            }),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
+    /// Gets the component entity type for the given component import.
+    pub fn component_entity_type_from_import(
+        &self,
+        import: &ComponentImport,
+    ) -> Option<ComponentEntityType> {
+        match &self.kind {
+            TypesRefKind::Module(_) => None,
+            TypesRefKind::Component(component) => Some(match import.ty {
+                ComponentTypeRef::Module(idx) => {
+                    ComponentEntityType::Module(*component.core_types.get(idx as usize)?)
+                }
+                ComponentTypeRef::Func(idx) => {
+                    ComponentEntityType::Func(*component.types.get(idx as usize)?)
+                }
+                ComponentTypeRef::Value(ty) => ComponentEntityType::Value(match ty {
+                    crate::ComponentValType::Primitive(ty) => ComponentValType::Primitive(ty),
+                    crate::ComponentValType::Type(idx) => {
+                        ComponentValType::Type(*component.types.get(idx as usize)?)
+                    }
+                }),
+                ComponentTypeRef::Type(_, idx) => {
+                    ComponentEntityType::Type(*component.types.get(idx as usize)?)
+                }
+                ComponentTypeRef::Instance(idx) => {
+                    ComponentEntityType::Instance(*component.types.get(idx as usize)?)
+                }
+                ComponentTypeRef::Component(idx) => {
+                    ComponentEntityType::Component(*component.types.get(idx as usize)?)
+                }
+            }),
+        }
+    }
+
+    /// Gets the component entity type from the given component export.
+    pub fn component_entity_type_from_export(
+        &self,
+        export: &ComponentExport,
+    ) -> Option<ComponentEntityType> {
+        match &self.kind {
+            TypesRefKind::Module(_) => None,
+            TypesRefKind::Component(component) => Some(match export.kind {
+                ComponentExternalKind::Module => {
+                    ComponentEntityType::Module(*component.core_modules.get(export.index as usize)?)
+                }
+                ComponentExternalKind::Func => {
+                    ComponentEntityType::Func(*component.funcs.get(export.index as usize)?)
+                }
+                ComponentExternalKind::Value => ComponentEntityType::Value(
+                    component
+                        .values
+                        .get(export.index as usize)
+                        .map(|(r, _)| *r)?,
+                ),
+                ComponentExternalKind::Type => {
+                    ComponentEntityType::Type(*component.types.get(export.index as usize)?)
+                }
+                ComponentExternalKind::Instance => {
+                    ComponentEntityType::Instance(*component.instances.get(export.index as usize)?)
+                }
+                ComponentExternalKind::Component => ComponentEntityType::Component(
+                    *component.components.get(export.index as usize)?,
+                ),
+            }),
+        }
+    }
 }
 
 impl Types {
@@ -1578,6 +1686,32 @@ impl Types {
             TypesKind::Module(_) => 0,
             TypesKind::Component(component) => component.values.len(),
         }
+    }
+
+    /// Gets the entity type from the given import.
+    pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
+        self.as_ref().entity_type_from_import(import)
+    }
+
+    /// Gets the entity type from the given export.
+    pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
+        self.as_ref().entity_type_from_export(export)
+    }
+
+    /// Gets the component entity type for the given component import.
+    pub fn component_entity_type_from_import(
+        &self,
+        import: &ComponentImport,
+    ) -> Option<ComponentEntityType> {
+        self.as_ref().component_entity_type_from_import(import)
+    }
+
+    /// Gets the component entity type from the given component export.
+    pub fn component_entity_type_from_export(
+        &self,
+        export: &ComponentExport,
+    ) -> Option<ComponentEntityType> {
+        self.as_ref().component_entity_type_from_export(export)
     }
 }
 
