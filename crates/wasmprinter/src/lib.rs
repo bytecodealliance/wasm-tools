@@ -638,6 +638,7 @@ impl Printer {
             ValType::F64 => self.result.push_str("f64"),
             ValType::V128 => self.result.push_str("v128"),
             ValType::Ref(rt) => self.print_reftype(rt)?,
+            ValType::Bot => self.result.push_str("bot"),
         }
         Ok(())
     }
@@ -657,6 +658,7 @@ impl Printer {
             HeapType::Func => self.result.push_str("func"),
             HeapType::Extern => self.result.push_str("extern"),
             HeapType::Index(i) => self.result.push_str(&format!("{}", i)),
+            HeapType::Bot => self.result.push_str("bot"),
         }
         Ok(())
     }

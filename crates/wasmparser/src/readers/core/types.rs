@@ -32,8 +32,10 @@ pub enum ValType {
     /// The value type is a reference. Which type of reference is decided by
     /// RefType. This is a change in syntax from the function references proposal,
     /// which now provides FuncRef and ExternRef as sugar for the generic ref
-    /// construct
+    /// construct.
     Ref(RefType),
+    /// Special bottom type.
+    Bot,
 }
 
 /// Reference type from function references
@@ -55,6 +57,8 @@ pub enum HeapType {
     Func,
     /// From reference types
     Extern,
+    /// Special bottom heap type
+    Bot,
 }
 
 /// An internal shortcut for the desugaring of (funcref)

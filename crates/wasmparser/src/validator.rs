@@ -250,7 +250,7 @@ impl WasmFeatures {
     /// types. Use module.check_value_type.
     pub(crate) fn check_value_type(&self, ty: ValType) -> Result<(), &'static str> {
         match ty {
-            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 => Ok(()),
+            ValType::Bot | ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 => Ok(()),
             ValType::Ref(r) => {
                 if self.reference_types {
                     if !self.function_references {

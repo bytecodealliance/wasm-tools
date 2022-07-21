@@ -411,7 +411,7 @@ impl OperatorValidator {
         resources: impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         match heap_type {
-            HeapType::Func | HeapType::Extern => (),
+            HeapType::Func | HeapType::Extern | HeapType::Bot => (),
             HeapType::Index(type_index) => {
                 // Just check that the index is valid
                 func_type_at(&resources, type_index)?;
@@ -852,18 +852,20 @@ impl OperatorValidator {
                 self.pop_operand(Some(ValType::I32), resources)?;
                 let ty1 = self.pop_operand(None, resources)?;
                 let ty2 = self.pop_operand(None, resources)?;
-                fn is_num(ty: Option<ValType>) -> bool {
-                    matches!(
-                        ty,
-                        Some(ValType::I32)
-                            | Some(ValType::I64)
-                            | Some(ValType::F32)
-                            | Some(ValType::F64)
-                            | Some(ValType::V128)
-                            | None
-                    )
+                fn is_num_opt(ty: Option<ValType>) -> bool {
+                    match ty {
+                        None => true,
+                        Some(ty) => matches!(
+                            ty,
+                            ValType::I32
+                                | ValType::I64
+                                | ValType::F32
+                                | ValType::F64
+                                | ValType::Bot
+                        ),
+                    }
                 }
-                if !is_num(ty1) || !is_num(ty2) {
+                if !is_num_opt(ty1) || !is_num_opt(ty2) {
                     bail_op_err!("type mismatch: select only takes integral types")
                 }
                 if ty1 != ty2 && ty1 != None && ty2 != None {
@@ -2381,6 +2383,7 @@ fn label_types(
 
 fn ty_to_str(ty: ValType) -> String {
     match ty {
+        ValType::Bot => "bot".into(),
         ValType::I32 => "i32".into(),
         ValType::I64 => "i64".into(),
         ValType::F32 => "f32".into(),
@@ -2399,6 +2402,7 @@ fn ty_to_str(ty: ValType) -> String {
                     HeapType::Func => "func".into(),
                     HeapType::Extern => "extern".into(),
                     HeapType::Index(i) => format!("{}", i),
+                    HeapType::Bot => "bot".into(),
                 }
             ),
         },

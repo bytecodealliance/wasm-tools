@@ -182,6 +182,7 @@ impl ModuleState {
                 }
             }
             HeapType::Func | HeapType::Extern => {}
+            HeapType::Bot => panic!("Unexpected bot"),
         }
         match e.kind {
             ElementKind::Active {
@@ -611,6 +612,7 @@ impl Module {
                 }
                 self.func_type_at(i, types, offset)?;
             }
+            HeapType::Bot => todo!(),
         }
         self.check_limits(ty.initial, ty.maximum, offset)?;
         if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {
@@ -722,11 +724,27 @@ impl Module {
                 // Just check that the index is valid
                 self.func_type_at(type_index, types, offset)?;
             }
+            HeapType::Bot => (),
         }
         Ok(())
     }
 
-    pub(crate) fn matches(&self, t1: ValType, t2: ValType, types: &TypeList) -> bool {
+    pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
+        fn is_num(ty: ValType) -> bool {
+            matches!(
+                ty,
+                ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::Bot
+            )
+        }
+
+        fn is_vec(ty: ValType) -> bool {
+            ty == ValType::V128
+        }
+
+        fn is_ref(ty: ValType) -> bool {
+            !(is_num(ty) || is_vec(ty)) || ty == ValType::Bot
+        }
+
         fn eq_fns(f1: &impl WasmFuncType, f2: &impl WasmFuncType) -> bool {
             f1.len_inputs() == f2.len_inputs()
                 && f2.len_outputs() == f2.len_outputs()
@@ -738,43 +756,34 @@ impl Module {
             null1 == null2 || null2
         }
 
-        // Actually, function equality is not simple. It may include a reference,
-        // which itself requires function equality.  Cycles? idk
-        let heap_subtype = |t1: HeapType, t2: HeapType| match (t1, t2) {
-            (HeapType::Index(_) | HeapType::Func, HeapType::Func) => true,
-            (HeapType::Extern, HeapType::Func) => {
-                eprintln!("WARNING: i'm not sure if extern is a func type");
-                false
+        let matches_heap = |ty1: HeapType, ty2: HeapType, types: &TypeList| -> bool {
+            match (ty1, ty2) {
+                (HeapType::Index(n1), HeapType::Index(n2)) => {
+                    // Check whether the defined types are (structurally) equivalent.
+                    let n1 = self
+                        .func_type_at(n1, types, 0)
+                        .expect("TODO fixme bad type");
+                    let n2 = self
+                        .func_type_at(n2, types, 0)
+                        .expect("TODO fixme bad type");
+                    eq_fns(n1, n2)
+                }
+                (HeapType::Index(_), HeapType::Func) => true,
+                (HeapType::Bot, _) => true,
+                (_, _) => ty1 == ty2,
             }
-            (HeapType::Index(i1), HeapType::Index(i2))
-                if match (
-                    self.func_type_at(i1, types, 0),
-                    self.func_type_at(i2, types, 0),
-                ) {
-                    (Ok(t1), Ok(t2)) => eq_fns(t1, t2),
-                    _ => false,
-                } =>
-            {
-                true
-            }
-            _ => false,
         };
-        match (t1, t2) {
-            _ if t1 == t2 => true,
-            (ValType::Ref(r1), ValType::Ref(r2)) => match (r1, r2) {
-                (
-                    RefType {
-                        nullable: nl1,
-                        heap_type: ht1,
-                    },
-                    RefType {
-                        nullable: nl2,
-                        heap_type: ht2,
-                    },
-                ) if heap_subtype(ht1, ht2) && matches_null(nl1, nl2) => true,
-                _ => false,
-            },
-            _ => false,
+
+        let matches_ref = |ty1: RefType, ty2: RefType, types: &TypeList| -> bool {
+            matches_heap(ty1.heap_type, ty2.heap_type, types)
+                && matches_null(ty1.nullable, ty2.nullable)
+        };
+
+        match (ty1, ty2) {
+            (ValType::Bot, _) => true,
+            (_, ValType::Bot) => false,
+            (ValType::Ref(rt1), ValType::Ref(rt2)) => matches_ref(rt1, rt2, types),
+            (ty1, ty2) => is_num(ty1) && is_num(ty2) && ty1 == ty2,
         }
     }
 
