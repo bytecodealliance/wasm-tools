@@ -83,7 +83,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// This should be used if the application is already reading local
     /// definitions and there's no need to re-parse the function again.
     pub fn define_locals(&mut self, offset: usize, count: u32, ty: ValType) -> Result<()> {
-        self.validator.define_locals(offset, count, ty)
+        self.validator
+            .define_locals(offset, count, ty, &self.resources)
     }
 
     /// Validates the next operator in a function.

@@ -244,6 +244,10 @@ pub struct WasmFeatures {
 }
 
 impl WasmFeatures {
+    /// NOTE: This only checks that the value type corresponds to the feature set!!
+    ///
+    /// To check that reference types are valid, we need access to the module
+    /// types. Use module.check_value_type.
     pub(crate) fn check_value_type(&self, ty: ValType) -> Result<(), &'static str> {
         match ty {
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 => Ok(()),
@@ -623,8 +627,11 @@ impl Validator {
                 state.module.assert_mut().tables.reserve(count as usize);
                 Ok(())
             },
-            |state, features, _, ty, offset| {
-                state.module.assert_mut().add_table(ty, features, offset)
+            |state, features, types, ty, offset| {
+                state
+                    .module
+                    .assert_mut()
+                    .add_table(ty, features, types, offset)
             },
         )
     }

@@ -1530,7 +1530,7 @@ impl<'a> BinaryReader<'a> {
                 self.position += 1;
                 Ok(HeapType::Extern)
             }
-            x if 0xf0 & x == 0 => {
+            x if 0x80 & x == 0 => {
                 self.position += 1;
                 Ok(HeapType::Index(x as u32))
             }
@@ -1571,10 +1571,10 @@ impl<'a> BinaryReader<'a> {
                 self.position += 1;
                 Some(ValType::Ref(EXTERN_REF))
             }
-            x @ (0x6C | 0x6D) => {
+            x @ (0x6B | 0x6C) => {
                 self.position += 1;
                 Some(ValType::Ref(RefType {
-                    nullable: x == 0x6D,
+                    nullable: x == 0x6C,
                     heap_type: self.read_heap_type()?,
                 }))
             }

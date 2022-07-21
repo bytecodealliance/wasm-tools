@@ -249,7 +249,28 @@ impl TestState {
     fn test_wast_directive(&self, test: &Path, directive: WastDirective) -> Result<()> {
         // Only test parsing and encoding of modules which wasmparser doesn't
         // support test (basically just test `wast`, nothing else)
-        let skip_verify = test.iter().any(|t| t == "function-references" || t == "gc");
+        let skip_verify = test.iter().any(|t| t == "gc")
+            || (test.iter().any(|t| t == "function-references")
+                && test.iter().any(|t| {
+                    // These shouldn't pass (we don't plan to support them as
+                    // they are in spec limbo)
+                    t == "let.wast"
+                        || t == "let-bad.wast"
+                        || t == "func_bind.wast"
+                        // These should work as far as i know, but don't yet
+                        // Needs subtyping on elements (Daniel has lock on subtyping)
+                        || t == "ref_is_null.wast"
+                        // Needs subtyping on elements too, i think
+                        || t == "br_table.wast"
+                        // The test seems to assume parsing occurs before validation
+                        || t == "binary.wast"
+                        // ????
+                        || t == "type-equivalence.wast"
+                        // ????
+                        || t == "table.wast"
+                        // ????
+                        || t == "table-sub.wast"
+                }));
 
         match directive {
             WastDirective::Wat(mut module) => {
@@ -456,6 +477,7 @@ impl TestState {
                 "component-model" => features.component_model = true,
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
+                "function-references" => features.function_references = true,
                 _ => {}
             }
         }
