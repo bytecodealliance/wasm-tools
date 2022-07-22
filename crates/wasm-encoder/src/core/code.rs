@@ -303,6 +303,9 @@ impl Encode for BlockType {
 #[non_exhaustive]
 #[allow(missing_docs, non_camel_case_types)]
 pub enum Instruction<'a> {
+    // Raw encoding of an instruction.
+    Raw(Cow<'a, [u8]>),
+
     // Control instructions.
     Unreachable,
     Nop,
@@ -783,6 +786,8 @@ pub enum Instruction<'a> {
 impl Encode for Instruction<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
         match *self {
+            Instruction::Raw(ref encoding) => sink.extend(&**encoding),
+
             // Control instructions.
             Instruction::Unreachable => sink.push(0x00),
             Instruction::Nop => sink.push(0x01),
