@@ -778,6 +778,75 @@ pub enum Instruction<'a> {
     F32x4RelaxedMax,
     F64x2RelaxedMin,
     F64x2RelaxedMax,
+
+    // Atomic instructions (the threads proposal)
+    MemoryAtomicNotify { memarg: MemArg },
+    MemoryAtomicWait32 { memarg: MemArg },
+    MemoryAtomicWait64 { memarg: MemArg },
+    AtomicFence,
+    I32AtomicLoad { memarg: MemArg },
+    I64AtomicLoad { memarg: MemArg },
+    I32AtomicLoad8U { memarg: MemArg },
+    I32AtomicLoad16U { memarg: MemArg },
+    I64AtomicLoad8U { memarg: MemArg },
+    I64AtomicLoad16U { memarg: MemArg },
+    I64AtomicLoad32U { memarg: MemArg },
+    I32AtomicStore { memarg: MemArg },
+    I64AtomicStore { memarg: MemArg },
+    I32AtomicStore8 { memarg: MemArg },
+    I32AtomicStore16 { memarg: MemArg },
+    I64AtomicStore8 { memarg: MemArg },
+    I64AtomicStore16 { memarg: MemArg },
+    I64AtomicStore32 { memarg: MemArg },
+    I32AtomicRmwAdd { memarg: MemArg },
+    I64AtomicRmwAdd { memarg: MemArg },
+    I32AtomicRmw8AddU { memarg: MemArg },
+    I32AtomicRmw16AddU { memarg: MemArg },
+    I64AtomicRmw8AddU { memarg: MemArg },
+    I64AtomicRmw16AddU { memarg: MemArg },
+    I64AtomicRmw32AddU { memarg: MemArg },
+    I32AtomicRmwSub { memarg: MemArg },
+    I64AtomicRmwSub { memarg: MemArg },
+    I32AtomicRmw8SubU { memarg: MemArg },
+    I32AtomicRmw16SubU { memarg: MemArg },
+    I64AtomicRmw8SubU { memarg: MemArg },
+    I64AtomicRmw16SubU { memarg: MemArg },
+    I64AtomicRmw32SubU { memarg: MemArg },
+    I32AtomicRmwAnd { memarg: MemArg },
+    I64AtomicRmwAnd { memarg: MemArg },
+    I32AtomicRmw8AndU { memarg: MemArg },
+    I32AtomicRmw16AndU { memarg: MemArg },
+    I64AtomicRmw8AndU { memarg: MemArg },
+    I64AtomicRmw16AndU { memarg: MemArg },
+    I64AtomicRmw32AndU { memarg: MemArg },
+    I32AtomicRmwOr { memarg: MemArg },
+    I64AtomicRmwOr { memarg: MemArg },
+    I32AtomicRmw8OrU { memarg: MemArg },
+    I32AtomicRmw16OrU { memarg: MemArg },
+    I64AtomicRmw8OrU { memarg: MemArg },
+    I64AtomicRmw16OrU { memarg: MemArg },
+    I64AtomicRmw32OrU { memarg: MemArg },
+    I32AtomicRmwXor { memarg: MemArg },
+    I64AtomicRmwXor { memarg: MemArg },
+    I32AtomicRmw8XorU { memarg: MemArg },
+    I32AtomicRmw16XorU { memarg: MemArg },
+    I64AtomicRmw8XorU { memarg: MemArg },
+    I64AtomicRmw16XorU { memarg: MemArg },
+    I64AtomicRmw32XorU { memarg: MemArg },
+    I32AtomicRmwXchg { memarg: MemArg },
+    I64AtomicRmwXchg { memarg: MemArg },
+    I32AtomicRmw8XchgU { memarg: MemArg },
+    I32AtomicRmw16XchgU { memarg: MemArg },
+    I64AtomicRmw8XchgU { memarg: MemArg },
+    I64AtomicRmw16XchgU { memarg: MemArg },
+    I64AtomicRmw32XchgU { memarg: MemArg },
+    I32AtomicRmwCmpxchg { memarg: MemArg },
+    I64AtomicRmwCmpxchg { memarg: MemArg },
+    I32AtomicRmw8CmpxchgU { memarg: MemArg },
+    I32AtomicRmw16CmpxchgU { memarg: MemArg },
+    I64AtomicRmw8CmpxchgU { memarg: MemArg },
+    I64AtomicRmw16CmpxchgU { memarg: MemArg },
+    I64AtomicRmw32CmpxchgU { memarg: MemArg },
 }
 
 impl Encode for Instruction<'_> {
@@ -2317,6 +2386,343 @@ impl Encode for Instruction<'_> {
             Instruction::F64x2RelaxedMax => {
                 sink.push(0xFD);
                 0xEEu32.encode(sink);
+            }
+
+            // Atmoic instructions from the thread proposal
+            Instruction::MemoryAtomicNotify { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x00);
+                memarg.encode(sink);
+            }
+            Instruction::MemoryAtomicWait32 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x01);
+                memarg.encode(sink);
+            }
+            Instruction::MemoryAtomicWait64 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x02);
+                memarg.encode(sink);
+            }
+            Instruction::AtomicFence => {
+                sink.push(0xFE);
+                sink.push(0x03);
+                sink.push(0x00);
+            }
+            Instruction::I32AtomicLoad { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x10);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicLoad { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x11);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicLoad8U { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x12);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicLoad16U { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x13);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicLoad8U { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x14);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicLoad16U { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x15);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicLoad32U { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x16);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicStore { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x17);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicStore { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x18);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicStore8 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x19);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicStore16 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x1A);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicStore8 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x1B);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicStore16 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x1C);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicStore32 { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x1D);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwAdd { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x1E);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwAdd { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x1F);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8AddU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x20);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16AddU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x21);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8AddU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x22);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16AddU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x23);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32AddU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x24);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwSub { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x25);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwSub { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x26);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8SubU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x27);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16SubU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x28);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8SubU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x29);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16SubU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x2A);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32SubU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x2B);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwAnd { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x2C);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwAnd { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x2D);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8AndU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x2E);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16AndU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x2F);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8AndU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x30);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16AndU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x31);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32AndU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x32);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwOr { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x33);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwOr { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x34);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8OrU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x35);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16OrU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x36);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8OrU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x37);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16OrU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x38);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32OrU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x39);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwXor { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x3A);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwXor { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x3B);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8XorU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x3C);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16XorU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x3D);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8XorU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x3E);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16XorU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x3F);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32XorU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x40);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwXchg { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x41);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwXchg { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x42);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8XchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x43);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16XchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x44);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8XchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x45);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16XchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x46);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32XchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x47);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmwCmpxchg { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x48);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmwCmpxchg { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x49);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw8CmpxchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x4A);
+                memarg.encode(sink);
+            }
+            Instruction::I32AtomicRmw16CmpxchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x4B);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw8CmpxchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x4C);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw16CmpxchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x4D);
+                memarg.encode(sink);
+            }
+            Instruction::I64AtomicRmw32CmpxchgU { memarg } => {
+                sink.push(0xFE);
+                sink.push(0x4E);
+                memarg.encode(sink);
             }
         }
     }
