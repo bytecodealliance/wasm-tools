@@ -578,7 +578,6 @@ instructions! {
 
         RefNull(HeapType<'a>) : [0xd0] : "ref.null",
         RefIsNull : [0xd1] : "ref.is_null",
-        RefExtern(u32) : [0xff] : "ref.extern", // only used in test harness
         RefFunc(Index<'a>) : [0xd2] : "ref.func",
 
         // function-references proposal
@@ -1163,9 +1162,9 @@ instructions! {
 impl<'a> Instruction<'a> {
     pub(crate) fn needs_data_count(&self) -> bool {
         match self {
-            Instruction::MemoryInit(_) |
-            Instruction::DataDrop(_) |
-            Instruction::ArrayNewData(_) => true,
+            Instruction::MemoryInit(_)
+            | Instruction::DataDrop(_)
+            | Instruction::ArrayNewData(_) => true,
             _ => false,
         }
     }
