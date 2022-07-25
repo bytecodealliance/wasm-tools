@@ -261,8 +261,6 @@ impl TestState {
                         // https://bytecodealliance.zulipchat.com/#narrow/stream/329587-wasmfx/topic/br_table.2Ewast.20.2F.20.28table.20.2E.2E.2E.20.28elem.20.2E.2E.2E.29.29.20issue/near/290806324
                         || t == "br_table.wast"
                         // These should work as far as i know, but don't yet
-                        // The test seems to assume parsing occurs before validation
-                        || t == "binary.wast"
                         // ????
                         || t == "type-equivalence.wast"
                         // ????
@@ -587,10 +585,16 @@ fn error_matches(error: &str, message: &str) -> bool {
     // section counts/lengths.
     if message == "length out of bounds" || message == "unexpected end of section or function" {
         return error.contains("unexpected end-of-file")
-            || error.contains("control frames remain at end of function");
+            || error.contains("control frames remain at end of function")
+            // This is the same case as "unexpected end" (below) but in
+            // function-references fsr it includes "of section or function"
+            || error.contains("type index out of bounds");
     }
 
-    // this feels like a busted test in the spec suite
+    // binary.wast includes a test in which a 0b (End) is eaten by a botched
+    // br_table.  The test assumes that the parser (not the validator) errors on
+    // a missing End before failing to validate the botched instruction.  However
+    // wasmparser fails to validate the botched instruction first
     if message == "unexpected end" {
         return error.contains("type index out of bounds");
     }
