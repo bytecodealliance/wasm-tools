@@ -2,6 +2,7 @@
 
 mod code_builder;
 pub(crate) mod encode;
+mod notrap;
 mod terminate;
 
 use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
