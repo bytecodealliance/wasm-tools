@@ -350,15 +350,14 @@ impl Module {
                     Instruction::MemoryFill(_) => todo!(),
                     Instruction::MemoryInit { mem: _, data: _ } => todo!(),
 
-                    // /*
                     // Unsigned integer division and remainder will trap when
                     // the divisor is 0. To avoid the trap, we will set any 0
-                    // divisors to 1 prior to the operation
+                    // divisors to 1 prior to the operation.
+                    //
                     // The code below is equivalent to this expression:
-
+                    //
                     //     local.set $temp_divisor
                     //     (select (i32.eqz (local.get $temp_divisor) (i32.const 1) (local.get $temp_divisor))
-                    // */
                     Instruction::I32RemU
                     | Instruction::I64RemU
                     | Instruction::I64DivU
@@ -385,11 +384,9 @@ impl Module {
                         // [result:op_type]
                     }
 
-                    // /*
                     // Signed division and remainder will trap in the following instances:
                     //     - The divisor is 0
                     //     - The result of the division is 2^(n-1)
-                    // */
                     Instruction::I32DivS
                     | Instruction::I32RemS
                     | Instruction::I64DivS
@@ -415,7 +412,7 @@ impl Module {
                         // [dividend:op_type divisor:op_type]
 
                         // If dividend and divisor are -int.max and -1, replace
-                        // divisor with 1?
+                        // divisor with 1.
                         let temp_dividend =
                             u32::try_from(this_func_ty.params.len() + code.locals.len()).unwrap();
                         code.locals.push(op_type);
