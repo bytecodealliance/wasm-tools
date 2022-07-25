@@ -15,7 +15,7 @@ use std::marker;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
-use wasm_encoder::{BlockType, ExportKind, ValType};
+use wasm_encoder::{BlockType, ConstExpr, ExportKind, ValType};
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
 // NB: these constants are used to control the rate at which various events
@@ -296,7 +296,7 @@ enum ElementKind {
     Declared,
     Active {
         table: Option<u32>, // None == table 0 implicitly
-        offset: Instruction,
+        offset: ConstExpr,
     },
 }
 
@@ -1011,9 +1011,11 @@ impl Module {
             }
         }
         let arbitrary_active_elem = |u: &mut Unstructured, min: u32, table: Option<u32>| {
-            let (offset, max_size_hint) = if !offset_global_choices.is_empty() && u.arbitrary()? {
+            let mut offset_expr = ConstExpr::new();
+            let max_size_hint = if !offset_global_choices.is_empty() && u.arbitrary()? {
                 let g = u.choose(&offset_global_choices)?;
-                (Instruction::GlobalGet(*g), None)
+                offset_expr.global_get(*g);
+                None
             } else {
                 let offset = arbitrary_offset(u, min.into(), u32::MAX.into(), 0)? as u32;
                 let max_size_hint =
@@ -1022,9 +1024,10 @@ impl Module {
                     } else {
                         None
                     };
-                (Instruction::I32Const(offset as i32), max_size_hint)
+                offset_expr.i32_const(offset as i32);
+                max_size_hint
             };
-            Ok((ElementKind::Active { table, offset }, max_size_hint))
+            Ok((ElementKind::Active { table, offset: offset_expr }, max_size_hint))
         };
 
         type GenElemSegment<'a> =

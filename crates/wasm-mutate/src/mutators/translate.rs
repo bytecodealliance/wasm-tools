@@ -213,17 +213,20 @@ pub fn element(
     element: wasmparser::Element<'_>,
     s: &mut ElementSection,
 ) -> Result<()> {
-    let offset;
+    let mut offset = ConstExpr::new();
     let mode = match &element.kind {
         ElementKind::Active {
             table_index,
             init_expr,
         } => {
-            offset = t.translate_init_expr(
+            let mut offset_bytes = Vec::new();
+            t.translate_init_expr(
                 init_expr,
                 &wasmparser::ValType::I32,
                 InitExprKind::ElementOffset,
-            )?;
+            )?
+            .encode(&mut offset_bytes);
+            offset.raw(offset_bytes);
             ElementMode::Active {
                 table: Some(t.remap(Item::Table, *table_index)?),
                 offset: &offset,
@@ -242,15 +245,20 @@ pub fn element(
                 functions.push(t.remap(Item::Function, idx)?);
             }
             ElementItem::Expr(expr) => {
+                let mut const_expr = ConstExpr::new();
                 match t.translate_init_expr(&expr, &element.ty, InitExprKind::ElementFunction)? {
                     Instruction::RefFunc(n) => {
-                        exprs.push(wasm_encoder::Element::Func(n));
+                        const_expr.ref_func(n);
                     }
-                    Instruction::RefNull(_) => {
-                        exprs.push(wasm_encoder::Element::Null);
+                    Instruction::RefNull(valtype) => {
+                        const_expr.ref_null(valtype);
+                    }
+                    Instruction::GlobalGet(g) => {
+                        const_expr.global_get(g);
                     }
                     _ => return Err(Error::no_mutations_applicable()),
-                }
+                };
+                exprs.push(const_expr);
             }
         }
     }

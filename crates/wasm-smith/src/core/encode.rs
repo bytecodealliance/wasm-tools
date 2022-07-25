@@ -145,9 +145,17 @@ impl Module {
             let elements = match &el.items {
                 Elements::Expressions(es) => {
                     exps.clear();
-                    exps.extend(es.iter().map(|e| match e {
-                        Some(i) => wasm_encoder::Element::Func(*i),
-                        None => wasm_encoder::Element::Null,
+                    exps.extend(es.iter().map(|e| {
+                        let mut const_expr = wasm_encoder::ConstExpr::new();
+                        // TODO(nagisa): generate global.get of imported ref globals too.
+                        match e {
+                            Some(i) => match el.ty {
+                                ValType::FuncRef => const_expr.ref_func(*i),
+                                _ => unreachable!(),
+                            },
+                            None => const_expr.ref_null(el.ty),
+                        };
+                        const_expr
                     }));
                     wasm_encoder::Elements::Expressions(&exps)
                 }
