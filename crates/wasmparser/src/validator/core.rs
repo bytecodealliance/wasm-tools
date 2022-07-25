@@ -743,16 +743,44 @@ impl Module {
         Ok(())
     }
 
-    pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        fn eq_fns(f1: &impl WasmFuncType, f2: &impl WasmFuncType) -> bool {
-            f1.len_inputs() == f2.len_inputs()
-                && f2.len_outputs() == f2.len_outputs()
-                && f1.inputs().zip(f2.inputs()).all(|(t1, t2)| t1 == t2)
-                && f1.outputs().zip(f2.outputs()).all(|(t1, t2)| t1 == t2)
+    fn eq_valtypes(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
+        match (ty1, ty2) {
+            (ValType::Ref(rt1), ValType::Ref(rt2)) => {
+                rt1.nullable == rt2.nullable
+                    && match (rt1.heap_type, rt2.heap_type) {
+                        (HeapType::Func, HeapType::Func) => true,
+                        (HeapType::Extern, HeapType::Extern) => true,
+                        (HeapType::Index(n1), HeapType::Index(n2)) => {
+                            let n1 = self
+                                .func_type_at(n1, types, 0)
+                                .expect("TODO fixme bad type");
+                            let n2 = self
+                                .func_type_at(n2, types, 0)
+                                .expect("TODO fixme bad type");
+                            self.eq_fns(n1, n2, types)
+                        }
+                        (_, _) => false,
+                    }
+            }
+            _ => ty1 == ty2,
         }
+    }
+    fn eq_fns(&self, f1: &impl WasmFuncType, f2: &impl WasmFuncType, types: &TypeList) -> bool {
+        f1.len_inputs() == f2.len_inputs()
+            && f2.len_outputs() == f2.len_outputs()
+            && f1
+                .inputs()
+                .zip(f2.inputs())
+                .all(|(t1, t2)| self.eq_valtypes(t1, t2, types))
+            && f1
+                .outputs()
+                .zip(f2.outputs())
+                .all(|(t1, t2)| self.eq_valtypes(t1, t2, types))
+    }
 
+    pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
         fn matches_null(null1: bool, null2: bool) -> bool {
-            null1 == null2 || null2
+            (null1 == null2) || null2
         }
 
         let matches_heap = |ty1: HeapType, ty2: HeapType, types: &TypeList| -> bool {
@@ -765,7 +793,7 @@ impl Module {
                     let n2 = self
                         .func_type_at(n2, types, 0)
                         .expect("TODO fixme bad type");
-                    eq_fns(n1, n2)
+                    self.eq_fns(n1, n2, types)
                 }
                 (HeapType::Index(_), HeapType::Func) => true,
                 (HeapType::Bot, _) => true,

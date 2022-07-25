@@ -260,9 +260,6 @@ impl TestState {
                         // I think this test may be broken or out of sync with the spec
                         // https://bytecodealliance.zulipchat.com/#narrow/stream/329587-wasmfx/topic/br_table.2Ewast.20.2F.20.28table.20.2E.2E.2E.20.28elem.20.2E.2E.2E.29.29.20issue/near/290806324
                         || t == "br_table.wast"
-                        // These should work as far as i know, but don't yet
-                        // ????
-                        || t == "type-equivalence.wast"
                 }));
 
         match directive {
