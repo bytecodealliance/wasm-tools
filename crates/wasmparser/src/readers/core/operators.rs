@@ -143,10 +143,17 @@ pub enum Operator<'a> {
     BrTable {
         table: BrTable<'a>,
     },
+    BrOnNull {
+        relative_depth: u32,
+    },
+    BrOnNonNull {
+        relative_depth: u32,
+    },
     Return,
     Call {
         function_index: u32,
     },
+    CallRef,
     CallIndirect {
         index: u32,
         table_index: u32,
@@ -155,6 +162,7 @@ pub enum Operator<'a> {
     ReturnCall {
         function_index: u32,
     },
+    ReturnCallRef,
     ReturnCallIndirect {
         index: u32,
         table_index: u32,
@@ -279,6 +287,7 @@ pub enum Operator<'a> {
     RefFunc {
         function_index: u32,
     },
+    RefAsNonNull,
     I32Eqz,
     I32Eq,
     I32Ne,
@@ -1005,18 +1014,6 @@ pub enum Operator<'a> {
     F32x4RelaxedMax,
     F64x2RelaxedMin,
     F64x2RelaxedMax,
-
-    // Function references proposal operators. TODO(dhil): Put into
-    // appropriate places in the above list.
-    CallRef,
-    ReturnCallRef,
-    RefAsNonNull,
-    BrOnNull {
-        relative_depth: u32,
-    },
-    BrOnNonNull {
-        relative_depth: u32,
-    },
 }
 
 /// A reader for a core WebAssembly function's operators.

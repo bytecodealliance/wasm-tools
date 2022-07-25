@@ -307,9 +307,12 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
                 .into(),
             table.default(),
         ),
+        O::BrOnNull { relative_depth } => I::BrOnNull(*relative_depth),
+        O::BrOnNonNull { relative_depth } => I::BrOnNonNull(*relative_depth),
 
         O::Return => I::Return,
         O::Call { function_index } => I::Call(t.remap(Item::Function, *function_index)?),
+        O::CallRef => I::CallRef,
         O::CallIndirect {
             index,
             table_index,
@@ -318,6 +321,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
             ty: t.remap(Item::Type, *index)?,
             table: t.remap(Item::Table, *table_index)?,
         },
+        O::ReturnCallRef => I::ReturnCallRef,
         O::Delegate { relative_depth } => I::Delegate(*relative_depth),
         O::CatchAll => I::CatchAll,
         O::Drop => I::Drop,
@@ -366,6 +370,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         O::RefNull { ty } => I::RefNull(t.translate_ty(ty)?),
         O::RefIsNull => I::RefIsNull,
         O::RefFunc { function_index } => I::RefFunc(t.remap(Item::Function, *function_index)?),
+        O::RefAsNonNull => I::RefAsNonNull,
 
         O::I32Eqz => I::I32Eqz,
         O::I32Eq => I::I32Eq,
@@ -928,14 +933,6 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         | O::ReturnCall { .. }
         | O::ReturnCallIndirect { .. }
         | O::AtomicFence { .. } => return Err(Error::no_mutations_applicable()),
-
-        // Function references proposal instructions. TODO(dhil):
-        // Merge with the above list.
-        O::CallRef => I::CallRef,
-        O::ReturnCallRef => I::ReturnCallRef,
-        O::RefAsNonNull => I::RefAsNonNull,
-        O::BrOnNull { relative_depth } => I::BrOnNull(*relative_depth),
-        O::BrOnNonNull { relative_depth } => I::BrOnNonNull(*relative_depth),
     })
 }
 

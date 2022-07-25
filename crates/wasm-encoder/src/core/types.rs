@@ -31,9 +31,6 @@ pub enum ValType {
     /// implementation that implements reference types but not function
     /// references. When function references are enabled, there is no
     /// difference, but the distinction is maintained.
-    ///
-    /// Part of the reference types proposal when used anywhere other than a
-    /// table's element type.
     Ref(RefType),
 }
 
@@ -52,7 +49,9 @@ impl Encode for ValType {
     }
 }
 
-/// Part of the typed function references proposal.
+/// Part of the function references proposal. These types are only produced
+/// when the feature is enabled, despite sometimes being equivalent to FuncRef,
+/// because they're encoded differently.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct RefType {
     nullable: bool,
@@ -70,7 +69,7 @@ impl Encode for RefType {
     }
 }
 
-/// Part of the typed function references proposal.
+/// Part of the function references proposal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum HeapType {
     /// A function reference. When nullable, equivalent to `funcref`

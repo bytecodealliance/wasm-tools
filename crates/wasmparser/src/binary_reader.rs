@@ -1669,6 +1669,8 @@ impl<'a> BinaryReader<'a> {
                 index: self.read_var_u32()?,
                 table_index: self.read_var_u32()?,
             },
+            0x14 => Operator::CallRef,
+            0x15 => Operator::ReturnCallRef,
             0x18 => Operator::Delegate {
                 relative_depth: self.read_var_u32()?,
             },
@@ -1934,15 +1936,6 @@ impl<'a> BinaryReader<'a> {
             0xd2 => Operator::RefFunc {
                 function_index: self.read_var_u32()?,
             },
-
-            0xfc => self.read_0xfc_operator()?,
-            0xfd => self.read_0xfd_operator()?,
-            0xfe => self.read_0xfe_operator()?,
-
-            // Function references proposal operators. TODO(dhil): Put
-            // each into its appropriate place within the above list.
-            0x14 => Operator::CallRef,
-            0x15 => Operator::ReturnCallRef,
             0xd3 => Operator::RefAsNonNull,
             0xd4 => Operator::BrOnNull {
                 relative_depth: self.read_var_u32()?,
@@ -1950,6 +1943,10 @@ impl<'a> BinaryReader<'a> {
             0xd6 => Operator::BrOnNonNull {
                 relative_depth: self.read_var_u32()?,
             },
+
+            0xfc => self.read_0xfc_operator()?,
+            0xfd => self.read_0xfd_operator()?,
+            0xfe => self.read_0xfe_operator()?,
 
             _ => {
                 return Err(BinaryReaderError::new(

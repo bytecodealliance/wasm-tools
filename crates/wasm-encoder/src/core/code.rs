@@ -318,9 +318,13 @@ pub enum Instruction<'a> {
     Br(u32),
     BrIf(u32),
     BrTable(Cow<'a, [u32]>, u32),
+    BrOnNull(u32),
+    BrOnNonNull(u32),
     Return,
     Call(u32),
+    CallRef,
     CallIndirect { ty: u32, table: u32 },
+    ReturnCallRef,
     Throw(u32),
     Rethrow(u32),
 
@@ -513,6 +517,7 @@ pub enum Instruction<'a> {
     RefNull(ValType),
     RefIsNull,
     RefFunc(u32),
+    RefAsNonNull,
 
     // Bulk memory instructions.
     TableInit { segment: u32, table: u32 },
@@ -906,16 +911,26 @@ impl Encode for Instruction<'_> {
                 ls.encode(sink);
                 l.encode(sink);
             }
+            Instruction::BrOnNull(l) => {
+                sink.push(0xD4);
+                l.encode(sink);
+            }
+            Instruction::BrOnNonNull(l) => {
+                sink.push(0xD6);
+                l.encode(sink);
+            }
             Instruction::Return => sink.push(0x0F),
             Instruction::Call(f) => {
                 sink.push(0x10);
                 f.encode(sink);
             }
+            Instruction::CallRef => sink.push(0x14),
             Instruction::CallIndirect { ty, table } => {
                 sink.push(0x11);
                 ty.encode(sink);
                 table.encode(sink);
             }
+            Instruction::ReturnCallRef => sink.push(0x15),
             Instruction::Delegate(l) => {
                 sink.push(0x18);
                 l.encode(sink);
@@ -1277,6 +1292,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xd2);
                 f.encode(sink);
             }
+            Instruction::RefAsNonNull => sink.push(0xD3),
 
             // Bulk memory instructions.
             Instruction::TableInit { segment, table } => {

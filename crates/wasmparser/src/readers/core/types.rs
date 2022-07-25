@@ -38,7 +38,9 @@ pub enum ValType {
     Bot,
 }
 
-/// Reference type from function references
+/// A reference type. When the function references feature is disabled, this
+/// only represents funcref and externref, using the following format:
+/// RefType { nullable: true, heap_type: Func | Extern })
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RefType {
     /// Whether it's nullable
@@ -47,7 +49,8 @@ pub struct RefType {
     pub heap_type: HeapType,
 }
 
-/// See proposal
+/// A heap type from function references. When the proposal is disabled, Index
+/// is an invalid type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HeapType {
     /// It seems by example that u32s are directly used for arbitrary indexes,
@@ -61,12 +64,14 @@ pub enum HeapType {
     Bot,
 }
 
-/// An internal shortcut for the desugaring of (funcref)
+/// funcref, in both reference types and function references, represented
+/// using the general ref syntax
 pub(crate) const FUNC_REF: RefType = RefType {
     nullable: true,
     heap_type: HeapType::Func,
 };
-/// An internal shortcut for the desugaring of (externref)
+/// externref, in both reference types and function references, represented
+/// using the general ref syntax
 pub(crate) const EXTERN_REF: RefType = RefType {
     nullable: true,
     heap_type: HeapType::Extern,
