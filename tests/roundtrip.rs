@@ -264,8 +264,6 @@ impl TestState {
                         // ????
                         || t == "type-equivalence.wast"
                         // ????
-                        || t == "table.wast"
-                        // ????
                         || t == "table-sub.wast"
                 }));
 
@@ -327,7 +325,7 @@ impl TestState {
                 }
                 match result {
                     Ok(_) => bail!(
-                        "parsed successfully but should have failed with: {}",
+                        "encoded and validated successfully but should have failed with: {}",
                         message,
                     ),
                     Err(e) => {

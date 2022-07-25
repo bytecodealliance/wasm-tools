@@ -607,6 +607,12 @@ impl Module {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
+        if !ty.element_type.nullable {
+            return Err(BinaryReaderError::new(
+                "non-defaultable element type",
+                offset,
+            ));
+        }
         match ty.element_type.heap_type {
             HeapType::Func => {}
             HeapType::Extern => {
