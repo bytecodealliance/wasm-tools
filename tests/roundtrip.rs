@@ -263,8 +263,6 @@ impl TestState {
                         // These should work as far as i know, but don't yet
                         // ????
                         || t == "type-equivalence.wast"
-                        // ????
-                        || t == "table-sub.wast"
                 }));
 
         match directive {

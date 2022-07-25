@@ -2076,7 +2076,10 @@ impl OperatorValidator {
                         (Some(a), Some(b)) => (a, b),
                         _ => return Err(OperatorValidatorError::new("table index out of bounds")),
                     };
-                if src.element_type != dst.element_type {
+                if !resources.matches(
+                    ValType::Ref(src.element_type),
+                    ValType::Ref(dst.element_type),
+                ) {
                     return Err(OperatorValidatorError::new("type mismatch"));
                 }
                 self.pop_operand(Some(ValType::I32), resources)?;
