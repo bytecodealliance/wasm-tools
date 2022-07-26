@@ -296,7 +296,7 @@ enum ElementKind {
     Declared,
     Active {
         table: Option<u32>, // None == table 0 implicitly
-        offset: ConstExpr,
+        offset: Offset,
     },
 }
 
@@ -327,10 +327,14 @@ struct DataSegment {
 #[derive(Debug)]
 enum DataSegmentKind {
     Passive,
-    Active {
-        memory_index: u32,
-        offset: ConstExpr,
-    },
+    Active { memory_index: u32, offset: Offset },
+}
+
+#[derive(Debug)]
+pub(crate) enum Offset {
+    Const32(i32),
+    Const64(i64),
+    Global(u32),
 }
 
 #[derive(Debug)]
@@ -1021,7 +1025,7 @@ impl Module {
         let arbitrary_active_elem = |u: &mut Unstructured, min: u32, table: Option<u32>| {
             let (offset, max_size_hint) = if !offset_global_choices.is_empty() && u.arbitrary()? {
                 let g = u.choose(&offset_global_choices)?;
-                (ConstExpr::global_get(*g), None)
+                (Offset::Global(*g), None)
             } else {
                 let offset = arbitrary_offset(u, min.into(), u32::MAX.into(), 0)? as u32;
                 let max_size_hint =
@@ -1030,7 +1034,7 @@ impl Module {
                     } else {
                         None
                     };
-                (ConstExpr::i32_const(offset as i32), max_size_hint)
+                (Offset::Const32(offset as i32), max_size_hint)
             };
             Ok((ElementKind::Active { table, offset }, max_size_hint))
         };
@@ -1186,10 +1190,10 @@ impl Module {
             return Ok(());
         }
 
-        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<ConstExpr>>> =
+        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Offset>>> =
             vec![];
         choices32.push(Box::new(|u, min_size, data_len| {
-            Ok(ConstExpr::i32_const(arbitrary_offset(
+            Ok(Offset::Const32(arbitrary_offset(
                 u,
                 u32::try_from(min_size.saturating_mul(64 * 1024))
                     .unwrap_or(u32::MAX)
@@ -1198,10 +1202,10 @@ impl Module {
                 data_len,
             )? as i32))
         }));
-        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<ConstExpr>>> =
+        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Offset>>> =
             vec![];
         choices64.push(Box::new(|u, min_size, data_len| {
-            Ok(ConstExpr::i64_const(arbitrary_offset(
+            Ok(Offset::Const64(arbitrary_offset(
                 u,
                 min_size.saturating_mul(64 * 1024),
                 u64::MAX,
@@ -1217,9 +1221,9 @@ impl Module {
                 continue;
             }
             if g.val_type == ValType::I32 {
-                choices32.push(Box::new(move |_, _, _| Ok(ConstExpr::global_get(i as u32))));
+                choices32.push(Box::new(move |_, _, _| Ok(Offset::Global(i as u32))));
             } else if g.val_type == ValType::I64 {
-                choices64.push(Box::new(move |_, _, _| Ok(ConstExpr::global_get(i as u32))));
+                choices64.push(Box::new(move |_, _, _| Ok(Offset::Global(i as u32))));
             }
         }
 

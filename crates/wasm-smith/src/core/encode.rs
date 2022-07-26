@@ -164,7 +164,12 @@ impl Module {
             };
             match &el.kind {
                 ElementKind::Active { table, offset } => {
-                    elems.active(*table, offset, el.ty, elements);
+                    let offset = match *offset {
+                        Offset::Const32(n) => ConstExpr::i32_const(n),
+                        Offset::Const64(n) => ConstExpr::i64_const(n),
+                        Offset::Global(g) => ConstExpr::global_get(g),
+                    };
+                    elems.active(*table, &offset, el.ty, elements);
                 }
                 ElementKind::Passive => {
                     elems.passive(el.ty, elements);
@@ -227,7 +232,12 @@ impl Module {
                     memory_index,
                     offset,
                 } => {
-                    data.active(*memory_index, offset, seg.init.iter().copied());
+                    let offset = match *offset {
+                        Offset::Const32(n) => ConstExpr::i32_const(n),
+                        Offset::Const64(n) => ConstExpr::i64_const(n),
+                        Offset::Global(g) => ConstExpr::global_get(g),
+                    };
+                    data.active(*memory_index, &offset, seg.init.iter().copied());
                 }
                 DataSegmentKind::Passive => {
                     data.passive(seg.init.iter().copied());

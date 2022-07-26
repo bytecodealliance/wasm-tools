@@ -1,5 +1,5 @@
 use crate::core::*;
-use wasm_encoder::{BlockType, Instruction, ValType};
+use wasm_encoder::{BlockType, ConstExpr, Instruction, ValType};
 
 const WASM_PAGE_SIZE: u64 = 65_536;
 
@@ -562,31 +562,22 @@ impl Module {
                     let data_len = data.init.len() as u64;
 
                     match offset {
-                        Instruction::I32Const(n) => {
+                        Offset::Const64(n) => {
+                            let n = *n as u64;
+                            let n = n
+                                .checked_rem(mem.minimum * WASM_PAGE_SIZE - data_len)
+                                .unwrap_or(0);
+                            *offset = Offset::Const64(n as i64);
+                        }
+                        Offset::Const32(n) => {
                             let n = *n as u64;
                             let n = n
                                 .checked_rem(mem.minimum * WASM_PAGE_SIZE - data_len)
                                 .unwrap_or(0);
                             let n = u32::try_from(n).unwrap();
-                            *offset = Instruction::I32Const(n as i32);
+                            *offset = Offset::Const32(n as i32);
                         }
-                        Instruction::I64Const(n) => {
-                            let n = *n as u64;
-                            let n = n
-                                .checked_rem(mem.minimum * WASM_PAGE_SIZE - data_len)
-                                .unwrap_or(0);
-                            *offset = Instruction::I64Const(n as i64);
-                        }
-                        Instruction::GlobalGet(_) => {
-                            *offset = int_const_inst(
-                                if mem.memory64 {
-                                    ValType::I64
-                                } else {
-                                    ValType::I32
-                                },
-                                0,
-                            );
-                        }
+                        Offset::Global(_) => *offset = Offset::Const32(0),
                         _ => unreachable!("Unexpected instruction: {:?}", offset),
                     }
                 }
@@ -620,13 +611,13 @@ impl Module {
                     };
 
                     match offset {
-                        Instruction::I32Const(n) => {
+                        Offset::Const32(n) => {
                             let n = *n as u32;
                             let n = n.checked_rem(table.minimum - elem_len).unwrap_or(0);
-                            *offset = Instruction::I32Const(n as i32);
+                            *offset = Offset::Const32(n as i32);
                         }
-                        Instruction::GlobalGet(_) => {
-                            *offset = Instruction::I32Const(0);
+                        Offset::Global(_) => {
+                            *offset = Offset::Const32(0);
                         }
                         _ => unreachable!(),
                     }
