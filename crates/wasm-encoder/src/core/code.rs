@@ -2728,6 +2728,81 @@ impl Encode for Instruction<'_> {
     }
 }
 
+/// A constant expression.
+///
+/// Usable in contexts such as offsets or initializers.
+#[derive(Debug)]
+pub struct ConstExpr {
+    bytes: Vec<u8>,
+}
+
+impl ConstExpr {
+    /// Create a new empty constant expression builder.
+    pub fn empty() -> Self {
+        Self { bytes: Vec::new() }
+    }
+
+    /// Create a constant expression with the specified raw encoding of instructions.
+    pub fn raw(bytes: impl IntoIterator<Item = u8>) -> Self {
+        Self {
+            bytes: bytes.into_iter().collect(),
+        }
+    }
+
+    fn new_insn(insn: Instruction) -> Self {
+        let mut bytes = vec![];
+        insn.encode(&mut bytes);
+        Self { bytes }
+    }
+
+    /// Create a constant expression containing a single `global.get` instruction.
+    pub fn global_get(index: u32) -> Self {
+        Self::new_insn(Instruction::GlobalGet(index))
+    }
+
+    /// Create a constant expression containing a single `ref.null` instruction.
+    pub fn ref_null(ty: ValType) -> Self {
+        Self::new_insn(Instruction::RefNull(ty))
+    }
+
+    /// Create a constant expression containing a single `ref.func` instruction.
+    pub fn ref_func(func: u32) -> Self {
+        Self::new_insn(Instruction::RefFunc(func))
+    }
+
+    /// Create a constant expression containing a single `i32.const` instruction.
+    pub fn i32_const(value: i32) -> Self {
+        Self::new_insn(Instruction::I32Const(value))
+    }
+
+    /// Create a constant expression containing a single `i64.const` instruction.
+    pub fn i64_const(value: i64) -> Self {
+        Self::new_insn(Instruction::I64Const(value))
+    }
+
+    /// Create a constant expression containing a single `f32.const` instruction.
+    pub fn f32_const(value: f32) -> Self {
+        Self::new_insn(Instruction::F32Const(value))
+    }
+
+    /// Create a constant expression containing a single `f64.const` instruction.
+    pub fn f64_const(value: f64) -> Self {
+        Self::new_insn(Instruction::F64Const(value))
+    }
+
+    /// Create a constant expression containing a single `v128.const` instruction.
+    pub fn v128_const(value: i128) -> Self {
+        Self::new_insn(Instruction::V128Const(value))
+    }
+}
+
+impl Encode for ConstExpr {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        sink.extend(&self.bytes);
+        Instruction::End.encode(sink);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

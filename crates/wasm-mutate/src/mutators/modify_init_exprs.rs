@@ -4,7 +4,7 @@
 use crate::mutators::translate::{self, InitExprKind, Item, Translator};
 use crate::{Error, Mutator, Result};
 use rand::Rng;
-use wasm_encoder::{ElementSection, GlobalSection, Instruction};
+use wasm_encoder::{ConstExpr, ElementSection, GlobalSection};
 use wasmparser::{ElementSectionReader, GlobalSectionReader, InitExpr, Operator, ValType};
 
 #[derive(Copy, Clone)]
@@ -61,10 +61,10 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
         e: &InitExpr<'_>,
         ty: &ValType,
         kind: InitExprKind,
-    ) -> Result<Instruction<'static>> {
-        use {Instruction as I, Operator as O, ValType as T};
+    ) -> Result<wasm_encoder::ConstExpr> {
+        use {Operator as O, ValType as T};
         if kind != self.kind || !self.should_process() {
-            return translate::init_expr(self.as_obj(), e);
+            return translate::init_expr(self.as_obj(), e, kind);
         }
         let mut reader = e.get_operators_reader();
         let op = reader.read()?;
@@ -90,48 +90,38 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
             let is_element_offset = matches!(kind, InitExprKind::ElementOffset);
             let should_zero = is_element_offset || self.config.rng().gen::<u8>() & 0b11 == 0;
             match ty {
-                T::I32 if should_zero => I::I32Const(0),
-                T::I64 if should_zero => I::I64Const(0),
-                T::V128 if should_zero => I::V128Const(0),
-                T::F32 if should_zero => I::F32Const(0.0),
-                T::F64 if should_zero => I::F64Const(0.0),
-                T::I32 => {
-                    if let O::I32Const { value } = op {
-                        I::I32Const(self.config.rng().gen_range(0..value))
-                    } else {
-                        I::I32Const(self.config.rng().gen())
-                    }
-                }
-                T::I64 => {
-                    if let O::I64Const { value } = op {
-                        I::I64Const(self.config.rng().gen_range(0..value))
-                    } else {
-                        I::I64Const(self.config.rng().gen())
-                    }
-                }
-                T::V128 => {
-                    if let O::V128Const { value } = op {
-                        I::V128Const(self.config.rng().gen_range(0..value.i128() as u128) as i128)
-                    } else {
-                        I::V128Const(self.config.rng().gen())
-                    }
-                }
-                T::F32 => {
-                    if let O::F32Const { value } = op {
-                        I::F32Const(f32::from_bits(value.bits()) / 2.0)
-                    } else {
-                        I::F32Const(f32::from_bits(self.config.rng().gen()))
-                    }
-                }
-                T::F64 => {
-                    if let O::F64Const { value } = op {
-                        I::F64Const(f64::from_bits(value.bits()) / 2.0)
-                    } else {
-                        I::F64Const(f64::from_bits(self.config.rng().gen()))
-                    }
-                }
-                T::FuncRef => I::RefNull(wasm_encoder::ValType::FuncRef),
-                T::ExternRef => I::RefNull(wasm_encoder::ValType::ExternRef),
+                T::I32 if should_zero => ConstExpr::i32_const(0),
+                T::I64 if should_zero => ConstExpr::i64_const(0),
+                T::V128 if should_zero => ConstExpr::v128_const(0),
+                T::F32 if should_zero => ConstExpr::f32_const(0.0),
+                T::F64 if should_zero => ConstExpr::f64_const(0.0),
+                T::I32 => ConstExpr::i32_const(if let O::I32Const { value } = op {
+                    self.config.rng().gen_range(0..value)
+                } else {
+                    self.config.rng().gen()
+                }),
+                T::I64 => ConstExpr::i64_const(if let O::I64Const { value } = op {
+                    self.config.rng().gen_range(0..value)
+                } else {
+                    self.config.rng().gen()
+                }),
+                T::V128 => ConstExpr::v128_const(if let O::V128Const { value } = op {
+                    self.config.rng().gen_range(0..value.i128() as u128) as i128
+                } else {
+                    self.config.rng().gen()
+                }),
+                T::F32 => ConstExpr::f32_const(if let O::F32Const { value } = op {
+                    f32::from_bits(value.bits()) / 2.0
+                } else {
+                    f32::from_bits(self.config.rng().gen())
+                }),
+                T::F64 => ConstExpr::f64_const(if let O::F64Const { value } = op {
+                    f64::from_bits(value.bits()) / 2.0
+                } else {
+                    f64::from_bits(self.config.rng().gen())
+                }),
+                T::FuncRef => ConstExpr::ref_null(wasm_encoder::ValType::FuncRef),
+                T::ExternRef => ConstExpr::ref_null(wasm_encoder::ValType::ExternRef),
             }
         } else {
             // FIXME: implement non-reducing mutations for constant expressions.
