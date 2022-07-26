@@ -113,7 +113,10 @@ impl Module {
         let mut globals = wasm_encoder::GlobalSection::new();
         for (idx, expr) in &self.defined_globals {
             let ty = &self.globals[*idx as usize];
-            globals.global(*ty, expr);
+            match expr {
+                GlobalInitExpr::ConstExpr(expr) => globals.global(*ty, expr),
+                GlobalInitExpr::FuncRef(func) => globals.global(*ty, &ConstExpr::ref_func(*func)),
+            };
         }
         module.section(&globals);
     }
@@ -146,16 +149,14 @@ impl Module {
                 Elements::Expressions(es) => {
                     exps.clear();
                     exps.extend(es.iter().map(|e| {
-                        let mut const_expr = wasm_encoder::ConstExpr::new();
                         // TODO(nagisa): generate global.get of imported ref globals too.
                         match e {
                             Some(i) => match el.ty {
-                                ValType::FuncRef => const_expr.ref_func(*i),
+                                ValType::FuncRef => wasm_encoder::ConstExpr::ref_func(*i),
                                 _ => unreachable!(),
                             },
-                            None => const_expr.ref_null(el.ty),
-                        };
-                        const_expr
+                            None => wasm_encoder::ConstExpr::ref_null(el.ty),
+                        }
                     }));
                     wasm_encoder::Elements::Expressions(&exps)
                 }

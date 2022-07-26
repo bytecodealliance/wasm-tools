@@ -1,4 +1,4 @@
-use crate::{encode_section, ConstExpr, Encode, Instruction, Section, SectionId, ValType};
+use crate::{encode_section, ConstExpr, Encode, Section, SectionId, ValType};
 
 /// An encoder for the element section.
 ///
@@ -21,8 +21,7 @@ use crate::{encode_section, ConstExpr, Encode, Instruction, Section, SectionId, 
 ///
 /// let mut elements = ElementSection::new();
 /// let table_index = 0;
-/// let mut offset = ConstExpr::new();
-/// offset.i32_const(42);
+/// let offset = ConstExpr::i32_const(42);
 /// let element_type = ValType::FuncRef;
 /// let functions = Elements::Functions(&[
 ///     // Function indices...

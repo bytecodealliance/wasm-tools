@@ -69,9 +69,9 @@ pub trait Translator {
         &mut self,
         e: &InitExpr<'_>,
         _ty: &wasmparser::ValType,
-        _ctx: InitExprKind,
-    ) -> Result<Instruction<'static>> {
-        init_expr(self.as_obj(), e)
+        ctx: InitExprKind,
+    ) -> Result<ConstExpr> {
+        init_expr(self.as_obj(), e, ctx)
     }
 
     fn translate_element(
@@ -197,15 +197,27 @@ pub fn global(t: &mut dyn Translator, global: Global, s: &mut GlobalSection) -> 
     Ok(())
 }
 
-pub fn init_expr(t: &mut dyn Translator, e: &InitExpr<'_>) -> Result<Instruction<'static>> {
+pub fn init_expr(t: &mut dyn Translator, e: &InitExpr<'_>, ctx: InitExprKind) -> Result<ConstExpr> {
     let mut e = e.get_operators_reader();
+    let mut offset_bytes = Vec::new();
     let op = e.read()?;
-    let op = t.translate_op(&op)?;
+    if let InitExprKind::ElementFunction = ctx {
+        match op {
+            Operator::RefFunc { .. }
+            | Operator::RefNull {
+                ty: wasmparser::ValType::FuncRef,
+                ..
+            }
+            | Operator::GlobalGet { .. } => {}
+            _ => return Err(Error::no_mutations_applicable()),
+        }
+    }
+    t.translate_op(&op)?.encode(&mut offset_bytes);
     match e.read()? {
         Operator::End if e.eof() => {}
         _ => return Err(Error::no_mutations_applicable()),
     }
-    Ok(op)
+    Ok(ConstExpr::raw(offset_bytes))
 }
 
 pub fn element(
@@ -213,20 +225,17 @@ pub fn element(
     element: wasmparser::Element<'_>,
     s: &mut ElementSection,
 ) -> Result<()> {
-    let mut offset = ConstExpr::new();
+    let offset;
     let mode = match &element.kind {
         ElementKind::Active {
             table_index,
             init_expr,
         } => {
-            let mut offset_bytes = Vec::new();
-            t.translate_init_expr(
+            offset = t.translate_init_expr(
                 init_expr,
                 &wasmparser::ValType::I32,
                 InitExprKind::ElementOffset,
-            )?
-            .encode(&mut offset_bytes);
-            offset.raw(offset_bytes);
+            )?;
             ElementMode::Active {
                 table: Some(t.remap(Item::Table, *table_index)?),
                 offset: &offset,
@@ -245,20 +254,11 @@ pub fn element(
                 functions.push(t.remap(Item::Function, idx)?);
             }
             ElementItem::Expr(expr) => {
-                let mut const_expr = ConstExpr::new();
-                match t.translate_init_expr(&expr, &element.ty, InitExprKind::ElementFunction)? {
-                    Instruction::RefFunc(n) => {
-                        const_expr.ref_func(n);
-                    }
-                    Instruction::RefNull(valtype) => {
-                        const_expr.ref_null(valtype);
-                    }
-                    Instruction::GlobalGet(g) => {
-                        const_expr.global_get(g);
-                    }
-                    _ => return Err(Error::no_mutations_applicable()),
-                };
-                exprs.push(const_expr);
+                exprs.push(t.translate_init_expr(
+                    &expr,
+                    &element.ty,
+                    InitExprKind::ElementFunction,
+                )?);
             }
         }
     }

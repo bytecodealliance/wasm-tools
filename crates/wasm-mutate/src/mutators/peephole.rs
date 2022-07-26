@@ -42,7 +42,7 @@ use egg::{Rewrite, Runner};
 use rand::{prelude::SmallRng, Rng};
 use std::ops::Range;
 use std::{borrow::Cow, fmt::Debug};
-use wasm_encoder::{CodeSection, Function, GlobalSection, Instruction, Module, ValType};
+use wasm_encoder::{CodeSection, ConstExpr, Function, GlobalSection, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
 /// This mutator applies a random peephole transformation to the input Wasm module
@@ -334,35 +334,33 @@ impl PeepholeMutator {
                             match resource {
                                 ResourceRequest::Global {
                                     index: _,
-                                    tpe,
+                                    tpe: ty,
                                     mutable,
                                 } => {
+                                    let (init, ty) = match ty {
+                                        PrimitiveTypeInfo::I32 => {
+                                            (ConstExpr::i32_const(0), ValType::I32)
+                                        }
+                                        PrimitiveTypeInfo::I64 => {
+                                            (ConstExpr::i64_const(0), ValType::I64)
+                                        }
+                                        PrimitiveTypeInfo::F32 => {
+                                            (ConstExpr::f32_const(0.0), ValType::F32)
+                                        }
+                                        PrimitiveTypeInfo::F64 => {
+                                            (ConstExpr::f64_const(0.0), ValType::F64)
+                                        }
+                                        PrimitiveTypeInfo::V128 => {
+                                            (ConstExpr::v128_const(0), ValType::V128)
+                                        }
+                                        _ => unreachable!("Not valid for globals"),
+                                    };
+                                    let ty = wasm_encoder::GlobalType {
+                                        mutable: *mutable,
+                                        val_type: ty,
+                                    };
                                     // Add to globals
-                                    new_global_section.global(
-                                        wasm_encoder::GlobalType {
-                                            mutable: *mutable,
-                                            val_type: match tpe {
-                                                PrimitiveTypeInfo::I32 => ValType::I32,
-                                                PrimitiveTypeInfo::I64 => ValType::I64,
-                                                PrimitiveTypeInfo::F32 => ValType::F32,
-                                                PrimitiveTypeInfo::F64 => ValType::F64,
-                                                PrimitiveTypeInfo::V128 => ValType::V128,
-                                                _ => {
-                                                    unreachable!("Not valid for globals")
-                                                }
-                                            },
-                                        },
-                                        match tpe {
-                                            PrimitiveTypeInfo::I32 => &Instruction::I32Const(0),
-                                            PrimitiveTypeInfo::I64 => &Instruction::I64Const(0),
-                                            PrimitiveTypeInfo::F32 => &Instruction::F32Const(0.0),
-                                            PrimitiveTypeInfo::F64 => &Instruction::F64Const(0.0),
-                                            PrimitiveTypeInfo::V128 => &Instruction::V128Const(0),
-                                            _ => {
-                                                unreachable!("Not valid for globals")
-                                            }
-                                        },
-                                    );
+                                    new_global_section.global(ty, &init);
                                 }
                             }
                         }
