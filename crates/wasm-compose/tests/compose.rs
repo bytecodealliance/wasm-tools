@@ -59,7 +59,13 @@ fn component_composing() -> Result<()> {
         let (output, baseline_path) = if error_path.is_file() {
             match r {
                 Ok(_) => bail!("composition should fail for test case `{}`", test_case),
-                Err(e) => (format!("{:?}", e), &error_path),
+                Err(e) => (
+                    format!("{:?}", e).replace('\\', "/").replace(
+                        "The system cannot find the file specified.",
+                        "No such file or directory",
+                    ),
+                    &error_path,
+                ),
             }
         } else {
             let bytes =
