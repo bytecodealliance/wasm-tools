@@ -1,5 +1,5 @@
 use crate::core::*;
-use wasm_encoder::{BlockType, ConstExpr, Instruction, ValType};
+use wasm_encoder::{BlockType, Instruction, ValType};
 
 const WASM_PAGE_SIZE: u64 = 65_536;
 
@@ -578,7 +578,6 @@ impl Module {
                             *offset = Offset::Const32(n as i32);
                         }
                         Offset::Global(_) => *offset = Offset::Const32(0),
-                        _ => unreachable!("Unexpected instruction: {:?}", offset),
                     }
                 }
             }
