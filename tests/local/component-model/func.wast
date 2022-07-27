@@ -39,6 +39,22 @@
   )
 )
 
+(component
+  (type $big (func
+    (param u32) (param u32) (param u32) (param u32) (param u32)
+    (param u32) (param u32) (param u32) (param u32) (param u32)
+    (param u32) (param u32) (param u32) (param u32) (param u32)
+    (param u32) (param u32) (param u32) (param u32) (param u32)
+  ))
+
+  (component $c
+    (import "big" (func $big (type $big)))
+    (core module $libc (memory (export "memory") 1))
+    (core instance $libc (instantiate $libc))
+    (core func $big (canon lower (func $big) (memory $libc "memory")))
+  )
+)
+
 (assert_invalid
   (component
     (core module $m

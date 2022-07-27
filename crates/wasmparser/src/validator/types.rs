@@ -752,7 +752,11 @@ impl ComponentFuncType {
                 info.params.clear();
                 assert!(info.params.push(ValType::I32));
                 info.requires_memory = true;
-                info.requires_realloc = true;
+
+                // We need realloc as well when lifting a function
+                if !import {
+                    info.requires_realloc = true;
+                }
                 break;
             }
         }
