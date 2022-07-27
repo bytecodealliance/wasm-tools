@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser-dump"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["The Wasmtime Project Developers"]
 edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"
@@ -9,4 +9,4 @@ description = "Utility to dump debug information about the wasm binary format"
 
 [dependencies]
 anyhow = "1"
-wasmparser = { path = "../wasmparser", version = "0.87.0" }
+wasmparser = { path = "../wasmparser", version = "0.88.0" }
