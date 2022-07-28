@@ -753,10 +753,10 @@ impl Module {
                         (HeapType::Index(n1), HeapType::Index(n2)) => {
                             let n1 = self
                                 .func_type_at(n1, types, 0)
-                                .expect("TODO fixme bad type");
+                                .unwrap();
                             let n2 = self
                                 .func_type_at(n2, types, 0)
-                                .expect("TODO fixme bad type");
+                                .unwrap();
                             self.eq_fns(n1, n2, types)
                         }
                         (_, _) => false,
@@ -789,10 +789,10 @@ impl Module {
                     // Check whether the defined types are (structurally) equivalent.
                     let n1 = self
                         .func_type_at(n1, types, 0)
-                        .expect("TODO fixme bad type");
+                        .unwrap();
                     let n2 = self
                         .func_type_at(n2, types, 0)
-                        .expect("TODO fixme bad type");
+                        .unwrap();
                     self.eq_fns(n1, n2, types)
                 }
                 (HeapType::Index(_), HeapType::Func) => true,
@@ -806,18 +806,16 @@ impl Module {
                 && matches_null(ty1.nullable, ty2.nullable)
         };
 
+        // The below match expression is written in a style which
+        // mentions every possible ValType constructor such that the
+        // pattern exhaustiveness checker will complain when the
+        // ValType gets extended with additional constructors.
         match (ty1, ty2) {
             (ValType::Bot, _) => true,
             (_, ValType::Bot) => false,
             (ValType::Ref(rt1), ValType::Ref(rt2)) => matches_ref(rt1, rt2, types),
             (ValType::Ref(_), _) => false,
-            // This is not in the spec right now.  According to the spec,
-            // though it appears to be an omission as far as I can tell,
-            // matches V128 V128 = false
             (ValType::V128, ty2) => ty1 == ty2,
-            // inlined is_num (for exhaustiveness checking)
-            // Bot is covered by first two cases
-            // is_num(ty1) /\ ty1 == ty2 ==> is_num(ty2)
             (ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64, ty2) => ty1 == ty2,
         }
     }
