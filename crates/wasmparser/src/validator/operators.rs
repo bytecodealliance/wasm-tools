@@ -799,6 +799,60 @@ impl OperatorValidator {
                 }
                 self.unreachable();
             }
+            Operator::BrOnNull { relative_depth } => {
+                self.check_function_references_enabled()?;
+                let rt = self.pop_ref(resources)?;
+                let (ft, kind) = self.jump(relative_depth)?;
+                for ty in label_types(ft, resources, kind)?.rev() {
+                    self.pop_operand(Some(ty), resources)?;
+                }
+                for ty in label_types(ft, resources, kind)? {
+                    self.push_operand(ty, resources)?;
+                }
+                self.push_operand(
+                    ValType::Ref(RefType {
+                        nullable: false,
+                        heap_type: rt.heap_type,
+                    }),
+                    resources,
+                )?;
+            }
+            Operator::BrOnNonNull { relative_depth } => {
+                self.check_function_references_enabled()?;
+                let RefType { heap_type, .. } = self.pop_ref(resources)?;
+                let rt0 = ValType::Ref(RefType {
+                    nullable: false,
+                    heap_type: heap_type,
+                });
+                let (ft, kind) = self.jump(relative_depth)?;
+                let mut lts = label_types(ft, resources, kind)?;
+                match lts.next_back() {
+                    None => bail_op_err!(
+                        "type mismatch: expected {} but stack has nothing",
+                        ty_to_str(rt0)
+                    ),
+                    Some(rt1 @ ValType::Ref(_)) => {
+                        if !resources.matches(rt0, rt1) {
+                            bail_op_err!(
+                                "type mismatch: expected {} but found {}",
+                                ty_to_str(rt0),
+                                ty_to_str(rt1)
+                            )
+                        }
+                    }
+                    Some(ty) => bail_op_err!(
+                        "type mismatch: expected {} but found {}",
+                        ty_to_str(rt0),
+                        ty_to_str(ty)
+                    ),
+                }
+                for ty in label_types(ft, resources, kind)?.rev().skip(1) {
+                    self.pop_operand(Some(ty), resources)?;
+                }
+                for ty in lts {
+                    self.push_operand(ty, resources)?;
+                }
+            }
             Operator::Return => self.check_return(resources)?,
             Operator::Call { function_index } => self.check_call(function_index, resources)?,
             Operator::ReturnCall { function_index } => {
@@ -821,6 +875,47 @@ impl OperatorValidator {
                     ));
                 }
                 self.check_call_indirect(index, table_index, resources)?
+            }
+            Operator::CallRef => {
+                self.check_function_references_enabled()?;
+                let rt = self.pop_ref(resources)?;
+                match rt.heap_type {
+                    HeapType::Index(type_index) =>
+                    {
+                        let ft = func_type_at(resources, type_index)?;
+                        for ty in ft.inputs().rev() {
+                            self.pop_operand(Some(ty), resources)?;
+                        }
+                        for ty in ft.outputs() {
+                            self.push_operand(ty, resources)?;
+                        }
+                    },
+                    HeapType::Bot => (),
+                    _ => bail_op_err!("type mismatch: instruction requires function reference type but stack has {}", ty_to_str(ValType::Ref(rt)))
+                }
+            }
+            Operator::ReturnCallRef => {
+                self.check_function_references_enabled()?;
+                // if !self.features.tail_call {
+                //     return Err(OperatorValidatorError::new(
+                //         "tail calls support is not enabled",
+                //     ));
+                // }
+                let rt = self.pop_ref(resources)?;
+                match rt.heap_type {
+                    HeapType::Index(type_index) => {
+                        let ft = func_type_at(resources, type_index)?;
+                        for ty in ft.inputs().rev() {
+                            self.pop_operand(Some(ty), resources)?;
+                        }
+                        for ty in ft.outputs() {
+                            self.push_operand(ty, resources)?;
+                        }
+                    },
+                    HeapType::Bot => (),
+                    _ => bail_op_err!("type mismatch: instruction requires function reference type but stack has {}", ty_to_str(ValType::Ref(rt)))
+                }
+                self.check_return(resources)?;
             }
             Operator::ReturnCallIndirect { index, table_index } => {
                 if !self.features.tail_call {
@@ -1494,6 +1589,17 @@ impl OperatorValidator {
                     self.push_operand(ValType::Ref(FUNC_REF), resources)?;
                 }
             }
+            Operator::RefAsNonNull => {
+                self.check_function_references_enabled()?;
+                let rt = self.pop_ref(resources)?;
+                self.push_operand(
+                    ValType::Ref(RefType {
+                        nullable: false,
+                        heap_type: rt.heap_type,
+                    }),
+                    resources,
+                )?;
+            }
             Operator::V128Load { memarg } => {
                 self.check_simd_enabled()?;
                 let ty = self.check_memarg(memarg, 4, resources)?;
@@ -2129,116 +2235,6 @@ impl OperatorValidator {
                 self.pop_operand(Some(ValType::I32), resources)?;
                 self.pop_operand(Some(ValType::Ref(ty)), resources)?;
                 self.pop_operand(Some(ValType::I32), resources)?;
-            }
-
-            // Function references proposal operators. TODO(dhil): Put
-            // each rule in its appropriate place within the above
-            // list.
-            Operator::CallRef => {
-                self.check_function_references_enabled()?;
-                let rt = self.pop_ref(resources)?;
-                match rt.heap_type {
-                    HeapType::Index(type_index) =>
-                    {
-                        let ft = func_type_at(resources, type_index)?;
-                        for ty in ft.inputs().rev() {
-                            self.pop_operand(Some(ty), resources)?;
-                        }
-                        for ty in ft.outputs() {
-                            self.push_operand(ty, resources)?;
-                        }
-                    },
-                    HeapType::Bot => (),
-                    _ => bail_op_err!("type mismatch: instruction requires function reference type but stack has {}", ty_to_str(ValType::Ref(rt)))
-                }
-            }
-            Operator::ReturnCallRef => {
-                self.check_function_references_enabled()?;
-                // if !self.features.tail_call {
-                //     return Err(OperatorValidatorError::new(
-                //         "tail calls support is not enabled",
-                //     ));
-                // }
-                let rt = self.pop_ref(resources)?;
-                match rt.heap_type {
-                    HeapType::Index(type_index) => {
-                        let ft = func_type_at(resources, type_index)?;
-                        for ty in ft.inputs().rev() {
-                            self.pop_operand(Some(ty), resources)?;
-                        }
-                        for ty in ft.outputs() {
-                            self.push_operand(ty, resources)?;
-                        }
-                    },
-                    HeapType::Bot => (),
-                    _ => bail_op_err!("type mismatch: instruction requires function reference type but stack has {}", ty_to_str(ValType::Ref(rt)))
-                }
-                self.check_return(resources)?;
-            }
-            Operator::RefAsNonNull => {
-                self.check_function_references_enabled()?;
-                let rt = self.pop_ref(resources)?;
-                self.push_operand(
-                    ValType::Ref(RefType {
-                        nullable: false,
-                        heap_type: rt.heap_type,
-                    }),
-                    resources,
-                )?;
-            }
-            Operator::BrOnNull { relative_depth } => {
-                self.check_function_references_enabled()?;
-                let rt = self.pop_ref(resources)?;
-                let (ft, kind) = self.jump(relative_depth)?;
-                for ty in label_types(ft, resources, kind)?.rev() {
-                    self.pop_operand(Some(ty), resources)?;
-                }
-                for ty in label_types(ft, resources, kind)? {
-                    self.push_operand(ty, resources)?;
-                }
-                self.push_operand(
-                    ValType::Ref(RefType {
-                        nullable: false,
-                        heap_type: rt.heap_type,
-                    }),
-                    resources,
-                )?;
-            }
-            Operator::BrOnNonNull { relative_depth } => {
-                self.check_function_references_enabled()?;
-                let RefType { heap_type, .. } = self.pop_ref(resources)?;
-                let rt0 = ValType::Ref(RefType {
-                    nullable: false,
-                    heap_type: heap_type,
-                });
-                let (ft, kind) = self.jump(relative_depth)?;
-                let mut lts = label_types(ft, resources, kind)?;
-                match lts.next_back() {
-                    None => bail_op_err!(
-                        "type mismatch: expected {} but stack has nothing",
-                        ty_to_str(rt0)
-                    ),
-                    Some(rt1 @ ValType::Ref(_)) => {
-                        if !resources.matches(rt0, rt1) {
-                            bail_op_err!(
-                                "type mismatch: expected {} but found {}",
-                                ty_to_str(rt0),
-                                ty_to_str(rt1)
-                            )
-                        }
-                    }
-                    Some(ty) => bail_op_err!(
-                        "type mismatch: expected {} but found {}",
-                        ty_to_str(rt0),
-                        ty_to_str(ty)
-                    ),
-                }
-                for ty in label_types(ft, resources, kind)?.rev().skip(1) {
-                    self.pop_operand(Some(ty), resources)?;
-                }
-                for ty in lts {
-                    self.push_operand(ty, resources)?;
-                }
             }
         }
         Ok(())
