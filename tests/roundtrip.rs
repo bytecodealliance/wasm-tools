@@ -468,6 +468,9 @@ impl TestState {
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 "function-references" => features.function_references = true,
+                // function-references has tests for return_call_ref which
+                // depend on tail calls
+                "return_call_ref.wast" => features.tail_call = true,
                 _ => {}
             }
         }

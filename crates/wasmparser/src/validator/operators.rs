@@ -896,11 +896,11 @@ impl OperatorValidator {
             }
             Operator::ReturnCallRef => {
                 self.check_function_references_enabled()?;
-                // if !self.features.tail_call {
-                //     return Err(OperatorValidatorError::new(
-                //         "tail calls support is not enabled",
-                //     ));
-                // }
+                if !self.features.tail_call {
+                    return Err(OperatorValidatorError::new(
+                        "tail calls support is not enabled",
+                    ));
+                }
                 let rt = self.pop_ref(resources)?;
                 match rt.heap_type {
                     HeapType::Index(type_index) => {
