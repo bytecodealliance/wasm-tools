@@ -612,8 +612,7 @@ impl OperatorValidator {
         resources: &impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
         for expected in results(self.control[0].block_type, resources)?.rev() {
-            let actual = self.pop_operand(Some(expected), resources)?;
-            }
+            self.pop_operand(Some(expected), resources)?;
         }
         self.unreachable();
         Ok(())
