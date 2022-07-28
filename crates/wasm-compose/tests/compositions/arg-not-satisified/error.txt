@@ -1,1 +1,4 @@
-import `a` for instantiation `b` cannot be satisfied by dependency `a`
+instantiation argument `a` for instantiation `b` is incompatible with dependency `a`
+
+Caused by:
+    missing export `a`

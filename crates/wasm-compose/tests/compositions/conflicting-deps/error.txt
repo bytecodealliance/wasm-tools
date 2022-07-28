@@ -1,1 +1,1 @@
-conflicting dependencies for instantiation `a`: import `` can be satisfied by both `b` and `c`
+conflicting dependencies for instantiation `a`: instantiation argument `` can be satisfied by both `b` and `c`

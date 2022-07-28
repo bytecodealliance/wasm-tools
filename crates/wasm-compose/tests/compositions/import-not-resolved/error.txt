@@ -1,1 +1,1 @@
-import `a` for instantiation `a` could not be resolved from the instantiation dependencies
+instantiation argument `a` for instantiation `a` could not be satisfied by any of the specified dependencies

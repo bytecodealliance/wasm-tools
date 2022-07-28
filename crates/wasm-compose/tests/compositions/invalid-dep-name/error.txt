@@ -1,4 +1,4 @@
-failed to resolve dependency `b` for instantiation `a`
+failed to find an instance named `b` specified as a dependency of instantiation `a`
 
 Caused by:
-    import `b` does not exist
+    an import with name `b` does not exist

@@ -124,20 +124,24 @@ impl<'a> Import<'a> {
         )
     }
 
-    /// Checks if this import is importable as the given instance type.
-    fn is_importable_as(&self, ty: &ComponentInstanceType, types: TypesRef) -> bool {
+    /// Requires that this import is importable as the given instance type.
+    fn require_importable_as(&self, ty: &ComponentInstanceType, types: TypesRef) -> Result<()> {
         let exports = ty.exports(types);
 
         // This checks if this import's instance type is a subtype of the given instance type.
-        exports
-            .iter()
-            .all(|(k, b)| match self.exports.get(k.as_str()) {
+        for (k, b) in exports {
+            match self.exports.get(k.as_str()) {
                 Some(a) => {
                     let a = self.types.component_entity_type_from_export(a).unwrap();
-                    ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), b, types)
+                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), b, types) {
+                        bail!("incompatible type for export `{k}`")
+                    }
                 }
-                None => false,
-            })
+                None => bail!("missing export `{k}`"),
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -244,7 +248,7 @@ impl<'a> StateBuilder<'a> {
         for (name, instantiation) in &self.config.instantiations {
             let import = instantiation.import.as_deref().unwrap_or(name);
             let import_index = self.config.imports.get_index_of(import).ok_or_else(|| {
-                anyhow!("failed to find import `{import}` for instantiation `{name}`")
+                anyhow!("failed to find an import named `{import}` for instantiation `{name}`")
             })?;
 
             let node_index = self.state.graph.add_node(Instantiation {
@@ -285,7 +289,7 @@ impl<'a> StateBuilder<'a> {
         // Add the default export to the instantiation graph if it is not already
         if let Some(name) = &self.config.exports.default {
             self.get_or_instantiate(name)
-                .with_context(|| "failed to export default interface")?;
+                .with_context(|| "failed to resolve instance reference for default export")?;
         }
 
         Ok(self.state)
@@ -301,12 +305,12 @@ impl<'a> StateBuilder<'a> {
                     .config
                     .imports
                     .get_index_of(name)
-                    .ok_or_else(|| anyhow!("import `{name}` does not exist"))?;
+                    .ok_or_else(|| anyhow!("an import with name `{name}` does not exist"))?;
 
                 let import = &self.state.imports[import_index];
 
                 if !import.imports.is_empty() {
-                    bail!("import `{name}` cannot be default instantiated");
+                    bail!("import `{name}` cannot be implicitly instantiated");
                 }
 
                 log::debug!(
@@ -331,11 +335,11 @@ impl<'a> StateBuilder<'a> {
     ) -> Result<()> {
         for (arg_name, dep_name) in args {
             let arg = import.imports.get(arg_name.as_str()).ok_or_else(|| {
-                anyhow!("instantiation `{name}` does not have an import named `{arg_name}`")
+                anyhow!("instantiation `{name}` does not have an argument named `{arg_name}`")
             })?;
 
             let dep_index = self.get_or_instantiate(dep_name).with_context(|| {
-                format!("failed to resolve dependency `{dep_name}` for instantiation `{name}`")
+                format!("failed to find an instance named `{dep_name}` specified as argument `{arg_name}` for instantiation `{name}`")
             })?;
 
             let ty = match arg.ty {
@@ -352,12 +356,10 @@ impl<'a> StateBuilder<'a> {
                 ),
             };
 
-            if !self.state.graph[dep_index]
+            self.state.graph[dep_index]
                 .import
-                .is_importable_as(ty, import.types.as_ref())
-            {
-                bail!("import `{arg_name}` for instantiation `{name}` cannot be satisfied by dependency `{dep_name}`");
-            }
+                .require_importable_as(ty, import.types.as_ref())
+                .with_context(|| format!("instantiation argument `{arg_name}` for instantiation `{name}` is incompatible with dependency `{dep_name}`"))?;
 
             log::debug!(
                 "adding explicit dependency edge `{name}` -> `{dep_name}` (arg `{arg_name}`)"
@@ -397,33 +399,35 @@ impl<'a> StateBuilder<'a> {
                     for dep in deps {
                         let dep_index = self.get_or_instantiate(dep).with_context(|| {
                             format!(
-                                "failed to resolve dependency `{dep}` for instantiation `{name}`"
+                                "failed to find an instance named `{dep}` specified as a dependency of instantiation `{name}`"
                             )
                         })?;
 
                         let dep_import = self.state.graph[dep_index].import;
 
-                        if dep_import.is_importable_as(ty, import.types.as_ref()) {
-                            log::debug!(
-                                "adding implicit dependency edge `{name}` -> `{dep}` (arg `{n}`)"
-                            );
-
-                            resolved = true;
-
-                            if let Some(previous) = edges.insert(n, (dep, dep_index)) {
-                                bail!(
-                                    "conflicting dependencies for instantiation `{name}`: import `{n}` can be satisfied by both `{previous}` and `{dep}`",
-                                    previous = previous.0
+                        match dep_import.require_importable_as(ty, import.types.as_ref()) {
+                            Ok(()) => {
+                                log::debug!(
+                                    "adding implicit dependency edge `{name}` -> `{dep}` (arg `{n}`)"
                                 );
-                            }
-                            continue;
-                        }
 
-                        log::debug!("import `{n}` for instantiation `{name}` cannot be satisfied by `{dep}`");
+                                resolved = true;
+
+                                if let Some(previous) = edges.insert(n, (dep, dep_index)) {
+                                    bail!(
+                                        "conflicting dependencies for instantiation `{name}`: instantiation argument `{n}` can be satisfied by both `{previous}` and `{dep}`",
+                                        previous = previous.0
+                                    );
+                                }
+                            }
+                            Err(e) => log::debug!(
+                                "instantiation argument `{n}` for instantiation `{name}` cannot be satisfied by `{dep}`: {:?}", e
+                            )
+                        }
                     }
 
                     if !resolved {
-                        bail!("import `{n}` for instantiation `{name}` could not be resolved from the instantiation dependencies");
+                        bail!("instantiation argument `{n}` for instantiation `{name}` could not be satisfied by any of the specified dependencies");
                     }
                 }
                 // For now, only instance imports are supported.
@@ -531,7 +535,7 @@ impl<'a> ComponentComposer<'a> {
                 .map(|i| self.config.imports.get_index(i).unwrap().0)
             {
                 log::warn!(
-                    "import `{name}` was not instantiated (not referenced from any instantiation)"
+                    "import `{name}` was not instantiated or referenced from any instantiation"
                 );
             }
         }
