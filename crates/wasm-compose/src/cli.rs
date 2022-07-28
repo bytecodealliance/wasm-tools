@@ -23,7 +23,7 @@ fn default_config() -> Result<Config> {
 /// A tool for composing WebAssembly components together.
 #[derive(Debug, Parser)]
 #[clap(name = "component-encoder", version = env!("CARGO_PKG_VERSION"))]
-pub struct WasmComposeApp {
+pub struct WasmComposeCommand {
     /// The path of the output composed WebAssembly component.
     #[clap(long, short = 'o', value_name = "OUTPUT")]
     pub output: Option<PathBuf>,
@@ -41,7 +41,7 @@ pub struct WasmComposeApp {
     pub skip_validation: bool,
 }
 
-impl WasmComposeApp {
+impl WasmComposeCommand {
     /// Executes the application.
     pub fn execute(self) -> Result<()> {
         let config = match self.config {
@@ -81,10 +81,7 @@ impl WasmComposeApp {
             log::debug!("output component validated successfully");
         }
 
-        log::info!(
-            "successfully composed component `{output}`",
-            output = output.display()
-        );
+        println!("composed component `{output}`", output = output.display());
 
         Ok(())
     }

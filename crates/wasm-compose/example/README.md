@@ -73,6 +73,8 @@ The components in this example will be built with [`cargo component`](https://gi
 Follow the [installation instructions](https://github.com/bytecodealliance/cargo-component#installation)
 to install `cargo component` locally.
 
+Additionally, it is assumed that `wasm-tools` has been installed from the root of this repository.
+
 ## Building the components
 
 To build the `add` component, use `cargo component build`:
@@ -137,7 +139,7 @@ To compose a `math` component that adds two numbers together:
 
 ```sh
 cd host
-cargo run --release --manifest-path ../../Cargo.toml
+wasm-tools compose
 ```
 
 There should now be a `math.wasm` in the `host` directory.
@@ -173,7 +175,7 @@ And run `wasm-compose` again:
 
 ```sh
 cd host
-cargo run --release --manifest-path ../../Cargo.toml
+wasm-tools compose
 ```
 
 This results in a new `math.wasm` in the `host` directory where the

@@ -44,6 +44,7 @@ subcommands! {
     (dump, "dump")
     (objdump, "objdump")
     (strip, "strip")
+    (compose, "compose")
 }
 
 fn main() -> Result<()> {

@@ -2,6 +2,7 @@
 
 #![deny(missing_docs)]
 
+#[cfg(feature = "cli")]
 pub mod cli;
 pub mod composer;
 pub mod config;

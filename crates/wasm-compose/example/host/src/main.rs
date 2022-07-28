@@ -8,7 +8,7 @@ fn main() -> Result<()> {
     let engine = Engine::new(&config)?;
     let component = Component::from_file(&engine, "math.wasm")?;
     let linker: Linker<()> = Linker::new(&engine);
-    
+
     let mut store = Store::new(&engine, ());
     let instance = linker.instantiate(&mut store, &component)?;
     let execute = instance.get_typed_func::<(), u32, _>(&mut store, "execute")?;

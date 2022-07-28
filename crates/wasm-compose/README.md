@@ -4,7 +4,7 @@
 <strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> project</strong>
 
   <p>
-    <strong>A WebAssembly component composing tool.</strong>
+    <strong>A WebAssembly component composing library.</strong>
   </p>
 
   <p>
@@ -16,8 +16,10 @@
 
 ## Overview
 
-`wasm-compose` is a tool for composing [WebAssembly components](https://github.com/webassembly/component-model)
+`wasm-compose` is a library for composing [WebAssembly components](https://github.com/webassembly/component-model)
 from other WebAssembly components.
+
+It is made available as the `compose` subcommand of `wasm-tools`.
 
 ## Implementation status
 
@@ -38,16 +40,16 @@ of composing WebAssembly components together.
 
 ## Usage
 
-With a configuration file present, run `wasm-compose` without any options to
-compose a component:
+With a configuration file present, run the `compose` command without
+any options to compose a component:
 
 ```sh
-cargo run -p wasm-compose
+wasm-tools compose
 ```
 
 ## Configuration
 
-By default, `wasm-compose` looks for a configuration file named
+By default, `wasm-tools compose` looks for a configuration file named
 `wasm-compose.toml` or `wasm-compose.yml` in the current directory.
 
 The composition configuration currently has three main sections:
@@ -78,7 +80,7 @@ path = "a.wasm"
 embed = true
 ```
 
-Additionally, the `--embed` option can be given to `wasm-compose` to embed
+Additionally, the `--embed` option can be given to `wasm-tools compose` to embed
 _all_ imports into the composed component.
 
 It is currently necessary to embed _all_ imports to run
@@ -126,7 +128,7 @@ instantiation arguments from the list of dependencies.
 
 It does this by scanning the dependencies for instantiation arguments that can
 be satisfied by the dependency. If more than one argument can be satisfied by a
-dependency, then `wasm-compose` will error and an explicit instantiation
+dependency, then an error will result and an explicit instantiation
 argument must be used.
 
 To specify an explicit instantiation argument, use the `with` field:
