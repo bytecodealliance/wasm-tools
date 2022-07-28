@@ -635,8 +635,6 @@ impl Module {
                 offset,
             ));
         }
-        // TODO(luna): need to check the initialization expression that
-        // function references adds to tables
         Ok(())
     }
 
@@ -751,12 +749,8 @@ impl Module {
                         (HeapType::Func, HeapType::Func) => true,
                         (HeapType::Extern, HeapType::Extern) => true,
                         (HeapType::Index(n1), HeapType::Index(n2)) => {
-                            let n1 = self
-                                .func_type_at(n1, types, 0)
-                                .unwrap();
-                            let n2 = self
-                                .func_type_at(n2, types, 0)
-                                .unwrap();
+                            let n1 = self.func_type_at(n1, types, 0).unwrap();
+                            let n2 = self.func_type_at(n2, types, 0).unwrap();
                             self.eq_fns(n1, n2, types)
                         }
                         (_, _) => false,
@@ -787,12 +781,8 @@ impl Module {
             match (ty1, ty2) {
                 (HeapType::Index(n1), HeapType::Index(n2)) => {
                     // Check whether the defined types are (structurally) equivalent.
-                    let n1 = self
-                        .func_type_at(n1, types, 0)
-                        .unwrap();
-                    let n2 = self
-                        .func_type_at(n2, types, 0)
-                        .unwrap();
+                    let n1 = self.func_type_at(n1, types, 0).unwrap();
+                    let n2 = self.func_type_at(n2, types, 0).unwrap();
                     self.eq_fns(n1, n2, types)
                 }
                 (HeapType::Index(_), HeapType::Func) => true,
