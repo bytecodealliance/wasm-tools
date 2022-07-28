@@ -84,7 +84,7 @@ pub(crate) struct OperatorValidator {
 
     // The `operands` is the current type stack, and the `control` list is the
     // list of blocks that we're currently in.
-    pub(crate) operands: Vec<Option<ValType>>,
+    pub(crate) operands: Vec<ValType>,
     control: Vec<Frame>,
 
     // This is a list of flags for wasm features which are used to gate various
@@ -92,7 +92,7 @@ pub(crate) struct OperatorValidator {
     pub(crate) features: WasmFeatures,
 
     // Temporary storage used during the validation of `br_table`.
-    br_table_tmp: Vec<Option<ValType>>,
+    br_table_tmp: Vec<ValType>,
 }
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
@@ -240,7 +240,7 @@ impl OperatorValidator {
         resources
             .check_value_type(ty, &self.features, 0)
             .map_err(|t| OperatorValidatorError::new(t.inner.message))?;
-        self.operands.push(Some(ty));
+        self.operands.push(ty);
         Ok(())
     }
 
@@ -251,7 +251,7 @@ impl OperatorValidator {
     /// simply that something is needed to be popped.
     ///
     /// If `expected` is `Some(T)` then this will be guaranteed to return
-    /// `Some(T)`, and it will only return success if the current block is
+    /// `T`, and it will only return success if the current block is
     /// unreachable or if `T` was found at the top of the operand stack.
     ///
     /// If `expected` is `None` then it indicates that something must be on the
@@ -259,54 +259,55 @@ impl OperatorValidator {
     /// is useful for polymorphic instructions like `select`.
     ///
     /// If `Some(T)` is returned then `T` was popped from the operand stack and
-    /// matches `expected`. If `None` is returned then it means that `None` was
+    /// matches `expected`. If `Bot` is returned then it means that `None` was
     /// expected and the current block is unreachable.
     fn pop_operand(
         &mut self,
         expected: Option<ValType>,
         resources: &impl WasmModuleResources,
-    ) -> OperatorValidatorResult<Option<ValType>> {
+    ) -> OperatorValidatorResult<ValType> {
         let control = self.control.last().unwrap();
-        let actual = if self.operands.len() == control.height {
-            if control.unreachable {
-                None
-            } else {
+        let actual_ty = if self.operands.len() == control.height && control.unreachable {
+            ValType::Bot
+        } else {
+            if self.operands.len() == control.height {
                 let desc = match expected {
                     Some(ty) => ty_to_str(ty),
                     None => "a type".into(),
                 };
                 bail_op_err!("type mismatch: expected {} but nothing on stack", desc)
-            }
-        } else {
-            self.operands.pop().unwrap()
-        };
-        if let (Some(actual_ty), Some(expected_ty)) = (actual, expected) {
-            let bad = if self.features.function_references {
-                !resources.matches(actual_ty, expected_ty)
             } else {
-                actual_ty != expected_ty
-            };
-            if bad {
-                bail_op_err!(
-                    "type mismatch: expected {}, found {}",
-                    ty_to_str(expected_ty),
-                    ty_to_str(actual_ty)
-                )
+                self.operands.pop().unwrap()
             }
-        }
+        };
+        let actual = match expected {
+            None => actual_ty,
+            Some(expected_ty) => {
+                if !resources.matches(actual_ty, expected_ty) {
+                    bail_op_err!(
+                        "type mismatch: expected {}, found {}",
+                        ty_to_str(expected_ty),
+                        ty_to_str(actual_ty)
+                    )
+                } else {
+                    actual_ty
+                }
+            }
+        };
         Ok(actual)
     }
 
     fn pop_ref(
         &mut self,
         resources: &impl WasmModuleResources,
-    ) -> OperatorValidatorResult<Option<RefType>> {
+    ) -> OperatorValidatorResult<RefType> {
         match self.pop_operand(None, resources)? {
-            Some(vt) => match vt {
-                ValType::Ref(rt) => Ok(Some(rt)),
-                _ => bail_op_err!("type mismatch: expected ref but found {}", ty_to_str(vt)),
-            },
-            None => Ok(None),
+            ValType::Bot => Ok(RefType {
+                nullable: false,
+                heap_type: HeapType::Bot,
+            }),
+            ValType::Ref(rt) => Ok(rt),
+            ty => bail_op_err!("type mismatch: expected ref but found {}", ty_to_str(ty)),
         }
     }
 
@@ -403,21 +404,6 @@ impl OperatorValidator {
             Some(mem) => Ok(mem.index_type()),
             None => bail_op_err!("unknown memory {}", memory_index),
         }
-    }
-
-    fn check_heap_type(
-        &self,
-        heap_type: HeapType,
-        resources: impl WasmModuleResources,
-    ) -> OperatorValidatorResult<()> {
-        match heap_type {
-            HeapType::Func | HeapType::Extern | HeapType::Bot => (),
-            HeapType::Index(type_index) => {
-                // Just check that the index is valid
-                func_type_at(&resources, type_index)?;
-            }
-        }
-        Ok(())
     }
 
     /// Validates a `memarg for alignment and such (also the memory it
@@ -625,8 +611,9 @@ impl OperatorValidator {
         &mut self,
         resources: &impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        for ty in results(self.control[0].block_type, resources)?.rev() {
-            self.pop_operand(Some(ty), resources)?;
+        for expected in results(self.control[0].block_type, resources)?.rev() {
+            let actual = self.pop_operand(Some(expected), resources)?;
+            }
         }
         self.unreachable();
         Ok(())
@@ -849,29 +836,28 @@ impl OperatorValidator {
                 self.pop_operand(None, resources)?;
             }
             Operator::Select => {
+                fn is_num_or_vec(ty: ValType) -> bool {
+                    matches!(
+                        ty,
+                        ValType::I32
+                            | ValType::I64
+                            | ValType::F32
+                            | ValType::F64
+                            | ValType::V128
+                            | ValType::Bot
+                    )
+                }
                 self.pop_operand(Some(ValType::I32), resources)?;
                 let ty1 = self.pop_operand(None, resources)?;
                 let ty2 = self.pop_operand(None, resources)?;
-                fn is_num_opt(ty: Option<ValType>) -> bool {
-                    match ty {
-                        None => true,
-                        Some(ty) => matches!(
-                            ty,
-                            ValType::I32
-                                | ValType::I64
-                                | ValType::F32
-                                | ValType::F64
-                                | ValType::Bot
-                        ),
-                    }
-                }
-                if !is_num_opt(ty1) || !is_num_opt(ty2) {
+                // Computes the least upper bound for ty1 & ty2
+                if !is_num_or_vec(ty1) || !is_num_or_vec(ty2) {
                     bail_op_err!("type mismatch: select only takes integral types")
                 }
-                if ty1 != ty2 && ty1 != None && ty2 != None {
+                if ty1 != ty2 && ty1 != ValType::Bot && ty2 != ValType::Bot {
                     bail_op_err!("type mismatch: select operands have different types")
                 }
-                self.operands.push(ty1.or(ty2));
+                self.push_operand(if ty1 == ValType::Bot { ty2 } else { ty1 }, resources)?;
             }
             Operator::TypedSelect { ty } => {
                 self.pop_operand(Some(ValType::I32), resources)?;
@@ -1480,14 +1466,7 @@ impl OperatorValidator {
             }
             Operator::RefIsNull => {
                 self.check_reference_types_enabled()?;
-                match self.pop_ref(resources)? {
-                    None => {}
-                    Some(RefType { nullable, .. }) => {
-                        if !nullable {
-                            self.check_function_references_enabled()?;
-                        }
-                    }
-                }
+                self.pop_ref(resources)?;
                 self.push_operand(ValType::I32, resources)?;
             }
             Operator::RefFunc { function_index } => {
@@ -2155,122 +2134,107 @@ impl OperatorValidator {
             // list.
             Operator::CallRef => {
                 self.check_function_references_enabled()?;
-                if let Some(rt) = self.pop_ref(resources)? {
-                    match rt.heap_type {
-                        HeapType::Index(type_index) => {
-                            let ty = func_type_at(resources, type_index)?;
-                            for ty in ty.inputs().rev() {
-                                self.pop_operand(Some(ty), resources)?;
-                            }
-                            for ty in ty.outputs() {
-                                self.push_operand(ty, resources)?;
-                            }
+                let rt = self.pop_ref(resources)?;
+                match rt.heap_type {
+                    HeapType::Index(type_index) =>
+                    {
+                        let ft = func_type_at(resources, type_index)?;
+                        for ty in ft.inputs().rev() {
+                            self.pop_operand(Some(ty), resources)?;
                         }
-                        _ => {
-                            if !self.control.last().unwrap().unreachable {
-                                bail_op_err!(
-                                    "type mismatch: call_ref only works on index-type references"
-                                )
-                            }
+                        for ty in ft.outputs() {
+                            self.push_operand(ty, resources)?;
                         }
-                    }
+                    },
+                    HeapType::Bot => (),
+                    _ => bail_op_err!("type mismatch: instruction requires function reference type but stack has {}", ty_to_str(ValType::Ref(rt)))
                 }
             }
             Operator::ReturnCallRef => {
                 self.check_function_references_enabled()?;
-                if let Some(rt) = self.pop_ref(resources)? {
-                    match rt.heap_type {
-                        HeapType::Index(type_index) => {
-                            let ty = func_type_at(resources, type_index)?;
-                            for ty in ty.inputs().rev() {
-                                self.pop_operand(Some(ty), resources)?;
-                            }
-                            for ty in ty.outputs() {
-                                self.push_operand(ty, resources)?;
-                            }
+                // if !self.features.tail_call {
+                //     return Err(OperatorValidatorError::new(
+                //         "tail calls support is not enabled",
+                //     ));
+                // }
+                let rt = self.pop_ref(resources)?;
+                match rt.heap_type {
+                    HeapType::Index(type_index) => {
+                        let ft = func_type_at(resources, type_index)?;
+                        for ty in ft.inputs().rev() {
+                            self.pop_operand(Some(ty), resources)?;
                         }
-                        _ => {
-                            if !self.control.last().unwrap().unreachable {
-                                bail_op_err!(
-                                    "type mismatch: call_ref only works on index-type references"
-                                )
-                            }
+                        for ty in ft.outputs() {
+                            self.push_operand(ty, resources)?;
                         }
-                    }
+                    },
+                    HeapType::Bot => (),
+                    _ => bail_op_err!("type mismatch: instruction requires function reference type but stack has {}", ty_to_str(ValType::Ref(rt)))
                 }
                 self.check_return(resources)?;
             }
             Operator::RefAsNonNull => {
                 self.check_function_references_enabled()?;
-                if let Some(RefType { heap_type, .. }) = self.pop_ref(resources)? {
-                    self.check_heap_type(heap_type, resources)?;
-                    self.push_operand(
-                        ValType::Ref(RefType {
-                            nullable: false,
-                            heap_type,
-                        }),
-                        resources,
-                    )?;
-                }
+                let rt = self.pop_ref(resources)?;
+                self.push_operand(
+                    ValType::Ref(RefType {
+                        nullable: false,
+                        heap_type: rt.heap_type,
+                    }),
+                    resources,
+                )?;
             }
             Operator::BrOnNull { relative_depth } => {
                 self.check_function_references_enabled()?;
-                let (ty, kind) = self.jump(relative_depth)?;
-                let non_null = if let Some(RefType { heap_type, .. }) = self.pop_ref(resources)? {
-                    self.check_heap_type(heap_type, resources)?;
-                    ValType::Ref(RefType {
-                        nullable: false,
-                        heap_type,
-                    })
-                } else {
-                    // TODO: i'm confused. arbitrary but still tested as being
-                    // a ref?
-                    ValType::Ref(RefType {
-                        nullable: false,
-                        heap_type: HeapType::Func,
-                    })
-                };
-                // validates that t* matches block type by popping each t and
-                // pushing them again. TODO: This is not quite right with
-                // subtyping, and has to be changed everywhere
-                for ty in label_types(ty, resources, kind)?.rev() {
+                let rt = self.pop_ref(resources)?;
+                let (ft, kind) = self.jump(relative_depth)?;
+                for ty in label_types(ft, resources, kind)?.rev() {
                     self.pop_operand(Some(ty), resources)?;
                 }
-                for ty in label_types(ty, resources, kind)? {
+                for ty in label_types(ft, resources, kind)? {
                     self.push_operand(ty, resources)?;
                 }
-                self.push_operand(non_null, resources)?
+                self.push_operand(
+                    ValType::Ref(RefType {
+                        nullable: false,
+                        heap_type: rt.heap_type,
+                    }),
+                    resources,
+                )?;
             }
             Operator::BrOnNonNull { relative_depth } => {
                 self.check_function_references_enabled()?;
-                let (fty, kind) = self.jump(relative_depth)?;
-                let mut tp = label_types(fty, resources, kind)?;
-                match tp.next_back() {
+                let RefType { heap_type, .. } = self.pop_ref(resources)?;
+                let rt0 = ValType::Ref(RefType {
+                    nullable: false,
+                    heap_type: heap_type,
+                });
+                let (ft, kind) = self.jump(relative_depth)?;
+                let mut lts = label_types(ft, resources, kind)?;
+                match lts.next_back() {
                     None => bail_op_err!(
-                        "type mismatch: br_on_non_null must have block type with at least one type"
+                        "type mismatch: expected {} but stack has nothing",
+                        ty_to_str(rt0)
                     ),
-                    // ref ht <= tl
-                    // tl = ref ht | tl = ref null ht
-                    Some(ValType::Ref(RefType { heap_type, .. })) => {
-                        self.check_heap_type(heap_type, resources)?;
-                        // pop a nullable variant ie both nullable and
-                        // non-nullable references are allowed here
-                        self.pop_operand(
-                            Some(ValType::Ref(RefType {
-                                heap_type,
-                                nullable: true,
-                            })),
-                            resources,
-                        )?;
+                    Some(rt1 @ ValType::Ref(_)) => {
+                        if !resources.matches(rt0, rt1) {
+                            bail_op_err!(
+                                "type mismatch: expected {} but found {}",
+                                ty_to_str(rt0),
+                                ty_to_str(rt1)
+                            )
+                        }
                     }
-                    Some(_) => bail_op_err!("type mismatch: not a ref type"),
+                    Some(ty) => bail_op_err!(
+                        "type mismatch: expected {} but found {}",
+                        ty_to_str(rt0),
+                        ty_to_str(ty)
+                    ),
                 }
-                // t' is now t*
-                let t_star = tp;
-                for ty in label_types(fty, resources, kind)?.rev().skip(1) {
+                for ty in label_types(ft, resources, kind)?.rev().skip(1) {
                     self.pop_operand(Some(ty), resources)?;
                 }
-                for ty in t_star {
+                for ty in lts {
                     self.push_operand(ty, resources)?;
                 }
             }

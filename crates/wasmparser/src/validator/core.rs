@@ -182,7 +182,15 @@ impl ModuleState {
                 }
             }
             HeapType::Func | HeapType::Extern => {}
-            HeapType::Bot => panic!("Unexpected bot"),
+            HeapType::Bot =>
+            // A bottom type is an artefact of validation; it
+            // should never occur in an element segment.
+            {
+                return Err(BinaryReaderError::new(
+                    "an element cannot have type bot",
+                    offset,
+                ))
+            }
         }
         match e.kind {
             ElementKind::Active {
@@ -612,7 +620,7 @@ impl Module {
                 }
                 self.func_type_at(i, types, offset)?;
             }
-            HeapType::Bot => todo!(),
+            HeapType::Bot => return Err(BinaryReaderError::new("element has type bot", offset)),
         }
         self.check_limits(ty.initial, ty.maximum, offset)?;
         if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {
@@ -730,21 +738,6 @@ impl Module {
     }
 
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        fn is_num(ty: ValType) -> bool {
-            matches!(
-                ty,
-                ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::Bot
-            )
-        }
-
-        fn is_vec(ty: ValType) -> bool {
-            ty == ValType::V128
-        }
-
-        fn is_ref(ty: ValType) -> bool {
-            !(is_num(ty) || is_vec(ty)) || ty == ValType::Bot
-        }
-
         fn eq_fns(f1: &impl WasmFuncType, f2: &impl WasmFuncType) -> bool {
             f1.len_inputs() == f2.len_inputs()
                 && f2.len_outputs() == f2.len_outputs()
@@ -783,7 +776,7 @@ impl Module {
             (ValType::Bot, _) => true,
             (_, ValType::Bot) => false,
             (ValType::Ref(rt1), ValType::Ref(rt2)) => matches_ref(rt1, rt2, types),
-            (ty1, ty2) => is_num(ty1) && is_num(ty2) && ty1 == ty2,
+            (ty1, ty2) => ty1 == ty2,
         }
     }
 
