@@ -1008,12 +1008,29 @@ impl Printer {
                     write!(self.result, " {} (;{};)", item, label(item))?;
                 }
             }
+            BrOnNull { relative_depth } => {
+                write!(
+                    self.result,
+                    "br_on_null {} (;{};)",
+                    relative_depth,
+                    label(*relative_depth),
+                )?;
+            }
+            BrOnNonNull { relative_depth } => {
+                write!(
+                    self.result,
+                    "br_on_non_null {} (;{};)",
+                    relative_depth,
+                    label(*relative_depth),
+                )?;
+            }
 
             Return => self.result.push_str("return"),
             Call { function_index } => {
                 self.result.push_str("call ");
                 self.print_idx(&state.core.func_names, *function_index)?;
             }
+            CallRef => self.result.push_str("call_ref"),
             CallIndirect {
                 table_index,
                 index,
@@ -1030,6 +1047,7 @@ impl Printer {
                 self.result.push_str("return_call ");
                 self.print_idx(&state.core.func_names, *function_index)?;
             }
+            ReturnCallRef => self.result.push_str("return_call_ref"),
             ReturnCallIndirect { table_index, index } => {
                 self.result.push_str("return_call_indirect");
                 if *table_index != 0 {
@@ -1129,6 +1147,7 @@ impl Printer {
                 self.result.push_str("ref.func ");
                 self.print_idx(&state.core.func_names, *function_index)?;
             }
+            RefAsNonNull => self.result.push_str("ref.as_non_null"),
 
             I32Eqz => self.result.push_str("i32.eqz"),
             I32Eq => self.result.push_str("i32.eq"),
@@ -1847,28 +1866,6 @@ impl Printer {
             F32x4RelaxedMax => self.result.push_str("f32x4.relaxed_max"),
             F64x2RelaxedMin => self.result.push_str("f64x2.relaxed_min"),
             F64x2RelaxedMax => self.result.push_str("f64x2.relaxed_max"),
-
-            // Function references proposal instructions. TODO(dhil):
-            // Merge with the above list.
-            CallRef => self.result.push_str("call_ref"),
-            ReturnCallRef => self.result.push_str("return_call_ref"),
-            RefAsNonNull => self.result.push_str("ref.as_non_null"),
-            BrOnNull { relative_depth } => {
-                write!(
-                    self.result,
-                    "br_on_null {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth),
-                )?;
-            }
-            BrOnNonNull { relative_depth } => {
-                write!(
-                    self.result,
-                    "br_on_non_null {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth),
-                )?;
-            }
         }
         Ok(())
     }
