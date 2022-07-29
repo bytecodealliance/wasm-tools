@@ -11,9 +11,9 @@ documentation = "https://docs.rs/wasm-compose"
 description = "A library for composing WebAssembly components."
 
 [dependencies]
-wat = { version = "1.0.46", path = "../wat" }
-wasm-encoder = { version = "0.14.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.87.0", path = "../wasmparser" }
+wat = { version = "1.0.47", path = "../wat" }
+wasm-encoder = { version = "0.15.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.88.0", path = "../wasmparser" }
 indexmap = { version = "1.9.1", features = ["serde"] }
 anyhow = "1.0.58"
 serde = { version = "1.0.137", features = ["derive"] }
