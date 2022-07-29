@@ -17,7 +17,6 @@ wasmparser = { version = "0.87.0", path = "../wasmparser" }
 indexmap = { version = "1.9.1", features = ["serde"] }
 anyhow = "1.0.58"
 serde = { version = "1.0.137", features = ["derive"] }
-toml = "0.5.9"
 petgraph = "0.6.2"
 log = "0.4.17"
 serde_yaml = "0.8.26"

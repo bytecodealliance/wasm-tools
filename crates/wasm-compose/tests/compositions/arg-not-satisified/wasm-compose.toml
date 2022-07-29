@@ -1,8 +1,0 @@
-[components.a]
-path = "a.wat"
-
-[components.b]
-path = "b.wat"
-
-[instantiations.b.with]
-a = "a"

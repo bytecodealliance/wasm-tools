@@ -490,7 +490,8 @@ impl<'a> ComponentComposer<'a> {
             .iter()
             .map(|(_, component)| {
                 let path = self.config.path.join(&component.path);
-                let contents = wat::parse_file(&path)?;
+                let contents = wat::parse_file(&path)
+                    .with_context(|| format!("failed to parse `{path}`", path = path.display()))?;
                 Ok((path, contents))
             })
             .collect()

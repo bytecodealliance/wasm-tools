@@ -1,0 +1,10 @@
+components:
+  a:
+    path: a.wat
+    import: a
+
+instantiations:
+  a: {}
+
+exports:
+  default: a

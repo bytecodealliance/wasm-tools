@@ -1,7 +1,7 @@
 # Configuring `wasm-compose`
 
 By default, `wasm-tools compose` looks for a composition configuration file
-named `wasm-compose.toml` or `wasm-compose.yml` in the current directory.
+named `wasm-compose.yml` in the current directory.
 
 The composition configuration currently has three mappings:
 

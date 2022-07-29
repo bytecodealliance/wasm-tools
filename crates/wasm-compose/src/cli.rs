@@ -3,20 +3,8 @@
 use crate::{composer::ComponentComposer, config::Config};
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use wasmparser::{Validator, WasmFeatures};
-
-fn default_config() -> Result<Config> {
-    if Path::new("wasm-compose.yml").is_file() {
-        return Config::from_file("wasm-compose.yml");
-    }
-
-    if Path::new("wasm-compose.yaml").is_file() {
-        return Config::from_file("wasm-compose.yaml");
-    }
-
-    Config::from_file("wasm-compose.toml")
-}
 
 /// WebAssembly component composer.
 ///
@@ -29,8 +17,13 @@ pub struct WasmComposeCommand {
     pub output: Option<PathBuf>,
 
     /// The path to the configuration file to use.
-    #[clap(long, short = 'c', value_name = "CONFIG")]
-    pub config: Option<PathBuf>,
+    #[clap(
+        long,
+        short = 'c',
+        value_name = "CONFIG",
+        default_value = "wasm-compose.yml"
+    )]
+    pub config: PathBuf,
 
     /// Skip validation of the composed output component.
     #[clap(long)]
@@ -40,10 +33,7 @@ pub struct WasmComposeCommand {
 impl WasmComposeCommand {
     /// Executes the application.
     pub fn execute(self) -> Result<()> {
-        let config = match self.config {
-            Some(path) => Config::from_file(&path)?,
-            None => default_config()?,
-        };
+        let config = Config::from_file(&self.config)?;
 
         log::debug!("configuration:\n{:#?}", config);
 

@@ -1,24 +1,8 @@
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
-use std::{fs, path::Path};
+use std::fs;
 use wasm_compose::{composer::ComponentComposer, config::Config};
 use wasmparser::{Validator, WasmFeatures};
-
-fn read_config(dir: impl AsRef<Path>) -> Result<Config> {
-    let dir = dir.as_ref();
-
-    let path = dir.join("wasm-compose.yml");
-    if path.is_file() {
-        return Config::from_file(path);
-    }
-
-    let path = dir.join("wasm-compose.yaml");
-    if path.is_file() {
-        return Config::from_file(path);
-    }
-
-    Config::from_file(dir.join("wasm-compose.toml"))
-}
 
 /// Tests the composing of components.
 ///
@@ -26,7 +10,7 @@ fn read_config(dir: impl AsRef<Path>) -> Result<Config> {
 ///
 /// The expected input files for a test case are:
 ///
-/// * [required] `wasm-compose.toml` - contains the composition configuration.
+/// * [required] `wasm-compose.yml` - contains the composition configuration.
 /// * [optional] `*.wat` - represents a component imported for the composition.
 ///
 /// And the output files are one of the following:
@@ -52,7 +36,7 @@ fn component_composing() -> Result<()> {
         let component_path = path.join("composed.wat");
         let error_path = path.join("error.txt");
 
-        let config = read_config(&path)?;
+        let config = Config::from_file(path.join("wasm-compose.yml"))?;
         let composer = ComponentComposer::new(&config);
 
         let r = composer.compose();

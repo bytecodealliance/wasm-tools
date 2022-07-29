@@ -1,10 +1,9 @@
 //! Module for composition configuration.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::{
-    ffi::OsStr,
     fs,
     path::{Path, PathBuf},
 };
@@ -100,11 +99,8 @@ impl Config {
         let config = fs::read_to_string(path)
             .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
 
-        let mut config: Config = match path.extension().and_then(OsStr::to_str) {
-            Some("yml") | Some("yaml") => serde_yaml::from_str(&config).map_err(|e| anyhow!(e)),
-            _ => toml::from_str(&config).map_err(|e| anyhow!(e)),
-        }
-        .with_context(|| format!("failed to parse configuration file `{}`", path.display()))?;
+        let mut config: Config = serde_yaml::from_str(&config)
+            .with_context(|| format!("failed to parse configuration file `{}`", path.display()))?;
 
         config.path = match path.parent() {
             Some(p) => p.to_path_buf(),
