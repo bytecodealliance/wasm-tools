@@ -1,2 +1,2 @@
-[imports.a]
+[components.a]
 path = "a.wat"

@@ -1,4 +1,4 @@
-//! Module for CLI configuration.
+//! Module for composition configuration.
 
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
@@ -9,41 +9,44 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// An import for a composed WebAssembly component.
+/// A component defined or imported in a composed WebAssembly component.
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Import {
-    /// The name of the import.
-    ///
-    /// Defaults to the name used in the import mapping.
-    pub name: Option<String>,
-
-    /// The path to the import.
+pub struct Component {
+    /// The path to the component file.
     pub path: PathBuf,
 
-    /// Whether or not to embed the import in the composed component.
-    #[serde(default)]
-    pub embed: bool,
+    /// The name to import the component with.
+    ///
+    /// By default, components are defined (embedded) in the composed component.
+    /// By specifying an import name, the component will be imported instead.
+    pub import: Option<String>,
 }
 
-/// An instantiation in a composed WebAssembly component.
+/// An instantiation of a component.
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Instantiation {
-    /// The name of the import being instantiated.
+    /// The name of the component being instantiated.
     ///
-    /// Defaults to the name specified in the instantiation map.
-    pub import: Option<String>,
+    /// Defaults to a component with the same name as the instantiation.
+    pub component: Option<String>,
+
+    /// The explicit instantiation arguments.
+    ///
+    /// Maps the argument name to the name of the instance use pass as
+    /// the argument.
+    #[serde(default, rename = "with")]
+    pub arguments: IndexMap<String, String>,
 
     /// The list of instantiation dependencies.
     ///
-    /// Instantiation arguments are implicitly mapped to these dependencies.
+    /// Each entry in the list is the name of an instantiation.
+    ///
+    /// The list of dependencies are used to automatically satisfy
+    /// unspecified instantiation arguments for the instantiation.
     #[serde(default)]
     pub dependencies: Vec<String>,
-
-    /// The explicit instantiation arguments.
-    #[serde(default, rename = "with")]
-    pub arguments: IndexMap<String, String>,
 }
 
 /// Exports from a composed WebAssembly component.
@@ -74,15 +77,15 @@ pub struct Config {
     #[serde(default)]
     pub skip_validation: bool,
 
-    /// The imports for the composed component.
+    /// The components of the composed component.
     #[serde(default)]
-    pub imports: IndexMap<String, Import>,
+    pub components: IndexMap<String, Component>,
 
-    /// The instantiations for the composed component.
+    /// The instantiations of the composed component.
     #[serde(default)]
     pub instantiations: IndexMap<String, Instantiation>,
 
-    /// The instantiations for the composed component.
+    /// The exports of the composed component.
     #[serde(default)]
     pub exports: Exports,
 }

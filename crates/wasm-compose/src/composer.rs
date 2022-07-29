@@ -1,4 +1,4 @@
-//! Module for encoding of composed WebAssembly components.
+//! Module for composing WebAssembly components.
 
 use crate::{config::Config, encoding::TypeEncoder};
 use anyhow::{anyhow, bail, Context, Result};
@@ -9,9 +9,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use wasm_encoder::{
-    Component, ComponentAliasSection, ComponentExportKind, ComponentExportSection,
-    ComponentImportSection, ComponentInstanceSection, ComponentSectionId, ComponentTypeSection,
-    RawSection,
+    ComponentAliasSection, ComponentExportKind, ComponentExportSection, ComponentImportSection,
+    ComponentInstanceSection, ComponentSectionId, ComponentTypeSection, RawSection,
 };
 use wasmparser::{
     types::{ComponentEntityType, ComponentInstanceType, Types, TypesRef},
@@ -19,7 +18,7 @@ use wasmparser::{
     ValidPayload, Validator, WasmFeatures,
 };
 
-struct Import<'a> {
+struct Component<'a> {
     path: &'a Path,
     bytes: &'a [u8],
     types: Types,
@@ -27,7 +26,7 @@ struct Import<'a> {
     exports: IndexMap<&'a str, ComponentExport<'a>>,
 }
 
-impl<'a> Import<'a> {
+impl<'a> Component<'a> {
     fn new(path: &'a Path, bytes: &'a [u8]) -> Result<Self> {
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
@@ -62,7 +61,7 @@ impl<'a> Import<'a> {
                                 Payload::Version { encoding, .. } => {
                                     if encoding != Encoding::Component {
                                         bail!(
-                                            "import `{path}` is not a WebAssembly component",
+                                            "file `{path}` is not a WebAssembly component",
                                             path = path.display()
                                         );
                                     }
@@ -90,7 +89,7 @@ impl<'a> Import<'a> {
                         ValidPayload::End(types) => match parsers.pop() {
                             Some(parent) => parser = parent,
                             None => {
-                                let import = Import {
+                                let component = Component {
                                     path,
                                     bytes,
                                     types,
@@ -98,10 +97,10 @@ impl<'a> Import<'a> {
                                     exports,
                                 };
                                 log::debug!(
-                                    "WebAssembly component `{path}` parsed:\n{import:#?}",
+                                    "WebAssembly component `{path}` parsed:\n{component:#?}",
                                     path = path.display()
                                 );
-                                return Ok(import);
+                                return Ok(component);
                             }
                         },
                     }
@@ -124,7 +123,7 @@ impl<'a> Import<'a> {
         )
     }
 
-    /// Requires that this import is importable as the given instance type.
+    /// Requires that an instance of this component would be importable as the given instance type.
     fn require_importable_as(&self, ty: &ComponentInstanceType, types: TypesRef) -> Result<()> {
         let exports = ty.exports(types);
 
@@ -145,9 +144,9 @@ impl<'a> Import<'a> {
     }
 }
 
-impl std::fmt::Debug for Import<'_> {
+impl std::fmt::Debug for Component<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_struct("Import")
+        f.debug_struct("Component")
             .field("path", &self.path)
             .field("imports", &self.imports)
             .field("exports", &self.exports)
@@ -159,7 +158,7 @@ impl std::fmt::Debug for Import<'_> {
 struct Instantiation<'a> {
     name: &'a str,
     index: usize,
-    import: &'a Import<'a>,
+    component: &'a Component<'a>,
 }
 
 impl std::fmt::Debug for Instantiation<'_> {
@@ -190,13 +189,13 @@ struct Indexes {
 
 #[derive(Default)]
 struct State<'a> {
-    imports: &'a [Import<'a>],
+    components: &'a [Component<'a>],
     graph: InstantiationGraph<'a>,
     /// Map from instantiation name to graph node index.
     nodes: HashMap<&'a str, NodeIndex>,
     /// Map from graph node index to encoded instantiation index.
     instances: HashMap<NodeIndex, u32>,
-    /// The set of instantiated imports.
+    /// The set of instantiated components.
     instantiated: IndexSet<usize>,
     indexes: Indexes,
 }
@@ -233,11 +232,11 @@ struct StateBuilder<'a> {
 }
 
 impl<'a> StateBuilder<'a> {
-    fn new(config: &'a Config, imports: &'a [Import<'a>]) -> Self {
+    fn new(config: &'a Config, components: &'a [Component<'a>]) -> Self {
         Self {
             config,
             state: State {
-                imports,
+                components,
                 ..Default::default()
             },
         }
@@ -246,38 +245,44 @@ impl<'a> StateBuilder<'a> {
     fn build(mut self) -> Result<State<'a>> {
         // Add a node to the graph for each explicit instantiation
         for (name, instantiation) in &self.config.instantiations {
-            let import = instantiation.import.as_deref().unwrap_or(name);
-            let import_index = self.config.imports.get_index_of(import).ok_or_else(|| {
-                anyhow!("failed to find an import named `{import}` for instantiation `{name}`")
-            })?;
+            let component = instantiation.component.as_deref().unwrap_or(name);
+            let component_index =
+                self.config
+                    .components
+                    .get_index_of(component)
+                    .ok_or_else(|| {
+                        anyhow!(
+                        "failed to find a component named `{component}` for instantiation `{name}`"
+                    )
+                    })?;
 
             let node_index = self.state.graph.add_node(Instantiation {
                 name,
-                index: import_index,
-                import: &self.state.imports[import_index],
+                index: component_index,
+                component: &self.state.components[component_index],
             });
 
             log::debug!(
-                "inserting explicit instantiation `{name}` (import {import_index}) to graph"
+                "inserting explicit instantiation `{name}` (component {component_index}) to graph"
             );
 
             self.state.nodes.insert(name, node_index);
         }
 
         // With the nodes added, now add the dependency edges
-        // Missing nodes will be explicitly added to the graph if the import can be
-        // "default" instantiated (i.e. it has no imports).
+        // Missing nodes will be explicitly added to the graph if the component can be
+        // "implicitly" instantiated (i.e. the component imports nothing).
         let mut edges = IndexMap::new();
         for (name, instantiation) in &self.config.instantiations {
             edges.clear();
 
             let index = self.state.nodes[name.as_str()];
-            let import = self.state.graph[index].import;
+            let component = self.state.graph[index].component;
 
-            self.add_explicit_edges(name, import, &instantiation.arguments, &mut edges)?;
-            self.add_implicit_edges(name, import, &instantiation.dependencies, &mut edges)?;
+            self.add_explicit_edges(name, component, &instantiation.arguments, &mut edges)?;
+            self.add_implicit_edges(name, component, &instantiation.dependencies, &mut edges)?;
 
-            assert_eq!(edges.len(), import.imports.len());
+            assert_eq!(edges.len(), component.imports.len());
 
             for (name, (_, dep_index)) in &edges {
                 self.state
@@ -301,26 +306,25 @@ impl<'a> StateBuilder<'a> {
             Entry::Vacant(e) => {
                 // The node isn't in the graph yet
                 // Check to see if it can be default instantiated
-                let import_index = self
-                    .config
-                    .imports
-                    .get_index_of(name)
-                    .ok_or_else(|| anyhow!("an import with name `{name}` does not exist"))?;
+                let component_index =
+                    self.config.components.get_index_of(name).ok_or_else(|| {
+                        anyhow!("cannot implicitly instantiate component `{name}` because it was not defined")
+                    })?;
 
-                let import = &self.state.imports[import_index];
+                let component = &self.state.components[component_index];
 
-                if !import.imports.is_empty() {
-                    bail!("import `{name}` cannot be implicitly instantiated");
+                if !component.imports.is_empty() {
+                    bail!("component `{name}` cannot be implicitly instantiated because it has imports");
                 }
 
                 log::debug!(
-                    "inserting implicit instantiation `{name}` (import {import_index}) to graph"
+                    "inserting implicit instantiation `{name}` (component {component_index}) to graph"
                 );
 
                 *e.insert(self.state.graph.add_node(Instantiation {
                     name,
-                    index: import_index,
-                    import,
+                    index: component_index,
+                    component,
                 }))
             }
         })
@@ -329,12 +333,12 @@ impl<'a> StateBuilder<'a> {
     fn add_explicit_edges(
         &mut self,
         name: &'a str,
-        import: &'a Import,
+        component: &'a Component,
         args: &'a IndexMap<String, String>,
         edges: &mut IndexMap<&'a str, (&'a str, NodeIndex)>,
     ) -> Result<()> {
         for (arg_name, dep_name) in args {
-            let arg = import.imports.get(arg_name.as_str()).ok_or_else(|| {
+            let arg = component.imports.get(arg_name.as_str()).ok_or_else(|| {
                 anyhow!("instantiation `{name}` does not have an argument named `{arg_name}`")
             })?;
 
@@ -343,22 +347,22 @@ impl<'a> StateBuilder<'a> {
             })?;
 
             let ty = match arg.ty {
-                ComponentTypeRef::Instance(idx) => import
+                ComponentTypeRef::Instance(idx) => component
                     .types
                     .type_at(idx, false)
                     .unwrap()
                     .as_component_instance_type()
                     .unwrap(),
                 _ => bail!(
-                    "import `{path}` has a non-instance import `{name}`",
+                    "component `{path}` has a non-instance import `{name}`",
                     name = arg.name,
-                    path = import.path.display()
+                    path = component.path.display()
                 ),
             };
 
             self.state.graph[dep_index]
-                .import
-                .require_importable_as(ty, import.types.as_ref())
+                .component
+                .require_importable_as(ty, component.types.as_ref())
                 .with_context(|| format!("instantiation argument `{arg_name}` for instantiation `{name}` is incompatible with dependency `{dep_name}`"))?;
 
             log::debug!(
@@ -376,19 +380,19 @@ impl<'a> StateBuilder<'a> {
     fn add_implicit_edges(
         &mut self,
         name: &'a str,
-        import: &'a Import,
+        component: &'a Component,
         deps: &'a [String],
         edges: &mut IndexMap<&'a str, (&'a str, NodeIndex)>,
     ) -> Result<()> {
         // For the remaining imports that don't already have edges...
-        for (n, i) in &import.imports {
+        for (n, i) in &component.imports {
             if edges.contains_key(n) {
                 continue;
             }
 
             match i.ty {
                 ComponentTypeRef::Instance(idx) => {
-                    let ty = import
+                    let ty = component
                         .types
                         .type_at(idx, false)
                         .unwrap()
@@ -403,9 +407,9 @@ impl<'a> StateBuilder<'a> {
                             )
                         })?;
 
-                        let dep_import = self.state.graph[dep_index].import;
+                        let dep_component = self.state.graph[dep_index].component;
 
-                        match dep_import.require_importable_as(ty, import.types.as_ref()) {
+                        match dep_component.require_importable_as(ty, component.types.as_ref()) {
                             Ok(()) => {
                                 log::debug!(
                                     "adding implicit dependency edge `{name}` -> `{dep}` (arg `{n}`)"
@@ -432,8 +436,8 @@ impl<'a> StateBuilder<'a> {
                 }
                 // For now, only instance imports are supported.
                 _ => bail!(
-                    "import `{path}` has a non-instance import `{n}`",
-                    path = import.path.display()
+                    "component `{path}` has a non-instance import `{n}`",
+                    path = component.path.display()
                 ),
             }
         }
@@ -458,54 +462,51 @@ impl<'a> ComponentComposer<'a> {
 
     /// Composes a WebAssembly component based on the composer's configuration.
     ///
-    /// ## Arguments
-    /// * `embed` - Whether to embed all imports in the composed component.
-    ///
     /// ## Returns
     /// Returns the bytes of the composed component.
-    pub fn compose(&self, embed: bool) -> Result<Vec<u8>> {
-        let contents = self.read_import_contents()?;
+    pub fn compose(&self) -> Result<Vec<u8>> {
+        let contents = self.read_component_contents()?;
 
-        let imports = contents
+        let components = contents
             .iter()
             .map(|(path, bytes)| {
-                Import::new(path, bytes)
-                    .with_context(|| format!("failed to parse import `{}`", path.display()))
+                Component::new(path, bytes)
+                    .with_context(|| format!("failed to parse component `{}`", path.display()))
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let mut state = StateBuilder::new(self.config, &imports).build()?;
+        let state = StateBuilder::new(self.config, &components).build()?;
         log::debug!(
             "calculated instantiation graph:\n{graph:?}",
             graph = Dot::new(&state.graph)
         );
 
-        self.encode(embed, &mut state)
+        self.encode(state)
     }
 
-    fn read_import_contents(&self) -> Result<Vec<(PathBuf, Vec<u8>)>> {
+    fn read_component_contents(&self) -> Result<Vec<(PathBuf, Vec<u8>)>> {
         self.config
-            .imports
+            .components
             .iter()
-            .map(|(_, import)| {
-                let path = self.config.path.join(&import.path);
+            .map(|(_, component)| {
+                let path = self.config.path.join(&component.path);
                 let contents = wat::parse_file(&path)?;
                 Ok((path, contents))
             })
             .collect()
     }
 
-    fn encode(&self, embed: bool, state: &mut State) -> Result<Vec<u8>> {
-        let instances = self.create_instance_section(state)?;
+    fn encode(&self, mut state: State) -> Result<Vec<u8>> {
+        let instances = self.create_instance_section(&mut state)?;
 
-        let mut component = Component::new();
-        self.encode_imports(embed, state, &mut component);
+        let mut component = wasm_encoder::Component::new();
+        self.encode_imports(&mut state, &mut component);
 
         if !instances.is_empty() {
             component.section(&instances);
         }
 
-        self.encode_exports(state, &mut component)?;
+        self.encode_exports(&mut state, &mut component)?;
 
         Ok(component.finish())
     }
@@ -521,21 +522,21 @@ impl<'a> ComponentComposer<'a> {
             let args = state.instantiation_args(*node_index);
 
             log::debug!(
-                "instantiating import {import_index} (component index {component_index}) as instance {instance_index} with {args:?}",
-                import_index = instantiation.index
+                "instantiating component {index} (encoded component index {component_index}) as encoded instance {instance_index} with {args:?}",
+                index = instantiation.index
             );
 
             instances.instantiate(component_index as u32, args);
             state.instances.insert(*node_index, instance_index as u32);
         }
 
-        if state.instantiated.len() != state.imports.len() {
-            for name in (0..state.imports.len())
+        if state.instantiated.len() != state.components.len() {
+            for name in (0..state.components.len())
                 .filter(|i| !state.instantiated.contains(&*i))
-                .map(|i| self.config.imports.get_index(i).unwrap().0)
+                .map(|i| self.config.components.get_index(i).unwrap().0)
             {
                 log::warn!(
-                    "import `{name}` was not instantiated or referenced from any instantiation"
+                    "component `{name}` was not instantiated or referenced from any instantiation"
                 );
             }
         }
@@ -543,55 +544,60 @@ impl<'a> ComponentComposer<'a> {
         Ok(instances)
     }
 
-    fn encode_imports(&self, embed: bool, state: &mut State, component: &mut Component) {
-        for import_index in state.instantiated.iter() {
-            let (name, config) = self.config.imports.get_index(*import_index).unwrap();
-            let import = &state.imports[*import_index];
+    fn encode_imports(&self, state: &mut State, encoded: &mut wasm_encoder::Component) {
+        for component_index in state.instantiated.iter() {
+            let (name, config) = self.config.components.get_index(*component_index).unwrap();
+            let component = &state.components[*component_index];
 
-            if embed || config.embed {
-                log::debug!("embedding import `{name}` in composed output",);
+            match &config.import {
+                Some(import_name) => {
+                    log::debug!(
+                        "importing component `{import_name}` as `{name}` in composed output"
+                    );
 
-                component.section(&RawSection {
-                    id: ComponentSectionId::Component.into(),
-                    data: import.bytes,
-                });
+                    let mut types = ComponentTypeSection::new();
+                    types.component(&component.ty());
+                    encoded.section(&types);
 
-                state.indexes.components += 1;
-                continue;
+                    let mut imports = ComponentImportSection::new();
+                    imports.import(
+                        import_name,
+                        wasm_encoder::ComponentTypeRef::Component(state.indexes.types),
+                    );
+                    encoded.section(&imports);
+
+                    state.indexes.types += 1;
+                }
+                None => {
+                    log::debug!("embedding component `{name}` in composed output",);
+
+                    encoded.section(&RawSection {
+                        id: ComponentSectionId::Component.into(),
+                        data: component.bytes,
+                    });
+
+                    state.indexes.components += 1;
+                }
             }
-
-            // TODO: create some sort of canonical import naming scheme?
-            let import_name = config.name.as_ref().unwrap_or(name);
-
-            log::debug!("importing `{import_name}` in composed output",);
-
-            let mut types = ComponentTypeSection::new();
-            types.component(&import.ty());
-            component.section(&types);
-
-            let mut imports = ComponentImportSection::new();
-            imports.import(
-                import_name,
-                wasm_encoder::ComponentTypeRef::Component(state.indexes.types),
-            );
-            component.section(&imports);
-
-            state.indexes.types += 1;
         }
     }
 
-    fn encode_exports(&self, state: &mut State, component: &mut Component) -> Result<()> {
+    fn encode_exports(
+        &self,
+        state: &mut State,
+        encoded: &mut wasm_encoder::Component,
+    ) -> Result<()> {
         let mut exports = ComponentExportSection::new();
 
         if let Some(name) = &self.config.exports.default {
             // The node should always exist in the graph
             let node_index = state.nodes.get(name.as_str()).unwrap();
-            let import = state.graph[*node_index].import;
+            let component = state.graph[*node_index].component;
             let instance_index = state.instances[node_index];
 
             // Alias all exports from the instance
             let mut aliases = ComponentAliasSection::new();
-            for export in import.exports.values() {
+            for export in component.exports.values() {
                 Self::encode_alias_and_export(
                     instance_index,
                     export,
@@ -602,12 +608,12 @@ impl<'a> ComponentComposer<'a> {
             }
 
             if !aliases.is_empty() {
-                component.section(&aliases);
+                encoded.section(&aliases);
             }
         }
 
         if !exports.is_empty() {
-            component.section(&exports);
+            encoded.section(&exports);
         }
 
         Ok(())

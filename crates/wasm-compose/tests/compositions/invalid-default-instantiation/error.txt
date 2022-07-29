@@ -1,4 +1,0 @@
-failed to resolve instance reference for default export
-
-Caused by:
-    import `a` cannot be implicitly instantiated

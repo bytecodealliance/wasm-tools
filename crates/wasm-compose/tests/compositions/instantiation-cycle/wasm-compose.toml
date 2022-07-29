@@ -1,10 +1,10 @@
-[imports.a]
+[components.a]
 path = "a.wat"
 
 [instantiations.a1]
-import = "a"
+component = "a"
 dependencies = [ "a2" ]
 
 [instantiations.a2]
-import = "a"
+component = "a"
 dependencies = [ "a1" ]

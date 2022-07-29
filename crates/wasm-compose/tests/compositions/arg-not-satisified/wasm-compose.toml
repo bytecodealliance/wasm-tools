@@ -1,7 +1,7 @@
-[imports.a]
+[components.a]
 path = "a.wat"
 
-[imports.b]
+[components.b]
 path = "b.wat"
 
 [instantiations.b.with]

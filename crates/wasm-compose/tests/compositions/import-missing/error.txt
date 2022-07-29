@@ -1,4 +1,0 @@
-failed to read from `tests/compositions/import-missing/a.wat`: No such file or directory (os error 2)
-
-Caused by:
-    No such file or directory (os error 2)

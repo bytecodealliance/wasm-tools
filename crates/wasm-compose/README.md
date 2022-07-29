@@ -33,11 +33,6 @@ __[Wasmtime](https://github.com/bytecodealliance/wasmtime)
 has implementation efforts underway to support it, but it's still a
 _work-in-progress_.__
 
-## Example
-
-See the [example](example/README.md) directory for a complete example
-of composing WebAssembly components together.
-
 ## Usage
 
 With a configuration file present, run the `compose` command without
@@ -49,133 +44,12 @@ wasm-tools compose
 
 ## Configuration
 
-By default, `wasm-tools compose` looks for a configuration file named
-`wasm-compose.toml` or `wasm-compose.yml` in the current directory.
+See [configuring `wasm-compose`](CONFIG.md) for more information on authoring configuration files.
 
-The composition configuration currently has three main sections:
+## Example
 
-* `imports` - specifies the component imports for the composed component.
-* `instantiations` - specifies the instantiations of an imported component.
-* `exports` - specifies the exports of the composed component.
-
-### Imports section
-
-Each import is given a name to refer to that import from the `instantiations`
-section.
-
-In this example, an import named `a` is defined for a component found at `./a.wasm`:
-
-```toml
-[imports.a]
-path = "a.wasm"
-```
-By default, the composed component will _import_ its component dependencies
-rather than embedding them in the composed component.
-
-To change this, set the `embed` field to `true`:
-
-```toml
-[imports.a]
-path = "a.wasm"
-embed = true
-```
-
-Additionally, the `--embed` option can be given to `wasm-tools compose` to embed
-_all_ imports into the composed component.
-
-It is currently necessary to embed _all_ imports to run
-the composed component in [Wasmtime](https://github.com/bytecodealliance/wasmtime).
-
-### Instantiations section
-
-The `instantiations` section defines how the imported
-components are instantiated in the composed component.
-
-By default, an instantiation looks for an import of the same name. To change
-what import is instantiated, use the `import` field:
-
-```toml
-[instantiations.foo]
-import = "bar"
-```
-
-Here the `foo` instantiation uses the `bar` import rather than the expected
-default of the `foo` import.
-
-To specify a dependency between instantiations, use the `dependencies` field:
-
-```toml
-[instantiations.a]
-[instantiations.b]
-dependencies = ["a"]
-```
-
-In the above example, import `a` is _default_ instantiated because it has no
-dependencies. Import `b` is instantiated with a dependency on instance `a` to
-satisfy _all_ of its instantiation arguments.
-
-Because instance `a` can be _default_ instantiated and it is for an import of
-the same name, this can be simplified to the following without having to
-explicitly define an `a` instance:
-
-```toml
-[instantiations.b]
-dependencies = ["a"]
-```
-
-The `dependencies` field of an instantiation automatically tries to resolve the
-instantiation arguments from the list of dependencies.
-
-It does this by scanning the dependencies for instantiation arguments that can
-be satisfied by the dependency. If more than one argument can be satisfied by a
-dependency, then an error will result and an explicit instantiation
-argument must be used.
-
-To specify an explicit instantiation argument, use the `with` field:
-
-```toml
-[instantiations.b.with]
-foo = "a"
-```
-
-Here instance `a` is explicitly being specified for instantiation argument `foo`.
-
-Explicit instantiation arguments can be combined with the `dependencies` field
-too:
-
-```toml
-[instantiations.c]
-dependencies = ["b"]
-
-[instantiations.c.with]
-a = "a"
-```
-
-Here the `a` instantiation argument of instantiation `c` is explicitly specified
-to instance `a`, whereas any remaining arguments will be automatically resolved
-from instance `b`.
-
-Currently only the _default_ (directly) exported interface of each instance is
-considered for resolving dependencies; a forthcoming feature will add the ability
-to use specify instance exports from instances.
-
-### Exports section
-
-The `exports` section defines the exports of the composed component.
-
-Currently, it only supports exporting the _default_ interface from a single
-instance:
-
-```toml
-[exports]
-default = "a"
-```
-
-Here the composed component will export the _default_ interface (i.e. directly
-exported functions) of instance `a`.
-
-Upcoming work will make specifying exports from the composed component more
-flexible.
+See the [example](example/README.md) directory for a complete example
+of composing WebAssembly components together.
 
 ## License
 

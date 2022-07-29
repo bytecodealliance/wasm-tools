@@ -32,10 +32,6 @@ pub struct WasmComposeCommand {
     #[clap(long, short = 'c', value_name = "CONFIG")]
     pub config: Option<PathBuf>,
 
-    /// Embed all imports in the composed component.
-    #[clap(long)]
-    pub embed: bool,
-
     /// Skip validation of the composed output component.
     #[clap(long)]
     pub skip_validation: bool,
@@ -59,8 +55,7 @@ impl WasmComposeCommand {
             }
         };
 
-        let composer = ComponentComposer::new(&config);
-        let bytes = composer.compose(self.embed)?;
+        let bytes = ComponentComposer::new(&config).compose()?;
 
         std::fs::write(&output, &bytes).with_context(|| {
             format!("failed to write composed component `{}`", output.display())

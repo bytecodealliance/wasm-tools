@@ -1,0 +1,4 @@
+failed to parse component `tests/compositions/component-incorrect-version/a.wasm`
+
+Caused by:
+    unknown binary version (at offset 0x4)

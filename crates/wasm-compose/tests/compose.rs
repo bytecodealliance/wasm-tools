@@ -55,7 +55,7 @@ fn component_composing() -> Result<()> {
         let config = read_config(&path)?;
         let composer = ComponentComposer::new(&config);
 
-        let r = composer.compose(false);
+        let r = composer.compose();
         let (output, baseline_path) = if error_path.is_file() {
             match r {
                 Ok(_) => bail!("composition should fail for test case `{}`", test_case),

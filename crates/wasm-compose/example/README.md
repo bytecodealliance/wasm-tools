@@ -103,26 +103,23 @@ cargo component build --release
 Initially, the host defines a composition configuration for the `math` component
 that looks like this:
 
-```toml
-output = "math.wasm"
+```yml
+output: math.wasm
 
-[imports.add]
-path = "../add/target/wasm32-unknown-unknown/release/add.wasm"
-embed = true
+components:
+  add:
+    path: ../add/target/wasm32-unknown-unknown/release/add.wasm
+  multiply:
+    path: ../multiply/target/wasm32-unknown-unknown/release/multiply.wasm
+  math:
+    path: ../math/target/wasm32-unknown-unknown/release/math.wasm
 
-[imports.multiply]
-path = "../multiply/target/wasm32-unknown-unknown/release/multiply.wasm"
-embed = true
+instantiations:
+  math:
+    dependencies: [add]
 
-[imports.math]
-path = "../math/target/wasm32-unknown-unknown/release/math.wasm"
-embed = true
-
-[instantiations.math]
-dependencies = ["add"]
-
-[exports]
-default = "math"
+exports:
+  default: math
 ```
 
 This configuration will instantiate the `add` component and pass it as an
@@ -159,16 +156,16 @@ was defined by the `add` component.
 ## Changing the composition
 
 To change the composition of the `math` component run by the host, edit
-`./host/wasm-compose.toml` and change the following line:
+`./host/wasm-compose.yml` and change the following line:
 
-```toml
-dependencies = ["add"]
+```yml
+    dependencies: [add]
 ```
 
 to:
 
-```toml
-dependencies = ["multiply"]
+```yml
+    dependencies: [multiply]
 ```
 
 And run `wasm-compose` again:

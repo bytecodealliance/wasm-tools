@@ -1,21 +1,21 @@
-[imports.a]
+[components.a]
 path = "../complex/a.wat"
-embed = true
+import = "a"
 
-[imports.b]
+[components.b]
 path = "../complex/b.wat"
-embed = true
+import = "b"
 
-[imports.c]
+[components.c]
 path = "../complex/c.wat"
-embed = true
+import = "c"
 
 [instantiations.b1]
-import = "b"
+component = "b"
 dependencies = [ "a" ]
 
 [instantiations.b2]
-import = "b"
+component = "b"
 dependencies = [ "a" ]
 
 [instantiations.c]

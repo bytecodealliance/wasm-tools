@@ -1,4 +1,4 @@
-[imports.a]
+[components.a]
 path = "a.wat"
 
 [instantiations.a.with]

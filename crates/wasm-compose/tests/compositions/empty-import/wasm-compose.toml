@@ -1,6 +1,6 @@
-[imports.a]
+[components.a]
 path = "a.wat"
-embed = true
+import = "a"
 
 [instantiations.a]
 

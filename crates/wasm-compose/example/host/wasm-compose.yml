@@ -1,0 +1,16 @@
+output: math.wasm
+
+components:
+  add:
+    path: ../add/target/wasm32-unknown-unknown/release/add.wasm
+  multiply:
+    path: ../multiply/target/wasm32-unknown-unknown/release/multiply.wasm
+  math:
+    path: ../math/target/wasm32-unknown-unknown/release/math.wasm
+
+instantiations:
+  math:
+    dependencies: [add]
+
+exports:
+  default: math

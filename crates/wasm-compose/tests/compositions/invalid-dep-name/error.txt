@@ -1,4 +1,4 @@
 failed to find an instance named `b` specified as a dependency of instantiation `a`
 
 Caused by:
-    an import with name `b` does not exist
+    cannot implicitly instantiate component `b` because it was not defined

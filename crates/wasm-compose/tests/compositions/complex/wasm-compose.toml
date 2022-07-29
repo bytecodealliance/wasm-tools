@@ -1,18 +1,18 @@
-[imports.a]
+[components.a]
 path = "a.wat"
 
-[imports.b]
+[components.b]
 path = "b.wat"
 
-[imports.c]
+[components.c]
 path = "c.wat"
 
 [instantiations.b1]
-import = "b"
+component = "b"
 dependencies = [ "a" ]
 
 [instantiations.b2]
-import = "b"
+component = "b"
 dependencies = [ "a" ]
 
 [instantiations.c]
