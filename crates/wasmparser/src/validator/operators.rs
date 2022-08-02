@@ -23,6 +23,7 @@
 // the various methods here.
 
 use crate::{
+    V128, Ieee32, Ieee64, BrTable, VisitOperator,
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, MemoryImmediate, Operator,
     Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
 };
@@ -423,6 +424,26 @@ impl OperatorValidator {
         Ok(())
     }
 
+    /// Checks if Wasm proposal `saturating_float_to_int` is enabled.
+    fn check_saturating_float_to_int_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.features.saturating_float_to_int {
+            return Err(OperatorValidatorError::new(
+                "saturating float to int conversions support is not enabled",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Checks if Wasm proposal `sign_extension` is enabled.
+    fn check_sign_extension_enabled(&self) -> OperatorValidatorResult<()> {
+        if !self.features.sign_extension {
+            return Err(OperatorValidatorError::new(
+                "sign extension operations support is not enabled",
+            ));
+        }
+        Ok(())
+    }
+
     fn check_simd_enabled(&self) -> OperatorValidatorResult<()> {
         if !self.features.simd {
             return Err(OperatorValidatorError::new("SIMD support is not enabled"));
@@ -571,6 +592,209 @@ impl OperatorValidator {
             self.pop_operand(Some(ty))?;
         }
         self.unreachable();
+        Ok(())
+    }
+
+    /// Checks the validity of a common comparison operator.
+    fn check_cmp_op(&mut self, ty: ValType) -> OperatorValidatorResult<()> {
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+
+    /// Checks the validity of a common float comparison operator.
+    fn check_fcmp_op(&mut self, ty: ValType) -> OperatorValidatorResult<()> {
+        debug_assert!(matches!(ty, ValType::F32 | ValType::F64));
+        self.check_non_deterministic_enabled()?;
+        self.check_cmp_op(ty)
+    }
+
+    /// Checks the validity of a common unary operator.
+    fn check_unary_op(&mut self, ty: ValType) -> OperatorValidatorResult<()> {
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ty)?;
+        Ok(())
+    }
+
+    /// Checks the validity of a common unary float operator.
+    fn check_funary_op(&mut self, ty: ValType) -> OperatorValidatorResult<()> {
+        debug_assert!(matches!(ty, ValType::F32 | ValType::F64));
+        self.check_non_deterministic_enabled()?;
+        self.check_unary_op(ty)
+    }
+
+    /// Checks the validity of a common conversion operator.
+    fn check_conversion_op(&mut self, into: ValType, from: ValType) -> OperatorValidatorResult<()> {
+        self.pop_operand(Some(from))?;
+        self.push_operand(into)?;
+        Ok(())
+    }
+
+    /// Checks the validity of a common conversion operator.
+    fn check_fconversion_op(&mut self, into: ValType, from: ValType) -> OperatorValidatorResult<()> {
+        debug_assert!(matches!(into, ValType::F32 | ValType::F64));
+        debug_assert!(matches!(from, ValType::F32 | ValType::F64));
+        self.check_non_deterministic_enabled()?;
+        self.check_conversion_op(into, from)
+    }
+
+    /// Checks the validity of a common binary operator.
+    fn check_binary_op(&mut self, ty: ValType) -> OperatorValidatorResult<()> {
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ty)?;
+        Ok(())
+    }
+
+    /// Checks the validity of a common binary float operator.
+    fn check_fbinary_op(&mut self, ty: ValType) -> OperatorValidatorResult<()> {
+        debug_assert!(matches!(ty, ValType::F32 | ValType::F64));
+        self.check_non_deterministic_enabled()?;
+        self.check_binary_op(ty)
+    }
+
+    /// Checks the validity of an atomic load operator.
+    fn check_atomic_load<T>(&mut self, resources: &T, memarg: MemoryImmediate, load_ty: ValType) -> OperatorValidatorResult<()>
+    where
+        T: WasmModuleResources,
+    {
+        self.check_threads_enabled()?;
+        let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(load_ty)?;
+        Ok(())
+    }
+
+    /// Checks the validity of an atomic store operator.
+    fn check_atomic_store<T>(&mut self, resources: &T, memarg: MemoryImmediate, store_ty: ValType) -> OperatorValidatorResult<()>
+    where
+        T: WasmModuleResources,
+    {
+        self.check_threads_enabled()?;
+        let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+        self.pop_operand(Some(store_ty))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+
+    /// Checks the validity of a common atomic binary operator.
+    fn check_atomic_binary_op<T>(&mut self, resources: &T, memarg: MemoryImmediate, op_ty: ValType) -> OperatorValidatorResult<()>
+    where
+        T: WasmModuleResources,
+    {
+        self.check_threads_enabled()?;
+        let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+        self.pop_operand(Some(op_ty))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(op_ty)?;
+        Ok(())
+    }
+
+    /// Checks the validity of an atomic compare exchange operator.
+    fn check_atomic_binary_cmpxchg<T>(&mut self, resources: &T, memarg: MemoryImmediate, op_ty: ValType) -> OperatorValidatorResult<()>
+    where
+        T: WasmModuleResources,
+    {
+        self.check_threads_enabled()?;
+        let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+        self.pop_operand(Some(op_ty))?;
+        self.pop_operand(Some(op_ty))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(op_ty)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] splat operator.
+    fn check_v128_splat(&mut self, src_ty: ValType) -> OperatorValidatorResult<()> {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(src_ty))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] binary operator.
+    fn check_v128_binary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] binary float operator.
+    fn check_v128_fbinary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_non_deterministic_enabled()?;
+        self.check_v128_binary_op()
+    }
+
+    /// Checks a [`V128`] binary operator.
+    fn check_v128_relaxed_binary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_relaxed_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] binary operator.
+    fn check_v128_unary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] binary operator.
+    fn check_v128_funary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_non_deterministic_enabled()?;
+        self.check_v128_unary_op()
+    }
+
+    /// Checks a [`V128`] binary operator.
+    fn check_v128_relaxed_unary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_relaxed_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] relaxed ternary operator.
+    fn check_v128_relaxed_ternary_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_relaxed_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] relaxed ternary operator.
+    fn check_v128_bitmask_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] relaxed ternary operator.
+    fn check_v128_shift_op(&mut self) -> OperatorValidatorResult<()> {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] common load operator.
+    fn check_v128_load_op<T>(&mut self, resources: T, memarg: MemoryImmediate) -> OperatorValidatorResult<()>
+    where
+        T: WasmModuleResources,
+    {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 3, resources)?;
+        self.pop_operand(Some(idx))?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -2191,5 +2415,2216 @@ fn ty_to_str(ty: ValType) -> &'static str {
         ValType::V128 => "v128",
         ValType::FuncRef => "funcref",
         ValType::ExternRef => "externref",
+    }
+}
+
+impl<'a, I> VisitOperator<&'a I> for OperatorValidator
+where
+    I: WasmModuleResources,
+{
+    type Output = OperatorValidatorResult<()>;
+
+    fn visit_nop(&mut self, _resources: &I) -> Self::Output { Ok(())}
+    fn visit_unreachable(&mut self, _resources: &I) -> Self::Output {
+        self.unreachable();
+        Ok(())
+    }
+    fn visit_block(&mut self, resources: &I, ty: BlockType) -> Self::Output {
+        self.check_block_type(ty, resources)?;
+        for ty in params(ty, resources)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.push_ctrl(FrameKind::Block, ty, resources)?;
+        Ok(())
+    }
+    fn visit_loop(&mut self, resources: &I, ty: BlockType) -> Self::Output {
+        self.check_block_type(ty, resources)?;
+        for ty in params(ty, resources)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.push_ctrl(FrameKind::Loop, ty, resources)?;
+        Ok(())
+    }
+    fn visit_if(&mut self, resources: &I, ty: BlockType) -> Self::Output {
+        self.check_block_type(ty, resources)?;
+        self.pop_operand(Some(ValType::I32))?;
+        for ty in params(ty, resources)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.push_ctrl(FrameKind::If, ty, resources)?;
+        Ok(())
+    }
+    fn visit_else(&mut self, resources: &I) -> Self::Output {
+        let frame = self.pop_ctrl(resources)?;
+        if frame.kind != FrameKind::If {
+            bail_op_err!("else found outside of an `if` block");
+        }
+        self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
+        Ok(())
+    }
+    fn visit_try(&mut self, resources: &I, ty: BlockType) -> Self::Output {
+        self.check_exceptions_enabled()?;
+        self.check_block_type(ty, resources)?;
+        for ty in params(ty, resources)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.push_ctrl(FrameKind::Try, ty, resources)?;
+        Ok(())
+    }
+    fn visit_catch(&mut self, resources: &I, index: u32) -> Self::Output {
+        self.check_exceptions_enabled()?;
+        let frame = self.pop_ctrl(resources)?;
+        if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
+            bail_op_err!("catch found outside of an `try` block");
+        }
+        // Start a new frame and push `exnref` value.
+        self.control.push(Frame {
+            kind: FrameKind::Catch,
+            block_type: frame.block_type,
+            height: self.operands.len(),
+            unreachable: false,
+        });
+        // Push exception argument types.
+        let ty = tag_at(&resources, index)?;
+        for ty in ty.inputs() {
+            self.push_operand(ty)?;
+        }
+        Ok(())
+    }
+    fn visit_throw(&mut self, resources: &I, index: u32) -> Self::Output {
+        self.check_exceptions_enabled()?;
+        // Check values associated with the exception.
+        let ty = tag_at(&resources, index)?;
+        for ty in ty.inputs().rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        if ty.outputs().len() > 0 {
+            bail_op_err!("result type expected to be empty for exception");
+        }
+        self.unreachable();
+        Ok(())
+    }
+    fn visit_rethrow(&mut self, _resources: &I, relative_depth: u32) -> Self::Output {
+        self.check_exceptions_enabled()?;
+        // This is not a jump, but we need to check that the `rethrow`
+        // targets an actual `catch` to get the exception.
+        let (_, kind) = self.jump(relative_depth)?;
+        if kind != FrameKind::Catch && kind != FrameKind::CatchAll {
+            bail_op_err!("invalid rethrow label: target was not a `catch` block");
+        }
+        self.unreachable();
+        Ok(())
+    }
+    fn visit_delegate(&mut self, resources: &I, relative_depth: u32) -> Self::Output {
+        self.check_exceptions_enabled()?;
+        let frame = self.pop_ctrl(resources)?;
+        if frame.kind != FrameKind::Try {
+            bail_op_err!("delegate found outside of an `try` block");
+        }
+        // This operation is not a jump, but we need to check the
+        // depth for validity
+        let _ = self.jump(relative_depth)?;
+        for ty in results(frame.block_type, resources)? {
+            self.push_operand(ty)?;
+        }
+        Ok(())
+    }
+    fn visit_catch_all(&mut self, resources: &I) -> Self::Output {
+        self.check_exceptions_enabled()?;
+        let frame = self.pop_ctrl(resources)?;
+        if frame.kind == FrameKind::CatchAll {
+            bail_op_err!("only one catch_all allowed per `try` block");
+        } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
+            bail_op_err!("catch_all found outside of a `try` block");
+        }
+        self.control.push(Frame {
+            kind: FrameKind::CatchAll,
+            block_type: frame.block_type,
+            height: self.operands.len(),
+            unreachable: false,
+        });
+        Ok(())
+    }
+    fn visit_end(&mut self, resources: &I) -> Self::Output {
+        let mut frame = self.pop_ctrl(resources)?;
+
+        // Note that this `if` isn't included in the appendix right
+        // now, but it's used to allow for `if` statements that are
+        // missing an `else` block which have the same parameter/return
+        // types on the block (since that's valid).
+        if frame.kind == FrameKind::If {
+            self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
+            frame = self.pop_ctrl(resources)?;
+        }
+        for ty in results(frame.block_type, resources)? {
+            self.push_operand(ty)?;
+        }
+        Ok(())
+    }
+    fn visit_br(&mut self, resources: &I, relative_depth: u32) -> Self::Output {
+        let (ty, kind) = self.jump(relative_depth)?;
+        for ty in label_types(ty, resources, kind)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.unreachable();
+        Ok(())
+    }
+    fn visit_br_if(&mut self, resources: &I, relative_depth: u32) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        let (ty, kind) = self.jump(relative_depth)?;
+        for ty in label_types(ty, resources, kind)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        for ty in label_types(ty, resources, kind)? {
+            self.push_operand(ty)?;
+        }
+        Ok(())
+    }
+    fn visit_br_table(&mut self, resources: &I, table: BrTable) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        let default = self.jump(table.default())?;
+        let default_types = label_types(default.0, resources, default.1)?;
+        for element in table.targets() {
+            let relative_depth = element.map_err(|mut e| {
+                e.inner.offset = usize::max_value();
+                OperatorValidatorError(e)
+            })?;
+            let block = self.jump(relative_depth)?;
+            let tys = label_types(block.0, resources, block.1)?;
+            if tys.len() != default_types.len() {
+                bail_op_err!(
+                    "type mismatch: br_table target labels have different number of types"
+                );
+            }
+            debug_assert!(self.br_table_tmp.is_empty());
+            for ty in tys.rev() {
+                let ty = self.pop_operand(Some(ty))?;
+                self.br_table_tmp.push(ty);
+            }
+            self.operands.extend(self.br_table_tmp.drain(..).rev());
+        }
+        for ty in default_types.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.unreachable();
+        Ok(())
+    }
+    fn visit_return(&mut self, resources: &I) -> Self::Output {
+        self.check_return(resources)?;
+        Ok(())
+    }
+    fn visit_call(&mut self, resources: &I, function_index: u32) -> Self::Output {
+        self.check_call(function_index, resources)?;
+        Ok(())
+    }
+    fn visit_return_call(&mut self, resources: &I, function_index: u32) -> Self::Output {
+        if !self.features.tail_call {
+            return Err(OperatorValidatorError::new(
+                "tail calls support is not enabled",
+            ));
+        }
+        self.check_call(function_index, resources)?;
+        self.check_return(resources)?;
+        Ok(())
+    }
+    fn visit_call_indirect(&mut self, resources: &I, index: u32, table_index: u32, table_byte: u8) -> Self::Output {
+        if table_byte != 0 && !self.features.reference_types {
+            return Err(OperatorValidatorError::new(
+                "reference-types not enabled: zero byte expected",
+            ));
+        }
+        self.check_call_indirect(index, table_index, resources)?;
+        Ok(())
+    }
+    fn visit_return_call_indirect(&mut self, resources: &I, index: u32, table_index: u32) -> Self::Output {
+        if !self.features.tail_call {
+            return Err(OperatorValidatorError::new(
+                "tail calls support is not enabled",
+            ));
+        }
+        self.check_call_indirect(index, table_index, resources)?;
+        self.check_return(resources)?;
+        Ok(())
+    }
+    fn visit_drop(&mut self, _resources: &I) -> Self::Output {
+        self.pop_operand(None)?;
+        Ok(())
+    }
+    fn visit_select(&mut self, _resources: &I) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        let ty1 = self.pop_operand(None)?;
+        let ty2 = self.pop_operand(None)?;
+        fn is_num(ty: Option<ValType>) -> bool {
+            matches!(
+                ty,
+                Some(ValType::I32)
+                    | Some(ValType::I64)
+                    | Some(ValType::F32)
+                    | Some(ValType::F64)
+                    | Some(ValType::V128)
+                    | None
+            )
+        }
+        if !is_num(ty1) || !is_num(ty2) {
+            bail_op_err!("type mismatch: select only takes integral types")
+        }
+        if ty1 != ty2 && ty1 != None && ty2 != None {
+            bail_op_err!("type mismatch: select operands have different types")
+        }
+        self.operands.push(ty1.or(ty2));
+        Ok(())
+    }
+    fn visit_typed_select(&mut self, _resources: &I, ty: ValType) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ty)?;
+        Ok(())
+    }
+    fn visit_local_get(&mut self, _resources: &I, local_index: u32) -> Self::Output {
+        let ty = self.local(local_index)?;
+        self.push_operand(ty)?;
+        Ok(())
+    }
+    fn visit_local_set(&mut self, _resources: &I, local_index: u32) -> Self::Output {
+        let ty = self.local(local_index)?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_local_tee(&mut self, _resources: &I, local_index: u32) -> Self::Output {
+        let ty = self.local(local_index)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ty)?;
+        Ok(())
+    }
+    fn visit_global_get(&mut self, resources: &I, global_index: u32) -> Self::Output {
+        if let Some(ty) = resources.global_at(global_index) {
+            self.push_operand(ty.content_type)?;
+        } else {
+            return Err(OperatorValidatorError::new(
+                "unknown global: global index out of bounds",
+            ));
+        };
+        Ok(())
+    }
+    fn visit_global_set(&mut self, resources: &I, global_index: u32) -> Self::Output {
+        if let Some(ty) = resources.global_at(global_index) {
+            if !ty.mutable {
+                return Err(OperatorValidatorError::new(
+                    "global is immutable: cannot modify it with `global.set`",
+                ));
+            }
+            self.pop_operand(Some(ty.content_type))?;
+        } else {
+            return Err(OperatorValidatorError::new(
+                "unknown global: global index out of bounds",
+            ));
+        };
+        Ok(())
+    }
+    fn visit_i32_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i64_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 3, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+    fn visit_f32_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::F32)?;
+        Ok(())
+    }
+    fn visit_f64_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        let ty = self.check_memarg(memarg, 3, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::F64)?;
+        Ok(())
+    }
+    fn visit_i32_load8_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 0, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i32_load8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.visit_i32_load8_s(resources, memarg)
+    }
+    fn visit_i32_load16_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 1, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i32_load16_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.visit_i32_load16_s(resources, memarg)
+    }
+    fn visit_i64_load8_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 0, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+    fn visit_i64_load8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.visit_i64_load8_s(resources, memarg)
+    }
+    fn visit_i64_load16_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 1, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+    fn visit_i64_load16_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.visit_i64_load16_s(resources, memarg)
+    }
+    fn visit_i64_load32_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+    fn visit_i64_load32_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.visit_i64_load32_s(resources, memarg)
+    }
+    fn visit_i32_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_i64_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 3, resources)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_f32_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ValType::F32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_f64_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        let ty = self.check_memarg(memarg, 3, resources)?;
+        self.pop_operand(Some(ValType::F64))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_i32_store8(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 0, resources)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_i32_store16(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 1, resources)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_i64_store8(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 0, resources)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_i64_store16(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 1, resources)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_i64_store32(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_memory_size(&mut self, resources: &I, mem: u32, mem_byte: u8) -> Self::Output {
+        if mem_byte != 0 && !self.features.multi_memory {
+            return Err(OperatorValidatorError::new(
+                "multi-memory not enabled: zero byte expected",
+            ));
+        }
+        let index_ty = self.check_memory_index(mem, resources)?;
+        self.push_operand(index_ty)?;
+        Ok(())
+    }
+    fn visit_memory_grow(&mut self, resources: &I, mem: u32, mem_byte: u8) -> Self::Output {
+        if mem_byte != 0 && !self.features.multi_memory {
+            return Err(OperatorValidatorError::new(
+                "multi-memory not enabled: zero byte expected",
+            ));
+        }
+        let index_ty = self.check_memory_index(mem, resources)?;
+        self.pop_operand(Some(index_ty))?;
+        self.push_operand(index_ty)?;
+        Ok(())
+    }
+    fn visit_i32_const(&mut self, _resources: &I, _value: i32) -> Self::Output {
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i64_const(&mut self, _resources: &I, _value: i64) -> Self::Output {
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+    fn visit_f32_const(&mut self, _resources: &I, _value: Ieee32) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.push_operand(ValType::F32)?;
+        Ok(())
+    }
+    fn visit_f64_const(&mut self, _resources: &I, _value: Ieee64) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.push_operand(ValType::F64)?;
+        Ok(())
+    }
+    fn visit_i32_eqz(&mut self, _resources: &I) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i32_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_lt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_lt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_gt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_gt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_le_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_le_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_ge_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i32_ge_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I32)
+    }
+    fn visit_i64_eqz(&mut self, _resources: &I) -> Self::Output {
+        self.pop_operand(Some(ValType::I64))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i64_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_lt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_lt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_gt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_gt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_le_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_le_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_ge_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_i64_ge_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_cmp_op(ValType::I64)
+    }
+    fn visit_f32_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F32)
+    }
+    fn visit_f32_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F32)
+    }
+    fn visit_f32_lt(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F32)
+    }
+    fn visit_f32_gt(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F32)
+    }
+    fn visit_f32_le(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F32)
+    }
+    fn visit_f32_ge(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F32)
+    }
+    fn visit_f64_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F64)
+    }
+    fn visit_f64_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F64)
+    }
+    fn visit_f64_lt(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F64)
+    }
+    fn visit_f64_gt(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F64)
+    }
+    fn visit_f64_le(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F64)
+    }
+    fn visit_f64_ge(&mut self, _resources: &I) -> Self::Output {
+        self.check_fcmp_op(ValType::F64)
+    }
+    fn visit_i32_clz(&mut self, _resources: &I) -> Self::Output {
+        self.check_unary_op(ValType::I32)
+    }
+    fn visit_i32_ctz(&mut self, _resources: &I) -> Self::Output {
+        self.check_unary_op(ValType::I32)
+    }
+    fn visit_i32_popcnt(&mut self, _resources: &I) -> Self::Output {
+        self.check_unary_op(ValType::I32)
+    }
+    fn visit_i32_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_div_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_div_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_rem_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_rem_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_and(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_or(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_xor(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_shl(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_shr_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_shr_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_rotl(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i32_rotr(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I32)
+    }
+    fn visit_i64_clz(&mut self, _resources: &I) -> Self::Output {
+        self.check_unary_op(ValType::I64)
+    }
+    fn visit_i64_ctz(&mut self, _resources: &I) -> Self::Output {
+        self.check_unary_op(ValType::I64)
+    }
+    fn visit_i64_popcnt(&mut self, _resources: &I) -> Self::Output {
+        self.check_unary_op(ValType::I64)
+    }
+    fn visit_i64_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_div_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_div_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_rem_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_rem_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_and(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_or(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_xor(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_shl(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_shr_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_shr_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_rotl(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_i64_rotr(&mut self, _resources: &I) -> Self::Output {
+        self.check_binary_op(ValType::I64)
+    }
+    fn visit_f32_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_ceil(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_floor(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_trunc(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_nearest(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_sqrt(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F32)
+    }
+    fn visit_f32_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f32_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f32_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f32_div(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f32_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f32_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f32_copysign(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F32)
+    }
+    fn visit_f64_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_ceil(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_floor(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_trunc(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_nearest(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_sqrt(&mut self, _resources: &I) -> Self::Output {
+        self.check_funary_op(ValType::F64)
+    }
+    fn visit_f64_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_f64_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_f64_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_f64_div(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_f64_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_f64_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_f64_copysign(&mut self, _resources: &I) -> Self::Output {
+        self.check_fbinary_op(ValType::F64)
+    }
+    fn visit_i32_wrap_i64(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I32, ValType::I64)
+    }
+    fn visit_i32_trunc_f32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I32, ValType::F32)
+    }
+    fn visit_i32_trunc_f32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I32, ValType::F32)
+    }
+    fn visit_i32_trunc_f64s(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I32, ValType::F64)
+    }
+    fn visit_i32_trunc_f64u(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I32, ValType::F64)
+    }
+    fn visit_i64_extend_i32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::I32)
+    }
+    fn visit_i64_extend_i32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::I32)
+    }
+    fn visit_i64_trunc_f32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::F32)
+    }
+    fn visit_i64_trunc_f32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::F32)
+    }
+    fn visit_i64_trunc_f64s(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::F64)
+    }
+    fn visit_i64_trunc_f64u(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::F64)
+    }
+    fn visit_f32_convert_i32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F32, ValType::I32)
+    }
+    fn visit_f32_convert_i32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F32, ValType::I32)
+    }
+    fn visit_f32_convert_i64s(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F32, ValType::I64)
+    }
+    fn visit_f32_convert_i64u(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F32, ValType::I64)
+    }
+    fn visit_f32_demote_f64(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F32, ValType::F64)
+    }
+    fn visit_f64_convert_i32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F64, ValType::I32)
+    }
+    fn visit_f64_convert_i32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F64, ValType::I32)
+    }
+    fn visit_f64_convert_i64s(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F64, ValType::I64)
+    }
+    fn visit_f64_convert_i64u(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F64, ValType::I64)
+    }
+    fn visit_f64_promote_f32(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F64, ValType::F32)
+    }
+    fn visit_i32_reinterpret_f32(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I32, ValType::F32)
+    }
+    fn visit_i64_reinterpret_f64(&mut self, _resources: &I) -> Self::Output {
+        self.check_conversion_op(ValType::I64, ValType::F64)
+    }
+    fn visit_f32_reinterpret_i32(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F32, ValType::I32)
+    }
+    fn visit_f64_reinterpret_i64(&mut self, _resources: &I) -> Self::Output {
+        self.check_fconversion_op(ValType::F64, ValType::I64)
+    }
+    fn visit_i32_trunc_sat_f32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I32, ValType::F32)
+    }
+    fn visit_i32_trunc_sat_f32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I32, ValType::F32)
+    }
+    fn visit_i32_trunc_sat_f64s(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I32, ValType::F64)
+    }
+    fn visit_i32_trunc_sat_f64u(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I32, ValType::F64)
+    }
+    fn visit_i64_trunc_sat_f32s(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I64, ValType::F32)
+    }
+    fn visit_i64_trunc_sat_f32u(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I64, ValType::F32)
+    }
+    fn visit_i64_trunc_sat_f64s(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I64, ValType::F64)
+    }
+    fn visit_i64_trunc_sat_f64u(&mut self, _resources: &I) -> Self::Output {
+        self.check_saturating_float_to_int_enabled()?;
+        self.check_conversion_op(ValType::I64, ValType::F64)
+    }
+    fn visit_i32_extend8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_sign_extension_enabled()?;
+        self.check_unary_op(ValType::I32)
+    }
+    fn visit_i32_extend16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_sign_extension_enabled()?;
+        self.check_unary_op(ValType::I32)
+    }
+    fn visit_i64_extend8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_sign_extension_enabled()?;
+        self.check_unary_op(ValType::I64)
+    }
+    fn visit_i64_extend16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_sign_extension_enabled()?;
+        self.check_unary_op(ValType::I64)
+    }
+    fn visit_i64_extend32_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_sign_extension_enabled()?;
+        self.check_unary_op(ValType::I64)
+    }
+    fn visit_i32_atomic_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_load16_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_load8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I32)
+    }
+    fn visit_i64_atomic_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_load32_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_load16_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_load8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_load(resources, memarg, ValType::I64)
+    }
+    fn visit_i32_atomic_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_store16(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_store8(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I32)
+    }
+    fn visit_i64_atomic_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_store32(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_store16(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_store8(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_store(resources, memarg, ValType::I64)
+    }
+    fn visit_i32_atomic_rmw_add(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw_sub(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw_and(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw_or(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw_xor(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i64_atomic_rmw_add(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw_sub(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw_and(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw_or(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw_xor(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i32_atomic_rmw_xchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw_cmpxchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw16_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I32)
+    }
+    fn visit_i32_atomic_rmw8_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I32)
+    }
+    fn visit_i64_atomic_rmw_xchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw_cmpxchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw32_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw16_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
+    }
+    fn visit_i64_atomic_rmw8_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
+    }
+    fn visit_memory_atomic_notify(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_atomic_binary_op(resources, memarg, ValType::I32)
+    }
+    fn visit_memory_atomic_wait32(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_threads_enabled()?;
+        let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_memory_atomic_wait64(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_threads_enabled()?;
+        let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_atomic_fence(&mut self, _resources: &I,  flags: u8) -> Self::Output {
+        self.check_threads_enabled()?;
+        if flags != 0 {
+            return Err(OperatorValidatorError::new(
+                "non-zero flags for fence not supported yet",
+            ));
+        }
+        Ok(())
+    }
+    fn visit_ref_null(&mut self, _resources: &I,  ty: ValType) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        match ty {
+            ValType::FuncRef | ValType::ExternRef => {}
+            _ => {
+                return Err(OperatorValidatorError::new(
+                    "invalid reference type in ref.null",
+                ))
+            }
+        }
+        self.push_operand(ty)?;
+        Ok(())
+    }
+    fn visit_ref_is_null(&mut self, _resources: &I) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        match self.pop_operand(None)? {
+            None | Some(ValType::FuncRef) | Some(ValType::ExternRef) => {}
+            _ => {
+                return Err(OperatorValidatorError::new(
+                    "type mismatch: invalid reference type in ref.is_null",
+                ))
+            }
+        }
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_ref_func(&mut self, resources: &I,  function_index: u32) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        if resources.type_of_function(function_index).is_none() {
+            return Err(OperatorValidatorError::new(format!(
+                "unknown function {}: function index out of bounds",
+                function_index,
+            )));
+        }
+        if !resources.is_function_referenced(function_index) {
+            return Err(OperatorValidatorError::new("undeclared function reference"));
+        }
+        self.push_operand(ValType::FuncRef)?;
+        Ok(())
+    }
+    fn visit_v128_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_simd_enabled()?;
+        let ty = self.check_memarg(memarg, 4, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_store(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_simd_enabled()?;
+        let ty = self.check_memarg(memarg, 4, resources)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_v128_const(&mut self, _resources: &I, _value: V128) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_i8x16_splat(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_splat(ValType::I32)
+    }
+    fn visit_i16x8_splat(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_splat(ValType::I32)
+    }
+    fn visit_i32x4_splat(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_splat(ValType::I32)
+    }
+    fn visit_i64x2_splat(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_splat(ValType::I64)
+    }
+    fn visit_f32x4_splat(&mut self, _resources: &I) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.check_v128_splat(ValType::F32)
+    }
+    fn visit_f64x2_splat(&mut self, _resources: &I) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.check_v128_splat(ValType::F64)
+    }
+    fn visit_i8x16_extract_lane_s(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 16)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i8x16_extract_lane_u(&mut self, resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.visit_i8x16_extract_lane_s(resources, lane)
+    }
+    fn visit_i16x8_extract_lane_s(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 8)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i16x8_extract_lane_u(&mut self, resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.visit_i16x8_extract_lane_s(resources, lane)
+    }
+    fn visit_i32x4_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 4)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_i8x16_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 16)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_i16x8_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 8)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_i32x4_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 4)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_i64x2_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 2)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+    fn visit_i64x2_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 2)?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_f32x4_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 4)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::F32)?;
+        Ok(())
+    }
+    fn visit_f32x4_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 4)?;
+        self.pop_operand(Some(ValType::F32))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_f64x2_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 2)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::F64)?;
+        Ok(())
+    }
+    fn visit_f64x2_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+        self.check_non_deterministic_enabled()?;
+        self.check_simd_enabled()?;
+        self.check_simd_lane_index(lane, 2)?;
+        self.pop_operand(Some(ValType::F64))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_f32x4_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_lt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_gt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_le(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_ge(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_lt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_gt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_le(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_ge(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_div(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_p_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_p_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_div(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_p_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f64x2_p_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_fbinary_op()
+    }
+    fn visit_f32x4_relaxed_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_binary_op()
+    }
+    fn visit_f32x4_relaxed_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_binary_op()
+    }
+    fn visit_f64x2_relaxed_min(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_binary_op()
+    }
+    fn visit_f64x2_relaxed_max(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_binary_op()
+    }
+    fn visit_i8x16_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_lt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_lt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_gt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_gt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_le_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_le_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_ge_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_ge_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_lt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_lt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_gt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_gt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_le_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_le_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ge_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ge_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_lt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_lt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_gt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_gt_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_le_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_le_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ge_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ge_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_eq(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_ne(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_lt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_gt_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_le_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_ge_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_v128_and(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_v128_and_not(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_v128_or(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_v128_xor(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_add_sat_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_add_sat_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_sub_sat_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_sub_sat_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_min_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_min_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_max_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_max_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_add_sat_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_add_sat_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_sub_sat_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_sub_sat_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_min_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_min_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_max_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_max_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_min_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_min_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_max_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_max_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_dot_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_add(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_sub(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_mul(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_rounding_average_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_rounding_average_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_narrow_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i8x16_narrow_i16x8_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_narrow_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_narrow_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ext_mul_low_i8x16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ext_mul_high_i8x16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ext_mul_low_i8x16_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_ext_mul_high_i8x16_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ext_mul_low_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ext_mul_high_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ext_mul_low_i16x8_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_ext_mul_high_i16x8_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_ext_mul_low_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_ext_mul_high_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_ext_mul_low_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i64x2_ext_mul_high_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_q15_mulr_sat_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_f32x4_ceil(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_floor(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_trunc(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_nearest(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_ceil(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_floor(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_trunc(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_nearest(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_sqrt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_sqrt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_demote_f64x2_zero(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_promote_low_f32x4(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_convert_low_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f64x2_convert_low_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_i32x4_trunc_sat_f32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_i32x4_trunc_sat_f32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_i32x4_trunc_sat_f64x2_s_zero(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_i32x4_trunc_sat_f64x2_u_zero(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_convert_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_f32x4_convert_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_funary_op()
+    }
+    fn visit_v128_not(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i8x16_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i8x16_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i8x16_popcnt(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i64x2_abs(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i64x2_neg(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_extend_low_i8x16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_extend_high_i8x16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_extend_low_i8x16_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_extend_high_i8x16_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_extend_low_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_extend_high_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_extend_low_i16x8_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_extend_high_i16x8_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i64x2_extend_low_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i64x2_extend_high_i32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i64x2_extend_low_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i64x2_extend_high_i32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_ext_add_pairwise_i8x16_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i16x8_ext_add_pairwise_i8x16_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_ext_add_pairwise_i16x8_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_ext_add_pairwise_i16x8_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_relaxed_trunc_sat_f32x4_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_unary_op()
+    }
+    fn visit_i32x4_relaxed_trunc_sat_f32x4_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_unary_op()
+    }
+    fn visit_i32x4_relaxed_trunc_sat_f64x2_s_zero(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_unary_op()
+    }
+    fn visit_i32x4_relaxed_trunc_sat_f64x2_u_zero(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_unary_op()
+    }
+    fn visit_v128_bitselect(&mut self, _resources: &I) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_f32x4_fma(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_f32x4_fms(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_f64x2_fma(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_f64x2_fms(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_i8x16_lane_select(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_i16x8_lane_select(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_i32x4_lane_select(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_i64x2_lane_select(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_relaxed_ternary_op()
+    }
+    fn visit_v128_any_true(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i8x16_all_true(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i8x16_bitmask(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i16x8_all_true(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i16x8_bitmask(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i32x4_all_true(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i32x4_bitmask(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i64x2_all_true(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i64x2_bitmask(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_bitmask_op()
+    }
+    fn visit_i8x16_shl(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i8x16_shr_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i8x16_shr_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i16x8_shl(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i16x8_shr_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i16x8_shr_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i32x4_shl(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i32x4_shr_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i32x4_shr_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i64x2_shl(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i64x2_shr_s(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i64x2_shr_u(&mut self, _resources: &I) -> Self::Output {
+        self.check_v128_shift_op()
+    }
+    fn visit_i8x16_swizzle(&mut self, _resources: &I) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_i8x16_relaxed_swizzle(&mut self, _resources: &I) -> Self::Output {
+        self.check_relaxed_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_i8x16_shuffle(&mut self, _resources: &I, lanes: [SIMDLaneIndex; 16]) -> Self::Output {
+        self.check_simd_enabled()?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        for i in lanes {
+            self.check_simd_lane_index(i, 32)?;
+        }
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load8_splat(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_simd_enabled()?;
+        let ty = self.check_memarg(memarg, 0, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load16_splat(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_simd_enabled()?;
+        let ty = self.check_memarg(memarg, 1, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load32_splat(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_simd_enabled()?;
+        let ty = self.check_memarg(memarg, 2, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load32_zero(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.visit_v128_load32_splat(resources, memarg)
+    }
+    fn visit_v128_load64_splat(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load64_zero(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load8x8_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load8x8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load16x4_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load16x4_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load32x2_s(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load32x2_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+        self.check_v128_load_op(resources, memarg)
+    }
+    fn visit_v128_load8_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 0, resources)?;
+        self.check_simd_lane_index(lane, 16)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load16_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 1, resources)?;
+        self.check_simd_lane_index(lane, 8)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load32_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 2, resources)?;
+        self.check_simd_lane_index(lane, 4)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_load64_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 3, resources)?;
+        self.check_simd_lane_index(lane, 2)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+    fn visit_v128_store8_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 0, resources)?;
+        self.check_simd_lane_index(lane, 16)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        Ok(())
+    }
+    fn visit_v128_store16_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 1, resources)?;
+        self.check_simd_lane_index(lane, 8)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        Ok(())
+    }
+    fn visit_v128_store32_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 2, resources)?;
+        self.check_simd_lane_index(lane, 4)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        Ok(())
+    }
+    fn visit_v128_store64_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+        self.check_simd_enabled()?;
+        let idx = self.check_memarg(memarg, 3, resources)?;
+        self.check_simd_lane_index(lane, 2)?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(idx))?;
+        Ok(())
+    }
+    fn visit_memory_init(&mut self, resources: &I, mem: u32, segment: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        let ty = self.check_memory_index(mem, resources)?;
+        match resources.data_count() {
+            None => bail_op_err!("data count section required"),
+            Some(count) if segment < count => {}
+            Some(_) => bail_op_err!("unknown data segment {}", segment),
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_data_drop(&mut self, resources: &I, segment: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        match resources.data_count() {
+            None => bail_op_err!("data count section required"),
+            Some(count) if segment < count => {}
+            Some(_) => bail_op_err!("unknown data segment {}", segment),
+        }
+        Ok(())
+    }
+    fn visit_memory_copy(&mut self, resources: &I, src: u32, dst: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        let dst_ty = self.check_memory_index(dst, resources)?;
+        let src_ty = self.check_memory_index(src, resources)?;
+
+        // The length operand here is the smaller of src/dst, which is
+        // i32 if one is i32
+        self.pop_operand(Some(match src_ty {
+            ValType::I32 => ValType::I32,
+            _ => dst_ty,
+        }))?;
+
+        // ... and the offset into each memory is required to be
+        // whatever the indexing type is for that memory
+        self.pop_operand(Some(src_ty))?;
+        self.pop_operand(Some(dst_ty))?;
+        Ok(())
+    }
+    fn visit_memory_fill(&mut self, resources: &I, mem: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        let ty = self.check_memory_index(mem, resources)?;
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_table_init(&mut self, resources: &I, segment: u32, table: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        if table > 0 {
+            self.check_reference_types_enabled()?;
+        }
+        let table = match resources.table_at(table) {
+            Some(table) => table,
+            None => bail_op_err!("unknown table {}: table index out of bounds", table),
+        };
+        let segment_ty = match resources.element_type_at(segment) {
+            Some(ty) => ty,
+            None => bail_op_err!(
+                "unknown elem segment {}: segment index out of bounds",
+                segment
+            ),
+        };
+        if segment_ty != table.element_type {
+            return Err(OperatorValidatorError::new("type mismatch"));
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        Ok(())
+    }
+    fn visit_elem_drop(&mut self, resources: &I, segment: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        if segment >= resources.element_count() {
+            bail_op_err!(
+                "unknown elem segment {}: segment index out of bounds",
+                segment
+            );
+        }
+        Ok(())
+    }
+    fn visit_table_copy(&mut self, resources: &I, dst_table: u32, src_table: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        if src_table > 0 || dst_table > 0 {
+            self.check_reference_types_enabled()?;
+        }
+        let (src, dst) =
+            match (resources.table_at(src_table), resources.table_at(dst_table)) {
+                (Some(a), Some(b)) => (a, b),
+                _ => return Err(OperatorValidatorError::new("table index out of bounds")),
+            };
+        if src.element_type != dst.element_type {
+            return Err(OperatorValidatorError::new("type mismatch"));
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        Ok(())
+    }
+    fn visit_table_get(&mut self, resources: &I, table: u32) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        let ty = match resources.table_at(table) {
+            Some(ty) => ty.element_type,
+            None => return Err(OperatorValidatorError::new("table index out of bounds")),
+        };
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_operand(ty)?;
+        Ok(())
+    }
+    fn visit_table_set(&mut self, resources: &I, table: u32) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        let ty = match resources.table_at(table) {
+            Some(ty) => ty.element_type,
+            None => return Err(OperatorValidatorError::new("table index out of bounds")),
+        };
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(ValType::I32))?;
+        Ok(())
+    }
+    fn visit_table_grow(&mut self, resources: &I, table: u32) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        let ty = match resources.table_at(table) {
+            Some(ty) => ty.element_type,
+            None => return Err(OperatorValidatorError::new("table index out of bounds")),
+        };
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_table_size(&mut self, resources: &I, table: u32) -> Self::Output {
+        self.check_reference_types_enabled()?;
+        if resources.table_at(table).is_none() {
+            return Err(OperatorValidatorError::new("table index out of bounds"));
+        }
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+    fn visit_table_fill(&mut self, resources: &I, table: u32) -> Self::Output {
+        self.check_bulk_memory_enabled()?;
+        let ty = match resources.table_at(table) {
+            Some(ty) => ty.element_type,
+            None => return Err(OperatorValidatorError::new("table index out of bounds")),
+        };
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(ValType::I32))?;
+        Ok(())
     }
 }
