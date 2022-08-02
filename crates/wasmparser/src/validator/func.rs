@@ -211,8 +211,10 @@ mod tests {
     }
 }
 
-use crate::{VisitOperator, MemoryImmediate, SIMDLaneIndex, Ieee32, Ieee64, V128, BrTable, BlockType};
 use super::operators::OperatorValidatorError;
+use crate::{
+    BlockType, BrTable, Ieee32, Ieee64, MemoryImmediate, SIMDLaneIndex, VisitOperator, V128,
+};
 
 impl<T> FuncValidator<T>
 where
@@ -220,7 +222,7 @@ where
 {
     fn visit<F>(&mut self, offset: usize, visit_fn: F) -> Result<()>
     where
-        F: FnOnce(&mut Self) -> Result<(), OperatorValidatorError>
+        F: FnOnce(&mut Self) -> Result<(), OperatorValidatorError>,
     {
         visit_fn(self)
             .map_err(|e| e.set_offset(offset))

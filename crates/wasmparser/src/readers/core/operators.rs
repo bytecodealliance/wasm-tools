@@ -1084,7 +1084,10 @@ impl<'a> OperatorsReader<'a> {
     }
 
     /// Visits an operator with its offset.
-    pub fn visit_with_offset<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<usize>>::Output>
+    pub fn visit_with_offset<T>(
+        &mut self,
+        visitor: &mut T,
+    ) -> Result<<T as VisitOperator<usize>>::Output>
     where
         T: VisitOperator<usize>,
     {
@@ -1210,8 +1213,19 @@ pub trait VisitOperator<Input> {
     fn visit_return(&mut self, input: Input) -> Self::Output;
     fn visit_call(&mut self, input: Input, function_index: u32) -> Self::Output;
     fn visit_return_call(&mut self, input: Input, function_index: u32) -> Self::Output;
-    fn visit_call_indirect(&mut self, input: Input, index: u32, table_index: u32, table_byte: u8) -> Self::Output;
-    fn visit_return_call_indirect(&mut self, input: Input, index: u32, table_index: u32) -> Self::Output;
+    fn visit_call_indirect(
+        &mut self,
+        input: Input,
+        index: u32,
+        table_index: u32,
+        table_byte: u8,
+    ) -> Self::Output;
+    fn visit_return_call_indirect(
+        &mut self,
+        input: Input,
+        index: u32,
+        table_index: u32,
+    ) -> Self::Output;
     fn visit_drop(&mut self, input: Input) -> Self::Output;
     fn visit_select(&mut self, input: Input) -> Self::Output;
     fn visit_typed_select(&mut self, input: Input, ty: ValType) -> Self::Output;
@@ -1404,57 +1418,202 @@ pub trait VisitOperator<Input> {
     fn visit_i32_atomic_rmw_and(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i32_atomic_rmw_or(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i32_atomic_rmw_xor(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_add_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_sub_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_and_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_or_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_xor_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_add_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_sub_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_and_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_or_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_xor_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i32_atomic_rmw16_add_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw16_sub_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw16_and_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw16_or_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw16_xor_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw8_add_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw8_sub_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw8_and_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw8_or_u(&mut self, input: Input, memarg: MemoryImmediate)
+        -> Self::Output;
+    fn visit_i32_atomic_rmw8_xor_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
     fn visit_i64_atomic_rmw_add(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i64_atomic_rmw_sub(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i64_atomic_rmw_and(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i64_atomic_rmw_or(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i64_atomic_rmw_xor(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_add_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_sub_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_and_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_or_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_xor_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_add_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_sub_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_and_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_or_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_xor_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_add_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_sub_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_and_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_or_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_xor_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i64_atomic_rmw32_add_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw32_sub_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw32_and_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw32_or_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw32_xor_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_add_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_sub_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_and_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_or_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_xor_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw8_add_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw8_sub_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw8_and_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw8_or_u(&mut self, input: Input, memarg: MemoryImmediate)
+        -> Self::Output;
+    fn visit_i64_atomic_rmw8_xor_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
     fn visit_i32_atomic_rmw_xchg(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_xchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_xchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw_cmpxchg(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw16_cmpxchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_cmpxchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i32_atomic_rmw16_xchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw8_xchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_cmpxchg(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw16_cmpxchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i32_atomic_rmw8_cmpxchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
     fn visit_i64_atomic_rmw_xchg(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_xchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_xchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_xchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw_cmpxchg(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw32_cmpxchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw16_cmpxchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw8_cmpxchg_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_memory_atomic_notify(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_memory_atomic_wait32(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_memory_atomic_wait64(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_atomic_fence(&mut self, input: Input,  flags: u8) -> Self::Output;
-    fn visit_ref_null(&mut self, input: Input,  ty: ValType) -> Self::Output;
+    fn visit_i64_atomic_rmw32_xchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_xchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw8_xchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw_cmpxchg(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw32_cmpxchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw16_cmpxchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_i64_atomic_rmw8_cmpxchg_u(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_memory_atomic_notify(&mut self, input: Input, memarg: MemoryImmediate)
+        -> Self::Output;
+    fn visit_memory_atomic_wait32(&mut self, input: Input, memarg: MemoryImmediate)
+        -> Self::Output;
+    fn visit_memory_atomic_wait64(&mut self, input: Input, memarg: MemoryImmediate)
+        -> Self::Output;
+    fn visit_atomic_fence(&mut self, input: Input, flags: u8) -> Self::Output;
+    fn visit_ref_null(&mut self, input: Input, ty: ValType) -> Self::Output;
     fn visit_ref_is_null(&mut self, input: Input) -> Self::Output;
-    fn visit_ref_func(&mut self, input: Input,  function_index: u32) -> Self::Output;
+    fn visit_ref_func(&mut self, input: Input, function_index: u32) -> Self::Output;
     fn visit_v128_load(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_v128_store(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_v128_const(&mut self, input: Input, value: V128) -> Self::Output;
@@ -1464,20 +1623,20 @@ pub trait VisitOperator<Input> {
     fn visit_i64x2_splat(&mut self, input: Input) -> Self::Output;
     fn visit_f32x4_splat(&mut self, input: Input) -> Self::Output;
     fn visit_f64x2_splat(&mut self, input: Input) -> Self::Output;
-    fn visit_i8x16_extract_lane_s(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i8x16_extract_lane_u(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i16x8_extract_lane_s(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i16x8_extract_lane_u(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i32x4_extract_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i8x16_replace_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i16x8_replace_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i32x4_replace_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i64x2_extract_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i64x2_replace_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f32x4_extract_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f32x4_replace_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f64x2_extract_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f64x2_replace_lane(&mut self, input: Input,  lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i8x16_extract_lane_s(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i8x16_extract_lane_u(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i16x8_extract_lane_s(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i16x8_extract_lane_u(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i32x4_extract_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i8x16_replace_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i16x8_replace_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i32x4_replace_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i64x2_extract_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i64x2_replace_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_f32x4_extract_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_f32x4_replace_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_f64x2_extract_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_f64x2_replace_lane(&mut self, input: Input, lane: SIMDLaneIndex) -> Self::Output;
     fn visit_f32x4_eq(&mut self, input: Input) -> Self::Output;
     fn visit_f32x4_ne(&mut self, input: Input) -> Self::Output;
     fn visit_f32x4_lt(&mut self, input: Input) -> Self::Output;
@@ -1687,7 +1846,7 @@ pub trait VisitOperator<Input> {
     fn visit_i64x2_shr_u(&mut self, input: Input) -> Self::Output;
     fn visit_i8x16_swizzle(&mut self, input: Input) -> Self::Output;
     fn visit_i8x16_relaxed_swizzle(&mut self, input: Input) -> Self::Output;
-    fn visit_i8x16_shuffle(&mut self, input: Input,  lanes: [SIMDLaneIndex; 16]) -> Self::Output;
+    fn visit_i8x16_shuffle(&mut self, input: Input, lanes: [SIMDLaneIndex; 16]) -> Self::Output;
     fn visit_v128_load8_splat(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_v128_load16_splat(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_v128_load32_splat(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
@@ -1700,14 +1859,54 @@ pub trait VisitOperator<Input> {
     fn visit_v128_load16x4_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_v128_load32x2_s(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
     fn visit_v128_load32x2_u(&mut self, input: Input, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load8_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_load16_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_load32_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_load64_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_store8_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_store16_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_store32_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_v128_store64_lane(&mut self, input: Input, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_v128_load8_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_load16_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_load32_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_load64_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_store8_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_store16_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_store32_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
+    fn visit_v128_store64_lane(
+        &mut self,
+        input: Input,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output;
     fn visit_memory_init(&mut self, input: Input, mem: u32, segment: u32) -> Self::Output;
     fn visit_data_drop(&mut self, input: Input, segment: u32) -> Self::Output;
     fn visit_memory_copy(&mut self, input: Input, src: u32, dst: u32) -> Self::Output;

@@ -2186,7 +2186,10 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn visit_0xfe_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<usize>>::Output>
+    fn visit_0xfe_operator<T>(
+        &mut self,
+        visitor: &mut T,
+    ) -> Result<<T as VisitOperator<usize>>::Output>
     where
         T: VisitOperator<usize>,
     {

@@ -23,9 +23,9 @@
 // the various methods here.
 
 use crate::{
-    V128, Ieee32, Ieee64, BrTable, VisitOperator,
-    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, MemoryImmediate, Operator,
-    Result, SIMDLaneIndex, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
+    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, Ieee32, Ieee64,
+    MemoryImmediate, Operator, Result, SIMDLaneIndex, ValType, VisitOperator, WasmFeatures,
+    WasmFuncType, WasmModuleResources, V128,
 };
 
 /// A wrapper around a `BinaryReaderError` where the inner error's offset is a
@@ -632,7 +632,11 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of a common conversion operator.
-    fn check_fconversion_op(&mut self, into: ValType, from: ValType) -> OperatorValidatorResult<()> {
+    fn check_fconversion_op(
+        &mut self,
+        into: ValType,
+        from: ValType,
+    ) -> OperatorValidatorResult<()> {
         debug_assert!(matches!(into, ValType::F32 | ValType::F64));
         debug_assert!(matches!(from, ValType::F32 | ValType::F64));
         self.check_non_deterministic_enabled()?;
@@ -655,7 +659,12 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of an atomic load operator.
-    fn check_atomic_load<T>(&mut self, resources: &T, memarg: MemoryImmediate, load_ty: ValType) -> OperatorValidatorResult<()>
+    fn check_atomic_load<T>(
+        &mut self,
+        resources: &T,
+        memarg: MemoryImmediate,
+        load_ty: ValType,
+    ) -> OperatorValidatorResult<()>
     where
         T: WasmModuleResources,
     {
@@ -667,7 +676,12 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of an atomic store operator.
-    fn check_atomic_store<T>(&mut self, resources: &T, memarg: MemoryImmediate, store_ty: ValType) -> OperatorValidatorResult<()>
+    fn check_atomic_store<T>(
+        &mut self,
+        resources: &T,
+        memarg: MemoryImmediate,
+        store_ty: ValType,
+    ) -> OperatorValidatorResult<()>
     where
         T: WasmModuleResources,
     {
@@ -679,7 +693,12 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of a common atomic binary operator.
-    fn check_atomic_binary_op<T>(&mut self, resources: &T, memarg: MemoryImmediate, op_ty: ValType) -> OperatorValidatorResult<()>
+    fn check_atomic_binary_op<T>(
+        &mut self,
+        resources: &T,
+        memarg: MemoryImmediate,
+        op_ty: ValType,
+    ) -> OperatorValidatorResult<()>
     where
         T: WasmModuleResources,
     {
@@ -692,7 +711,12 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of an atomic compare exchange operator.
-    fn check_atomic_binary_cmpxchg<T>(&mut self, resources: &T, memarg: MemoryImmediate, op_ty: ValType) -> OperatorValidatorResult<()>
+    fn check_atomic_binary_cmpxchg<T>(
+        &mut self,
+        resources: &T,
+        memarg: MemoryImmediate,
+        op_ty: ValType,
+    ) -> OperatorValidatorResult<()>
     where
         T: WasmModuleResources,
     {
@@ -787,7 +811,11 @@ impl OperatorValidator {
     }
 
     /// Checks a [`V128`] common load operator.
-    fn check_v128_load_op<T>(&mut self, resources: T, memarg: MemoryImmediate) -> OperatorValidatorResult<()>
+    fn check_v128_load_op<T>(
+        &mut self,
+        resources: T,
+        memarg: MemoryImmediate,
+    ) -> OperatorValidatorResult<()>
     where
         T: WasmModuleResources,
     {
@@ -2424,7 +2452,9 @@ where
 {
     type Output = OperatorValidatorResult<()>;
 
-    fn visit_nop(&mut self, _resources: &I) -> Self::Output { Ok(())}
+    fn visit_nop(&mut self, _resources: &I) -> Self::Output {
+        Ok(())
+    }
     fn visit_unreachable(&mut self, _resources: &I) -> Self::Output {
         self.unreachable();
         Ok(())
@@ -2627,7 +2657,13 @@ where
         self.check_return(resources)?;
         Ok(())
     }
-    fn visit_call_indirect(&mut self, resources: &I, index: u32, table_index: u32, table_byte: u8) -> Self::Output {
+    fn visit_call_indirect(
+        &mut self,
+        resources: &I,
+        index: u32,
+        table_index: u32,
+        table_byte: u8,
+    ) -> Self::Output {
         if table_byte != 0 && !self.features.reference_types {
             return Err(OperatorValidatorError::new(
                 "reference-types not enabled: zero byte expected",
@@ -2636,7 +2672,12 @@ where
         self.check_call_indirect(index, table_index, resources)?;
         Ok(())
     }
-    fn visit_return_call_indirect(&mut self, resources: &I, index: u32, table_index: u32) -> Self::Output {
+    fn visit_return_call_indirect(
+        &mut self,
+        resources: &I,
+        index: u32,
+        table_index: u32,
+    ) -> Self::Output {
         if !self.features.tail_call {
             return Err(OperatorValidatorError::new(
                 "tail calls support is not enabled",
@@ -3316,7 +3357,11 @@ where
     fn visit_i32_atomic_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
         self.check_atomic_load(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_load16_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_load16_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_load(resources, memarg, ValType::I32)
     }
     fn visit_i32_atomic_load8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
@@ -3325,10 +3370,18 @@ where
     fn visit_i64_atomic_load(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
         self.check_atomic_load(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_load32_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_load32_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_load(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_load16_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_load16_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_load(resources, memarg, ValType::I64)
     }
     fn visit_i64_atomic_load8_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
@@ -3370,34 +3423,74 @@ where
     fn visit_i32_atomic_rmw_xor(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_add_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_sub_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_and_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_or_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_xor_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_add_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_sub_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_and_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_or_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_xor_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
     fn visit_i64_atomic_rmw_add(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
@@ -3415,97 +3508,221 @@ where
     fn visit_i64_atomic_rmw_xor(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_add_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_sub_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_and_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_or_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_xor_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_add_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_sub_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_and_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_or_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_xor_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_add_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_add_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_sub_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_sub_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_and_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_and_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_or_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_or_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_xor_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_xor_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i32_atomic_rmw_xchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_xchg(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_xchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_xchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw_cmpxchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_cmpxchg(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw16_cmpxchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw8_cmpxchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I32)
     }
-    fn visit_i64_atomic_rmw_xchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_xchg(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_xchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_xchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_xchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_xchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw_cmpxchg(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_cmpxchg(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw32_cmpxchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw16_cmpxchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_cmpxchg_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw8_cmpxchg_u(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_cmpxchg(resources, memarg, ValType::I64)
     }
-    fn visit_memory_atomic_notify(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_memory_atomic_notify(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_atomic_binary_op(resources, memarg, ValType::I32)
     }
-    fn visit_memory_atomic_wait32(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_memory_atomic_wait32(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_threads_enabled()?;
         let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
         self.pop_operand(Some(ValType::I64))?;
@@ -3514,7 +3731,11 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_memory_atomic_wait64(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_memory_atomic_wait64(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+    ) -> Self::Output {
         self.check_threads_enabled()?;
         let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
         self.pop_operand(Some(ValType::I64))?;
@@ -3523,7 +3744,7 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_atomic_fence(&mut self, _resources: &I,  flags: u8) -> Self::Output {
+    fn visit_atomic_fence(&mut self, _resources: &I, flags: u8) -> Self::Output {
         self.check_threads_enabled()?;
         if flags != 0 {
             return Err(OperatorValidatorError::new(
@@ -3532,7 +3753,7 @@ where
         }
         Ok(())
     }
-    fn visit_ref_null(&mut self, _resources: &I,  ty: ValType) -> Self::Output {
+    fn visit_ref_null(&mut self, _resources: &I, ty: ValType) -> Self::Output {
         self.check_reference_types_enabled()?;
         match ty {
             ValType::FuncRef | ValType::ExternRef => {}
@@ -3558,7 +3779,7 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_ref_func(&mut self, resources: &I,  function_index: u32) -> Self::Output {
+    fn visit_ref_func(&mut self, resources: &I, function_index: u32) -> Self::Output {
         self.check_reference_types_enabled()?;
         if resources.type_of_function(function_index).is_none() {
             return Err(OperatorValidatorError::new(format!(
@@ -3611,34 +3832,34 @@ where
         self.check_non_deterministic_enabled()?;
         self.check_v128_splat(ValType::F64)
     }
-    fn visit_i8x16_extract_lane_s(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_extract_lane_s(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 16)?;
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i8x16_extract_lane_u(&mut self, resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_extract_lane_u(&mut self, resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.visit_i8x16_extract_lane_s(resources, lane)
     }
-    fn visit_i16x8_extract_lane_s(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_extract_lane_s(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 8)?;
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i16x8_extract_lane_u(&mut self, resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_extract_lane_u(&mut self, resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.visit_i16x8_extract_lane_s(resources, lane)
     }
-    fn visit_i32x4_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i32x4_extract_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 4)?;
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i8x16_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_replace_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 16)?;
         self.pop_operand(Some(ValType::I32))?;
@@ -3646,7 +3867,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i16x8_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_replace_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 8)?;
         self.pop_operand(Some(ValType::I32))?;
@@ -3654,7 +3875,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i32x4_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i32x4_replace_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 4)?;
         self.pop_operand(Some(ValType::I32))?;
@@ -3662,14 +3883,14 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i64x2_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i64x2_extract_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 2)?;
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_i64x2_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i64x2_replace_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 2)?;
         self.pop_operand(Some(ValType::I64))?;
@@ -3677,7 +3898,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f32x4_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f32x4_extract_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_non_deterministic_enabled()?;
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 4)?;
@@ -3685,7 +3906,7 @@ where
         self.push_operand(ValType::F32)?;
         Ok(())
     }
-    fn visit_f32x4_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f32x4_replace_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_non_deterministic_enabled()?;
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 4)?;
@@ -3694,7 +3915,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f64x2_extract_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f64x2_extract_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_non_deterministic_enabled()?;
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 2)?;
@@ -3702,7 +3923,7 @@ where
         self.push_operand(ValType::F64)?;
         Ok(())
     }
-    fn visit_f64x2_replace_lane(&mut self, _resources: &I,  lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f64x2_replace_lane(&mut self, _resources: &I, lane: SIMDLaneIndex) -> Self::Output {
         self.check_non_deterministic_enabled()?;
         self.check_simd_enabled()?;
         self.check_simd_lane_index(lane, 2)?;
@@ -4409,7 +4630,12 @@ where
     fn visit_v128_load32x2_u(&mut self, resources: &I, memarg: MemoryImmediate) -> Self::Output {
         self.check_v128_load_op(resources, memarg)
     }
-    fn visit_v128_load8_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_load8_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 0, resources)?;
         self.check_simd_lane_index(lane, 16)?;
@@ -4418,7 +4644,12 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load16_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_load16_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 1, resources)?;
         self.check_simd_lane_index(lane, 8)?;
@@ -4427,7 +4658,12 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load32_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_load32_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 2, resources)?;
         self.check_simd_lane_index(lane, 4)?;
@@ -4436,7 +4672,12 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load64_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_load64_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 3, resources)?;
         self.check_simd_lane_index(lane, 2)?;
@@ -4445,7 +4686,12 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_store8_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_store8_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 0, resources)?;
         self.check_simd_lane_index(lane, 16)?;
@@ -4453,7 +4699,12 @@ where
         self.pop_operand(Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store16_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_store16_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 1, resources)?;
         self.check_simd_lane_index(lane, 8)?;
@@ -4461,7 +4712,12 @@ where
         self.pop_operand(Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store32_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_store32_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 2, resources)?;
         self.check_simd_lane_index(lane, 4)?;
@@ -4469,7 +4725,12 @@ where
         self.pop_operand(Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store64_lane(&mut self, resources: &I, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_v128_store64_lane(
+        &mut self,
+        resources: &I,
+        memarg: MemoryImmediate,
+        lane: SIMDLaneIndex,
+    ) -> Self::Output {
         self.check_simd_enabled()?;
         let idx = self.check_memarg(memarg, 3, resources)?;
         self.check_simd_lane_index(lane, 2)?;
@@ -4564,11 +4825,10 @@ where
         if src_table > 0 || dst_table > 0 {
             self.check_reference_types_enabled()?;
         }
-        let (src, dst) =
-            match (resources.table_at(src_table), resources.table_at(dst_table)) {
-                (Some(a), Some(b)) => (a, b),
-                _ => return Err(OperatorValidatorError::new("table index out of bounds")),
-            };
+        let (src, dst) = match (resources.table_at(src_table), resources.table_at(dst_table)) {
+            (Some(a), Some(b)) => (a, b),
+            _ => return Err(OperatorValidatorError::new("table index out of bounds")),
+        };
         if src.element_type != dst.element_type {
             return Err(OperatorValidatorError::new("type mismatch"));
         }
