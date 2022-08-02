@@ -1,16 +1,16 @@
-output: math.wasm
+output: encryptor.wasm
 
 components:
-  add:
-    path: ../add/target/wasm32-unknown-unknown/release/add.wasm
-  multiply:
-    path: ../multiply/target/wasm32-unknown-unknown/release/multiply.wasm
-  math:
-    path: ../math/target/wasm32-unknown-unknown/release/math.wasm
+  rot13:
+    path: ../rot13/target/wasm32-unknown-unknown/release/rot13.wasm
+  rot26:
+    path: ../rot26/target/wasm32-unknown-unknown/release/rot26.wasm
+  encryptor:
+    path: ../encryptor/target/wasm32-unknown-unknown/release/encryptor.wasm
 
 instantiations:
-  math:
-    dependencies: [add]
+  encryptor:
+    dependencies: [rot13]
 
 exports:
-  default: math
+  default: encryptor

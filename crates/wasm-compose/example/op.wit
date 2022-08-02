@@ -1,6 +1,0 @@
-record numbers {
-    x: u32,
-    y: u32,
-}
-
-op: func(nums: numbers) -> u32

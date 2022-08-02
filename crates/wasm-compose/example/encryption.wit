@@ -1,0 +1,1 @@
+encrypt: func(iv: list<u8>, key: list<u8>, plain-text: list<u8>) -> list<u8>

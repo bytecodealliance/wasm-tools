@@ -1,0 +1,1 @@
+encrypt: func(data: list<u8>) -> list<u8>

@@ -7,61 +7,53 @@ to compose a component from other components.
 
 There are four subdirectories in this example:
 
-* `add` - a simple component that adds two numbers together.
-* `multiply` - a simple component that multiplies two numbers together.
-* `math` - a simple component that imports an _operation_ interface and
-  passes it two numbers.
-* `host` - a custom host that instantiates a `math` component and calls
-  its `execute` export.
+* `rot13` - a super-secure encryption algorithm component.
+* `rot26` - a super-duper-secure encryption algorithm component.
+* `encryptor` - a component that encrypts data when given an algorithm implementation to use.
+* `host` - a custom host that instantiates a composed `encryptor` component.
 
 ## Overview
 
-The _operation_ interface is defined in `op.wit` as:
+The _encryption algorithm_ interface is defined in `encryption.wit` as:
 
 ```wit
-record numbers {
-    x: u32,
-    y: u32,
-}
-
-op: func(nums: numbers) -> u32
+encrypt: func(iv: list<u8>, key: list<u8>, plain-text: list<u8>) -> list<u8>
 ```
-While obviously the numbers could be passed as individual parameters, rather
-than via a record, this example is meant to illustrate passing interface types
-between components.
 
-The interface has been defined in terms of what is supported in [Wasmtime](https://github.com/bytecodealliance/wasmtime)
-at the time of this writing. This example will evolve as the support for the
-component model evolves in Wasmtime.
-
-The example will compose a `math` component that initially will execute like
+The example will compose an `encryptor` component that initially will execute like
 this:
 
 ```mermaid
 sequenceDiagram
-    participant Host
-    participant Math
-    participant Add
-    Host->>Math: execute()
-    Math->>Add: op(numbers { x: 21649, y: 21661 })
-    Note right of Add: x + y
-    Add->>Math: 43310
-    Math->>Host: 43310
+    participant host
+    participant encryptor
+    participant rot13
+    host->>encryptor: encrypt(<plain-text>)
+    encryptor->>rot13: encrypt(<iv>, <key>, <plain-text>)
+    Note right of rot13: rot13(<plain-text>)
+    rot13->>encryptor: super-secure-cipher-text
+    encryptor->>host: super-secure-cipher-text
 ```
 
-By changing how the `math` component is composed, the execution will
+Later it is discovered that `rot13` has been cracked and is no longer cryptographically
+secure.
+
+A better, more secure, encryption algorithm is now needed. Behold, `rot26` with twice the
+encrypting power!
+
+By changing how the `encryptor` component is composed, the execution will
 change to:
 
 ```mermaid
 sequenceDiagram
-    participant Host
-    participant Math
-    participant Multiply
-    Host->>Math: execute()
-    Math->>Multiply: op(numbers { x: 21649, y: 21661 })
-    Note right of Multiply: x * y
-    Multiply->>Math: 468938989
-    Math->>Host: 468938989
+    participant host
+    participant encryptor
+    participant rot26
+    host->>encryptor: encrypt(<plain-text>)
+    encryptor->>rot26: encrypt(<iv>, <key>, <plain-text>)
+    Note right of rot26: rot26(<plain-text>)
+    rot26->>encryptor: super-duper-secure-cipher-text
+    encryptor->>host: super-duper-secure-cipher-text
 ```
 
 All without having to rebuild any of the original components!
@@ -77,69 +69,69 @@ Additionally, it is assumed that `wasm-tools` has been installed from the root o
 
 ## Building the components
 
-To build the `add` component, use `cargo component build`:
+To build the `rot13` component, use `cargo component build`:
 
 ```sh
-cd add
+cd rot13
 cargo component build --release
 ```
 
-To build the `multiply` component, use `cargo component build`:
+To build the `rot26` component, use `cargo component build`:
 
 ```sh
-cd multiply
+cd rot26
 cargo component build --release
 ```
 
-Finally, to build the `math` component, use `cargo component build`:
+Finally, to build the `encryptor` component, use `cargo component build`:
 
 ```sh
-cd math
+cd encryptor
 cargo component build --release
 ```
 
 ## Composing the component
 
-Initially, the host defines a composition configuration for the `math` component
+Initially, the host defines a composition configuration for the `encryptor` component
 that looks like this:
 
 ```yml
-output: math.wasm
+output: encryptor.wasm
 
 components:
-  add:
-    path: ../add/target/wasm32-unknown-unknown/release/add.wasm
-  multiply:
-    path: ../multiply/target/wasm32-unknown-unknown/release/multiply.wasm
-  math:
-    path: ../math/target/wasm32-unknown-unknown/release/math.wasm
+  rot13:
+    path: ../rot13/target/wasm32-unknown-unknown/release/rot13.wasm
+  rot26:
+    path: ../rot26/target/wasm32-unknown-unknown/release/rot26.wasm
+  encryptor:
+    path: ../encryptor/target/wasm32-unknown-unknown/release/encryptor.wasm
 
 instantiations:
-  math:
-    dependencies: [add]
+  encryptor:
+    dependencies: [rot13]
 
 exports:
-  default: math
+  default: encryptor
 ```
 
-This configuration will instantiate the `add` component and pass it as an
-argument to the instantiation of the `math` component.
+This configuration will instantiate the `rot13` component and pass it as an
+argument to the instantiation of the `encryptor` component.
 
-It will then export the default interface of the original `math` component
-so it can run in a host that expects a `math` component.
+It will then export the default interface of the original `encryptor` component
+so it can run in a host that expects a `encryptor` component.
 
 It's important to note that this configuration embeds the original
 components in the composed component because Wasmtime does not support
 component imports currently.
 
-To compose a `math` component that adds two numbers together:
+To compose the `encryptor` component:
 
 ```sh
 cd host
 wasm-tools compose
 ```
 
-There should now be a `math.wasm` in the `host` directory.
+There should now be a `encryptor.wasm` in the `host` directory.
 
 ## Running the host
 
@@ -147,25 +139,25 @@ The host can be run with `cargo run`:
 
 ```sh
 cd host
-cargo run --release
+echo 'hello world!' | cargo run --release
 ```
 
-This should output `43310` because the "operation" of the composed component
-was defined by the `add` component.
+This should output an indecipherable `uryyb jbeyq!` because the algorithm linked with the `encryptor` component
+is `rot13`.
 
 ## Changing the composition
 
-To change the composition of the `math` component run by the host, edit
+To change the composition of the `encryptor` component to use the even-more-secure `rot26` algorithm, edit
 `./host/wasm-compose.yml` and change the following line:
 
 ```yml
-    dependencies: [add]
+    dependencies: [rot13]
 ```
 
 to:
 
 ```yml
-    dependencies: [multiply]
+    dependencies: [rot26]
 ```
 
 And run `wasm-compose` again:
@@ -175,8 +167,8 @@ cd host
 wasm-tools compose
 ```
 
-This results in a new `math.wasm` in the `host` directory where the
-operation is defined in terms of multiplication.
+This results in a new `encryptor.wasm` in the `host` directory where the
+algorithm used is now the military-grade `rot26` algorithm.
 
 ## Running the host again
 
@@ -184,8 +176,7 @@ The host can be run again with `cargo run`:
 
 ```sh
 cd host
-cargo run --release
+echo 'hello world!' | cargo run --release
 ```
 
-This should now output `468938989` because the "operation" of the composed
-component was defined by the `multiply` component.
+This should now output `hello world!` because...wait, what? That cryptography sales guy lied to me! 😡
