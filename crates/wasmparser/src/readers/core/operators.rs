@@ -1083,6 +1083,14 @@ impl<'a> OperatorsReader<'a> {
         Ok((self.read()?, pos))
     }
 
+    /// Visits an operator with its offset.
+    pub fn visit_with_offset<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<usize>>::Output>
+    where
+        T: VisitOperator<usize>,
+    {
+        self.reader.visit_operator(visitor)
+    }
+
     /// Gets a binary reader from this operators reader.
     pub fn get_binary_reader(&self) -> BinaryReader<'a> {
         self.reader.clone()
