@@ -9,8 +9,13 @@ wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", de
 [lib]
 crate-type = ["cdylib"]
 
-[package.metadata.component.dependencies]
-import = { path = "../op.wit", version = "0.1.0" }
-interface = { path = "interface.wit", export = true }
+[package.metadata.component]
+direct-interface-export = "interface"
+
+[package.metadata.component.imports]
+import = "../op.wit"
+
+[package.metadata.component.exports]
+interface = "interface.wit"
 
 [workspace]
