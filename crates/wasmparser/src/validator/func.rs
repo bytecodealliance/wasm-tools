@@ -209,7 +209,6 @@ mod tests {
     }
 }
 
-use super::operators::OperatorValidatorError;
 use crate::{
     BlockType, BrTable, Ieee32, Ieee64, MemoryImmediate, SIMDLaneIndex, VisitOperator, V128,
 };
