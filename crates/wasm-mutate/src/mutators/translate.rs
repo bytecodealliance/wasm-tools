@@ -229,10 +229,10 @@ pub fn element(
     let mode = match &element.kind {
         ElementKind::Active {
             table_index,
-            init_expr,
+            offset_expr,
         } => {
             offset = t.translate_init_expr(
-                init_expr,
+                offset_expr,
                 &wasmparser::ValType::I32,
                 InitExprKind::ElementOffset,
             )?;
@@ -949,10 +949,10 @@ pub fn data(t: &mut dyn Translator, data: wasmparser::Data<'_>, s: &mut DataSect
     let mode = match &data.kind {
         DataKind::Active {
             memory_index,
-            init_expr,
+            offset_expr,
         } => {
             offset = t.translate_init_expr(
-                init_expr,
+                offset_expr,
                 &wasmparser::ValType::I32,
                 InitExprKind::DataOffset,
             )?;

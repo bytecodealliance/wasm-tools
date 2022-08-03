@@ -40,7 +40,7 @@ pub enum DataKind<'a> {
         /// The memory index for the data segment.
         memory_index: u32,
         /// The initialization expression for the data segment.
-        init_expr: InitExpr<'a>,
+        offset_expr: InitExpr<'a>,
     },
 }
 
@@ -90,9 +90,9 @@ impl<'a> DataSectionReader<'a> {
     /// for _ in 0..data_reader.get_count() {
     ///     let data = data_reader.read().expect("data");
     ///     println!("Data: {:?}", data);
-    ///     if let DataKind::Active { init_expr, .. } = data.kind {
-    ///         let mut init_expr_reader = init_expr.get_binary_reader();
-    ///         let op = init_expr_reader.read_operator().expect("op");
+    ///     if let DataKind::Active { offset_expr, .. } = data.kind {
+    ///         let mut offset_expr_reader = offset_expr.get_binary_reader();
+    ///         let op = offset_expr_reader.read_operator().expect("op");
     ///         println!("Init const: {:?}", op);
     ///     }
     /// }
@@ -125,7 +125,7 @@ impl<'a> DataSectionReader<'a> {
                 } else {
                     self.reader.read_var_u32()?
                 };
-                let init_expr = {
+                let offset_expr = {
                     let expr_offset = self.reader.position;
                     self.reader.skip_init_expr()?;
                     let data = &self.reader.buffer[expr_offset..self.reader.position];
@@ -133,7 +133,7 @@ impl<'a> DataSectionReader<'a> {
                 };
                 DataKind::Active {
                     memory_index,
-                    init_expr,
+                    offset_expr,
                 }
             }
             _ => {

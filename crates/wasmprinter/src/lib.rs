@@ -1996,7 +1996,7 @@ impl Printer {
                 ElementKind::Declared => write!(self.result, " declare")?,
                 ElementKind::Active {
                     table_index,
-                    init_expr,
+                    offset_expr,
                 } => {
                     if *table_index != 0 {
                         self.result.push_str(" (table ");
@@ -2004,7 +2004,7 @@ impl Printer {
                         self.result.push(')');
                     }
                     self.result.push(' ');
-                    self.print_init_expr_sugar(state, init_expr, "offset")?;
+                    self.print_init_expr_sugar(state, offset_expr, "offset")?;
                 }
             }
             let mut items_reader = elem.items.get_items_reader()?;
@@ -2037,14 +2037,14 @@ impl Printer {
                 DataKind::Passive => {}
                 DataKind::Active {
                     memory_index,
-                    init_expr,
+                    offset_expr,
                 } => {
                     if *memory_index != 0 {
                         self.result.push_str("(memory ");
                         self.print_idx(&state.core.memory_names, *memory_index)?;
                         self.result.push_str(") ");
                     }
-                    self.print_init_expr_sugar(state, init_expr, "offset")?;
+                    self.print_init_expr_sugar(state, offset_expr, "offset")?;
                     self.result.push(' ');
                 }
             }

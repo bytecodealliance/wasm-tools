@@ -32,10 +32,10 @@ impl Mutator for ModifyDataMutator {
             let mode = match &data.kind {
                 DataKind::Active {
                     memory_index,
-                    init_expr,
+                    offset_expr,
                 } => {
                     offset = DefaultTranslator.translate_init_expr(
-                        init_expr,
+                        offset_expr,
                         &wasmparser::ValType::I32,
                         InitExprKind::DataOffset,
                     )?;
