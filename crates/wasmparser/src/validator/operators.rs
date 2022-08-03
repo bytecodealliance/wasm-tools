@@ -638,7 +638,6 @@ impl OperatorValidator {
         from: ValType,
     ) -> OperatorValidatorResult<()> {
         debug_assert!(matches!(into, ValType::F32 | ValType::F64));
-        debug_assert!(matches!(from, ValType::F32 | ValType::F64));
         self.check_non_deterministic_enabled()?;
         self.check_conversion_op(into, from)
     }
