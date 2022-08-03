@@ -214,23 +214,10 @@ use crate::{
     BlockType, BrTable, Ieee32, Ieee64, MemoryImmediate, SIMDLaneIndex, VisitOperator, V128,
 };
 
-impl<T> FuncValidator<T>
-where
-    T: WasmModuleResources,
-{
-    fn visit<F>(&mut self, offset: usize, visit_fn: F) -> Result<()>
-    where
-        F: FnOnce(&mut Self) -> Result<(), OperatorValidatorError>,
-    {
-        visit_fn(self)
-            .map_err(|e| e.set_offset(offset))
-            .map_err(Into::into)
-    }
-}
-
 macro_rules! forward {
     ( $this:ident.$visit_fn:ident($offset:expr $(, $param:expr)*) $(,)? ) => {{
-        $this.visit($offset, |this| this.validator.$visit_fn(&this.resources, $( $param ),*))
+        $this.validator.$visit_fn(&$this.resources, $( $param ),*)
+            .map_err(|e| e.set_offset($offset).into())
     }};
 }
 
