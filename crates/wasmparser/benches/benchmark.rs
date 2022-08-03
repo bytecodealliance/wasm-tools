@@ -127,8 +127,8 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             ElementSection(s) => {
                 for item in s {
                     let item = item?;
-                    if let ElementKind::Active { init_expr, .. } = item.kind {
-                        for op in init_expr.get_operators_reader() {
+                    if let ElementKind::Active { offset_expr, .. } = item.kind {
+                        for op in offset_expr.get_operators_reader() {
                             op?;
                         }
                     }
@@ -140,8 +140,8 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             DataSection(s) => {
                 for item in s {
                     let item = item?;
-                    if let DataKind::Active { init_expr, .. } = item.kind {
-                        for op in init_expr.get_operators_reader() {
+                    if let DataKind::Active { offset_expr, .. } = item.kind {
+                        for op in offset_expr.get_operators_reader() {
                             op?;
                         }
                     }

@@ -42,7 +42,7 @@ pub enum ElementKind<'a> {
         /// The index of the table being initialized.
         table_index: u32,
         /// The initial expression of the element segment.
-        init_expr: InitExpr<'a>,
+        offset_expr: InitExpr<'a>,
     },
     /// The element segment is declared.
     Declared,
@@ -193,9 +193,9 @@ impl<'a> ElementSectionReader<'a> {
     /// let mut element_reader = ElementSectionReader::new(data, 0).unwrap();
     /// for _ in 0..element_reader.get_count() {
     ///     let element = element_reader.read().expect("element");
-    ///     if let ElementKind::Active { init_expr, .. } = element.kind {
-    ///         let mut init_expr_reader = init_expr.get_binary_reader();
-    ///         let op = init_expr_reader.read_operator().expect("op");
+    ///     if let ElementKind::Active { offset_expr, .. } = element.kind {
+    ///         let mut offset_expr_reader = offset_expr.get_binary_reader();
+    ///         let op = offset_expr_reader.read_operator().expect("op");
     ///         println!("Init const: {:?}", op);
     ///     }
     ///     let mut items_reader = element.items.get_items_reader().expect("items reader");
@@ -242,7 +242,7 @@ impl<'a> ElementSectionReader<'a> {
             } else {
                 self.reader.read_var_u32()?
             };
-            let init_expr = {
+            let offset_expr = {
                 let expr_offset = self.reader.position;
                 self.reader.skip_init_expr()?;
                 let data = &self.reader.buffer[expr_offset..self.reader.position];
@@ -250,7 +250,7 @@ impl<'a> ElementSectionReader<'a> {
             };
             ElementKind::Active {
                 table_index,
-                init_expr,
+                offset_expr,
             }
         };
         let exprs = flags & 0b100 != 0;
