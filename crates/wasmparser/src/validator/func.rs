@@ -56,9 +56,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.read_locals(&mut reader)?;
         reader.allow_memarg64(self.validator.features.memory64);
         while !reader.eof() {
-            let pos = reader.original_position();
-            let op = reader.read_operator()?;
-            self.op(pos, &op)?;
+            reader.visit_operator(self)??;
         }
         self.finish(reader.original_position())
     }
