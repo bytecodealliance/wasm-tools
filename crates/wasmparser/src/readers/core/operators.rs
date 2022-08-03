@@ -1209,7 +1209,7 @@ pub trait VisitOperator<Input> {
     fn visit_end(&mut self, input: Input) -> Self::Output;
     fn visit_br(&mut self, input: Input, relative_depth: u32) -> Self::Output;
     fn visit_br_if(&mut self, input: Input, relative_depth: u32) -> Self::Output;
-    fn visit_br_table(&mut self, input: Input, table: BrTable) -> Self::Output;
+    fn visit_br_table(&mut self, input: Input, table: &BrTable) -> Self::Output;
     fn visit_return(&mut self, input: Input) -> Self::Output;
     fn visit_call(&mut self, input: Input, function_index: u32) -> Self::Output;
     fn visit_return_call(&mut self, input: Input, function_index: u32) -> Self::Output;

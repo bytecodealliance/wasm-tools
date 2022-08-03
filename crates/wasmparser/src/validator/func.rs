@@ -259,7 +259,7 @@ where
     fn visit_end(&mut self, offset: usize) -> Self::Output { forward!(self.visit_end(offset)) }
     fn visit_br(&mut self, offset: usize, relative_depth: u32) -> Self::Output { forward!(self.visit_br(offset, relative_depth)) }
     fn visit_br_if(&mut self, offset: usize, relative_depth: u32) -> Self::Output { forward!(self.visit_br_if(offset, relative_depth)) }
-    fn visit_br_table(&mut self, offset: usize, table: BrTable) -> Self::Output { forward!(self.visit_br_table(offset, table)) }
+    fn visit_br_table(&mut self, offset: usize, table: &BrTable) -> Self::Output { forward!(self.visit_br_table(offset, table)) }
     fn visit_return(&mut self, offset: usize) -> Self::Output { forward!(self.visit_return(offset)) }
     fn visit_call(&mut self, offset: usize, function_index: u32) -> Self::Output { forward!(self.visit_call(offset, function_index)) }
     fn visit_return_call(&mut self, offset: usize, function_index: u32) -> Self::Output { forward!(self.visit_return_call(offset, function_index)) }

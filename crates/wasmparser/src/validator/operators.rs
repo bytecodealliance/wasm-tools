@@ -826,1509 +826,543 @@ impl OperatorValidator {
         Ok(())
     }
 
+    #[rustfmt::skip]
     pub fn process_operator(
         &mut self,
         operator: &Operator,
         resources: &impl WasmModuleResources,
     ) -> OperatorValidatorResult<()> {
-        if self.control.is_empty() {
-            bail_op_err!("operators remaining after end of function");
-        }
         match *operator {
-            Operator::Nop => {}
-
-            // Note that the handling of these control flow operators are the
-            // same as specified in the "Validation Algorithm" appendix of the
-            // online wasm specification (referenced at the top of this module).
-            Operator::Unreachable => self.unreachable(),
-            Operator::Block { ty } => {
-                self.check_block_type(ty, resources)?;
-                for ty in params(ty, resources)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.push_ctrl(FrameKind::Block, ty, resources)?;
-            }
-            Operator::Loop { ty } => {
-                self.check_block_type(ty, resources)?;
-                for ty in params(ty, resources)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.push_ctrl(FrameKind::Loop, ty, resources)?;
-            }
-            Operator::If { ty } => {
-                self.check_block_type(ty, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                for ty in params(ty, resources)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.push_ctrl(FrameKind::If, ty, resources)?;
-            }
-            Operator::Else => {
-                let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::If {
-                    bail_op_err!("else found outside of an `if` block");
-                }
-                self.push_ctrl(FrameKind::Else, frame.block_type, resources)?
-            }
-            Operator::Try { ty } => {
-                self.check_exceptions_enabled()?;
-                self.check_block_type(ty, resources)?;
-                for ty in params(ty, resources)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.push_ctrl(FrameKind::Try, ty, resources)?;
-            }
-            Operator::Catch { index } => {
-                self.check_exceptions_enabled()?;
-                let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
-                    bail_op_err!("catch found outside of an `try` block");
-                }
-                // Start a new frame and push `exnref` value.
-                self.control.push(Frame {
-                    kind: FrameKind::Catch,
-                    block_type: frame.block_type,
-                    height: self.operands.len(),
-                    unreachable: false,
-                });
-                // Push exception argument types.
-                let ty = tag_at(&resources, index)?;
-                for ty in ty.inputs() {
-                    self.push_operand(ty)?;
-                }
-            }
-            Operator::Throw { index } => {
-                self.check_exceptions_enabled()?;
-                // Check values associated with the exception.
-                let ty = tag_at(&resources, index)?;
-                for ty in ty.inputs().rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                if ty.outputs().len() > 0 {
-                    bail_op_err!("result type expected to be empty for exception");
-                }
-                self.unreachable();
-            }
-            Operator::Rethrow { relative_depth } => {
-                self.check_exceptions_enabled()?;
-                // This is not a jump, but we need to check that the `rethrow`
-                // targets an actual `catch` to get the exception.
-                let (_, kind) = self.jump(relative_depth)?;
-                if kind != FrameKind::Catch && kind != FrameKind::CatchAll {
-                    bail_op_err!("invalid rethrow label: target was not a `catch` block");
-                }
-                self.unreachable();
-            }
-            Operator::Delegate { relative_depth } => {
-                self.check_exceptions_enabled()?;
-                let frame = self.pop_ctrl(resources)?;
-                if frame.kind != FrameKind::Try {
-                    bail_op_err!("delegate found outside of an `try` block");
-                }
-                // This operation is not a jump, but we need to check the
-                // depth for validity
-                let _ = self.jump(relative_depth)?;
-                for ty in results(frame.block_type, resources)? {
-                    self.push_operand(ty)?;
-                }
-            }
-            Operator::CatchAll => {
-                self.check_exceptions_enabled()?;
-                let frame = self.pop_ctrl(resources)?;
-                if frame.kind == FrameKind::CatchAll {
-                    bail_op_err!("only one catch_all allowed per `try` block");
-                } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
-                    bail_op_err!("catch_all found outside of a `try` block");
-                }
-                self.control.push(Frame {
-                    kind: FrameKind::CatchAll,
-                    block_type: frame.block_type,
-                    height: self.operands.len(),
-                    unreachable: false,
-                });
-            }
-            Operator::End => {
-                let mut frame = self.pop_ctrl(resources)?;
-
-                // Note that this `if` isn't included in the appendix right
-                // now, but it's used to allow for `if` statements that are
-                // missing an `else` block which have the same parameter/return
-                // types on the block (since that's valid).
-                if frame.kind == FrameKind::If {
-                    self.push_ctrl(FrameKind::Else, frame.block_type, resources)?;
-                    frame = self.pop_ctrl(resources)?;
-                }
-                for ty in results(frame.block_type, resources)? {
-                    self.push_operand(ty)?;
-                }
-            }
-            Operator::Br { relative_depth } => {
-                let (ty, kind) = self.jump(relative_depth)?;
-                for ty in label_types(ty, resources, kind)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.unreachable();
-            }
-            Operator::BrIf { relative_depth } => {
-                self.pop_operand(Some(ValType::I32))?;
-                let (ty, kind) = self.jump(relative_depth)?;
-                for ty in label_types(ty, resources, kind)?.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                for ty in label_types(ty, resources, kind)? {
-                    self.push_operand(ty)?;
-                }
-            }
-            Operator::BrTable { ref table } => {
-                self.pop_operand(Some(ValType::I32))?;
-                let default = self.jump(table.default())?;
-                let default_types = label_types(default.0, resources, default.1)?;
-                for element in table.targets() {
-                    let relative_depth = element.map_err(|mut e| {
-                        e.inner.offset = usize::max_value();
-                        OperatorValidatorError(e)
-                    })?;
-                    let block = self.jump(relative_depth)?;
-                    let tys = label_types(block.0, resources, block.1)?;
-                    if tys.len() != default_types.len() {
-                        bail_op_err!(
-                            "type mismatch: br_table target labels have different number of types"
-                        );
-                    }
-                    debug_assert!(self.br_table_tmp.is_empty());
-                    for ty in tys.rev() {
-                        let ty = self.pop_operand(Some(ty))?;
-                        self.br_table_tmp.push(ty);
-                    }
-                    self.operands.extend(self.br_table_tmp.drain(..).rev());
-                }
-                for ty in default_types.rev() {
-                    self.pop_operand(Some(ty))?;
-                }
-                self.unreachable();
-            }
-            Operator::Return => self.check_return(resources)?,
-            Operator::Call { function_index } => self.check_call(function_index, resources)?,
-            Operator::ReturnCall { function_index } => {
-                if !self.features.tail_call {
-                    return Err(OperatorValidatorError::new(
-                        "tail calls support is not enabled",
-                    ));
-                }
-                self.check_call(function_index, resources)?;
-                self.check_return(resources)?;
-            }
-            Operator::CallIndirect {
-                index,
-                table_index,
-                table_byte,
-            } => {
-                if table_byte != 0 && !self.features.reference_types {
-                    return Err(OperatorValidatorError::new(
-                        "reference-types not enabled: zero byte expected",
-                    ));
-                }
-                self.check_call_indirect(index, table_index, resources)?
-            }
-            Operator::ReturnCallIndirect { index, table_index } => {
-                if !self.features.tail_call {
-                    return Err(OperatorValidatorError::new(
-                        "tail calls support is not enabled",
-                    ));
-                }
-                self.check_call_indirect(index, table_index, resources)?;
-                self.check_return(resources)?;
-            }
-            Operator::Drop => {
-                self.pop_operand(None)?;
-            }
-            Operator::Select => {
-                self.pop_operand(Some(ValType::I32))?;
-                let ty1 = self.pop_operand(None)?;
-                let ty2 = self.pop_operand(None)?;
-                fn is_num(ty: Option<ValType>) -> bool {
-                    matches!(
-                        ty,
-                        Some(ValType::I32)
-                            | Some(ValType::I64)
-                            | Some(ValType::F32)
-                            | Some(ValType::F64)
-                            | Some(ValType::V128)
-                            | None
-                    )
-                }
-                if !is_num(ty1) || !is_num(ty2) {
-                    bail_op_err!("type mismatch: select only takes integral types")
-                }
-                if ty1 != ty2 && ty1 != None && ty2 != None {
-                    bail_op_err!("type mismatch: select operands have different types")
-                }
-                self.operands.push(ty1.or(ty2));
-            }
-            Operator::TypedSelect { ty } => {
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ty)?;
-            }
-            Operator::LocalGet { local_index } => {
-                let ty = self.local(local_index)?;
-                self.push_operand(ty)?;
-            }
-            Operator::LocalSet { local_index } => {
-                let ty = self.local(local_index)?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::LocalTee { local_index } => {
-                let ty = self.local(local_index)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ty)?;
-            }
-            Operator::GlobalGet { global_index } => {
-                if let Some(ty) = resources.global_at(global_index) {
-                    self.push_operand(ty.content_type)?;
-                } else {
-                    return Err(OperatorValidatorError::new(
-                        "unknown global: global index out of bounds",
-                    ));
-                };
-            }
-            Operator::GlobalSet { global_index } => {
-                if let Some(ty) = resources.global_at(global_index) {
-                    if !ty.mutable {
-                        return Err(OperatorValidatorError::new(
-                            "global is immutable: cannot modify it with `global.set`",
-                        ));
-                    }
-                    self.pop_operand(Some(ty.content_type))?;
-                } else {
-                    return Err(OperatorValidatorError::new(
-                        "unknown global: global index out of bounds",
-                    ));
-                };
-            }
-            Operator::I32Load { memarg } => {
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64Load { memarg } => {
-                let ty = self.check_memarg(memarg, 3, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::F32Load { memarg } => {
-                self.check_non_deterministic_enabled()?;
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F64Load { memarg } => {
-                self.check_non_deterministic_enabled()?;
-                let ty = self.check_memarg(memarg, 3, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::I32Load8S { memarg } | Operator::I32Load8U { memarg } => {
-                let ty = self.check_memarg(memarg, 0, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32Load16S { memarg } | Operator::I32Load16U { memarg } => {
-                let ty = self.check_memarg(memarg, 1, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64Load8S { memarg } | Operator::I64Load8U { memarg } => {
-                let ty = self.check_memarg(memarg, 0, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64Load16S { memarg } | Operator::I64Load16U { memarg } => {
-                let ty = self.check_memarg(memarg, 1, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64Load32S { memarg } | Operator::I64Load32U { memarg } => {
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I32Store { memarg } => {
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I64Store { memarg } => {
-                let ty = self.check_memarg(memarg, 3, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::F32Store { memarg } => {
-                self.check_non_deterministic_enabled()?;
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::F64Store { memarg } => {
-                self.check_non_deterministic_enabled()?;
-                let ty = self.check_memarg(memarg, 3, resources)?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I32Store8 { memarg } => {
-                let ty = self.check_memarg(memarg, 0, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I32Store16 { memarg } => {
-                let ty = self.check_memarg(memarg, 1, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I64Store8 { memarg } => {
-                let ty = self.check_memarg(memarg, 0, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I64Store16 { memarg } => {
-                let ty = self.check_memarg(memarg, 1, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I64Store32 { memarg } => {
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::MemorySize { mem, mem_byte } => {
-                if mem_byte != 0 && !self.features.multi_memory {
-                    return Err(OperatorValidatorError::new(
-                        "multi-memory not enabled: zero byte expected",
-                    ));
-                }
-                let index_ty = self.check_memory_index(mem, resources)?;
-                self.push_operand(index_ty)?;
-            }
-            Operator::MemoryGrow { mem, mem_byte } => {
-                if mem_byte != 0 && !self.features.multi_memory {
-                    return Err(OperatorValidatorError::new(
-                        "multi-memory not enabled: zero byte expected",
-                    ));
-                }
-                let index_ty = self.check_memory_index(mem, resources)?;
-                self.pop_operand(Some(index_ty))?;
-                self.push_operand(index_ty)?;
-            }
-            Operator::I32Const { .. } => self.push_operand(ValType::I32)?,
-            Operator::I64Const { .. } => self.push_operand(ValType::I64)?,
-            Operator::F32Const { .. } => {
-                self.check_non_deterministic_enabled()?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F64Const { .. } => {
-                self.check_non_deterministic_enabled()?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::I32Eqz => {
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32Eq
-            | Operator::I32Ne
-            | Operator::I32LtS
-            | Operator::I32LtU
-            | Operator::I32GtS
-            | Operator::I32GtU
-            | Operator::I32LeS
-            | Operator::I32LeU
-            | Operator::I32GeS
-            | Operator::I32GeU => {
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64Eqz => {
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64Eq
-            | Operator::I64Ne
-            | Operator::I64LtS
-            | Operator::I64LtU
-            | Operator::I64GtS
-            | Operator::I64GtU
-            | Operator::I64LeS
-            | Operator::I64LeU
-            | Operator::I64GeS
-            | Operator::I64GeU => {
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::F32Eq
-            | Operator::F32Ne
-            | Operator::F32Lt
-            | Operator::F32Gt
-            | Operator::F32Le
-            | Operator::F32Ge => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::F64Eq
-            | Operator::F64Ne
-            | Operator::F64Lt
-            | Operator::F64Gt
-            | Operator::F64Le
-            | Operator::F64Ge => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32Clz | Operator::I32Ctz | Operator::I32Popcnt => {
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32Add
-            | Operator::I32Sub
-            | Operator::I32Mul
-            | Operator::I32DivS
-            | Operator::I32DivU
-            | Operator::I32RemS
-            | Operator::I32RemU
-            | Operator::I32And
-            | Operator::I32Or
-            | Operator::I32Xor
-            | Operator::I32Shl
-            | Operator::I32ShrS
-            | Operator::I32ShrU
-            | Operator::I32Rotl
-            | Operator::I32Rotr => {
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64Clz | Operator::I64Ctz | Operator::I64Popcnt => {
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64Add
-            | Operator::I64Sub
-            | Operator::I64Mul
-            | Operator::I64DivS
-            | Operator::I64DivU
-            | Operator::I64RemS
-            | Operator::I64RemU
-            | Operator::I64And
-            | Operator::I64Or
-            | Operator::I64Xor
-            | Operator::I64Shl
-            | Operator::I64ShrS
-            | Operator::I64ShrU
-            | Operator::I64Rotl
-            | Operator::I64Rotr => {
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::F32Abs
-            | Operator::F32Neg
-            | Operator::F32Ceil
-            | Operator::F32Floor
-            | Operator::F32Trunc
-            | Operator::F32Nearest
-            | Operator::F32Sqrt => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F32Add
-            | Operator::F32Sub
-            | Operator::F32Mul
-            | Operator::F32Div
-            | Operator::F32Min
-            | Operator::F32Max
-            | Operator::F32Copysign => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F64Abs
-            | Operator::F64Neg
-            | Operator::F64Ceil
-            | Operator::F64Floor
-            | Operator::F64Trunc
-            | Operator::F64Nearest
-            | Operator::F64Sqrt => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::F64Add
-            | Operator::F64Sub
-            | Operator::F64Mul
-            | Operator::F64Div
-            | Operator::F64Min
-            | Operator::F64Max
-            | Operator::F64Copysign => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::I32WrapI64 => {
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32TruncF32S | Operator::I32TruncF32U => {
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32TruncF64S | Operator::I32TruncF64U => {
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64ExtendI32S | Operator::I64ExtendI32U => {
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64TruncF32S | Operator::I64TruncF32U => {
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64TruncF64S | Operator::I64TruncF64U => {
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::F32ConvertI32S | Operator::F32ConvertI32U => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F32ConvertI64S | Operator::F32ConvertI64U => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F32DemoteF64 => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F64ConvertI32S | Operator::F64ConvertI32U => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::F64ConvertI64S | Operator::F64ConvertI64U => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::F64PromoteF32 => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::I32ReinterpretF32 => {
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64ReinterpretF64 => {
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::F32ReinterpretI32 => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F64ReinterpretI64 => {
-                self.check_non_deterministic_enabled()?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::I32TruncSatF32S | Operator::I32TruncSatF32U => {
-                if !self.features.saturating_float_to_int {
-                    return Err(OperatorValidatorError::new(
-                        "saturating float to int conversions support is not enabled",
-                    ));
-                }
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32TruncSatF64S | Operator::I32TruncSatF64U => {
-                if !self.features.saturating_float_to_int {
-                    return Err(OperatorValidatorError::new(
-                        "saturating float to int conversions support is not enabled",
-                    ));
-                }
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64TruncSatF32S | Operator::I64TruncSatF32U => {
-                if !self.features.saturating_float_to_int {
-                    return Err(OperatorValidatorError::new(
-                        "saturating float to int conversions support is not enabled",
-                    ));
-                }
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64TruncSatF64S | Operator::I64TruncSatF64U => {
-                if !self.features.saturating_float_to_int {
-                    return Err(OperatorValidatorError::new(
-                        "saturating float to int conversions support is not enabled",
-                    ));
-                }
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I32Extend16S | Operator::I32Extend8S => {
-                if !self.features.sign_extension {
-                    return Err(OperatorValidatorError::new(
-                        "sign extension operations support is not enabled",
-                    ));
-                }
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::I32)?;
-            }
-
-            Operator::I64Extend32S | Operator::I64Extend16S | Operator::I64Extend8S => {
-                if !self.features.sign_extension {
-                    return Err(OperatorValidatorError::new(
-                        "sign extension operations support is not enabled",
-                    ));
-                }
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::I64)?;
-            }
-
-            Operator::I32AtomicLoad { memarg }
-            | Operator::I32AtomicLoad16U { memarg }
-            | Operator::I32AtomicLoad8U { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64AtomicLoad { memarg }
-            | Operator::I64AtomicLoad32U { memarg }
-            | Operator::I64AtomicLoad16U { memarg }
-            | Operator::I64AtomicLoad8U { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I32AtomicStore { memarg }
-            | Operator::I32AtomicStore16 { memarg }
-            | Operator::I32AtomicStore8 { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I64AtomicStore { memarg }
-            | Operator::I64AtomicStore32 { memarg }
-            | Operator::I64AtomicStore16 { memarg }
-            | Operator::I64AtomicStore8 { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::I32AtomicRmwAdd { memarg }
-            | Operator::I32AtomicRmwSub { memarg }
-            | Operator::I32AtomicRmwAnd { memarg }
-            | Operator::I32AtomicRmwOr { memarg }
-            | Operator::I32AtomicRmwXor { memarg }
-            | Operator::I32AtomicRmw16AddU { memarg }
-            | Operator::I32AtomicRmw16SubU { memarg }
-            | Operator::I32AtomicRmw16AndU { memarg }
-            | Operator::I32AtomicRmw16OrU { memarg }
-            | Operator::I32AtomicRmw16XorU { memarg }
-            | Operator::I32AtomicRmw8AddU { memarg }
-            | Operator::I32AtomicRmw8SubU { memarg }
-            | Operator::I32AtomicRmw8AndU { memarg }
-            | Operator::I32AtomicRmw8OrU { memarg }
-            | Operator::I32AtomicRmw8XorU { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64AtomicRmwAdd { memarg }
-            | Operator::I64AtomicRmwSub { memarg }
-            | Operator::I64AtomicRmwAnd { memarg }
-            | Operator::I64AtomicRmwOr { memarg }
-            | Operator::I64AtomicRmwXor { memarg }
-            | Operator::I64AtomicRmw32AddU { memarg }
-            | Operator::I64AtomicRmw32SubU { memarg }
-            | Operator::I64AtomicRmw32AndU { memarg }
-            | Operator::I64AtomicRmw32OrU { memarg }
-            | Operator::I64AtomicRmw32XorU { memarg }
-            | Operator::I64AtomicRmw16AddU { memarg }
-            | Operator::I64AtomicRmw16SubU { memarg }
-            | Operator::I64AtomicRmw16AndU { memarg }
-            | Operator::I64AtomicRmw16OrU { memarg }
-            | Operator::I64AtomicRmw16XorU { memarg }
-            | Operator::I64AtomicRmw8AddU { memarg }
-            | Operator::I64AtomicRmw8SubU { memarg }
-            | Operator::I64AtomicRmw8AndU { memarg }
-            | Operator::I64AtomicRmw8OrU { memarg }
-            | Operator::I64AtomicRmw8XorU { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I32AtomicRmwXchg { memarg }
-            | Operator::I32AtomicRmw16XchgU { memarg }
-            | Operator::I32AtomicRmw8XchgU { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32AtomicRmwCmpxchg { memarg }
-            | Operator::I32AtomicRmw16CmpxchgU { memarg }
-            | Operator::I32AtomicRmw8CmpxchgU { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I64AtomicRmwXchg { memarg }
-            | Operator::I64AtomicRmw32XchgU { memarg }
-            | Operator::I64AtomicRmw16XchgU { memarg }
-            | Operator::I64AtomicRmw8XchgU { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64AtomicRmwCmpxchg { memarg }
-            | Operator::I64AtomicRmw32CmpxchgU { memarg }
-            | Operator::I64AtomicRmw16CmpxchgU { memarg }
-            | Operator::I64AtomicRmw8CmpxchgU { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::MemoryAtomicNotify { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::MemoryAtomicWait32 { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::MemoryAtomicWait64 { memarg } => {
-                self.check_threads_enabled()?;
-                let ty = self.check_shared_memarg_wo_align(memarg, resources)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::AtomicFence { ref flags } => {
-                self.check_threads_enabled()?;
-                if *flags != 0 {
-                    return Err(OperatorValidatorError::new(
-                        "non-zero flags for fence not supported yet",
-                    ));
-                }
-            }
-            Operator::RefNull { ty } => {
-                self.check_reference_types_enabled()?;
-                match ty {
-                    ValType::FuncRef | ValType::ExternRef => {}
-                    _ => {
-                        return Err(OperatorValidatorError::new(
-                            "invalid reference type in ref.null",
-                        ))
-                    }
-                }
-                self.push_operand(ty)?;
-            }
-            Operator::RefIsNull => {
-                self.check_reference_types_enabled()?;
-                match self.pop_operand(None)? {
-                    None | Some(ValType::FuncRef) | Some(ValType::ExternRef) => {}
-                    _ => {
-                        return Err(OperatorValidatorError::new(
-                            "type mismatch: invalid reference type in ref.is_null",
-                        ))
-                    }
-                }
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::RefFunc { function_index } => {
-                self.check_reference_types_enabled()?;
-                if resources.type_of_function(function_index).is_none() {
-                    return Err(OperatorValidatorError::new(format!(
-                        "unknown function {}: function index out of bounds",
-                        function_index,
-                    )));
-                }
-                if !resources.is_function_referenced(function_index) {
-                    return Err(OperatorValidatorError::new("undeclared function reference"));
-                }
-                self.push_operand(ValType::FuncRef)?;
-            }
-            Operator::V128Load { memarg } => {
-                self.check_simd_enabled()?;
-                let ty = self.check_memarg(memarg, 4, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Store { memarg } => {
-                self.check_simd_enabled()?;
-                let ty = self.check_memarg(memarg, 4, resources)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::V128Const { .. } => {
-                self.check_simd_enabled()?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I8x16Splat | Operator::I16x8Splat | Operator::I32x4Splat => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I64x2Splat => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F32x4Splat => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F64x2Splat => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I8x16ExtractLaneS { lane } | Operator::I8x16ExtractLaneU { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 16)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I16x8ExtractLaneS { lane } | Operator::I16x8ExtractLaneU { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 8)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I32x4ExtractLane { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 4)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I8x16ReplaceLane { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 16)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I16x8ReplaceLane { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 8)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I32x4ReplaceLane { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 4)?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I64x2ExtractLane { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 2)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::I64)?;
-            }
-            Operator::I64x2ReplaceLane { lane } => {
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 2)?;
-                self.pop_operand(Some(ValType::I64))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F32x4ExtractLane { lane } => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 4)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::F32)?;
-            }
-            Operator::F32x4ReplaceLane { lane } => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 4)?;
-                self.pop_operand(Some(ValType::F32))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F64x2ExtractLane { lane } => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 2)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::F64)?;
-            }
-            Operator::F64x2ReplaceLane { lane } => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.check_simd_lane_index(lane, 2)?;
-                self.pop_operand(Some(ValType::F64))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F32x4Eq
-            | Operator::F32x4Ne
-            | Operator::F32x4Lt
-            | Operator::F32x4Gt
-            | Operator::F32x4Le
-            | Operator::F32x4Ge
-            | Operator::F64x2Eq
-            | Operator::F64x2Ne
-            | Operator::F64x2Lt
-            | Operator::F64x2Gt
-            | Operator::F64x2Le
-            | Operator::F64x2Ge
-            | Operator::F32x4Add
-            | Operator::F32x4Sub
-            | Operator::F32x4Mul
-            | Operator::F32x4Div
-            | Operator::F32x4Min
-            | Operator::F32x4Max
-            | Operator::F32x4PMin
-            | Operator::F32x4PMax
-            | Operator::F64x2Add
-            | Operator::F64x2Sub
-            | Operator::F64x2Mul
-            | Operator::F64x2Div
-            | Operator::F64x2Min
-            | Operator::F64x2Max
-            | Operator::F64x2PMin
-            | Operator::F64x2PMax => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F32x4RelaxedMin
-            | Operator::F32x4RelaxedMax
-            | Operator::F64x2RelaxedMin
-            | Operator::F64x2RelaxedMax => {
-                self.check_relaxed_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I8x16Eq
-            | Operator::I8x16Ne
-            | Operator::I8x16LtS
-            | Operator::I8x16LtU
-            | Operator::I8x16GtS
-            | Operator::I8x16GtU
-            | Operator::I8x16LeS
-            | Operator::I8x16LeU
-            | Operator::I8x16GeS
-            | Operator::I8x16GeU
-            | Operator::I16x8Eq
-            | Operator::I16x8Ne
-            | Operator::I16x8LtS
-            | Operator::I16x8LtU
-            | Operator::I16x8GtS
-            | Operator::I16x8GtU
-            | Operator::I16x8LeS
-            | Operator::I16x8LeU
-            | Operator::I16x8GeS
-            | Operator::I16x8GeU
-            | Operator::I32x4Eq
-            | Operator::I32x4Ne
-            | Operator::I32x4LtS
-            | Operator::I32x4LtU
-            | Operator::I32x4GtS
-            | Operator::I32x4GtU
-            | Operator::I32x4LeS
-            | Operator::I32x4LeU
-            | Operator::I32x4GeS
-            | Operator::I32x4GeU
-            | Operator::I64x2Eq
-            | Operator::I64x2Ne
-            | Operator::I64x2LtS
-            | Operator::I64x2GtS
-            | Operator::I64x2LeS
-            | Operator::I64x2GeS
-            | Operator::V128And
-            | Operator::V128AndNot
-            | Operator::V128Or
-            | Operator::V128Xor
-            | Operator::I8x16Add
-            | Operator::I8x16AddSatS
-            | Operator::I8x16AddSatU
-            | Operator::I8x16Sub
-            | Operator::I8x16SubSatS
-            | Operator::I8x16SubSatU
-            | Operator::I8x16MinS
-            | Operator::I8x16MinU
-            | Operator::I8x16MaxS
-            | Operator::I8x16MaxU
-            | Operator::I16x8Add
-            | Operator::I16x8AddSatS
-            | Operator::I16x8AddSatU
-            | Operator::I16x8Sub
-            | Operator::I16x8SubSatS
-            | Operator::I16x8SubSatU
-            | Operator::I16x8Mul
-            | Operator::I16x8MinS
-            | Operator::I16x8MinU
-            | Operator::I16x8MaxS
-            | Operator::I16x8MaxU
-            | Operator::I32x4Add
-            | Operator::I32x4Sub
-            | Operator::I32x4Mul
-            | Operator::I32x4MinS
-            | Operator::I32x4MinU
-            | Operator::I32x4MaxS
-            | Operator::I32x4MaxU
-            | Operator::I32x4DotI16x8S
-            | Operator::I64x2Add
-            | Operator::I64x2Sub
-            | Operator::I64x2Mul
-            | Operator::I8x16RoundingAverageU
-            | Operator::I16x8RoundingAverageU
-            | Operator::I8x16NarrowI16x8S
-            | Operator::I8x16NarrowI16x8U
-            | Operator::I16x8NarrowI32x4S
-            | Operator::I16x8NarrowI32x4U
-            | Operator::I16x8ExtMulLowI8x16S
-            | Operator::I16x8ExtMulHighI8x16S
-            | Operator::I16x8ExtMulLowI8x16U
-            | Operator::I16x8ExtMulHighI8x16U
-            | Operator::I32x4ExtMulLowI16x8S
-            | Operator::I32x4ExtMulHighI16x8S
-            | Operator::I32x4ExtMulLowI16x8U
-            | Operator::I32x4ExtMulHighI16x8U
-            | Operator::I64x2ExtMulLowI32x4S
-            | Operator::I64x2ExtMulHighI32x4S
-            | Operator::I64x2ExtMulLowI32x4U
-            | Operator::I64x2ExtMulHighI32x4U
-            | Operator::I16x8Q15MulrSatS => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F32x4Ceil
-            | Operator::F32x4Floor
-            | Operator::F32x4Trunc
-            | Operator::F32x4Nearest
-            | Operator::F64x2Ceil
-            | Operator::F64x2Floor
-            | Operator::F64x2Trunc
-            | Operator::F64x2Nearest
-            | Operator::F32x4Abs
-            | Operator::F32x4Neg
-            | Operator::F32x4Sqrt
-            | Operator::F64x2Abs
-            | Operator::F64x2Neg
-            | Operator::F64x2Sqrt
-            | Operator::F32x4DemoteF64x2Zero
-            | Operator::F64x2PromoteLowF32x4
-            | Operator::F64x2ConvertLowI32x4S
-            | Operator::F64x2ConvertLowI32x4U
-            | Operator::I32x4TruncSatF32x4S
-            | Operator::I32x4TruncSatF32x4U
-            | Operator::I32x4TruncSatF64x2SZero
-            | Operator::I32x4TruncSatF64x2UZero
-            | Operator::F32x4ConvertI32x4S
-            | Operator::F32x4ConvertI32x4U => {
-                self.check_non_deterministic_enabled()?;
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Not
-            | Operator::I8x16Abs
-            | Operator::I8x16Neg
-            | Operator::I8x16Popcnt
-            | Operator::I16x8Abs
-            | Operator::I16x8Neg
-            | Operator::I32x4Abs
-            | Operator::I32x4Neg
-            | Operator::I64x2Abs
-            | Operator::I64x2Neg
-            | Operator::I16x8ExtendLowI8x16S
-            | Operator::I16x8ExtendHighI8x16S
-            | Operator::I16x8ExtendLowI8x16U
-            | Operator::I16x8ExtendHighI8x16U
-            | Operator::I32x4ExtendLowI16x8S
-            | Operator::I32x4ExtendHighI16x8S
-            | Operator::I32x4ExtendLowI16x8U
-            | Operator::I32x4ExtendHighI16x8U
-            | Operator::I64x2ExtendLowI32x4S
-            | Operator::I64x2ExtendHighI32x4S
-            | Operator::I64x2ExtendLowI32x4U
-            | Operator::I64x2ExtendHighI32x4U
-            | Operator::I16x8ExtAddPairwiseI8x16S
-            | Operator::I16x8ExtAddPairwiseI8x16U
-            | Operator::I32x4ExtAddPairwiseI16x8S
-            | Operator::I32x4ExtAddPairwiseI16x8U => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I32x4RelaxedTruncSatF32x4S
-            | Operator::I32x4RelaxedTruncSatF32x4U
-            | Operator::I32x4RelaxedTruncSatF64x2SZero
-            | Operator::I32x4RelaxedTruncSatF64x2UZero => {
-                self.check_relaxed_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Bitselect => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::F32x4Fma
-            | Operator::F32x4Fms
-            | Operator::F64x2Fma
-            | Operator::F64x2Fms
-            | Operator::I8x16LaneSelect
-            | Operator::I16x8LaneSelect
-            | Operator::I32x4LaneSelect
-            | Operator::I64x2LaneSelect => {
-                self.check_relaxed_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128AnyTrue
-            | Operator::I8x16AllTrue
-            | Operator::I8x16Bitmask
-            | Operator::I16x8AllTrue
-            | Operator::I16x8Bitmask
-            | Operator::I32x4AllTrue
-            | Operator::I32x4Bitmask
-            | Operator::I64x2AllTrue
-            | Operator::I64x2Bitmask => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::I8x16Shl
-            | Operator::I8x16ShrS
-            | Operator::I8x16ShrU
-            | Operator::I16x8Shl
-            | Operator::I16x8ShrS
-            | Operator::I16x8ShrU
-            | Operator::I32x4Shl
-            | Operator::I32x4ShrS
-            | Operator::I32x4ShrU
-            | Operator::I64x2Shl
-            | Operator::I64x2ShrS
-            | Operator::I64x2ShrU => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I8x16Swizzle => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I8x16RelaxedSwizzle => {
-                self.check_relaxed_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::I8x16Shuffle { ref lanes } => {
-                self.check_simd_enabled()?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(ValType::V128))?;
-                for i in lanes {
-                    self.check_simd_lane_index(*i, 32)?;
-                }
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load8Splat { memarg } => {
-                self.check_simd_enabled()?;
-                let ty = self.check_memarg(memarg, 0, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load16Splat { memarg } => {
-                self.check_simd_enabled()?;
-                let ty = self.check_memarg(memarg, 1, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load32Splat { memarg } | Operator::V128Load32Zero { memarg } => {
-                self.check_simd_enabled()?;
-                let ty = self.check_memarg(memarg, 2, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load64Splat { memarg }
-            | Operator::V128Load64Zero { memarg }
-            | Operator::V128Load8x8S { memarg }
-            | Operator::V128Load8x8U { memarg }
-            | Operator::V128Load16x4S { memarg }
-            | Operator::V128Load16x4U { memarg }
-            | Operator::V128Load32x2S { memarg }
-            | Operator::V128Load32x2U { memarg } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 3, resources)?;
-                self.pop_operand(Some(idx))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load8Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 0, resources)?;
-                self.check_simd_lane_index(lane, 16)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load16Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 1, resources)?;
-                self.check_simd_lane_index(lane, 8)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load32Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 2, resources)?;
-                self.check_simd_lane_index(lane, 4)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Load64Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 3, resources)?;
-                self.check_simd_lane_index(lane, 2)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-                self.push_operand(ValType::V128)?;
-            }
-            Operator::V128Store8Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 0, resources)?;
-                self.check_simd_lane_index(lane, 16)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-            }
-            Operator::V128Store16Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 1, resources)?;
-                self.check_simd_lane_index(lane, 8)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-            }
-            Operator::V128Store32Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 2, resources)?;
-                self.check_simd_lane_index(lane, 4)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-            }
-            Operator::V128Store64Lane { memarg, lane } => {
-                self.check_simd_enabled()?;
-                let idx = self.check_memarg(memarg, 3, resources)?;
-                self.check_simd_lane_index(lane, 2)?;
-                self.pop_operand(Some(ValType::V128))?;
-                self.pop_operand(Some(idx))?;
-            }
-            Operator::MemoryInit { mem, segment } => {
-                self.check_bulk_memory_enabled()?;
-                let ty = self.check_memory_index(mem, resources)?;
-                match resources.data_count() {
-                    None => bail_op_err!("data count section required"),
-                    Some(count) if segment < count => {}
-                    Some(_) => bail_op_err!("unknown data segment {}", segment),
-                }
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::DataDrop { segment } => {
-                self.check_bulk_memory_enabled()?;
-                match resources.data_count() {
-                    None => bail_op_err!("data count section required"),
-                    Some(count) if segment < count => {}
-                    Some(_) => bail_op_err!("unknown data segment {}", segment),
-                }
-            }
-            Operator::MemoryCopy { src, dst } => {
-                self.check_bulk_memory_enabled()?;
-                let dst_ty = self.check_memory_index(dst, resources)?;
-                let src_ty = self.check_memory_index(src, resources)?;
-
-                // The length operand here is the smaller of src/dst, which is
-                // i32 if one is i32
-                self.pop_operand(Some(match src_ty {
-                    ValType::I32 => ValType::I32,
-                    _ => dst_ty,
-                }))?;
-
-                // ... and the offset into each memory is required to be
-                // whatever the indexing type is for that memory
-                self.pop_operand(Some(src_ty))?;
-                self.pop_operand(Some(dst_ty))?;
-            }
-            Operator::MemoryFill { mem } => {
-                self.check_bulk_memory_enabled()?;
-                let ty = self.check_memory_index(mem, resources)?;
-                self.pop_operand(Some(ty))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-            }
-            Operator::TableInit { segment, table } => {
-                self.check_bulk_memory_enabled()?;
-                if table > 0 {
-                    self.check_reference_types_enabled()?;
-                }
-                let table = match resources.table_at(table) {
-                    Some(table) => table,
-                    None => bail_op_err!("unknown table {}: table index out of bounds", table),
-                };
-                let segment_ty = match resources.element_type_at(segment) {
-                    Some(ty) => ty,
-                    None => bail_op_err!(
-                        "unknown elem segment {}: segment index out of bounds",
-                        segment
-                    ),
-                };
-                if segment_ty != table.element_type {
-                    return Err(OperatorValidatorError::new("type mismatch"));
-                }
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-            }
-            Operator::ElemDrop { segment } => {
-                self.check_bulk_memory_enabled()?;
-                if segment >= resources.element_count() {
-                    bail_op_err!(
-                        "unknown elem segment {}: segment index out of bounds",
-                        segment
-                    );
-                }
-            }
-            Operator::TableCopy {
-                src_table,
-                dst_table,
-            } => {
-                self.check_bulk_memory_enabled()?;
-                if src_table > 0 || dst_table > 0 {
-                    self.check_reference_types_enabled()?;
-                }
-                let (src, dst) =
-                    match (resources.table_at(src_table), resources.table_at(dst_table)) {
-                        (Some(a), Some(b)) => (a, b),
-                        _ => return Err(OperatorValidatorError::new("table index out of bounds")),
-                    };
-                if src.element_type != dst.element_type {
-                    return Err(OperatorValidatorError::new("type mismatch"));
-                }
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ValType::I32))?;
-            }
-            Operator::TableGet { table } => {
-                self.check_reference_types_enabled()?;
-                let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type,
-                    None => return Err(OperatorValidatorError::new("table index out of bounds")),
-                };
-                self.pop_operand(Some(ValType::I32))?;
-                self.push_operand(ty)?;
-            }
-            Operator::TableSet { table } => {
-                self.check_reference_types_enabled()?;
-                let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type,
-                    None => return Err(OperatorValidatorError::new("table index out of bounds")),
-                };
-                self.pop_operand(Some(ty))?;
-                self.pop_operand(Some(ValType::I32))?;
-            }
-            Operator::TableGrow { table } => {
-                self.check_reference_types_enabled()?;
-                let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type,
-                    None => return Err(OperatorValidatorError::new("table index out of bounds")),
-                };
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::TableSize { table } => {
-                self.check_reference_types_enabled()?;
-                if resources.table_at(table).is_none() {
-                    return Err(OperatorValidatorError::new("table index out of bounds"));
-                }
-                self.push_operand(ValType::I32)?;
-            }
-            Operator::TableFill { table } => {
-                self.check_bulk_memory_enabled()?;
-                let ty = match resources.table_at(table) {
-                    Some(ty) => ty.element_type,
-                    None => return Err(OperatorValidatorError::new("table index out of bounds")),
-                };
-                self.pop_operand(Some(ValType::I32))?;
-                self.pop_operand(Some(ty))?;
-                self.pop_operand(Some(ValType::I32))?;
-            }
+            Operator::Unreachable => self.visit_unreachable(resources),
+            Operator::Nop => self.visit_nop(resources),
+            Operator::Block { ty } => self.visit_block(resources, ty),
+            Operator::Loop { ty } => self.visit_loop(resources, ty),
+            Operator::If { ty } => self.visit_if(resources, ty),
+            Operator::Else => self.visit_else(resources),
+            Operator::Try { ty } => self.visit_try(resources, ty),
+            Operator::Catch { index } => self.visit_catch(resources, index),
+            Operator::Throw { index } => self.visit_throw(resources, index),
+            Operator::Rethrow { relative_depth } => self.visit_rethrow(resources, relative_depth),
+            Operator::End => self.visit_end(resources),
+            Operator::Br { relative_depth } => self.visit_br(resources, relative_depth),
+            Operator::BrIf { relative_depth } => self.visit_br_if(resources, relative_depth),
+            Operator::BrTable { ref table } => self.visit_br_table(resources, table),
+            Operator::Return => self.visit_return(resources),
+            Operator::Call { function_index } => self.visit_call(resources, function_index),
+            Operator::CallIndirect { index, table_index, table_byte } => self.visit_call_indirect(resources, index, table_index, table_byte),
+            Operator::ReturnCall { function_index } => self.visit_return_call(resources, function_index),
+            Operator::ReturnCallIndirect { index, table_index } => self.visit_return_call_indirect(resources, index, table_index),
+            Operator::Delegate { relative_depth } => self.visit_delegate(resources, relative_depth),
+            Operator::CatchAll => self.visit_catch_all(resources),
+            Operator::Drop => self.visit_drop(resources),
+            Operator::Select => self.visit_select(resources),
+            Operator::TypedSelect { ty } => self.visit_typed_select(resources, ty),
+            Operator::LocalGet { local_index } => self.visit_local_get(resources, local_index),
+            Operator::LocalSet { local_index } => self.visit_local_set(resources, local_index),
+            Operator::LocalTee { local_index } => self.visit_local_tee(resources, local_index),
+            Operator::GlobalGet { global_index } => self.visit_global_get(resources, global_index),
+            Operator::GlobalSet { global_index } => self.visit_global_set(resources, global_index),
+            Operator::I32Load { memarg } => self.visit_i32_load(resources, memarg),
+            Operator::I64Load { memarg } => self.visit_i64_load(resources, memarg),
+            Operator::F32Load { memarg } => self.visit_f32_load(resources, memarg),
+            Operator::F64Load { memarg } => self.visit_f64_load(resources, memarg),
+            Operator::I32Load8S { memarg } => self.visit_i32_load8_s(resources, memarg),
+            Operator::I32Load8U { memarg } => self.visit_i32_load8_u(resources, memarg),
+            Operator::I32Load16S { memarg } => self.visit_i32_load16_s(resources, memarg),
+            Operator::I32Load16U { memarg } => self.visit_i32_load16_u(resources, memarg),
+            Operator::I64Load8S { memarg } => self.visit_i64_load8_s(resources, memarg),
+            Operator::I64Load8U { memarg } => self.visit_i64_load8_u(resources, memarg),
+            Operator::I64Load16S { memarg } => self.visit_i64_load16_s(resources, memarg),
+            Operator::I64Load16U { memarg } => self.visit_i64_load16_u(resources, memarg),
+            Operator::I64Load32S { memarg } => self.visit_i64_load32_s(resources, memarg),
+            Operator::I64Load32U { memarg } => self.visit_i64_load32_u(resources, memarg),
+            Operator::I32Store { memarg } => self.visit_i32_store(resources, memarg),
+            Operator::I64Store { memarg } => self.visit_i64_store(resources, memarg),
+            Operator::F32Store { memarg } => self.visit_f32_store(resources, memarg),
+            Operator::F64Store { memarg } => self.visit_f64_store(resources, memarg),
+            Operator::I32Store8 { memarg } => self.visit_i32_store8(resources, memarg),
+            Operator::I32Store16 { memarg } => self.visit_i32_store16(resources, memarg),
+            Operator::I64Store8 { memarg } => self.visit_i64_store8(resources, memarg),
+            Operator::I64Store16 { memarg } => self.visit_i64_store16(resources, memarg),
+            Operator::I64Store32 { memarg } => self.visit_i64_store32(resources, memarg),
+            Operator::MemorySize { mem, mem_byte } => self.visit_memory_size(resources, mem, mem_byte),
+            Operator::MemoryGrow { mem, mem_byte } => self.visit_memory_grow(resources, mem, mem_byte),
+            Operator::I32Const { value } => self.visit_i32_const(resources, value),
+            Operator::I64Const { value } => self.visit_i64_const(resources, value),
+            Operator::F32Const { value } => self.visit_f32_const(resources, value),
+            Operator::F64Const { value } => self.visit_f64_const(resources, value),
+            Operator::RefNull { ty } => self.visit_ref_null(resources, ty),
+            Operator::RefIsNull => self.visit_ref_is_null(resources),
+            Operator::RefFunc { function_index } => self.visit_ref_func(resources, function_index),
+            Operator::I32Eqz => self.visit_i32_eqz(resources),
+            Operator::I32Eq => self.visit_i32_eq(resources),
+            Operator::I32Ne => self.visit_i32_ne(resources),
+            Operator::I32LtS => self.visit_i32_lt_s(resources),
+            Operator::I32LtU => self.visit_i32_lt_u(resources),
+            Operator::I32GtS => self.visit_i32_gt_s(resources),
+            Operator::I32GtU => self.visit_i32_gt_u(resources),
+            Operator::I32LeS => self.visit_i32_le_s(resources),
+            Operator::I32LeU => self.visit_i32_le_u(resources),
+            Operator::I32GeS => self.visit_i32_ge_s(resources),
+            Operator::I32GeU => self.visit_i32_ge_u(resources),
+            Operator::I64Eqz => self.visit_i64_eqz(resources),
+            Operator::I64Eq => self.visit_i64_eq(resources),
+            Operator::I64Ne => self.visit_i64_ne(resources),
+            Operator::I64LtS => self.visit_i64_lt_s(resources),
+            Operator::I64LtU => self.visit_i64_lt_u(resources),
+            Operator::I64GtS => self.visit_i64_gt_s(resources),
+            Operator::I64GtU => self.visit_i64_gt_u(resources),
+            Operator::I64LeS => self.visit_i64_le_s(resources),
+            Operator::I64LeU => self.visit_i64_le_u(resources),
+            Operator::I64GeS => self.visit_i64_ge_s(resources),
+            Operator::I64GeU => self.visit_i64_ge_u(resources),
+            Operator::F32Eq => self.visit_f32_eq(resources),
+            Operator::F32Ne => self.visit_f32_ne(resources),
+            Operator::F32Lt => self.visit_f32_lt(resources),
+            Operator::F32Gt => self.visit_f32_gt(resources),
+            Operator::F32Le => self.visit_f32_le(resources),
+            Operator::F32Ge => self.visit_f32_ge(resources),
+            Operator::F64Eq => self.visit_f64_eq(resources),
+            Operator::F64Ne => self.visit_f64_ne(resources),
+            Operator::F64Lt => self.visit_f64_lt(resources),
+            Operator::F64Gt => self.visit_f64_gt(resources),
+            Operator::F64Le => self.visit_f64_le(resources),
+            Operator::F64Ge => self.visit_f64_ge(resources),
+            Operator::I32Clz => self.visit_i32_clz(resources),
+            Operator::I32Ctz => self.visit_i32_ctz(resources),
+            Operator::I32Popcnt => self.visit_i32_popcnt(resources),
+            Operator::I32Add => self.visit_i32_add(resources),
+            Operator::I32Sub => self.visit_i32_sub(resources),
+            Operator::I32Mul => self.visit_i32_mul(resources),
+            Operator::I32DivS => self.visit_i32_div_s(resources),
+            Operator::I32DivU => self.visit_i32_div_u(resources),
+            Operator::I32RemS => self.visit_i32_rem_s(resources),
+            Operator::I32RemU => self.visit_i32_rem_u(resources),
+            Operator::I32And => self.visit_i32_and(resources),
+            Operator::I32Or => self.visit_i32_or(resources),
+            Operator::I32Xor => self.visit_i32_xor(resources),
+            Operator::I32Shl => self.visit_i32_shl(resources),
+            Operator::I32ShrS => self.visit_i32_shr_s(resources),
+            Operator::I32ShrU => self.visit_i32_shr_u(resources),
+            Operator::I32Rotl => self.visit_i32_rotl(resources),
+            Operator::I32Rotr => self.visit_i32_rotr(resources),
+            Operator::I64Clz => self.visit_i64_clz(resources),
+            Operator::I64Ctz => self.visit_i64_ctz(resources),
+            Operator::I64Popcnt => self.visit_i64_popcnt(resources),
+            Operator::I64Add => self.visit_i64_add(resources),
+            Operator::I64Sub => self.visit_i64_sub(resources),
+            Operator::I64Mul => self.visit_i64_mul(resources),
+            Operator::I64DivS => self.visit_i64_div_s(resources),
+            Operator::I64DivU => self.visit_i64_div_u(resources),
+            Operator::I64RemS => self.visit_i64_rem_s(resources),
+            Operator::I64RemU => self.visit_i64_rem_u(resources),
+            Operator::I64And => self.visit_i64_and(resources),
+            Operator::I64Or => self.visit_i64_or(resources),
+            Operator::I64Xor => self.visit_i64_xor(resources),
+            Operator::I64Shl => self.visit_i64_shl(resources),
+            Operator::I64ShrS => self.visit_i64_shr_s(resources),
+            Operator::I64ShrU => self.visit_i64_shr_u(resources),
+            Operator::I64Rotl => self.visit_i64_rotl(resources),
+            Operator::I64Rotr => self.visit_i64_rotr(resources),
+            Operator::F32Abs => self.visit_f32_abs(resources),
+            Operator::F32Neg => self.visit_f32_neg(resources),
+            Operator::F32Ceil => self.visit_f32_ceil(resources),
+            Operator::F32Floor => self.visit_f32_floor(resources),
+            Operator::F32Trunc => self.visit_f32_trunc(resources),
+            Operator::F32Nearest => self.visit_f32_nearest(resources),
+            Operator::F32Sqrt => self.visit_f32_sqrt(resources),
+            Operator::F32Add => self.visit_f32_add(resources),
+            Operator::F32Sub => self.visit_f32_sub(resources),
+            Operator::F32Mul => self.visit_f32_mul(resources),
+            Operator::F32Div => self.visit_f32_div(resources),
+            Operator::F32Min => self.visit_f32_min(resources),
+            Operator::F32Max => self.visit_f32_max(resources),
+            Operator::F32Copysign => self.visit_f32_copysign(resources),
+            Operator::F64Abs => self.visit_f64_abs(resources),
+            Operator::F64Neg => self.visit_f64_neg(resources),
+            Operator::F64Ceil => self.visit_f64_ceil(resources),
+            Operator::F64Floor => self.visit_f64_floor(resources),
+            Operator::F64Trunc => self.visit_f64_trunc(resources),
+            Operator::F64Nearest => self.visit_f64_nearest(resources),
+            Operator::F64Sqrt => self.visit_f64_sqrt(resources),
+            Operator::F64Add => self.visit_f64_add(resources),
+            Operator::F64Sub => self.visit_f64_sub(resources),
+            Operator::F64Mul => self.visit_f64_mul(resources),
+            Operator::F64Div => self.visit_f64_div(resources),
+            Operator::F64Min => self.visit_f64_min(resources),
+            Operator::F64Max => self.visit_f64_max(resources),
+            Operator::F64Copysign => self.visit_f64_copysign(resources),
+            Operator::I32WrapI64 => self.visit_i32_wrap_i64(resources),
+            Operator::I32TruncF32S => self.visit_i32_trunc_f32s(resources),
+            Operator::I32TruncF32U => self.visit_i32_trunc_f32u(resources),
+            Operator::I32TruncF64S => self.visit_i32_trunc_f64s(resources),
+            Operator::I32TruncF64U => self.visit_i32_trunc_f64u(resources),
+            Operator::I64ExtendI32S => self.visit_i64_extend_i32s(resources),
+            Operator::I64ExtendI32U => self.visit_i64_extend_i32u(resources),
+            Operator::I64TruncF32S => self.visit_i64_trunc_f32s(resources),
+            Operator::I64TruncF32U => self.visit_i64_trunc_f32u(resources),
+            Operator::I64TruncF64S => self.visit_i64_trunc_f64s(resources),
+            Operator::I64TruncF64U => self.visit_i64_trunc_f64u(resources),
+            Operator::F32ConvertI32S => self.visit_f32_convert_i32s(resources),
+            Operator::F32ConvertI32U => self.visit_f32_convert_i32u(resources),
+            Operator::F32ConvertI64S => self.visit_f32_convert_i64s(resources),
+            Operator::F32ConvertI64U => self.visit_f32_convert_i64u(resources),
+            Operator::F32DemoteF64 => self.visit_f32_demote_f64(resources),
+            Operator::F64ConvertI32S => self.visit_f64_convert_i32s(resources),
+            Operator::F64ConvertI32U => self.visit_f64_convert_i32u(resources),
+            Operator::F64ConvertI64S => self.visit_f64_convert_i64s(resources),
+            Operator::F64ConvertI64U => self.visit_f64_convert_i64u(resources),
+            Operator::F64PromoteF32 => self.visit_f64_promote_f32(resources),
+            Operator::I32ReinterpretF32 => self.visit_i32_reinterpret_f32(resources),
+            Operator::I64ReinterpretF64 => self.visit_i64_reinterpret_f64(resources),
+            Operator::F32ReinterpretI32 => self.visit_f32_reinterpret_i32(resources),
+            Operator::F64ReinterpretI64 => self.visit_f64_reinterpret_i64(resources),
+            Operator::I32Extend8S => self.visit_i32_extend8_s(resources),
+            Operator::I32Extend16S => self.visit_i32_extend16_s(resources),
+            Operator::I64Extend8S => self.visit_i64_extend8_s(resources),
+            Operator::I64Extend16S => self.visit_i64_extend16_s(resources),
+            Operator::I64Extend32S => self.visit_i64_extend32_s(resources),
+            Operator::I32TruncSatF32S => self.visit_i32_trunc_sat_f32s(resources),
+            Operator::I32TruncSatF32U => self.visit_i32_trunc_sat_f32u(resources),
+            Operator::I32TruncSatF64S => self.visit_i32_trunc_sat_f64s(resources),
+            Operator::I32TruncSatF64U => self.visit_i32_trunc_sat_f64u(resources),
+            Operator::I64TruncSatF32S => self.visit_i64_trunc_sat_f32s(resources),
+            Operator::I64TruncSatF32U => self.visit_i64_trunc_sat_f32u(resources),
+            Operator::I64TruncSatF64S => self.visit_i64_trunc_sat_f64s(resources),
+            Operator::I64TruncSatF64U => self.visit_i64_trunc_sat_f64u(resources),
+            Operator::MemoryInit { segment, mem } => self.visit_memory_init(resources, segment, mem),
+            Operator::DataDrop { segment } => self.visit_data_drop(resources, segment),
+            Operator::MemoryCopy { src, dst } => self.visit_memory_copy(resources, src, dst),
+            Operator::MemoryFill { mem } => self.visit_memory_fill(resources, mem),
+            Operator::TableInit { segment, table } => self.visit_table_init(resources, segment, table),
+            Operator::ElemDrop { segment } => self.visit_elem_drop(resources, segment),
+            Operator::TableCopy { dst_table, src_table } => self.visit_table_copy(resources, dst_table, src_table),
+            Operator::TableFill { table } => self.visit_table_fill(resources, table),
+            Operator::TableGet { table } => self.visit_table_get(resources, table),
+            Operator::TableSet { table } => self.visit_table_set(resources, table),
+            Operator::TableGrow { table } => self.visit_table_grow(resources, table),
+            Operator::TableSize { table } => self.visit_table_size(resources, table),
+            Operator::MemoryAtomicNotify { memarg } => self.visit_memory_atomic_notify(resources, memarg),
+            Operator::MemoryAtomicWait32 { memarg } => self.visit_memory_atomic_wait32(resources, memarg),
+            Operator::MemoryAtomicWait64 { memarg } => self.visit_memory_atomic_wait64(resources, memarg),
+            Operator::AtomicFence { flags } => self.visit_atomic_fence(resources, flags),
+            Operator::I32AtomicLoad { memarg } => self.visit_i32_atomic_load(resources, memarg),
+            Operator::I64AtomicLoad { memarg } => self.visit_i64_atomic_load(resources, memarg),
+            Operator::I32AtomicLoad8U { memarg } => self.visit_i32_atomic_load8_u(resources, memarg),
+            Operator::I32AtomicLoad16U { memarg } => self.visit_i32_atomic_load16_u(resources, memarg),
+            Operator::I64AtomicLoad8U { memarg } => self.visit_i64_atomic_load8_u(resources, memarg),
+            Operator::I64AtomicLoad16U { memarg } => self.visit_i64_atomic_load16_u(resources, memarg),
+            Operator::I64AtomicLoad32U { memarg } => self.visit_i64_atomic_load32_u(resources, memarg),
+            Operator::I32AtomicStore { memarg } => self.visit_i32_atomic_store(resources, memarg),
+            Operator::I64AtomicStore { memarg } => self.visit_i64_atomic_store(resources, memarg),
+            Operator::I32AtomicStore8 { memarg } => self.visit_i32_atomic_store8(resources, memarg),
+            Operator::I32AtomicStore16 { memarg } => self.visit_i32_atomic_store16(resources, memarg),
+            Operator::I64AtomicStore8 { memarg } => self.visit_i64_atomic_store8(resources, memarg),
+            Operator::I64AtomicStore16 { memarg } => self.visit_i64_atomic_store16(resources, memarg),
+            Operator::I64AtomicStore32 { memarg } => self.visit_i64_atomic_store32(resources, memarg),
+            Operator::I32AtomicRmwAdd { memarg } => self.visit_i32_atomic_rmw_add(resources, memarg),
+            Operator::I64AtomicRmwAdd { memarg } => self.visit_i64_atomic_rmw_add(resources, memarg),
+            Operator::I32AtomicRmw8AddU { memarg } => self.visit_i32_atomic_rmw8_add_u(resources, memarg),
+            Operator::I32AtomicRmw16AddU { memarg } => self.visit_i32_atomic_rmw16_add_u(resources, memarg),
+            Operator::I64AtomicRmw8AddU { memarg } => self.visit_i64_atomic_rmw8_add_u(resources, memarg),
+            Operator::I64AtomicRmw16AddU { memarg } => self.visit_i64_atomic_rmw16_add_u(resources, memarg),
+            Operator::I64AtomicRmw32AddU { memarg } => self.visit_i64_atomic_rmw32_add_u(resources, memarg),
+            Operator::I32AtomicRmwSub { memarg } => self.visit_i32_atomic_rmw_sub(resources, memarg),
+            Operator::I64AtomicRmwSub { memarg } => self.visit_i64_atomic_rmw_sub(resources, memarg),
+            Operator::I32AtomicRmw8SubU { memarg } => self.visit_i32_atomic_rmw8_sub_u(resources, memarg),
+            Operator::I32AtomicRmw16SubU { memarg } => self.visit_i32_atomic_rmw16_sub_u(resources, memarg),
+            Operator::I64AtomicRmw8SubU { memarg } => self.visit_i64_atomic_rmw8_sub_u(resources, memarg),
+            Operator::I64AtomicRmw16SubU { memarg } => self.visit_i64_atomic_rmw16_sub_u(resources, memarg),
+            Operator::I64AtomicRmw32SubU { memarg } => self.visit_i64_atomic_rmw32_sub_u(resources, memarg),
+            Operator::I32AtomicRmwAnd { memarg } => self.visit_i32_atomic_rmw_and(resources, memarg),
+            Operator::I64AtomicRmwAnd { memarg } => self.visit_i64_atomic_rmw_and(resources, memarg),
+            Operator::I32AtomicRmw8AndU { memarg } => self.visit_i32_atomic_rmw8_and_u(resources, memarg),
+            Operator::I32AtomicRmw16AndU { memarg } => self.visit_i32_atomic_rmw16_and_u(resources, memarg),
+            Operator::I64AtomicRmw8AndU { memarg } => self.visit_i64_atomic_rmw8_and_u(resources, memarg),
+            Operator::I64AtomicRmw16AndU { memarg } => self.visit_i64_atomic_rmw16_and_u(resources, memarg),
+            Operator::I64AtomicRmw32AndU { memarg } => self.visit_i64_atomic_rmw32_and_u(resources, memarg),
+            Operator::I32AtomicRmwOr { memarg } => self.visit_i32_atomic_rmw_or(resources, memarg),
+            Operator::I64AtomicRmwOr { memarg } => self.visit_i64_atomic_rmw_or(resources, memarg),
+            Operator::I32AtomicRmw8OrU { memarg } => self.visit_i32_atomic_rmw8_or_u(resources, memarg),
+            Operator::I32AtomicRmw16OrU { memarg } => self.visit_i32_atomic_rmw16_or_u(resources, memarg),
+            Operator::I64AtomicRmw8OrU { memarg } => self.visit_i64_atomic_rmw8_or_u(resources, memarg),
+            Operator::I64AtomicRmw16OrU { memarg } => self.visit_i64_atomic_rmw16_or_u(resources, memarg),
+            Operator::I64AtomicRmw32OrU { memarg } => self.visit_i64_atomic_rmw32_or_u(resources, memarg),
+            Operator::I32AtomicRmwXor { memarg } => self.visit_i32_atomic_rmw_xor(resources, memarg),
+            Operator::I64AtomicRmwXor { memarg } => self.visit_i64_atomic_rmw_xor(resources, memarg),
+            Operator::I32AtomicRmw8XorU { memarg } => self.visit_i32_atomic_rmw8_xor_u(resources, memarg),
+            Operator::I32AtomicRmw16XorU { memarg } => self.visit_i32_atomic_rmw16_xor_u(resources, memarg),
+            Operator::I64AtomicRmw8XorU { memarg } => self.visit_i64_atomic_rmw8_xor_u(resources, memarg),
+            Operator::I64AtomicRmw16XorU { memarg } => self.visit_i64_atomic_rmw16_xor_u(resources, memarg),
+            Operator::I64AtomicRmw32XorU { memarg } => self.visit_i64_atomic_rmw32_xor_u(resources, memarg),
+            Operator::I32AtomicRmwXchg { memarg } => self.visit_i32_atomic_rmw_xchg(resources, memarg),
+            Operator::I64AtomicRmwXchg { memarg } => self.visit_i64_atomic_rmw_xchg(resources, memarg),
+            Operator::I32AtomicRmw8XchgU { memarg } => self.visit_i32_atomic_rmw8_xchg_u(resources, memarg),
+            Operator::I32AtomicRmw16XchgU { memarg } => self.visit_i32_atomic_rmw16_xchg_u(resources, memarg),
+            Operator::I64AtomicRmw8XchgU { memarg } => self.visit_i64_atomic_rmw8_xchg_u(resources, memarg),
+            Operator::I64AtomicRmw16XchgU { memarg } => self.visit_i64_atomic_rmw16_xchg_u(resources, memarg),
+            Operator::I64AtomicRmw32XchgU { memarg } => self.visit_i64_atomic_rmw32_xchg_u(resources, memarg),
+            Operator::I32AtomicRmwCmpxchg { memarg } => self.visit_i32_atomic_rmw_cmpxchg(resources, memarg),
+            Operator::I64AtomicRmwCmpxchg { memarg } => self.visit_i64_atomic_rmw_cmpxchg(resources, memarg),
+            Operator::I32AtomicRmw8CmpxchgU { memarg } => self.visit_i32_atomic_rmw8_cmpxchg_u(resources, memarg),
+            Operator::I32AtomicRmw16CmpxchgU { memarg } => self.visit_i32_atomic_rmw16_cmpxchg_u(resources, memarg),
+            Operator::I64AtomicRmw8CmpxchgU { memarg } => self.visit_i64_atomic_rmw8_cmpxchg_u(resources, memarg),
+            Operator::I64AtomicRmw16CmpxchgU { memarg } => self.visit_i64_atomic_rmw16_cmpxchg_u(resources, memarg),
+            Operator::I64AtomicRmw32CmpxchgU { memarg } => self.visit_i64_atomic_rmw32_cmpxchg_u(resources, memarg),
+            Operator::V128Load { memarg } => self.visit_v128_load(resources, memarg),
+            Operator::V128Load8x8S { memarg } => self.visit_v128_load8x8_s(resources, memarg),
+            Operator::V128Load8x8U { memarg } => self.visit_v128_load8x8_u(resources, memarg),
+            Operator::V128Load16x4S { memarg } => self.visit_v128_load16x4_s(resources, memarg),
+            Operator::V128Load16x4U { memarg } => self.visit_v128_load16x4_u(resources, memarg),
+            Operator::V128Load32x2S { memarg } => self.visit_v128_load32x2_s(resources, memarg),
+            Operator::V128Load32x2U { memarg } => self.visit_v128_load32x2_u(resources, memarg),
+            Operator::V128Load8Splat { memarg } => self.visit_v128_load8_splat(resources, memarg),
+            Operator::V128Load16Splat { memarg } => self.visit_v128_load16_splat(resources, memarg),
+            Operator::V128Load32Splat { memarg } => self.visit_v128_load32_splat(resources, memarg),
+            Operator::V128Load64Splat { memarg } => self.visit_v128_load64_splat(resources, memarg),
+            Operator::V128Load32Zero { memarg } => self.visit_v128_load32_zero(resources, memarg),
+            Operator::V128Load64Zero { memarg } => self.visit_v128_load64_zero(resources, memarg),
+            Operator::V128Store { memarg } => self.visit_v128_store(resources, memarg),
+            Operator::V128Load8Lane { memarg, lane } => self.visit_v128_load8_lane(resources, memarg, lane),
+            Operator::V128Load16Lane { memarg, lane } => self.visit_v128_load16_lane(resources, memarg, lane),
+            Operator::V128Load32Lane { memarg, lane } => self.visit_v128_load32_lane(resources, memarg, lane),
+            Operator::V128Load64Lane { memarg, lane } => self.visit_v128_load64_lane(resources, memarg, lane),
+            Operator::V128Store8Lane { memarg, lane } => self.visit_v128_store8_lane(resources, memarg, lane),
+            Operator::V128Store16Lane { memarg, lane } => self.visit_v128_store16_lane(resources, memarg, lane),
+            Operator::V128Store32Lane { memarg, lane } => self.visit_v128_store32_lane(resources, memarg, lane),
+            Operator::V128Store64Lane { memarg, lane } => self.visit_v128_store64_lane(resources, memarg, lane),
+            Operator::V128Const { value } => self.visit_v128_const(resources, value),
+            Operator::I8x16Shuffle { lanes } => self.visit_i8x16_shuffle(resources, lanes),
+            Operator::I8x16ExtractLaneS { lane } => self.visit_i8x16_extract_lane_s(resources, lane),
+            Operator::I8x16ExtractLaneU { lane } => self.visit_i8x16_extract_lane_u(resources, lane),
+            Operator::I8x16ReplaceLane { lane } => self.visit_i8x16_replace_lane(resources, lane),
+            Operator::I16x8ExtractLaneS { lane } => self.visit_i16x8_extract_lane_s(resources, lane),
+            Operator::I16x8ExtractLaneU { lane } => self.visit_i16x8_extract_lane_u(resources, lane),
+            Operator::I16x8ReplaceLane { lane } => self.visit_i16x8_replace_lane(resources, lane),
+            Operator::I32x4ExtractLane { lane } => self.visit_i32x4_extract_lane(resources, lane),
+            Operator::I32x4ReplaceLane { lane } => self.visit_i32x4_replace_lane(resources, lane),
+            Operator::I64x2ExtractLane { lane } => self.visit_i64x2_extract_lane(resources, lane),
+            Operator::I64x2ReplaceLane { lane } => self.visit_i64x2_replace_lane(resources, lane),
+            Operator::F32x4ExtractLane { lane } => self.visit_f32x4_extract_lane(resources, lane),
+            Operator::F32x4ReplaceLane { lane } => self.visit_f32x4_replace_lane(resources, lane),
+            Operator::F64x2ExtractLane { lane } => self.visit_f64x2_extract_lane(resources, lane),
+            Operator::F64x2ReplaceLane { lane } => self.visit_f64x2_replace_lane(resources, lane),
+            Operator::I8x16Swizzle => self.visit_i8x16_swizzle(resources),
+            Operator::I8x16Splat => self.visit_i8x16_splat(resources),
+            Operator::I16x8Splat => self.visit_i16x8_splat(resources),
+            Operator::I32x4Splat => self.visit_i32x4_splat(resources),
+            Operator::I64x2Splat => self.visit_i64x2_splat(resources),
+            Operator::F32x4Splat => self.visit_f32x4_splat(resources),
+            Operator::F64x2Splat => self.visit_f64x2_splat(resources),
+            Operator::I8x16Eq => self.visit_i8x16_eq(resources),
+            Operator::I8x16Ne => self.visit_i8x16_ne(resources),
+            Operator::I8x16LtS => self.visit_i8x16_lt_s(resources),
+            Operator::I8x16LtU => self.visit_i8x16_lt_u(resources),
+            Operator::I8x16GtS => self.visit_i8x16_gt_s(resources),
+            Operator::I8x16GtU => self.visit_i8x16_gt_u(resources),
+            Operator::I8x16LeS => self.visit_i8x16_le_s(resources),
+            Operator::I8x16LeU => self.visit_i8x16_le_u(resources),
+            Operator::I8x16GeS => self.visit_i8x16_ge_s(resources),
+            Operator::I8x16GeU => self.visit_i8x16_ge_u(resources),
+            Operator::I16x8Eq => self.visit_i16x8_eq(resources),
+            Operator::I16x8Ne => self.visit_i16x8_ne(resources),
+            Operator::I16x8LtS => self.visit_i16x8_lt_s(resources),
+            Operator::I16x8LtU => self.visit_i16x8_lt_u(resources),
+            Operator::I16x8GtS => self.visit_i16x8_gt_s(resources),
+            Operator::I16x8GtU => self.visit_i16x8_gt_u(resources),
+            Operator::I16x8LeS => self.visit_i16x8_le_s(resources),
+            Operator::I16x8LeU => self.visit_i16x8_le_u(resources),
+            Operator::I16x8GeS => self.visit_i16x8_ge_s(resources),
+            Operator::I16x8GeU => self.visit_i16x8_ge_u(resources),
+            Operator::I32x4Eq => self.visit_i32x4_eq(resources),
+            Operator::I32x4Ne => self.visit_i32x4_ne(resources),
+            Operator::I32x4LtS => self.visit_i32x4_lt_s(resources),
+            Operator::I32x4LtU => self.visit_i32x4_lt_u(resources),
+            Operator::I32x4GtS => self.visit_i32x4_gt_s(resources),
+            Operator::I32x4GtU => self.visit_i32x4_gt_u(resources),
+            Operator::I32x4LeS => self.visit_i32x4_le_s(resources),
+            Operator::I32x4LeU => self.visit_i32x4_le_u(resources),
+            Operator::I32x4GeS => self.visit_i32x4_ge_s(resources),
+            Operator::I32x4GeU => self.visit_i32x4_ge_u(resources),
+            Operator::I64x2Eq => self.visit_i64x2_eq(resources),
+            Operator::I64x2Ne => self.visit_i64x2_ne(resources),
+            Operator::I64x2LtS => self.visit_i64x2_lt_s(resources),
+            Operator::I64x2GtS => self.visit_i64x2_gt_s(resources),
+            Operator::I64x2LeS => self.visit_i64x2_le_s(resources),
+            Operator::I64x2GeS => self.visit_i64x2_ge_s(resources),
+            Operator::F32x4Eq => self.visit_f32x4_eq(resources),
+            Operator::F32x4Ne => self.visit_f32x4_ne(resources),
+            Operator::F32x4Lt => self.visit_f32x4_lt(resources),
+            Operator::F32x4Gt => self.visit_f32x4_gt(resources),
+            Operator::F32x4Le => self.visit_f32x4_le(resources),
+            Operator::F32x4Ge => self.visit_f32x4_ge(resources),
+            Operator::F64x2Eq => self.visit_f64x2_eq(resources),
+            Operator::F64x2Ne => self.visit_f64x2_ne(resources),
+            Operator::F64x2Lt => self.visit_f64x2_lt(resources),
+            Operator::F64x2Gt => self.visit_f64x2_gt(resources),
+            Operator::F64x2Le => self.visit_f64x2_le(resources),
+            Operator::F64x2Ge => self.visit_f64x2_ge(resources),
+            Operator::V128Not => self.visit_v128_not(resources),
+            Operator::V128And => self.visit_v128_and(resources),
+            Operator::V128AndNot => self.visit_v128_and_not(resources),
+            Operator::V128Or => self.visit_v128_or(resources),
+            Operator::V128Xor => self.visit_v128_xor(resources),
+            Operator::V128Bitselect => self.visit_v128_bitselect(resources),
+            Operator::V128AnyTrue => self.visit_v128_any_true(resources),
+            Operator::I8x16Abs => self.visit_i8x16_abs(resources),
+            Operator::I8x16Neg => self.visit_i8x16_neg(resources),
+            Operator::I8x16Popcnt => self.visit_i8x16_popcnt(resources),
+            Operator::I8x16AllTrue => self.visit_i8x16_all_true(resources),
+            Operator::I8x16Bitmask => self.visit_i8x16_bitmask(resources),
+            Operator::I8x16NarrowI16x8S => self.visit_i8x16_narrow_i16x8_s(resources),
+            Operator::I8x16NarrowI16x8U => self.visit_i8x16_narrow_i16x8_u(resources),
+            Operator::I8x16Shl => self.visit_i8x16_shl(resources),
+            Operator::I8x16ShrS => self.visit_i8x16_shr_s(resources),
+            Operator::I8x16ShrU => self.visit_i8x16_shr_u(resources),
+            Operator::I8x16Add => self.visit_i8x16_add(resources),
+            Operator::I8x16AddSatS => self.visit_i8x16_add_sat_s(resources),
+            Operator::I8x16AddSatU => self.visit_i8x16_add_sat_u(resources),
+            Operator::I8x16Sub => self.visit_i8x16_sub(resources),
+            Operator::I8x16SubSatS => self.visit_i8x16_sub_sat_s(resources),
+            Operator::I8x16SubSatU => self.visit_i8x16_sub_sat_u(resources),
+            Operator::I8x16MinS => self.visit_i8x16_min_s(resources),
+            Operator::I8x16MinU => self.visit_i8x16_min_u(resources),
+            Operator::I8x16MaxS => self.visit_i8x16_max_s(resources),
+            Operator::I8x16MaxU => self.visit_i8x16_max_u(resources),
+            Operator::I8x16RoundingAverageU => self.visit_i8x16_rounding_average_u(resources),
+            Operator::I16x8ExtAddPairwiseI8x16S => self.visit_i16x8_ext_add_pairwise_i8x16_s(resources),
+            Operator::I16x8ExtAddPairwiseI8x16U => self.visit_i16x8_ext_add_pairwise_i8x16_u(resources),
+            Operator::I16x8Abs => self.visit_i16x8_abs(resources),
+            Operator::I16x8Neg => self.visit_i16x8_neg(resources),
+            Operator::I16x8Q15MulrSatS => self.visit_i16x8_q15_mulr_sat_s(resources),
+            Operator::I16x8AllTrue => self.visit_i16x8_all_true(resources),
+            Operator::I16x8Bitmask => self.visit_i16x8_bitmask(resources),
+            Operator::I16x8NarrowI32x4S => self.visit_i16x8_narrow_i32x4_s(resources),
+            Operator::I16x8NarrowI32x4U => self.visit_i16x8_narrow_i32x4_u(resources),
+            Operator::I16x8ExtendLowI8x16S => self.visit_i16x8_extend_low_i8x16_s(resources),
+            Operator::I16x8ExtendHighI8x16S => self.visit_i16x8_extend_high_i8x16_s(resources),
+            Operator::I16x8ExtendLowI8x16U => self.visit_i16x8_extend_low_i8x16_u(resources),
+            Operator::I16x8ExtendHighI8x16U => self.visit_i16x8_extend_high_i8x16_u(resources),
+            Operator::I16x8Shl => self.visit_i16x8_shl(resources),
+            Operator::I16x8ShrS => self.visit_i16x8_shr_s(resources),
+            Operator::I16x8ShrU => self.visit_i16x8_shr_u(resources),
+            Operator::I16x8Add => self.visit_i16x8_add(resources),
+            Operator::I16x8AddSatS => self.visit_i16x8_add_sat_s(resources),
+            Operator::I16x8AddSatU => self.visit_i16x8_add_sat_u(resources),
+            Operator::I16x8Sub => self.visit_i16x8_sub(resources),
+            Operator::I16x8SubSatS => self.visit_i16x8_sub_sat_s(resources),
+            Operator::I16x8SubSatU => self.visit_i16x8_sub_sat_u(resources),
+            Operator::I16x8Mul => self.visit_i16x8_mul(resources),
+            Operator::I16x8MinS => self.visit_i16x8_min_s(resources),
+            Operator::I16x8MinU => self.visit_i16x8_min_u(resources),
+            Operator::I16x8MaxS => self.visit_i16x8_max_s(resources),
+            Operator::I16x8MaxU => self.visit_i16x8_max_u(resources),
+            Operator::I16x8RoundingAverageU => self.visit_i16x8_rounding_average_u(resources),
+            Operator::I16x8ExtMulLowI8x16S => self.visit_i16x8_ext_mul_low_i8x16_s(resources),
+            Operator::I16x8ExtMulHighI8x16S => self.visit_i16x8_ext_mul_high_i8x16_s(resources),
+            Operator::I16x8ExtMulLowI8x16U => self.visit_i16x8_ext_mul_low_i8x16_u(resources),
+            Operator::I16x8ExtMulHighI8x16U => self.visit_i16x8_ext_mul_high_i8x16_u(resources),
+            Operator::I32x4ExtAddPairwiseI16x8S => self.visit_i32x4_ext_add_pairwise_i16x8_s(resources),
+            Operator::I32x4ExtAddPairwiseI16x8U => self.visit_i32x4_ext_add_pairwise_i16x8_u(resources),
+            Operator::I32x4Abs => self.visit_i32x4_abs(resources),
+            Operator::I32x4Neg => self.visit_i32x4_neg(resources),
+            Operator::I32x4AllTrue => self.visit_i32x4_all_true(resources),
+            Operator::I32x4Bitmask => self.visit_i32x4_bitmask(resources),
+            Operator::I32x4ExtendLowI16x8S => self.visit_i32x4_extend_low_i16x8_s(resources),
+            Operator::I32x4ExtendHighI16x8S => self.visit_i32x4_extend_high_i16x8_s(resources),
+            Operator::I32x4ExtendLowI16x8U => self.visit_i32x4_extend_low_i16x8_u(resources),
+            Operator::I32x4ExtendHighI16x8U => self.visit_i32x4_extend_high_i16x8_u(resources),
+            Operator::I32x4Shl => self.visit_i32x4_shl(resources),
+            Operator::I32x4ShrS => self.visit_i32x4_shr_s(resources),
+            Operator::I32x4ShrU => self.visit_i32x4_shr_u(resources),
+            Operator::I32x4Add => self.visit_i32x4_add(resources),
+            Operator::I32x4Sub => self.visit_i32x4_sub(resources),
+            Operator::I32x4Mul => self.visit_i32x4_mul(resources),
+            Operator::I32x4MinS => self.visit_i32x4_min_s(resources),
+            Operator::I32x4MinU => self.visit_i32x4_min_u(resources),
+            Operator::I32x4MaxS => self.visit_i32x4_max_s(resources),
+            Operator::I32x4MaxU => self.visit_i32x4_max_u(resources),
+            Operator::I32x4DotI16x8S => self.visit_i32x4_dot_i16x8_s(resources),
+            Operator::I32x4ExtMulLowI16x8S => self.visit_i32x4_ext_mul_low_i16x8_s(resources),
+            Operator::I32x4ExtMulHighI16x8S => self.visit_i32x4_ext_mul_high_i16x8_s(resources),
+            Operator::I32x4ExtMulLowI16x8U => self.visit_i32x4_ext_mul_low_i16x8_u(resources),
+            Operator::I32x4ExtMulHighI16x8U => self.visit_i32x4_ext_mul_high_i16x8_u(resources),
+            Operator::I64x2Abs => self.visit_i64x2_abs(resources),
+            Operator::I64x2Neg => self.visit_i64x2_neg(resources),
+            Operator::I64x2AllTrue => self.visit_i64x2_all_true(resources),
+            Operator::I64x2Bitmask => self.visit_i64x2_bitmask(resources),
+            Operator::I64x2ExtendLowI32x4S => self.visit_i64x2_extend_low_i32x4_s(resources),
+            Operator::I64x2ExtendHighI32x4S => self.visit_i64x2_extend_high_i32x4_s(resources),
+            Operator::I64x2ExtendLowI32x4U => self.visit_i64x2_extend_low_i32x4_u(resources),
+            Operator::I64x2ExtendHighI32x4U => self.visit_i64x2_extend_high_i32x4_u(resources),
+            Operator::I64x2Shl => self.visit_i64x2_shl(resources),
+            Operator::I64x2ShrS => self.visit_i64x2_shr_s(resources),
+            Operator::I64x2ShrU => self.visit_i64x2_shr_u(resources),
+            Operator::I64x2Add => self.visit_i64x2_add(resources),
+            Operator::I64x2Sub => self.visit_i64x2_sub(resources),
+            Operator::I64x2Mul => self.visit_i64x2_mul(resources),
+            Operator::I64x2ExtMulLowI32x4S => self.visit_i64x2_ext_mul_low_i32x4_s(resources),
+            Operator::I64x2ExtMulHighI32x4S => self.visit_i64x2_ext_mul_high_i32x4_s(resources),
+            Operator::I64x2ExtMulLowI32x4U => self.visit_i64x2_ext_mul_low_i32x4_u(resources),
+            Operator::I64x2ExtMulHighI32x4U => self.visit_i64x2_ext_mul_high_i32x4_u(resources),
+            Operator::F32x4Ceil => self.visit_f32x4_ceil(resources),
+            Operator::F32x4Floor => self.visit_f32x4_floor(resources),
+            Operator::F32x4Trunc => self.visit_f32x4_trunc(resources),
+            Operator::F32x4Nearest => self.visit_f32x4_nearest(resources),
+            Operator::F32x4Abs => self.visit_f32x4_abs(resources),
+            Operator::F32x4Neg => self.visit_f32x4_neg(resources),
+            Operator::F32x4Sqrt => self.visit_f32x4_sqrt(resources),
+            Operator::F32x4Add => self.visit_f32x4_add(resources),
+            Operator::F32x4Sub => self.visit_f32x4_sub(resources),
+            Operator::F32x4Mul => self.visit_f32x4_mul(resources),
+            Operator::F32x4Div => self.visit_f32x4_div(resources),
+            Operator::F32x4Min => self.visit_f32x4_min(resources),
+            Operator::F32x4Max => self.visit_f32x4_max(resources),
+            Operator::F32x4PMin => self.visit_f32x4_p_min(resources),
+            Operator::F32x4PMax => self.visit_f32x4_p_max(resources),
+            Operator::F64x2Ceil => self.visit_f64x2_ceil(resources),
+            Operator::F64x2Floor => self.visit_f64x2_floor(resources),
+            Operator::F64x2Trunc => self.visit_f64x2_trunc(resources),
+            Operator::F64x2Nearest => self.visit_f64x2_nearest(resources),
+            Operator::F64x2Abs => self.visit_f64x2_abs(resources),
+            Operator::F64x2Neg => self.visit_f64x2_neg(resources),
+            Operator::F64x2Sqrt => self.visit_f64x2_sqrt(resources),
+            Operator::F64x2Add => self.visit_f64x2_add(resources),
+            Operator::F64x2Sub => self.visit_f64x2_sub(resources),
+            Operator::F64x2Mul => self.visit_f64x2_mul(resources),
+            Operator::F64x2Div => self.visit_f64x2_div(resources),
+            Operator::F64x2Min => self.visit_f64x2_min(resources),
+            Operator::F64x2Max => self.visit_f64x2_max(resources),
+            Operator::F64x2PMin => self.visit_f64x2_p_min(resources),
+            Operator::F64x2PMax => self.visit_f64x2_p_max(resources),
+            Operator::I32x4TruncSatF32x4S => self.visit_i32x4_trunc_sat_f32x4_s(resources),
+            Operator::I32x4TruncSatF32x4U => self.visit_i32x4_trunc_sat_f32x4_u(resources),
+            Operator::F32x4ConvertI32x4S => self.visit_f32x4_convert_i32x4_s(resources),
+            Operator::F32x4ConvertI32x4U => self.visit_f32x4_convert_i32x4_u(resources),
+            Operator::I32x4TruncSatF64x2SZero => self.visit_i32x4_trunc_sat_f64x2_s_zero(resources),
+            Operator::I32x4TruncSatF64x2UZero => self.visit_i32x4_trunc_sat_f64x2_u_zero(resources),
+            Operator::F64x2ConvertLowI32x4S => self.visit_f64x2_convert_low_i32x4_s(resources),
+            Operator::F64x2ConvertLowI32x4U => self.visit_f64x2_convert_low_i32x4_u(resources),
+            Operator::F32x4DemoteF64x2Zero => self.visit_f32x4_demote_f64x2_zero(resources),
+            Operator::F64x2PromoteLowF32x4 => self.visit_f64x2_promote_low_f32x4(resources),
+            Operator::I8x16RelaxedSwizzle => self.visit_i8x16_relaxed_swizzle(resources),
+            Operator::I32x4RelaxedTruncSatF32x4S => self.visit_i32x4_relaxed_trunc_sat_f32x4_s(resources),
+            Operator::I32x4RelaxedTruncSatF32x4U => self.visit_i32x4_relaxed_trunc_sat_f32x4_u(resources),
+            Operator::I32x4RelaxedTruncSatF64x2SZero => self.visit_i32x4_relaxed_trunc_sat_f64x2_s_zero(resources),
+            Operator::I32x4RelaxedTruncSatF64x2UZero => self.visit_i32x4_relaxed_trunc_sat_f64x2_u_zero(resources),
+            Operator::F32x4Fma => self.visit_f32x4_fma(resources),
+            Operator::F32x4Fms => self.visit_f32x4_fms(resources),
+            Operator::F64x2Fma => self.visit_f64x2_fma(resources),
+            Operator::F64x2Fms => self.visit_f64x2_fms(resources),
+            Operator::I8x16LaneSelect => self.visit_i8x16_lane_select(resources),
+            Operator::I16x8LaneSelect => self.visit_i16x8_lane_select(resources),
+            Operator::I32x4LaneSelect => self.visit_i32x4_lane_select(resources),
+            Operator::I64x2LaneSelect => self.visit_i64x2_lane_select(resources),
+            Operator::F32x4RelaxedMin => self.visit_f32x4_relaxed_min(resources),
+            Operator::F32x4RelaxedMax => self.visit_f32x4_relaxed_max(resources),
+            Operator::F64x2RelaxedMin => self.visit_f64x2_relaxed_min(resources),
+            Operator::F64x2RelaxedMax => self.visit_f64x2_relaxed_max(resources),
         }
-        Ok(())
     }
 
     pub fn finish(&mut self) -> OperatorValidatorResult<()> {
@@ -2610,7 +1644,7 @@ where
         }
         Ok(())
     }
-    fn visit_br_table(&mut self, resources: &I, table: BrTable) -> Self::Output {
+    fn visit_br_table(&mut self, resources: &I, table: &BrTable) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
         let default = self.jump(table.default())?;
         let default_types = label_types(default.0, resources, default.1)?;

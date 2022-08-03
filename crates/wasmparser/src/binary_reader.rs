@@ -1580,7 +1580,7 @@ impl<'a> BinaryReader<'a> {
             0x0b => visitor.visit_end(pos),
             0x0c => visitor.visit_br(pos, self.read_var_u32()?),
             0x0d => visitor.visit_br_if(pos, self.read_var_u32()?),
-            0x0e => visitor.visit_br_table(pos, self.read_br_table()?),
+            0x0e => visitor.visit_br_table(pos, &self.read_br_table()?),
             0x0f => visitor.visit_return(pos),
             0x10 => visitor.visit_call(pos, self.read_var_u32()?),
             0x11 => {
