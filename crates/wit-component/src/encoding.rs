@@ -1685,8 +1685,8 @@ impl<'a> ComponentEncoder<'a> {
         let mut state = EncodingState::default();
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
-        types.encode_instance_imports(self.imports, &required_imports, &mut imports)?;
         types.encode_func_types(exports.clone(), false)?;
+        types.encode_instance_imports(self.imports, &required_imports, &mut imports)?;
         types.finish(&mut state.component);
 
         if self.types_only {
