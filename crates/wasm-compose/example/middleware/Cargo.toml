@@ -1,21 +1,22 @@
 [package]
-name = "encryptor"
+name = "middleware"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+flate2 = "1.0.24"
 wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
 
 [lib]
 crate-type = ["cdylib"]
 
 [package.metadata.component]
-direct-interface-export = "interface"
+direct-interface-export = "service"
 
 [package.metadata.component.imports]
-encryption = "../encryption.wit"
+backend = "../service.wit"
 
 [package.metadata.component.exports]
-interface = "interface.wit"
+service = "../service.wit"
 
 [workspace]

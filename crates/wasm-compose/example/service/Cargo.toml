@@ -1,19 +1,21 @@
 [package]
-name = "rot13"
+name = "svc"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rot26 = "0.1.2"
 wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
 
 [lib]
 crate-type = ["cdylib"]
 
 [package.metadata.component]
-direct-interface-export = "encryption"
+direct-interface-export = "service"
+
+[package.metadata.component.imports]
+backend = "../service.wit"
 
 [package.metadata.component.exports]
-encryption = "../encryption.wit"
+service = "../service.wit"
 
 [workspace]
