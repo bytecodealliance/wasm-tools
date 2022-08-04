@@ -10,8 +10,7 @@ use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 /// suitable for sending to other threads while the original
 /// [`Validator`](crate::Validator) continues processing other functions.
 pub struct FuncValidator<T> {
-    validator: OperatorValidator,
-    resources: T,
+    validator: OperatorValidator<T>,
     index: u32,
 }
 
@@ -33,8 +32,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         features: &WasmFeatures,
     ) -> Result<FuncValidator<T>> {
         Ok(FuncValidator {
-            validator: OperatorValidator::new_func(ty, offset, features, &resources)?,
-            resources,
+            validator: OperatorValidator::new_func(ty, offset, features, resources)?,
             index,
         })
     }
@@ -44,7 +42,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// This returns the height of the whole operand stack for this function,
     /// not just for the current control frame.
     pub fn operand_stack_height(&self) -> u32 {
-        self.validator.operands.len() as u32
+        self.validator.stack.len_operands() as u32
     }
 
     /// Convenience function to validate an entire function's body.
@@ -91,10 +89,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        self.validator
-            .process_operator(operator, &self.resources)
-            .map_err(|e| e.set_offset(offset))?;
-        Ok(())
+        self.validator.process_operator(operator, offset)
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -106,13 +101,12 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// The `offset` provided to this function will be used as a position for an
     /// error if validation fails.
     pub fn finish(&mut self, offset: usize) -> Result<()> {
-        self.validator.finish().map_err(|e| e.set_offset(offset))?;
-        Ok(())
+        self.validator.finish(offset)
     }
 
     /// Returns the underlying module resources that this validator is using.
     pub fn resources(&self) -> &T {
-        &self.resources
+        self.validator.resources()
     }
 
     /// The index of the function within the module's function index space that
@@ -215,8 +209,7 @@ use crate::{
 
 macro_rules! forward {
     ( $this:ident.$visit_fn:ident($offset:expr $(, $param:expr)*) $(,)? ) => {{
-        $this.validator.$visit_fn(&$this.resources, $( $param ),*)
-            .map_err(|e| e.set_offset($offset).into())
+        $this.validator.$visit_fn($offset, $( $param ),*)
     }};
 }
 

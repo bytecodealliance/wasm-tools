@@ -247,7 +247,14 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         let mut ops = expr.get_operators_reader();
-        let mut validator = OperatorValidator::new_init_expr(features, expected_ty);
+        let mut validator = OperatorValidator::new_init_expr(
+            features,
+            expected_ty,
+            OperatorValidatorResources {
+                module: &self.module,
+                types,
+            },
+        );
         let mut uninserted_funcref = false;
 
         while !ops.eof() {
@@ -324,18 +331,10 @@ impl ModuleState {
                 }
             }
 
-            validator
-                .process_operator(
-                    &op,
-                    &OperatorValidatorResources {
-                        module: &self.module,
-                        types,
-                    },
-                )
-                .map_err(|e| e.set_offset(offset))?;
+            validator.process_operator(&op, offset)?;
         }
 
-        validator.finish().map_err(|e| e.set_offset(offset))?;
+        validator.finish(offset)?;
 
         // See comment in `RefFunc` above for why this is an assert.
         assert!(!uninserted_funcref);
