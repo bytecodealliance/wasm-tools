@@ -1,8 +1,7 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
 use wasmparser::{
-    DataKind, ElementItem, ElementKind, FunctionBody, Global, InitExpr, MemoryImmediate, Operator,
-    Type,
+    DataKind, ElementItem, ElementKind, FunctionBody, Global, MemoryImmediate, Operator, Type,
 };
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
@@ -18,7 +17,7 @@ pub enum Item {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
-pub enum InitExprKind {
+pub enum ConstExprKind {
     Global,
     ElementOffset,
     ElementFunction,
@@ -65,13 +64,13 @@ pub trait Translator {
         global(self.as_obj(), g, s)
     }
 
-    fn translate_init_expr(
+    fn translate_const_expr(
         &mut self,
-        e: &InitExpr<'_>,
+        e: &wasmparser::ConstExpr<'_>,
         _ty: &wasmparser::ValType,
-        ctx: InitExprKind,
-    ) -> Result<ConstExpr> {
-        init_expr(self.as_obj(), e, ctx)
+        ctx: ConstExprKind,
+    ) -> Result<wasm_encoder::ConstExpr> {
+        const_expr(self.as_obj(), e, ctx)
     }
 
     fn translate_element(
@@ -188,20 +187,24 @@ pub fn ty(_t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> 
 
 pub fn global(t: &mut dyn Translator, global: Global, s: &mut GlobalSection) -> Result<()> {
     let ty = t.translate_global_type(&global.ty)?;
-    let insn = t.translate_init_expr(
+    let insn = t.translate_const_expr(
         &global.init_expr,
         &global.ty.content_type,
-        InitExprKind::Global,
+        ConstExprKind::Global,
     )?;
     s.global(ty, &insn);
     Ok(())
 }
 
-pub fn init_expr(t: &mut dyn Translator, e: &InitExpr<'_>, ctx: InitExprKind) -> Result<ConstExpr> {
+pub fn const_expr(
+    t: &mut dyn Translator,
+    e: &wasmparser::ConstExpr<'_>,
+    ctx: ConstExprKind,
+) -> Result<wasm_encoder::ConstExpr> {
     let mut e = e.get_operators_reader();
     let mut offset_bytes = Vec::new();
     let op = e.read()?;
-    if let InitExprKind::ElementFunction = ctx {
+    if let ConstExprKind::ElementFunction = ctx {
         match op {
             Operator::RefFunc { .. }
             | Operator::RefNull {
@@ -217,7 +220,7 @@ pub fn init_expr(t: &mut dyn Translator, e: &InitExpr<'_>, ctx: InitExprKind) ->
         Operator::End if e.eof() => {}
         _ => return Err(Error::no_mutations_applicable()),
     }
-    Ok(ConstExpr::raw(offset_bytes))
+    Ok(wasm_encoder::ConstExpr::raw(offset_bytes))
 }
 
 pub fn element(
@@ -229,12 +232,12 @@ pub fn element(
     let mode = match &element.kind {
         ElementKind::Active {
             table_index,
-            init_expr,
+            offset_expr,
         } => {
-            offset = t.translate_init_expr(
-                init_expr,
+            offset = t.translate_const_expr(
+                offset_expr,
                 &wasmparser::ValType::I32,
-                InitExprKind::ElementOffset,
+                ConstExprKind::ElementOffset,
             )?;
             ElementMode::Active {
                 table: Some(t.remap(Item::Table, *table_index)?),
@@ -254,10 +257,10 @@ pub fn element(
                 functions.push(t.remap(Item::Function, idx)?);
             }
             ElementItem::Expr(expr) => {
-                exprs.push(t.translate_init_expr(
+                exprs.push(t.translate_const_expr(
                     &expr,
                     &element.ty,
-                    InitExprKind::ElementFunction,
+                    ConstExprKind::ElementFunction,
                 )?);
             }
         }
@@ -949,12 +952,12 @@ pub fn data(t: &mut dyn Translator, data: wasmparser::Data<'_>, s: &mut DataSect
     let mode = match &data.kind {
         DataKind::Active {
             memory_index,
-            init_expr,
+            offset_expr,
         } => {
-            offset = t.translate_init_expr(
-                init_expr,
+            offset = t.translate_const_expr(
+                offset_expr,
                 &wasmparser::ValType::I32,
-                InitExprKind::DataOffset,
+                ConstExprKind::DataOffset,
             )?;
             DataSegmentMode::Active {
                 memory_index: t.remap(Item::Memory, *memory_index)?,

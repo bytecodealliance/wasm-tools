@@ -801,7 +801,7 @@ impl Printer {
             self.newline();
             self.print_global_type(state, &global.ty, true)?;
             self.result.push(' ');
-            self.print_init_expr(state, &global.init_expr)?;
+            self.print_const_expr(state, &global.init_expr)?;
             self.end_group();
             state.core.globals += 1;
         }
@@ -1996,7 +1996,7 @@ impl Printer {
                 ElementKind::Declared => write!(self.result, " declare")?,
                 ElementKind::Active {
                     table_index,
-                    init_expr,
+                    offset_expr,
                 } => {
                     if *table_index != 0 {
                         self.result.push_str(" (table ");
@@ -2004,7 +2004,7 @@ impl Printer {
                         self.result.push(')');
                     }
                     self.result.push(' ');
-                    self.print_init_expr_sugar(state, init_expr, "offset")?;
+                    self.print_const_expr_sugar(state, offset_expr, "offset")?;
                 }
             }
             let mut items_reader = elem.items.get_items_reader()?;
@@ -2017,7 +2017,7 @@ impl Printer {
             for _ in 0..items_reader.get_count() {
                 self.result.push(' ');
                 match items_reader.read()? {
-                    ElementItem::Expr(expr) => self.print_init_expr_sugar(state, &expr, "item")?,
+                    ElementItem::Expr(expr) => self.print_const_expr_sugar(state, &expr, "item")?,
                     ElementItem::Func(idx) => self.print_idx(&state.core.func_names, idx)?,
                 }
             }
@@ -2037,14 +2037,14 @@ impl Printer {
                 DataKind::Passive => {}
                 DataKind::Active {
                     memory_index,
-                    init_expr,
+                    offset_expr,
                 } => {
                     if *memory_index != 0 {
                         self.result.push_str("(memory ");
                         self.print_idx(&state.core.memory_names, *memory_index)?;
                         self.result.push_str(") ");
                     }
-                    self.print_init_expr_sugar(state, init_expr, "offset")?;
+                    self.print_const_expr_sugar(state, offset_expr, "offset")?;
                     self.result.push(' ');
                 }
             }
@@ -2057,10 +2057,10 @@ impl Printer {
     /// Prints the operators of `expr` space-separated, taking into account that
     /// if there's only one operator in `expr` then instead of `(explicit ...)`
     /// the printing can be `(...)`.
-    fn print_init_expr_sugar(
+    fn print_const_expr_sugar(
         &mut self,
         state: &mut State,
-        expr: &InitExpr,
+        expr: &ConstExpr,
         explicit: &str,
     ) -> Result<()> {
         self.start_group("");
@@ -2098,7 +2098,7 @@ impl Printer {
     }
 
     /// Prints the operators of `expr` space-separated.
-    fn print_init_expr(&mut self, state: &mut State, expr: &InitExpr) -> Result<()> {
+    fn print_const_expr(&mut self, state: &mut State, expr: &ConstExpr) -> Result<()> {
         for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
             match op? {
                 Operator::End => {}

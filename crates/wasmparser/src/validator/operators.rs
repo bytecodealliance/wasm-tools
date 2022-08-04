@@ -291,7 +291,7 @@ where
     /// Creates a new operator validator which will be used to validate an
     /// `init_expr` constant expression which should result in the `ty`
     /// specified.
-    pub fn new_init_expr(features: &WasmFeatures, ty: ValType, resources: T) -> Self {
+    pub fn new_const_expr(features: &WasmFeatures, ty: ValType, resources: T) -> Self {
         OperatorValidator {
             num_locals: 0,
             locals: Vec::new(),

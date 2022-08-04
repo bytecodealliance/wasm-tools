@@ -6,8 +6,8 @@ use super::{
     types::{EntityType, Type, TypeId, TypeList},
 };
 use crate::{
-    limits::*, BinaryReaderError, Data, DataKind, Element, ElementItem, ElementKind, ExternalKind,
-    FuncType, Global, GlobalType, InitExpr, MemoryType, Operator, Result, TableType, TagType,
+    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
+    ExternalKind, FuncType, Global, GlobalType, MemoryType, Operator, Result, TableType, TagType,
     TypeRef, ValType, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
@@ -136,7 +136,7 @@ impl ModuleState {
     ) -> Result<()> {
         self.module
             .check_global_type(&global.ty, features, offset)?;
-        self.check_init_expr(
+        self.check_const_expr(
             &global.init_expr,
             global.ty.content_type,
             features,
@@ -158,10 +158,10 @@ impl ModuleState {
             DataKind::Passive => Ok(()),
             DataKind::Active {
                 memory_index,
-                init_expr,
+                offset_expr,
             } => {
                 let ty = self.module.memory_at(memory_index, offset)?.index_type();
-                self.check_init_expr(&init_expr, ty, features, types, offset)
+                self.check_const_expr(&offset_expr, ty, features, types, offset)
             }
         }
     }
@@ -187,7 +187,7 @@ impl ModuleState {
         match e.kind {
             ElementKind::Active {
                 table_index,
-                init_expr,
+                offset_expr,
             } => {
                 let table = self.module.table_at(table_index, offset)?;
                 if e.ty != table.element_type {
@@ -197,7 +197,7 @@ impl ModuleState {
                     ));
                 }
 
-                self.check_init_expr(&init_expr, ValType::I32, features, types, offset)?;
+                self.check_const_expr(&offset_expr, ValType::I32, features, types, offset)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !features.bulk_memory {
@@ -219,7 +219,7 @@ impl ModuleState {
             let offset = items.original_position();
             match items.read()? {
                 ElementItem::Expr(expr) => {
-                    self.check_init_expr(&expr, e.ty, features, types, offset)?;
+                    self.check_const_expr(&expr, e.ty, features, types, offset)?;
                 }
                 ElementItem::Func(f) => {
                     if e.ty != ValType::FuncRef {
@@ -238,16 +238,16 @@ impl ModuleState {
         Ok(())
     }
 
-    fn check_init_expr(
+    fn check_const_expr(
         &mut self,
-        expr: &InitExpr<'_>,
+        expr: &ConstExpr<'_>,
         expected_ty: ValType,
         features: &WasmFeatures,
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         let mut ops = expr.get_operators_reader();
-        let mut validator = OperatorValidator::new_init_expr(
+        let mut validator = OperatorValidator::new_const_expr(
             features,
             expected_ty,
             OperatorValidatorResources {
@@ -325,7 +325,7 @@ impl ModuleState {
                 }
                 _ => {
                     return Err(BinaryReaderError::new(
-                        "constant expression required: invalid init_expr operator",
+                        "constant expression required: non-constant operator",
                         offset,
                     ));
                 }

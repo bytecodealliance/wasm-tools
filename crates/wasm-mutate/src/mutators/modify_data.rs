@@ -1,4 +1,4 @@
-use super::translate::InitExprKind;
+use super::translate::ConstExprKind;
 use super::Mutator;
 use crate::mutators::{DefaultTranslator, Translator};
 use crate::{Result, WasmMutate};
@@ -32,12 +32,12 @@ impl Mutator for ModifyDataMutator {
             let mode = match &data.kind {
                 DataKind::Active {
                     memory_index,
-                    init_expr,
+                    offset_expr,
                 } => {
-                    offset = DefaultTranslator.translate_init_expr(
-                        init_expr,
+                    offset = DefaultTranslator.translate_const_expr(
+                        offset_expr,
                         &wasmparser::ValType::I32,
-                        InitExprKind::DataOffset,
+                        ConstExprKind::DataOffset,
                     )?;
                     DataSegmentMode::Active {
                         memory_index: *memory_index,
