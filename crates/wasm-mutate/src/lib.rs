@@ -18,11 +18,10 @@ pub use error::*;
 
 use crate::mutators::{
     add_function::AddFunctionMutator, add_type::AddTypeMutator, codemotion::CodemotionMutator,
-    function_body_unreachable::FunctionBodyUnreachable, modify_data::ModifyDataMutator,
-    modify_init_exprs::InitExpressionMutator, peephole::PeepholeMutator,
-    remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
-    remove_section::RemoveSection, rename_export::RenameExportMutator, snip_function::SnipMutator,
-    Item,
+    function_body_unreachable::FunctionBodyUnreachable, modify_const_exprs::ConstExpressionMutator,
+    modify_data::ModifyDataMutator, peephole::PeepholeMutator, remove_export::RemoveExportMutator,
+    remove_item::RemoveItemMutator, remove_section::RemoveSection,
+    rename_export::RenameExportMutator, snip_function::SnipMutator, Item,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -309,9 +308,9 @@ impl<'wasm> WasmMutate<'wasm> {
                 AddFunctionMutator,
                 RemoveSection::Custom,
                 RemoveSection::Empty,
-                InitExpressionMutator::Global,
-                InitExpressionMutator::ElementOffset,
-                InitExpressionMutator::ElementFunc,
+                ConstExpressionMutator::Global,
+                ConstExpressionMutator::ElementOffset,
+                ConstExpressionMutator::ElementFunc,
                 RemoveItemMutator(Item::Function),
                 RemoveItemMutator(Item::Global),
                 RemoveItemMutator(Item::Memory),
