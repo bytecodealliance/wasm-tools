@@ -2394,15 +2394,15 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_init_expr(&mut self) -> Result<InitExpr<'a>> {
+    pub(crate) fn read_const_expr(&mut self) -> Result<ConstExpr<'a>> {
         let expr_offset = self.position;
-        self.skip_init_expr()?;
+        self.skip_const_expr()?;
         let data = &self.buffer[expr_offset..self.position];
-        Ok(InitExpr::new(data, self.original_offset + expr_offset))
+        Ok(ConstExpr::new(data, self.original_offset + expr_offset))
     }
 
-    pub(crate) fn skip_init_expr(&mut self) -> Result<()> {
-        // TODO add skip_operator() method and/or validate init_expr operators.
+    pub(crate) fn skip_const_expr(&mut self) -> Result<()> {
+        // TODO add skip_operator() method and/or validate ConstExpr operators.
         loop {
             if let Operator::End = self.read_operator()? {
                 return Ok(());

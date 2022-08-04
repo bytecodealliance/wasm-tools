@@ -1,14 +1,14 @@
 //! This mutator modifies the constant initializer expressions between various valid forms in
 //! entities which require constant initializers.
 
-use crate::mutators::translate::{self, InitExprKind, Item, Translator};
+use crate::mutators::translate::{self, ConstExprKind, Item, Translator};
 use crate::{Error, Mutator, Result};
 use rand::Rng;
-use wasm_encoder::{ConstExpr, ElementSection, GlobalSection};
-use wasmparser::{ElementSectionReader, GlobalSectionReader, InitExpr, Operator, ValType};
+use wasm_encoder::{ElementSection, GlobalSection};
+use wasmparser::{ConstExpr, ElementSectionReader, GlobalSectionReader, ValType};
 
 #[derive(Copy, Clone)]
-pub enum InitExpressionMutator {
+pub enum ConstExpressionMutator {
     Global,
     ElementOffset,
     ElementFunc,
@@ -17,7 +17,7 @@ pub enum InitExpressionMutator {
 struct InitTranslator<'cfg, 'wasm> {
     config: &'cfg mut crate::WasmMutate<'wasm>,
     skip_inits: u32,
-    kind: InitExprKind,
+    kind: ConstExprKind,
 }
 
 impl<'cfg, 'wasm> InitTranslator<'cfg, 'wasm> {
@@ -44,7 +44,7 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
     /// called for values of the `ElementItem::Expr` kind.
     fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
         Ok(match (self.kind, item) {
-            (InitExprKind::ElementFunction, Item::Function) if self.should_process() => {
+            (ConstExprKind::ElementFunction, Item::Function) if self.should_process() => {
                 log::trace!("... replacing referenced function index with 0");
                 // FIXME: generate random function indices when `!config.reduce`.
                 0
@@ -56,15 +56,17 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
     /// Handle `global` initalizers and `elem`s with values of the `ElementItem::Expr` kind.
     ///
     /// This function will not be called for `elem` values of the `ElementItem::Func` kind.
-    fn translate_init_expr(
+    fn translate_const_expr(
         &mut self,
-        e: &InitExpr<'_>,
+        e: &ConstExpr<'_>,
         ty: &ValType,
-        kind: InitExprKind,
+        kind: ConstExprKind,
     ) -> Result<wasm_encoder::ConstExpr> {
-        use {Operator as O, ValType as T};
+        use wasm_encoder::ConstExpr as CE;
+        use wasmparser::{Operator as O, ValType as T};
+
         if kind != self.kind || !self.should_process() {
-            return translate::init_expr(self.as_obj(), e, kind);
+            return translate::const_expr(self.as_obj(), e, kind);
         }
         let mut reader = e.get_operators_reader();
         let op = reader.read()?;
@@ -87,41 +89,41 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
             //
             // For element offsets always generate `i32.const 0` (effectively removing the offset)
             // as other values may not necessarily be valid (e.g. maximum table size is limited)
-            let is_element_offset = matches!(kind, InitExprKind::ElementOffset);
+            let is_element_offset = matches!(kind, ConstExprKind::ElementOffset);
             let should_zero = is_element_offset || self.config.rng().gen::<u8>() & 0b11 == 0;
             match ty {
-                T::I32 if should_zero => ConstExpr::i32_const(0),
-                T::I64 if should_zero => ConstExpr::i64_const(0),
-                T::V128 if should_zero => ConstExpr::v128_const(0),
-                T::F32 if should_zero => ConstExpr::f32_const(0.0),
-                T::F64 if should_zero => ConstExpr::f64_const(0.0),
-                T::I32 => ConstExpr::i32_const(if let O::I32Const { value } = op {
+                T::I32 if should_zero => CE::i32_const(0),
+                T::I64 if should_zero => CE::i64_const(0),
+                T::V128 if should_zero => CE::v128_const(0),
+                T::F32 if should_zero => CE::f32_const(0.0),
+                T::F64 if should_zero => CE::f64_const(0.0),
+                T::I32 => CE::i32_const(if let O::I32Const { value } = op {
                     self.config.rng().gen_range(0..value)
                 } else {
                     self.config.rng().gen()
                 }),
-                T::I64 => ConstExpr::i64_const(if let O::I64Const { value } = op {
+                T::I64 => CE::i64_const(if let O::I64Const { value } = op {
                     self.config.rng().gen_range(0..value)
                 } else {
                     self.config.rng().gen()
                 }),
-                T::V128 => ConstExpr::v128_const(if let O::V128Const { value } = op {
+                T::V128 => CE::v128_const(if let O::V128Const { value } = op {
                     self.config.rng().gen_range(0..value.i128() as u128) as i128
                 } else {
                     self.config.rng().gen()
                 }),
-                T::F32 => ConstExpr::f32_const(if let O::F32Const { value } = op {
+                T::F32 => CE::f32_const(if let O::F32Const { value } = op {
                     f32::from_bits(value.bits()) / 2.0
                 } else {
                     f32::from_bits(self.config.rng().gen())
                 }),
-                T::F64 => ConstExpr::f64_const(if let O::F64Const { value } = op {
+                T::F64 => CE::f64_const(if let O::F64Const { value } = op {
                     f64::from_bits(value.bits()) / 2.0
                 } else {
                     f64::from_bits(self.config.rng().gen())
                 }),
-                T::FuncRef => ConstExpr::ref_null(wasm_encoder::ValType::FuncRef),
-                T::ExternRef => ConstExpr::ref_null(wasm_encoder::ValType::ExternRef),
+                T::FuncRef => CE::ref_null(wasm_encoder::ValType::FuncRef),
+                T::ExternRef => CE::ref_null(wasm_encoder::ValType::ExternRef),
             }
         } else {
             // FIXME: implement non-reducing mutations for constant expressions.
@@ -133,15 +135,15 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
     }
 }
 
-impl Mutator for InitExpressionMutator {
+impl Mutator for ConstExpressionMutator {
     fn mutate<'a>(
         self,
         config: &'a mut crate::WasmMutate,
     ) -> crate::Result<Box<dyn Iterator<Item = crate::Result<wasm_encoder::Module>> + 'a>> {
         let translator_kind = match self {
-            Self::Global => InitExprKind::Global,
-            Self::ElementOffset => InitExprKind::ElementOffset,
-            Self::ElementFunc => InitExprKind::ElementFunction,
+            Self::Global => ConstExprKind::Global,
+            Self::ElementOffset => ConstExprKind::ElementOffset,
+            Self::ElementFunc => ConstExprKind::ElementFunction,
         };
         let skip_err = Error::no_mutations_applicable();
         match self {
@@ -250,12 +252,12 @@ mod tests {
     fn reduce_global_const_i32() {
         match_reduction(
             "(module (global i32 (i32.const 42)))",
-            super::InitExpressionMutator::Global,
+            super::ConstExpressionMutator::Global,
             "(module (global i32 (i32.const 0)))",
         );
         match_reduction(
             "(module (global i32 (i32.const 10)))",
-            super::InitExpressionMutator::Global,
+            super::ConstExpressionMutator::Global,
             "(module (global i32 (i32.const 5)))",
         );
     }
@@ -264,7 +266,7 @@ mod tests {
     fn reduce_global_xref() {
         match_reduction(
             r#"(module (import "m" "g" (global i32)) (global i32 (global.get 0)))"#,
-            super::InitExpressionMutator::Global,
+            super::ConstExpressionMutator::Global,
             r#"(module (import "m" "g" (global i32)) (global i32 (i32.const 0)))"#,
         );
     }
@@ -273,12 +275,12 @@ mod tests {
     fn reduce_global_const_f32() {
         match_reduction(
             r#"(module (global f32 (f32.const 2.0)))"#,
-            super::InitExpressionMutator::Global,
+            super::ConstExpressionMutator::Global,
             r#"(module (global f32 (f32.const 1.0)))"#,
         );
         match_reduction(
             r#"(module (global f32 (f32.const 2.0)))"#,
-            super::InitExpressionMutator::Global,
+            super::ConstExpressionMutator::Global,
             r#"(module (global f32 (f32.const 0.0)))"#,
         );
     }
@@ -287,7 +289,7 @@ mod tests {
     fn reduce_elem_funcref() {
         match_reduction(
             r#"(module (table 0 funcref) (elem $a $b) (func $a) (func $b))"#,
-            super::InitExpressionMutator::ElementFunc,
+            super::ConstExpressionMutator::ElementFunc,
             r#"(module (table 0 funcref) (elem $a $a) (func $a) (func $b))"#,
         );
     }
@@ -296,7 +298,7 @@ mod tests {
     fn reduce_elem_expr() {
         match_reduction(
             r#"(module (table 0 funcref) (elem funcref (ref.func 0)) (func $a))"#,
-            super::InitExpressionMutator::ElementFunc,
+            super::ConstExpressionMutator::ElementFunc,
             r#"(module (table 0 funcref) (elem funcref (ref.null func)) (func $a))"#,
         );
     }
@@ -309,7 +311,7 @@ mod tests {
                 (table 0 funcref)
                 (func $f)
                 (elem (offset (global.get 0)) $f))"#,
-            super::InitExpressionMutator::ElementOffset,
+            super::ConstExpressionMutator::ElementOffset,
             r#"(module
                 (import "m" "g" (global i32))
                 (table 0 funcref)
