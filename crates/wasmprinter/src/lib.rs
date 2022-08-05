@@ -3041,7 +3041,10 @@ impl Printer {
                             state.component.values += 1;
                         }
                         ComponentExternalKind::Type => {
-                            bail!("component export alias for types is not supported")
+                            self.start_group("type ");
+                            self.print_name(&state.component.type_names, state.component.types)?;
+                            self.end_group();
+                            state.component.types += 1;
                         }
                     }
 

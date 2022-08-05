@@ -1,0 +1,10 @@
+components:
+  a:
+    path: a.wat
+  b:
+    path: b.wat
+
+instantiations:
+  b:
+    with:
+      a: a

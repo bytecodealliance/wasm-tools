@@ -1,0 +1,25 @@
+components:
+  a:
+    path: ../complex/a.wat
+    import: a
+  b:
+    path: ../complex/b.wat
+    import: b
+  c:
+    path: ../complex/c.wat
+    import: c
+
+instantiations:
+  b1:
+    component: b
+    dependencies: [a]
+  b2:
+    component: b
+    dependencies: [a]
+  c:
+    dependencies: [b2]
+    with:
+      b1: b1
+
+exports:
+  default: c

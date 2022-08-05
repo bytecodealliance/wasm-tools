@@ -1,0 +1,4 @@
+failed to resolve instance reference for default export
+
+Caused by:
+    cannot implicitly instantiate component `a` because it was not defined
