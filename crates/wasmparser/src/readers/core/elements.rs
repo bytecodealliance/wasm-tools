@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, Result, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems, RefType, FUNC_REF,
+    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, RefType, Result,
+    SectionIteratorLimited, SectionReader, SectionWithLimitedItems, FUNC_REF,
 };
 use std::ops::Range;
 

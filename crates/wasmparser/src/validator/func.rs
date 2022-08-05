@@ -156,7 +156,12 @@ mod tests {
         fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
             todo!()
         }
-        fn check_value_type(&self, _t: ValType, _features: &WasmFeatures, _offset: usize) -> Result<()> {
+        fn check_value_type(
+            &self,
+            _t: ValType,
+            _features: &WasmFeatures,
+            _offset: usize,
+        ) -> Result<()> {
             Ok(())
         }
         fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {

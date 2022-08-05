@@ -6,9 +6,10 @@ use super::{
     types::{EntityType, Type, TypeId, TypeList},
 };
 use crate::{
-    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, FUNC_REF, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, Operator, RefType, Result, TableType, TagType,
-    TypeRef, ValType, WasmFeatures, WasmFuncType, WasmModuleResources
+    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, Operator, RefType, Result,
+    TableType, TagType, TypeRef, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
+    FUNC_REF,
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};

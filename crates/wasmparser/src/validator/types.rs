@@ -3,8 +3,8 @@
 use super::{component::ComponentState, core::Module};
 use crate::{
     ComponentExport, ComponentExternalKind, ComponentImport, ComponentTypeRef, Export,
-    ExternalKind, FuncType, GlobalType, Import, MemoryType, PrimitiveValType, TableType, TypeRef,
-    ValType, RefType,
+    ExternalKind, FuncType, GlobalType, Import, MemoryType, PrimitiveValType, RefType, TableType,
+    TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::{
