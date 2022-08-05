@@ -7,8 +7,8 @@ use super::{
 };
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, FUNC_REF, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, MemoryType, Operator, Result, TableType, TagType,
-    TypeRef, ValType, WasmFeatures, WasmModuleResources
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, Operator, RefType, Result, TableType, TagType,
+    TypeRef, ValType, WasmFeatures, WasmFuncType, WasmModuleResources
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};
@@ -128,7 +128,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         self.module
-            .check_global_type(&global.ty, features, offset)?;
+            .check_global_type(&global.ty, features, types, offset)?;
         self.check_const_expr(
             &global.init_expr,
             global.ty.content_type,
@@ -796,17 +796,10 @@ impl Module {
                 && matches_null(ty1.nullable, ty2.nullable)
         };
 
-        // The below match expression is written in a style which
-        // mentions every possible ValType constructor such that the
-        // pattern exhaustiveness checker will complain when the
-        // ValType gets extended with additional constructors.
         match (ty1, ty2) {
-            (ValType::Bot, _) => true,
-            (_, ValType::Bot) => false,
             (ValType::Ref(rt1), ValType::Ref(rt2)) => matches_ref(rt1, rt2, types),
-            (ValType::Ref(_), _) => false,
-            (ValType::V128, ty2) => ty1 == ty2,
-            (ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64, ty2) => ty1 == ty2,
+            (ValType::Bot, _) => true,
+            (_, _) => ty1 == ty2,
         }
     }
 
