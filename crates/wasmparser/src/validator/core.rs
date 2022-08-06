@@ -250,10 +250,6 @@ impl ModuleState {
         let mut validator = OperatorValidator::new_const_expr(
             features,
             expected_ty,
-            OperatorValidatorResources {
-                module: &self.module,
-                types,
-            },
         );
         let mut uninserted_funcref = false;
 
@@ -331,7 +327,15 @@ impl ModuleState {
                 }
             }
 
-            validator.process_operator(&op, offset)?;
+            let resources = OperatorValidatorResources {
+                module: &self.module,
+                types,
+            };
+            validator.process_operator(
+                &op,
+                offset,
+                &resources,
+            )?;
         }
 
         validator.finish(offset)?;

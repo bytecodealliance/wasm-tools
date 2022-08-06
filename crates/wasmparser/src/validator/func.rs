@@ -10,7 +10,8 @@ use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 /// suitable for sending to other threads while the original
 /// [`Validator`](crate::Validator) continues processing other functions.
 pub struct FuncValidator<T> {
-    validator: OperatorValidator<T>,
+    validator: OperatorValidator,
+    resources: T,
     index: u32,
 }
 
@@ -32,7 +33,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         features: &WasmFeatures,
     ) -> Result<FuncValidator<T>> {
         Ok(FuncValidator {
-            validator: OperatorValidator::new_func(ty, offset, features, resources)?,
+            validator: OperatorValidator::new_func(ty, offset, features, &resources)?,
+            resources,
             index,
         })
     }
@@ -42,7 +44,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// This returns the height of the whole operand stack for this function,
     /// not just for the current control frame.
     pub fn operand_stack_height(&self) -> u32 {
-        self.validator.stack.len_operands() as u32
+        self.validator.len_operands() as u32
     }
 
     /// Convenience function to validate an entire function's body.
@@ -89,7 +91,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        self.validator.process_operator(operator, offset)
+        self.validator.process_operator(operator, offset, &self.resources)
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -106,7 +108,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 
     /// Returns the underlying module resources that this validator is using.
     pub fn resources(&self) -> &T {
-        self.validator.resources()
+        &self.resources
     }
 
     /// The index of the function within the module's function index space that
@@ -209,7 +211,7 @@ use crate::{
 
 macro_rules! forward {
     ( $this:ident.$visit_fn:ident($offset:expr $(, $param:expr)*) $(,)? ) => {{
-        $this.validator.$visit_fn($offset, $( $param ),*)
+        $this.validator.$visit_fn(($offset, &$this.resources), $( $param ),*)
     }};
 }
 
