@@ -1203,6 +1203,7 @@ pub trait VisitOperator<'a, Input> {
     /// are recommended to directly use the respective `visit` methods or
     /// implement [`VisitOperator`] on their own.
     #[inline(always)]
+    #[rustfmt::skip]
     fn visit_operator(&mut self, input: Input, op: &Operator<'a>) -> Self::Output {
         match *op {
             Operator::Unreachable => self.visit_unreachable(input),
