@@ -8,7 +8,7 @@ use super::{
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
     ExternalKind, FuncType, Global, GlobalType, MemoryType, Operator, Result, TableType, TagType,
-    TypeRef, ValType, WasmFeatures, WasmModuleResources,
+    TypeRef, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};
@@ -328,7 +328,7 @@ impl ModuleState {
                 module: &self.module,
                 types,
             };
-            validator.process_operator(&op, offset, &resources)?;
+            validator.visit_operator((offset, &resources), &op)?;
         }
 
         validator.finish(offset)?;

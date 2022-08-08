@@ -24,8 +24,8 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, Ieee32, Ieee64,
-    MemoryImmediate, Operator, Result, SIMDLaneIndex, ValType, VisitOperator, WasmFeatures,
-    WasmFuncType, WasmModuleResources, V128,
+    MemoryImmediate, Result, SIMDLaneIndex, ValType, VisitOperator, WasmFeatures, WasmFuncType,
+    WasmModuleResources, V128,
 };
 
 /// Create an `OperatorValidatorError` with a format string.
@@ -910,20 +910,6 @@ impl OperatorValidator {
         self.stack.pop_operand(offset, Some(idx))?;
         self.stack.push_operand(offset, ValType::V128)?;
         Ok(())
-    }
-
-    #[rustfmt::skip]
-    pub fn process_operator<T>(
-        &mut self,
-        operator: &Operator,
-        offset: usize,
-        resources: &T,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
-        let input = (offset, resources);
-        self.visit_operator(input, operator)
     }
 
     pub fn finish(&mut self, offset: usize) -> OperatorValidatorResult<()> {
