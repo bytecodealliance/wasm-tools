@@ -2260,7 +2260,7 @@ impl fmt::Debug for BrTable<'_> {
 }
 
 /// A factory to construct [`Operator`] instances via the [`VisitOperator`] trait.
-pub struct OperatorFactory<'a> {
+struct OperatorFactory<'a> {
     marker: core::marker::PhantomData<fn() -> &'a ()>,
 }
 
