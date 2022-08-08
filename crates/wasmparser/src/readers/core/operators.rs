@@ -1202,7 +1202,6 @@ pub trait VisitOperator<'a, Input> {
     /// critical use cases. For performance critical implementations users
     /// are recommended to directly use the respective `visit` methods or
     /// implement [`VisitOperator`] on their own.
-    #[inline(always)]
     #[rustfmt::skip]
     fn visit_operator(&mut self, input: Input, op: &Operator<'a>) -> Self::Output {
         match *op {
