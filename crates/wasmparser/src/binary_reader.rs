@@ -2273,6 +2273,7 @@ impl<'a> OperatorFactory<'a> {
     }
 }
 
+#[rustfmt::skip]
 impl<'a> VisitOperator<'a, usize> for OperatorFactory<'a> {
     type Output = Operator<'a>;
 
