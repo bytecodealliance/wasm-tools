@@ -466,17 +466,11 @@ impl OperatorValidator {
         Ok(index_ty)
     }
 
-    #[cfg(feature = "deterministic")]
+    #[cfg_attr(not(feature = "deterministic"), inline(always))]
     fn check_non_deterministic_enabled(&self, offset: usize) -> OperatorValidatorResult<()> {
-        if !self.features.deterministic_only {
+        if cfg!(feature = "deterministic") && !self.features.deterministic_only {
             bail_op_err!(offset, "deterministic_only support is not enabled");
         }
-        Ok(())
-    }
-
-    #[inline(always)]
-    #[cfg(not(feature = "deterministic"))]
-    fn check_non_deterministic_enabled(&self) -> OperatorValidatorResult<()> {
         Ok(())
     }
 
