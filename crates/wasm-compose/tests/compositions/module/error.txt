@@ -1,0 +1,1 @@
+file `tests/compositions/module/root.wat` is not a WebAssembly component

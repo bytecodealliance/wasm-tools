@@ -1,0 +1,13 @@
+dependencies:
+  a:
+    path: ../complex/a.wat
+    import: a
+  b:
+    path: ../complex/b.wat
+    import: b
+
+instantiations:
+  b1:
+    dependency: b
+  b2:
+    dependency: b

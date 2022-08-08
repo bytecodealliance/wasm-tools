@@ -1,8 +1,8 @@
-failed to parse `tests/compositions/component-not-wat/a.wat`
+failed to parse component `tests/compositions/component-not-wat/root.wat`
 
 Caused by:
     expected `(`
-         --> tests/compositions/component-not-wat/a.wat:1:1
+         --> tests/compositions/component-not-wat/root.wat:1:1
           |
         1 | not valid
           | ^

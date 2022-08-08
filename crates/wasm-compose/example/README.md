@@ -17,9 +17,10 @@ There are four subdirectories in this example:
 
 ## Overview
 
-The server will listen for `POST` requests at `localhost:8080/`. When it
-receives a request, the server will instantiate  the `service` component and
-forward it the request.
+The server will listen for `POST` requests at `http://localhost:8080`. 
+
+When it receives a request, the server will instantiate  the `service` component
+and forward it the request.
 
 Each component implements a `service` interface defined in `service.wit` as:
 
@@ -41,11 +42,11 @@ enum error {
 execute: func(req: request) -> expected<response, error>
 ```
 
-Obviously this is an overly-simplistic interface for describing HTTP request
-processing.
-
 A service will be passed a `request` containing only the headers and body and
 respond with a `response` containing only the headers and body.
+
+Note that this is an overly-simplistic (and inefficient) interface for describing
+HTTP request processing.
 
 ### Execution flow
 
@@ -120,45 +121,21 @@ cargo component build --release
 
 ## Composing the `service` component
 
-Initially, the server defines a composition configuration for the `service`
-component that looks like this:
+Initially, we will compose a service component that directly sends requests
+to the backend service.
 
-```yml
-output: service.wasm
+The `server/config.yml` configuration file instructs `wasm-compose` to
+search for dependencies from the expected output paths of the components we
+built previously.
 
-components:
-  backend:
-    path: ../backend/target/wasm32-unknown-unknown/release/backend.wasm
-  middleware:
-    path: ../middleware/target/wasm32-unknown-unknown/release/middleware.wasm
-  service:
-    path: ../service/target/wasm32-unknown-unknown/release/svc.wasm
-
-instantiations:
-  middleware:
-    dependencies: [backend]
-  service:
-    dependencies: [backend]
-
-exports:
-  default: service
-```
-
-This configuration will instantiate the `backend` component and pass it as an
-argument to the instantiation of the `service` component.
-
-It will then export the default interface of the original `service` component
-so it can run in a server that expects a `service` component.
-
-It's important to note that this configuration embeds the original
-components in the composed component because Wasmtime does not support
-component imports currently.
+Based on this, `wasm-compose` will automatically satisfy the `backend`
+dependency of the `service` component with the `backend` component.
 
 To compose the `service` component, run `wasm-tools compose`:
 
 ```sh
 cd server
-wasm-tools compose
+wasm-tools compose -c config.yml -o service.wasm ../service/target/wasm32-unknown-unknown/release/svc.wasm
 ```
 
 There should now be a `service.wasm` in the `server` directory.
@@ -172,7 +149,7 @@ cd server
 cargo run --release -- service.wasm
 ```
 
-This will start a HTTP server that listens at `localhost:8080`.
+This will start a HTTP server that listens at `http://localhost:8080`.
 
 ## Sending a request
 
@@ -211,34 +188,36 @@ compressed.
 
 ## Changing the composition
 
-If we want to now compress the response bodies for the service, we can easily
-insert a compressing `middleware` component without rebuilding any of the
-previously built components.
+If we want to instead compress the response bodies for the service, we can easily
+change the composition to send requests through the `middleware` component
+without rebuilding any of the previously built components.
 
-To change now the `service` component is composed, edit `server/wasm-compose.yml`
-and change the following:
-
-```yml
-  service:
-    dependencies: [backend]
-```
-
-to:
+To change how the `service` component is composed, edit `server/config.yml`
+and uncomment the specified lines:
 
 ```yml
-  service:
-    dependencies: [middleware]
+instantiations:
+  $component:
+    arguments:
+      backend: middleware
 ```
+
+This provides an explicit dependency of `middleware` for the `backend` argument
+of the composed component.
+
+`wasm-compose` will therefore use the `middleware` component to satisfy the
+dependency; the `backend` dependency of the `middleware` component will automatically
+be satisfied by the `backend` component.
 
 And run `wasm-compose` again:
 
 ```sh
 cd server
-wasm-tools compose
+wasm-tools compose -c config.yml -o service.wasm ../service/target/wasm32-unknown-unknown/release/svc.wasm
 ```
 
 This results in a new `service.wasm` in the `server` directory where the
-`middleware` component is used.
+`middleware` component is now used.
 
 ## Running the server again
 
@@ -251,7 +230,7 @@ cd server
 cargo run --release -- service.wasm
 ```
 
-The server should again be listening for requests at `localhost:8080`.
+The server should again be listening for requests at `http://localhost:8080`.
 
 ## Sending one more request
 

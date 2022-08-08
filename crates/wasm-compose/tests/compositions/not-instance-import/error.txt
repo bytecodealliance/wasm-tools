@@ -1,1 +1,1 @@
-component `tests/compositions/not-instance-import/a.wat` has a non-instance import ``
+component `tests/compositions/not-instance-import/root.wat` has a non-instance import named ``

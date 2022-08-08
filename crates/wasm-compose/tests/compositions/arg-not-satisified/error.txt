@@ -1,4 +1,0 @@
-instantiation argument `a` for instantiation `b` is incompatible with dependency `a`
-
-Caused by:
-    missing export `a`

@@ -9,8 +9,8 @@ use wasmparser::{Validator, WasmFeatures};
 /// This test looks in the `compositions/` directory for test cases.
 ///
 /// The expected input files for a test case are:
-///
-/// * [required] `wasm-compose.yml` - contains the composition configuration.
+/// * [required] `root.wat` - the root component being composed.
+/// * [optional] `config.yml` - contains the composition configuration.
 /// * [optional] `*.wat` - represents a component imported for the composition.
 ///
 /// And the output files are one of the following:
@@ -33,11 +33,19 @@ fn component_composing() -> Result<()> {
         }
 
         let test_case = path.file_stem().unwrap().to_str().unwrap();
-        let component_path = path.join("composed.wat");
+        let root_path = path.join("root.wat");
+        let output_path = path.join("composed.wat");
         let error_path = path.join("error.txt");
-
-        let config = Config::from_file(path.join("wasm-compose.yml"))?;
-        let composer = ComponentComposer::new(&config);
+        let config_path = path.join("config.yml");
+        let config = if config_path.is_file() {
+            Config::from_file(config_path)?
+        } else {
+            Config {
+                dir: path.clone(),
+                ..Default::default()
+            }
+        };
+        let composer = ComponentComposer::new(&root_path, &config);
 
         let r = composer.compose();
         let (output, baseline_path) = if error_path.is_file() {
@@ -74,7 +82,7 @@ fn component_composing() -> Result<()> {
                         test_case
                     )
                 })?,
-                &component_path,
+                &output_path,
             )
         };
 

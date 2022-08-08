@@ -86,9 +86,9 @@
     )
   )
   (type (func (param "x" string) (result string)))
-  (import "interface-0.1.0" (instance (type 30)))
+  (import "a" (instance (type 30)))
   (core module
-    (import "interface-0.1.0" "m" (func (param i32 i32)))
+    (import "a" "m" (func (param i32 i32)))
     (func $m (param i32 i32) (result i32) unreachable)
     (func $canonical_abi_realloc (param i32 i32 i32 i32) (result i32) unreachable)
     (memory 0)
@@ -280,7 +280,7 @@
     (export "r" (func 20))
   )
   (core instance (instantiate 0
-      (with "interface-0.1.0" (instance 1))
+      (with "a" (instance 1))
     )
   )
   (core alias export 2 "memory" (memory))
@@ -316,5 +316,6 @@
   )
   (core alias export 2 "m" (func))
   (func (type 31) (canon lift (core func 29) (memory 0) (realloc 21) string-encoding=utf8))
-  (export "m" (func 21))
+  (instance (export "m" (func 21)))
+  (export "x" (instance 1))
 )
