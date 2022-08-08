@@ -355,16 +355,13 @@ impl OperatorValidator {
     /// or block itself. The `kind` of block is specified which indicates how
     /// breaks interact with this block's type. Additionally the type signature
     /// of the block is specified by `ty`.
-    fn push_ctrl<T>(
+    fn push_ctrl(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         kind: FrameKind,
         ty: BlockType,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         // Push a new frame which has a snapshot of the height of the current
         // operand stack.
         self.stack.push_control(kind, ty, false);
@@ -380,10 +377,11 @@ impl OperatorValidator {
     ///
     /// This function is used when exiting a block and leaves a block scope.
     /// Internally this will validate that blocks have the correct result type.
-    fn pop_ctrl<T>(&mut self, offset: usize, resources: &T) -> OperatorValidatorResult<Frame>
-    where
-        T: WasmModuleResources,
-    {
+    fn pop_ctrl(
+        &mut self,
+        offset: usize,
+        resources: &impl WasmModuleResources,
+    ) -> OperatorValidatorResult<Frame> {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
         let frame = self.stack.last_control().unwrap();
@@ -425,15 +423,12 @@ impl OperatorValidator {
 
     /// Validates that `memory_index` is valid in this module, and returns the
     /// type of address used to index the memory specified.
-    fn check_memory_index<T>(
+    fn check_memory_index(
         &self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memory_index: u32,
-    ) -> OperatorValidatorResult<ValType>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<ValType> {
         if memory_index > 0 && !self.features.multi_memory {
             bail_op_err!(offset, "multi-memory support is not enabled");
         }
@@ -445,16 +440,13 @@ impl OperatorValidator {
 
     /// Validates a `memarg for alignment and such (also the memory it
     /// references), and returns the type of index used to address the memory.
-    fn check_memarg<T>(
+    fn check_memarg(
         &self,
         memarg: MemoryImmediate,
         max_align: u8,
         offset: usize,
-        resources: &T,
-    ) -> OperatorValidatorResult<ValType>
-    where
-        T: WasmModuleResources,
-    {
+        resources: &impl WasmModuleResources,
+    ) -> OperatorValidatorResult<ValType> {
         let index_ty = self.check_memory_index(offset, resources, memarg.memory)?;
         let align = memarg.align;
         if align > max_align {
@@ -538,15 +530,12 @@ impl OperatorValidator {
         Ok(())
     }
 
-    fn check_shared_memarg_wo_align<T>(
+    fn check_shared_memarg_wo_align(
         &self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memarg: MemoryImmediate,
-    ) -> OperatorValidatorResult<ValType>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<ValType> {
         self.check_memory_index(offset, resources, memarg.memory)
     }
 
@@ -563,15 +552,12 @@ impl OperatorValidator {
     }
 
     /// Validates a block type, primarily with various in-flight proposals.
-    fn check_block_type<T>(
+    fn check_block_type(
         &self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         ty: BlockType,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         match ty {
             BlockType::Empty
             | BlockType::Type(ValType::I32)
@@ -598,15 +584,12 @@ impl OperatorValidator {
 
     /// Validates a `call` instruction, ensuring that the function index is
     /// in-bounds and the right types are on the stack to call the function.
-    fn check_call<T>(
+    fn check_call(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         function_index: u32,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         let ty = match resources.type_of_function(function_index) {
             Some(i) => i,
             None => {
@@ -627,16 +610,13 @@ impl OperatorValidator {
     }
 
     /// Validates a call to an indirect function, very similar to `check_call`.
-    fn check_call_indirect<T>(
+    fn check_call_indirect(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         index: u32,
         table_index: u32,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         match resources.table_at(table_index) {
             None => {
                 bail_op_err!(offset, "unknown table: table index out of bounds");
@@ -660,10 +640,11 @@ impl OperatorValidator {
 
     /// Validates a `return` instruction, popping types from the operand
     /// stack that the function needs.
-    fn check_return<T>(&mut self, offset: usize, resources: &T) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    fn check_return(
+        &mut self,
+        offset: usize,
+        resources: &impl WasmModuleResources,
+    ) -> OperatorValidatorResult<()> {
         for ty in results(offset, self.stack.first_control().block_type, &resources)?.rev() {
             self.stack.pop_operand(offset, Some(ty))?;
         }
@@ -740,16 +721,13 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of an atomic load operator.
-    fn check_atomic_load<T>(
+    fn check_atomic_load(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memarg: MemoryImmediate,
         load_ty: ValType,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, &resources, memarg)?;
         self.stack.pop_operand(offset, Some(ty))?;
@@ -758,16 +736,13 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of an atomic store operator.
-    fn check_atomic_store<T>(
+    fn check_atomic_store(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memarg: MemoryImmediate,
         store_ty: ValType,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, &resources, memarg)?;
         self.stack.pop_operand(offset, Some(store_ty))?;
@@ -776,16 +751,13 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of a common atomic binary operator.
-    fn check_atomic_binary_op<T>(
+    fn check_atomic_binary_op(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memarg: MemoryImmediate,
         op_ty: ValType,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, &resources, memarg)?;
         self.stack.pop_operand(offset, Some(op_ty))?;
@@ -795,16 +767,13 @@ impl OperatorValidator {
     }
 
     /// Checks the validity of an atomic compare exchange operator.
-    fn check_atomic_binary_cmpxchg<T>(
+    fn check_atomic_binary_cmpxchg(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memarg: MemoryImmediate,
         op_ty: ValType,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, &resources, memarg)?;
         self.stack.pop_operand(offset, Some(op_ty))?;
@@ -896,15 +865,12 @@ impl OperatorValidator {
     }
 
     /// Checks a [`V128`] common load operator.
-    fn check_v128_load_op<T>(
+    fn check_v128_load_op(
         &mut self,
         offset: usize,
-        resources: &T,
+        resources: &impl WasmModuleResources,
         memarg: MemoryImmediate,
-    ) -> OperatorValidatorResult<()>
-    where
-        T: WasmModuleResources,
-    {
+    ) -> OperatorValidatorResult<()> {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset, resources)?;
         self.stack.pop_operand(offset, Some(idx))?;
