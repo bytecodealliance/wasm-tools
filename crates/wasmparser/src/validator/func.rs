@@ -91,7 +91,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        self.validator.process_operator(operator, offset, &self.resources)
+        self.validator
+            .process_operator(operator, offset, &self.resources)
     }
 
     /// Function that must be called after the last opcode has been processed.

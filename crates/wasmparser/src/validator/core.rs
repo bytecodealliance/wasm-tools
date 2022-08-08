@@ -247,10 +247,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         let mut ops = expr.get_operators_reader();
-        let mut validator = OperatorValidator::new_const_expr(
-            features,
-            expected_ty,
-        );
+        let mut validator = OperatorValidator::new_const_expr(features, expected_ty);
         let mut uninserted_funcref = false;
 
         while !ops.eof() {
@@ -331,11 +328,7 @@ impl ModuleState {
                 module: &self.module,
                 types,
             };
-            validator.process_operator(
-                &op,
-                offset,
-                &resources,
-            )?;
+            validator.process_operator(&op, offset, &resources)?;
         }
 
         validator.finish(offset)?;
