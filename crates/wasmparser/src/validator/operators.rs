@@ -632,8 +632,14 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 bail_op_err!(offset, "unknown table: table index out of bounds");
             }
             Some(tab) => {
-                if tab.element_type != FUNC_REF {
-                    bail_op_err!(offset, "indirect calls must go through a table of funcref");
+                if !self
+                    .resources
+                    .matches(ValType::Ref(tab.element_type), ValType::Ref(FUNC_REF))
+                {
+                    bail_op_err!(
+                        offset,
+                        "indirect calls must go through a table with type <= funcref",
+                    );
                 }
             }
         }

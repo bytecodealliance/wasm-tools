@@ -56,8 +56,6 @@ impl<'a> FunctionBody<'a> {
         reader
     }
 
-    // This seems not future proof and bug-prone.  Why do we skip over stuff we
-    // likely already parsed anyway?
     fn skip_locals(reader: &mut BinaryReader) -> Result<()> {
         let count = reader.read_var_u32()?;
         for _ in 0..count {
