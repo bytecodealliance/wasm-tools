@@ -217,7 +217,7 @@ macro_rules! forward {
 
 #[allow(unused_variables)]
 #[rustfmt::skip]
-impl<T> VisitOperator<usize> for FuncValidator<T>
+impl<'a, T> VisitOperator<'a, usize> for FuncValidator<T>
 where
     T: WasmModuleResources,
 {

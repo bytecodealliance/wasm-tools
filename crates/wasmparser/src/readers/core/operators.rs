@@ -1087,9 +1087,9 @@ impl<'a> OperatorsReader<'a> {
     pub fn visit_with_offset<T>(
         &mut self,
         visitor: &mut T,
-    ) -> Result<<T as VisitOperator<usize>>::Output>
+    ) -> Result<<T as VisitOperator<'a, usize>>::Output>
     where
-        T: VisitOperator<usize>,
+        T: VisitOperator<'a, usize>,
     {
         self.reader.visit_operator(visitor)
     }
@@ -1190,9 +1190,9 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
 
 /// Trait implemented by types that can visit all [`Operator`] variants.
 #[allow(missing_docs)]
-pub trait VisitOperator<Input> {
+pub trait VisitOperator<'a, Input> {
     /// The result type of the visitor.
-    type Output;
+    type Output: 'a;
 
     /// Visits the [`Operator`] `op` using the given `input`.
     ///
@@ -1202,7 +1202,8 @@ pub trait VisitOperator<Input> {
     /// critical use cases. For performance critical implementations users
     /// are recommended to directly use the respective `visit` methods or
     /// implement [`VisitOperator`] on their own.
-    fn visit_operator(&mut self, input: Input, op: &Operator) -> Self::Output {
+    #[inline(always)]
+    fn visit_operator(&mut self, input: Input, op: &Operator<'a>) -> Self::Output {
         match *op {
             Operator::Unreachable => self.visit_unreachable(input),
             Operator::Nop => self.visit_nop(input),
@@ -1751,7 +1752,7 @@ pub trait VisitOperator<Input> {
     fn visit_end(&mut self, input: Input) -> Self::Output;
     fn visit_br(&mut self, input: Input, relative_depth: u32) -> Self::Output;
     fn visit_br_if(&mut self, input: Input, relative_depth: u32) -> Self::Output;
-    fn visit_br_table(&mut self, input: Input, table: &BrTable) -> Self::Output;
+    fn visit_br_table(&mut self, input: Input, table: &BrTable<'a>) -> Self::Output;
     fn visit_return(&mut self, input: Input) -> Self::Output;
     fn visit_call(&mut self, input: Input, function_index: u32) -> Self::Output;
     fn visit_return_call(&mut self, input: Input, function_index: u32) -> Self::Output;
