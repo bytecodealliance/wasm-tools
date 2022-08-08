@@ -522,7 +522,7 @@ impl OperatorValidator {
 
     fn check_relaxed_simd_enabled(&self, offset: usize) -> OperatorValidatorResult<()> {
         // Relaxed SIMD operators make sense only with SIMD and be non-deterministic.
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         if !self.features.relaxed_simd {
             bail_op_err!(offset, "Relaxed SIMD support is not enabled");
@@ -688,7 +688,7 @@ impl OperatorValidator {
     /// Checks the validity of a common float comparison operator.
     fn check_fcmp_op(&mut self, offset: usize, ty: ValType) -> OperatorValidatorResult<()> {
         debug_assert!(matches!(ty, ValType::F32 | ValType::F64));
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_cmp_op(offset, ty)
     }
 
@@ -702,7 +702,7 @@ impl OperatorValidator {
     /// Checks the validity of a common unary float operator.
     fn check_funary_op(&mut self, offset: usize, ty: ValType) -> OperatorValidatorResult<()> {
         debug_assert!(matches!(ty, ValType::F32 | ValType::F64));
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_unary_op(offset, ty)
     }
 
@@ -726,7 +726,7 @@ impl OperatorValidator {
         from: ValType,
     ) -> OperatorValidatorResult<()> {
         debug_assert!(matches!(into, ValType::F32 | ValType::F64));
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_conversion_op(offset, into, from)
     }
 
@@ -741,7 +741,7 @@ impl OperatorValidator {
     /// Checks the validity of a common binary float operator.
     fn check_fbinary_op(&mut self, offset: usize, ty: ValType) -> OperatorValidatorResult<()> {
         debug_assert!(matches!(ty, ValType::F32 | ValType::F64));
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_binary_op(offset, ty)
     }
 
@@ -839,7 +839,7 @@ impl OperatorValidator {
 
     /// Checks a [`V128`] binary float operator.
     fn check_v128_fbinary_op(&mut self, offset: usize) -> OperatorValidatorResult<()> {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_v128_binary_op(offset)
     }
 
@@ -862,7 +862,7 @@ impl OperatorValidator {
 
     /// Checks a [`V128`] binary operator.
     fn check_v128_funary_op(&mut self, offset: usize) -> OperatorValidatorResult<()> {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_v128_unary_op(offset)
     }
 
@@ -1409,7 +1409,7 @@ where
         (offset, resources): (usize, T),
         memarg: MemoryImmediate,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset, &resources)?;
         self.stack.pop_operand(offset, Some(ty))?;
         self.stack.push_operand(offset, ValType::F32)?;
@@ -1420,7 +1420,7 @@ where
         (offset, resources): (usize, T),
         memarg: MemoryImmediate,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 3, offset, &resources)?;
         self.stack.pop_operand(offset, Some(ty))?;
         self.stack.push_operand(offset, ValType::F64)?;
@@ -1516,7 +1516,7 @@ where
         (offset, resources): (usize, T),
         memarg: MemoryImmediate,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset, &resources)?;
         self.stack.pop_operand(offset, Some(ValType::F32))?;
         self.stack.pop_operand(offset, Some(ty))?;
@@ -1527,7 +1527,7 @@ where
         (offset, resources): (usize, T),
         memarg: MemoryImmediate,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 3, offset, &resources)?;
         self.stack.pop_operand(offset, Some(ValType::F64))?;
         self.stack.pop_operand(offset, Some(ty))?;
@@ -1619,12 +1619,12 @@ where
         Ok(())
     }
     fn visit_f32_const(&mut self, (offset, _): (usize, T), _value: Ieee32) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.stack.push_operand(offset, ValType::F32)?;
         Ok(())
     }
     fn visit_f64_const(&mut self, (offset, _): (usize, T), _value: Ieee64) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.stack.push_operand(offset, ValType::F64)?;
         Ok(())
     }
@@ -2618,11 +2618,11 @@ where
         self.check_v128_splat(offset, ValType::I64)
     }
     fn visit_f32x4_splat(&mut self, (offset, _resources): (usize, T)) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_v128_splat(offset, ValType::F32)
     }
     fn visit_f64x2_splat(&mut self, (offset, _resources): (usize, T)) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_v128_splat(offset, ValType::F64)
     }
     fn visit_i8x16_extract_lane_s(
@@ -2736,7 +2736,7 @@ where
         (offset, _resources): (usize, T),
         lane: SIMDLaneIndex,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.stack.pop_operand(offset, Some(ValType::V128))?;
@@ -2748,7 +2748,7 @@ where
         (offset, _resources): (usize, T),
         lane: SIMDLaneIndex,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.stack.pop_operand(offset, Some(ValType::F32))?;
@@ -2761,7 +2761,7 @@ where
         (offset, _resources): (usize, T),
         lane: SIMDLaneIndex,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.stack.pop_operand(offset, Some(ValType::V128))?;
@@ -2773,7 +2773,7 @@ where
         (offset, _resources): (usize, T),
         lane: SIMDLaneIndex,
     ) -> Self::Output {
-        self.check_non_deterministic_enabled()?;
+        self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.stack.pop_operand(offset, Some(ValType::F64))?;
