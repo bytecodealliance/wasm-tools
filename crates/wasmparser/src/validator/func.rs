@@ -44,7 +44,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// This returns the height of the whole operand stack for this function,
     /// not just for the current control frame.
     pub fn operand_stack_height(&self) -> u32 {
-        self.validator.len_operands() as u32
+        self.validator.operand_stack_height() as u32
     }
 
     /// Convenience function to validate an entire function's body.
