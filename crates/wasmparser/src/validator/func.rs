@@ -93,7 +93,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
         self.validator
             .with_resources(&self.resources)
-            .visit_operator((offset, &self.resources), operator)
+            .visit_operator(offset, operator)
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -213,7 +213,7 @@ use crate::{
 
 macro_rules! forward {
     ( $this:ident.$visit_fn:ident($offset:expr $(, $param:expr)*) $(,)? ) => {{
-        $this.validator.with_resources(&$this.resources).$visit_fn(($offset, &$this.resources), $( $param ),*)
+        $this.validator.with_resources(&$this.resources).$visit_fn($offset, $( $param ),*)
     }};
 }
 
