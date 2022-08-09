@@ -140,7 +140,7 @@ impl Peek for WastVal<'_> {
             Some((kw, _)) => kw,
             None => return false,
         };
-        CASES.iter().find(|(name, _)| *name == kw).is_some()
+        CASES.iter().any(|(name, _)| *name == kw)
     }
 
     fn display() -> &'static str {
