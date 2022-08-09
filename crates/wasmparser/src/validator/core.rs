@@ -328,7 +328,9 @@ impl ModuleState {
                 module: &self.module,
                 types,
             };
-            validator.with_resources(&resources).visit_operator(offset, &op)?;
+            validator
+                .with_resources(&resources)
+                .visit_operator(offset, &op)?;
         }
 
         validator.finish(offset)?;

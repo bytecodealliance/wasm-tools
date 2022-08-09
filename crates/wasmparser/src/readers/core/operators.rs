@@ -1943,11 +1943,14 @@ pub trait VisitOperator<'a> {
     fn visit_i64_extend16_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_extend32_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i32_atomic_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_load16_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i32_atomic_load16_u(&mut self, offset: usize, memarg: MemoryImmediate)
+        -> Self::Output;
     fn visit_i32_atomic_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i64_atomic_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_load32_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_load16_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i64_atomic_load32_u(&mut self, offset: usize, memarg: MemoryImmediate)
+        -> Self::Output;
+    fn visit_i64_atomic_load16_u(&mut self, offset: usize, memarg: MemoryImmediate)
+        -> Self::Output;
     fn visit_i64_atomic_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i32_atomic_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
     fn visit_i32_atomic_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
@@ -2001,8 +2004,11 @@ pub trait VisitOperator<'a> {
         offset: usize,
         memarg: MemoryImmediate,
     ) -> Self::Output;
-    fn visit_i32_atomic_rmw8_or_u(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
+    fn visit_i32_atomic_rmw8_or_u(
+        &mut self,
+        offset: usize,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
     fn visit_i32_atomic_rmw8_xor_u(
         &mut self,
         offset: usize,
@@ -2078,14 +2084,18 @@ pub trait VisitOperator<'a> {
         offset: usize,
         memarg: MemoryImmediate,
     ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_or_u(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
+    fn visit_i64_atomic_rmw8_or_u(
+        &mut self,
+        offset: usize,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
     fn visit_i64_atomic_rmw8_xor_u(
         &mut self,
         offset: usize,
         memarg: MemoryImmediate,
     ) -> Self::Output;
-    fn visit_i32_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i32_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemoryImmediate)
+        -> Self::Output;
     fn visit_i32_atomic_rmw16_xchg_u(
         &mut self,
         offset: usize,
@@ -2111,7 +2121,8 @@ pub trait VisitOperator<'a> {
         offset: usize,
         memarg: MemoryImmediate,
     ) -> Self::Output;
-    fn visit_i64_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i64_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemoryImmediate)
+        -> Self::Output;
     fn visit_i64_atomic_rmw32_xchg_u(
         &mut self,
         offset: usize,
@@ -2147,12 +2158,21 @@ pub trait VisitOperator<'a> {
         offset: usize,
         memarg: MemoryImmediate,
     ) -> Self::Output;
-    fn visit_memory_atomic_notify(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_memory_atomic_wait32(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_memory_atomic_wait64(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
+    fn visit_memory_atomic_notify(
+        &mut self,
+        offset: usize,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_memory_atomic_wait32(
+        &mut self,
+        offset: usize,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
+    fn visit_memory_atomic_wait64(
+        &mut self,
+        offset: usize,
+        memarg: MemoryImmediate,
+    ) -> Self::Output;
     fn visit_atomic_fence(&mut self, offset: usize, flags: u8) -> Self::Output;
     fn visit_ref_null(&mut self, offset: usize, ty: ValType) -> Self::Output;
     fn visit_ref_is_null(&mut self, offset: usize) -> Self::Output;
