@@ -994,10 +994,17 @@ impl<'a> BinaryReader<'a> {
     ///
     /// If `BinaryReader` has no bytes remaining.
     pub fn read_u8(&mut self) -> Result<u8> {
-        self.ensure_has_byte()?;
-        let b = self.buffer[self.position];
+        let b = match self.buffer.get(self.position) {
+            Some(b) => *b,
+            None => return Err(self.eof_err()),
+        };
         self.position += 1;
         Ok(b)
+    }
+
+    #[cold]
+    fn eof_err(&self) -> BinaryReaderError {
+        BinaryReaderError::eof(self.original_position(), 1)
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
