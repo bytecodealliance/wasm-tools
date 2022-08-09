@@ -1030,7 +1030,7 @@ fn ty_to_str(ty: ValType) -> &'static str {
     }
 }
 
-impl<'a, 'b, T> VisitOperator<'a, usize> for OperatorValidatorTemp<'b, T>
+impl<'a, 'b, T> VisitOperator<'a> for OperatorValidatorTemp<'b, T>
 where
     T: WasmModuleResources,
 {

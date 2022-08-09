@@ -1346,9 +1346,9 @@ impl<'a> BinaryReader<'a> {
     /// If `BinaryReader` has less bytes remaining than required to parse
     /// the `Operator`.
     #[rustfmt::skip]
-    pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a, usize>>::Output>
+    pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
-        T: VisitOperator<'a, usize>,
+        T: VisitOperator<'a>,
     {
         let pos = self.original_position();
         let code = self.read_u8()? as u8;
@@ -1584,9 +1584,9 @@ impl<'a> BinaryReader<'a> {
     }
 
     #[rustfmt::skip]
-    fn visit_0xfc_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a, usize>>::Output>
+    fn visit_0xfc_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
-        T: VisitOperator<'a, usize>,
+        T: VisitOperator<'a>,
     {
         let pos = self.original_position();
         let code = self.read_var_u32()?;
@@ -1657,9 +1657,9 @@ impl<'a> BinaryReader<'a> {
     }
 
     #[rustfmt::skip]
-    fn visit_0xfd_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a, usize>>::Output>
+    fn visit_0xfd_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
-        T: VisitOperator<'a, usize>,
+        T: VisitOperator<'a>,
     {
         let pos = self.original_position();
         let code = self.read_var_u32()?;
@@ -1975,9 +1975,9 @@ impl<'a> BinaryReader<'a> {
     fn visit_0xfe_operator<T>(
         &mut self,
         visitor: &mut T,
-    ) -> Result<<T as VisitOperator<'a, usize>>::Output>
+    ) -> Result<<T as VisitOperator<'a>>::Output>
     where
-        T: VisitOperator<'a, usize>,
+        T: VisitOperator<'a>,
     {
         let pos = self.original_position();
         let code = self.read_var_u32()?;
@@ -2274,7 +2274,7 @@ impl<'a> OperatorFactory<'a> {
 }
 
 #[rustfmt::skip]
-impl<'a> VisitOperator<'a, usize> for OperatorFactory<'a> {
+impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
     type Output = Operator<'a>;
 
     fn visit_nop(&mut self, _offset: usize) -> Self::Output { Operator::Nop }
