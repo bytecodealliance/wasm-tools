@@ -114,7 +114,6 @@ impl Default for LoweringInfo {
 
 fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredTypes) -> bool {
     match ty {
-        PrimitiveValType::Unit => true,
         PrimitiveValType::Bool
         | PrimitiveValType::S8
         | PrimitiveValType::U8
@@ -322,7 +321,7 @@ impl ComponentValType {
 
     pub(crate) fn type_size(&self) -> usize {
         match self {
-            Self::Primitive(ty) => ty.type_size(),
+            Self::Primitive(_) => 1,
             Self::Type(id) => id.type_size,
         }
     }
@@ -681,7 +680,7 @@ impl ComponentInstanceType {
         }
     }
 
-    /// Determines if this component instance type is a subtype of the given one.
+    /// Determines if component instance type `a` is a subtype of `b`.
     pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
         Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
@@ -708,47 +707,65 @@ pub struct ComponentFuncType {
     pub(crate) type_size: usize,
     /// The function parameters.
     pub params: Box<[(Option<String>, ComponentValType)]>,
-    /// The function's result type.
-    pub result: ComponentValType,
+    /// The function's results.
+    pub results: Box<[(Option<String>, ComponentValType)]>,
 }
 
 impl ComponentFuncType {
-    /// Determines if this component function type is a subtype of the given one.
+    /// Determines if component function type `a` is a subtype of `b`.
     pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
         Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
     pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         // Subtyping rules:
-        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
+        // https://github.com/WebAssembly/component-model/blob/main/design/mvp/Subtyping.md
 
-        // Covariant on return type
-        if !ComponentValType::internal_is_subtype_of(&a.result, at, &b.result, bt) {
-            return false;
-        }
-
-        // The supertype cannot have fewer parameters than the subtype.
+        // The subtype cannot have more parameters than the supertype
         if b.params.len() < a.params.len() {
             return false;
         }
 
-        // All overlapping parameters must have the same name and are contravariant subtypes
+        // The supertype cannot have more results than the subtype
+        if a.results.len() < b.results.len() {
+            return false;
+        }
+
         for ((an, a), (bn, b)) in a.params.iter().zip(b.params.iter()) {
+            // All overlapping parameters must have the same name
             if an != bn {
                 return false;
             }
 
+            // Contravariant on parameters
             if !ComponentValType::internal_is_subtype_of(b, bt, a, at) {
                 return false;
             }
         }
 
         // All remaining parameters in the supertype must be optional
-        // All superfluous parameters in the subtype are ignored
-        b.params
+        if !b
+            .params
             .iter()
             .skip(a.params.len())
             .all(|(_, b)| b.is_optional(bt))
+        {
+            return false;
+        }
+
+        for ((an, a), (bn, b)) in a.results.iter().zip(b.results.iter()) {
+            // All overlapping results must have the same name
+            if an != bn {
+                return false;
+            }
+
+            // Covariant on results
+            if !ComponentValType::internal_is_subtype_of(a, at, b, bt) {
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Lowers the component function type to core parameter and result types for the
@@ -759,8 +776,8 @@ impl ComponentFuncType {
         for (_, ty) in self.params.iter() {
             // When `import` is false, it means we're lifting a core function,
             // check if the parameters needs realloc
-            if !import {
-                info.requires_realloc = info.requires_realloc || ty.requires_realloc(types);
+            if !import && !info.requires_realloc {
+                info.requires_realloc = ty.requires_realloc(types);
             }
 
             if !ty.push_wasm_types(types, &mut info.params) {
@@ -779,23 +796,26 @@ impl ComponentFuncType {
             }
         }
 
-        // When `import` is true, it means we're lowering a component function,
-        // check if the result needs realloc
-        if import {
-            info.requires_realloc = info.requires_realloc || self.result.requires_realloc(types);
-        }
-
-        if !self.result.push_wasm_types(types, &mut info.results) {
-            // Too many results to return directly, either a retptr parameter will be used (import)
-            // or a single pointer will be returned (export)
-            info.results.clear();
-            if import {
-                info.params.max = MAX_LOWERED_TYPES;
-                assert!(info.params.push(ValType::I32));
-            } else {
-                assert!(info.results.push(ValType::I32));
+        for (_, ty) in self.results.iter() {
+            // When `import` is true, it means we're lowering a component function,
+            // check if the result needs realloc
+            if import && !info.requires_realloc {
+                info.requires_realloc = ty.requires_realloc(types);
             }
-            info.requires_memory = true;
+
+            if !ty.push_wasm_types(types, &mut info.results) {
+                // Too many results to return directly, either a retptr parameter will be used (import)
+                // or a single pointer will be returned (export)
+                info.results.clear();
+                if import {
+                    info.params.max = MAX_LOWERED_TYPES;
+                    assert!(info.params.push(ValType::I32));
+                } else {
+                    assert!(info.results.push(ValType::I32));
+                }
+                info.requires_memory = true;
+                break;
+            }
         }
 
         // Memory is always required when realloc is required
@@ -809,7 +829,7 @@ impl ComponentFuncType {
 #[derive(Debug, Clone)]
 pub struct VariantCase {
     /// The variant case type.
-    pub ty: ComponentValType,
+    pub ty: Option<ComponentValType>,
     /// The name of the variant case refined by this one.
     pub refines: Option<String>,
 }
@@ -871,8 +891,13 @@ pub enum ComponentDefinedType {
     Union(UnionType),
     /// The type is an `option`.
     Option(ComponentValType),
-    /// The type is an `expected`.
-    Expected(ComponentValType, ComponentValType),
+    /// The type is a `result`.
+    Result {
+        /// The `ok` type.
+        ok: Option<ComponentValType>,
+        /// The `error` type.
+        err: Option<ComponentValType>,
+    },
 }
 
 impl ComponentDefinedType {
@@ -880,26 +905,31 @@ impl ComponentDefinedType {
         match self {
             Self::Primitive(ty) => ty.requires_realloc(),
             Self::Record(r) => r.fields.values().any(|ty| ty.requires_realloc(types)),
-            Self::Variant(v) => v.cases.values().any(|case| case.ty.requires_realloc(types)),
+            Self::Variant(v) => v.cases.values().any(|case| {
+                case.ty
+                    .map(|ty| ty.requires_realloc(types))
+                    .unwrap_or(false)
+            }),
             Self::List(_) => true,
             Self::Tuple(t) => t.types.iter().any(|ty| ty.requires_realloc(types)),
             Self::Union(u) => u.types.iter().any(|ty| ty.requires_realloc(types)),
             Self::Flags(_) | Self::Enum(_) => false,
             Self::Option(ty) => ty.requires_realloc(types),
-            Self::Expected(ok, error) => {
-                ok.requires_realloc(types) || error.requires_realloc(types)
+            Self::Result { ok, err } => {
+                ok.map(|ty| ty.requires_realloc(types)).unwrap_or(false)
+                    || err.map(|ty| ty.requires_realloc(types)).unwrap_or(false)
             }
         }
     }
 
-    /// Determines if this component defined type is a subtype of the given one.
+    /// Determines if component defined type `a` is a subtype of `b`.
     pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
         Self::internal_is_subtype_of(a, at.list, b, bt.list)
     }
 
     pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
         // Subtyping rules according to
-        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
+        // https://github.com/WebAssembly/component-model/blob/main/design/mvp/Subtyping.md
         match (a, b) {
             (Self::Primitive(a), Self::Primitive(b)) => PrimitiveValType::is_subtype_of(*a, *b),
             (Self::Record(a), Self::Record(b)) => {
@@ -924,12 +954,12 @@ impl ComponentDefinedType {
                 for (name, a) in a.cases.iter() {
                     if let Some(b) = b.cases.get(name) {
                         // Covariant subtype on the case type
-                        if !ComponentValType::internal_is_subtype_of(&a.ty, at, &b.ty, bt) {
+                        if !Self::is_optional_subtype_of(a.ty, at, b.ty, bt) {
                             return false;
                         }
                     } else if let Some(refines) = &a.refines {
                         if !b.cases.contains_key(refines) {
-                            // The refined value is not in the supertype
+                            // The refinement case is not in the supertype
                             return false;
                         }
                     } else {
@@ -962,9 +992,9 @@ impl ComponentDefinedType {
                     .all(|(a, b)| ComponentValType::internal_is_subtype_of(a, at, b, bt))
             }
             (Self::Flags(a), Self::Flags(b)) | (Self::Enum(a), Self::Enum(b)) => a.is_subset(b),
-            (Self::Expected(ao, ae), Self::Expected(bo, be)) => {
-                ComponentValType::internal_is_subtype_of(ao, at, bo, bt)
-                    && ComponentValType::internal_is_subtype_of(ae, at, be, bt)
+            (Self::Result { ok: ao, err: ae }, Self::Result { ok: bo, err: be }) => {
+                Self::is_optional_subtype_of(*ao, at, *bo, bt)
+                    && Self::is_optional_subtype_of(*ae, at, *be, bt)
             }
             _ => false,
         }
@@ -972,17 +1002,31 @@ impl ComponentDefinedType {
 
     pub(crate) fn type_size(&self) -> usize {
         match self {
-            Self::Primitive(ty) => ty.type_size(),
+            Self::Primitive(_) => 1,
             Self::Flags(_) | Self::Enum(_) => 1,
             Self::Record(r) => r.type_size,
             Self::Variant(v) => v.type_size,
             Self::Tuple(t) => t.type_size,
             Self::Union(u) => u.type_size,
             Self::List(ty) | Self::Option(ty) => ty.type_size(),
-            Self::Expected(ok, error) => ok.type_size() + error.type_size(),
+            Self::Result { ok, err } => {
+                ok.map(|ty| ty.type_size()).unwrap_or(1) + err.map(|ty| ty.type_size()).unwrap_or(1)
+            }
         }
     }
 
+    fn is_optional_subtype_of(
+        a: Option<ComponentValType>,
+        at: &TypeList,
+        b: Option<ComponentValType>,
+        bt: &TypeList,
+    ) -> bool {
+        match (a, b) {
+            (None, None) | (Some(_), None) => true,
+            (None, Some(_)) => false,
+            (Some(a), Some(b)) => ComponentValType::internal_is_subtype_of(&a, at, &b, bt),
+        }
+    }
     fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
         match self {
             Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
@@ -991,7 +1035,7 @@ impl ComponentDefinedType {
                 .iter()
                 .all(|(_, ty)| ty.push_wasm_types(types, lowered_types)),
             Self::Variant(v) => Self::push_variant_wasm_types(
-                v.cases.iter().map(|(_, case)| &case.ty),
+                v.cases.iter().filter_map(|(_, case)| case.ty.as_ref()),
                 types,
                 lowered_types,
             ),
@@ -1008,24 +1052,19 @@ impl ComponentDefinedType {
             Self::Option(ty) => {
                 Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
             }
-            Self::Expected(ok, error) => {
-                Self::push_variant_wasm_types([ok, error].into_iter(), types, lowered_types)
+            Self::Result { ok, err } => {
+                Self::push_variant_wasm_types(ok.iter().chain(err.iter()), types, lowered_types)
             }
         }
     }
 
     fn push_variant_wasm_types<'a>(
-        cases: impl ExactSizeIterator<Item = &'a ComponentValType>,
+        cases: impl Iterator<Item = &'a ComponentValType>,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
-        let pushed = if cases.len() <= u32::max_value() as usize {
-            lowered_types.push(ValType::I32)
-        } else {
-            lowered_types.push(ValType::I64)
-        };
-
-        if !pushed {
+        // Push the discriminant
+        if !lowered_types.push(ValType::I32) {
             return false;
         }
 

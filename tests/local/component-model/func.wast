@@ -5,6 +5,20 @@
 
 (assert_invalid
   (component
+    (type (func (param "foo" string) (param "foo" u32)))
+  )
+  "duplicate parameter name"
+)
+
+(assert_invalid
+  (component
+    (type (func (result "foo" string) (result "foo" u32)))
+  )
+  "duplicate result name"
+)
+
+(assert_invalid
+  (component
       (core module $m
           (memory (export "memory") 1)
           (func (export "foo") (result i32) unreachable)
