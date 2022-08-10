@@ -44,19 +44,7 @@ macro_rules! bail_op_err {
 }
 
 pub(crate) struct OperatorValidator {
-    // The total number of locals that this function contains
-    num_locals: u32,
-    // This is a "compressed" list of locals for this function. The list of
-    // locals are represented as a list of tuples. The second element is the
-    // type of the local, and the first element is monotonically increasing as
-    // you visit elements of this list. The first element is the maximum index
-    // of the local, after the previous index, of the type specified.
-    //
-    // This allows us to do a binary search on the list for a local's index for
-    // `local.{get,set,tee}`. We do a binary search for the index desired, and
-    // it either lies in a "hole" where the maximum index is specified later,
-    // or it's at the end of the list meaning it's out of bounds.
-    locals: Vec<(u32, ValType)>,
+    locals: Locals,
 
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
@@ -69,6 +57,34 @@ pub(crate) struct OperatorValidator {
     control: Vec<Frame>,
     /// The `operands` is the current type stack.
     operands: Vec<Option<ValType>>,
+}
+
+// No science was performed in the creation of this number, feel free to change
+// it if you so like.
+const MAX_LOCALS_TO_TRACK: usize = 50;
+
+#[derive(Default)]
+struct Locals {
+    // Total number of locals in the function.
+    num_locals: u32,
+
+    // The first MAX_LOCALS_TO_TRACK locals in a function. This is used to
+    // optimize the theoretically common case where most functions don't have
+    // many locals and don't need a full binary search in the entire local space
+    // below.
+    first: Vec<ValType>,
+
+    // This is a "compressed" list of locals for this function. The list of
+    // locals are represented as a list of tuples. The second element is the
+    // type of the local, and the first element is monotonically increasing as
+    // you visit elements of this list. The first element is the maximum index
+    // of the local, after the previous index, of the type specified.
+    //
+    // This allows us to do a binary search on the list for a local's index for
+    // `local.{get,set,tee}`. We do a binary search for the index desired, and
+    // it either lies in a "hole" where the maximum index is specified later,
+    // or it's at the end of the list meaning it's out of bounds.
+    all: Vec<(u32, ValType)>,
 }
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
@@ -117,8 +133,7 @@ impl OperatorValidator {
         T: WasmModuleResources,
     {
         let mut ret = OperatorValidator {
-            num_locals: 0,
-            locals: Vec::new(),
+            locals: Locals::default(),
             features: *features,
             br_table_tmp: Vec::new(),
             operands: Vec::new(),
@@ -129,17 +144,15 @@ impl OperatorValidator {
                 unreachable: false,
             }],
         };
-        let locals = OperatorValidatorTemp {
+        let params = OperatorValidatorTemp {
             inner: &mut ret,
             resources,
         }
         .func_type_at(ty, offset)?
-        .inputs()
-        .enumerate()
-        .map(|(i, ty)| (i as u32, ty))
-        .collect::<Vec<_>>();
-        ret.num_locals = locals.len() as u32;
-        ret.locals = locals;
+        .inputs();
+        for ty in params {
+            ret.locals.define(1, ty);
+        }
         Ok(ret)
     }
 
@@ -148,8 +161,7 @@ impl OperatorValidator {
     /// specified.
     pub fn new_const_expr(features: &WasmFeatures, ty: ValType) -> Self {
         OperatorValidator {
-            num_locals: 0,
-            locals: Vec::new(),
+            locals: Locals::default(),
             features: *features,
             br_table_tmp: Vec::new(),
             operands: Vec::new(),
@@ -169,17 +181,12 @@ impl OperatorValidator {
         if count == 0 {
             return Ok(());
         }
-        match self.num_locals.checked_add(count) {
-            Some(n) => self.num_locals = n,
-            None => return Err(BinaryReaderError::new("locals overflow", offset)),
-        }
-        if self.num_locals > (MAX_WASM_FUNCTION_LOCALS as u32) {
+        if !self.locals.define(count, ty) {
             return Err(BinaryReaderError::new(
                 "too many locals: locals exceed maximum",
                 offset,
             ));
         }
-        self.locals.push((self.num_locals - 1, ty));
         Ok(())
     }
 
@@ -299,22 +306,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Fetches the type for the local at `idx`, returning an error if it's out
     /// of bounds.
     fn local(&self, offset: usize, idx: u32) -> Result<ValType> {
-        match self
-            .inner
-            .locals
-            .binary_search_by_key(&idx, |(idx, _)| *idx)
-        {
-            // If this index would be inserted at the end of the list, then the
-            // index is out of bounds and we return an error.
-            Err(i) if i == self.locals.len() => {
-                bail_op_err!(offset, "unknown local {}: local index out of bounds", idx)
-            }
-            // If `Ok` is returned we found the index exactly, or if `Err` is
-            // returned the position is the one which is the least index
-            // greater that `idx`, which is still the type of `idx` according
-            // to our "compressed" representation. In both cases we access the
-            // list at index `i`.
-            Ok(i) | Err(i) => Ok(self.locals[i].1),
+        match self.locals.get(idx) {
+            Some(ty) => Ok(ty),
+            None => bail_op_err!(offset, "unknown local {}: local index out of bounds", idx),
         }
     }
 
@@ -3340,3 +3334,40 @@ where
 
 trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator {}
 impl<T: ExactSizeIterator + DoubleEndedIterator> PreciseIterator for T {}
+
+impl Locals {
+    fn define(&mut self, count: u32, ty: ValType) -> bool {
+        match self.num_locals.checked_add(count) {
+            Some(n) => self.num_locals = n,
+            None => return false,
+        }
+        if self.num_locals > (MAX_WASM_FUNCTION_LOCALS as u32) {
+            return false;
+        }
+        for _ in 0..count {
+            if self.first.len() >= MAX_LOCALS_TO_TRACK {
+                break;
+            }
+            self.first.push(ty);
+        }
+        self.all.push((self.num_locals - 1, ty));
+        true
+    }
+
+    fn get(&self, idx: u32) -> Option<ValType> {
+        self.first.get(idx as usize).copied().or_else(|| {
+            match self.all.binary_search_by_key(&idx, |(idx, _)| *idx) {
+                // If this index would be inserted at the end of the list, then the
+                // index is out of bounds and we return an error.
+                Err(i) if i == self.all.len() => None,
+
+                // If `Ok` is returned we found the index exactly, or if `Err` is
+                // returned the position is the one which is the least index
+                // greater that `idx`, which is still the type of `idx` according
+                // to our "compressed" representation. In both cases we access the
+                // list at index `i`.
+                Ok(i) | Err(i) => Some(self.all[i].1),
+            }
+        })
+    }
+}
