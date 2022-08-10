@@ -173,15 +173,13 @@ impl ModuleState {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
+        // the `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here
+        if e.ty != ValType::FuncRef {
+            check_value_type(e.ty, features, offset)?;
+        }
         match e.ty {
-            ValType::FuncRef => {}
-            ValType::ExternRef if features.reference_types => {}
-            ValType::ExternRef => {
-                return Err(BinaryReaderError::new(
-                    "reference types must be enabled for externref elem segment",
-                    offset,
-                ))
-            }
+            ValType::FuncRef | ValType::ExternRef => {}
             _ => return Err(BinaryReaderError::new("malformed reference type", offset)),
         }
         match e.kind {
@@ -589,13 +587,14 @@ impl Module {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<()> {
+        // the `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here
+        if ty.element_type != ValType::FuncRef {
+            check_value_type(ty.element_type, features, offset)?;
+        }
+
         match ty.element_type {
-            ValType::FuncRef => {}
-            ValType::ExternRef => {
-                if !features.reference_types {
-                    return Err(BinaryReaderError::new("element is not anyfunc", offset));
-                }
-            }
+            ValType::FuncRef | ValType::ExternRef => {}
             _ => {
                 return Err(BinaryReaderError::new(
                     "element is not reference type",
