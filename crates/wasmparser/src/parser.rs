@@ -295,7 +295,7 @@ impl Parser {
         Parser {
             state: State::Header,
             offset,
-            max_size: u64::max_value(),
+            max_size: u64::MAX,
             // Assume the encoding is a module until we know otherwise
             encoding: Encoding::Module,
         }

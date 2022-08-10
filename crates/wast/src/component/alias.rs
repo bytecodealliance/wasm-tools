@@ -58,7 +58,7 @@ impl<'a> CoreAlias<'a> {
 impl<'a> Parse<'a> for CoreAlias<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::core>()?.0;
-        parser.parse::<kw::alias>()?.0;
+        parser.parse::<kw::alias>()?;
 
         let mut l = parser.lookahead1();
 

@@ -163,10 +163,29 @@ impl Type {
                 ty.encode(enc.defined_type());
             }
             Self::Func(func_ty) => {
-                enc.function(
-                    func_ty.params.iter().map(translate_optional_named_type),
-                    func_ty.result,
-                );
+                let mut f = enc.function();
+
+                if let Some(ty) = func_ty.unnamed_param_ty() {
+                    f.param(ty);
+                } else {
+                    f.params(
+                        func_ty
+                            .params
+                            .iter()
+                            .map(|(name, ty)| (name.as_deref().unwrap(), *ty)),
+                    );
+                }
+
+                if let Some(ty) = func_ty.unnamed_result_ty() {
+                    f.result(ty);
+                } else {
+                    f.results(
+                        func_ty
+                            .results
+                            .iter()
+                            .map(|(name, ty)| (name.as_deref().unwrap(), *ty)),
+                    );
+                }
             }
             Self::Component(comp_ty) => {
                 let mut enc_comp_ty = wasm_encoder::ComponentType::new();
@@ -244,13 +263,13 @@ impl DefinedType {
         match self {
             Self::Primitive(ty) => enc.primitive(*ty),
             Self::Record(ty) => {
-                enc.record(ty.fields.iter().map(translate_named_type));
+                enc.record(ty.fields.iter().map(|(name, ty)| (name.as_str(), *ty)));
             }
             Self::Variant(ty) => {
                 enc.variant(
                     ty.cases
                         .iter()
-                        .map(|(ty, refines)| (ty.name.as_str(), ty.ty, *refines)),
+                        .map(|(name, ty, refines)| (name.as_str(), *ty, *refines)),
                 );
             }
             Self::List(ty) => {
@@ -271,19 +290,11 @@ impl DefinedType {
             Self::Option(ty) => {
                 enc.option(ty.inner_ty);
             }
-            Self::Expected(ty) => {
-                enc.expected(ty.ok_ty, ty.err_ty);
+            Self::Result(ty) => {
+                enc.result(ty.ok_ty, ty.err_ty);
             }
         }
     }
-}
-
-fn translate_named_type(ty: &NamedType) -> (&str, ComponentValType) {
-    (&ty.name, ty.ty)
-}
-
-fn translate_optional_named_type(ty: &OptionalNamedType) -> (Option<&str>, ComponentValType) {
-    (ty.name.as_deref(), ty.ty)
 }
 
 fn translate_canon_opt(options: &[CanonOpt]) -> Vec<wasm_encoder::CanonicalOption> {

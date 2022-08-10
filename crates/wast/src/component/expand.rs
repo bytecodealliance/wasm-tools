@@ -356,7 +356,10 @@ impl<'a> Expander<'a> {
         for param in ty.params.iter_mut() {
             self.expand_component_val_ty(&mut param.ty);
         }
-        self.expand_component_val_ty(&mut ty.result);
+
+        for result in ty.results.iter_mut() {
+            self.expand_component_val_ty(&mut result.ty);
+        }
     }
 
     fn expand_module_ty(&mut self, ty: &mut ModuleType<'a>) {
@@ -485,7 +488,9 @@ impl<'a> Expander<'a> {
             }
             ComponentDefinedType::Variant(v) => {
                 for case in v.cases.iter_mut() {
-                    self.expand_component_val_ty(&mut case.ty);
+                    if let Some(ty) = &mut case.ty {
+                        self.expand_component_val_ty(ty);
+                    }
                 }
             }
             ComponentDefinedType::List(t) => {
@@ -504,9 +509,14 @@ impl<'a> Expander<'a> {
             ComponentDefinedType::Option(t) => {
                 self.expand_component_val_ty(&mut t.element);
             }
-            ComponentDefinedType::Expected(e) => {
-                self.expand_component_val_ty(&mut e.ok);
-                self.expand_component_val_ty(&mut e.err);
+            ComponentDefinedType::Result(r) => {
+                if let Some(ty) = &mut r.ok {
+                    self.expand_component_val_ty(ty);
+                }
+
+                if let Some(ty) = &mut r.err {
+                    self.expand_component_val_ty(ty);
+                }
             }
         }
     }
@@ -811,7 +821,5 @@ impl<'a> TypeKey<'a> for Todo {
         None
     }
 
-    fn insert(&self, cx: &mut Expander<'a>, index: Index<'a>) {
-        drop((cx, index));
-    }
+    fn insert(&self, _cx: &mut Expander<'a>, _index: Index<'a>) {}
 }

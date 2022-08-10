@@ -309,22 +309,12 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_component_type(&mut self) -> Result<ComponentType<'a>> {
         Ok(match self.read_u8()? {
-            0x40 => {
-                let params_size =
-                    self.read_size(MAX_WASM_FUNCTION_PARAMS, "function parameters")?;
-                let params = (0..params_size)
-                    .map(|_| {
-                        Ok((
-                            self.read_optional_string()?,
-                            self.read_component_val_type()?,
-                        ))
-                    })
-                    .collect::<Result<_>>()?;
-                ComponentType::Func(ComponentFuncType {
-                    params,
-                    result: self.read_component_val_type()?,
-                })
-            }
+            0x40 => ComponentType::Func(ComponentFuncType {
+                params: self
+                    .read_type_vec(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?,
+                results: self
+                    .read_type_vec(MAX_WASM_FUNCTION_RETURNS, "component function results")?,
+            }),
             0x41 => {
                 let size =
                     self.read_size(MAX_WASM_COMPONENT_TYPE_DECLS, "component type declaration")?;
@@ -350,6 +340,21 @@ impl<'a> BinaryReader<'a> {
                     ComponentType::Defined(self.read_component_defined_type(x)?)
                 }
             }
+        })
+    }
+
+    pub(crate) fn read_type_vec(&mut self, max: usize, desc: &str) -> Result<TypeVec<'a>> {
+        Ok(match self.read_u8()? {
+            0x00 => TypeVec::Unnamed(self.read_component_val_type()?),
+            0x01 => {
+                let size = self.read_size(max, desc)?;
+                TypeVec::Named(
+                    (0..size)
+                        .map(|_| Ok((self.read_string()?, self.read_component_val_type()?)))
+                        .collect::<Result<_>>()?,
+                )
+            }
+            x => return self.invalid_leading_byte(x, desc),
         })
     }
 
@@ -402,20 +407,19 @@ impl<'a> BinaryReader<'a> {
 
     fn primitive_val_type_from_byte(byte: u8) -> Option<PrimitiveValType> {
         Some(match byte {
-            0x7f => PrimitiveValType::Unit,
-            0x7e => PrimitiveValType::Bool,
-            0x7d => PrimitiveValType::S8,
-            0x7c => PrimitiveValType::U8,
-            0x7b => PrimitiveValType::S16,
-            0x7a => PrimitiveValType::U16,
-            0x79 => PrimitiveValType::S32,
-            0x78 => PrimitiveValType::U32,
-            0x77 => PrimitiveValType::S64,
-            0x76 => PrimitiveValType::U64,
-            0x75 => PrimitiveValType::Float32,
-            0x74 => PrimitiveValType::Float64,
-            0x73 => PrimitiveValType::Char,
-            0x72 => PrimitiveValType::String,
+            0x7f => PrimitiveValType::Bool,
+            0x7e => PrimitiveValType::S8,
+            0x7d => PrimitiveValType::U8,
+            0x7c => PrimitiveValType::S16,
+            0x7b => PrimitiveValType::U16,
+            0x7a => PrimitiveValType::S32,
+            0x79 => PrimitiveValType::U32,
+            0x78 => PrimitiveValType::S64,
+            0x77 => PrimitiveValType::U64,
+            0x76 => PrimitiveValType::Float32,
+            0x75 => PrimitiveValType::Float64,
+            0x74 => PrimitiveValType::Char,
+            0x73 => PrimitiveValType::String,
             _ => return None,
         })
     }
@@ -423,11 +427,11 @@ impl<'a> BinaryReader<'a> {
     fn read_variant_case(&mut self) -> Result<VariantCase<'a>> {
         Ok(VariantCase {
             name: self.read_string()?,
-            ty: self.read_component_val_type()?,
+            ty: self.read_optional_val_type()?,
             refines: match self.read_u8()? {
                 0x0 => None,
                 0x1 => Some(self.read_var_u32()?),
-                x => return self.invalid_leading_byte(x, "variant case default"),
+                x => return self.invalid_leading_byte(x, "variant case refines"),
             },
         })
     }
@@ -443,7 +447,7 @@ impl<'a> BinaryReader<'a> {
 
     fn read_component_defined_type(&mut self, byte: u8) -> Result<ComponentDefinedType<'a>> {
         Ok(match byte {
-            0x71 => {
+            0x72 => {
                 let size = self.read_size(MAX_WASM_RECORD_FIELDS, "record field")?;
                 ComponentDefinedType::Record(
                     (0..size)
@@ -451,7 +455,7 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x70 => {
+            0x71 => {
                 let size = self.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
                 ComponentDefinedType::Variant(
                     (0..size)
@@ -459,8 +463,8 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6f => ComponentDefinedType::List(self.read_component_val_type()?),
-            0x6e => {
+            0x70 => ComponentDefinedType::List(self.read_component_val_type()?),
+            0x6f => {
                 let size = self.read_size(MAX_WASM_TUPLE_TYPES, "tuple types")?;
                 ComponentDefinedType::Tuple(
                     (0..size)
@@ -468,7 +472,7 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6d => {
+            0x6e => {
                 let size = self.read_size(MAX_WASM_FLAG_NAMES, "flag names")?;
                 ComponentDefinedType::Flags(
                     (0..size)
@@ -476,7 +480,7 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6c => {
+            0x6d => {
                 let size = self.read_size(MAX_WASM_ENUM_CASES, "enum cases")?;
                 ComponentDefinedType::Enum(
                     (0..size)
@@ -484,7 +488,7 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6b => {
+            0x6c => {
                 let size = self.read_size(MAX_WASM_UNION_TYPES, "union types")?;
                 ComponentDefinedType::Union(
                     (0..size)
@@ -492,10 +496,10 @@ impl<'a> BinaryReader<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            0x6a => ComponentDefinedType::Option(self.read_component_val_type()?),
-            0x69 => ComponentDefinedType::Expected {
-                ok: self.read_component_val_type()?,
-                error: self.read_component_val_type()?,
+            0x6b => ComponentDefinedType::Option(self.read_component_val_type()?),
+            0x6a => ComponentDefinedType::Result {
+                ok: self.read_optional_val_type()?,
+                err: self.read_optional_val_type()?,
             },
             x => return self.invalid_leading_byte(x, "component defined type"),
         })
@@ -1261,14 +1265,11 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_optional_string(&mut self) -> Result<Option<&'a str>> {
+    fn read_optional_val_type(&mut self) -> Result<Option<ComponentValType>> {
         match self.read_u8()? {
             0x0 => Ok(None),
-            0x1 => Ok(Some(self.read_string()?)),
-            _ => Err(BinaryReaderError::new(
-                "invalid optional string encoding",
-                self.original_position() - 1,
-            )),
+            0x1 => Ok(Some(self.read_component_val_type()?)),
+            x => self.invalid_leading_byte(x, "optional component value type"),
         }
     }
 

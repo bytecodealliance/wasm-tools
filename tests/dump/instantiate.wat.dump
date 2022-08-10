@@ -6,13 +6,14 @@
   0xd | 0b 05       | component import section
   0xf | 01          | 1 count
  0x10 | 01 61 04 00 | [component 0] ComponentImport { name: "a", ty: Component(0) }
- 0x14 | 08 04       | component type section
+ 0x14 | 08 06       | component type section
  0x16 | 01          | 1 count
- 0x17 | 40 00 7f    | [type 1] Func(ComponentFuncType { params: [], result: Primitive(Unit) })
- 0x1a | 0b 05       | component import section
- 0x1c | 01          | 1 count
- 0x1d | 01 66 01 01 | [func 0] ComponentImport { name: "f", ty: Func(1) }
- 0x21 | 06 08       | component instance section
- 0x23 | 01          | 1 count
- 0x24 | 00 00 01 01 | [instance 0] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "a", kind: Func, index: 0 }] }
+ 0x17 | 40 01 00 01 | [type 1] Func(ComponentFuncType { params: Named([]), results: Named([]) })
+      | 00         
+ 0x1c | 0b 05       | component import section
+ 0x1e | 01          | 1 count
+ 0x1f | 01 66 01 01 | [func 0] ComponentImport { name: "f", ty: Func(1) }
+ 0x23 | 06 08       | component instance section
+ 0x25 | 01          | 1 count
+ 0x26 | 00 00 01 01 | [instance 0] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "a", kind: Func, index: 0 }] }
       | 61 01 00   

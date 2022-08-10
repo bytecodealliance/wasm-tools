@@ -430,7 +430,10 @@ impl<'a> Resolver<'a> {
                 let mut ns = Namespace::default();
                 for case in v.cases.iter_mut() {
                     let index = ns.register(case.id, "variant case")?;
-                    self.component_val_type(&mut case.ty)?;
+
+                    if let Some(ty) = &mut case.ty {
+                        self.component_val_type(ty)?;
+                    }
 
                     if let Some(refines) = &mut case.refines {
                         if let Refinement::Index(span, idx) = refines {
@@ -463,9 +466,14 @@ impl<'a> Resolver<'a> {
             ComponentDefinedType::Option(o) => {
                 self.component_val_type(&mut *o.element)?;
             }
-            ComponentDefinedType::Expected(r) => {
-                self.component_val_type(&mut *r.ok)?;
-                self.component_val_type(&mut *r.err)?;
+            ComponentDefinedType::Result(r) => {
+                if let Some(ty) = &mut r.ok {
+                    self.component_val_type(ty)?;
+                }
+
+                if let Some(ty) = &mut r.err {
+                    self.component_val_type(ty)?;
+                }
             }
         }
         Ok(())
@@ -500,7 +508,10 @@ impl<'a> Resolver<'a> {
                 for param in f.params.iter_mut() {
                     self.component_val_type(&mut param.ty)?;
                 }
-                self.component_val_type(&mut f.result)?;
+
+                for result in f.results.iter_mut() {
+                    self.component_val_type(&mut result.ty)?;
+                }
             }
             TypeDef::Component(c) => {
                 self.stack.push(ComponentState::new(field.id));

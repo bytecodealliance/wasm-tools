@@ -16,7 +16,7 @@
 
 (assert_invalid
   (component
-    (import "" (func $f (param string) (param string)))
+    (import "" (func $f (param "1" string) (param "2" string)))
     (import "v" (value $v string))
     (start $f (value $v) (value $v) (result))
   )
@@ -24,7 +24,7 @@
 
 (assert_invalid
   (component
-    (import "" (func $f (param string) (param string)))
+    (import "" (func $f (param "x" string) (param "y" string)))
     (import "v" (value $v string))
     (import "v2" (value $v2 u32))
     (start $f (value $v) (value $v2) (result))
@@ -32,7 +32,7 @@
   "type mismatch for component start function argument 1")
 
 (component
-  (import "" (func $f (param string) (param string)))
+  (import "" (func $f (param "z" string) (param "a" string)))
   (import "v" (value $v string))
   (import "v2" (value $v2 string))
   (start $f (value $v) (value $v2) (result))

@@ -2115,7 +2115,6 @@ impl Printer {
 
     fn print_primitive_val_type(&mut self, ty: &PrimitiveValType) {
         match ty {
-            PrimitiveValType::Unit => self.result.push_str("unit"),
             PrimitiveValType::Bool => self.result.push_str("bool"),
             PrimitiveValType::S8 => self.result.push_str("s8"),
             PrimitiveValType::U8 => self.result.push_str("u8"),
@@ -2156,8 +2155,11 @@ impl Printer {
             self.result.push(' ');
             self.start_group("case ");
             self.print_str(case.name)?;
-            self.result.push(' ');
-            self.print_component_val_type(state, &case.ty)?;
+
+            if let Some(ty) = case.ty {
+                self.result.push(' ');
+                self.print_component_val_type(state, &ty)?;
+            }
 
             if let Some(refines) = case.refines {
                 self.result.push(' ');
@@ -2211,17 +2213,28 @@ impl Printer {
         Ok(())
     }
 
-    fn print_expected_type(
+    fn print_result_type(
         &mut self,
         state: &State,
-        ok: &ComponentValType,
-        error: &ComponentValType,
+        ok: Option<ComponentValType>,
+        err: Option<ComponentValType>,
     ) -> Result<()> {
-        self.start_group("expected ");
-        self.print_component_val_type(state, ok)?;
-        self.result.push(' ');
-        self.print_component_val_type(state, error)?;
+        self.start_group("result");
+
+        if let Some(ok) = ok {
+            self.result.push(' ');
+            self.print_component_val_type(state, &ok)?;
+        }
+
+        if let Some(err) = err {
+            self.result.push(' ');
+            self.start_group("error ");
+            self.print_component_val_type(state, &err)?;
+            self.end_group();
+        }
+
         self.end_group();
+
         Ok(())
     }
 
@@ -2240,9 +2253,7 @@ impl Printer {
                 self.print_tuple_or_union_type("union", state, tys)?
             }
             ComponentDefinedType::Option(ty) => self.print_option_type(state, ty)?,
-            ComponentDefinedType::Expected { ok, error } => {
-                self.print_expected_type(state, ok, error)?
-            }
+            ComponentDefinedType::Result { ok, err } => self.print_result_type(state, *ok, *err)?,
         }
 
         Ok(())
@@ -2482,14 +2493,15 @@ impl Printer {
             self.end_group()
         }
 
-        if !matches!(
-            ty.result,
-            ComponentValType::Primitive(PrimitiveValType::Unit)
-        ) {
+        for (name, ty) in ty.results.iter() {
             self.result.push(' ');
             self.start_group("result ");
-            self.print_component_val_type(state, &ty.result)?;
-            self.end_group();
+            if let Some(name) = name {
+                self.print_str(name)?;
+                self.result.push(' ');
+            }
+            self.print_component_val_type(state, ty)?;
+            self.end_group()
         }
 
         self.end_group();
@@ -2913,6 +2925,10 @@ impl Printer {
             self.end_group();
         }
 
+        // TODO: print results; there's no easy way to do so with the current
+        // binary component encoding.
+        // See: https://github.com/WebAssembly/component-model/issues/84
+
         self.end_group(); // start
 
         Ok(())
@@ -2976,7 +2992,7 @@ impl Printer {
         Ok(())
     }
 
-    fn print_aliases(&mut self, states: &mut Vec<State>, parser: AliasSectionReader) -> Result<()> {
+    fn print_aliases(&mut self, states: &mut [State], parser: AliasSectionReader) -> Result<()> {
         for alias in parser {
             self.newline();
             self.print_alias(states, alias?, true)?;

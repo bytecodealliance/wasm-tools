@@ -1,57 +1,58 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 08 19       | component type section
+  0x8 | 08 1b       | component type section
   0xa | 01          | 1 count
-  0xb | 42 04 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: [], result: Primitive(Unit) })), Export { name: "f1", ty: Func(0) }, Type(Func(ComponentFuncType { params: [(None, Primitive(String))], result: Primitive(Unit) })), Export { name: "f2", ty: Func(1) }])
-      | 00 7f 04 02
-      | 66 31 01 00
-      | 01 40 01 00
-      | 72 7f 04 02
-      | 66 32 01 01
- 0x23 | 0b 05       | component import section
- 0x25 | 01          | 1 count
- 0x26 | 01 69 05 00 | [instance 0] ComponentImport { name: "i", ty: Instance(0) }
- 0x2a | 07 13       | component alias section
- 0x2c | 03          | 3 count
- 0x2d | 01 00 00 02 | alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "f1" }
+  0xb | 42 04 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: Named([]), results: Named([]) })), Export { name: "f1", ty: Func(0) }, Type(Func(ComponentFuncType { params: Unnamed(Primitive(String)), results: Named([]) })), Export { name: "f2", ty: Func(1) }])
+      | 01 00 01 00
+      | 04 02 66 31
+      | 01 00 01 40
+      | 00 73 01 00
+      | 04 02 66 32
+      | 01 01      
+ 0x25 | 0b 05       | component import section
+ 0x27 | 01          | 1 count
+ 0x28 | 01 69 05 00 | [instance 0] ComponentImport { name: "i", ty: Instance(0) }
+ 0x2c | 07 13       | component alias section
+ 0x2e | 03          | 3 count
+ 0x2f | 01 00 00 02 | alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "f1" }
       | 66 31      
- 0x33 | 01 00 00 02 | alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "f2" }
+ 0x35 | 01 00 00 02 | alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "f2" }
       | 66 32      
- 0x39 | 01 00 00 02 | alias [func 2] InstanceExport { kind: Func, instance_index: 0, name: "f1" }
+ 0x3b | 01 00 00 02 | alias [func 2] InstanceExport { kind: Func, instance_index: 0, name: "f1" }
       | 66 31      
- 0x3f | 09 05       | canonical function section
- 0x41 | 01          | 1 count
- 0x42 | 01 00 02 00 | [core func 0] Lower { func_index: 2, options: [] }
- 0x46 | 01 2b       | [core module 0] inline size
-   0x48 | 00 61 73 6d | version 1 (Module)
+ 0x41 | 09 05       | canonical function section
+ 0x43 | 01          | 1 count
+ 0x44 | 01 00 02 00 | [core func 0] Lower { func_index: 2, options: [] }
+ 0x48 | 01 2b       | [core module 0] inline size
+   0x4a | 00 61 73 6d | version 1 (Module)
         | 01 00 00 00
-   0x50 | 01 04       | type section
-   0x52 | 01          | 1 count
-   0x53 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
-   0x56 | 03 02       | func section
-   0x58 | 01          | 1 count
-   0x59 | 00          | [func 0] type 0
-   0x5a | 07 06       | export section
-   0x5c | 01          | 1 count
-   0x5d | 02 66 33 00 | export Export { name: "f3", kind: Func, index: 0 }
+   0x52 | 01 04       | type section
+   0x54 | 01          | 1 count
+   0x55 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x58 | 03 02       | func section
+   0x5a | 01          | 1 count
+   0x5b | 00          | [func 0] type 0
+   0x5c | 07 06       | export section
+   0x5e | 01          | 1 count
+   0x5f | 02 66 33 00 | export Export { name: "f3", kind: Func, index: 0 }
         | 00         
-   0x62 | 0a 04       | code section
-   0x64 | 01          | 1 count
+   0x64 | 0a 04       | code section
+   0x66 | 01          | 1 count
 ============== func 0 ====================
-   0x65 | 02          | size of function
-   0x66 | 00          | 0 local blocks
-   0x67 | 0b          | End
-   0x68 | 00 09       | custom section
-   0x6a | 04 6e 61 6d | name: "name"
+   0x67 | 02          | size of function
+   0x68 | 00          | 0 local blocks
+   0x69 | 0b          | End
+   0x6a | 00 09       | custom section
+   0x6c | 04 6e 61 6d | name: "name"
         | 65         
-   0x6f | 00 02       | module name
-   0x71 | 01 6d       | "m"
- 0x73 | 02 04       | core instance section
- 0x75 | 01          | 1 count
- 0x76 | 00 00 00    | [core instance 0] Instantiate { module_index: 0, args: [] }
- 0x79 | 03 0d       | core alias section
- 0x7b | 02          | 2 count
- 0x7c | 00 00 00 02 | core alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "f3" }
+   0x71 | 00 02       | module name
+   0x73 | 01 6d       | "m"
+ 0x75 | 02 04       | core instance section
+ 0x77 | 01          | 1 count
+ 0x78 | 00 00 00    | [core instance 0] Instantiate { module_index: 0, args: [] }
+ 0x7b | 03 0d       | core alias section
+ 0x7d | 02          | 2 count
+ 0x7e | 00 00 00 02 | core alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "f3" }
       | 66 33      
- 0x82 | 00 00 00 02 | core alias [func 2] InstanceExport { kind: Func, instance_index: 0, name: "f3" }
+ 0x84 | 00 00 00 02 | core alias [func 2] InstanceExport { kind: Func, instance_index: 0, name: "f3" }
       | 66 33      
