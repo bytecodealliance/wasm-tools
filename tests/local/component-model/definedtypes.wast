@@ -1,5 +1,4 @@
 (component $C
-  (type $A0 unit)
   (type $A1 bool)
   (type $A2 u8)
   (type $A3 s8)
@@ -15,20 +14,19 @@
   (type $A13 string)
 
   (type $A14a (record))
-  (type $A14b (record (field "x" unit)))
-  (type $A14c (record (field "x" $A0)))
+  (type $A14b (record (field "x" (tuple))))
+  (type $A14c (record (field "x" $A1)))
 
-  (type $A15a (variant (case "x" unit)))
+  (type $A15a (variant (case "x")))
   (type $A15b (variant (case "x" $A1)))
-  (type $A15c (variant (case $x "x" unit) (case $y "y" string (refines $x)) (case "z" string (refines $y))))
-  (type $A15d (variant (case "x" unit) (case "y" string (refines 0)) (case "z" string (refines 1))))
+  (type $A15c (variant (case $x "x") (case $y "y" string (refines $x)) (case "z" string (refines $y))))
+  (type $A15d (variant (case "x") (case "y" string (refines 0)) (case "z" string (refines 1))))
 
-  (type $A16a (list unit))
+  (type $A16a (list (tuple)))
   (type $A16b (list $A3))
 
   (type $A17a (tuple))
-  (type $A17b (tuple unit))
-  (type $A17c (tuple $A4))
+  (type $A17b (tuple $A4))
 
   (type $A18a (flags))
   (type $A18b (flags "x"))
@@ -37,16 +35,15 @@
   (type $A19b (enum "x"))
 
   (type $A20a (union))
-  (type $A20b (union unit))
-  (type $A20c (union $A5))
+  (type $A20b (union $A5))
 
-  (type $A21a (option unit))
+  (type $A21a (option (tuple)))
   (type $A21b (option $A6))
 
-  (type $A22a (expected unit unit))
-  (type $A22b (expected $A7 unit))
-  (type $A22c (expected unit $A8))
-  (type $A22d (expected $A9 $A10))
+  (type $A22a (result))
+  (type $A22b (result $A7))
+  (type $A22c (result (error $A8)))
+  (type $A22d (result $A9 (error $A10)))
 )
 
 (assert_invalid
@@ -58,7 +55,7 @@
 
 (assert_invalid
   (component
-    (type $t (variant (case "x" unit (refines $y)) (case $y "y" string)))
+    (type $t (variant (case "x" (refines $y)) (case $y "y" string)))
   )
   "failed to find variant case named `$y`"
 )
@@ -132,7 +129,7 @@
   (component (type (union 0)))
   "index out of bounds")
 (assert_invalid
-  (component (type (expected 0 1)))
+  (component (type (result 0 (error 1))))
   "index out of bounds")
 (assert_invalid
   (component (type (tuple 0)))

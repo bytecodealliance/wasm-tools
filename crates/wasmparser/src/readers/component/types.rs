@@ -378,7 +378,7 @@ impl<'a> ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x73, 0x00, 0x73];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let ty = reader.read().expect("type");
@@ -425,7 +425,7 @@ impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x73, 0x00, 0x73];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
     ///     println!("Type {:?}", ty.expect("type"));
