@@ -8,7 +8,7 @@ use super::{
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
     ExternalKind, FuncType, Global, GlobalType, MemoryType, Operator, Result, TableType, TagType,
-    TypeRef, ValType, WasmFeatures, WasmModuleResources,
+    TypeRef, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};
@@ -324,18 +324,16 @@ impl ModuleState {
                 }
             }
 
+            let resources = OperatorValidatorResources {
+                module: &self.module,
+                types,
+            };
             validator
-                .process_operator(
-                    &op,
-                    &OperatorValidatorResources {
-                        module: &self.module,
-                        types,
-                    },
-                )
-                .map_err(|e| e.set_offset(offset))?;
+                .with_resources(&resources)
+                .visit_operator(offset, &op)?;
         }
 
-        validator.finish().map_err(|e| e.set_offset(offset))?;
+        validator.finish(offset)?;
 
         // See comment in `RefFunc` above for why this is an assert.
         assert!(!uninserted_funcref);
