@@ -3,6 +3,7 @@ extern crate criterion;
 
 use anyhow::Result;
 use criterion::Criterion;
+use once_cell::unsync::Lazy;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -228,23 +229,12 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
 fn collect_benchmark_inputs() -> Vec<BenchmarkInput> {
     let mut ret = Vec::new();
     collect_test_files("../../tests".as_ref(), &mut ret).unwrap();
+    // Sort to ideally get more deterministic perf that ignores filesystems
+    ret.sort_by_key(|p| p.path.clone());
     ret
 }
 
-fn it_works_benchmark(c: &mut Criterion) {
-    let mut inputs = collect_benchmark_inputs();
-    // Filter out all benchmark inputs that fail to parse via `wasmparser`.
-    inputs.retain(|input| read_all_wasm(input.wasm.as_slice()).is_ok());
-    c.bench_function("parse all test modules", move |b| {
-        b.iter(|| {
-            for input in &mut inputs {
-                read_all_wasm(input.wasm.as_slice()).unwrap();
-            }
-        })
-    });
-}
-
-fn validate_benchmark(c: &mut Criterion) {
+fn define_benchmarks(c: &mut Criterion) {
     fn validator() -> Validator {
         Validator::new_with_features(WasmFeatures {
             reference_types: true,
@@ -265,13 +255,41 @@ fn validate_benchmark(c: &mut Criterion) {
             sign_extension: true,
         })
     }
-    let mut inputs = collect_benchmark_inputs();
-    // Filter out all benchmark inputs that fail to validate via `wasmparser`.
-    inputs.retain(|input| validator().validate_all(&input.wasm).is_ok());
-    c.bench_function("validate all test modules", move |b| {
+
+    let test_inputs = once_cell::unsync::Lazy::new(collect_benchmark_inputs);
+
+    let parse_inputs = once_cell::unsync::Lazy::new(|| {
+        let mut list = Vec::new();
+        for input in test_inputs.iter() {
+            if read_all_wasm(&input.wasm).is_ok() {
+                list.push(&input.wasm);
+            }
+        }
+        list
+    });
+    c.bench_function("parse/tests", |b| {
+        Lazy::force(&parse_inputs);
         b.iter(|| {
-            for input in &mut inputs {
-                validator().validate_all(&input.wasm).unwrap();
+            for wasm in parse_inputs.iter() {
+                read_all_wasm(wasm).unwrap();
+            }
+        })
+    });
+
+    let validate_inputs = once_cell::unsync::Lazy::new(|| {
+        let mut list = Vec::new();
+        for input in test_inputs.iter() {
+            if validator().validate_all(&input.wasm).is_ok() {
+                list.push(&input.wasm);
+            }
+        }
+        list
+    });
+    c.bench_function("validate/tests", |b| {
+        Lazy::force(&validate_inputs);
+        b.iter(|| {
+            for wasm in validate_inputs.iter() {
+                validator().validate_all(wasm).unwrap();
             }
         })
     });
@@ -283,14 +301,15 @@ fn validate_benchmark(c: &mut Criterion) {
             continue;
         }
         let name = path.file_stem().unwrap().to_str().unwrap();
-        c.bench_function(&format!("validate {name}"), |b| {
-            let wasm = std::fs::read(&path).unwrap();
+        let wasm = Lazy::new(|| std::fs::read(&path).unwrap());
+        c.bench_function(&format!("validate/{name}"), |b| {
+            Lazy::force(&wasm);
             b.iter(|| {
                 validator().validate_all(&wasm).unwrap();
             })
         });
-        c.bench_function(&format!("parse {name}"), |b| {
-            let wasm = std::fs::read(&path).unwrap();
+        c.bench_function(&format!("parse/{name}"), |b| {
+            Lazy::force(&wasm);
             b.iter(|| {
                 read_all_wasm(&wasm).unwrap();
             })
@@ -298,7 +317,7 @@ fn validate_benchmark(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benchmark, it_works_benchmark, validate_benchmark);
+criterion_group!(benchmark, define_benchmarks);
 criterion_main!(benchmark);
 
 struct NopVisit;
