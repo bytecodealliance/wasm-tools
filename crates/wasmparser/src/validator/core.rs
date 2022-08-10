@@ -178,9 +178,8 @@ impl ModuleState {
         if e.ty != ValType::FuncRef {
             check_value_type(e.ty, features, offset)?;
         }
-        match e.ty {
-            ValType::FuncRef | ValType::ExternRef => {}
-            _ => return Err(BinaryReaderError::new("malformed reference type", offset)),
+        if !e.ty.is_reference_type() {
+            return Err(BinaryReaderError::new("malformed reference type", offset));
         }
         match e.kind {
             ElementKind::Active {
@@ -593,14 +592,11 @@ impl Module {
             check_value_type(ty.element_type, features, offset)?;
         }
 
-        match ty.element_type {
-            ValType::FuncRef | ValType::ExternRef => {}
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "element is not reference type",
-                    offset,
-                ))
-            }
+        if !ty.element_type.is_reference_type() {
+            return Err(BinaryReaderError::new(
+                "element is not reference type",
+                offset,
+            ));
         }
         self.check_limits(ty.initial, ty.maximum, offset)?;
         if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {

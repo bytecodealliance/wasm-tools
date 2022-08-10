@@ -2148,11 +2148,8 @@ where
         self.features
             .check_value_type(ty)
             .map_err(|e| BinaryReaderError::new(e, offset))?;
-        match ty {
-            ValType::FuncRef | ValType::ExternRef => {}
-            _ => {
-                bail_op_err!(offset, "invalid non-reference type in ref.null");
-            }
+        if !ty.is_reference_type() {
+            bail_op_err!(offset, "invalid non-reference type in ref.null");
         }
         self.push_operand(ty)?;
         Ok(())
@@ -2160,12 +2157,14 @@ where
     fn visit_ref_is_null(&mut self, offset: usize) -> Self::Output {
         self.check_reference_types_enabled(offset)?;
         match self.pop_operand(offset, None)? {
-            None | Some(ValType::FuncRef) | Some(ValType::ExternRef) => {}
-            _ => {
-                bail_op_err!(
-                    offset,
-                    "type mismatch: invalid reference type in ref.is_null"
-                );
+            None => {}
+            Some(t) => {
+                if !t.is_reference_type() {
+                    bail_op_err!(
+                        offset,
+                        "type mismatch: invalid reference type in ref.is_null"
+                    );
+                }
             }
         }
         self.push_operand(ValType::I32)?;
