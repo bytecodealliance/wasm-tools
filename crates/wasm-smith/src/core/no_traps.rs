@@ -3,6 +3,7 @@ use wasm_encoder::{BlockType, Instruction, ValType};
 
 const WASM_PAGE_SIZE: u64 = 65_536;
 
+/// The OpCode is not supported
 #[derive(Debug)]
 pub struct NotSupported<'a> {
     opcode: wasm_encoder::Instruction<'a>,
