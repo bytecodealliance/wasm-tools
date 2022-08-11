@@ -23,6 +23,22 @@
     drop
     drop
   )
+  (func $try-with-params
+    i32.const 0
+    try (param i32) (result i32 i64)
+      i32.popcnt
+      drop
+      call $check-throw
+      unreachable
+    catch 1
+      i64.const 2
+    catch_all
+      i32.const 0
+      i64.const 2
+    end
+    drop
+    drop
+  )
 )
 
 (assert_invalid
