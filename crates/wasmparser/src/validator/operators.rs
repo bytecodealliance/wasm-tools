@@ -69,6 +69,10 @@ pub(crate) struct OperatorValidator {
     control: Vec<Frame>,
     /// The `operands` is the current type stack.
     operands: Vec<Option<ValType>>,
+
+    /// Offset of the `end` instruction which emptied the `control` stack, which
+    /// must be the end of the function.
+    end_which_emptied_control: Option<usize>,
 }
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
@@ -128,6 +132,7 @@ impl OperatorValidator {
                 height: 0,
                 unreachable: false,
             }],
+            end_which_emptied_control: None,
         };
         let locals = OperatorValidatorTemp {
             inner: &mut ret,
@@ -159,6 +164,7 @@ impl OperatorValidator {
                 height: 0,
                 unreachable: false,
             }],
+            end_which_emptied_control: None,
         }
     }
 
@@ -209,7 +215,14 @@ impl OperatorValidator {
                 "control frames remain at end of function: END opcode expected"
             );
         }
+        if offset != self.end_which_emptied_control.unwrap() + 1 {
+            return Err(self.err_beyond_end(offset));
+        }
         Ok(())
+    }
+
+    fn err_beyond_end(&self, offset: usize) -> BinaryReaderError {
+        format_op_err!(offset, "operators remaining after end of function")
     }
 }
 
@@ -265,7 +278,10 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// expected and a type was successfully popped, but its exact type is
     /// indeterminate because the current block is unreachable.
     fn pop_operand(&mut self, offset: usize, expected: Option<ValType>) -> Result<Option<ValType>> {
-        let control = self.control.last().unwrap();
+        let control = match self.control.last() {
+            Some(c) => c,
+            None => return Err(self.err_beyond_end(offset)),
+        };
         let actual = if self.operands.len() == control.height {
             if control.unreachable {
                 None
@@ -358,7 +374,10 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn pop_ctrl(&mut self, offset: usize) -> Result<Frame> {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
-        let frame = self.control.last().unwrap();
+        let frame = match self.control.last() {
+            Some(f) => f,
+            None => return Err(self.err_beyond_end(offset)),
+        };
         let ty = frame.block_type;
         let height = frame.height;
 
@@ -996,6 +1015,10 @@ where
         }
         for ty in self.results(offset, frame.block_type)? {
             self.push_operand(offset, ty)?;
+        }
+
+        if self.control.is_empty() && self.end_which_emptied_control.is_none() {
+            self.end_which_emptied_control = Some(offset);
         }
         Ok(())
     }

@@ -136,13 +136,7 @@ impl ModuleState {
     ) -> Result<()> {
         self.module
             .check_global_type(&global.ty, features, offset)?;
-        self.check_const_expr(
-            &global.init_expr,
-            global.ty.content_type,
-            features,
-            types,
-            offset,
-        )?;
+        self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
     }
@@ -161,7 +155,7 @@ impl ModuleState {
                 offset_expr,
             } => {
                 let ty = self.module.memory_at(memory_index, offset)?.index_type();
-                self.check_const_expr(&offset_expr, ty, features, types, offset)
+                self.check_const_expr(&offset_expr, ty, features, types)
             }
         }
     }
@@ -197,7 +191,7 @@ impl ModuleState {
                     ));
                 }
 
-                self.check_const_expr(&offset_expr, ValType::I32, features, types, offset)?;
+                self.check_const_expr(&offset_expr, ValType::I32, features, types)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !features.bulk_memory {
@@ -219,7 +213,7 @@ impl ModuleState {
             let offset = items.original_position();
             match items.read()? {
                 ElementItem::Expr(expr) => {
-                    self.check_const_expr(&expr, e.ty, features, types, offset)?;
+                    self.check_const_expr(&expr, e.ty, features, types)?;
                 }
                 ElementItem::Func(f) => {
                     if e.ty != ValType::FuncRef {
@@ -244,7 +238,6 @@ impl ModuleState {
         expected_ty: ValType,
         features: &WasmFeatures,
         types: &TypeList,
-        offset: usize,
     ) -> Result<()> {
         let mut ops = expr.get_operators_reader();
         let mut validator = OperatorValidator::new_const_expr(features, expected_ty);
@@ -333,7 +326,7 @@ impl ModuleState {
                 .visit_operator(offset, &op)?;
         }
 
-        validator.finish(offset)?;
+        validator.finish(ops.original_position())?;
 
         // See comment in `RefFunc` above for why this is an assert.
         assert!(!uninserted_funcref);
