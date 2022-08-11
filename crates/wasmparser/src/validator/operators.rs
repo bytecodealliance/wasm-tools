@@ -215,6 +215,11 @@ impl OperatorValidator {
                 "control frames remain at end of function: END opcode expected"
             );
         }
+
+        // The `end` opcode is one byte which means that the `offset` here
+        // should point just beyond the `end` opcode which emptied the control
+        // stack. If not that means more instructions were present after the
+        // control stack was emptied.
         if offset != self.end_which_emptied_control.unwrap() + 1 {
             return Err(self.err_beyond_end(offset));
         }
