@@ -62,6 +62,7 @@ impl fmt::Display for BinaryReaderError {
 }
 
 impl BinaryReaderError {
+    #[cold]
     pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
         let message = message.into();
         BinaryReaderError {
@@ -73,6 +74,7 @@ impl BinaryReaderError {
         }
     }
 
+    #[cold]
     pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
