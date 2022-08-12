@@ -251,16 +251,11 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// This is used by instructions to represent a value that is pushed to the
     /// operand stack. This can fail, but only if `Type` is feature gated.
     /// Otherwise the push operation always succeeds.
-    fn push_operand<T>(&mut self, offset: usize, ty: T) -> Result<()>
+    fn push_operand<T>(&mut self, ty: T) -> Result<()>
     where
         T: Into<Option<ValType>>,
     {
         let maybe_ty = ty.into();
-        if let Some(ty) = maybe_ty {
-            self.features
-                .check_value_type(ty)
-                .map_err(|error| format_op_err!(offset, "{error}"))?;
-        }
         self.operands.push(maybe_ty);
         Ok(())
     }
@@ -368,7 +363,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         // All of the parameters are now also available in this control frame,
         // so we push them here in order.
         for ty in self.params(offset, ty)? {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
         Ok(())
     }
@@ -541,15 +536,11 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Validates a block type, primarily with various in-flight proposals.
     fn check_block_type(&self, offset: usize, ty: BlockType) -> Result<()> {
         match ty {
-            BlockType::Empty
-            | BlockType::Type(ValType::I32)
-            | BlockType::Type(ValType::I64)
-            | BlockType::Type(ValType::F32)
-            | BlockType::Type(ValType::F64) => Ok(()),
-            BlockType::Type(ValType::ExternRef) | BlockType::Type(ValType::FuncRef) => {
-                self.check_reference_types_enabled(offset)
-            }
-            BlockType::Type(ValType::V128) => self.check_simd_enabled(offset),
+            BlockType::Empty => Ok(()),
+            BlockType::Type(ty) => self
+                .features
+                .check_value_type(ty)
+                .map_err(|e| BinaryReaderError::new(e, offset)),
             BlockType::FuncType(idx) => {
                 if !self.features.multi_value {
                     bail_op_err!(
@@ -581,7 +572,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             self.pop_operand(offset, Some(ty))?;
         }
         for ty in ty.outputs() {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
         Ok(())
     }
@@ -604,7 +595,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             self.pop_operand(offset, Some(ty))?;
         }
         for ty in ty.outputs() {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
         Ok(())
     }
@@ -623,7 +614,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_cmp_op(&mut self, offset: usize, ty: ValType) -> Result<()> {
         self.pop_operand(offset, Some(ty))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
 
@@ -637,7 +628,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Checks the validity of a common unary operator.
     fn check_unary_op(&mut self, offset: usize, ty: ValType) -> Result<()> {
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
 
@@ -651,7 +642,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Checks the validity of a common conversion operator.
     fn check_conversion_op(&mut self, offset: usize, into: ValType, from: ValType) -> Result<()> {
         self.pop_operand(offset, Some(from))?;
-        self.push_operand(offset, into)?;
+        self.push_operand(into)?;
         Ok(())
     }
 
@@ -666,7 +657,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_binary_op(&mut self, offset: usize, ty: ValType) -> Result<()> {
         self.pop_operand(offset, Some(ty))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
 
@@ -687,7 +678,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, load_ty)?;
+        self.push_operand(load_ty)?;
         Ok(())
     }
 
@@ -716,7 +707,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
         self.pop_operand(offset, Some(op_ty))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, op_ty)?;
+        self.push_operand(op_ty)?;
         Ok(())
     }
 
@@ -732,7 +723,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.pop_operand(offset, Some(op_ty))?;
         self.pop_operand(offset, Some(op_ty))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, op_ty)?;
+        self.push_operand(op_ty)?;
         Ok(())
     }
 
@@ -740,7 +731,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_v128_splat(&mut self, offset: usize, src_ty: ValType) -> Result<()> {
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(src_ty))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -749,7 +740,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -764,7 +755,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_relaxed_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -772,7 +763,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_v128_unary_op(&mut self, offset: usize) -> Result<()> {
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -786,7 +777,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_v128_relaxed_unary_op(&mut self, offset: usize) -> Result<()> {
         self.check_relaxed_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -796,7 +787,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -804,7 +795,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_v128_bitmask_op(&mut self, offset: usize) -> Result<()> {
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
 
@@ -813,7 +804,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -822,7 +813,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(idx))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 
@@ -958,7 +949,7 @@ where
         // Push exception argument types.
         let ty = self.tag_at(index, offset)?;
         for ty in ty.inputs() {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
         Ok(())
     }
@@ -999,7 +990,7 @@ where
         // depth for validity
         let _ = self.jump(offset, relative_depth)?;
         for ty in self.results(offset, frame.block_type)? {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
         Ok(())
     }
@@ -1032,7 +1023,7 @@ where
             frame = self.pop_ctrl(offset)?;
         }
         for ty in self.results(offset, frame.block_type)? {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
 
         if self.control.is_empty() && self.end_which_emptied_control.is_none() {
@@ -1055,7 +1046,7 @@ where
             self.pop_operand(offset, Some(ty))?;
         }
         for ty in self.label_types(offset, ty, kind)? {
-            self.push_operand(offset, ty)?;
+            self.push_operand(ty)?;
         }
         Ok(())
     }
@@ -1158,19 +1149,22 @@ where
                 "type mismatch: select operands have different types"
             )
         }
-        self.push_operand(offset, ty1.or(ty2))?;
+        self.push_operand(ty1.or(ty2))?;
         Ok(())
     }
     fn visit_typed_select(&mut self, offset: usize, ty: ValType) -> Self::Output {
+        self.features
+            .check_value_type(ty)
+            .map_err(|e| BinaryReaderError::new(e, offset))?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_local_get(&mut self, offset: usize, local_index: u32) -> Self::Output {
         let ty = self.local(offset, local_index)?;
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_local_set(&mut self, offset: usize, local_index: u32) -> Self::Output {
@@ -1181,12 +1175,12 @@ where
     fn visit_local_tee(&mut self, offset: usize, local_index: u32) -> Self::Output {
         let ty = self.local(offset, local_index)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_global_get(&mut self, offset: usize, global_index: u32) -> Self::Output {
         if let Some(ty) = self.resources.global_at(global_index) {
-            self.push_operand(offset, ty.content_type)?;
+            self.push_operand(ty.content_type)?;
         } else {
             bail_op_err!(offset, "unknown global: global index out of bounds");
         };
@@ -1209,33 +1203,33 @@ where
     fn visit_i32_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i64_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I64)?;
+        self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_f32_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::F32)?;
+        self.push_operand(ValType::F32)?;
         Ok(())
     }
     fn visit_f64_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::F64)?;
+        self.push_operand(ValType::F64)?;
         Ok(())
     }
     fn visit_i32_load8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i32_load8_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -1244,7 +1238,7 @@ where
     fn visit_i32_load16_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i32_load16_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -1253,7 +1247,7 @@ where
     fn visit_i64_load8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I64)?;
+        self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_i64_load8_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -1262,7 +1256,7 @@ where
     fn visit_i64_load16_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I64)?;
+        self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_i64_load16_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -1271,7 +1265,7 @@ where
     fn visit_i64_load32_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I64)?;
+        self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_i64_load32_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -1338,7 +1332,7 @@ where
             bail_op_err!(offset, "multi-memory not enabled: zero byte expected");
         }
         let index_ty = self.check_memory_index(offset, mem)?;
-        self.push_operand(offset, index_ty)?;
+        self.push_operand(index_ty)?;
         Ok(())
     }
     fn visit_memory_grow(&mut self, offset: usize, mem: u32, mem_byte: u8) -> Self::Output {
@@ -1347,30 +1341,30 @@ where
         }
         let index_ty = self.check_memory_index(offset, mem)?;
         self.pop_operand(offset, Some(index_ty))?;
-        self.push_operand(offset, index_ty)?;
+        self.push_operand(index_ty)?;
         Ok(())
     }
-    fn visit_i32_const(&mut self, offset: usize, _value: i32) -> Self::Output {
-        self.push_operand(offset, ValType::I32)?;
+    fn visit_i32_const(&mut self, _offset: usize, _value: i32) -> Self::Output {
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i64_const(&mut self, offset: usize, _value: i64) -> Self::Output {
-        self.push_operand(offset, ValType::I64)?;
+    fn visit_i64_const(&mut self, _offset: usize, _value: i64) -> Self::Output {
+        self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_f32_const(&mut self, offset: usize, _value: Ieee32) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
-        self.push_operand(offset, ValType::F32)?;
+        self.push_operand(ValType::F32)?;
         Ok(())
     }
     fn visit_f64_const(&mut self, offset: usize, _value: Ieee64) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
-        self.push_operand(offset, ValType::F64)?;
+        self.push_operand(ValType::F64)?;
         Ok(())
     }
     fn visit_i32_eqz(&mut self, offset: usize) -> Self::Output {
         self.pop_operand(offset, Some(ValType::I32))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i32_eq(&mut self, offset: usize) -> Self::Output {
@@ -1405,7 +1399,7 @@ where
     }
     fn visit_i64_eqz(&mut self, offset: usize) -> Self::Output {
         self.pop_operand(offset, Some(ValType::I64))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i64_eq(&mut self, offset: usize) -> Self::Output {
@@ -2167,7 +2161,7 @@ where
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_memory_atomic_wait64(
@@ -2180,7 +2174,7 @@ where
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_atomic_fence(&mut self, offset: usize, flags: u8) -> Self::Output {
@@ -2192,27 +2186,29 @@ where
     }
     fn visit_ref_null(&mut self, offset: usize, ty: ValType) -> Self::Output {
         self.check_reference_types_enabled(offset)?;
-        match ty {
-            ValType::FuncRef | ValType::ExternRef => {}
-            _ => {
-                bail_op_err!(offset, "invalid reference type in ref.null");
-            }
+        self.features
+            .check_value_type(ty)
+            .map_err(|e| BinaryReaderError::new(e, offset))?;
+        if !ty.is_reference_type() {
+            bail_op_err!(offset, "invalid non-reference type in ref.null");
         }
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_ref_is_null(&mut self, offset: usize) -> Self::Output {
         self.check_reference_types_enabled(offset)?;
         match self.pop_operand(offset, None)? {
-            None | Some(ValType::FuncRef) | Some(ValType::ExternRef) => {}
-            _ => {
-                bail_op_err!(
-                    offset,
-                    "type mismatch: invalid reference type in ref.is_null"
-                );
+            None => {}
+            Some(t) => {
+                if !t.is_reference_type() {
+                    bail_op_err!(
+                        offset,
+                        "type mismatch: invalid reference type in ref.is_null"
+                    );
+                }
             }
         }
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_ref_func(&mut self, offset: usize, function_index: u32) -> Self::Output {
@@ -2227,14 +2223,14 @@ where
         if !self.resources.is_function_referenced(function_index) {
             bail_op_err!(offset, "undeclared function reference");
         }
-        self.push_operand(offset, ValType::FuncRef)?;
+        self.push_operand(ValType::FuncRef)?;
         Ok(())
     }
     fn visit_v128_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 4, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -2246,7 +2242,7 @@ where
     }
     fn visit_v128_const(&mut self, offset: usize, _value: V128) -> Self::Output {
         self.check_simd_enabled(offset)?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_i8x16_splat(&mut self, offset: usize) -> Self::Output {
@@ -2273,7 +2269,7 @@ where
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i8x16_extract_lane_u(&mut self, input: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2283,7 +2279,7 @@ where
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i16x8_extract_lane_u(&mut self, input: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2293,7 +2289,7 @@ where
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2301,7 +2297,7 @@ where
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2309,7 +2305,7 @@ where
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2317,14 +2313,14 @@ where
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::I64)?;
+        self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2332,7 +2328,7 @@ where
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2340,7 +2336,7 @@ where
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::F32)?;
+        self.push_operand(ValType::F32)?;
         Ok(())
     }
     fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2349,7 +2345,7 @@ where
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::F32))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2357,7 +2353,7 @@ where
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::F64)?;
+        self.push_operand(ValType::F64)?;
         Ok(())
     }
     fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
@@ -2366,7 +2362,7 @@ where
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::F64))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_f32x4_eq(&mut self, offset: usize) -> Self::Output {
@@ -2905,7 +2901,7 @@ where
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_f32x4_fma(&mut self, offset: usize) -> Self::Output {
@@ -2999,14 +2995,14 @@ where
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_i8x16_relaxed_swizzle(&mut self, offset: usize) -> Self::Output {
         self.check_relaxed_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [SIMDLaneIndex; 16]) -> Self::Output {
@@ -3016,28 +3012,28 @@ where
         for i in lanes {
             self.check_simd_lane_index(offset, i, 32)?;
         }
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load32_zero(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
@@ -3078,7 +3074,7 @@ where
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load16_lane(
@@ -3092,7 +3088,7 @@ where
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load32_lane(
@@ -3106,7 +3102,7 @@ where
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load64_lane(
@@ -3120,7 +3116,7 @@ where
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
-        self.push_operand(offset, ValType::V128)?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_store8_lane(
@@ -3289,7 +3285,7 @@ where
             None => bail_op_err!(offset, "table index out of bounds"),
         };
         self.pop_operand(offset, Some(ValType::I32))?;
-        self.push_operand(offset, ty)?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_table_set(&mut self, offset: usize, table: u32) -> Self::Output {
@@ -3310,7 +3306,7 @@ where
         };
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_table_size(&mut self, offset: usize, table: u32) -> Self::Output {
@@ -3318,7 +3314,7 @@ where
         if self.resources.table_at(table).is_none() {
             bail_op_err!(offset, "table index out of bounds");
         }
-        self.push_operand(offset, ValType::I32)?;
+        self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_table_fill(&mut self, offset: usize, table: u32) -> Self::Output {

@@ -167,16 +167,13 @@ impl ModuleState {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        match e.ty {
-            ValType::FuncRef => {}
-            ValType::ExternRef if features.reference_types => {}
-            ValType::ExternRef => {
-                return Err(BinaryReaderError::new(
-                    "reference types must be enabled for externref elem segment",
-                    offset,
-                ))
-            }
-            _ => return Err(BinaryReaderError::new("malformed reference type", offset)),
+        // the `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here
+        if e.ty != ValType::FuncRef {
+            check_value_type(e.ty, features, offset)?;
+        }
+        if !e.ty.is_reference_type() {
+            return Err(BinaryReaderError::new("malformed reference type", offset));
         }
         match e.kind {
             ElementKind::Active {
@@ -582,19 +579,17 @@ impl Module {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<()> {
-        match ty.element_type {
-            ValType::FuncRef => {}
-            ValType::ExternRef => {
-                if !features.reference_types {
-                    return Err(BinaryReaderError::new("element is not anyfunc", offset));
-                }
-            }
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "element is not reference type",
-                    offset,
-                ))
-            }
+        // the `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here
+        if ty.element_type != ValType::FuncRef {
+            check_value_type(ty.element_type, features, offset)?;
+        }
+
+        if !ty.element_type.is_reference_type() {
+            return Err(BinaryReaderError::new(
+                "element is not reference type",
+                offset,
+            ));
         }
         self.check_limits(ty.initial, ty.maximum, offset)?;
         if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {

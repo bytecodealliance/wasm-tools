@@ -35,6 +35,19 @@ pub enum ValType {
     ExternRef,
 }
 
+impl ValType {
+    /// Returns whether this value type is a "reference type".
+    ///
+    /// Only reference types are allowed in tables, for example, and with some
+    /// instructions. Current reference types include `funcref` and `externref`.
+    pub fn is_reference_type(&self) -> bool {
+        match self {
+            ValType::FuncRef | ValType::ExternRef => true,
+            _ => false,
+        }
+    }
+}
+
 /// Represents a type in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum Type {
