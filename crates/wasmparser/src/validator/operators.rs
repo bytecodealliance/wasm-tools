@@ -73,6 +73,7 @@ pub(crate) struct OperatorValidator {
 
 // This structure corresponds to `ctrl_frame` as specified at in the validation
 // appendix of the wasm spec
+#[derive(Debug)]
 struct Frame {
     // Indicator for what kind of instruction pushed this frame.
     kind: FrameKind,
@@ -85,7 +86,7 @@ struct Frame {
     unreachable: bool,
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 enum FrameKind {
     Block,
     If,
@@ -923,7 +924,13 @@ where
             bail_op_err!(offset, "catch found outside of an `try` block");
         }
         // Start a new frame and push `exnref` value.
-        self.push_ctrl(offset, FrameKind::Catch, frame.block_type)?;
+        let height = self.operands.len();
+        self.control.push(Frame {
+            kind: FrameKind::Catch,
+            block_type: frame.block_type,
+            height,
+            unreachable: false,
+        });
         // Push exception argument types.
         let ty = self.tag_at(index, offset)?;
         for ty in ty.inputs() {
@@ -980,7 +987,13 @@ where
         } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
             bail_op_err!(offset, "catch_all found outside of a `try` block");
         }
-        self.push_ctrl(offset, FrameKind::CatchAll, frame.block_type)?;
+        let height = self.operands.len();
+        self.control.push(Frame {
+            kind: FrameKind::CatchAll,
+            block_type: frame.block_type,
+            height,
+            unreachable: false,
+        });
         Ok(())
     }
     fn visit_end(&mut self, offset: usize) -> Self::Output {
