@@ -7,7 +7,6 @@ use crate::token::{Float32, Float64};
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub enum WastVal<'a> {
-    Unit,
     Bool(bool),
     U8(u8),
     S8(i8),
@@ -24,18 +23,17 @@ pub enum WastVal<'a> {
     List(Vec<WastVal<'a>>),
     Record(Vec<(&'a str, WastVal<'a>)>),
     Tuple(Vec<WastVal<'a>>),
-    Variant(&'a str, Box<WastVal<'a>>),
+    Variant(&'a str, Option<Box<WastVal<'a>>>),
     Enum(&'a str),
     Union(u32, Box<WastVal<'a>>),
     Option(Option<Box<WastVal<'a>>>),
-    Expected(Result<Box<WastVal<'a>>, Box<WastVal<'a>>>),
+    Result(Result<Option<Box<WastVal<'a>>>, Option<Box<WastVal<'a>>>>),
     Flags(Vec<&'a str>),
 }
 
 static CASES: &[(&str, fn(Parser<'_>) -> Result<WastVal<'_>>)] = {
     use WastVal::*;
     &[
-        ("unit.const", |_| Ok(Unit)),
         ("bool.const", |p| {
             let mut l = p.lookahead1();
             if l.peek::<kw::true_>() {
@@ -97,7 +95,11 @@ static CASES: &[(&str, fn(Parser<'_>) -> Result<WastVal<'_>>)] = {
         }),
         ("variant.const", |p| {
             let name = p.parse()?;
-            let payload = Box::new(p.parse()?);
+            let payload = if p.is_empty() {
+                None
+            } else {
+                Some(Box::new(p.parse()?))
+            };
             Ok(Variant(name, payload))
         }),
         ("enum.const", |p| Ok(Enum(p.parse()?))),
@@ -108,8 +110,20 @@ static CASES: &[(&str, fn(Parser<'_>) -> Result<WastVal<'_>>)] = {
         }),
         ("option.none", |_| Ok(Option(None))),
         ("option.some", |p| Ok(Option(Some(Box::new(p.parse()?))))),
-        ("expected.ok", |p| Ok(Expected(Ok(Box::new(p.parse()?))))),
-        ("expected.err", |p| Ok(Expected(Err(Box::new(p.parse()?))))),
+        ("result.ok", |p| {
+            Ok(Result(Ok(if p.is_empty() {
+                None
+            } else {
+                Some(Box::new(p.parse()?))
+            })))
+        }),
+        ("result.err", |p| {
+            Ok(Result(Err(if p.is_empty() {
+                None
+            } else {
+                Some(Box::new(p.parse()?))
+            })))
+        }),
         ("flags.const", |p| {
             let mut ret = Vec::new();
             while !p.is_empty() {
