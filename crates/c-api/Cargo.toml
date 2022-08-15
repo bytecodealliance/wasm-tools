@@ -22,7 +22,7 @@ arbitrary = { version = "1.1.0", features = ["derive"] }
 wasmparser-dump = { version = "0.1.4", path = "../dump" }
 wasm-mutate = { version = "0.2.4", path = "../wasm-mutate" }
 wasm-shrink = { version = "0.1.6", path = "../wasm-shrink" }
-wasm-smith = { version = "0.11.2", path = "../wasm-smith" }
+wasm-smith = { version = "0.11.4", path = "../wasm-smith" }
 wasmparser = { version = "0.88.0", path = "../wasmparser" }
 wasmprinter = { version = "0.2.36", path = "../wasmprinter" }
 wast = { version = "45.0.0", path = "../wast" }
