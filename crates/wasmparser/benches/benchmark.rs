@@ -8,8 +8,8 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use wasmparser::{
-    BlockType, BrTable, DataKind, ElementKind, Ieee32, Ieee64, MemArg, Parser, Payload, ValType,
-    Validator, VisitOperator, WasmFeatures, V128,
+    BlockType, BrTable, DataKind, ElementKind, HeapType, Ieee32, Ieee64, MemArg, Parser, Payload,
+    ValType, Validator, VisitOperator, WasmFeatures, V128,
 };
 
 /// A benchmark input.
@@ -253,6 +253,7 @@ fn define_benchmarks(c: &mut Criterion) {
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,
+            function_references: true,
         })
     }
 
