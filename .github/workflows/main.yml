@@ -43,6 +43,7 @@ jobs:
       shell: bash
     - run: cargo test --all
     - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
+    - run: cargo test -p wasmparser --benches
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
     - run: cmake -S ${{github.workspace}}/examples -B ${{github.workspace}}/examples/build -DCMAKE_BUILD_TYPE=Release
@@ -56,17 +57,6 @@ jobs:
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - run: cargo fmt -- --check
-
-  compare-with-main:
-    name: wasmparser bench
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-    - run: git fetch --recurse-submodules=no origin main && git branch main origin/main
-      if: github.ref != 'refs/heads/main'
-    - run: (cd crates/wasmparser && ./compare-with-main.sh)
 
   fuzz:
     name: Fuzz
