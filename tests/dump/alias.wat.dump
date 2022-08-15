@@ -41,7 +41,7 @@
 ============== func 0 ====================
    0x67 | 02          | size of function
    0x68 | 00          | 0 local blocks
-   0x69 | 0b          | End
+   0x69 | 0b          | end
    0x6a | 00 09       | custom section
    0x6c | 04 6e 61 6d | name: "name"
         | 65         

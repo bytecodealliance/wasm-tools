@@ -17,7 +17,7 @@
 ============== func 0 ====================
    0x25 | 02          | size of function
    0x26 | 00          | 0 local blocks
-   0x27 | 0b          | End
+   0x27 | 0b          | end
    0x28 | 00 09       | custom section
    0x2a | 04 6e 61 6d | name: "name"
         | 65         
