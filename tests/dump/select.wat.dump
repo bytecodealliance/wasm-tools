@@ -11,10 +11,10 @@
 ============== func 0 ====================
  0x15 | 0c          | size of function
  0x16 | 00          | 0 local blocks
- 0x17 | 1b          | op:select
+ 0x17 | 1b          | select
  0x18 | 1c 00       | ??
- 0x1a | 1c 01 7f    | op:typed_select ty:I32
+ 0x1a | 1c 01 7f    | typed_select ty:I32
  0x1d | 1c 02       | ??
- 0x1f | 7f          | op:i64_div_s
- 0x20 | 7f          | op:i64_div_s
- 0x21 | 0b          | op:end
+ 0x1f | 7f          | i64_div_s
+ 0x20 | 7f          | i64_div_s
+ 0x21 | 0b          | end

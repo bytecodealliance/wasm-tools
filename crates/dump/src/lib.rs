@@ -624,7 +624,7 @@ macro_rules! dump {
                 write!(
                     self.state,
                     concat!(
-                        "op:{}"
+                        "{}"
                         $(, " ", stringify!($arg), ":{:?}")*
                     ),
                     stringify!($name).strip_prefix("visit_").unwrap(),

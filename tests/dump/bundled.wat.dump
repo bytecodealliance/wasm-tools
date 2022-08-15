@@ -42,8 +42,8 @@
 ============== func 0 ====================
     0x73 | 03          | size of function
     0x74 | 00          | 0 local blocks
-    0x75 | 00          | op:unreachable
-    0x76 | 0b          | op:end
+    0x75 | 00          | unreachable
+    0x76 | 0b          | end
     0x77 | 00 0c       | custom section
     0x79 | 04 6e 61 6d | name: "name"
          | 65         
@@ -80,8 +80,8 @@
 ============== func 1 ====================
     0xc5 | 03          | size of function
     0xc6 | 00          | 0 local blocks
-    0xc7 | 00          | op:unreachable
-    0xc8 | 0b          | op:end
+    0xc7 | 00          | unreachable
+    0xc8 | 0b          | end
     0xc9 | 00 21       | custom section
     0xcb | 04 6e 61 6d | name: "name"
          | 65         
@@ -126,13 +126,13 @@
 ============== func 1 ====================
    0x132 | 03          | size of function
    0x133 | 00          | 0 local blocks
-   0x134 | 00          | op:unreachable
-   0x135 | 0b          | op:end
+   0x134 | 00          | unreachable
+   0x135 | 0b          | end
 ============== func 2 ====================
    0x136 | 03          | size of function
    0x137 | 00          | 0 local blocks
-   0x138 | 00          | op:unreachable
-   0x139 | 0b          | op:end
+   0x138 | 00          | unreachable
+   0x139 | 0b          | end
    0x13a | 00 12       | custom section
    0x13c | 04 6e 61 6d | name: "name"
          | 65         

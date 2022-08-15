@@ -115,7 +115,7 @@
    0x129 | 06 04       | global section
    0x12b | 01          | 1 count
    0x12c | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
-   0x12e | 0b          | op:end
+   0x12e | 0b          | end
    0x12f | 07 11       | export section
    0x131 | 04          | 4 count
    0x132 | 01 31 00 00 | export Export { name: "1", kind: Func, index: 0 }
@@ -127,7 +127,7 @@
 ============== func 0 ====================
    0x145 | 02          | size of function
    0x146 | 00          | 0 local blocks
-   0x147 | 0b          | op:end
+   0x147 | 0b          | end
    0x148 | 00 0a       | custom section
    0x14a | 04 6e 61 6d | name: "name"
          | 65         

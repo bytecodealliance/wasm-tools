@@ -22,8 +22,8 @@
  0x2c | 06 06       | global section
  0x2e | 01          | 1 count
  0x2f | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
- 0x31 | 41 00       | op:i32_const value:0
- 0x33 | 0b          | op:end
+ 0x31 | 41 00       | i32_const value:0
+ 0x33 | 0b          | end
  0x34 | 07 05       | export section
  0x36 | 01          | 1 count
  0x37 | 01 6d 02 00 | export Export { name: "m", kind: Memory, index: 0 }
@@ -32,8 +32,8 @@
  0x3e | 09 0f       | element section
  0x40 | 03          | 3 count
  0x41 | 00          | element FuncRef table[0]
- 0x42 | 41 03       | op:i32_const value:3
- 0x44 | 0b          | op:end
+ 0x42 | 41 03       | i32_const value:3
+ 0x44 | 0b          | end
  0x45 | 01          | 1 items
  0x46 | 00          | item Func(0)
  0x47 | 01 00 01    | element FuncRef passive, 1 items
@@ -45,23 +45,23 @@
 ============== func 1 ====================
  0x52 | 02          | size of function
  0x53 | 00          | 0 local blocks
- 0x54 | 0b          | op:end
+ 0x54 | 0b          | end
 ============== func 2 ====================
  0x55 | 04          | size of function
  0x56 | 01          | 1 local blocks
  0x57 | 01 7f       | 1 locals of type I32
- 0x59 | 0b          | op:end
+ 0x59 | 0b          | end
 ============== func 3 ====================
  0x5a | 06          | size of function
  0x5b | 01          | 1 local blocks
  0x5c | 01 7f       | 1 locals of type I32
- 0x5e | 41 00       | op:i32_const value:0
- 0x60 | 0b          | op:end
+ 0x5e | 41 00       | i32_const value:0
+ 0x60 | 0b          | end
  0x61 | 0b 0a       | data section
  0x63 | 02          | 2 count
  0x64 | 00          | data memory[0]
- 0x65 | 41 08       | op:i32_const value:8
- 0x67 | 0b          | op:end
+ 0x65 | 41 08       | i32_const value:8
+ 0x67 | 0b          | end
  0x68 |-------------| ... 1 bytes of data
  0x6a | 01 01       | data passive
  0x6c |-------------| ... 1 bytes of data
