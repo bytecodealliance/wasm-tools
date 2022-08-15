@@ -1613,7 +1613,7 @@ impl<'a> BinaryReader<'a> {
             0x08 => {
                 let segment = self.read_var_u32()?;
                 let mem = self.read_var_u32()?;
-                visitor.visit_memory_init(pos, mem, segment)
+                visitor.visit_memory_init(pos, segment,mem)
             }
             0x09 => {
                 let segment = self.read_var_u32()?;
@@ -1622,7 +1622,7 @@ impl<'a> BinaryReader<'a> {
             0x0a => {
                 let dst = self.read_var_u32()?;
                 let src = self.read_var_u32()?;
-                visitor.visit_memory_copy(pos, src, dst)
+                visitor.visit_memory_copy(pos, dst,src)
             }
             0x0b => {
                 let mem = self.read_var_u32()?;
@@ -2804,9 +2804,9 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
     fn visit_v128_store16_lane(&mut self, _offset: usize, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output { Operator::V128Store16Lane { memarg, lane } }
     fn visit_v128_store32_lane(&mut self, _offset: usize, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output { Operator::V128Store32Lane { memarg, lane } }
     fn visit_v128_store64_lane(&mut self, _offset: usize, memarg: MemoryImmediate, lane: SIMDLaneIndex) -> Self::Output { Operator::V128Store64Lane { memarg, lane } }
-    fn visit_memory_init(&mut self, _offset: usize, mem: u32, segment: u32) -> Self::Output { Operator::MemoryInit { mem, segment } }
+    fn visit_memory_init(&mut self, _offset: usize, segment: u32, mem: u32) -> Self::Output { Operator::MemoryInit { mem, segment } }
     fn visit_data_drop(&mut self, _offset: usize, segment: u32) -> Self::Output { Operator::DataDrop { segment } }
-    fn visit_memory_copy(&mut self, _offset: usize, src: u32, dst: u32) -> Self::Output { Operator::MemoryCopy { src, dst } }
+    fn visit_memory_copy(&mut self, _offset: usize, dst: u32, src: u32) -> Self::Output { Operator::MemoryCopy { src, dst } }
     fn visit_memory_fill(&mut self, _offset: usize, mem: u32) -> Self::Output { Operator::MemoryFill { mem } }
     fn visit_table_init(&mut self, _offset: usize, segment: u32, table: u32) -> Self::Output { Operator::TableInit { segment, table } }
     fn visit_elem_drop(&mut self, _offset: usize, segment: u32) -> Self::Output { Operator::ElemDrop { segment } }
