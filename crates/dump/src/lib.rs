@@ -1371,9 +1371,9 @@ impl<'a> VisitOperator<'a> for Dump<'_> {
             memarg: MemoryImmediate,
             lane: SIMDLaneIndex,
         )
-        fn visit_memory_init(&mut self, offset: usize, mem: u32, segment: u32)
+        fn visit_memory_init(&mut self, offset: usize, segment: u32, mem: u32)
         fn visit_data_drop(&mut self, offset: usize, segment: u32)
-        fn visit_memory_copy(&mut self, offset: usize, src: u32, dst: u32)
+        fn visit_memory_copy(&mut self, offset: usize, dst: u32, src: u32)
         fn visit_memory_fill(&mut self, offset: usize, mem: u32)
         fn visit_table_init(&mut self, offset: usize, segment: u32, table: u32)
         fn visit_elem_drop(&mut self, offset: usize, segment: u32)

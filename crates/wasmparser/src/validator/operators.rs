@@ -3171,7 +3171,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_memory_init(&mut self, offset: usize, mem: u32, segment: u32) -> Self::Output {
+    fn visit_memory_init(&mut self, offset: usize, segment: u32, mem: u32) -> Self::Output {
         self.check_bulk_memory_enabled(offset)?;
         let ty = self.check_memory_index(offset, mem)?;
         match self.resources.data_count() {
@@ -3193,7 +3193,7 @@ where
         }
         Ok(())
     }
-    fn visit_memory_copy(&mut self, offset: usize, src: u32, dst: u32) -> Self::Output {
+    fn visit_memory_copy(&mut self, offset: usize, dst: u32, src: u32) -> Self::Output {
         self.check_bulk_memory_enabled(offset)?;
         let dst_ty = self.check_memory_index(offset, dst)?;
         let src_ty = self.check_memory_index(offset, src)?;
