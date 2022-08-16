@@ -136,6 +136,7 @@ static CASES: &[(&str, fn(Parser<'_>) -> Result<WastVal<'_>>)] = {
 
 impl<'a> Parse<'a> for WastVal<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.depth_check()?;
         let parse = parser.step(|c| {
             if let Some((kw, rest)) = c.keyword() {
                 if let Some(i) = CASES.iter().position(|(name, _)| *name == kw) {
