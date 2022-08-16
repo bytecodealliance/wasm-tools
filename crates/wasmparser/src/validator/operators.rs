@@ -337,11 +337,15 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     /// Flags the current control frame as unreachable, additionally truncating
     /// the currently active operand stack.
-    fn unreachable(&mut self) {
-        let control = self.control.last_mut().unwrap();
+    fn unreachable(&mut self, offset: usize) -> Result<()> {
+        let control = match self.control.last_mut() {
+            Some(frame) => frame,
+            None => return Err(self.err_beyond_end(offset)),
+        };
         control.unreachable = true;
         let new_height = control.height;
         self.operands.truncate(new_height);
+        Ok(())
     }
 
     /// Pushes a new frame onto the control stack.
@@ -406,6 +410,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Returns the type signature of the block that we're jumping to as well
     /// as the kind of block if the jump is valid. Otherwise returns an error.
     fn jump(&self, offset: usize, depth: u32) -> Result<(BlockType, FrameKind)> {
+        if self.control.len() == 0 {
+            return Err(self.err_beyond_end(offset));
+        }
         match (self.control.len() - 1).checked_sub(depth as usize) {
             Some(i) => {
                 let frame = &self.control[i];
@@ -603,10 +610,13 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Validates a `return` instruction, popping types from the operand
     /// stack that the function needs.
     fn check_return(&mut self, offset: usize) -> Result<()> {
+        if self.control.is_empty() {
+            return Err(self.err_beyond_end(offset));
+        }
         for ty in self.results(offset, self.control[0].block_type)?.rev() {
             self.pop_operand(offset, Some(ty))?;
         }
-        self.unreachable();
+        self.unreachable(offset)?;
         Ok(())
     }
 
@@ -886,8 +896,8 @@ where
     fn visit_nop(&mut self, _: usize) -> Self::Output {
         Ok(())
     }
-    fn visit_unreachable(&mut self, _: usize) -> Self::Output {
-        self.unreachable();
+    fn visit_unreachable(&mut self, offset: usize) -> Self::Output {
+        self.unreachable(offset)?;
         Ok(())
     }
     fn visit_block(&mut self, offset: usize, ty: BlockType) -> Self::Output {
@@ -963,7 +973,7 @@ where
         if ty.outputs().len() > 0 {
             bail_op_err!(offset, "result type expected to be empty for exception");
         }
-        self.unreachable();
+        self.unreachable(offset)?;
         Ok(())
     }
     fn visit_rethrow(&mut self, offset: usize, relative_depth: u32) -> Self::Output {
@@ -977,7 +987,7 @@ where
                 "invalid rethrow label: target was not a `catch` block"
             );
         }
-        self.unreachable();
+        self.unreachable(offset)?;
         Ok(())
     }
     fn visit_delegate(&mut self, offset: usize, relative_depth: u32) -> Self::Output {
@@ -1036,7 +1046,7 @@ where
         for ty in self.label_types(offset, ty, kind)?.rev() {
             self.pop_operand(offset, Some(ty))?;
         }
-        self.unreachable();
+        self.unreachable(offset)?;
         Ok(())
     }
     fn visit_br_if(&mut self, offset: usize, relative_depth: u32) -> Self::Output {
@@ -1076,7 +1086,7 @@ where
         for ty in default_types.rev() {
             self.pop_operand(offset, Some(ty))?;
         }
-        self.unreachable();
+        self.unreachable(offset)?;
         Ok(())
     }
     fn visit_return(&mut self, offset: usize) -> Self::Output {
