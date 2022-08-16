@@ -60,3 +60,28 @@
     "\0b"       ;; end
   )
   "operators remaining after end of function")
+
+(assert_invalid
+  (module
+    (func end unreachable))
+  "operators remaining after end of function")
+
+(assert_invalid
+  (module
+    (func end return))
+  "operators remaining after end of function")
+
+(assert_invalid
+  (module
+    (func end br 0))
+  "operators remaining after end of function")
+
+(assert_invalid
+  (module
+    (func end br 100000))
+  "operators remaining after end of function")
+
+(assert_invalid
+  (module
+    (func end br_table 0))
+  "operators remaining after end of function")
