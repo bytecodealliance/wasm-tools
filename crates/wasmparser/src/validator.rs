@@ -1311,7 +1311,7 @@ impl Validator {
         ) -> Result<()>,
     ) -> Result<()>
     where
-        T: SectionReader + Clone + SectionWithLimitedItems,
+        T: Clone + SectionWithLimitedItems,
     {
         let offset = section.range().start;
 
