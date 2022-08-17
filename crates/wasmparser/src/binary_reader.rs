@@ -1355,7 +1355,6 @@ impl<'a> BinaryReader<'a> {
     ///
     /// If `BinaryReader` has less bytes remaining than required to parse
     /// the `Operator`.
-    #[rustfmt::skip]
     pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
@@ -1385,7 +1384,9 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_call_indirect(pos, index, table_index, table_byte)
             }
             0x12 => visitor.visit_return_call(pos, self.read_var_u32()?),
-            0x13 => visitor.visit_return_call_indirect(pos, self.read_var_u32()?, self.read_var_u32()?),
+            0x13 => {
+                visitor.visit_return_call_indirect(pos, self.read_var_u32()?, self.read_var_u32()?)
+            }
             0x18 => visitor.visit_delegate(pos, self.read_var_u32()?),
             0x19 => visitor.visit_catch_all(pos),
             0x1a => visitor.visit_drop(pos),
@@ -1593,8 +1594,10 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    #[rustfmt::skip]
-    fn visit_0xfc_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
+    fn visit_0xfc_operator<T>(
+        &mut self,
+        visitor: &mut T,
+    ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
@@ -1613,7 +1616,7 @@ impl<'a> BinaryReader<'a> {
             0x08 => {
                 let segment = self.read_var_u32()?;
                 let mem = self.read_var_u32()?;
-                visitor.visit_memory_init(pos, segment,mem)
+                visitor.visit_memory_init(pos, segment, mem)
             }
             0x09 => {
                 let segment = self.read_var_u32()?;
@@ -1622,7 +1625,7 @@ impl<'a> BinaryReader<'a> {
             0x0a => {
                 let dst = self.read_var_u32()?;
                 let src = self.read_var_u32()?;
-                visitor.visit_memory_copy(pos, dst,src)
+                visitor.visit_memory_copy(pos, dst, src)
             }
             0x0b => {
                 let mem = self.read_var_u32()?;
@@ -1666,8 +1669,10 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    #[rustfmt::skip]
-    fn visit_0xfd_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
+    fn visit_0xfd_operator<T>(
+        &mut self,
+        visitor: &mut T,
+    ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
@@ -1774,42 +1779,42 @@ impl<'a> BinaryReader<'a> {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(16)?;
                 visitor.visit_v128_load8_lane(pos, memarg, lane)
-            },
+            }
             0x55 => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(8)?;
                 visitor.visit_v128_load16_lane(pos, memarg, lane)
-            },
+            }
             0x56 => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(4)?;
                 visitor.visit_v128_load32_lane(pos, memarg, lane)
-            },
+            }
             0x57 => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(2)?;
                 visitor.visit_v128_load64_lane(pos, memarg, lane)
-            },
+            }
             0x58 => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(16)?;
                 visitor.visit_v128_store8_lane(pos, memarg, lane)
-            },
+            }
             0x59 => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(8)?;
                 visitor.visit_v128_store16_lane(pos, memarg, lane)
-            },
+            }
             0x5a => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(4)?;
                 visitor.visit_v128_store32_lane(pos, memarg, lane)
-            },
+            }
             0x5b => {
                 let memarg = self.read_memarg()?;
                 let lane = self.read_lane_index(2)?;
                 visitor.visit_v128_store64_lane(pos, memarg, lane)
-            },
+            }
 
             0x5c => visitor.visit_v128_load32_zero(pos, self.read_memarg_of_align(2)?),
             0x5d => visitor.visit_v128_load64_zero(pos, self.read_memarg_of_align(3)?),
