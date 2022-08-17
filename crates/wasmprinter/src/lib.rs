@@ -41,6 +41,7 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 /// custom sections in a wasm binary.
 #[derive(Default)]
 pub struct Printer {
+    print_offsets: bool,
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
     nesting: u32,
@@ -114,6 +115,12 @@ impl Printer {
     /// binaries to strings.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether or not to print binary offsets of each item as comments in the
+    /// text format whenever a newline is printed.
+    pub fn print_offsets(&mut self, print: bool) {
+        self.print_offsets = print;
     }
 
     /// Registers a custom `printer` function to get invoked whenever a custom
@@ -333,9 +340,9 @@ impl Printer {
                     Self::ensure_module(&states)?;
                     self.print_exports(states.last().unwrap(), s)?
                 }
-                Payload::StartSection { func, .. } => {
+                Payload::StartSection { func, range } => {
                     Self::ensure_module(&states)?;
-                    self.newline();
+                    self.newline(range.start);
                     self.start_group("start ");
                     self.print_idx(&states.last().unwrap().core.func_names, func)?;
                     self.end_group();
@@ -361,12 +368,15 @@ impl Printer {
                     self.print_data(states.last_mut().unwrap(), s)?;
                 }
 
-                Payload::ModuleSection { parser: inner, .. } => {
+                Payload::ModuleSection {
+                    parser: inner,
+                    range,
+                } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Module);
                     parsers.push(parser);
                     parser = inner;
-                    self.newline();
+                    self.newline(range.start);
                 }
                 Payload::InstanceSection(s) => {
                     Self::ensure_component(&states)?;
@@ -377,12 +387,15 @@ impl Printer {
                     self.print_aliases(&mut states, s)?;
                 }
                 Payload::CoreTypeSection(s) => self.print_core_types(&mut states, s)?,
-                Payload::ComponentSection { parser: inner, .. } => {
+                Payload::ComponentSection {
+                    parser: inner,
+                    range,
+                } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Component);
                     parsers.push(parser);
                     parser = inner;
-                    self.newline();
+                    self.newline(range.start);
                 }
                 Payload::ComponentInstanceSection(s) => {
                     Self::ensure_component(&states)?;
@@ -450,7 +463,7 @@ impl Printer {
         self.nesting -= 1;
         if let Some(line) = self.group_lines.pop() {
             if line != self.line {
-                self.newline();
+                self.newline_unknown_pos();
             }
         }
         self.result.push(')');
@@ -559,18 +572,20 @@ impl Printer {
         states: &mut Vec<State>,
         parser: CoreTypeSectionReader<'_>,
     ) -> Result<()> {
-        for ty in parser {
-            self.newline();
-            self.print_core_type(states, ty?)?;
+        for ty in parser.into_iter_with_offsets() {
+            let (offset, ty) = ty?;
+            self.newline(offset);
+            self.print_core_type(states, ty)?;
         }
 
         Ok(())
     }
 
     fn print_types(&mut self, state: &mut State, parser: TypeSectionReader<'_>) -> Result<()> {
-        for ty in parser {
-            self.newline();
-            self.print_type(state, ty?)?;
+        for ty in parser.into_iter_with_offsets() {
+            let (offset, ty) = ty?;
+            self.newline(offset);
+            self.print_type(state, ty)?;
         }
 
         Ok(())
@@ -655,9 +670,9 @@ impl Printer {
     }
 
     fn print_imports(&mut self, state: &mut State, parser: ImportSectionReader<'_>) -> Result<()> {
-        for import in parser {
-            let import = import?;
-            self.newline();
+        for import in parser.into_iter_with_offsets() {
+            let (offset, import) = import?;
+            self.newline(offset);
             self.print_import(state, &import, true)?;
             match import.ty {
                 TypeRef::Func(_) => state.core.funcs += 1,
@@ -765,9 +780,9 @@ impl Printer {
     }
 
     fn print_tables(&mut self, state: &mut State, parser: TableSectionReader<'_>) -> Result<()> {
-        for table in parser {
-            let table = table?;
-            self.newline();
+        for table in parser.into_iter_with_offsets() {
+            let (offset, table) = table?;
+            self.newline(offset);
             self.print_table_type(state, &table, true)?;
             self.end_group();
             state.core.tables += 1;
@@ -776,9 +791,9 @@ impl Printer {
     }
 
     fn print_memories(&mut self, state: &mut State, parser: MemorySectionReader<'_>) -> Result<()> {
-        for memory in parser {
-            let memory = memory?;
-            self.newline();
+        for memory in parser.into_iter_with_offsets() {
+            let (offset, memory) = memory?;
+            self.newline(offset);
             self.print_memory_type(state, &memory, true)?;
             self.end_group();
             state.core.memories += 1;
@@ -787,9 +802,9 @@ impl Printer {
     }
 
     fn print_tags(&mut self, state: &mut State, parser: TagSectionReader<'_>) -> Result<()> {
-        for tag in parser {
-            let tag = tag?;
-            self.newline();
+        for tag in parser.into_iter_with_offsets() {
+            let (offset, tag) = tag?;
+            self.newline(offset);
             self.print_tag_type(state, &tag, true)?;
             self.end_group();
             state.core.tags += 1;
@@ -798,9 +813,9 @@ impl Printer {
     }
 
     fn print_globals(&mut self, state: &mut State, parser: GlobalSectionReader<'_>) -> Result<()> {
-        for global in parser {
-            let global = global?;
-            self.newline();
+        for global in parser.into_iter_with_offsets() {
+            let (offset, global) = global?;
+            self.newline(offset);
             self.print_global_type(state, &global.ty, true)?;
             self.result.push(' ');
             self.print_const_expr(state, &global.init_expr)?;
@@ -820,8 +835,10 @@ impl Printer {
             bail!("mismatch in function and code section counts");
         }
         for body in code {
+            let mut body = body.get_binary_reader();
+            let offset = body.original_position();
             let ty = funcs.read()?;
-            self.newline();
+            self.newline(offset);
             self.start_group("func ");
             let func_idx = state.core.funcs;
             self.print_name(&state.core.func_names, func_idx)?;
@@ -832,8 +849,10 @@ impl Printer {
             let mut first = true;
             let mut local_idx = 0;
             let mut locals = NamedLocalPrinter::new("local");
-            for local in body.get_locals_reader()? {
-                let (cnt, ty) = local?;
+            for _ in 0..body.read_var_u32()? {
+                let offset = body.original_position();
+                let cnt = body.read_var_u32()?;
+                let ty = body.read_val_type()?;
                 if MAX_LOCALS
                     .checked_sub(local_idx)
                     .and_then(|s| s.checked_sub(cnt))
@@ -843,7 +862,7 @@ impl Printer {
                 }
                 for _ in 0..cnt {
                     if first {
-                        self.newline();
+                        self.newline(offset);
                         first = false;
                     }
                     let name = state.core.local_names.get(&(func_idx, params + local_idx));
@@ -857,27 +876,27 @@ impl Printer {
 
             state.core.labels = 0;
             let nesting_start = self.nesting;
-            let mut reader = body.get_operators_reader()?;
-            reader.allow_memarg64(true);
+            body.allow_memarg64(true);
 
             let mut buf = String::new();
             let mut op_printer = operator::PrintOperator::new(self, state);
-            while !reader.eof() {
+            while !body.eof() {
                 // TODO
+                let offset = body.original_position();
                 mem::swap(&mut buf, &mut op_printer.printer.result);
-                let op_kind = reader.visit_with_offset(&mut op_printer)??;
+                let op_kind = body.visit_operator(&mut op_printer)??;
                 mem::swap(&mut buf, &mut op_printer.printer.result);
 
                 match op_kind {
                     // The final `end` in a reader is not printed, it's implied
                     // in the text format.
-                    operator::OpKind::End if reader.eof() => break,
+                    operator::OpKind::End if body.eof() => break,
 
                     // When we start a block we newline to the current
                     // indentation, then we increase the indentation so further
                     // instructions are tabbed over.
                     operator::OpKind::BlockStart => {
-                        op_printer.printer.newline();
+                        op_printer.printer.newline(offset);
                         op_printer.printer.nesting += 1;
                     }
 
@@ -886,7 +905,7 @@ impl Printer {
                     // our nesting level.
                     operator::OpKind::BlockMid => {
                         op_printer.printer.nesting -= 1;
-                        op_printer.printer.newline();
+                        op_printer.printer.newline(offset);
                         op_printer.printer.nesting += 1;
                     }
 
@@ -896,12 +915,12 @@ impl Printer {
                         if op_printer.printer.nesting > nesting_start =>
                     {
                         op_printer.printer.nesting -= 1;
-                        op_printer.printer.newline();
+                        op_printer.printer.newline(offset);
                     }
 
                     // .. otherwise everything else just has a normal newline
                     // out in front.
-                    _ => op_printer.printer.newline(),
+                    _ => op_printer.printer.newline(offset),
                 }
                 op_printer.printer.result.push_str(&buf);
                 buf.truncate(0);
@@ -914,7 +933,7 @@ impl Printer {
             // with the closing paren printed for the func.
             if self.nesting != nesting_start {
                 self.nesting = nesting_start;
-                self.newline();
+                self.newline(body.original_position());
             }
 
             self.end_group();
@@ -924,8 +943,22 @@ impl Printer {
         Ok(())
     }
 
-    fn newline(&mut self) {
+    fn newline(&mut self, offset: usize) {
+        self.print_newline(Some(offset))
+    }
+
+    fn newline_unknown_pos(&mut self) {
+        self.print_newline(None)
+    }
+
+    fn print_newline(&mut self, offset: Option<usize>) {
         self.result.push('\n');
+        if self.print_offsets {
+            match offset {
+                Some(offset) => write!(self.result, "(;@{offset:<6x};)").unwrap(),
+                None => self.result.push_str("           "),
+            }
+        }
         self.line += 1;
 
         // Clamp the maximum nesting size that we print at something somewhat
@@ -987,9 +1020,10 @@ impl Printer {
     }
 
     fn print_exports(&mut self, state: &State, data: ExportSectionReader) -> Result<()> {
-        for export in data {
-            self.newline();
-            self.print_export(state, &export?)?;
+        for export in data.into_iter_with_offsets() {
+            let (offset, export) = export?;
+            self.newline(offset);
+            self.print_export(state, &export)?;
         }
         Ok(())
     }
@@ -1082,9 +1116,9 @@ impl Printer {
     }
 
     fn print_elems(&mut self, state: &mut State, data: ElementSectionReader) -> Result<()> {
-        for (i, elem) in data.into_iter().enumerate() {
-            let mut elem = elem?;
-            self.newline();
+        for (i, elem) in data.into_iter_with_offsets().enumerate() {
+            let (offset, mut elem) = elem?;
+            self.newline(offset);
             self.start_group("elem ");
             self.print_name(&state.core.element_names, i as u32)?;
             match &mut elem.kind {
@@ -1123,9 +1157,9 @@ impl Printer {
     }
 
     fn print_data(&mut self, state: &mut State, data: DataSectionReader) -> Result<()> {
-        for (i, data) in data.into_iter().enumerate() {
-            let data = data?;
-            self.newline();
+        for (i, data) in data.into_iter_with_offsets().enumerate() {
+            let (offset, data) = data?;
+            self.newline(offset);
             self.start_group("data ");
             self.print_name(&state.core.data_names, i as u32)?;
             self.result.push(' ');
@@ -1386,10 +1420,10 @@ impl Printer {
         decls: Vec<ModuleTypeDeclaration>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Module));
-        self.newline();
+        self.newline_unknown_pos();
         self.start_group("module");
         for decl in decls {
-            self.newline();
+            self.newline_unknown_pos();
             match decl {
                 ModuleTypeDeclaration::Type(ty) => {
                     self.print_type(states.last_mut().unwrap(), ty)?
@@ -1418,10 +1452,10 @@ impl Printer {
         decls: Vec<ComponentTypeDeclaration<'a>>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
-        self.newline();
+        self.newline_unknown_pos();
         self.start_group("component");
         for decl in decls {
-            self.newline();
+            self.newline_unknown_pos();
             match decl {
                 ComponentTypeDeclaration::CoreType(ty) => self.print_core_type(states, ty)?,
                 ComponentTypeDeclaration::Type(ty) => self.print_component_type_def(states, ty)?,
@@ -1456,10 +1490,10 @@ impl Printer {
         decls: Vec<InstanceTypeDeclaration<'a>>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
-        self.newline();
+        self.newline_unknown_pos();
         self.start_group("instance");
         for decl in decls {
-            self.newline();
+            self.newline_unknown_pos();
             match decl {
                 InstanceTypeDeclaration::CoreType(ty) => self.print_core_type(states, ty)?,
                 InstanceTypeDeclaration::Type(ty) => self.print_component_type_def(states, ty)?,
@@ -1656,9 +1690,9 @@ impl Printer {
         states: &mut Vec<State>,
         parser: ComponentTypeSectionReader<'a>,
     ) -> Result<()> {
-        for ty in parser {
-            let ty = ty?;
-            self.newline();
+        for ty in parser.into_iter_with_offsets() {
+            let (offset, ty) = ty?;
+            self.newline(offset);
             self.print_component_type_def(states, ty)?;
         }
 
@@ -1670,9 +1704,9 @@ impl Printer {
         state: &mut State,
         parser: ComponentImportSectionReader,
     ) -> Result<()> {
-        for import in parser {
-            let import = import?;
-            self.newline();
+        for import in parser.into_iter_with_offsets() {
+            let (offset, import) = import?;
+            self.newline(offset);
             self.print_component_import(state, &import, true)?;
             match import.ty {
                 ComponentTypeRef::Module(_) => {
@@ -1782,9 +1816,9 @@ impl Printer {
         state: &mut State,
         parser: ComponentExportSectionReader,
     ) -> Result<()> {
-        for export in parser {
-            let export = export?;
-            self.newline();
+        for export in parser.into_iter_with_offsets() {
+            let (offset, export) = export?;
+            self.newline(offset);
             self.print_component_export(state, &export)?;
         }
         Ok(())
@@ -1877,9 +1911,10 @@ impl Printer {
         state: &mut State,
         parser: ComponentCanonicalSectionReader,
     ) -> Result<()> {
-        for func in parser {
-            self.newline();
-            match func? {
+        for func in parser.into_iter_with_offsets() {
+            let (offset, func) = func?;
+            self.newline(offset);
+            match func {
                 CanonicalFunction::Lift {
                     core_func_index,
                     type_index,
@@ -1924,17 +1959,18 @@ impl Printer {
     }
 
     fn print_instances(&mut self, state: &mut State, parser: InstanceSectionReader) -> Result<()> {
-        for instance in parser {
-            self.newline();
+        for instance in parser.into_iter_with_offsets() {
+            let (offset, instance) = instance?;
+            self.newline(offset);
             self.start_group("core instance ");
             self.print_name(&state.core.instance_names, state.core.instances)?;
             self.result.push(' ');
-            match instance? {
+            match instance {
                 Instance::Instantiate { module_index, args } => {
                     self.start_group("instantiate ");
                     self.print_idx(&state.core.module_names, module_index)?;
                     for arg in args.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_instantiation_arg(state, arg)?;
                     }
                     self.end_group();
@@ -1942,7 +1978,7 @@ impl Printer {
                 }
                 Instance::FromExports(exports) => {
                     for export in exports.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_export(state, export)?;
                     }
                     state.core.instances += 1;
@@ -1958,12 +1994,13 @@ impl Printer {
         state: &mut State,
         parser: ComponentInstanceSectionReader,
     ) -> Result<()> {
-        for instance in parser {
-            self.newline();
+        for instance in parser.into_iter_with_offsets() {
+            let (offset, instance) = instance?;
+            self.newline(offset);
             self.start_group("instance ");
             self.print_name(&state.component.instance_names, state.component.instances)?;
             state.component.instances += 1;
-            match instance? {
+            match instance {
                 ComponentInstance::Instantiate {
                     component_index,
                     args,
@@ -1972,14 +2009,14 @@ impl Printer {
                     self.start_group("instantiate ");
                     self.print_idx(&state.component.component_names, component_index)?;
                     for arg in args.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_component_instantiation_arg(state, arg)?;
                     }
                     self.end_group();
                 }
                 ComponentInstance::FromExports(exports) => {
                     for export in exports.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_component_export(state, export)?;
                     }
                 }
@@ -2022,9 +2059,10 @@ impl Printer {
         state: &mut State,
         mut parser: ComponentStartSectionReader,
     ) -> Result<()> {
+        let pos = parser.original_position();
         let start = parser.read()?;
 
-        self.newline();
+        self.newline(pos);
         self.start_group("start ");
         self.print_idx(&state.component.func_names, start.func_index)?;
 
@@ -2103,9 +2141,10 @@ impl Printer {
     }
 
     fn print_aliases(&mut self, states: &mut [State], parser: AliasSectionReader) -> Result<()> {
-        for alias in parser {
-            self.newline();
-            self.print_alias(states, alias?, true)?;
+        for alias in parser.into_iter_with_offsets() {
+            let (offset, alias) = alias?;
+            self.newline(offset);
+            self.print_alias(states, alias, true)?;
         }
         Ok(())
     }
@@ -2115,9 +2154,10 @@ impl Printer {
         states: &mut [State],
         parser: ComponentAliasSectionReader,
     ) -> Result<()> {
-        for alias in parser {
-            self.newline();
-            match alias? {
+        for alias in parser.into_iter_with_offsets() {
+            let (offset, alias) = alias?;
+            self.newline(offset);
+            match alias {
                 ComponentAlias::InstanceExport {
                     kind,
                     instance_index,
