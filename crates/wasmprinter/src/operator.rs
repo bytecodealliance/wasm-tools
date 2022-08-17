@@ -800,16 +800,16 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f32_demote_f64(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32.demote_f64")
     }
-    fn visit_f64_convert_i32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f64_convert_i32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64.convert_i32_s")
     }
-    fn visit_f64_convert_i32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f64_convert_i32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64.convert_i32_u")
     }
-    fn visit_f64_convert_i64s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f64_convert_i64_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64.convert_i64_s")
     }
-    fn visit_f64_convert_i64u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f64_convert_i64_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64.convert_i64_u")
     }
     fn visit_f64_promote_f32(&mut self, _pos: usize) -> Self::Output {
@@ -843,28 +843,28 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
         self.instr("i64.extend32_s")
     }
 
-    fn visit_i32_trunc_sat_f32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_sat_f32_s")
     }
-    fn visit_i32_trunc_sat_f32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_sat_f32_u")
     }
-    fn visit_i32_trunc_sat_f64s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f64_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_sat_f64_s")
     }
-    fn visit_i32_trunc_sat_f64u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f64_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_sat_f64_u")
     }
-    fn visit_i64_trunc_sat_f32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_sat_f32_s")
     }
-    fn visit_i64_trunc_sat_f32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_sat_f32_u")
     }
-    fn visit_i64_trunc_sat_f64s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f64_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_sat_f64_s")
     }
-    fn visit_i64_trunc_sat_f64u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f64_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_sat_f64_u")
     }
 
@@ -1230,10 +1230,10 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f32x4_max(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32x4.max")
     }
-    fn visit_f32x4_p_min(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f32x4_pmin(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32x4.pmin")
     }
-    fn visit_f32x4_p_max(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f32x4_pmax(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32x4.pmax")
     }
 
@@ -1255,10 +1255,10 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f64x2_max(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.max")
     }
-    fn visit_f64x2_p_min(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f64x2_pmin(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.pmin")
     }
-    fn visit_f64x2_p_max(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f64x2_pmax(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.pmax")
     }
 
@@ -1390,7 +1390,7 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_v128_and(&mut self, _pos: usize) -> Self::Output {
         self.instr("v128.and")
     }
-    fn visit_v128_and_not(&mut self, _pos: usize) -> Self::Output {
+    fn visit_v128_andnot(&mut self, _pos: usize) -> Self::Output {
         self.instr("v128.andnot")
     }
     fn visit_v128_or(&mut self, _pos: usize) -> Self::Output {
@@ -1500,10 +1500,10 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
         self.instr("i64x2.mul")
     }
 
-    fn visit_i8x16_rounding_average_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i8x16_avgr_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i8x16.avgr_u")
     }
-    fn visit_i16x8_rounding_average_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_avgr_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.avgr_u")
     }
     fn visit_i8x16_narrow_i16x8_s(&mut self, _pos: usize) -> Self::Output {
@@ -1518,43 +1518,43 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_i16x8_narrow_i32x4_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.narrow_i32x4_u")
     }
-    fn visit_i16x8_ext_mul_low_i8x16_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_extmul_low_i8x16_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.extmul_low_i8x16_s")
     }
-    fn visit_i16x8_ext_mul_high_i8x16_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_extmul_high_i8x16_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.extmul_high_i8x16_s")
     }
-    fn visit_i16x8_ext_mul_low_i8x16_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_extmul_low_i8x16_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.extmul_low_i8x16_u")
     }
-    fn visit_i16x8_ext_mul_high_i8x16_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_extmul_high_i8x16_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.extmul_high_i8x16_u")
     }
-    fn visit_i32x4_ext_mul_low_i16x8_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_extmul_low_i16x8_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.extmul_low_i16x8_s")
     }
-    fn visit_i32x4_ext_mul_high_i16x8_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_extmul_high_i16x8_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.extmul_high_i16x8_s")
     }
-    fn visit_i32x4_ext_mul_low_i16x8_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_extmul_low_i16x8_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.extmul_low_i16x8_u")
     }
-    fn visit_i32x4_ext_mul_high_i16x8_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_extmul_high_i16x8_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.extmul_high_i16x8_u")
     }
-    fn visit_i64x2_ext_mul_low_i32x4_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64x2_extmul_low_i32x4_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64x2.extmul_low_i32x4_s")
     }
-    fn visit_i64x2_ext_mul_high_i32x4_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64x2_extmul_high_i32x4_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64x2.extmul_high_i32x4_s")
     }
-    fn visit_i64x2_ext_mul_low_i32x4_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64x2_extmul_low_i32x4_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64x2.extmul_low_i32x4_u")
     }
-    fn visit_i64x2_ext_mul_high_i32x4_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64x2_extmul_high_i32x4_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64x2.extmul_high_i32x4_u")
     }
-    fn visit_i16x8_q15_mulr_sat_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_q15mulr_sat_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.q15mulr_sat_s")
     }
 
@@ -1699,16 +1699,16 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_i64x2_extend_high_i32x4_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64x2.extend_high_i32x4_u")
     }
-    fn visit_i16x8_ext_add_pairwise_i8x16_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_extadd_pairwise_i8x16_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.extadd_pairwise_i8x16_s")
     }
-    fn visit_i16x8_ext_add_pairwise_i8x16_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_extadd_pairwise_i8x16_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.extadd_pairwise_i8x16_u")
     }
-    fn visit_i32x4_ext_add_pairwise_i16x8_s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_extadd_pairwise_i16x8_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.extadd_pairwise_i16x8_s")
     }
-    fn visit_i32x4_ext_add_pairwise_i16x8_u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_extadd_pairwise_i16x8_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.extadd_pairwise_i16x8_u")
     }
     fn visit_i32x4_relaxed_trunc_sat_f32x4_s(&mut self, _pos: usize) -> Self::Output {
@@ -1738,16 +1738,16 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f64x2_fms(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.fms")
     }
-    fn visit_i8x16_lane_select(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i8x16_laneselect(&mut self, _pos: usize) -> Self::Output {
         self.instr("i8x16.laneselect")
     }
-    fn visit_i16x8_lane_select(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i16x8_laneselect(&mut self, _pos: usize) -> Self::Output {
         self.instr("i16x8.laneselect")
     }
-    fn visit_i32x4_lane_select(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32x4_laneselect(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32x4.laneselect")
     }
-    fn visit_i64x2_lane_select(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64x2_laneselect(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64x2.laneselect")
     }
     fn visit_v128_any_true(&mut self, _pos: usize) -> Self::Output {

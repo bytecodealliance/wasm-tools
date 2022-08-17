@@ -1377,10 +1377,10 @@ pub trait VisitOperator<'a> {
             Operator::F32ConvertI64S => self.visit_f32_convert_i64s(offset),
             Operator::F32ConvertI64U => self.visit_f32_convert_i64u(offset),
             Operator::F32DemoteF64 => self.visit_f32_demote_f64(offset),
-            Operator::F64ConvertI32S => self.visit_f64_convert_i32s(offset),
-            Operator::F64ConvertI32U => self.visit_f64_convert_i32u(offset),
-            Operator::F64ConvertI64S => self.visit_f64_convert_i64s(offset),
-            Operator::F64ConvertI64U => self.visit_f64_convert_i64u(offset),
+            Operator::F64ConvertI32S => self.visit_f64_convert_i32_s(offset),
+            Operator::F64ConvertI32U => self.visit_f64_convert_i32_u(offset),
+            Operator::F64ConvertI64S => self.visit_f64_convert_i64_s(offset),
+            Operator::F64ConvertI64U => self.visit_f64_convert_i64_u(offset),
             Operator::F64PromoteF32 => self.visit_f64_promote_f32(offset),
             Operator::I32ReinterpretF32 => self.visit_i32_reinterpret_f32(offset),
             Operator::I64ReinterpretF64 => self.visit_i64_reinterpret_f64(offset),
@@ -1391,14 +1391,14 @@ pub trait VisitOperator<'a> {
             Operator::I64Extend8S => self.visit_i64_extend8_s(offset),
             Operator::I64Extend16S => self.visit_i64_extend16_s(offset),
             Operator::I64Extend32S => self.visit_i64_extend32_s(offset),
-            Operator::I32TruncSatF32S => self.visit_i32_trunc_sat_f32s(offset),
-            Operator::I32TruncSatF32U => self.visit_i32_trunc_sat_f32u(offset),
-            Operator::I32TruncSatF64S => self.visit_i32_trunc_sat_f64s(offset),
-            Operator::I32TruncSatF64U => self.visit_i32_trunc_sat_f64u(offset),
-            Operator::I64TruncSatF32S => self.visit_i64_trunc_sat_f32s(offset),
-            Operator::I64TruncSatF32U => self.visit_i64_trunc_sat_f32u(offset),
-            Operator::I64TruncSatF64S => self.visit_i64_trunc_sat_f64s(offset),
-            Operator::I64TruncSatF64U => self.visit_i64_trunc_sat_f64u(offset),
+            Operator::I32TruncSatF32S => self.visit_i32_trunc_sat_f32_s(offset),
+            Operator::I32TruncSatF32U => self.visit_i32_trunc_sat_f32_u(offset),
+            Operator::I32TruncSatF64S => self.visit_i32_trunc_sat_f64_s(offset),
+            Operator::I32TruncSatF64U => self.visit_i32_trunc_sat_f64_u(offset),
+            Operator::I64TruncSatF32S => self.visit_i64_trunc_sat_f32_s(offset),
+            Operator::I64TruncSatF32U => self.visit_i64_trunc_sat_f32_u(offset),
+            Operator::I64TruncSatF64S => self.visit_i64_trunc_sat_f64_s(offset),
+            Operator::I64TruncSatF64U => self.visit_i64_trunc_sat_f64_u(offset),
             Operator::MemoryInit { segment, mem } => self.visit_memory_init(offset, segment, mem),
             Operator::DataDrop { segment } => self.visit_data_drop(offset, segment),
             Operator::MemoryCopy { src, dst } => self.visit_memory_copy(offset, dst, src),
@@ -1573,7 +1573,7 @@ pub trait VisitOperator<'a> {
             Operator::F64x2Ge => self.visit_f64x2_ge(offset),
             Operator::V128Not => self.visit_v128_not(offset),
             Operator::V128And => self.visit_v128_and(offset),
-            Operator::V128AndNot => self.visit_v128_and_not(offset),
+            Operator::V128AndNot => self.visit_v128_andnot(offset),
             Operator::V128Or => self.visit_v128_or(offset),
             Operator::V128Xor => self.visit_v128_xor(offset),
             Operator::V128Bitselect => self.visit_v128_bitselect(offset),
@@ -1598,12 +1598,12 @@ pub trait VisitOperator<'a> {
             Operator::I8x16MinU => self.visit_i8x16_min_u(offset),
             Operator::I8x16MaxS => self.visit_i8x16_max_s(offset),
             Operator::I8x16MaxU => self.visit_i8x16_max_u(offset),
-            Operator::I8x16RoundingAverageU => self.visit_i8x16_rounding_average_u(offset),
-            Operator::I16x8ExtAddPairwiseI8x16S => self.visit_i16x8_ext_add_pairwise_i8x16_s(offset),
-            Operator::I16x8ExtAddPairwiseI8x16U => self.visit_i16x8_ext_add_pairwise_i8x16_u(offset),
+            Operator::I8x16RoundingAverageU => self.visit_i8x16_avgr_u(offset),
+            Operator::I16x8ExtAddPairwiseI8x16S => self.visit_i16x8_extadd_pairwise_i8x16_s(offset),
+            Operator::I16x8ExtAddPairwiseI8x16U => self.visit_i16x8_extadd_pairwise_i8x16_u(offset),
             Operator::I16x8Abs => self.visit_i16x8_abs(offset),
             Operator::I16x8Neg => self.visit_i16x8_neg(offset),
-            Operator::I16x8Q15MulrSatS => self.visit_i16x8_q15_mulr_sat_s(offset),
+            Operator::I16x8Q15MulrSatS => self.visit_i16x8_q15mulr_sat_s(offset),
             Operator::I16x8AllTrue => self.visit_i16x8_all_true(offset),
             Operator::I16x8Bitmask => self.visit_i16x8_bitmask(offset),
             Operator::I16x8NarrowI32x4S => self.visit_i16x8_narrow_i32x4_s(offset),
@@ -1626,13 +1626,13 @@ pub trait VisitOperator<'a> {
             Operator::I16x8MinU => self.visit_i16x8_min_u(offset),
             Operator::I16x8MaxS => self.visit_i16x8_max_s(offset),
             Operator::I16x8MaxU => self.visit_i16x8_max_u(offset),
-            Operator::I16x8RoundingAverageU => self.visit_i16x8_rounding_average_u(offset),
-            Operator::I16x8ExtMulLowI8x16S => self.visit_i16x8_ext_mul_low_i8x16_s(offset),
-            Operator::I16x8ExtMulHighI8x16S => self.visit_i16x8_ext_mul_high_i8x16_s(offset),
-            Operator::I16x8ExtMulLowI8x16U => self.visit_i16x8_ext_mul_low_i8x16_u(offset),
-            Operator::I16x8ExtMulHighI8x16U => self.visit_i16x8_ext_mul_high_i8x16_u(offset),
-            Operator::I32x4ExtAddPairwiseI16x8S => self.visit_i32x4_ext_add_pairwise_i16x8_s(offset),
-            Operator::I32x4ExtAddPairwiseI16x8U => self.visit_i32x4_ext_add_pairwise_i16x8_u(offset),
+            Operator::I16x8RoundingAverageU => self.visit_i16x8_avgr_u(offset),
+            Operator::I16x8ExtMulLowI8x16S => self.visit_i16x8_extmul_low_i8x16_s(offset),
+            Operator::I16x8ExtMulHighI8x16S => self.visit_i16x8_extmul_high_i8x16_s(offset),
+            Operator::I16x8ExtMulLowI8x16U => self.visit_i16x8_extmul_low_i8x16_u(offset),
+            Operator::I16x8ExtMulHighI8x16U => self.visit_i16x8_extmul_high_i8x16_u(offset),
+            Operator::I32x4ExtAddPairwiseI16x8S => self.visit_i32x4_extadd_pairwise_i16x8_s(offset),
+            Operator::I32x4ExtAddPairwiseI16x8U => self.visit_i32x4_extadd_pairwise_i16x8_u(offset),
             Operator::I32x4Abs => self.visit_i32x4_abs(offset),
             Operator::I32x4Neg => self.visit_i32x4_neg(offset),
             Operator::I32x4AllTrue => self.visit_i32x4_all_true(offset),
@@ -1652,10 +1652,10 @@ pub trait VisitOperator<'a> {
             Operator::I32x4MaxS => self.visit_i32x4_max_s(offset),
             Operator::I32x4MaxU => self.visit_i32x4_max_u(offset),
             Operator::I32x4DotI16x8S => self.visit_i32x4_dot_i16x8_s(offset),
-            Operator::I32x4ExtMulLowI16x8S => self.visit_i32x4_ext_mul_low_i16x8_s(offset),
-            Operator::I32x4ExtMulHighI16x8S => self.visit_i32x4_ext_mul_high_i16x8_s(offset),
-            Operator::I32x4ExtMulLowI16x8U => self.visit_i32x4_ext_mul_low_i16x8_u(offset),
-            Operator::I32x4ExtMulHighI16x8U => self.visit_i32x4_ext_mul_high_i16x8_u(offset),
+            Operator::I32x4ExtMulLowI16x8S => self.visit_i32x4_extmul_low_i16x8_s(offset),
+            Operator::I32x4ExtMulHighI16x8S => self.visit_i32x4_extmul_high_i16x8_s(offset),
+            Operator::I32x4ExtMulLowI16x8U => self.visit_i32x4_extmul_low_i16x8_u(offset),
+            Operator::I32x4ExtMulHighI16x8U => self.visit_i32x4_extmul_high_i16x8_u(offset),
             Operator::I64x2Abs => self.visit_i64x2_abs(offset),
             Operator::I64x2Neg => self.visit_i64x2_neg(offset),
             Operator::I64x2AllTrue => self.visit_i64x2_all_true(offset),
@@ -1670,10 +1670,10 @@ pub trait VisitOperator<'a> {
             Operator::I64x2Add => self.visit_i64x2_add(offset),
             Operator::I64x2Sub => self.visit_i64x2_sub(offset),
             Operator::I64x2Mul => self.visit_i64x2_mul(offset),
-            Operator::I64x2ExtMulLowI32x4S => self.visit_i64x2_ext_mul_low_i32x4_s(offset),
-            Operator::I64x2ExtMulHighI32x4S => self.visit_i64x2_ext_mul_high_i32x4_s(offset),
-            Operator::I64x2ExtMulLowI32x4U => self.visit_i64x2_ext_mul_low_i32x4_u(offset),
-            Operator::I64x2ExtMulHighI32x4U => self.visit_i64x2_ext_mul_high_i32x4_u(offset),
+            Operator::I64x2ExtMulLowI32x4S => self.visit_i64x2_extmul_low_i32x4_s(offset),
+            Operator::I64x2ExtMulHighI32x4S => self.visit_i64x2_extmul_high_i32x4_s(offset),
+            Operator::I64x2ExtMulLowI32x4U => self.visit_i64x2_extmul_low_i32x4_u(offset),
+            Operator::I64x2ExtMulHighI32x4U => self.visit_i64x2_extmul_high_i32x4_u(offset),
             Operator::F32x4Ceil => self.visit_f32x4_ceil(offset),
             Operator::F32x4Floor => self.visit_f32x4_floor(offset),
             Operator::F32x4Trunc => self.visit_f32x4_trunc(offset),
@@ -1687,8 +1687,8 @@ pub trait VisitOperator<'a> {
             Operator::F32x4Div => self.visit_f32x4_div(offset),
             Operator::F32x4Min => self.visit_f32x4_min(offset),
             Operator::F32x4Max => self.visit_f32x4_max(offset),
-            Operator::F32x4PMin => self.visit_f32x4_p_min(offset),
-            Operator::F32x4PMax => self.visit_f32x4_p_max(offset),
+            Operator::F32x4PMin => self.visit_f32x4_pmin(offset),
+            Operator::F32x4PMax => self.visit_f32x4_pmax(offset),
             Operator::F64x2Ceil => self.visit_f64x2_ceil(offset),
             Operator::F64x2Floor => self.visit_f64x2_floor(offset),
             Operator::F64x2Trunc => self.visit_f64x2_trunc(offset),
@@ -1702,8 +1702,8 @@ pub trait VisitOperator<'a> {
             Operator::F64x2Div => self.visit_f64x2_div(offset),
             Operator::F64x2Min => self.visit_f64x2_min(offset),
             Operator::F64x2Max => self.visit_f64x2_max(offset),
-            Operator::F64x2PMin => self.visit_f64x2_p_min(offset),
-            Operator::F64x2PMax => self.visit_f64x2_p_max(offset),
+            Operator::F64x2PMin => self.visit_f64x2_pmin(offset),
+            Operator::F64x2PMax => self.visit_f64x2_pmax(offset),
             Operator::I32x4TruncSatF32x4S => self.visit_i32x4_trunc_sat_f32x4_s(offset),
             Operator::I32x4TruncSatF32x4U => self.visit_i32x4_trunc_sat_f32x4_u(offset),
             Operator::F32x4ConvertI32x4S => self.visit_f32x4_convert_i32x4_s(offset),
@@ -1723,10 +1723,10 @@ pub trait VisitOperator<'a> {
             Operator::F32x4Fms => self.visit_f32x4_fms(offset),
             Operator::F64x2Fma => self.visit_f64x2_fma(offset),
             Operator::F64x2Fms => self.visit_f64x2_fms(offset),
-            Operator::I8x16LaneSelect => self.visit_i8x16_lane_select(offset),
-            Operator::I16x8LaneSelect => self.visit_i16x8_lane_select(offset),
-            Operator::I32x4LaneSelect => self.visit_i32x4_lane_select(offset),
-            Operator::I64x2LaneSelect => self.visit_i64x2_lane_select(offset),
+            Operator::I8x16LaneSelect => self.visit_i8x16_laneselect(offset),
+            Operator::I16x8LaneSelect => self.visit_i16x8_laneselect(offset),
+            Operator::I32x4LaneSelect => self.visit_i32x4_laneselect(offset),
+            Operator::I64x2LaneSelect => self.visit_i64x2_laneselect(offset),
             Operator::F32x4RelaxedMin => self.visit_f32x4_relaxed_min(offset),
             Operator::F32x4RelaxedMax => self.visit_f32x4_relaxed_max(offset),
             Operator::F64x2RelaxedMin => self.visit_f64x2_relaxed_min(offset),
@@ -1932,10 +1932,10 @@ pub trait VisitOperator<'a> {
     fn visit_f32_convert_i64s(&mut self, offset: usize) -> Self::Output;
     fn visit_f32_convert_i64u(&mut self, offset: usize) -> Self::Output;
     fn visit_f32_demote_f64(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i32s(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i32u(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i64s(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i64u(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i32_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i32_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i64_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i64_u(&mut self, offset: usize) -> Self::Output;
     fn visit_f64_promote_f32(&mut self, offset: usize) -> Self::Output;
     fn visit_i32_reinterpret_f32(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_reinterpret_f64(&mut self, offset: usize) -> Self::Output;
@@ -1946,14 +1946,14 @@ pub trait VisitOperator<'a> {
     fn visit_i64_extend8_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_extend16_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_extend32_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f32s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f32u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f64s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f64u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f32s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f32u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f64s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f64u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f32_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f32_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f64_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f64_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f32_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f32_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f64_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f64_u(&mut self, offset: usize) -> Self::Output;
     fn visit_memory_atomic_notify(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
     fn visit_memory_atomic_wait32(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
     fn visit_memory_atomic_wait64(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
@@ -2126,7 +2126,7 @@ pub trait VisitOperator<'a> {
     fn visit_f64x2_ge(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_not(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_and(&mut self, offset: usize) -> Self::Output;
-    fn visit_v128_and_not(&mut self, offset: usize) -> Self::Output;
+    fn visit_v128_andnot(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_or(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_xor(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_bitselect(&mut self, offset: usize) -> Self::Output;
@@ -2151,12 +2151,12 @@ pub trait VisitOperator<'a> {
     fn visit_i8x16_min_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_max_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_max_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i8x16_rounding_average_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_add_pairwise_i8x16_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_add_pairwise_i8x16_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i8x16_avgr_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extadd_pairwise_i8x16_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extadd_pairwise_i8x16_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_abs(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_neg(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_q15_mulr_sat_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_q15mulr_sat_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_all_true(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_bitmask(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_narrow_i32x4_s(&mut self, offset: usize) -> Self::Output;
@@ -2179,13 +2179,13 @@ pub trait VisitOperator<'a> {
     fn visit_i16x8_min_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_max_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_max_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_rounding_average_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_low_i8x16_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_high_i8x16_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_low_i8x16_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_high_i8x16_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_add_pairwise_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_add_pairwise_i16x8_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_avgr_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_low_i8x16_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_high_i8x16_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_low_i8x16_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_high_i8x16_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extadd_pairwise_i16x8_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extadd_pairwise_i16x8_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_abs(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_neg(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_all_true(&mut self, offset: usize) -> Self::Output;
@@ -2205,10 +2205,10 @@ pub trait VisitOperator<'a> {
     fn visit_i32x4_max_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_max_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_dot_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_low_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_high_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_low_i16x8_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_high_i16x8_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_low_i16x8_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_high_i16x8_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_low_i16x8_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_high_i16x8_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_abs(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_neg(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_all_true(&mut self, offset: usize) -> Self::Output;
@@ -2223,10 +2223,10 @@ pub trait VisitOperator<'a> {
     fn visit_i64x2_add(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_sub(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_mul(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_low_i32x4_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_high_i32x4_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_low_i32x4_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_high_i32x4_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_low_i32x4_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_high_i32x4_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_low_i32x4_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_high_i32x4_u(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_ceil(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_floor(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_trunc(&mut self, offset: usize) -> Self::Output;
@@ -2240,8 +2240,8 @@ pub trait VisitOperator<'a> {
     fn visit_f32x4_div(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_min(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_max(&mut self, offset: usize) -> Self::Output;
-    fn visit_f32x4_p_min(&mut self, offset: usize) -> Self::Output;
-    fn visit_f32x4_p_max(&mut self, offset: usize) -> Self::Output;
+    fn visit_f32x4_pmin(&mut self, offset: usize) -> Self::Output;
+    fn visit_f32x4_pmax(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_ceil(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_floor(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_trunc(&mut self, offset: usize) -> Self::Output;
@@ -2255,8 +2255,8 @@ pub trait VisitOperator<'a> {
     fn visit_f64x2_div(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_min(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_max(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64x2_p_min(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64x2_p_max(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64x2_pmin(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64x2_pmax(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_relaxed_min(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_relaxed_max(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_relaxed_min(&mut self, offset: usize) -> Self::Output;
@@ -2279,9 +2279,9 @@ pub trait VisitOperator<'a> {
     fn visit_f32x4_fms(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_fma(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_fms(&mut self, offset: usize) -> Self::Output;
-    fn visit_i8x16_lane_select(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_lane_select(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_lane_select(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_lane_select(&mut self, offset: usize) -> Self::Output;
+    fn visit_i8x16_laneselect(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_laneselect(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_laneselect(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_laneselect(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_relaxed_swizzle(&mut self, offset: usize) -> Self::Output;
 }

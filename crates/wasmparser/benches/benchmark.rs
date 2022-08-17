@@ -503,23 +503,23 @@ impl<'a> VisitOperator<'a> for NopVisit {
     fn visit_f32_convert_i64s(&mut self, offset: usize) {}
     fn visit_f32_convert_i64u(&mut self, offset: usize) {}
     fn visit_f32_demote_f64(&mut self, offset: usize) {}
-    fn visit_f64_convert_i32s(&mut self, offset: usize) {}
-    fn visit_f64_convert_i32u(&mut self, offset: usize) {}
-    fn visit_f64_convert_i64s(&mut self, offset: usize) {}
-    fn visit_f64_convert_i64u(&mut self, offset: usize) {}
+    fn visit_f64_convert_i32_s(&mut self, offset: usize) {}
+    fn visit_f64_convert_i32_u(&mut self, offset: usize) {}
+    fn visit_f64_convert_i64_s(&mut self, offset: usize) {}
+    fn visit_f64_convert_i64_u(&mut self, offset: usize) {}
     fn visit_f64_promote_f32(&mut self, offset: usize) {}
     fn visit_i32_reinterpret_f32(&mut self, offset: usize) {}
     fn visit_i64_reinterpret_f64(&mut self, offset: usize) {}
     fn visit_f32_reinterpret_i32(&mut self, offset: usize) {}
     fn visit_f64_reinterpret_i64(&mut self, offset: usize) {}
-    fn visit_i32_trunc_sat_f32s(&mut self, offset: usize) {}
-    fn visit_i32_trunc_sat_f32u(&mut self, offset: usize) {}
-    fn visit_i32_trunc_sat_f64s(&mut self, offset: usize) {}
-    fn visit_i32_trunc_sat_f64u(&mut self, offset: usize) {}
-    fn visit_i64_trunc_sat_f32s(&mut self, offset: usize) {}
-    fn visit_i64_trunc_sat_f32u(&mut self, offset: usize) {}
-    fn visit_i64_trunc_sat_f64s(&mut self, offset: usize) {}
-    fn visit_i64_trunc_sat_f64u(&mut self, offset: usize) {}
+    fn visit_i32_trunc_sat_f32_s(&mut self, offset: usize) {}
+    fn visit_i32_trunc_sat_f32_u(&mut self, offset: usize) {}
+    fn visit_i32_trunc_sat_f64_s(&mut self, offset: usize) {}
+    fn visit_i32_trunc_sat_f64_u(&mut self, offset: usize) {}
+    fn visit_i64_trunc_sat_f32_s(&mut self, offset: usize) {}
+    fn visit_i64_trunc_sat_f32_u(&mut self, offset: usize) {}
+    fn visit_i64_trunc_sat_f64_s(&mut self, offset: usize) {}
+    fn visit_i64_trunc_sat_f64_u(&mut self, offset: usize) {}
     fn visit_i32_extend8_s(&mut self, offset: usize) {}
     fn visit_i32_extend16_s(&mut self, offset: usize) {}
     fn visit_i64_extend8_s(&mut self, offset: usize) {}
@@ -636,16 +636,16 @@ impl<'a> VisitOperator<'a> for NopVisit {
     fn visit_f32x4_div(&mut self, offset: usize) {}
     fn visit_f32x4_min(&mut self, offset: usize) {}
     fn visit_f32x4_max(&mut self, offset: usize) {}
-    fn visit_f32x4_p_min(&mut self, offset: usize) {}
-    fn visit_f32x4_p_max(&mut self, offset: usize) {}
+    fn visit_f32x4_pmin(&mut self, offset: usize) {}
+    fn visit_f32x4_pmax(&mut self, offset: usize) {}
     fn visit_f64x2_add(&mut self, offset: usize) {}
     fn visit_f64x2_sub(&mut self, offset: usize) {}
     fn visit_f64x2_mul(&mut self, offset: usize) {}
     fn visit_f64x2_div(&mut self, offset: usize) {}
     fn visit_f64x2_min(&mut self, offset: usize) {}
     fn visit_f64x2_max(&mut self, offset: usize) {}
-    fn visit_f64x2_p_min(&mut self, offset: usize) {}
-    fn visit_f64x2_p_max(&mut self, offset: usize) {}
+    fn visit_f64x2_pmin(&mut self, offset: usize) {}
+    fn visit_f64x2_pmax(&mut self, offset: usize) {}
     fn visit_f32x4_relaxed_min(&mut self, offset: usize) {}
     fn visit_f32x4_relaxed_max(&mut self, offset: usize) {}
     fn visit_f64x2_relaxed_min(&mut self, offset: usize) {}
@@ -687,7 +687,7 @@ impl<'a> VisitOperator<'a> for NopVisit {
     fn visit_i64x2_le_s(&mut self, offset: usize) {}
     fn visit_i64x2_ge_s(&mut self, offset: usize) {}
     fn visit_v128_and(&mut self, offset: usize) {}
-    fn visit_v128_and_not(&mut self, offset: usize) {}
+    fn visit_v128_andnot(&mut self, offset: usize) {}
     fn visit_v128_or(&mut self, offset: usize) {}
     fn visit_v128_xor(&mut self, offset: usize) {}
     fn visit_i8x16_add(&mut self, offset: usize) {}
@@ -722,25 +722,25 @@ impl<'a> VisitOperator<'a> for NopVisit {
     fn visit_i64x2_add(&mut self, offset: usize) {}
     fn visit_i64x2_sub(&mut self, offset: usize) {}
     fn visit_i64x2_mul(&mut self, offset: usize) {}
-    fn visit_i8x16_rounding_average_u(&mut self, offset: usize) {}
-    fn visit_i16x8_rounding_average_u(&mut self, offset: usize) {}
+    fn visit_i8x16_avgr_u(&mut self, offset: usize) {}
+    fn visit_i16x8_avgr_u(&mut self, offset: usize) {}
     fn visit_i8x16_narrow_i16x8_s(&mut self, offset: usize) {}
     fn visit_i8x16_narrow_i16x8_u(&mut self, offset: usize) {}
     fn visit_i16x8_narrow_i32x4_s(&mut self, offset: usize) {}
     fn visit_i16x8_narrow_i32x4_u(&mut self, offset: usize) {}
-    fn visit_i16x8_ext_mul_low_i8x16_s(&mut self, offset: usize) {}
-    fn visit_i16x8_ext_mul_high_i8x16_s(&mut self, offset: usize) {}
-    fn visit_i16x8_ext_mul_low_i8x16_u(&mut self, offset: usize) {}
-    fn visit_i16x8_ext_mul_high_i8x16_u(&mut self, offset: usize) {}
-    fn visit_i32x4_ext_mul_low_i16x8_s(&mut self, offset: usize) {}
-    fn visit_i32x4_ext_mul_high_i16x8_s(&mut self, offset: usize) {}
-    fn visit_i32x4_ext_mul_low_i16x8_u(&mut self, offset: usize) {}
-    fn visit_i32x4_ext_mul_high_i16x8_u(&mut self, offset: usize) {}
-    fn visit_i64x2_ext_mul_low_i32x4_s(&mut self, offset: usize) {}
-    fn visit_i64x2_ext_mul_high_i32x4_s(&mut self, offset: usize) {}
-    fn visit_i64x2_ext_mul_low_i32x4_u(&mut self, offset: usize) {}
-    fn visit_i64x2_ext_mul_high_i32x4_u(&mut self, offset: usize) {}
-    fn visit_i16x8_q15_mulr_sat_s(&mut self, offset: usize) {}
+    fn visit_i16x8_extmul_low_i8x16_s(&mut self, offset: usize) {}
+    fn visit_i16x8_extmul_high_i8x16_s(&mut self, offset: usize) {}
+    fn visit_i16x8_extmul_low_i8x16_u(&mut self, offset: usize) {}
+    fn visit_i16x8_extmul_high_i8x16_u(&mut self, offset: usize) {}
+    fn visit_i32x4_extmul_low_i16x8_s(&mut self, offset: usize) {}
+    fn visit_i32x4_extmul_high_i16x8_s(&mut self, offset: usize) {}
+    fn visit_i32x4_extmul_low_i16x8_u(&mut self, offset: usize) {}
+    fn visit_i32x4_extmul_high_i16x8_u(&mut self, offset: usize) {}
+    fn visit_i64x2_extmul_low_i32x4_s(&mut self, offset: usize) {}
+    fn visit_i64x2_extmul_high_i32x4_s(&mut self, offset: usize) {}
+    fn visit_i64x2_extmul_low_i32x4_u(&mut self, offset: usize) {}
+    fn visit_i64x2_extmul_high_i32x4_u(&mut self, offset: usize) {}
+    fn visit_i16x8_q15mulr_sat_s(&mut self, offset: usize) {}
     fn visit_f32x4_ceil(&mut self, offset: usize) {}
     fn visit_f32x4_floor(&mut self, offset: usize) {}
     fn visit_f32x4_trunc(&mut self, offset: usize) {}
@@ -787,10 +787,10 @@ impl<'a> VisitOperator<'a> for NopVisit {
     fn visit_i64x2_extend_high_i32x4_s(&mut self, offset: usize) {}
     fn visit_i64x2_extend_low_i32x4_u(&mut self, offset: usize) {}
     fn visit_i64x2_extend_high_i32x4_u(&mut self, offset: usize) {}
-    fn visit_i16x8_ext_add_pairwise_i8x16_s(&mut self, offset: usize) {}
-    fn visit_i16x8_ext_add_pairwise_i8x16_u(&mut self, offset: usize) {}
-    fn visit_i32x4_ext_add_pairwise_i16x8_s(&mut self, offset: usize) {}
-    fn visit_i32x4_ext_add_pairwise_i16x8_u(&mut self, offset: usize) {}
+    fn visit_i16x8_extadd_pairwise_i8x16_s(&mut self, offset: usize) {}
+    fn visit_i16x8_extadd_pairwise_i8x16_u(&mut self, offset: usize) {}
+    fn visit_i32x4_extadd_pairwise_i16x8_s(&mut self, offset: usize) {}
+    fn visit_i32x4_extadd_pairwise_i16x8_u(&mut self, offset: usize) {}
     fn visit_i32x4_relaxed_trunc_sat_f32x4_s(&mut self, offset: usize) {}
     fn visit_i32x4_relaxed_trunc_sat_f32x4_u(&mut self, offset: usize) {}
     fn visit_i32x4_relaxed_trunc_sat_f64x2_s_zero(&mut self, offset: usize) {}
@@ -800,10 +800,10 @@ impl<'a> VisitOperator<'a> for NopVisit {
     fn visit_f32x4_fms(&mut self, offset: usize) {}
     fn visit_f64x2_fma(&mut self, offset: usize) {}
     fn visit_f64x2_fms(&mut self, offset: usize) {}
-    fn visit_i8x16_lane_select(&mut self, offset: usize) {}
-    fn visit_i16x8_lane_select(&mut self, offset: usize) {}
-    fn visit_i32x4_lane_select(&mut self, offset: usize) {}
-    fn visit_i64x2_lane_select(&mut self, offset: usize) {}
+    fn visit_i8x16_laneselect(&mut self, offset: usize) {}
+    fn visit_i16x8_laneselect(&mut self, offset: usize) {}
+    fn visit_i32x4_laneselect(&mut self, offset: usize) {}
+    fn visit_i64x2_laneselect(&mut self, offset: usize) {}
     fn visit_v128_any_true(&mut self, offset: usize) {}
     fn visit_i8x16_all_true(&mut self, offset: usize) {}
     fn visit_i8x16_bitmask(&mut self, offset: usize) {}
