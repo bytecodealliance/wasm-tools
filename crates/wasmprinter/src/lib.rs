@@ -940,7 +940,7 @@ impl Printer {
         &mut self,
         state: &State,
         name: &str,
-        memarg: &MemoryImmediate,
+        memarg: &MemArg,
         default_align: u32,
     ) -> Result<()> {
         self.result.push_str(name);
