@@ -1039,7 +1039,7 @@ where
         }
         Ok(())
     }
-    fn visit_br_table(&mut self, offset: usize, table: &BrTable) -> Self::Output {
+    fn visit_br_table(&mut self, offset: usize, table: BrTable) -> Self::Output {
         self.pop_operand(offset, Some(ValType::I32))?;
         let default = self.jump(offset, table.default())?;
         let default_types = self.label_types(offset, default.0, default.1)?;
