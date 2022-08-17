@@ -37,7 +37,7 @@ fuzz_target!(|data: &[u8]| {
         saturating_float_to_int: (byte2 & 0b0100_0000) != 0,
         sign_extension: (byte2 & 0b1000_0000) != 0,
     });
-    let use_maybe_invalid = bytes3 & 0b0000_0001 != 0;
+    let use_maybe_invalid = byte3 & 0b0000_0001 != 0;
 
     let wasm = &data[3..];
     if log::log_enabled!(log::Level::Debug) {
