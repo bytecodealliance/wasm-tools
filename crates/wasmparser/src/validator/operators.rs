@@ -24,8 +24,7 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, Ieee32, Ieee64,
-    MemArg, Result, SIMDLaneIndex, ValType, VisitOperator, WasmFeatures, WasmFuncType,
-    WasmModuleResources, V128,
+    MemArg, Result, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -524,7 +523,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_memory_index(offset, memarg.memory)
     }
 
-    fn check_simd_lane_index(&self, offset: usize, index: SIMDLaneIndex, max: u8) -> Result<()> {
+    fn check_simd_lane_index(&self, offset: usize, index: u8, max: u8) -> Result<()> {
         if index >= max {
             bail_op_err!(offset, "SIMD index out of bounds");
         }
@@ -2081,34 +2080,34 @@ where
         self.check_non_deterministic_enabled(offset)?;
         self.check_v128_splat(offset, ValType::F64)
     }
-    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i8x16_extract_lane_u(&mut self, input: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_extract_lane_u(&mut self, input: usize, lane: u8) -> Self::Output {
         self.visit_i8x16_extract_lane_s(input, lane)
     }
-    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i16x8_extract_lane_u(&mut self, input: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_extract_lane_u(&mut self, input: usize, lane: u8) -> Self::Output {
         self.visit_i16x8_extract_lane_s(input, lane)
     }
-    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -2116,7 +2115,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -2124,7 +2123,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -2132,14 +2131,14 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::I64))?;
@@ -2147,7 +2146,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -2155,7 +2154,7 @@ where
         self.push_operand(ValType::F32)?;
         Ok(())
     }
-    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -2164,7 +2163,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
@@ -2172,7 +2171,7 @@ where
         self.push_operand(ValType::F64)?;
         Ok(())
     }
-    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
@@ -2821,7 +2820,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [SIMDLaneIndex; 16]) -> Self::Output {
+    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [u8; 16]) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
@@ -2879,12 +2878,7 @@ where
     fn visit_v128_load32x2_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load8_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 0, offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
@@ -2893,12 +2887,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load16_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 1, offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
@@ -2907,12 +2896,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load32_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 2, offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -2921,12 +2905,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load64_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
@@ -2935,12 +2914,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_store8_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 0, offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
@@ -2948,12 +2922,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store16_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 1, offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
@@ -2961,12 +2930,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store32_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 2, offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -2974,12 +2938,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store64_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemArg,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;

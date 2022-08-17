@@ -207,7 +207,7 @@ mod tests {
     }
 }
 
-use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, SIMDLaneIndex, VisitOperator, V128};
+use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, VisitOperator, V128};
 
 macro_rules! forward {
     ( $this:ident.$visit_fn:ident($offset:expr $(, $param:expr)*) $(,)? ) => {{
@@ -496,20 +496,20 @@ where
     fn visit_i64x2_splat(&mut self, offset: usize) -> Self::Output { forward!(self.visit_i64x2_splat(offset)) }
     fn visit_f32x4_splat(&mut self, offset: usize) -> Self::Output { forward!(self.visit_f32x4_splat(offset)) }
     fn visit_f64x2_splat(&mut self, offset: usize) -> Self::Output { forward!(self.visit_f64x2_splat(offset)) }
-    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i8x16_extract_lane_s(offset, lane)) }
-    fn visit_i8x16_extract_lane_u(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i8x16_extract_lane_u(offset, lane)) }
-    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i16x8_extract_lane_s(offset, lane)) }
-    fn visit_i16x8_extract_lane_u(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i16x8_extract_lane_u(offset, lane)) }
-    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i32x4_extract_lane(offset, lane)) }
-    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i8x16_replace_lane(offset, lane)) }
-    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i16x8_replace_lane(offset, lane)) }
-    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i32x4_replace_lane(offset, lane)) }
-    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i64x2_extract_lane(offset, lane)) }
-    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_i64x2_replace_lane(offset, lane)) }
-    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_f32x4_extract_lane(offset, lane)) }
-    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_f32x4_replace_lane(offset, lane)) }
-    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_f64x2_extract_lane(offset, lane)) }
-    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_f64x2_replace_lane(offset, lane)) }
+    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i8x16_extract_lane_s(offset, lane)) }
+    fn visit_i8x16_extract_lane_u(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i8x16_extract_lane_u(offset, lane)) }
+    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i16x8_extract_lane_s(offset, lane)) }
+    fn visit_i16x8_extract_lane_u(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i16x8_extract_lane_u(offset, lane)) }
+    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i32x4_extract_lane(offset, lane)) }
+    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i8x16_replace_lane(offset, lane)) }
+    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i16x8_replace_lane(offset, lane)) }
+    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i32x4_replace_lane(offset, lane)) }
+    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i64x2_extract_lane(offset, lane)) }
+    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_i64x2_replace_lane(offset, lane)) }
+    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_f32x4_extract_lane(offset, lane)) }
+    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_f32x4_replace_lane(offset, lane)) }
+    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_f64x2_extract_lane(offset, lane)) }
+    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output { forward!(self.visit_f64x2_replace_lane(offset, lane)) }
     fn visit_f32x4_eq(&mut self, offset: usize) -> Self::Output { forward!(self.visit_f32x4_eq(offset)) }
     fn visit_f32x4_ne(&mut self, offset: usize) -> Self::Output { forward!(self.visit_f32x4_ne(offset)) }
     fn visit_f32x4_lt(&mut self, offset: usize) -> Self::Output { forward!(self.visit_f32x4_lt(offset)) }
@@ -719,7 +719,7 @@ where
     fn visit_i64x2_shr_u(&mut self, offset: usize) -> Self::Output { forward!(self.visit_i64x2_shr_u(offset)) }
     fn visit_i8x16_swizzle(&mut self, offset: usize) -> Self::Output { forward!(self.visit_i8x16_swizzle(offset)) }
     fn visit_i8x16_relaxed_swizzle(&mut self, offset: usize) -> Self::Output { forward!(self.visit_i8x16_relaxed_swizzle(offset)) }
-    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [SIMDLaneIndex; 16]) -> Self::Output { forward!(self.visit_i8x16_shuffle(offset, lanes)) }
+    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [u8; 16]) -> Self::Output { forward!(self.visit_i8x16_shuffle(offset, lanes)) }
     fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output { forward!(self.visit_v128_load8_splat(offset, memarg)) }
     fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output { forward!(self.visit_v128_load16_splat(offset, memarg)) }
     fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output { forward!(self.visit_v128_load32_splat(offset, memarg)) }
@@ -732,14 +732,14 @@ where
     fn visit_v128_load16x4_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output { forward!(self.visit_v128_load16x4_u(offset, memarg)) }
     fn visit_v128_load32x2_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output { forward!(self.visit_v128_load32x2_s(offset, memarg)) }
     fn visit_v128_load32x2_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output { forward!(self.visit_v128_load32x2_u(offset, memarg)) }
-    fn visit_v128_load8_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_load8_lane(offset, memarg, lane)) }
-    fn visit_v128_load16_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_load16_lane(offset, memarg, lane)) }
-    fn visit_v128_load32_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_load32_lane(offset, memarg, lane)) }
-    fn visit_v128_load64_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_load64_lane(offset, memarg, lane)) }
-    fn visit_v128_store8_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_store8_lane(offset, memarg, lane)) }
-    fn visit_v128_store16_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_store16_lane(offset, memarg, lane)) }
-    fn visit_v128_store32_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_store32_lane(offset, memarg, lane)) }
-    fn visit_v128_store64_lane(&mut self, offset: usize, memarg: MemArg, lane: SIMDLaneIndex) -> Self::Output { forward!(self.visit_v128_store64_lane(offset, memarg, lane)) }
+    fn visit_v128_load8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_load8_lane(offset, memarg, lane)) }
+    fn visit_v128_load16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_load16_lane(offset, memarg, lane)) }
+    fn visit_v128_load32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_load32_lane(offset, memarg, lane)) }
+    fn visit_v128_load64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_load64_lane(offset, memarg, lane)) }
+    fn visit_v128_store8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_store8_lane(offset, memarg, lane)) }
+    fn visit_v128_store16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_store16_lane(offset, memarg, lane)) }
+    fn visit_v128_store32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_store32_lane(offset, memarg, lane)) }
+    fn visit_v128_store64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output { forward!(self.visit_v128_store64_lane(offset, memarg, lane)) }
     fn visit_memory_init(&mut self, offset: usize, mem: u32, segment: u32) -> Self::Output { forward!(self.visit_memory_init(offset, mem, segment)) }
     fn visit_data_drop(&mut self, offset: usize, segment: u32) -> Self::Output { forward!(self.visit_data_drop(offset, segment)) }
     fn visit_memory_copy(&mut self, offset: usize, src: u32, dst: u32) -> Self::Output { forward!(self.visit_memory_copy(offset, src, dst)) }
