@@ -1020,13 +1020,18 @@ impl<'a> BinaryReader<'a> {
     ///
     /// If `BinaryReader` has less than one or up to four bytes remaining, or
     /// the integer is larger than 32 bits.
+    #[inline]
     pub fn read_var_u32(&mut self) -> Result<u32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
         if (byte & 0x80) == 0 {
-            return Ok(byte as u32);
+            Ok(u32::from(byte))
+        } else {
+            self.read_var_u32_big(byte)
         }
+    }
 
+    fn read_var_u32_big(&mut self, byte: u8) -> Result<u32> {
         let mut result = (byte & 0x7F) as u32;
         let mut shift = 7;
         loop {
@@ -1056,13 +1061,18 @@ impl<'a> BinaryReader<'a> {
     ///
     /// If `BinaryReader` has less than one or up to eight bytes remaining, or
     /// the integer is larger than 64 bits.
+    #[inline]
     pub fn read_var_u64(&mut self) -> Result<u64> {
         // Optimization for single byte u64.
         let byte = u64::from(self.read_u8()?);
         if (byte & 0x80) == 0 {
-            return Ok(byte);
+            Ok(byte)
+        } else {
+            self.read_var_u64_big(byte)
         }
+    }
 
+    fn read_var_u64_big(&mut self, byte: u64) -> Result<u64> {
         let mut result = byte & 0x7F;
         let mut shift = 7;
         loop {
@@ -1124,13 +1134,18 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     /// If `BinaryReader` has less than one or up to four bytes remaining, or
     /// the integer is larger than 32 bits.
+    #[inline]
     pub fn read_var_i32(&mut self) -> Result<i32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
         if (byte & 0x80) == 0 {
-            return Ok(((byte as i32) << 25) >> 25);
+            Ok(((byte as i32) << 25) >> 25)
+        } else {
+            self.read_var_i32_big(byte)
         }
+    }
 
+    fn read_var_i32_big(&mut self, byte: u8) -> Result<i32> {
         let mut result = (byte & 0x7F) as i32;
         let mut shift = 7;
         loop {
