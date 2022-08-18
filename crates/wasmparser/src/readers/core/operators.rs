@@ -30,7 +30,7 @@ pub enum BlockType {
 
 /// Represents a memory immediate in a WebAssembly memory instruction.
 #[derive(Debug, Copy, Clone)]
-pub struct MemoryImmediate {
+pub struct MemArg {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
     /// A fixed byte-offset that this memory immediate specifies.
@@ -99,9 +99,6 @@ impl V128 {
         i128::from_le_bytes(self.0)
     }
 }
-
-/// Represents a SIMD lane index.
-pub type SIMDLaneIndex = u8;
 
 /// Instructions as defined [here].
 ///
@@ -184,73 +181,73 @@ pub enum Operator<'a> {
         global_index: u32,
     },
     I32Load {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     F32Load {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     F64Load {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Load8S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Load8U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Load16S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Load16U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load8S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load8U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load16S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load16U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load32S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Load32U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Store {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Store {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     F32Store {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     F64Store {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Store8 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32Store16 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Store8 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Store16 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64Store32 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     MemorySize {
         mem: u32,
@@ -465,330 +462,330 @@ pub enum Operator<'a> {
     // 0xFE operators
     // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
     MemoryAtomicNotify {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     MemoryAtomicWait32 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     MemoryAtomicWait64 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     AtomicFence {
         flags: u8,
     },
     I32AtomicLoad {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicLoad {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicLoad8U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicLoad16U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicLoad8U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicLoad16U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicLoad32U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicStore {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicStore {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicStore8 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicStore16 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicStore8 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicStore16 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicStore32 {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwAdd {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwAdd {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8AddU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16AddU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8AddU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16AddU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32AddU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwSub {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwSub {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8SubU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16SubU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8SubU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16SubU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32SubU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwAnd {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwAnd {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8AndU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16AndU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8AndU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16AndU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32AndU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwOr {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwOr {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8OrU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16OrU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8OrU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16OrU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32OrU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwXor {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwXor {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8XorU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16XorU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8XorU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16XorU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32XorU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwXchg {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwXchg {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8XchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16XchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8XchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16XchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32XchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmwCmpxchg {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmwCmpxchg {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw8CmpxchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I32AtomicRmw16CmpxchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw8CmpxchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw16CmpxchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     I64AtomicRmw32CmpxchgU {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
 
     // 0xFD operators
     // SIMD https://webassembly.github.io/simd/core/binary/instructions.html
     V128Load {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load8x8S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load8x8U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load16x4S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load16x4U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load32x2S {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load32x2U {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load8Splat {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load16Splat {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load32Splat {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load64Splat {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load32Zero {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load64Zero {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Store {
-        memarg: MemoryImmediate,
+        memarg: MemArg,
     },
     V128Load8Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Load16Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Load32Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Load64Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Store8Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Store16Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Store32Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Store64Lane {
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
+        memarg: MemArg,
+        lane: u8,
     },
     V128Const {
         value: V128,
     },
     I8x16Shuffle {
-        lanes: [SIMDLaneIndex; 16],
+        lanes: [u8; 16],
     },
     I8x16ExtractLaneS {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I8x16ExtractLaneU {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I8x16ReplaceLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I16x8ExtractLaneS {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I16x8ExtractLaneU {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I16x8ReplaceLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I32x4ExtractLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I32x4ReplaceLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I64x2ExtractLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I64x2ReplaceLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     F32x4ExtractLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     F32x4ReplaceLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     F64x2ExtractLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     F64x2ReplaceLane {
-        lane: SIMDLaneIndex,
+        lane: u8,
     },
     I8x16Swizzle,
     I8x16Splat,
@@ -1380,10 +1377,10 @@ pub trait VisitOperator<'a> {
             Operator::F32ConvertI64S => self.visit_f32_convert_i64s(offset),
             Operator::F32ConvertI64U => self.visit_f32_convert_i64u(offset),
             Operator::F32DemoteF64 => self.visit_f32_demote_f64(offset),
-            Operator::F64ConvertI32S => self.visit_f64_convert_i32s(offset),
-            Operator::F64ConvertI32U => self.visit_f64_convert_i32u(offset),
-            Operator::F64ConvertI64S => self.visit_f64_convert_i64s(offset),
-            Operator::F64ConvertI64U => self.visit_f64_convert_i64u(offset),
+            Operator::F64ConvertI32S => self.visit_f64_convert_i32_s(offset),
+            Operator::F64ConvertI32U => self.visit_f64_convert_i32_u(offset),
+            Operator::F64ConvertI64S => self.visit_f64_convert_i64_s(offset),
+            Operator::F64ConvertI64U => self.visit_f64_convert_i64_u(offset),
             Operator::F64PromoteF32 => self.visit_f64_promote_f32(offset),
             Operator::I32ReinterpretF32 => self.visit_i32_reinterpret_f32(offset),
             Operator::I64ReinterpretF64 => self.visit_i64_reinterpret_f64(offset),
@@ -1394,14 +1391,14 @@ pub trait VisitOperator<'a> {
             Operator::I64Extend8S => self.visit_i64_extend8_s(offset),
             Operator::I64Extend16S => self.visit_i64_extend16_s(offset),
             Operator::I64Extend32S => self.visit_i64_extend32_s(offset),
-            Operator::I32TruncSatF32S => self.visit_i32_trunc_sat_f32s(offset),
-            Operator::I32TruncSatF32U => self.visit_i32_trunc_sat_f32u(offset),
-            Operator::I32TruncSatF64S => self.visit_i32_trunc_sat_f64s(offset),
-            Operator::I32TruncSatF64U => self.visit_i32_trunc_sat_f64u(offset),
-            Operator::I64TruncSatF32S => self.visit_i64_trunc_sat_f32s(offset),
-            Operator::I64TruncSatF32U => self.visit_i64_trunc_sat_f32u(offset),
-            Operator::I64TruncSatF64S => self.visit_i64_trunc_sat_f64s(offset),
-            Operator::I64TruncSatF64U => self.visit_i64_trunc_sat_f64u(offset),
+            Operator::I32TruncSatF32S => self.visit_i32_trunc_sat_f32_s(offset),
+            Operator::I32TruncSatF32U => self.visit_i32_trunc_sat_f32_u(offset),
+            Operator::I32TruncSatF64S => self.visit_i32_trunc_sat_f64_s(offset),
+            Operator::I32TruncSatF64U => self.visit_i32_trunc_sat_f64_u(offset),
+            Operator::I64TruncSatF32S => self.visit_i64_trunc_sat_f32_s(offset),
+            Operator::I64TruncSatF32U => self.visit_i64_trunc_sat_f32_u(offset),
+            Operator::I64TruncSatF64S => self.visit_i64_trunc_sat_f64_s(offset),
+            Operator::I64TruncSatF64U => self.visit_i64_trunc_sat_f64_u(offset),
             Operator::MemoryInit { segment, mem } => self.visit_memory_init(offset, segment, mem),
             Operator::DataDrop { segment } => self.visit_data_drop(offset, segment),
             Operator::MemoryCopy { src, dst } => self.visit_memory_copy(offset, dst, src),
@@ -1576,7 +1573,7 @@ pub trait VisitOperator<'a> {
             Operator::F64x2Ge => self.visit_f64x2_ge(offset),
             Operator::V128Not => self.visit_v128_not(offset),
             Operator::V128And => self.visit_v128_and(offset),
-            Operator::V128AndNot => self.visit_v128_and_not(offset),
+            Operator::V128AndNot => self.visit_v128_andnot(offset),
             Operator::V128Or => self.visit_v128_or(offset),
             Operator::V128Xor => self.visit_v128_xor(offset),
             Operator::V128Bitselect => self.visit_v128_bitselect(offset),
@@ -1601,12 +1598,12 @@ pub trait VisitOperator<'a> {
             Operator::I8x16MinU => self.visit_i8x16_min_u(offset),
             Operator::I8x16MaxS => self.visit_i8x16_max_s(offset),
             Operator::I8x16MaxU => self.visit_i8x16_max_u(offset),
-            Operator::I8x16RoundingAverageU => self.visit_i8x16_rounding_average_u(offset),
-            Operator::I16x8ExtAddPairwiseI8x16S => self.visit_i16x8_ext_add_pairwise_i8x16_s(offset),
-            Operator::I16x8ExtAddPairwiseI8x16U => self.visit_i16x8_ext_add_pairwise_i8x16_u(offset),
+            Operator::I8x16RoundingAverageU => self.visit_i8x16_avgr_u(offset),
+            Operator::I16x8ExtAddPairwiseI8x16S => self.visit_i16x8_extadd_pairwise_i8x16_s(offset),
+            Operator::I16x8ExtAddPairwiseI8x16U => self.visit_i16x8_extadd_pairwise_i8x16_u(offset),
             Operator::I16x8Abs => self.visit_i16x8_abs(offset),
             Operator::I16x8Neg => self.visit_i16x8_neg(offset),
-            Operator::I16x8Q15MulrSatS => self.visit_i16x8_q15_mulr_sat_s(offset),
+            Operator::I16x8Q15MulrSatS => self.visit_i16x8_q15mulr_sat_s(offset),
             Operator::I16x8AllTrue => self.visit_i16x8_all_true(offset),
             Operator::I16x8Bitmask => self.visit_i16x8_bitmask(offset),
             Operator::I16x8NarrowI32x4S => self.visit_i16x8_narrow_i32x4_s(offset),
@@ -1629,13 +1626,13 @@ pub trait VisitOperator<'a> {
             Operator::I16x8MinU => self.visit_i16x8_min_u(offset),
             Operator::I16x8MaxS => self.visit_i16x8_max_s(offset),
             Operator::I16x8MaxU => self.visit_i16x8_max_u(offset),
-            Operator::I16x8RoundingAverageU => self.visit_i16x8_rounding_average_u(offset),
-            Operator::I16x8ExtMulLowI8x16S => self.visit_i16x8_ext_mul_low_i8x16_s(offset),
-            Operator::I16x8ExtMulHighI8x16S => self.visit_i16x8_ext_mul_high_i8x16_s(offset),
-            Operator::I16x8ExtMulLowI8x16U => self.visit_i16x8_ext_mul_low_i8x16_u(offset),
-            Operator::I16x8ExtMulHighI8x16U => self.visit_i16x8_ext_mul_high_i8x16_u(offset),
-            Operator::I32x4ExtAddPairwiseI16x8S => self.visit_i32x4_ext_add_pairwise_i16x8_s(offset),
-            Operator::I32x4ExtAddPairwiseI16x8U => self.visit_i32x4_ext_add_pairwise_i16x8_u(offset),
+            Operator::I16x8RoundingAverageU => self.visit_i16x8_avgr_u(offset),
+            Operator::I16x8ExtMulLowI8x16S => self.visit_i16x8_extmul_low_i8x16_s(offset),
+            Operator::I16x8ExtMulHighI8x16S => self.visit_i16x8_extmul_high_i8x16_s(offset),
+            Operator::I16x8ExtMulLowI8x16U => self.visit_i16x8_extmul_low_i8x16_u(offset),
+            Operator::I16x8ExtMulHighI8x16U => self.visit_i16x8_extmul_high_i8x16_u(offset),
+            Operator::I32x4ExtAddPairwiseI16x8S => self.visit_i32x4_extadd_pairwise_i16x8_s(offset),
+            Operator::I32x4ExtAddPairwiseI16x8U => self.visit_i32x4_extadd_pairwise_i16x8_u(offset),
             Operator::I32x4Abs => self.visit_i32x4_abs(offset),
             Operator::I32x4Neg => self.visit_i32x4_neg(offset),
             Operator::I32x4AllTrue => self.visit_i32x4_all_true(offset),
@@ -1655,10 +1652,10 @@ pub trait VisitOperator<'a> {
             Operator::I32x4MaxS => self.visit_i32x4_max_s(offset),
             Operator::I32x4MaxU => self.visit_i32x4_max_u(offset),
             Operator::I32x4DotI16x8S => self.visit_i32x4_dot_i16x8_s(offset),
-            Operator::I32x4ExtMulLowI16x8S => self.visit_i32x4_ext_mul_low_i16x8_s(offset),
-            Operator::I32x4ExtMulHighI16x8S => self.visit_i32x4_ext_mul_high_i16x8_s(offset),
-            Operator::I32x4ExtMulLowI16x8U => self.visit_i32x4_ext_mul_low_i16x8_u(offset),
-            Operator::I32x4ExtMulHighI16x8U => self.visit_i32x4_ext_mul_high_i16x8_u(offset),
+            Operator::I32x4ExtMulLowI16x8S => self.visit_i32x4_extmul_low_i16x8_s(offset),
+            Operator::I32x4ExtMulHighI16x8S => self.visit_i32x4_extmul_high_i16x8_s(offset),
+            Operator::I32x4ExtMulLowI16x8U => self.visit_i32x4_extmul_low_i16x8_u(offset),
+            Operator::I32x4ExtMulHighI16x8U => self.visit_i32x4_extmul_high_i16x8_u(offset),
             Operator::I64x2Abs => self.visit_i64x2_abs(offset),
             Operator::I64x2Neg => self.visit_i64x2_neg(offset),
             Operator::I64x2AllTrue => self.visit_i64x2_all_true(offset),
@@ -1673,10 +1670,10 @@ pub trait VisitOperator<'a> {
             Operator::I64x2Add => self.visit_i64x2_add(offset),
             Operator::I64x2Sub => self.visit_i64x2_sub(offset),
             Operator::I64x2Mul => self.visit_i64x2_mul(offset),
-            Operator::I64x2ExtMulLowI32x4S => self.visit_i64x2_ext_mul_low_i32x4_s(offset),
-            Operator::I64x2ExtMulHighI32x4S => self.visit_i64x2_ext_mul_high_i32x4_s(offset),
-            Operator::I64x2ExtMulLowI32x4U => self.visit_i64x2_ext_mul_low_i32x4_u(offset),
-            Operator::I64x2ExtMulHighI32x4U => self.visit_i64x2_ext_mul_high_i32x4_u(offset),
+            Operator::I64x2ExtMulLowI32x4S => self.visit_i64x2_extmul_low_i32x4_s(offset),
+            Operator::I64x2ExtMulHighI32x4S => self.visit_i64x2_extmul_high_i32x4_s(offset),
+            Operator::I64x2ExtMulLowI32x4U => self.visit_i64x2_extmul_low_i32x4_u(offset),
+            Operator::I64x2ExtMulHighI32x4U => self.visit_i64x2_extmul_high_i32x4_u(offset),
             Operator::F32x4Ceil => self.visit_f32x4_ceil(offset),
             Operator::F32x4Floor => self.visit_f32x4_floor(offset),
             Operator::F32x4Trunc => self.visit_f32x4_trunc(offset),
@@ -1690,8 +1687,8 @@ pub trait VisitOperator<'a> {
             Operator::F32x4Div => self.visit_f32x4_div(offset),
             Operator::F32x4Min => self.visit_f32x4_min(offset),
             Operator::F32x4Max => self.visit_f32x4_max(offset),
-            Operator::F32x4PMin => self.visit_f32x4_p_min(offset),
-            Operator::F32x4PMax => self.visit_f32x4_p_max(offset),
+            Operator::F32x4PMin => self.visit_f32x4_pmin(offset),
+            Operator::F32x4PMax => self.visit_f32x4_pmax(offset),
             Operator::F64x2Ceil => self.visit_f64x2_ceil(offset),
             Operator::F64x2Floor => self.visit_f64x2_floor(offset),
             Operator::F64x2Trunc => self.visit_f64x2_trunc(offset),
@@ -1705,8 +1702,8 @@ pub trait VisitOperator<'a> {
             Operator::F64x2Div => self.visit_f64x2_div(offset),
             Operator::F64x2Min => self.visit_f64x2_min(offset),
             Operator::F64x2Max => self.visit_f64x2_max(offset),
-            Operator::F64x2PMin => self.visit_f64x2_p_min(offset),
-            Operator::F64x2PMax => self.visit_f64x2_p_max(offset),
+            Operator::F64x2PMin => self.visit_f64x2_pmin(offset),
+            Operator::F64x2PMax => self.visit_f64x2_pmax(offset),
             Operator::I32x4TruncSatF32x4S => self.visit_i32x4_trunc_sat_f32x4_s(offset),
             Operator::I32x4TruncSatF32x4U => self.visit_i32x4_trunc_sat_f32x4_u(offset),
             Operator::F32x4ConvertI32x4S => self.visit_f32x4_convert_i32x4_s(offset),
@@ -1726,10 +1723,10 @@ pub trait VisitOperator<'a> {
             Operator::F32x4Fms => self.visit_f32x4_fms(offset),
             Operator::F64x2Fma => self.visit_f64x2_fma(offset),
             Operator::F64x2Fms => self.visit_f64x2_fms(offset),
-            Operator::I8x16LaneSelect => self.visit_i8x16_lane_select(offset),
-            Operator::I16x8LaneSelect => self.visit_i16x8_lane_select(offset),
-            Operator::I32x4LaneSelect => self.visit_i32x4_lane_select(offset),
-            Operator::I64x2LaneSelect => self.visit_i64x2_lane_select(offset),
+            Operator::I8x16LaneSelect => self.visit_i8x16_laneselect(offset),
+            Operator::I16x8LaneSelect => self.visit_i16x8_laneselect(offset),
+            Operator::I32x4LaneSelect => self.visit_i32x4_laneselect(offset),
+            Operator::I64x2LaneSelect => self.visit_i64x2_laneselect(offset),
             Operator::F32x4RelaxedMin => self.visit_f32x4_relaxed_min(offset),
             Operator::F32x4RelaxedMax => self.visit_f32x4_relaxed_max(offset),
             Operator::F64x2RelaxedMin => self.visit_f64x2_relaxed_min(offset),
@@ -1788,29 +1785,29 @@ pub trait VisitOperator<'a> {
     fn visit_table_grow(&mut self, offset: usize, table: u32) -> Self::Output;
     fn visit_table_size(&mut self, offset: usize, table: u32) -> Self::Output;
     fn visit_table_fill(&mut self, offset: usize, table: u32) -> Self::Output;
-    fn visit_i32_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_f32_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_f64_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_load8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_load16_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_load16_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load16_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load16_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load32_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_load32_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_f32_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_f64_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_store32(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i32_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_f32_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_f64_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_load8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_load8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_load16_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_load16_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load16_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load16_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load32_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_load32_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_f32_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_f64_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_store32(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
     fn visit_memory_size(&mut self, offset: usize, mem: u32, mem_byte: u8) -> Self::Output;
     fn visit_memory_grow(&mut self, offset: usize, mem: u32, mem_byte: u8) -> Self::Output;
     fn visit_memory_init(&mut self, offset: usize, segment: u32, mem: u32) -> Self::Output;
@@ -1935,10 +1932,10 @@ pub trait VisitOperator<'a> {
     fn visit_f32_convert_i64s(&mut self, offset: usize) -> Self::Output;
     fn visit_f32_convert_i64u(&mut self, offset: usize) -> Self::Output;
     fn visit_f32_demote_f64(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i32s(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i32u(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i64s(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64_convert_i64u(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i32_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i32_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i64_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64_convert_i64_u(&mut self, offset: usize) -> Self::Output;
     fn visit_f64_promote_f32(&mut self, offset: usize) -> Self::Output;
     fn visit_i32_reinterpret_f32(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_reinterpret_f64(&mut self, offset: usize) -> Self::Output;
@@ -1949,333 +1946,128 @@ pub trait VisitOperator<'a> {
     fn visit_i64_extend8_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_extend16_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i64_extend32_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f32s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f32u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f64s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32_trunc_sat_f64u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f32s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f32u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f64s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64_trunc_sat_f64u(&mut self, offset: usize) -> Self::Output;
-    fn visit_memory_atomic_notify(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_memory_atomic_wait32(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_memory_atomic_wait64(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_trunc_sat_f32_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f32_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f64_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32_trunc_sat_f64_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f32_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f32_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f64_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64_trunc_sat_f64_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_memory_atomic_notify(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_memory_atomic_wait32(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_memory_atomic_wait64(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
     fn visit_atomic_fence(&mut self, offset: usize, flags: u8) -> Self::Output;
-    fn visit_i32_atomic_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_load16_u(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_i64_atomic_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_load16_u(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_i64_atomic_load32_u(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_i32_atomic_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_store32(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
+    fn visit_i32_atomic_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_load8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_load16_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_load8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_load16_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_load32_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_store32(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_add(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw_add(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_add(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_add(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_sub(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw_sub(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_sub(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_sub(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_and(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw_and(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_and(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_and(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_or(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw_or(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_or(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_or(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_xor(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i64_atomic_rmw_xor(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_i32_atomic_rmw8_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_xor(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_xor(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_i64_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemoryImmediate)
-        -> Self::Output;
-    fn visit_i32_atomic_rmw8_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_i32_atomic_rmw_cmpxchg(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw_cmpxchg(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw8_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i32_atomic_rmw16_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw8_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw16_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
-    fn visit_i64_atomic_rmw32_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output;
+    fn visit_i32_atomic_rmw_cmpxchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw_cmpxchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw8_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i32_atomic_rmw16_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw8_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw16_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_i64_atomic_rmw32_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
 
-    fn visit_v128_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load8x8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load8x8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load16x4_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load16x4_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load32x2_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load32x2_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load64_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load32_zero(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load64_zero(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output;
-    fn visit_v128_load8_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_load16_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_load32_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_load64_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_store8_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_store16_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_store32_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
-    fn visit_v128_store64_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output;
+    fn visit_v128_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load8x8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load8x8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load16x4_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load16x4_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load32x2_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load32x2_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load64_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load32_zero(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load64_zero(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output;
+    fn visit_v128_load8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_load16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_load32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_load64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_store8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_store16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_store32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
+    fn visit_v128_store64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output;
 
     fn visit_v128_const(&mut self, offset: usize, value: V128) -> Self::Output;
-    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [SIMDLaneIndex; 16]) -> Self::Output;
-    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i8x16_extract_lane_u(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i16x8_extract_lane_u(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
-    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output;
+    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [u8; 16]) -> Self::Output;
+    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i8x16_extract_lane_u(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i16x8_extract_lane_u(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
+    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output;
 
     fn visit_i8x16_swizzle(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_splat(&mut self, offset: usize) -> Self::Output;
@@ -2334,7 +2126,7 @@ pub trait VisitOperator<'a> {
     fn visit_f64x2_ge(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_not(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_and(&mut self, offset: usize) -> Self::Output;
-    fn visit_v128_and_not(&mut self, offset: usize) -> Self::Output;
+    fn visit_v128_andnot(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_or(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_xor(&mut self, offset: usize) -> Self::Output;
     fn visit_v128_bitselect(&mut self, offset: usize) -> Self::Output;
@@ -2359,12 +2151,12 @@ pub trait VisitOperator<'a> {
     fn visit_i8x16_min_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_max_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_max_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i8x16_rounding_average_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_add_pairwise_i8x16_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_add_pairwise_i8x16_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i8x16_avgr_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extadd_pairwise_i8x16_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extadd_pairwise_i8x16_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_abs(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_neg(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_q15_mulr_sat_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_q15mulr_sat_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_all_true(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_bitmask(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_narrow_i32x4_s(&mut self, offset: usize) -> Self::Output;
@@ -2387,13 +2179,13 @@ pub trait VisitOperator<'a> {
     fn visit_i16x8_min_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_max_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i16x8_max_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_rounding_average_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_low_i8x16_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_high_i8x16_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_low_i8x16_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_ext_mul_high_i8x16_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_add_pairwise_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_add_pairwise_i16x8_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_avgr_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_low_i8x16_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_high_i8x16_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_low_i8x16_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_extmul_high_i8x16_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extadd_pairwise_i16x8_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extadd_pairwise_i16x8_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_abs(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_neg(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_all_true(&mut self, offset: usize) -> Self::Output;
@@ -2413,10 +2205,10 @@ pub trait VisitOperator<'a> {
     fn visit_i32x4_max_s(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_max_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i32x4_dot_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_low_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_high_i16x8_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_low_i16x8_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_ext_mul_high_i16x8_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_low_i16x8_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_high_i16x8_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_low_i16x8_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_extmul_high_i16x8_u(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_abs(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_neg(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_all_true(&mut self, offset: usize) -> Self::Output;
@@ -2431,10 +2223,10 @@ pub trait VisitOperator<'a> {
     fn visit_i64x2_add(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_sub(&mut self, offset: usize) -> Self::Output;
     fn visit_i64x2_mul(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_low_i32x4_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_high_i32x4_s(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_low_i32x4_u(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_ext_mul_high_i32x4_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_low_i32x4_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_high_i32x4_s(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_low_i32x4_u(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_extmul_high_i32x4_u(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_ceil(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_floor(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_trunc(&mut self, offset: usize) -> Self::Output;
@@ -2448,8 +2240,8 @@ pub trait VisitOperator<'a> {
     fn visit_f32x4_div(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_min(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_max(&mut self, offset: usize) -> Self::Output;
-    fn visit_f32x4_p_min(&mut self, offset: usize) -> Self::Output;
-    fn visit_f32x4_p_max(&mut self, offset: usize) -> Self::Output;
+    fn visit_f32x4_pmin(&mut self, offset: usize) -> Self::Output;
+    fn visit_f32x4_pmax(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_ceil(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_floor(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_trunc(&mut self, offset: usize) -> Self::Output;
@@ -2463,8 +2255,8 @@ pub trait VisitOperator<'a> {
     fn visit_f64x2_div(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_min(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_max(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64x2_p_min(&mut self, offset: usize) -> Self::Output;
-    fn visit_f64x2_p_max(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64x2_pmin(&mut self, offset: usize) -> Self::Output;
+    fn visit_f64x2_pmax(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_relaxed_min(&mut self, offset: usize) -> Self::Output;
     fn visit_f32x4_relaxed_max(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_relaxed_min(&mut self, offset: usize) -> Self::Output;
@@ -2487,9 +2279,9 @@ pub trait VisitOperator<'a> {
     fn visit_f32x4_fms(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_fma(&mut self, offset: usize) -> Self::Output;
     fn visit_f64x2_fms(&mut self, offset: usize) -> Self::Output;
-    fn visit_i8x16_lane_select(&mut self, offset: usize) -> Self::Output;
-    fn visit_i16x8_lane_select(&mut self, offset: usize) -> Self::Output;
-    fn visit_i32x4_lane_select(&mut self, offset: usize) -> Self::Output;
-    fn visit_i64x2_lane_select(&mut self, offset: usize) -> Self::Output;
+    fn visit_i8x16_laneselect(&mut self, offset: usize) -> Self::Output;
+    fn visit_i16x8_laneselect(&mut self, offset: usize) -> Self::Output;
+    fn visit_i32x4_laneselect(&mut self, offset: usize) -> Self::Output;
+    fn visit_i64x2_laneselect(&mut self, offset: usize) -> Self::Output;
     fn visit_i8x16_relaxed_swizzle(&mut self, offset: usize) -> Self::Output;
 }
