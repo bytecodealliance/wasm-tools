@@ -1153,6 +1153,7 @@ impl Validator {
         self.components.last_mut().unwrap().add_start(
             f.func_index,
             &f.arguments,
+            f.results,
             &self.types,
             range.start,
         )

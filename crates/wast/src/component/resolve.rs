@@ -799,7 +799,12 @@ impl<'a> ComponentState<'a> {
             ComponentField::CoreFunc(_) | ComponentField::Func(_) => {
                 unreachable!("should be expanded already")
             }
-            ComponentField::Start(s) => self.values.register(s.result, "value")?,
+            ComponentField::Start(s) => {
+                for r in &s.results {
+                    self.values.register(*r, "value")?;
+                }
+                return Ok(());
+            }
             ComponentField::Import(i) => match &i.item.kind {
                 ItemSigKind::CoreModule(_) => {
                     self.core_modules.register(i.item.id, "core module")?

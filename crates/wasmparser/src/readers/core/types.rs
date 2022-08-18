@@ -83,10 +83,7 @@ impl ValType {
     /// Only reference types are allowed in tables, for example, and with some
     /// instructions. Current reference types include `funcref` and `externref`.
     pub fn is_reference_type(&self) -> bool {
-        match self {
-            ValType::Ref(_) => true,
-            _ => false,
-        }
+        matches!(self, ValType::Ref(_))
     }
 }
 

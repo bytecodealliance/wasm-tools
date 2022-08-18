@@ -1659,7 +1659,6 @@ impl<'a> Parse<'a> for BrOnCast<'a> {
 
 /// Different ways to specify a `v128.const` instruction
 #[derive(Debug)]
-#[rustfmt::skip]
 #[allow(missing_docs)]
 pub enum V128Const {
     I8x16([i8; 16]),
