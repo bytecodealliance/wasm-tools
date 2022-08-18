@@ -294,6 +294,7 @@ impl Encoder {
         self.component.section(&ComponentStartSection {
             function_index: start.func.into(),
             args: start.args.iter().map(|a| a.idx.into()).collect::<Vec<_>>(),
+            results: start.results.len() as u32,
         });
     }
 

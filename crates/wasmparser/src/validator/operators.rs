@@ -241,7 +241,7 @@ impl OperatorValidator {
 impl<R> Deref for OperatorValidatorTemp<'_, '_, R> {
     type Target = OperatorValidator;
     fn deref(&self) -> &OperatorValidator {
-        &self.inner
+        self.inner
     }
 }
 
@@ -403,7 +403,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Returns the type signature of the block that we're jumping to as well
     /// as the kind of block if the jump is valid. Otherwise returns an error.
     fn jump(&self, offset: usize, depth: u32) -> Result<(BlockType, FrameKind)> {
-        if self.control.len() == 0 {
+        if self.control.is_empty() {
             return Err(self.err_beyond_end(offset));
         }
         match (self.control.len() - 1).checked_sub(depth as usize) {
