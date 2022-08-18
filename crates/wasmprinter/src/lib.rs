@@ -644,12 +644,18 @@ impl Printer {
     }
 
     fn print_reftype(&mut self, ty: RefType) -> Result<()> {
-        self.result.push_str("(ref ");
-        if ty.nullable {
-            self.result.push_str("null ");
+        if ty == FUNC_REF {
+            self.result.push_str("funcref");
+        } else if ty == EXTERN_REF {
+            self.result.push_str("externref");
+        } else {
+            self.result.push_str("(ref ");
+            if ty.nullable {
+                self.result.push_str("null ");
+            }
+            self.print_heaptype(ty.heap_type)?;
+            self.result.push_str(")");
         }
-        self.print_heaptype(ty.heap_type)?;
-        self.result.push_str(")");
         Ok(())
     }
 
