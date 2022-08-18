@@ -1,8 +1,6 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::{
-    DataKind, ElementItem, ElementKind, FunctionBody, Global, MemoryImmediate, Operator, Type,
-};
+use wasmparser::{DataKind, ElementItem, ElementKind, FunctionBody, Global, Operator, Type};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -105,7 +103,7 @@ pub trait Translator {
         block_type(self.as_obj(), ty)
     }
 
-    fn translate_memarg(&mut self, arg: &MemoryImmediate) -> Result<MemArg> {
+    fn translate_memarg(&mut self, arg: &wasmparser::MemArg) -> Result<MemArg> {
         memarg(self.as_obj(), arg)
     }
 
@@ -956,7 +954,7 @@ pub fn block_type(t: &mut dyn Translator, ty: &wasmparser::BlockType) -> Result<
     }
 }
 
-pub fn memarg(t: &mut dyn Translator, memarg: &MemoryImmediate) -> Result<MemArg> {
+pub fn memarg(t: &mut dyn Translator, memarg: &wasmparser::MemArg) -> Result<MemArg> {
     Ok(MemArg {
         offset: memarg.offset,
         align: memarg.align.into(),

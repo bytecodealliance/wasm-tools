@@ -24,8 +24,8 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, HeapType, Ieee32,
-    Ieee64, MemoryImmediate, RefType, Result, SIMDLaneIndex, ValType, VisitOperator, WasmFeatures,
-    WasmFuncType, WasmModuleResources, EXTERN_REF, FUNC_REF, V128,
+    Ieee64, MemArg, RefType, Result, ValType, VisitOperator, WasmFeatures, WasmFuncType,
+    WasmModuleResources, EXTERN_REF, FUNC_REF, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -462,12 +462,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     /// Validates a `memarg for alignment and such (also the memory it
     /// references), and returns the type of index used to address the memory.
-    fn check_memarg(
-        &self,
-        memarg: MemoryImmediate,
-        max_align: u8,
-        offset: usize,
-    ) -> Result<ValType> {
+    fn check_memarg(&self, memarg: MemArg, max_align: u8, offset: usize) -> Result<ValType> {
         let index_ty = self.check_memory_index(offset, memarg.memory)?;
         let align = memarg.align;
         if align > max_align {
@@ -565,15 +560,11 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         Ok(())
     }
 
-    fn check_shared_memarg_wo_align(
-        &self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Result<ValType> {
+    fn check_shared_memarg_wo_align(&self, offset: usize, memarg: MemArg) -> Result<ValType> {
         self.check_memory_index(offset, memarg.memory)
     }
 
-    fn check_simd_lane_index(&self, offset: usize, index: SIMDLaneIndex, max: u8) -> Result<()> {
+    fn check_simd_lane_index(&self, offset: usize, index: u8, max: u8) -> Result<()> {
         if index >= max {
             bail_op_err!(offset, "SIMD index out of bounds");
         }
@@ -729,12 +720,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     }
 
     /// Checks the validity of an atomic load operator.
-    fn check_atomic_load(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        load_ty: ValType,
-    ) -> Result<()> {
+    fn check_atomic_load(&mut self, offset: usize, memarg: MemArg, load_ty: ValType) -> Result<()> {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
         self.pop_operand(offset, Some(ty))?;
@@ -746,7 +732,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_atomic_store(
         &mut self,
         offset: usize,
-        memarg: MemoryImmediate,
+        memarg: MemArg,
         store_ty: ValType,
     ) -> Result<()> {
         self.check_threads_enabled(offset)?;
@@ -760,7 +746,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_atomic_binary_op(
         &mut self,
         offset: usize,
-        memarg: MemoryImmediate,
+        memarg: MemArg,
         op_ty: ValType,
     ) -> Result<()> {
         self.check_threads_enabled(offset)?;
@@ -775,7 +761,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_atomic_binary_cmpxchg(
         &mut self,
         offset: usize,
-        memarg: MemoryImmediate,
+        memarg: MemArg,
         op_ty: ValType,
     ) -> Result<()> {
         self.check_threads_enabled(offset)?;
@@ -869,7 +855,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     }
 
     /// Checks a [`V128`] common load operator.
-    fn check_v128_load_op(&mut self, offset: usize, memarg: MemoryImmediate) -> Result<()> {
+    fn check_v128_load_op(&mut self, offset: usize, memarg: MemArg) -> Result<()> {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(idx))?;
@@ -1299,128 +1285,128 @@ where
         };
         Ok(())
     }
-    fn visit_i32_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i64_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_f32_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_f32_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::F32)?;
         Ok(())
     }
-    fn visit_f64_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_f64_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::F64)?;
         Ok(())
     }
-    fn visit_i32_load8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_load8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i32_load8_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_load8_u(&mut self, input: usize, memarg: MemArg) -> Self::Output {
         self.visit_i32_load8_s(input, memarg)
     }
-    fn visit_i32_load16_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_load16_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i32_load16_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_load16_u(&mut self, input: usize, memarg: MemArg) -> Self::Output {
         self.visit_i32_load16_s(input, memarg)
     }
-    fn visit_i64_load8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_i64_load8_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load8_u(&mut self, input: usize, memarg: MemArg) -> Self::Output {
         self.visit_i64_load8_s(input, memarg)
     }
-    fn visit_i64_load16_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load16_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_i64_load16_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load16_u(&mut self, input: usize, memarg: MemArg) -> Self::Output {
         self.visit_i64_load16_s(input, memarg)
     }
-    fn visit_i64_load32_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load32_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_i64_load32_u(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_load32_u(&mut self, input: usize, memarg: MemArg) -> Self::Output {
         self.visit_i64_load32_s(input, memarg)
     }
-    fn visit_i32_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_i64_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_f32_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_f32_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ValType::F32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_f64_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_f64_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         let ty = self.check_memarg(memarg, 3, offset)?;
         self.pop_operand(offset, Some(ValType::F64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_i32_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_i32_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_i64_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_i64_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
-    fn visit_i64_store32(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_store32(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
@@ -1807,16 +1793,16 @@ where
     fn visit_f32_demote_f64(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F32, ValType::F64)
     }
-    fn visit_f64_convert_i32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64_convert_i32_s(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F64, ValType::I32)
     }
-    fn visit_f64_convert_i32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64_convert_i32_u(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F64, ValType::I32)
     }
-    fn visit_f64_convert_i64s(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64_convert_i64_s(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F64, ValType::I64)
     }
-    fn visit_f64_convert_i64u(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64_convert_i64_u(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F64, ValType::I64)
     }
     fn visit_f64_promote_f32(&mut self, offset: usize) -> Self::Output {
@@ -1834,35 +1820,35 @@ where
     fn visit_f64_reinterpret_i64(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F64, ValType::I64)
     }
-    fn visit_i32_trunc_sat_f32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f32_s(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I32, ValType::F32)
     }
-    fn visit_i32_trunc_sat_f32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f32_u(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I32, ValType::F32)
     }
-    fn visit_i32_trunc_sat_f64s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f64_s(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I32, ValType::F64)
     }
-    fn visit_i32_trunc_sat_f64u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_sat_f64_u(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I32, ValType::F64)
     }
-    fn visit_i64_trunc_sat_f32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f32_s(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I64, ValType::F32)
     }
-    fn visit_i64_trunc_sat_f32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f32_u(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I64, ValType::F32)
     }
-    fn visit_i64_trunc_sat_f64s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f64_s(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I64, ValType::F64)
     }
-    fn visit_i64_trunc_sat_f64u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_sat_f64_u(&mut self, offset: usize) -> Self::Output {
         self.check_saturating_float_to_int_enabled(offset)?;
         self.check_conversion_op(offset, ValType::I64, ValType::F64)
     }
@@ -1886,375 +1872,199 @@ where
         self.check_sign_extension_enabled(offset)?;
         self.check_unary_op(offset, ValType::I64)
     }
-    fn visit_i32_atomic_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_load16_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_load16_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_load8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I32)
     }
-    fn visit_i64_atomic_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_load32_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_load32_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_load16_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_load16_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_load8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_load8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_load(offset, memarg, ValType::I64)
     }
-    fn visit_i32_atomic_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I32)
     }
-    fn visit_i64_atomic_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_store32(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_store32(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_store16(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_store8(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_store(offset, memarg, ValType::I64)
     }
-    fn visit_i32_atomic_rmw_add(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_add(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw_sub(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_sub(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw_and(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_and(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw_or(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_or(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw_xor(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i32_atomic_rmw_xor(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i64_atomic_rmw_add(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_add(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw_sub(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_sub(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw_and(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_and(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw_or(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_or(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw_xor(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_i64_atomic_rmw_xor(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_add_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_add_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_sub_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_sub_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_and_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_and_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_or_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_or_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_xor_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_xor_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i32_atomic_rmw_xchg(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw_cmpxchg(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw_cmpxchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw16_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw16_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I32)
     }
-    fn visit_i32_atomic_rmw8_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i32_atomic_rmw8_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I32)
     }
-    fn visit_i64_atomic_rmw_xchg(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw_xchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_xchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_xchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw_cmpxchg(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw_cmpxchg(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw32_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw32_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw16_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw16_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I64)
     }
-    fn visit_i64_atomic_rmw8_cmpxchg_u(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_i64_atomic_rmw8_cmpxchg_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_cmpxchg(offset, memarg, ValType::I64)
     }
-    fn visit_memory_atomic_notify(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_memory_atomic_notify(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
-    fn visit_memory_atomic_wait32(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_memory_atomic_wait32(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
         self.pop_operand(offset, Some(ValType::I64))?;
@@ -2263,11 +2073,7 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_memory_atomic_wait64(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-    ) -> Self::Output {
+    fn visit_memory_atomic_wait64(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_threads_enabled(offset)?;
         let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
         self.pop_operand(offset, Some(ValType::I64))?;
@@ -2385,14 +2191,14 @@ where
         }))?;
         Ok(())
     }
-    fn visit_v128_load(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 4, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_store(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 4, offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
@@ -2424,34 +2230,34 @@ where
         self.check_non_deterministic_enabled(offset)?;
         self.check_v128_splat(offset, ValType::F64)
     }
-    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i8x16_extract_lane_u(&mut self, input: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_extract_lane_u(&mut self, input: usize, lane: u8) -> Self::Output {
         self.visit_i8x16_extract_lane_s(input, lane)
     }
-    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_extract_lane_s(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i16x8_extract_lane_u(&mut self, input: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_extract_lane_u(&mut self, input: usize, lane: u8) -> Self::Output {
         self.visit_i16x8_extract_lane_s(input, lane)
     }
-    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i8x16_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -2459,7 +2265,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i16x8_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -2467,7 +2273,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -2475,14 +2281,14 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_i64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::I64))?;
@@ -2490,7 +2296,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f32x4_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -2498,7 +2304,7 @@ where
         self.push_operand(ValType::F32)?;
         Ok(())
     }
-    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f32x4_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -2507,7 +2313,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f64x2_extract_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
@@ -2515,7 +2321,7 @@ where
         self.push_operand(ValType::F64)?;
         Ok(())
     }
-    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: SIMDLaneIndex) -> Self::Output {
+    fn visit_f64x2_replace_lane(&mut self, offset: usize, lane: u8) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
@@ -2578,10 +2384,10 @@ where
     fn visit_f32x4_max(&mut self, offset: usize) -> Self::Output {
         self.check_v128_fbinary_op(offset)
     }
-    fn visit_f32x4_p_min(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32x4_pmin(&mut self, offset: usize) -> Self::Output {
         self.check_v128_fbinary_op(offset)
     }
-    fn visit_f32x4_p_max(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32x4_pmax(&mut self, offset: usize) -> Self::Output {
         self.check_v128_fbinary_op(offset)
     }
     fn visit_f64x2_add(&mut self, offset: usize) -> Self::Output {
@@ -2602,10 +2408,10 @@ where
     fn visit_f64x2_max(&mut self, offset: usize) -> Self::Output {
         self.check_v128_fbinary_op(offset)
     }
-    fn visit_f64x2_p_min(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64x2_pmin(&mut self, offset: usize) -> Self::Output {
         self.check_v128_fbinary_op(offset)
     }
-    fn visit_f64x2_p_max(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64x2_pmax(&mut self, offset: usize) -> Self::Output {
         self.check_v128_fbinary_op(offset)
     }
     fn visit_f32x4_relaxed_min(&mut self, offset: usize) -> Self::Output {
@@ -2731,7 +2537,7 @@ where
     fn visit_v128_and(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_v128_and_not(&mut self, offset: usize) -> Self::Output {
+    fn visit_v128_andnot(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
     fn visit_v128_or(&mut self, offset: usize) -> Self::Output {
@@ -2836,10 +2642,10 @@ where
     fn visit_i64x2_mul(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i8x16_rounding_average_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i8x16_avgr_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i16x8_rounding_average_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_avgr_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
     fn visit_i8x16_narrow_i16x8_s(&mut self, offset: usize) -> Self::Output {
@@ -2854,43 +2660,43 @@ where
     fn visit_i16x8_narrow_i32x4_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i16x8_ext_mul_low_i8x16_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_extmul_low_i8x16_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i16x8_ext_mul_high_i8x16_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_extmul_high_i8x16_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i16x8_ext_mul_low_i8x16_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_extmul_low_i8x16_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i16x8_ext_mul_high_i8x16_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_extmul_high_i8x16_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i32x4_ext_mul_low_i16x8_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_extmul_low_i16x8_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i32x4_ext_mul_high_i16x8_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_extmul_high_i16x8_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i32x4_ext_mul_low_i16x8_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_extmul_low_i16x8_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i32x4_ext_mul_high_i16x8_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_extmul_high_i16x8_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i64x2_ext_mul_low_i32x4_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64x2_extmul_low_i32x4_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i64x2_ext_mul_high_i32x4_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64x2_extmul_high_i32x4_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i64x2_ext_mul_low_i32x4_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64x2_extmul_low_i32x4_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i64x2_ext_mul_high_i32x4_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64x2_extmul_high_i32x4_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
-    fn visit_i16x8_q15_mulr_sat_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_q15mulr_sat_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
     fn visit_f32x4_ceil(&mut self, offset: usize) -> Self::Output {
@@ -3031,16 +2837,16 @@ where
     fn visit_i64x2_extend_high_i32x4_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_unary_op(offset)
     }
-    fn visit_i16x8_ext_add_pairwise_i8x16_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_extadd_pairwise_i8x16_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_unary_op(offset)
     }
-    fn visit_i16x8_ext_add_pairwise_i8x16_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_extadd_pairwise_i8x16_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_unary_op(offset)
     }
-    fn visit_i32x4_ext_add_pairwise_i16x8_s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_extadd_pairwise_i16x8_s(&mut self, offset: usize) -> Self::Output {
         self.check_v128_unary_op(offset)
     }
-    fn visit_i32x4_ext_add_pairwise_i16x8_u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_extadd_pairwise_i16x8_u(&mut self, offset: usize) -> Self::Output {
         self.check_v128_unary_op(offset)
     }
     fn visit_i32x4_relaxed_trunc_sat_f32x4_s(&mut self, offset: usize) -> Self::Output {
@@ -3075,16 +2881,16 @@ where
     fn visit_f64x2_fms(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i8x16_lane_select(&mut self, offset: usize) -> Self::Output {
+    fn visit_i8x16_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i16x8_lane_select(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i32x4_lane_select(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i64x2_lane_select(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64x2_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
     fn visit_v128_any_true(&mut self, offset: usize) -> Self::Output {
@@ -3164,7 +2970,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [SIMDLaneIndex; 16]) -> Self::Output {
+    fn visit_i8x16_shuffle(&mut self, offset: usize, lanes: [u8; 16]) -> Self::Output {
         self.check_simd_enabled(offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ValType::V128))?;
@@ -3174,60 +2980,55 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 0, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 1, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let ty = self.check_memarg(memarg, 2, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load32_zero(&mut self, input: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load32_zero(&mut self, input: usize, memarg: MemArg) -> Self::Output {
         self.visit_v128_load32_splat(input, memarg)
     }
-    fn visit_v128_load64_splat(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load64_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load64_zero(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load64_zero(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load8x8_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load8x8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load8x8_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load8x8_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load16x4_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load16x4_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load16x4_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load16x4_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load32x2_s(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load32x2_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load32x2_u(&mut self, offset: usize, memarg: MemoryImmediate) -> Self::Output {
+    fn visit_v128_load32x2_u(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_v128_load_op(offset, memarg)
     }
-    fn visit_v128_load8_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 0, offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
@@ -3236,12 +3037,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load16_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 1, offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
@@ -3250,12 +3046,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load32_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 2, offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -3264,12 +3055,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_load64_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_load64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
@@ -3278,12 +3064,7 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_v128_store8_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 0, offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
@@ -3291,12 +3072,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store16_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 1, offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
@@ -3304,12 +3080,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store32_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 2, offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
@@ -3317,12 +3088,7 @@ where
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
-    fn visit_v128_store64_lane(
-        &mut self,
-        offset: usize,
-        memarg: MemoryImmediate,
-        lane: SIMDLaneIndex,
-    ) -> Self::Output {
+    fn visit_v128_store64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
         self.check_simd_enabled(offset)?;
         let idx = self.check_memarg(memarg, 3, offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
