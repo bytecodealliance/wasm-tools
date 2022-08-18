@@ -34,8 +34,18 @@ impl From<wasmparser::ValType> for PrimitiveTypeInfo {
             wasmparser::ValType::F32 => PrimitiveTypeInfo::F32,
             wasmparser::ValType::F64 => PrimitiveTypeInfo::F64,
             wasmparser::ValType::V128 => PrimitiveTypeInfo::V128,
-            wasmparser::ValType::FuncRef => PrimitiveTypeInfo::FuncRef,
-            wasmparser::ValType::ExternRef => PrimitiveTypeInfo::ExternRef,
+            wasmparser::ValType::Ref(t) => t.into(),
+            wasmparser::ValType::Bot => unreachable!(),
+        }
+    }
+}
+
+impl From<wasmparser::RefType> for PrimitiveTypeInfo {
+    fn from(value: wasmparser::RefType) -> Self {
+        match value {
+            wasmparser::FUNC_REF => PrimitiveTypeInfo::FuncRef,
+            wasmparser::EXTERN_REF => PrimitiveTypeInfo::ExternRef,
+            _ => unimplemented!(),
         }
     }
 }
@@ -68,8 +78,16 @@ pub fn map_type(tpe: wasmparser::ValType) -> Result<ValType> {
         wasmparser::ValType::F32 => Ok(ValType::F32),
         wasmparser::ValType::F64 => Ok(ValType::F64),
         wasmparser::ValType::V128 => Ok(ValType::V128),
-        wasmparser::ValType::FuncRef => Ok(ValType::FuncRef),
-        wasmparser::ValType::ExternRef => Ok(ValType::ExternRef),
+        wasmparser::ValType::Ref(t) => map_ref_type(t),
+        wasmparser::ValType::Bot => unimplemented!(),
+    }
+}
+
+pub fn map_ref_type(tpe: wasmparser::RefType) -> Result<ValType> {
+    match tpe {
+        wasmparser::FUNC_REF => Ok(ValType::FuncRef),
+        wasmparser::EXTERN_REF => Ok(ValType::ExternRef),
+        _ => unimplemented!(),
     }
 }
 

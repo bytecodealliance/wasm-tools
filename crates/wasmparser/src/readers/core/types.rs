@@ -66,13 +66,13 @@ pub enum HeapType {
 
 /// funcref, in both reference types and function references, represented
 /// using the general ref syntax
-pub(crate) const FUNC_REF: RefType = RefType {
+pub const FUNC_REF: RefType = RefType {
     nullable: true,
     heap_type: HeapType::Func,
 };
 /// externref, in both reference types and function references, represented
 /// using the general ref syntax
-pub(crate) const EXTERN_REF: RefType = RefType {
+pub const EXTERN_REF: RefType = RefType {
     nullable: true,
     heap_type: HeapType::Extern,
 };

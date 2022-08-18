@@ -159,14 +159,22 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::ValType::F32 => ValType::F32,
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::FuncRef => ValType::FuncRef,
-            wasmparser::ValType::ExternRef => ValType::ExternRef,
+            wasmparser::ValType::Ref(ty) => Self::ref_type(ty),
+            wasmparser::ValType::Bot => unimplemented!(),
+        }
+    }
+
+    fn ref_type(ty: wasmparser::RefType) -> ValType {
+        match ty {
+            wasmparser::FUNC_REF => ValType::FuncRef,
+            wasmparser::EXTERN_REF => ValType::FuncRef,
+            _ => unimplemented!(),
         }
     }
 
     fn table_type(ty: wasmparser::TableType) -> TableType {
         TableType {
-            element_type: Self::val_type(ty.element_type),
+            element_type: Self::ref_type(ty.element_type),
             minimum: ty.initial,
             maximum: ty.maximum,
         }

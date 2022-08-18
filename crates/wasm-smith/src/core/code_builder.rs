@@ -1096,6 +1096,7 @@ fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
         ValType::V128 => Instruction::V128Const(u.arbitrary().unwrap_or(0)),
         ValType::ExternRef => Instruction::RefNull(ValType::ExternRef),
         ValType::FuncRef => Instruction::RefNull(ValType::FuncRef),
+        ValType::Ref(_) => unimplemented!(),
     }
 }
 
@@ -1557,11 +1558,10 @@ fn select(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     let ty = t.or(u);
     builder.allocs.operands.push(ty);
     match ty {
-        Some(ty @ ValType::ExternRef) | Some(ty @ ValType::FuncRef) => {
-            Ok(Instruction::TypedSelect(ty))
-        }
+        Some(ty @ (ValType::ExternRef | ValType::FuncRef)) => Ok(Instruction::TypedSelect(ty)),
         Some(ValType::I32) | Some(ValType::I64) | Some(ValType::F32) | Some(ValType::F64)
         | Some(ValType::V128) | None => Ok(Instruction::Select),
+        Some(ValType::Ref(_)) => unimplemented!(),
     }
 }
 
