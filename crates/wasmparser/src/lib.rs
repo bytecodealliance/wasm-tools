@@ -37,7 +37,7 @@
 /// ```
 /// // These names are referred to by the types of each payload and must
 /// // be imported into the module using the `for_each_operator!` macro.
-/// use wasmparser::{V128, MemArg, BlockType, ValType, BrTable, Ieee32, Ieee64};
+/// use wasmparser::{HeapType, V128, MemArg, BlockType, ValType, BrTable, Ieee32, Ieee64};
 ///
 /// macro_rules! define_visit_operator {
 ///     // The outer layer of repetition represents how all operators are
