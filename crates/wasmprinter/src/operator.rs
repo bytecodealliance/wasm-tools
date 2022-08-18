@@ -166,7 +166,7 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
         write!(self.result(), "br_if {relative_depth} (;{label};)")?;
         Ok(OpKind::Normal)
     }
-    fn visit_br_table(&mut self, _pos: usize, table: &BrTable<'a>) -> Self::Output {
+    fn visit_br_table(&mut self, _pos: usize, table: BrTable<'a>) -> Self::Output {
         self.push_str("br_table");
         for item in table.targets().chain(Some(Ok(table.default()))) {
             let item = item?;
