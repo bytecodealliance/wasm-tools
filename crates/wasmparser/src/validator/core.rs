@@ -972,36 +972,66 @@ mod arc {
     use std::ops::Deref;
     use std::sync::Arc;
 
+    enum Inner<T> {
+        Owned(T),
+        Shared(Arc<T>),
+
+        Empty, // Only used for swapping from owned to shared.
+    }
+
     pub struct MaybeOwned<T> {
-        owned: bool,
-        arc: Arc<T>,
+        inner: Inner<T>,
     }
 
     impl<T> MaybeOwned<T> {
-        #[allow(clippy::cast_ref_to_mut)]
+        #[inline]
         fn as_mut(&mut self) -> Option<&mut T> {
-            if !self.owned {
-                return None;
+            match &mut self.inner {
+                Inner::Owned(x) => Some(x),
+                Inner::Shared(_) => None,
+                Inner::Empty => Self::unreachable(),
             }
-            debug_assert!(Arc::get_mut(&mut self.arc).is_some());
-            Some(unsafe { &mut *(Arc::as_ptr(&self.arc) as *mut T) })
         }
 
+        #[inline]
         pub fn assert_mut(&mut self) -> &mut T {
             self.as_mut().unwrap()
         }
 
         pub fn arc(&mut self) -> &Arc<T> {
-            self.owned = false;
-            &self.arc
+            self.make_shared();
+            match &self.inner {
+                Inner::Shared(x) => x,
+                _ => Self::unreachable(),
+            }
+        }
+
+        #[inline]
+        fn make_shared(&mut self) {
+            if let Inner::Shared(_) = self.inner {
+                return;
+            }
+
+            let inner = std::mem::replace(&mut self.inner, Inner::Empty);
+            let x = match inner {
+                Inner::Owned(x) => x,
+                _ => Self::unreachable(),
+            };
+            let x = Arc::new(x);
+            self.inner = Inner::Shared(x);
+        }
+
+        #[cold]
+        #[inline(never)]
+        fn unreachable() -> ! {
+            unreachable!()
         }
     }
 
     impl<T: Default> Default for MaybeOwned<T> {
         fn default() -> MaybeOwned<T> {
             MaybeOwned {
-                owned: true,
-                arc: Arc::default(),
+                inner: Inner::Owned(T::default()),
             }
         }
     }
@@ -1010,7 +1040,11 @@ mod arc {
         type Target = T;
 
         fn deref(&self) -> &T {
-            &self.arc
+            match &self.inner {
+                Inner::Owned(x) => x,
+                Inner::Shared(x) => x,
+                Inner::Empty => Self::unreachable(),
+            }
         }
     }
 }
