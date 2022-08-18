@@ -2,4 +2,4 @@ failed to parse component `tests/compositions/component-not-valid/a.wat`
 
 Caused by:
     0: failed to validate WebAssembly component `tests/compositions/component-not-valid/a.wat`
-    1: unknown core function 0: function index out of bounds (at offset 0x11)
+    1: unknown core function 0: function index out of bounds (at offset 0x13)

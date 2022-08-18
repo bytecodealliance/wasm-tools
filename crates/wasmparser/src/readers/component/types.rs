@@ -131,8 +131,6 @@ pub enum ComponentValType {
 /// Represents a primitive value type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveValType {
-    /// The type is the unit type.
-    Unit,
     /// The type is a boolean.
     Bool,
     /// The type is a signed 8-bit integer.
@@ -173,8 +171,7 @@ impl PrimitiveValType {
         a == b
             || matches!(
                 (a, b),
-                (_, Self::Unit)
-                    | (Self::S8, Self::S16)
+                (Self::S8, Self::S16)
                     | (Self::S8, Self::S32)
                     | (Self::S8, Self::S64)
                     | (Self::U8, Self::U16)
@@ -194,13 +191,6 @@ impl PrimitiveValType {
                     | (Self::U32, Self::S64)
                     | (Self::Float32, Self::Float64)
             )
-    }
-
-    pub(crate) fn type_size(&self) -> usize {
-        match self {
-            Self::Unit => 0,
-            _ => 1,
-        }
     }
 }
 
@@ -255,13 +245,66 @@ pub enum InstanceTypeDeclaration<'a> {
     },
 }
 
+/// Represents the vector of types in a component function's
+/// parameters or results.
+#[derive(Debug, Clone)]
+pub enum TypeVec<'a> {
+    /// The type vector contains a single, unnamed type.
+    Unnamed(ComponentValType),
+    /// The type vector contains zero or more named types.
+    Named(Box<[(&'a str, ComponentValType)]>),
+}
+
+impl TypeVec<'_> {
+    /// Gets the type vector's length.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Unnamed(_) => 1,
+            Self::Named(vec) => vec.len(),
+        }
+    }
+
+    /// Determines if the type vector is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Iterates over the types in the type vector.
+    pub fn iter(&self) -> impl Iterator<Item = (Option<&str>, &ComponentValType)> {
+        enum Either<L, R> {
+            Left(L),
+            Right(R),
+        }
+
+        impl<L, R> Iterator for Either<L, R>
+        where
+            L: Iterator,
+            R: Iterator<Item = L::Item>,
+        {
+            type Item = L::Item;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                match self {
+                    Either::Left(l) => l.next(),
+                    Either::Right(r) => r.next(),
+                }
+            }
+        }
+
+        match self {
+            Self::Unnamed(ty) => Either::Left(std::iter::once(ty).map(|ty| (None, ty))),
+            Self::Named(vec) => Either::Right(vec.iter().map(|(n, ty)| (Some(*n), ty))),
+        }
+    }
+}
+
 /// Represents a type of a function in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType<'a> {
-    /// The function parameter types.
-    pub params: Box<[(Option<&'a str>, ComponentValType)]>,
-    /// The function result type.
-    pub result: ComponentValType,
+    /// The function parameters.
+    pub params: TypeVec<'a>,
+    /// The function results.
+    pub results: TypeVec<'a>,
 }
 
 /// Represents a case in a variant type.
@@ -270,7 +313,7 @@ pub struct VariantCase<'a> {
     /// The name of the variant case.
     pub name: &'a str,
     /// The value type of the variant case.
-    pub ty: ComponentValType,
+    pub ty: Option<ComponentValType>,
     /// The index of the variant case that is refined by this one.
     pub refines: Option<u32>,
 }
@@ -296,12 +339,12 @@ pub enum ComponentDefinedType<'a> {
     Union(Box<[ComponentValType]>),
     /// The type is an option of the given value type.
     Option(ComponentValType),
-    /// The type is an expected type.
-    Expected {
+    /// The type is a result type.
+    Result {
         /// The type returned for success.
-        ok: ComponentValType,
+        ok: Option<ComponentValType>,
         /// The type returned for failure.
-        error: ComponentValType,
+        err: Option<ComponentValType>,
     },
 }
 
@@ -335,7 +378,7 @@ impl<'a> ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x73, 0x00, 0x73];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let ty = reader.read().expect("type");
@@ -382,7 +425,7 @@ impl<'a> IntoIterator for ComponentTypeSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentTypeSectionReader;
-    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x72, 0x72];
+    /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x01, 0x03, b'f', b'o', b'o', 0x73, 0x00, 0x73];
     /// let mut reader = ComponentTypeSectionReader::new(data, 0).unwrap();
     /// for ty in reader {
     ///     println!("Type {:?}", ty.expect("type"));

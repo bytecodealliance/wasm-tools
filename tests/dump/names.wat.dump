@@ -12,7 +12,7 @@
  0x16 | 04          | size of function
  0x17 | 01          | 1 local blocks
  0x18 | 01 7c       | 1 locals of type F64
- 0x1a | 0b          | End
+ 0x1a | 0b          | end
  0x1b | 00 1c       | custom section
  0x1d | 04 6e 61 6d | name: "name"
       | 65         

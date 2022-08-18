@@ -8,8 +8,8 @@ use super::{
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
     ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, Operator, RefType, Result,
-    TableType, TagType, TypeRef, ValType, WasmFeatures, WasmFuncType, WasmModuleResources,
-    FUNC_REF,
+    TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType,
+    WasmModuleResources, FUNC_REF,
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};
@@ -130,13 +130,7 @@ impl ModuleState {
     ) -> Result<()> {
         self.module
             .check_global_type(&global.ty, features, types, offset)?;
-        self.check_const_expr(
-            &global.init_expr,
-            global.ty.content_type,
-            features,
-            types,
-            offset,
-        )?;
+        self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
     }
@@ -155,7 +149,7 @@ impl ModuleState {
                 offset_expr,
             } => {
                 let ty = self.module.memory_at(memory_index, offset)?.index_type();
-                self.check_const_expr(&offset_expr, ty, features, types, offset)
+                self.check_const_expr(&offset_expr, ty, features, types)
             }
         }
     }
@@ -167,30 +161,19 @@ impl ModuleState {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        self.module.check_ref_type(e.ty, types, offset)?;
-        let RefType {
-            nullable,
-            heap_type,
-        } = e.ty;
-        match heap_type {
-            HeapType::Index(_) => {
-                // nullable: "as long as the index is ok"
-                if !nullable && e.items.get_items_reader()?.get_count() <= 0 {
-                    return Err(BinaryReaderError::new(
-                        "a non-nullable element must come with an initialization expression",
-                        offset,
-                    ));
-                }
-            }
-            HeapType::Func | HeapType::Extern => {}
-            HeapType::Bot =>
-            // A bottom type is an artefact of validation; it
-            // should never occur in an element segment.
-            {
+        // the `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here
+        if e.ty != FUNC_REF {
+            self.module
+                .check_value_type(ValType::Ref(e.ty), features, types, offset)?;
+        }
+        if let HeapType::Index(_) = e.ty.heap_type {
+            // nullable: "as long as the index is ok"
+            if !e.ty.nullable && e.items.get_items_reader()?.get_count() <= 0 {
                 return Err(BinaryReaderError::new(
-                    "an element cannot have type bot",
+                    "a non-nullable element must come with an initialization expression",
                     offset,
-                ))
+                ));
             }
         }
         match e.kind {
@@ -212,7 +195,7 @@ impl ModuleState {
                     ));
                 }
 
-                self.check_const_expr(&offset_expr, ValType::I32, features, types, offset)?;
+                self.check_const_expr(&offset_expr, ValType::I32, features, types)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !features.bulk_memory {
@@ -234,7 +217,7 @@ impl ModuleState {
             let offset = items.original_position();
             match items.read()? {
                 ElementItem::Expr(expr) => {
-                    self.check_const_expr(&expr, ValType::Ref(e.ty), features, types, offset)?;
+                    self.check_const_expr(&expr, ValType::Ref(e.ty), features, types)?;
                 }
                 ElementItem::Func(f) => {
                     if e.ty != FUNC_REF {
@@ -259,7 +242,6 @@ impl ModuleState {
         expected_ty: ValType,
         features: &WasmFeatures,
         types: &TypeList,
-        offset: usize,
     ) -> Result<()> {
         let mut ops = expr.get_operators_reader();
         let mut validator = OperatorValidator::new_const_expr(features, expected_ty);
@@ -339,18 +321,16 @@ impl ModuleState {
                 }
             }
 
+            let resources = OperatorValidatorResources {
+                module: &self.module,
+                types,
+            };
             validator
-                .process_operator(
-                    &op,
-                    &OperatorValidatorResources {
-                        module: &self.module,
-                        types,
-                    },
-                )
-                .map_err(|e| e.set_offset(offset))?;
+                .with_resources(&resources)
+                .visit_operator(offset, &op)?;
         }
 
-        validator.finish().map_err(|e| e.set_offset(offset))?;
+        validator.finish(ops.original_position())?;
 
         // See comment in `RefFunc` above for why this is an assert.
         assert!(!uninserted_funcref);
@@ -614,21 +594,12 @@ impl Module {
                 offset,
             ));
         }
-        match ty.element_type.heap_type {
-            HeapType::Func => {}
-            HeapType::Extern => {
-                if !features.reference_types {
-                    return Err(BinaryReaderError::new("element is not anyfunc", offset));
-                }
-            }
-            HeapType::Index(i) => {
-                if !features.function_references {
-                    return Err(BinaryReaderError::new("element is not anyfunc", offset));
-                }
-                self.func_type_at(i, types, offset)?;
-            }
-            HeapType::Bot => return Err(BinaryReaderError::new("element has type bot", offset)),
+        // the `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here
+        if ty.element_type != FUNC_REF {
+            self.check_value_type(ValType::Ref(ty.element_type), features, types, offset)?
         }
+
         self.check_limits(ty.initial, ty.maximum, offset)?;
         if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {
             return Err(BinaryReaderError::new(

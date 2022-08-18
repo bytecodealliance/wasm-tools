@@ -106,16 +106,18 @@ macro_rules! match_section_id {
         $($pat:ident => $result:expr,)*
         _ => $otherwise:expr,
     ) => {'result: loop {
-        #![allow(unreachable_code, non_upper_case_globals)]
-        $(const $pat: u8 = SectionId::$pat as u8;)*
-        break 'result match $scrutinee {
-            $($pat => $result,)*
-            _ => $otherwise,
-        };
-        // Check exhaustiveness of the SectionId match
-        match SectionId::Type {
-            $(SectionId::$pat => (),)*
-        };
+        #[allow(unreachable_code, non_upper_case_globals)]
+        {
+            $(const $pat: u8 = SectionId::$pat as u8;)*
+            break 'result match $scrutinee {
+                $($pat => $result,)*
+                _ => $otherwise,
+            };
+            // Check exhaustiveness of the SectionId match
+            match SectionId::Type {
+                $(SectionId::$pat => (),)*
+            };
+        }
     }}
 }
 pub(crate) use match_section_id;

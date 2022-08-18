@@ -36,6 +36,7 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wasm-mutate",
     "wasm-shrink",
     "wasm-tools",
+    "wasm-compose",
 ];
 
 #[derive(Clone)]

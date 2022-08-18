@@ -1,6 +1,43 @@
 (component
   (import "" (func (param "foo" string)))
-  (import "a" (func (param "foo" string) (param s32) (param "bar" u32)))
+  (import "a" (func (param "foo" string) (param "bar" s32) (param "baz" u32)))
+  (import "b" (func (result "foo" (tuple))))
+  (import "c" (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
+)
+
+(component
+  (import "" (func))
+  (import "a" (func (param string)))
+  (import "b" (func (result u32)))
+  (import "c" (func (param bool) (result string)))
+)
+
+(assert_invalid
+  (component
+    (import "a" (func (param "foo" string) (param s32) (param "bar" u32)))
+  )
+  "function parameter name cannot be empty"
+)
+
+(assert_invalid
+  (component
+    (import "a" (func (result "foo" string) (result s32) (result "bar" u32)))
+  )
+  "function result name cannot be empty"
+)
+
+(assert_invalid
+  (component
+    (type (func (param "foo" string) (param "foo" u32)))
+  )
+  "duplicate parameter name"
+)
+
+(assert_invalid
+  (component
+    (type (func (result "foo" string) (result "foo" u32)))
+  )
+  "duplicate result name"
 )
 
 (assert_invalid
@@ -41,10 +78,10 @@
 
 (component
   (type $big (func
-    (param u32) (param u32) (param u32) (param u32) (param u32)
-    (param u32) (param u32) (param u32) (param u32) (param u32)
-    (param u32) (param u32) (param u32) (param u32) (param u32)
-    (param u32) (param u32) (param u32) (param u32) (param u32)
+    (param "1" u32) (param "2" u32) (param "3" u32) (param "4" u32) (param "5" u32)
+    (param "6" u32) (param "7" u32) (param "8" u32) (param "9" u32) (param "10" u32)
+    (param "11" u32) (param "12" u32) (param "13" u32) (param "14" u32) (param "15" u32)
+    (param "16" u32) (param "17" u32) (param "18" u32) (param "19" u32) (param "20" u32)
   ))
 
   (component $c
@@ -64,10 +101,10 @@
     (core instance $m (instantiate $m))
 
     (type $roundtrip (func
-      (param u32) (param u32) (param u32) (param u32) (param u32)
-      (param u32) (param u32) (param u32) (param u32) (param u32)
-      (param u32) (param u32) (param u32) (param u32) (param u32)
-      (param u32) (param u32) (param u32) (param u32) (param u32)
+      (param "1" u32) (param "2" u32) (param "3" u32) (param "4" u32) (param "5" u32)
+      (param "6" u32) (param "7" u32) (param "8" u32) (param "9" u32) (param "10" u32)
+      (param "11" u32) (param "12" u32) (param "13" u32) (param "14" u32) (param "15" u32)
+      (param "16" u32) (param "17" u32) (param "18" u32) (param "19" u32) (param "20" u32)
     ))
 
     (func $roundtrip (type $roundtrip)

@@ -27,7 +27,7 @@
   (type (variant (case "a" s8) (case "b" u8) (case "c" s16) (case "d" u16) (case "e" s32) (case "f" u32) (case "g" s64) (case "h" u64) (case "i" float32) (case "j" float64) (case "k" bool) (case "l" string) (case "m" 13)))
   (type (option 25))
   (type (func (param "x" 26)))
-  (type (expected 13 string))
+  (type (result 13 (error string)))
   (type (func (result 28)))
   (export "record1" (type 13))
   (export "flags1" (type 19))

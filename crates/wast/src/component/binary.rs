@@ -78,7 +78,18 @@ fn encode_type(encoder: ComponentTypeEncoder, ty: &TypeDef) {
             encode_defined_type(encoder.defined_type(), t);
         }
         TypeDef::Func(f) => {
-            encoder.function(f.params.iter().map(|p| (p.name, &p.ty)), &f.result);
+            let mut encoder = encoder.function();
+            if f.params.len() == 1 && f.params[0].name.is_none() {
+                encoder.param(&f.params[0].ty);
+            } else {
+                encoder.params(f.params.iter().map(|p| (p.name.unwrap_or(""), &p.ty)));
+            }
+
+            if f.results.len() == 1 && f.results[0].name.is_none() {
+                encoder.result(&f.results[0].ty);
+            } else {
+                encoder.results(f.results.iter().map(|r| (r.name.unwrap_or(""), &r.ty)));
+            }
         }
         TypeDef::Component(c) => {
             encoder.component(&c.into());
@@ -96,11 +107,13 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
             encoder.record(r.fields.iter().map(|f| (f.name, &f.ty)));
         }
         ComponentDefinedType::Variant(v) => {
-            encoder.variant(
-                v.cases
-                    .iter()
-                    .map(|c| (c.name, &c.ty, c.refines.as_ref().map(Into::into))),
-            );
+            encoder.variant(v.cases.iter().map(|c| {
+                (
+                    c.name,
+                    c.ty.as_ref().map(Into::into),
+                    c.refines.as_ref().map(Into::into),
+                )
+            }));
         }
         ComponentDefinedType::List(l) => {
             encoder.list(l.element.as_ref());
@@ -118,8 +131,11 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
         ComponentDefinedType::Option(o) => {
             encoder.option(o.element.as_ref());
         }
-        ComponentDefinedType::Expected(e) => {
-            encoder.expected(e.ok.as_ref(), e.err.as_ref());
+        ComponentDefinedType::Result(e) => {
+            encoder.result(
+                e.ok.as_deref().map(Into::into),
+                e.err.as_deref().map(Into::into),
+            );
         }
     }
 }
@@ -590,7 +606,6 @@ impl From<&ComponentValType<'_>> for wasm_encoder::ComponentValType {
 impl From<PrimitiveValType> for wasm_encoder::PrimitiveValType {
     fn from(p: PrimitiveValType) -> Self {
         match p {
-            PrimitiveValType::Unit => Self::Unit,
             PrimitiveValType::Bool => Self::Bool,
             PrimitiveValType::S8 => Self::S8,
             PrimitiveValType::U8 => Self::U8,
