@@ -1,5 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
+use std::io;
+use std::process::ExitCode;
 
 macro_rules! subcommands {
     ($(($name:ident, $string:tt))*) => {
@@ -47,7 +49,22 @@ subcommands! {
     (compose, "compose")
 }
 
-fn main() -> Result<()> {
+fn main() -> ExitCode {
     env_logger::init();
-    <WasmTools as Parser>::parse().run()
+    let err = match <WasmTools as Parser>::parse().run() {
+        Ok(()) => return ExitCode::SUCCESS,
+        Err(e) => e,
+    };
+    // If an error happened and it's connected to something like `EPIPE` then
+    // don't print out an error and instead just silently exit with a failure.
+    // This prevents stray panic messages when the stdout pipe is closed, for
+    // example.
+    if let Some(io) = err.downcast_ref::<io::Error>() {
+        match io.kind() {
+            io::ErrorKind::BrokenPipe => return ExitCode::FAILURE,
+            _ => {}
+        }
+    }
+    eprintln!("Error: {:?}", err);
+    ExitCode::FAILURE
 }
