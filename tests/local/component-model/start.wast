@@ -55,6 +55,17 @@
 
 (assert_invalid
   (component
+    (import "" (func $f (param "a" string) (param "b" string) (result "c" s32) (result "d" s32)))
+    (import "v" (value $v string))
+    (import "v2" (value $v2 string))
+    (start $f (value $v) (value $v2) (result (value $c)))
+    (export "c" (value $c))
+  )
+  "component start function has a result count of 1 but the function type has a result count of 2"
+)
+
+(assert_invalid
+  (component
     (import "" (func $f))
     (start $f)
     (start $f)

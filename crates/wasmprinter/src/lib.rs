@@ -2073,9 +2073,15 @@ impl Printer {
             self.end_group();
         }
 
-        // TODO: print results; there's no easy way to do so with the current
-        // binary component encoding.
-        // See: https://github.com/WebAssembly/component-model/issues/84
+        for _ in 0..start.results {
+            self.result.push(' ');
+            self.start_group("result ");
+            self.start_group("value ");
+            self.print_name(&state.component.value_names, state.component.values)?;
+            self.end_group();
+            self.end_group();
+            state.component.values += 1;
+        }
 
         self.end_group(); // start
 

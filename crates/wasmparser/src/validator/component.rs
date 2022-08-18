@@ -437,6 +437,7 @@ impl ComponentState {
         &mut self,
         func_index: u32,
         args: &[u32],
+        results: u32,
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
@@ -457,6 +458,16 @@ impl ComponentState {
                     "component start function requires {} arguments but was given {}",
                     ft.params.len(),
                     args.len()
+                ),
+                offset,
+            ));
+        }
+
+        if ft.results.len() as u32 != results {
+            return Err(BinaryReaderError::new(
+                format!(
+                    "component start function has a result count of {results} but the function type has a result count of {type_results}",
+                    type_results = ft.results.len(),
                 ),
                 offset,
             ));
@@ -1546,15 +1557,13 @@ impl ComponentState {
                         self.values.push((*ty, false));
                         Ok(())
                     }
-                    _ => {
-                        return Err(BinaryReaderError::new(
-                            format!(
-                                "export `{}` for instance {} is not a value",
-                                name, instance_index
-                            ),
-                            offset,
-                        ))
-                    }
+                    _ => Err(BinaryReaderError::new(
+                        format!(
+                            "export `{}` for instance {} is not a value",
+                            name, instance_index
+                        ),
+                        offset,
+                    )),
                 }
             }
             ComponentExternalKind::Type => {
@@ -1932,12 +1941,10 @@ impl ComponentState {
             .get(name)
         {
             Some(export) => Ok(export),
-            None => {
-                return Err(BinaryReaderError::new(
-                    format!("instance {} has no export named `{}`", instance_index, name),
-                    offset,
-                ))
-            }
+            None => Err(BinaryReaderError::new(
+                format!("instance {} has no export named `{}`", instance_index, name),
+                offset,
+            )),
         }
     }
 
@@ -2019,15 +2026,13 @@ impl ComponentState {
             .get(name)
         {
             Some(export) => Ok(export),
-            None => {
-                return Err(BinaryReaderError::new(
-                    format!(
-                        "core instance {} has no export named `{}`",
-                        instance_index, name
-                    ),
-                    offset,
-                ))
-            }
+            None => Err(BinaryReaderError::new(
+                format!(
+                    "core instance {} has no export named `{}`",
+                    instance_index, name
+                ),
+                offset,
+            )),
         }
     }
 

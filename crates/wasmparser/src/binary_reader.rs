@@ -208,6 +208,7 @@ impl<'a> BinaryReader<'a> {
             arguments: (0..size)
                 .map(|_| self.read_var_u32())
                 .collect::<Result<_>>()?,
+            results: self.read_var_u32()?,
         })
     }
 
