@@ -1597,9 +1597,9 @@ impl<'a> BinaryReader<'a> {
             0xd1 => visitor.visit_ref_is_null(pos),
             0xd2 => visitor.visit_ref_func(pos, self.read_var_u32()?),
 
-            0xfc => self.visit_0xfc_operator(visitor)?,
-            0xfd => self.visit_0xfd_operator(visitor)?,
-            0xfe => self.visit_0xfe_operator(visitor)?,
+            0xfc => self.visit_0xfc_operator(pos, visitor)?,
+            0xfd => self.visit_0xfd_operator(pos, visitor)?,
+            0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
             _ => {
                 return Err(BinaryReaderError::new(
@@ -1612,12 +1612,12 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfc_operator<T>(
         &mut self,
+        pos: usize,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
-        let pos = self.original_position();
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => visitor.visit_i32_trunc_sat_f32_s(pos),
@@ -1687,12 +1687,12 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfd_operator<T>(
         &mut self,
+        pos: usize,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
-        let pos = self.original_position();
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => visitor.visit_v128_load(pos, self.read_memarg()?),
@@ -2005,12 +2005,12 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfe_operator<T>(
         &mut self,
+        pos: usize,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
-        let pos = self.original_position();
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => visitor.visit_memory_atomic_notify(pos, self.read_memarg_of_align(2)?),
