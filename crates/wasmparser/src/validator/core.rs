@@ -5,10 +5,12 @@ use super::{
     operators::OperatorValidator,
     types::{EntityType, Type, TypeId, TypeList},
 };
+use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, MemoryType, Operator, Result, TableType, TagType,
-    TypeRef, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    limits::*, BinaryReaderError, BlockType, BrTable, ConstExpr, Data, DataKind, Element,
+    ElementItem, ElementKind, ExternalKind, FuncType, Global, GlobalType, Ieee32, Ieee64, MemArg,
+    MemoryType, Result, TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures,
+    WasmModuleResources, V128,
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};
@@ -236,99 +238,184 @@ impl ModuleState {
         features: &WasmFeatures,
         types: &TypeList,
     ) -> Result<()> {
+        let mut validator = VisitConstOperator {
+            order: self.order,
+            uninserted_funcref: false,
+            ops: OperatorValidator::new_const_expr(features, expected_ty),
+            resources: OperatorValidatorResources {
+                types,
+                module: &mut self.module,
+            },
+        };
+
         let mut ops = expr.get_operators_reader();
-        let mut validator = OperatorValidator::new_const_expr(features, expected_ty);
-        let mut uninserted_funcref = false;
-
         while !ops.eof() {
-            let offset = ops.original_position();
-            let op = ops.read()?;
-            match &op {
-                // These are always valid in const expressions.
-                Operator::I32Const { .. }
-                | Operator::I64Const { .. }
-                | Operator::F32Const { .. }
-                | Operator::F64Const { .. }
-                | Operator::RefNull { .. }
-                | Operator::V128Const { .. }
-                | Operator::End => {}
+            ops.visit_with_offset(&mut validator)??;
+        }
+        validator.ops.finish(ops.original_position())?;
 
-                // These are valid const expressions when the extended-const proposal is enabled.
-                Operator::I32Add
-                | Operator::I32Sub
-                | Operator::I32Mul
-                | Operator::I64Add
-                | Operator::I64Sub
-                | Operator::I64Mul
-                    if features.extended_const => {}
+        // See comment in `RefFunc` below for why this is an assert.
+        assert!(!validator.uninserted_funcref);
 
-                // `global.get` is a valid const expression for imported, immutable globals.
-                Operator::GlobalGet { global_index } => {
-                    let global = self.module.global_at(*global_index, offset)?;
-                    if *global_index >= self.module.num_imported_globals {
-                        return Err(BinaryReaderError::new(
-                            "constant expression required: global.get of locally defined global",
-                            offset,
-                        ));
-                    }
-                    if global.mutable {
-                        return Err(BinaryReaderError::new(
-                            "constant expression required: global.get of mutable global",
-                            offset,
-                        ));
-                    }
-                }
+        return Ok(());
 
-                // Functions in initialization expressions are only valid in
-                // element segment initialization expressions and globals. In
-                // these contexts we want to record all function references.
-                //
-                // Initialization expressions can also be found in the data
-                // section, however. A `RefFunc` instruction in those situations
-                // is always invalid and needs to produce a validation error. In
-                // this situation, though, we can no longer modify
-                // the state since it's been "snapshot" already for
-                // parallel validation of functions.
-                //
-                // If we cannot modify the function references then this function
-                // *should* result in a validation error, but we defer that
-                // validation error to happen later. The `uninserted_funcref`
-                // boolean here is used to track this and will cause a panic
-                // (aka a fuzz bug) if we somehow forget to emit an error somewhere
-                // else.
-                Operator::RefFunc { function_index } => {
-                    if self.order == Order::Data {
-                        uninserted_funcref = true;
-                    } else {
-                        self.module
-                            .assert_mut()
-                            .function_references
-                            .insert(*function_index);
-                    }
-                }
-                _ => {
-                    return Err(BinaryReaderError::new(
+        struct VisitConstOperator<'a> {
+            uninserted_funcref: bool,
+            ops: OperatorValidator,
+            resources: OperatorValidatorResources<'a>,
+            order: Order,
+        }
+
+        impl VisitConstOperator<'_> {
+            fn validator(&mut self) -> impl VisitOperator<'_, Output = Result<()>> {
+                self.ops.with_resources(&self.resources)
+            }
+
+            fn validate_extended_const(&mut self, offset: usize) -> Result<()> {
+                if self.ops.features.extended_const {
+                    Ok(())
+                } else {
+                    Err(BinaryReaderError::new(
                         "constant expression required: non-constant operator",
                         offset,
-                    ));
+                    ))
                 }
             }
 
-            let resources = OperatorValidatorResources {
-                module: &self.module,
-                types,
-            };
-            validator
-                .with_resources(&resources)
-                .visit_operator(offset, &op)?;
+            fn validate_global(&mut self, offset: usize, index: u32) -> Result<()> {
+                let module = &self.resources.module;
+                let global = module.global_at(index, offset)?;
+                if index >= module.num_imported_globals {
+                    return Err(BinaryReaderError::new(
+                        "constant expression required: global.get of locally defined global",
+                        offset,
+                    ));
+                }
+                if global.mutable {
+                    return Err(BinaryReaderError::new(
+                        "constant expression required: global.get of mutable global",
+                        offset,
+                    ));
+                }
+                Ok(())
+            }
+
+            // Functions in initialization expressions are only valid in
+            // element segment initialization expressions and globals. In
+            // these contexts we want to record all function references.
+            //
+            // Initialization expressions can also be found in the data
+            // section, however. A `RefFunc` instruction in those situations
+            // is always invalid and needs to produce a validation error. In
+            // this situation, though, we can no longer modify
+            // the state since it's been "snapshot" already for
+            // parallel validation of functions.
+            //
+            // If we cannot modify the function references then this function
+            // *should* result in a validation error, but we defer that
+            // validation error to happen later. The `uninserted_funcref`
+            // boolean here is used to track this and will cause a panic
+            // (aka a fuzz bug) if we somehow forget to emit an error somewhere
+            // else.
+            fn insert_ref_func(&mut self, index: u32) {
+                if self.order == Order::Data {
+                    self.uninserted_funcref = true;
+                } else {
+                    self.resources
+                        .module
+                        .assert_mut()
+                        .function_references
+                        .insert(index);
+                }
+            }
         }
 
-        validator.finish(ops.original_position())?;
+        macro_rules! define_visit_operator {
+            ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+                $(
+                    fn $visit(&mut self, pos: usize $($(,$arg: $argty)*)?) -> Self::Output {
+                        define_visit_operator!(@visit self $visit pos $($($arg)*)?)
+                    }
+                )*
+            };
 
-        // See comment in `RefFunc` above for why this is an assert.
-        assert!(!uninserted_funcref);
+            // These are always valid in const expressions
+            (@visit $self:ident visit_i32_const $pos:ident $val:ident) => {{
+                $self.validator().visit_i32_const($pos, $val)
+            }};
+            (@visit $self:ident visit_i64_const $pos:ident $val:ident) => {{
+                $self.validator().visit_i64_const($pos, $val)
+            }};
+            (@visit $self:ident visit_f32_const $pos:ident $val:ident) => {{
+                $self.validator().visit_f32_const($pos, $val)
+            }};
+            (@visit $self:ident visit_f64_const $pos:ident $val:ident) => {{
+                $self.validator().visit_f64_const($pos, $val)
+            }};
+            (@visit $self:ident visit_v128_const $pos:ident $val:ident) => {{
+                $self.validator().visit_v128_const($pos, $val)
+            }};
+            (@visit $self:ident visit_ref_null $pos:ident $val:ident) => {{
+                $self.validator().visit_ref_null($pos, $val)
+            }};
+            (@visit $self:ident visit_end $pos:ident) => {{
+                $self.validator().visit_end($pos)
+            }};
 
-        Ok(())
+
+            // These are valid const expressions when the extended-const proposal is enabled.
+            (@visit $self:ident visit_i32_add $pos:ident) => {{
+                $self.validate_extended_const($pos)?;
+                $self.validator().visit_i32_add($pos)
+            }};
+            (@visit $self:ident visit_i32_sub $pos:ident) => {{
+                $self.validate_extended_const($pos)?;
+                $self.validator().visit_i32_sub($pos)
+            }};
+            (@visit $self:ident visit_i32_mul $pos:ident) => {{
+                $self.validate_extended_const($pos)?;
+                $self.validator().visit_i32_mul($pos)
+            }};
+            (@visit $self:ident visit_i64_add $pos:ident) => {{
+                $self.validate_extended_const($pos)?;
+                $self.validator().visit_i64_add($pos)
+            }};
+            (@visit $self:ident visit_i64_sub $pos:ident) => {{
+                $self.validate_extended_const($pos)?;
+                $self.validator().visit_i64_sub($pos)
+            }};
+            (@visit $self:ident visit_i64_mul $pos:ident) => {{
+                $self.validate_extended_const($pos)?;
+                $self.validator().visit_i64_mul($pos)
+            }};
+
+            // `global.get` is a valid const expression for imported, immutable
+            // globals.
+            (@visit $self:ident visit_global_get $pos:ident $idx:ident) => {{
+                $self.validate_global($pos, $idx)?;
+                $self.validator().visit_global_get($pos, $idx)
+            }};
+            // `ref.func`, if it's in a `global` initializer, will insert into
+            // the set of referenced functions so it's processed here.
+            (@visit $self:ident visit_ref_func $pos:ident $idx:ident) => {{
+                $self.insert_ref_func($idx);
+                $self.validator().visit_ref_func($pos, $idx)
+            }};
+
+            (@visit $self:ident $op:ident $pos:ident $($args:tt)*) => {{
+                $(drop($args);)*
+                Err(BinaryReaderError::new(
+                    "constant expression required: non-constant operator",
+                    $pos,
+                ))
+            }}
+        }
+
+        impl<'a> VisitOperator<'a> for VisitConstOperator<'a> {
+            type Output = Result<()>;
+
+            for_each_operator!(define_visit_operator);
+        }
     }
 }
 
@@ -846,7 +933,7 @@ impl Default for Module {
 }
 
 struct OperatorValidatorResources<'a> {
-    module: &'a Module,
+    module: &'a mut MaybeOwned<Module>,
     types: &'a TypeList,
 }
 
