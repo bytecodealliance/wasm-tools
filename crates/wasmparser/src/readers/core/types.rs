@@ -66,7 +66,7 @@ impl Debug for FuncType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FuncType")
             .field("params", &self.params())
-            .field("results", &self.results())
+            .field("returns", &self.results())
             .finish()
     }
 }
