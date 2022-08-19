@@ -96,7 +96,7 @@ pub(super) struct Locals {
 //
 // This structure corresponds to `ctrl_frame` as specified at in the validation
 // appendix of the wasm spec
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Frame {
     /// Indicator for what kind of instruction pushed this frame.
     pub kind: FrameKind,
