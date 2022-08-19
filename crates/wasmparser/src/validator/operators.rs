@@ -244,14 +244,6 @@ impl OperatorValidator {
         self.control.len()
     }
 
-    /// Returns a shared reference to the control flow [`Frame`] of the
-    /// control flow stack at the given `depth` if any.
-    ///
-    /// Returns `None` if the `depth` is out of bounds.
-    ///
-    /// # Note
-    ///
-    /// A `depth` of 0 will refer to the last frame on the stack.
     pub fn get_frame(&self, depth: usize) -> Option<&Frame> {
         self.control.iter().rev().nth(depth)
     }
