@@ -228,7 +228,9 @@ impl OperatorValidator {
     /// Returns the optional value type of the value operand at the given
     /// `index` from the top of the operand stack.
     ///
-    /// Returns `None` if the `index` is out of bounds.
+    /// - Returns `None` if the `index` is out of bounds.
+    /// - Returns `Some(None)` if there is a value with unknown type
+    /// at the given `index`.
     ///
     /// # Note
     ///
