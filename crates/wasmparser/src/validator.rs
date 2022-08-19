@@ -56,6 +56,7 @@ pub use self::core::ValidatorResources;
 use self::core::*;
 use self::types::{TypeList, Types, TypesRef};
 pub use func::FuncValidator;
+pub use operators::{Frame, FrameKind};
 
 fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usize) -> Result<()> {
     if max
