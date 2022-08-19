@@ -43,7 +43,7 @@ macro_rules! bail_op_err {
 }
 
 pub(crate) struct OperatorValidator {
-    locals: Locals,
+    pub(super) locals: Locals,
 
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
@@ -67,7 +67,7 @@ pub(crate) struct OperatorValidator {
 const MAX_LOCALS_TO_TRACK: usize = 50;
 
 #[derive(Default)]
-struct Locals {
+pub(super) struct Locals {
     // Total number of locals in the function.
     num_locals: u32,
 
@@ -90,29 +90,53 @@ struct Locals {
     all: Vec<(u32, ValType)>,
 }
 
+/// A Wasm control flow block on the control flow stack during Wasm validation.
+//
+// # Dev. Note
+//
 // This structure corresponds to `ctrl_frame` as specified at in the validation
 // appendix of the wasm spec
 #[derive(Debug)]
-struct Frame {
-    // Indicator for what kind of instruction pushed this frame.
-    kind: FrameKind,
-    // The type signature of this frame, represented as a singular return type
-    // or a type index pointing into the module's types.
-    block_type: BlockType,
-    // The index, below which, this frame cannot modify the operand stack.
-    height: usize,
-    // Whether this frame is unreachable so far.
-    unreachable: bool,
+pub struct Frame {
+    /// Indicator for what kind of instruction pushed this frame.
+    pub kind: FrameKind,
+    /// The type signature of this frame, represented as a singular return type
+    /// or a type index pointing into the module's types.
+    pub block_type: BlockType,
+    /// The index, below which, this frame cannot modify the operand stack.
+    pub height: usize,
+    /// Whether this frame is unreachable so far.
+    pub unreachable: bool,
 }
 
+/// The kind of a control flow [`Frame`].
 #[derive(PartialEq, Copy, Clone, Debug)]
-enum FrameKind {
+pub enum FrameKind {
+    /// A Wasm `block` control block.
     Block,
+    /// A Wasm `if` control block.
     If,
+    /// A Wasm `else` control block.
     Else,
+    /// A Wasm `loop` control block.
     Loop,
+    /// A Wasm `try` control block.
+    ///
+    /// # Note
+    ///
+    /// This belongs to the Wasm exception handling proposal.
     Try,
+    /// A Wasm `catch` control block.
+    ///
+    /// # Note
+    ///
+    /// This belongs to the Wasm exception handling proposal.
     Catch,
+    /// A Wasm `catch_all` control block.
+    ///
+    /// # Note
+    ///
+    /// This belongs to the Wasm exception handling proposal.
     CatchAll,
 }
 
@@ -196,8 +220,38 @@ impl OperatorValidator {
         Ok(())
     }
 
+    /// Returns the current operands stack height.
     pub fn operand_stack_height(&self) -> usize {
         self.operands.len()
+    }
+
+    /// Returns the optional value type of the value operand at the given
+    /// `index` from the top of the operand stack.
+    ///
+    /// Returns `None` if the `index` is out of bounds.
+    ///
+    /// # Note
+    ///
+    /// An `index` of 0 will refer to the last operand on the stack.
+    pub(super) fn peek_operand_at(&self, index: usize) -> Option<Option<ValType>> {
+        self.operands.iter().rev().nth(index).copied()
+    }
+
+    /// Returns the number of frames on the control flow stack.
+    pub fn control_stack_height(&self) -> usize {
+        self.control.len()
+    }
+
+    /// Returns a shared reference to the control flow [`Frame`] of the
+    /// control flow stack at the given `depth` if any.
+    ///
+    /// Returns `None` if the `depth` is out of bounds.
+    ///
+    /// # Note
+    ///
+    /// A `depth` of 0 will refer to the last frame on the stack.
+    pub(super) fn get_frame(&self, depth: usize) -> Option<&Frame> {
+        self.control.iter().rev().nth(depth)
     }
 
     /// Create a temporary [`OperatorValidatorTemp`] for validation.
@@ -3148,6 +3202,11 @@ trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator {}
 impl<T: ExactSizeIterator + DoubleEndedIterator> PreciseIterator for T {}
 
 impl Locals {
+    /// Defines another group of `count` local variables of type `ty`.
+    ///
+    /// Returns `true` if the definition was successful. Local variable
+    /// definition is unsuccessful in case the amount of total variables
+    /// after definition exceeds the allowed maximum number.
     fn define(&mut self, count: u32, ty: ValType) -> bool {
         match self.num_locals.checked_add(count) {
             Some(n) => self.num_locals = n,
@@ -3166,7 +3225,13 @@ impl Locals {
         true
     }
 
-    fn get(&self, idx: u32) -> Option<ValType> {
+    /// Returns the number of defined local variables.
+    pub(super) fn len_locals(&self) -> u32 {
+        self.num_locals
+    }
+
+    /// Returns the type of the local variable at the given index if any.
+    pub(super) fn get(&self, idx: u32) -> Option<ValType> {
         self.first.get(idx as usize).copied().or_else(|| {
             match self.all.binary_search_by_key(&idx, |(idx, _)| *idx) {
                 // If this index would be inserted at the end of the list, then the
