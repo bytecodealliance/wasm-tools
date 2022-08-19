@@ -59,12 +59,12 @@ impl Mutator for AddTypeMutator {
                 match ty {
                     wasmparser::Type::Func(ty) => {
                         let params = ty
-                            .params
+                            .params()
                             .iter()
                             .map(translate_type)
                             .collect::<Result<Vec<_>, _>>()?;
                         let results = ty
-                            .returns
+                            .results()
                             .iter()
                             .map(translate_type)
                             .collect::<Result<Vec<_>, _>>()?;

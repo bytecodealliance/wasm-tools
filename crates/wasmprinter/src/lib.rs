@@ -621,7 +621,7 @@ impl Printer {
         ty: &FuncType,
         names_for: Option<u32>,
     ) -> Result<u32> {
-        if ty.params.len() > 0 {
+        if ty.params().len() > 0 {
             self.result.push(' ');
         }
 
@@ -629,22 +629,22 @@ impl Printer {
         // Note that named parameters must be alone in a `param` block, so
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
-        for (i, param) in ty.params.iter().enumerate() {
+        for (i, param) in ty.params().iter().enumerate() {
             let name = names_for.and_then(|n| state.core.local_names.get(&(n, i as u32)));
             params.start_local(name, &mut self.result);
             self.print_valtype(*param)?;
             params.end_local(&mut self.result);
         }
         params.finish(&mut self.result);
-        if ty.returns.len() > 0 {
+        if ty.results().len() > 0 {
             self.result.push_str(" (result");
-            for result in ty.returns.iter() {
+            for result in ty.results().iter() {
                 self.result.push(' ');
                 self.print_valtype(*result)?;
             }
             self.result.push(')');
         }
-        Ok(ty.params.len() as u32)
+        Ok(ty.params().len() as u32)
     }
 
     fn print_valtype(&mut self, ty: ValType) -> Result<()> {

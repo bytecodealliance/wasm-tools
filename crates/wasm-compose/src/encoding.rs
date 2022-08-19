@@ -120,8 +120,8 @@ impl<'a> TypeEncoder<'a> {
                         let ty = self.0.type_from_id(id).unwrap().as_func_type().unwrap();
                         let index = encodable.type_count();
                         encodable.ty().function(
-                            ty.params.iter().copied().map(Self::val_type),
-                            ty.returns.iter().copied().map(Self::val_type),
+                            ty.params().iter().copied().map(Self::val_type),
+                            ty.results().iter().copied().map(Self::val_type),
                         );
                         *e.insert(index)
                     }
@@ -138,8 +138,8 @@ impl<'a> TypeEncoder<'a> {
                         let ty = self.0.type_from_id(id).unwrap().as_func_type().unwrap();
                         let index = encodable.type_count();
                         encodable.ty().function(
-                            ty.params.iter().copied().map(Self::val_type),
-                            ty.returns.iter().copied().map(Self::val_type),
+                            ty.params().iter().copied().map(Self::val_type),
+                            ty.results().iter().copied().map(Self::val_type),
                         );
                         *e.insert(index)
                     }
