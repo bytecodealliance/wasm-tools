@@ -233,7 +233,7 @@ impl OperatorValidator {
     /// # Note
     ///
     /// An `index` of 0 will refer to the last operand on the stack.
-    pub(super) fn peek_operand_at(&self, index: usize) -> Option<Option<ValType>> {
+    pub fn peek_operand_at(&self, index: usize) -> Option<Option<ValType>> {
         self.operands.iter().rev().nth(index).copied()
     }
 
@@ -250,7 +250,7 @@ impl OperatorValidator {
     /// # Note
     ///
     /// A `depth` of 0 will refer to the last frame on the stack.
-    pub(super) fn get_frame(&self, depth: usize) -> Option<&Frame> {
+    pub fn get_frame(&self, depth: usize) -> Option<&Frame> {
         self.control.iter().rev().nth(depth)
     }
 
