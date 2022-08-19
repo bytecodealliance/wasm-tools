@@ -103,17 +103,13 @@ impl FuncType {
     /// Returns a shared slice to the parameter types of the [`FuncType`].
     #[inline]
     pub fn params(&self) -> &[ValType] {
-        // Safety: `len_params` is asserted to be less than or equal to
-        //         `params_results.len()` by construction.
-        unsafe { self.params_results.get_unchecked(..self.len_params) }
+        &self.params_results[..self.len_params]
     }
 
     /// Returns a shared slice to the result types of the [`FuncType`].
     #[inline]
     pub fn results(&self) -> &[ValType] {
-        // Safety: `len_params` is asserted to be less than or equal to
-        //         `params_results.len()` by construction.
-        unsafe { self.params_results.get_unchecked(self.len_params..) }
+        &self.params_results[self.len_params..]
     }
 }
 
