@@ -94,10 +94,10 @@ pub(crate) struct LoweringInfo {
 
 impl LoweringInfo {
     pub(crate) fn into_func_type(self) -> FuncType {
-        FuncType {
-            params: self.params.as_slice().to_vec().into_boxed_slice(),
-            returns: self.results.as_slice().to_vec().into_boxed_slice(),
-        }
+        FuncType::new(
+            self.params.as_slice().iter().copied(),
+            self.results.as_slice().iter().copied(),
+        )
     }
 }
 
@@ -233,7 +233,7 @@ impl Type {
 
     pub(crate) fn type_size(&self) -> usize {
         match self {
-            Self::Func(ty) => 1 + ty.params.len() + ty.returns.len(),
+            Self::Func(ty) => 1 + ty.params().len() + ty.results().len(),
             Self::Module(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,

@@ -308,23 +308,23 @@ impl ComponentState {
         let info = ty.lower(types, false);
         self.check_options(Some(core_ty), &info, &options, types, offset)?;
 
-        if core_ty.params.as_ref() != info.params.as_slice() {
+        if core_ty.params() != info.params.as_slice() {
             return Err(BinaryReaderError::new(
                 format!(
                     "lowered parameter types `{:?}` do not match parameter types `{:?}` of core function {core_func_index}",
                     info.params.as_slice(),
-                    core_ty.params
+                    core_ty.params()
                 ),
                 offset,
             ));
         }
 
-        if core_ty.returns.as_ref() != info.results.as_slice() {
+        if core_ty.results() != info.results.as_slice() {
             return Err(BinaryReaderError::new(
                 format!(
                     "lowered result types `{:?}` do not match result types `{:?}` of core function {core_func_index}",
                     info.results.as_slice(),
-                    core_ty.returns
+                    core_ty.results()
                 ),
                 offset,
             ));
@@ -561,9 +561,9 @@ impl ComponentState {
                             let ty = types[self.core_function_at(*idx, offset)?]
                                 .as_func_type()
                                 .unwrap();
-                            if ty.params.as_ref()
+                            if ty.params()
                                 != [ValType::I32, ValType::I32, ValType::I32, ValType::I32]
-                                || ty.returns.as_ref() != [ValType::I32]
+                                || ty.results() != [ValType::I32]
                             {
                                 return Err(BinaryReaderError::new(
                                     "canonical option `realloc` uses a core function with an incorrect signature",
@@ -594,7 +594,7 @@ impl ComponentState {
                                 .as_func_type()
                                 .unwrap();
 
-                            if ty.params != core_ty.returns || !ty.returns.is_empty() {
+                            if ty.params() != core_ty.results() || !ty.results().is_empty() {
                                 return Err(BinaryReaderError::new(
                                     "canonical option `post-return` uses a core function with an incorrect signature",
                                     offset,

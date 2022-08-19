@@ -55,10 +55,54 @@ pub enum Type {
 /// Represents a type of a function in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
-    /// The function parameter types.
-    pub params: Box<[ValType]>,
-    /// The function result types.
-    pub returns: Box<[ValType]>,
+    /// The combined parameters and result types.
+    params_results: Box<[ValType]>,
+    /// The number of paramter types.
+    len_params: usize,
+}
+
+impl FuncType {
+    /// Creates a new [`FuncType`] from the given `params` and `results`.
+    pub fn new<P, R>(params: P, results: R) -> Self
+    where
+        P: IntoIterator<Item = ValType>,
+        R: IntoIterator<Item = ValType>,
+    {
+        let mut buffer = params.into_iter().collect::<Vec<_>>();
+        let len_params = buffer.len();
+        buffer.extend(results);
+        Self {
+            params_results: buffer.into(),
+            len_params,
+        }
+    }
+
+    /// Creates a new [`FuncType`] fom its raw parts.
+    ///
+    /// # Panics
+    ///
+    /// If `len_params` is greater than the length of `params_results` combined.
+    pub(crate) fn from_raw_parts(params_results: Box<[ValType]>, len_params: usize) -> Self {
+        assert!(len_params <= params_results.len());
+        Self {
+            params_results,
+            len_params,
+        }
+    }
+
+    /// Returns a shared slice to the parameter types of the [`FuncType`].
+    pub fn params(&self) -> &[ValType] {
+        // Safety: `len_params` is asserted to be less than or equal to
+        //         `params_results.len()` by construction.
+        unsafe { self.params_results.get_unchecked(..self.len_params) }
+    }
+
+    /// Returns a shared slice to the result types of the [`FuncType`].
+    pub fn results(&self) -> &[ValType] {
+        // Safety: `len_params` is asserted to be less than or equal to
+        //         `params_results.len()` by construction.
+        unsafe { self.params_results.get_unchecked(self.len_params..) }
+    }
 }
 
 /// Represents a table's type.
