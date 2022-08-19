@@ -14,6 +14,7 @@
  */
 
 use crate::{BinaryReader, Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems};
+use std::fmt::Debug;
 use std::ops::Range;
 
 /// Represents the types of values in a WebAssembly module.
@@ -53,12 +54,21 @@ pub enum Type {
 }
 
 /// Represents a type of a function in a WebAssembly module.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
     /// The combined parameters and result types.
     params_results: Box<[ValType]>,
     /// The number of paramter types.
     len_params: usize,
+}
+
+impl Debug for FuncType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FuncType")
+            .field("params", &self.params())
+            .field("results", &self.results())
+            .finish()
+    }
 }
 
 impl FuncType {
