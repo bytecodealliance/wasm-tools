@@ -737,7 +737,7 @@ impl Validator {
         state.update_order(Order::Start, offset)?;
 
         let ty = state.module.get_func_type(func, &self.types, offset)?;
-        if !ty.params.is_empty() || !ty.returns.is_empty() {
+        if !ty.params().is_empty() || !ty.results().is_empty() {
             return Err(BinaryReaderError::new(
                 "invalid start function type",
                 offset,
@@ -1393,16 +1393,16 @@ mod tests {
 
         match types.func_type_at(0) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [ValType::I32, ValType::I64]);
-                assert_eq!(ty.returns.as_ref(), [ValType::I32]);
+                assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
+                assert_eq!(ty.results(), [ValType::I32]);
             }
             _ => unreachable!(),
         }
 
         match types.func_type_at(1) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [ValType::I64, ValType::I32]);
-                assert_eq!(ty.returns.as_ref(), []);
+                assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
+                assert_eq!(ty.results(), []);
             }
             _ => unreachable!(),
         }
@@ -1436,16 +1436,16 @@ mod tests {
 
         match types.function_at(0) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [ValType::I32, ValType::I64]);
-                assert_eq!(ty.returns.as_ref(), [ValType::I32]);
+                assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
+                assert_eq!(ty.results(), [ValType::I32]);
             }
             _ => unreachable!(),
         }
 
         match types.tag_at(0) {
             Some(ty) => {
-                assert_eq!(ty.params.as_ref(), [ValType::I64, ValType::I32]);
-                assert_eq!(ty.returns.as_ref(), []);
+                assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
+                assert_eq!(ty.results(), []);
             }
             _ => unreachable!(),
         }

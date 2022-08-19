@@ -47,12 +47,12 @@ impl TryFrom<wasmparser::Type> for TypeInfo {
         match value {
             wasmparser::Type::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
-                    .params
+                    .params()
                     .iter()
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
                 returns: ft
-                    .returns
+                    .results()
                     .iter()
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),

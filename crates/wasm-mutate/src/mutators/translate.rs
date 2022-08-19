@@ -117,11 +117,11 @@ pub fn type_def(t: &mut dyn Translator, ty: Type, s: &mut TypeSection) -> Result
     match ty {
         Type::Func(f) => {
             s.function(
-                f.params
+                f.params()
                     .iter()
                     .map(|ty| t.translate_ty(ty))
                     .collect::<Result<Vec<_>>>()?,
-                f.returns
+                f.results()
                     .iter()
                     .map(|ty| t.translate_ty(ty))
                     .collect::<Result<Vec<_>>>()?,

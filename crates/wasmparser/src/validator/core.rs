@@ -453,10 +453,10 @@ impl Module {
     ) -> Result<()> {
         let ty = match ty {
             crate::Type::Func(t) => {
-                for ty in t.params.iter().chain(t.returns.iter()) {
+                for ty in t.params().iter().chain(t.results()) {
                     check_value_type(*ty, features, offset)?;
                 }
-                if t.returns.len() > 1 && !features.multi_value {
+                if t.results().len() > 1 && !features.multi_value {
                     return Err(BinaryReaderError::new(
                         "func type returns multiple values but the multi-value feature is not enabled",
                         offset,
@@ -770,7 +770,7 @@ impl Module {
             ));
         }
         let ty = self.func_type_at(ty.func_type_idx, types, offset)?;
-        if ty.returns.len() > 0 {
+        if !ty.results().is_empty() {
             return Err(BinaryReaderError::new(
                 "invalid exception type: non-empty tag result type",
                 offset,

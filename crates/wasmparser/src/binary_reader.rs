@@ -272,20 +272,17 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
-        let params_len = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
-        let mut params = Vec::with_capacity(params_len);
-        for _ in 0..params_len {
-            params.push(self.read_val_type()?);
+        let len_params = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
+        let mut params_results = Vec::with_capacity(len_params);
+        for _ in 0..len_params {
+            params_results.push(self.read_val_type()?);
         }
-        let returns_len = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
-        let mut returns = Vec::with_capacity(returns_len);
-        for _ in 0..returns_len {
-            returns.push(self.read_val_type()?);
+        let len_results = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
+        params_results.reserve(len_results);
+        for _ in 0..len_results {
+            params_results.push(self.read_val_type()?);
         }
-        Ok(FuncType {
-            params: params.into_boxed_slice(),
-            returns: returns.into_boxed_slice(),
-        })
+        Ok(FuncType::from_raw_parts(params_results.into(), len_params))
     }
 
     pub(crate) fn read_type(&mut self) -> Result<Type> {
