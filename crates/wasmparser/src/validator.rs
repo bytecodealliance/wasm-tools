@@ -1127,7 +1127,15 @@ impl Validator {
         let range = section.range();
         self.state.ensure_component("start", range.start)?;
 
-        let f = section.clone().read()?;
+        let mut section = section.clone();
+        let f = section.read()?;
+
+        if !section.eof() {
+            return Err(BinaryReaderError::new(
+                "trailing data at the end of the start section",
+                section.original_position(),
+            ));
+        }
 
         self.components.last_mut().unwrap().add_start(
             f.func_index,

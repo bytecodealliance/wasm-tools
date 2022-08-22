@@ -71,3 +71,48 @@
     (start $f)
   )
   "cannot have more than one start")
+
+(assert_invalid
+  (component binary
+    "\00asm" "\0a\00\01\00"   ;; component header
+
+    "\08\06"          ;; type section, 6 bytes large
+    "\01"             ;; 1 count
+    "\40"             ;; function
+    "\01\00"          ;; parameters, named, 0 count
+    "\01\00"          ;; results, named, 0 count
+
+    "\0b\04"          ;; import section, 4 bytes large
+    "\01"             ;; 1 count
+    "\00"             ;; name = ""
+    "\01\00"          ;; type = func ($type 0)
+
+    "\0a\06"          ;; start section, 6 bytes large
+    "\00"             ;; function 0
+    "\00"             ;; no arguments
+    "\ff\ff\ff\00"    ;; tons of results
+  )
+  "start function results size is out of bounds")
+
+(assert_invalid
+  (component binary
+    "\00asm" "\0a\00\01\00"   ;; component header
+
+    "\08\06"          ;; type section, 6 bytes large
+    "\01"             ;; 1 count
+    "\40"             ;; function
+    "\01\00"          ;; parameters, named, 0 count
+    "\01\00"          ;; results, named, 0 count
+
+    "\0b\04"          ;; import section, 4 bytes large
+    "\01"             ;; 1 count
+    "\00"             ;; name = ""
+    "\01\00"          ;; type = func ($type 0)
+
+    "\0a\04"          ;; start section, 4 bytes large
+    "\00"             ;; function 0
+    "\00"             ;; no arguments
+    "\00"             ;; no results
+    "\ff"             ;; trailing garbage byte
+  )
+  "trailing data at the end of the start section")

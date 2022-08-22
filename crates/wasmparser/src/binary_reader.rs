@@ -208,7 +208,7 @@ impl<'a> BinaryReader<'a> {
             arguments: (0..size)
                 .map(|_| self.read_var_u32())
                 .collect::<Result<_>>()?,
-            results: self.read_var_u32()?,
+            results: self.read_size(MAX_WASM_FUNCTION_RETURNS, "start function results")? as u32,
         })
     }
 
