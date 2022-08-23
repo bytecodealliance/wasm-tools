@@ -17,7 +17,7 @@ log = "0.4"
 rand = { version = "0.8.4", features = ["small_rng"] }
 clap = { version = "3.0", optional = true, features = ['derive'] }
 wasm-mutate = { version = "0.2.7", path = "../wasm-mutate" }
-wasmparser = { version = "0.89.0", path = "../wasmparser" }
+wasmparser = { version = "0.90.0", path = "../wasmparser" }
 
 [dev-dependencies]
 env_logger = "0.9"
