@@ -1,0 +1,5 @@
+resource "bar" defined twice
+     --> tests/ui/parse-fail/import-bad4.wit:2:12
+      |
+    2 | use { bar, bar } from import-me
+      |            ^--

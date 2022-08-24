@@ -1,0 +1,76 @@
+{
+  "resources": [
+    {
+      "name": "x",
+      "foreign_module": "import-me-too"
+    },
+    {
+      "name": "xyz"
+    }
+  ],
+  "types": [
+    {
+      "idx": 0,
+      "name": "foo",
+      "primitive": "u32",
+      "foreign_module": "import-me-too"
+    },
+    {
+      "idx": 1,
+      "primitive": "handle-0",
+      "foreign_module": "import-me-too"
+    },
+    {
+      "idx": 2,
+      "name": "handle",
+      "primitive": "handle-0",
+      "foreign_module": "import-me-too"
+    },
+    {
+      "idx": 3,
+      "name": "some-record",
+      "tuple": {
+        "types": [
+          "u32",
+          "u64",
+          "float32"
+        ]
+      },
+      "foreign_module": "import-me-too"
+    },
+    {
+      "idx": 4,
+      "name": "x",
+      "primitive": "type-0"
+    },
+    {
+      "idx": 5,
+      "name": "y",
+      "primitive": "type-0"
+    },
+    {
+      "idx": 6,
+      "name": "z1",
+      "primitive": "type-1"
+    },
+    {
+      "idx": 7,
+      "name": "z2",
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 8,
+      "primitive": "handle-1"
+    },
+    {
+      "idx": 9,
+      "name": "my-handle",
+      "primitive": "handle-1"
+    },
+    {
+      "idx": 10,
+      "name": "my-handle2",
+      "primitive": "type-8"
+    }
+  ]
+}

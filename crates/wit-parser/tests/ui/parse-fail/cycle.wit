@@ -1,0 +1,2 @@
+// parse-fail
+type foo = foo

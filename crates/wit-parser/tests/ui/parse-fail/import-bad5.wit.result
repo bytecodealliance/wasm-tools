@@ -1,0 +1,5 @@
+type "foo" defined twice
+     --> tests/ui/parse-fail/import-bad5.wit:3:12
+      |
+    3 | use * from import-me
+      |            ^--------

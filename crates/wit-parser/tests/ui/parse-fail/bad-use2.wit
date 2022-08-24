@@ -1,0 +1,4 @@
+// parse-fail
+use { a } from
+
+type foo = u32

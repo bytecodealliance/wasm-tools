@@ -1,0 +1,34 @@
+{
+  "resources": [
+    {
+      "name": "x"
+    }
+  ],
+  "types": [
+    {
+      "idx": 0,
+      "name": "foo",
+      "primitive": "u32"
+    },
+    {
+      "idx": 1,
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 2,
+      "name": "handle",
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 3,
+      "name": "some-record",
+      "tuple": {
+        "types": [
+          "u32",
+          "u64",
+          "float32"
+        ]
+      }
+    }
+  ]
+}

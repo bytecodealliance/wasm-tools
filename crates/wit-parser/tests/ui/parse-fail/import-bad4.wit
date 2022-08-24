@@ -1,0 +1,2 @@
+// parse-fail
+use { bar, bar } from import-me

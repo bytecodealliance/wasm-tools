@@ -1,0 +1,7 @@
+type foo = u32
+
+resource x
+
+type %handle = handle x
+
+type some-record = tuple<u32, u64, float32>

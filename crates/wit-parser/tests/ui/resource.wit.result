@@ -1,0 +1,102 @@
+{
+  "resources": [
+    {
+      "name": "a"
+    },
+    {
+      "name": "b"
+    },
+    {
+      "name": "c"
+    },
+    {
+      "name": "d"
+    },
+    {
+      "name": "e"
+    },
+    {
+      "name": "f"
+    },
+    {
+      "name": "g",
+      "supertype": "a"
+    },
+    {
+      "name": "h",
+      "supertype": "b"
+    },
+    {
+      "name": "i",
+      "supertype": "e"
+    }
+  ],
+  "types": [
+    {
+      "idx": 0,
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 1,
+      "primitive": "handle-1"
+    },
+    {
+      "idx": 2,
+      "primitive": "handle-2"
+    },
+    {
+      "idx": 3,
+      "primitive": "handle-3"
+    },
+    {
+      "idx": 4,
+      "primitive": "handle-4"
+    },
+    {
+      "idx": 5,
+      "primitive": "handle-5"
+    },
+    {
+      "idx": 6,
+      "primitive": "handle-6"
+    },
+    {
+      "idx": 7,
+      "primitive": "handle-7"
+    },
+    {
+      "idx": 8,
+      "primitive": "handle-8"
+    }
+  ],
+  "functions": [
+    {
+      "name": "e::x",
+      "params": [
+        "handle-4"
+      ],
+      "result": "unit"
+    },
+    {
+      "name": "f::x",
+      "params": [
+        "handle-5"
+      ],
+      "result": "unit"
+    },
+    {
+      "name": "f::y",
+      "params": [
+        "handle-5"
+      ],
+      "result": "unit"
+    },
+    {
+      "name": "i::z",
+      "params": [
+        "handle-8"
+      ],
+      "result": "unit"
+    }
+  ]
+}

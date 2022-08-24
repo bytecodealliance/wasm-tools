@@ -1,0 +1,18 @@
+// This test is like imports.wit, but uses import-me-too, which is a markdown
+// file instead of a plain wit file.
+
+use { foo } from import-me-too
+use { foo as bar } from import-me-too
+use { x as import-me-x } from import-me-too
+
+type x = foo
+type y = bar
+type z1 = import-me-x
+type z2 = handle import-me-x
+
+use { %handle } from import-me-too
+resource xyz
+type my-handle = handle xyz
+type my-handle2 = xyz
+
+use { some-record } from import-me-too

@@ -1,0 +1,159 @@
+// Note: this note isn't a doc comment.
+
+// Note: the following comment block is a doc comment, because it start with `///`.
+// It's also a comment about the interface defined in this file, because it starts with `@interface`
+
+/// @interface WASI HTTP Core functionality.
+///
+/// Defines requests & responses and associated types, and `fetch`.
+
+// `use` imports things from namespaces. The first identifier of an `ident1::ident2::[..]::identN`
+// namespace chain needs to be resolved out of band. The remaining part of the chain is resolved
+// as nested interfaces inside the definition of `ident1`.
+// Note: I'm not sure if Result should just be an Interface Types thing instead of a WASI thing.
+//use { Result, Option } from wasi::core
+
+/// A blocking function for turning requests into responses.
+/// @param req - a `request` object to process
+/// @return resp - the `Result` object produced once the blocking operation has finished.
+//
+// Note: the syntax for function definitions is chosen with three goals in mind:
+//
+// 1. maximizing human parseability and intuitive understanding, by not presupposing
+// familiarity with any specific notations. Having the `function` keyword isn't otherwise
+// strictly required for disambiguation. This becomes even more important given that part of
+// the "weirdness budget" needs to be used for having support for multiple return values.
+//
+// 2. uniformity in the face of multiple return values. Basically, it's always a mapping
+// of N arguments to M return values, with the same syntax for both.
+//
+// 3. provide an obvious place for adding attributes, like `blocking` and `reentrant`.
+//
+// Note: the `blocking` attribute means that different lowering can be generated for this
+// function, either based on synchronous, blocking calls, or on a callback-style interface.
+fetch: /*blocking*/ func(req: handle request) -> handle response
+
+/// A request resource, with lots of things missing for now.
+// Note: `resource` blocks serve two purposes:
+// 1. namespacing the definition of a Handle type with functions for operating on that handle
+// 2. providing a way to define said functions such that they implicitly take the handle itself as
+//    the first argument. E.g., `method` in `request` is roughly equivalent to
+//    `request::method: func(self: handle request) -> (string)`
+//    ("Roughly" because the `resource` semantics allow us to generate better bindings for languages
+//     that have a concept of implicit receivers, such as `this` in JS.)
+resource request {
+
+    /// A static function acting as a constructor
+    /// @return req - returns a new `request`
+    // Note: `static` here simply means that no implicit receiver argument will be passed.
+    // I.e., this is ~roughly~ analogous to a top-level definition of
+    // `request::request: func() -> (req: handle request)`
+    // whereas without `static`, it'd be analogous to
+    // `request::request: func(self: handle<request>) -> (req: handle<request>)`
+    static request: func() -> handle request
+
+    method: func() -> string
+
+    // Note: We could consider allowing the parens to be omitted for single return values, like so:
+    headers: func() -> handle headers
+
+    // Note: Or we could even allow leaving off the return value identifier, making it use the
+    // function name, like so:
+    body: func() -> handle body // This return type would be shorthand for `(body: body)`
+}
+
+/// A response resource, with lots of things missing for now.
+resource response {
+    status: func() -> u16
+    headers: func() -> handle headers
+    body: func() -> handle body
+}
+
+/// A headers resource, with lots of things missing for now.
+resource headers {
+    /// Return values for the given header name.
+    /// @param name - the header's name.
+    /// @return values - the values for this header, seperated by ", "
+    // Note: in reality, it might make sense for the values to be a sequence of some kind.
+    get: func(name: string) -> option<string>
+}
+
+/// A body resource.
+/// Bodies are interesting in that they can be both sources and sinks, on both requests and responses.
+resource body {
+    /// Read from a body.
+    /// @param dest - destination buffer to write into
+    /// @return result - a result containing the number of bytes written on success
+    // TODO: check if `out-buffer` is the right way to express this
+    // NOTE: s/expected/result/
+    read: func(dest: list<u8>) -> expected<u64, error>
+
+    /// Write to a body.
+    /// @param source - source buffer to read from
+    /// @return result - a result containing the number of bytes read on success
+    // TODO: check if `in-buffer` is the right way to express this
+    write: func(source: list<u8>) -> expected<u64, error>
+}
+/*
+
+/// A nested interface, doing something neat and elaborate.
+interface nested-interface1 {
+    /// An even better request resource than the one everybody's using.
+    resource better-request {
+        // TODO: do we need to have a ctor with special semantics? E.g. to generate actual
+        // constructors for languages that have them, such as JS?
+        new: func(request: handle<request>) -> handle<better-request>
+        // Note: sadly, the sauce better-request uses must remain secret, so it doesn't actually
+        // expose any of its functionality, and hence doesn't need any other methods.
+    }
+    /// Maps a request to an even better request.
+    // Note: the containing scope's members are in scope in a nested interface
+    fun: func(request: handle<request>) -> handle<response>
+}
+
+/// Another nested interface, doing something even more neat and elaborate.
+/// It does this by adding shiny stuff to what nested-interface1 is doing.
+interface nested-interface2 {
+    // Note: as mentioned in the comment on this file's first `use` statement, the first
+    // ident in a namespace chain needs to be resolved out of band. `self` is an exception to
+    // this rule, and allows referring to the outermost containing scope.
+    use self::nested-interface1::better-request
+
+    /// The secret sauce. It's so secret and magic that you're not allowed to touch it, quite sadly.
+    resource the-shiny {
+    }
+
+    /// Maps a better request to a plain old response.
+    /// @param request - the already pretty good request to add the shiny to
+    /// @return response - a boring, normal response
+    /// @return added-shiny - the shiny!
+    // Note: this just exists to demonstrate multiple return values, including their documentation
+    fun: func(request: better-request) -> tuple<handle<response>, handle<the-thiny>>
+}
+*/
+
+/// An enum with some values
+// Note: should we have a way to declare the underlying representation, along the lines of
+// `enum error: u8 {..}`?
+// Note: what about non-numeric types?
+// Note: what about heterogeneous enums?
+enum error {
+    overflow,
+    unavailable,
+}
+
+/// A function returning a Result, with the enum above as one of the options
+/// @return result - a `Result` containing either the desired number, or an `error`
+maybe-number: func() -> expected<u64, error>
+
+/// A simple struct
+record timestamp {
+    seconds: u64,
+    nanoseconds: u64,
+}
+
+/// A simple value
+my-int: u32
+
+/// A handle to a request
+my-request: handle request

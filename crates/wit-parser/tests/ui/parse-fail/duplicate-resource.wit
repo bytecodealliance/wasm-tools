@@ -1,0 +1,4 @@
+// parse-fail
+
+resource a
+resource a

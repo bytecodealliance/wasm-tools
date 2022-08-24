@@ -1,0 +1,70 @@
+{
+  "types": [
+    {
+      "idx": 0,
+      "tuple": {
+        "types": [
+          "u32",
+          "u32"
+        ]
+      }
+    },
+    {
+      "idx": 1,
+      "option": "u32"
+    },
+    {
+      "idx": 2,
+      "expected": {
+        "ok": "u32",
+        "err": "float32"
+      }
+    }
+  ],
+  "functions": [
+    {
+      "name": "f1",
+      "params": [],
+      "result": "unit"
+    },
+    {
+      "name": "f2",
+      "params": [
+        "u32"
+      ],
+      "result": "unit"
+    },
+    {
+      "name": "f3",
+      "params": [
+        "u32"
+      ],
+      "result": "unit"
+    },
+    {
+      "name": "f4",
+      "params": [],
+      "result": "u32"
+    },
+    {
+      "name": "f6",
+      "params": [],
+      "result": "type-0"
+    },
+    {
+      "name": "f7",
+      "params": [
+        "float32",
+        "float32"
+      ],
+      "result": "type-0"
+    },
+    {
+      "name": "f8",
+      "params": [
+        "type-1"
+      ],
+      "result": "type-2"
+    }
+  ]
+}

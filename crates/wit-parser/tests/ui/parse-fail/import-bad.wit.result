@@ -1,0 +1,5 @@
+name not defined in submodule
+     --> tests/ui/parse-fail/import-bad.wit:2:7
+      |
+    2 | use { nonexistent } from import-me
+      |       ^----------

@@ -1,0 +1,3 @@
+// parse-fail
+type foo = bar
+type bar = list<foo>

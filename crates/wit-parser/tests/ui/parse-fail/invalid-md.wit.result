@@ -1,0 +1,5 @@
+no type named `bar`
+     --> tests/ui/parse-fail/invalid-md.md:6:12
+      |
+    6 | type foo = bar
+      |            ^--

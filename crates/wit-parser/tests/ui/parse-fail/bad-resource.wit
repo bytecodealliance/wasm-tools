@@ -1,0 +1,5 @@
+// parse-fail
+
+resource x {
+  x: s32
+}

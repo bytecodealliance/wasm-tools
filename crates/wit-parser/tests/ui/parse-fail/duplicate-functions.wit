@@ -1,0 +1,4 @@
+// parse-fail
+
+foo: func()
+foo: func()

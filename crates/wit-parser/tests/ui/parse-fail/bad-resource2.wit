@@ -1,0 +1,6 @@
+// parse-fail
+
+resource x {
+  x: func()
+  x: func()
+}

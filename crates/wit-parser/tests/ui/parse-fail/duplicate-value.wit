@@ -1,0 +1,3 @@
+// parse-fail
+a: s32
+a: u32

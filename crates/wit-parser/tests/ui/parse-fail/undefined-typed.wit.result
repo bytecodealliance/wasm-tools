@@ -1,0 +1,5 @@
+no type named `bar`
+     --> tests/ui/parse-fail/undefined-typed.wit:3:12
+      |
+    3 | type foo = bar
+      |            ^--

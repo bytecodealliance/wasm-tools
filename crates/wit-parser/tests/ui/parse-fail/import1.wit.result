@@ -1,0 +1,1 @@
+file `tests/ui/parse-fail/import1.wit` recursively imports itself

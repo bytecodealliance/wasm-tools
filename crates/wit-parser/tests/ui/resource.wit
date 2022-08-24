@@ -1,0 +1,16 @@
+resource a
+resource b
+resource c
+resource d {}
+resource e {
+  x: func()
+}
+resource f {
+  x: func()
+  y: func()
+}
+resource g implements a
+resource h implements b {}
+resource i implements e {
+  z: func()
+}

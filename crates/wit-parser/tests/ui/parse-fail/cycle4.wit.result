@@ -1,0 +1,5 @@
+type can recursively refer to itself
+     --> tests/ui/parse-fail/cycle4.wit:2:6
+      |
+    2 | type foo = bar
+      |      ^--

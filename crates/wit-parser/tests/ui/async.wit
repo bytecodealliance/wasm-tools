@@ -1,0 +1,9 @@
+a: async func()
+b: async func(x: s32)
+c: async func() -> u32
+
+resource y {
+  a: async func()
+  b: async func(x: s32)
+  c: async func() -> u32
+}

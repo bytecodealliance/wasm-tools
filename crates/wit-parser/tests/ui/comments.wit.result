@@ -1,0 +1,18 @@
+{
+  "resources": [
+    {
+      "name": "x"
+    }
+  ],
+  "types": [
+    {
+      "idx": 0,
+      "name": "bar",
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 1,
+      "primitive": "handle-0"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+type foo = u32
+resource bar

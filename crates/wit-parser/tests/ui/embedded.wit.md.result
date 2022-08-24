@@ -1,0 +1,19 @@
+{
+  "functions": [
+    {
+      "name": "x",
+      "params": [],
+      "result": "unit"
+    },
+    {
+      "name": "y",
+      "params": [],
+      "result": "unit"
+    },
+    {
+      "name": "z",
+      "params": [],
+      "result": "unit"
+    }
+  ]
+}

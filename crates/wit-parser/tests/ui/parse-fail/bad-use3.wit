@@ -1,0 +1,2 @@
+// parse-fail
+use * from type

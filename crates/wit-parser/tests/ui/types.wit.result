@@ -1,0 +1,483 @@
+{
+  "resources": [
+    {
+      "name": "x"
+    }
+  ],
+  "types": [
+    {
+      "idx": 0,
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 1,
+      "name": "t1",
+      "primitive": "u8"
+    },
+    {
+      "idx": 2,
+      "name": "t2",
+      "primitive": "u16"
+    },
+    {
+      "idx": 3,
+      "name": "t3",
+      "primitive": "u32"
+    },
+    {
+      "idx": 4,
+      "name": "t4",
+      "primitive": "u64"
+    },
+    {
+      "idx": 5,
+      "name": "t5",
+      "primitive": "s8"
+    },
+    {
+      "idx": 6,
+      "name": "t6",
+      "primitive": "s16"
+    },
+    {
+      "idx": 7,
+      "name": "t7",
+      "primitive": "s32"
+    },
+    {
+      "idx": 8,
+      "name": "t8",
+      "primitive": "s64"
+    },
+    {
+      "idx": 9,
+      "name": "t9",
+      "primitive": "float32"
+    },
+    {
+      "idx": 10,
+      "name": "t10",
+      "primitive": "float64"
+    },
+    {
+      "idx": 11,
+      "name": "t11",
+      "primitive": "char"
+    },
+    {
+      "idx": 12,
+      "name": "t12",
+      "list": "char"
+    },
+    {
+      "idx": 13,
+      "name": "t13",
+      "primitive": "string"
+    },
+    {
+      "idx": 14,
+      "name": "t14",
+      "option": "u32"
+    },
+    {
+      "idx": 15,
+      "name": "t15",
+      "expected": {
+        "ok": "u32",
+        "err": "u32"
+      }
+    },
+    {
+      "idx": 16,
+      "name": "t16",
+      "expected": {
+        "ok": "unit",
+        "err": "u32"
+      }
+    },
+    {
+      "idx": 17,
+      "name": "t17",
+      "expected": {
+        "ok": "u32",
+        "err": "unit"
+      }
+    },
+    {
+      "idx": 18,
+      "name": "t18",
+      "expected": {
+        "ok": "unit",
+        "err": "unit"
+      }
+    },
+    {
+      "idx": 19,
+      "name": "t19",
+      "primitive": "handle-0"
+    },
+    {
+      "idx": 20,
+      "name": "t20",
+      "record": {
+        "fields": []
+      }
+    },
+    {
+      "idx": 21,
+      "name": "t21",
+      "record": {
+        "fields": [
+          [
+            "a",
+            "u32"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 22,
+      "name": "t22",
+      "record": {
+        "fields": [
+          [
+            "a",
+            "u32"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 23,
+      "name": "t23",
+      "record": {
+        "fields": [
+          [
+            "a",
+            "u32"
+          ],
+          [
+            "b",
+            "u64"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 24,
+      "name": "t24",
+      "record": {
+        "fields": [
+          [
+            "a",
+            "u32"
+          ],
+          [
+            "b",
+            "u64"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 25,
+      "name": "t25",
+      "record": {
+        "fields": [
+          [
+            "x",
+            "u32"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 26,
+      "name": "record",
+      "record": {
+        "fields": []
+      }
+    },
+    {
+      "idx": 27,
+      "name": "t26",
+      "tuple": {
+        "types": []
+      }
+    },
+    {
+      "idx": 28,
+      "name": "t27",
+      "tuple": {
+        "types": [
+          "u32"
+        ]
+      }
+    },
+    {
+      "idx": 29,
+      "name": "t28",
+      "tuple": {
+        "types": [
+          "u32"
+        ]
+      }
+    },
+    {
+      "idx": 30,
+      "name": "t29",
+      "tuple": {
+        "types": [
+          "u32",
+          "u64"
+        ]
+      }
+    },
+    {
+      "idx": 31,
+      "name": "t30",
+      "flags": {
+        "flags": []
+      }
+    },
+    {
+      "idx": 32,
+      "name": "t31",
+      "flags": {
+        "flags": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "idx": 33,
+      "name": "t32",
+      "flags": {
+        "flags": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "idx": 34,
+      "name": "t33",
+      "variant": {
+        "cases": [
+          [
+            "a",
+            "unit"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 35,
+      "name": "t34",
+      "variant": {
+        "cases": [
+          [
+            "a",
+            "unit"
+          ],
+          [
+            "b",
+            "unit"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 36,
+      "name": "t35",
+      "variant": {
+        "cases": [
+          [
+            "a",
+            "unit"
+          ],
+          [
+            "b",
+            "unit"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 37,
+      "name": "t36",
+      "variant": {
+        "cases": [
+          [
+            "a",
+            "unit"
+          ],
+          [
+            "b",
+            "u32"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 38,
+      "name": "t37",
+      "variant": {
+        "cases": [
+          [
+            "a",
+            "unit"
+          ],
+          [
+            "b",
+            "type-57"
+          ]
+        ]
+      }
+    },
+    {
+      "idx": 39,
+      "name": "t38",
+      "union": {
+        "cases": [
+          "u32",
+          "u64"
+        ]
+      }
+    },
+    {
+      "idx": 40,
+      "name": "t39",
+      "union": {
+        "cases": [
+          "u32",
+          "type-57"
+        ]
+      }
+    },
+    {
+      "idx": 41,
+      "name": "t40",
+      "union": {
+        "cases": [
+          "u32",
+          "type-57"
+        ]
+      }
+    },
+    {
+      "idx": 42,
+      "name": "t41",
+      "enum": {
+        "cases": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "idx": 43,
+      "name": "t42",
+      "enum": {
+        "cases": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "idx": 44,
+      "name": "t43",
+      "primitive": "bool"
+    },
+    {
+      "idx": 45,
+      "name": "t44",
+      "primitive": "string"
+    },
+    {
+      "idx": 46,
+      "name": "t45",
+      "list": "type-59"
+    },
+    {
+      "idx": 47,
+      "name": "t46",
+      "primitive": "type-45"
+    },
+    {
+      "idx": 48,
+      "name": "t47",
+      "primitive": "type-45"
+    },
+    {
+      "idx": 49,
+      "name": "t48",
+      "stream": {
+        "element": "u32",
+        "end": "u32"
+      }
+    },
+    {
+      "idx": 50,
+      "name": "t49",
+      "stream": {
+        "element": "unit",
+        "end": "u32"
+      }
+    },
+    {
+      "idx": 51,
+      "name": "t50",
+      "stream": {
+        "element": "u32",
+        "end": "unit"
+      }
+    },
+    {
+      "idx": 52,
+      "name": "t51",
+      "stream": {
+        "element": "unit",
+        "end": "unit"
+      }
+    },
+    {
+      "idx": 53,
+      "name": "t52",
+      "future": "u32"
+    },
+    {
+      "idx": 54,
+      "name": "t53",
+      "future": "unit"
+    },
+    {
+      "idx": 55,
+      "name": "foo",
+      "primitive": "type-56"
+    },
+    {
+      "idx": 56,
+      "name": "bar",
+      "primitive": "u32"
+    },
+    {
+      "idx": 57,
+      "option": "u32"
+    },
+    {
+      "idx": 58,
+      "list": "type-33"
+    },
+    {
+      "idx": 59,
+      "list": "type-58"
+    }
+  ]
+}

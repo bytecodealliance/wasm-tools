@@ -1,0 +1,19 @@
+// hello
+// world
+// why, yes
+// this is a comment
+/* this too */ /* is a comment */
+/* this /* is /* a */ nested */ comment */
+
+
+type /* foo */ bar /* baz */ = //
+handle //
+//
+//
+
+
+
+
+x
+
+resource /* x */ x // ...

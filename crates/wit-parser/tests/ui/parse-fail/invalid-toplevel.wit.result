@@ -1,0 +1,5 @@
+expected ':', found eof
+     --> tests/ui/parse-fail/invalid-toplevel.wit:3:1
+      |
+    3 | 
+      | ^
