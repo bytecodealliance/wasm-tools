@@ -1,4 +1,0 @@
-failed to find an instance named `b` specified as a dependency of instantiation `a`
-
-Caused by:
-    cannot implicitly instantiate component `b` because it was not defined

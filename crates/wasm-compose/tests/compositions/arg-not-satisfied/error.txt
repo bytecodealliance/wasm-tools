@@ -1,0 +1,1 @@
+component `tests/compositions/arg-not-satisfied/a.wat` is not compatible with import `a` of component `tests/compositions/arg-not-satisfied/root.wat`
