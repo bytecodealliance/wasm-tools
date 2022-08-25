@@ -95,7 +95,8 @@ fn component_composing() -> Result<()> {
                         "failed to read component baseline `{}`",
                         baseline_path.display()
                     ))?
-                    .replace("\r\n", "\n"),
+                    .replace("\r\n", "\n")
+                    .trim(),
                 output,
                 "failed baseline comparison for test case `{}` ({})",
                 test_case,

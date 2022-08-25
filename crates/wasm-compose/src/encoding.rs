@@ -7,13 +7,7 @@ use crate::{
 use anyhow::{bail, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
-use wasm_encoder::{
-    ComponentAliasSection, ComponentExportKind, ComponentExportSection, ComponentImportSection,
-    ComponentInstanceSection, ComponentSectionId, ComponentType, ComponentTypeEncoder,
-    ComponentTypeRef, ComponentTypeSection, ComponentValType, CoreTypeEncoder, EntityType,
-    GlobalType, InstanceType, MemoryType, ModuleType, PrimitiveValType, RawSection, TableType,
-    TagKind, TagType, TypeBounds, ValType,
-};
+use wasm_encoder::*;
 use wasmparser::types::{ComponentEntityType, Type, TypeId, TypesRef};
 
 // Utility trait implement on component and instance types
