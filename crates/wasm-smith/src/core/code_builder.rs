@@ -107,7 +107,7 @@ instructions! {
     (Some(throw_valid), throw, Control, 850),
     (Some(rethrow_valid), rethrow, Control),
     // Parametric instructions.
-    (Some(drop_valid), drop, Parametric),
+    (Some(drop_valid), drop, Parametric, 990),
     (Some(select_valid), select, Parametric),
     // Variable instructions.
     (Some(local_get_valid), local_get, Variable),
