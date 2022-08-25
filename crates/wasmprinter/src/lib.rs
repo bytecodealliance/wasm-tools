@@ -19,6 +19,8 @@ const MAX_LOCALS: u32 = 50000;
 const MAX_NESTING_TO_PRINT: u32 = 50;
 const MAX_WASM_FUNCTIONS: u32 = 1_000_000;
 
+mod operator;
+
 /// Reads a WebAssembly `file` from the filesystem and then prints it into an
 /// in-memory `String`.
 pub fn print_file(file: impl AsRef<Path>) -> Result<String> {
@@ -39,6 +41,7 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 /// custom sections in a wasm binary.
 #[derive(Default)]
 pub struct Printer {
+    print_offsets: bool,
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
     nesting: u32,
@@ -112,6 +115,12 @@ impl Printer {
     /// binaries to strings.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether or not to print binary offsets of each item as comments in the
+    /// text format whenever a newline is printed.
+    pub fn print_offsets(&mut self, print: bool) {
+        self.print_offsets = print;
     }
 
     /// Registers a custom `printer` function to get invoked whenever a custom
@@ -331,9 +340,9 @@ impl Printer {
                     Self::ensure_module(&states)?;
                     self.print_exports(states.last().unwrap(), s)?
                 }
-                Payload::StartSection { func, .. } => {
+                Payload::StartSection { func, range } => {
                     Self::ensure_module(&states)?;
-                    self.newline();
+                    self.newline(range.start);
                     self.start_group("start ");
                     self.print_idx(&states.last().unwrap().core.func_names, func)?;
                     self.end_group();
@@ -359,12 +368,15 @@ impl Printer {
                     self.print_data(states.last_mut().unwrap(), s)?;
                 }
 
-                Payload::ModuleSection { parser: inner, .. } => {
+                Payload::ModuleSection {
+                    parser: inner,
+                    range,
+                } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Module);
                     parsers.push(parser);
                     parser = inner;
-                    self.newline();
+                    self.newline(range.start);
                 }
                 Payload::InstanceSection(s) => {
                     Self::ensure_component(&states)?;
@@ -375,12 +387,15 @@ impl Printer {
                     self.print_aliases(&mut states, s)?;
                 }
                 Payload::CoreTypeSection(s) => self.print_core_types(&mut states, s)?,
-                Payload::ComponentSection { parser: inner, .. } => {
+                Payload::ComponentSection {
+                    parser: inner,
+                    range,
+                } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Component);
                     parsers.push(parser);
                     parser = inner;
-                    self.newline();
+                    self.newline(range.start);
                 }
                 Payload::ComponentInstanceSection(s) => {
                     Self::ensure_component(&states)?;
@@ -448,7 +463,7 @@ impl Printer {
         self.nesting -= 1;
         if let Some(line) = self.group_lines.pop() {
             if line != self.line {
-                self.newline();
+                self.newline_unknown_pos();
             }
         }
         self.result.push(')');
@@ -557,18 +572,20 @@ impl Printer {
         states: &mut Vec<State>,
         parser: CoreTypeSectionReader<'_>,
     ) -> Result<()> {
-        for ty in parser {
-            self.newline();
-            self.print_core_type(states, ty?)?;
+        for ty in parser.into_iter_with_offsets() {
+            let (offset, ty) = ty?;
+            self.newline(offset);
+            self.print_core_type(states, ty)?;
         }
 
         Ok(())
     }
 
     fn print_types(&mut self, state: &mut State, parser: TypeSectionReader<'_>) -> Result<()> {
-        for ty in parser {
-            self.newline();
-            self.print_type(state, ty?)?;
+        for ty in parser.into_iter_with_offsets() {
+            let (offset, ty) = ty?;
+            self.newline(offset);
+            self.print_type(state, ty)?;
         }
 
         Ok(())
@@ -644,12 +661,18 @@ impl Printer {
     }
 
     fn print_reftype(&mut self, ty: RefType) -> Result<()> {
-        self.result.push_str("(ref ");
-        if ty.nullable {
-            self.result.push_str("null ");
+        if ty == FUNC_REF {
+            self.result.push_str("funcref");
+        } else if ty == EXTERN_REF {
+            self.result.push_str("externref");
+        } else {
+            self.result.push_str("(ref ");
+            if ty.nullable {
+                self.result.push_str("null ");
+            }
+            self.print_heaptype(ty.heap_type)?;
+            self.result.push_str(")");
         }
-        self.print_heaptype(ty.heap_type)?;
-        self.result.push_str(")");
         Ok(())
     }
 
@@ -664,9 +687,9 @@ impl Printer {
     }
 
     fn print_imports(&mut self, state: &mut State, parser: ImportSectionReader<'_>) -> Result<()> {
-        for import in parser {
-            let import = import?;
-            self.newline();
+        for import in parser.into_iter_with_offsets() {
+            let (offset, import) = import?;
+            self.newline(offset);
             self.print_import(state, &import, true)?;
             match import.ty {
                 TypeRef::Func(_) => state.core.funcs += 1,
@@ -774,9 +797,9 @@ impl Printer {
     }
 
     fn print_tables(&mut self, state: &mut State, parser: TableSectionReader<'_>) -> Result<()> {
-        for table in parser {
-            let table = table?;
-            self.newline();
+        for table in parser.into_iter_with_offsets() {
+            let (offset, table) = table?;
+            self.newline(offset);
             self.print_table_type(state, &table, true)?;
             self.end_group();
             state.core.tables += 1;
@@ -785,9 +808,9 @@ impl Printer {
     }
 
     fn print_memories(&mut self, state: &mut State, parser: MemorySectionReader<'_>) -> Result<()> {
-        for memory in parser {
-            let memory = memory?;
-            self.newline();
+        for memory in parser.into_iter_with_offsets() {
+            let (offset, memory) = memory?;
+            self.newline(offset);
             self.print_memory_type(state, &memory, true)?;
             self.end_group();
             state.core.memories += 1;
@@ -796,9 +819,9 @@ impl Printer {
     }
 
     fn print_tags(&mut self, state: &mut State, parser: TagSectionReader<'_>) -> Result<()> {
-        for tag in parser {
-            let tag = tag?;
-            self.newline();
+        for tag in parser.into_iter_with_offsets() {
+            let (offset, tag) = tag?;
+            self.newline(offset);
             self.print_tag_type(state, &tag, true)?;
             self.end_group();
             state.core.tags += 1;
@@ -807,9 +830,9 @@ impl Printer {
     }
 
     fn print_globals(&mut self, state: &mut State, parser: GlobalSectionReader<'_>) -> Result<()> {
-        for global in parser {
-            let global = global?;
-            self.newline();
+        for global in parser.into_iter_with_offsets() {
+            let (offset, global) = global?;
+            self.newline(offset);
             self.print_global_type(state, &global.ty, true)?;
             self.result.push(' ');
             self.print_const_expr(state, &global.init_expr)?;
@@ -829,8 +852,10 @@ impl Printer {
             bail!("mismatch in function and code section counts");
         }
         for body in code {
+            let mut body = body.get_binary_reader();
+            let offset = body.original_position();
             let ty = funcs.read()?;
-            self.newline();
+            self.newline(offset);
             self.start_group("func ");
             let func_idx = state.core.funcs;
             self.print_name(&state.core.func_names, func_idx)?;
@@ -841,8 +866,10 @@ impl Printer {
             let mut first = true;
             let mut local_idx = 0;
             let mut locals = NamedLocalPrinter::new("local");
-            for local in body.get_locals_reader()? {
-                let (cnt, ty) = local?;
+            for _ in 0..body.read_var_u32()? {
+                let offset = body.original_position();
+                let cnt = body.read_var_u32()?;
+                let ty = body.read_val_type()?;
                 if MAX_LOCALS
                     .checked_sub(local_idx)
                     .and_then(|s| s.checked_sub(cnt))
@@ -852,7 +879,7 @@ impl Printer {
                 }
                 for _ in 0..cnt {
                     if first {
-                        self.newline();
+                        self.newline(offset);
                         first = false;
                     }
                     let name = state.core.local_names.get(&(func_idx, params + local_idx));
@@ -866,47 +893,54 @@ impl Printer {
 
             state.core.labels = 0;
             let nesting_start = self.nesting;
-            let mut reader = body.get_operators_reader()?;
-            reader.allow_memarg64(true);
-            while !reader.eof() {
-                let operator = reader.read()?;
-                match operator {
+            body.allow_memarg64(true);
+
+            let mut buf = String::new();
+            let mut op_printer = operator::PrintOperator::new(self, state);
+            while !body.eof() {
+                // TODO
+                let offset = body.original_position();
+                mem::swap(&mut buf, &mut op_printer.printer.result);
+                let op_kind = body.visit_operator(&mut op_printer)??;
+                mem::swap(&mut buf, &mut op_printer.printer.result);
+
+                match op_kind {
                     // The final `end` in a reader is not printed, it's implied
                     // in the text format.
-                    Operator::End if reader.eof() => break,
+                    operator::OpKind::End if body.eof() => break,
 
                     // When we start a block we newline to the current
                     // indentation, then we increase the indentation so further
                     // instructions are tabbed over.
-                    Operator::If { .. }
-                    | Operator::Block { .. }
-                    | Operator::Loop { .. }
-                    | Operator::Try { .. } => {
-                        self.newline();
-                        self.nesting += 1;
+                    operator::OpKind::BlockStart => {
+                        op_printer.printer.newline(offset);
+                        op_printer.printer.nesting += 1;
                     }
 
                     // `else`/`catch` are special in that it's printed at
                     // the previous indentation, but it doesn't actually change
                     // our nesting level.
-                    Operator::Else | Operator::Catch { .. } | Operator::CatchAll => {
-                        self.nesting -= 1;
-                        self.newline();
-                        self.nesting += 1;
+                    operator::OpKind::BlockMid => {
+                        op_printer.printer.nesting -= 1;
+                        op_printer.printer.newline(offset);
+                        op_printer.printer.nesting += 1;
                     }
 
                     // Exiting a block prints `end` at the previous indentation
                     // level. `delegate` also ends a block like `end` for `try`.
-                    Operator::End | Operator::Delegate { .. } if self.nesting > nesting_start => {
-                        self.nesting -= 1;
-                        self.newline();
+                    operator::OpKind::End | operator::OpKind::Delegate
+                        if op_printer.printer.nesting > nesting_start =>
+                    {
+                        op_printer.printer.nesting -= 1;
+                        op_printer.printer.newline(offset);
                     }
 
                     // .. otherwise everything else just has a normal newline
                     // out in front.
-                    _ => self.newline(),
+                    _ => op_printer.printer.newline(offset),
                 }
-                self.print_operator(state, &operator, nesting_start)?;
+                op_printer.printer.result.push_str(&buf);
+                buf.truncate(0);
             }
 
             // If this was an invalid function body then the nesting may not
@@ -916,7 +950,7 @@ impl Printer {
             // with the closing paren printed for the func.
             if self.nesting != nesting_start {
                 self.nesting = nesting_start;
-                self.newline();
+                self.newline(body.original_position());
             }
 
             self.end_group();
@@ -926,8 +960,22 @@ impl Printer {
         Ok(())
     }
 
-    fn newline(&mut self) {
+    fn newline(&mut self, offset: usize) {
+        self.print_newline(Some(offset))
+    }
+
+    fn newline_unknown_pos(&mut self) {
+        self.print_newline(None)
+    }
+
+    fn print_newline(&mut self, offset: Option<usize>) {
         self.result.push('\n');
+        if self.print_offsets {
+            match offset {
+                Some(offset) => write!(self.result, "(;@{offset:<6x};)").unwrap(),
+                None => self.result.push_str("           "),
+            }
+        }
         self.line += 1;
 
         // Clamp the maximum nesting size that we print at something somewhat
@@ -938,943 +986,11 @@ impl Printer {
         }
     }
 
-    fn print_operator(
-        &mut self,
-        state: &mut State,
-        op: &Operator<'_>,
-        nesting_start: u32,
-    ) -> Result<()> {
-        use Operator::*;
-        let cur_depth = self.nesting - nesting_start;
-        let label = |relative: u32| match cur_depth.checked_sub(relative) {
-            Some(i) => format!("@{}", i),
-            None => " INVALID ".to_string(),
-        };
-        match op {
-            Nop => self.result.push_str("nop"),
-            Unreachable => self.result.push_str("unreachable"),
-            Block { ty } => {
-                self.result.push_str("block");
-                self.print_blockty(state, ty, cur_depth)?;
-            }
-            Loop { ty } => {
-                self.result.push_str("loop");
-                self.print_blockty(state, ty, cur_depth)?;
-            }
-            If { ty } => {
-                self.result.push_str("if");
-                self.print_blockty(state, ty, cur_depth)?;
-            }
-            Else => self.result.push_str("else"),
-            Try { ty } => {
-                self.result.push_str("try");
-                self.print_blockty(state, ty, cur_depth)?;
-            }
-            Catch { index } => {
-                write!(self.result, "catch {}", index)?;
-            }
-            Throw { index } => {
-                write!(self.result, "throw {}", index)?;
-            }
-            Rethrow { relative_depth } => {
-                write!(
-                    self.result,
-                    "rethrow {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth)
-                )?;
-            }
-            End => self.result.push_str("end"),
-            Br { relative_depth } => {
-                write!(
-                    self.result,
-                    "br {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth),
-                )?;
-            }
-            BrIf { relative_depth } => {
-                write!(
-                    self.result,
-                    "br_if {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth),
-                )?;
-            }
-            BrTable { table } => {
-                self.result.push_str("br_table");
-                for item in table.targets().chain(Some(Ok(table.default()))) {
-                    let item = item?;
-                    write!(self.result, " {} (;{};)", item, label(item))?;
-                }
-            }
-            BrOnNull { relative_depth } => {
-                write!(
-                    self.result,
-                    "br_on_null {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth),
-                )?;
-            }
-            BrOnNonNull { relative_depth } => {
-                write!(
-                    self.result,
-                    "br_on_non_null {} (;{};)",
-                    relative_depth,
-                    label(*relative_depth),
-                )?;
-            }
-
-            Return => self.result.push_str("return"),
-            Call { function_index } => {
-                self.result.push_str("call ");
-                self.print_idx(&state.core.func_names, *function_index)?;
-            }
-            CallRef => self.result.push_str("call_ref"),
-            CallIndirect {
-                table_index,
-                index,
-                table_byte: _,
-            } => {
-                self.result.push_str("call_indirect");
-                if *table_index != 0 {
-                    self.result.push(' ');
-                    self.print_idx(&state.core.table_names, *table_index)?;
-                }
-                self.print_type_ref(state, *index, true, None)?;
-            }
-            ReturnCall { function_index } => {
-                self.result.push_str("return_call ");
-                self.print_idx(&state.core.func_names, *function_index)?;
-            }
-            ReturnCallRef => self.result.push_str("return_call_ref"),
-            ReturnCallIndirect { table_index, index } => {
-                self.result.push_str("return_call_indirect");
-                if *table_index != 0 {
-                    self.result.push(' ');
-                    self.print_idx(&state.core.table_names, *table_index)?;
-                }
-                self.print_type_ref(state, *index, true, None)?;
-            }
-
-            Delegate { relative_depth } => {
-                write!(self.result, "delegate {}", relative_depth)?;
-            }
-            CatchAll => self.result.push_str("catch_all"),
-
-            Drop => self.result.push_str("drop"),
-            Select => self.result.push_str("select"),
-            TypedSelect { ty } => {
-                self.result.push_str("select (result ");
-                self.print_valtype(*ty)?;
-                self.result.push(')');
-            }
-            LocalGet { local_index } => {
-                self.result.push_str("local.get ");
-                self.print_local_idx(state, state.core.funcs, *local_index)?;
-            }
-            LocalSet { local_index } => {
-                self.result.push_str("local.set ");
-                self.print_local_idx(state, state.core.funcs, *local_index)?;
-            }
-            LocalTee { local_index } => {
-                self.result.push_str("local.tee ");
-                self.print_local_idx(state, state.core.funcs, *local_index)?;
-            }
-
-            GlobalGet { global_index } => {
-                self.result.push_str("global.get ");
-                self.print_idx(&state.core.global_names, *global_index)?;
-            }
-            GlobalSet { global_index } => {
-                self.result.push_str("global.set ");
-                self.print_idx(&state.core.global_names, *global_index)?;
-            }
-
-            I32Load { memarg } => self.mem_instr(state, "i32.load", memarg, 4)?,
-            I64Load { memarg } => self.mem_instr(state, "i64.load", memarg, 8)?,
-            F32Load { memarg } => self.mem_instr(state, "f32.load", memarg, 4)?,
-            F64Load { memarg } => self.mem_instr(state, "f64.load", memarg, 8)?,
-            I32Load8S { memarg } => self.mem_instr(state, "i32.load8_s", memarg, 1)?,
-            I32Load8U { memarg } => self.mem_instr(state, "i32.load8_u", memarg, 1)?,
-            I32Load16S { memarg } => self.mem_instr(state, "i32.load16_s", memarg, 2)?,
-            I32Load16U { memarg } => self.mem_instr(state, "i32.load16_u", memarg, 2)?,
-            I64Load8S { memarg } => self.mem_instr(state, "i64.load8_s", memarg, 1)?,
-            I64Load8U { memarg } => self.mem_instr(state, "i64.load8_u", memarg, 1)?,
-            I64Load16S { memarg } => self.mem_instr(state, "i64.load16_s", memarg, 2)?,
-            I64Load16U { memarg } => self.mem_instr(state, "i64.load16_u", memarg, 2)?,
-            I64Load32S { memarg } => self.mem_instr(state, "i64.load32_s", memarg, 4)?,
-            I64Load32U { memarg } => self.mem_instr(state, "i64.load32_u", memarg, 4)?,
-
-            I32Store { memarg } => self.mem_instr(state, "i32.store", memarg, 4)?,
-            I64Store { memarg } => self.mem_instr(state, "i64.store", memarg, 8)?,
-            F32Store { memarg } => self.mem_instr(state, "f32.store", memarg, 4)?,
-            F64Store { memarg } => self.mem_instr(state, "f64.store", memarg, 8)?,
-            I32Store8 { memarg } => self.mem_instr(state, "i32.store8", memarg, 1)?,
-            I32Store16 { memarg } => self.mem_instr(state, "i32.store16", memarg, 2)?,
-            I64Store8 { memarg } => self.mem_instr(state, "i64.store8", memarg, 1)?,
-            I64Store16 { memarg } => self.mem_instr(state, "i64.store16", memarg, 2)?,
-            I64Store32 { memarg } => self.mem_instr(state, "i64.store32", memarg, 4)?,
-
-            MemorySize { mem: 0, .. } => self.result.push_str("memory.size"),
-            MemorySize { mem, .. } => {
-                self.result.push_str("memory.size ");
-                self.print_idx(&state.core.memory_names, *mem)?;
-            }
-            MemoryGrow { mem: 0, .. } => self.result.push_str("memory.grow"),
-            MemoryGrow { mem, .. } => {
-                self.result.push_str("memory.grow ");
-                self.print_idx(&state.core.memory_names, *mem)?;
-            }
-
-            I32Const { value } => write!(self.result, "i32.const {}", value)?,
-            I64Const { value } => write!(self.result, "i64.const {}", value)?,
-            F32Const { value } => {
-                self.result.push_str("f32.const ");
-                self.print_f32(value.bits())?;
-            }
-            F64Const { value } => {
-                self.result.push_str("f64.const ");
-                self.print_f64(value.bits())?;
-            }
-
-            RefNull { ty } => {
-                self.result.push_str("ref.null ");
-                self.print_heaptype(*ty)?;
-            }
-            RefIsNull => self.result.push_str("ref.is_null"),
-            RefFunc { function_index } => {
-                self.result.push_str("ref.func ");
-                self.print_idx(&state.core.func_names, *function_index)?;
-            }
-            RefAsNonNull => self.result.push_str("ref.as_non_null"),
-
-            I32Eqz => self.result.push_str("i32.eqz"),
-            I32Eq => self.result.push_str("i32.eq"),
-            I32Ne => self.result.push_str("i32.ne"),
-            I32LtS => self.result.push_str("i32.lt_s"),
-            I32LtU => self.result.push_str("i32.lt_u"),
-            I32GtS => self.result.push_str("i32.gt_s"),
-            I32GtU => self.result.push_str("i32.gt_u"),
-            I32LeS => self.result.push_str("i32.le_s"),
-            I32LeU => self.result.push_str("i32.le_u"),
-            I32GeS => self.result.push_str("i32.ge_s"),
-            I32GeU => self.result.push_str("i32.ge_u"),
-
-            I64Eqz => self.result.push_str("i64.eqz"),
-            I64Eq => self.result.push_str("i64.eq"),
-            I64Ne => self.result.push_str("i64.ne"),
-            I64LtS => self.result.push_str("i64.lt_s"),
-            I64LtU => self.result.push_str("i64.lt_u"),
-            I64GtS => self.result.push_str("i64.gt_s"),
-            I64GtU => self.result.push_str("i64.gt_u"),
-            I64LeS => self.result.push_str("i64.le_s"),
-            I64LeU => self.result.push_str("i64.le_u"),
-            I64GeS => self.result.push_str("i64.ge_s"),
-            I64GeU => self.result.push_str("i64.ge_u"),
-
-            F32Eq => self.result.push_str("f32.eq"),
-            F32Ne => self.result.push_str("f32.ne"),
-            F32Lt => self.result.push_str("f32.lt"),
-            F32Gt => self.result.push_str("f32.gt"),
-            F32Le => self.result.push_str("f32.le"),
-            F32Ge => self.result.push_str("f32.ge"),
-
-            F64Eq => self.result.push_str("f64.eq"),
-            F64Ne => self.result.push_str("f64.ne"),
-            F64Lt => self.result.push_str("f64.lt"),
-            F64Gt => self.result.push_str("f64.gt"),
-            F64Le => self.result.push_str("f64.le"),
-            F64Ge => self.result.push_str("f64.ge"),
-
-            I32Clz => self.result.push_str("i32.clz"),
-            I32Ctz => self.result.push_str("i32.ctz"),
-            I32Popcnt => self.result.push_str("i32.popcnt"),
-            I32Add => self.result.push_str("i32.add"),
-            I32Sub => self.result.push_str("i32.sub"),
-            I32Mul => self.result.push_str("i32.mul"),
-            I32DivS => self.result.push_str("i32.div_s"),
-            I32DivU => self.result.push_str("i32.div_u"),
-            I32RemS => self.result.push_str("i32.rem_s"),
-            I32RemU => self.result.push_str("i32.rem_u"),
-            I32And => self.result.push_str("i32.and"),
-            I32Or => self.result.push_str("i32.or"),
-            I32Xor => self.result.push_str("i32.xor"),
-            I32Shl => self.result.push_str("i32.shl"),
-            I32ShrS => self.result.push_str("i32.shr_s"),
-            I32ShrU => self.result.push_str("i32.shr_u"),
-            I32Rotl => self.result.push_str("i32.rotl"),
-            I32Rotr => self.result.push_str("i32.rotr"),
-
-            I64Clz => self.result.push_str("i64.clz"),
-            I64Ctz => self.result.push_str("i64.ctz"),
-            I64Popcnt => self.result.push_str("i64.popcnt"),
-            I64Add => self.result.push_str("i64.add"),
-            I64Sub => self.result.push_str("i64.sub"),
-            I64Mul => self.result.push_str("i64.mul"),
-            I64DivS => self.result.push_str("i64.div_s"),
-            I64DivU => self.result.push_str("i64.div_u"),
-            I64RemS => self.result.push_str("i64.rem_s"),
-            I64RemU => self.result.push_str("i64.rem_u"),
-            I64And => self.result.push_str("i64.and"),
-            I64Or => self.result.push_str("i64.or"),
-            I64Xor => self.result.push_str("i64.xor"),
-            I64Shl => self.result.push_str("i64.shl"),
-            I64ShrS => self.result.push_str("i64.shr_s"),
-            I64ShrU => self.result.push_str("i64.shr_u"),
-            I64Rotl => self.result.push_str("i64.rotl"),
-            I64Rotr => self.result.push_str("i64.rotr"),
-
-            F32Abs => self.result.push_str("f32.abs"),
-            F32Neg => self.result.push_str("f32.neg"),
-            F32Ceil => self.result.push_str("f32.ceil"),
-            F32Floor => self.result.push_str("f32.floor"),
-            F32Trunc => self.result.push_str("f32.trunc"),
-            F32Nearest => self.result.push_str("f32.nearest"),
-            F32Sqrt => self.result.push_str("f32.sqrt"),
-            F32Add => self.result.push_str("f32.add"),
-            F32Sub => self.result.push_str("f32.sub"),
-            F32Mul => self.result.push_str("f32.mul"),
-            F32Div => self.result.push_str("f32.div"),
-            F32Min => self.result.push_str("f32.min"),
-            F32Max => self.result.push_str("f32.max"),
-            F32Copysign => self.result.push_str("f32.copysign"),
-
-            F64Abs => self.result.push_str("f64.abs"),
-            F64Neg => self.result.push_str("f64.neg"),
-            F64Ceil => self.result.push_str("f64.ceil"),
-            F64Floor => self.result.push_str("f64.floor"),
-            F64Trunc => self.result.push_str("f64.trunc"),
-            F64Nearest => self.result.push_str("f64.nearest"),
-            F64Sqrt => self.result.push_str("f64.sqrt"),
-            F64Add => self.result.push_str("f64.add"),
-            F64Sub => self.result.push_str("f64.sub"),
-            F64Mul => self.result.push_str("f64.mul"),
-            F64Div => self.result.push_str("f64.div"),
-            F64Min => self.result.push_str("f64.min"),
-            F64Max => self.result.push_str("f64.max"),
-            F64Copysign => self.result.push_str("f64.copysign"),
-
-            I32WrapI64 => self.result.push_str("i32.wrap_i64"),
-            I32TruncF32S => self.result.push_str("i32.trunc_f32_s"),
-            I32TruncF32U => self.result.push_str("i32.trunc_f32_u"),
-            I32TruncF64S => self.result.push_str("i32.trunc_f64_s"),
-            I32TruncF64U => self.result.push_str("i32.trunc_f64_u"),
-            I64ExtendI32S => self.result.push_str("i64.extend_i32_s"),
-            I64ExtendI32U => self.result.push_str("i64.extend_i32_u"),
-            I64TruncF32S => self.result.push_str("i64.trunc_f32_s"),
-            I64TruncF32U => self.result.push_str("i64.trunc_f32_u"),
-            I64TruncF64S => self.result.push_str("i64.trunc_f64_s"),
-            I64TruncF64U => self.result.push_str("i64.trunc_f64_u"),
-
-            F32ConvertI32S => self.result.push_str("f32.convert_i32_s"),
-            F32ConvertI32U => self.result.push_str("f32.convert_i32_u"),
-            F32ConvertI64S => self.result.push_str("f32.convert_i64_s"),
-            F32ConvertI64U => self.result.push_str("f32.convert_i64_u"),
-            F32DemoteF64 => self.result.push_str("f32.demote_f64"),
-            F64ConvertI32S => self.result.push_str("f64.convert_i32_s"),
-            F64ConvertI32U => self.result.push_str("f64.convert_i32_u"),
-            F64ConvertI64S => self.result.push_str("f64.convert_i64_s"),
-            F64ConvertI64U => self.result.push_str("f64.convert_i64_u"),
-            F64PromoteF32 => self.result.push_str("f64.promote_f32"),
-
-            I32ReinterpretF32 => self.result.push_str("i32.reinterpret_f32"),
-            I64ReinterpretF64 => self.result.push_str("i64.reinterpret_f64"),
-            F32ReinterpretI32 => self.result.push_str("f32.reinterpret_i32"),
-            F64ReinterpretI64 => self.result.push_str("f64.reinterpret_i64"),
-
-            I32Extend8S => self.result.push_str("i32.extend8_s"),
-            I32Extend16S => self.result.push_str("i32.extend16_s"),
-            I64Extend8S => self.result.push_str("i64.extend8_s"),
-            I64Extend16S => self.result.push_str("i64.extend16_s"),
-            I64Extend32S => self.result.push_str("i64.extend32_s"),
-
-            I32TruncSatF32S => self.result.push_str("i32.trunc_sat_f32_s"),
-            I32TruncSatF32U => self.result.push_str("i32.trunc_sat_f32_u"),
-            I32TruncSatF64S => self.result.push_str("i32.trunc_sat_f64_s"),
-            I32TruncSatF64U => self.result.push_str("i32.trunc_sat_f64_u"),
-            I64TruncSatF32S => self.result.push_str("i64.trunc_sat_f32_s"),
-            I64TruncSatF32U => self.result.push_str("i64.trunc_sat_f32_u"),
-            I64TruncSatF64S => self.result.push_str("i64.trunc_sat_f64_s"),
-            I64TruncSatF64U => self.result.push_str("i64.trunc_sat_f64_u"),
-
-            MemoryInit { segment, mem } => {
-                self.result.push_str("memory.init ");
-                if *mem != 0 {
-                    self.print_idx(&state.core.memory_names, *mem)?;
-                    self.result.push(' ');
-                }
-                self.print_idx(&state.core.data_names, *segment)?;
-            }
-            DataDrop { segment } => {
-                self.result.push_str("data.drop ");
-                self.print_idx(&state.core.data_names, *segment)?;
-            }
-            MemoryCopy { src: 0, dst: 0 } => self.result.push_str("memory.copy"),
-            MemoryCopy { src, dst } => {
-                self.result.push_str("memory.copy ");
-                self.print_idx(&state.core.memory_names, *dst)?;
-                self.result.push(' ');
-                self.print_idx(&state.core.memory_names, *src)?;
-            }
-            MemoryFill { mem: 0 } => self.result.push_str("memory.fill"),
-            MemoryFill { mem } => {
-                self.result.push_str("memory.fill ");
-                self.print_idx(&state.core.memory_names, *mem)?;
-            }
-
-            TableInit { table, segment } => {
-                self.result.push_str("table.init ");
-                if *table != 0 {
-                    self.print_idx(&state.core.table_names, *table)?;
-                    self.result.push(' ');
-                }
-                self.print_idx(&state.core.element_names, *segment)?;
-            }
-            ElemDrop { segment } => {
-                self.result.push_str("elem.drop ");
-                self.print_idx(&state.core.element_names, *segment)?;
-            }
-            TableCopy {
-                dst_table,
-                src_table,
-            } => {
-                self.result.push_str("table.copy");
-                if *dst_table != *src_table || *src_table != 0 {
-                    self.result.push(' ');
-                    self.print_idx(&state.core.table_names, *dst_table)?;
-                    self.result.push(' ');
-                    self.print_idx(&state.core.table_names, *src_table)?;
-                }
-            }
-            TableGet { table } => {
-                self.result.push_str("table.get ");
-                self.print_idx(&state.core.table_names, *table)?;
-            }
-            TableSet { table } => {
-                self.result.push_str("table.set ");
-                self.print_idx(&state.core.table_names, *table)?;
-            }
-            TableGrow { table } => {
-                self.result.push_str("table.grow ");
-                self.print_idx(&state.core.table_names, *table)?;
-            }
-            TableSize { table } => {
-                self.result.push_str("table.size ");
-                self.print_idx(&state.core.table_names, *table)?;
-            }
-            TableFill { table } => {
-                self.result.push_str("table.fill ");
-                self.print_idx(&state.core.table_names, *table)?;
-            }
-
-            MemoryAtomicNotify { memarg } => {
-                self.mem_instr(state, "memory.atomic.notify", memarg, 4)?
-            }
-            MemoryAtomicWait32 { memarg } => {
-                self.mem_instr(state, "memory.atomic.wait32", memarg, 4)?
-            }
-            MemoryAtomicWait64 { memarg } => {
-                self.mem_instr(state, "memory.atomic.wait64", memarg, 8)?
-            }
-            AtomicFence { flags: _ } => self.result.push_str("atomic.fence"),
-
-            I32AtomicLoad { memarg } => self.mem_instr(state, "i32.atomic.load", memarg, 4)?,
-            I64AtomicLoad { memarg } => self.mem_instr(state, "i64.atomic.load", memarg, 8)?,
-            I32AtomicLoad8U { memarg } => self.mem_instr(state, "i32.atomic.load8_u", memarg, 1)?,
-            I32AtomicLoad16U { memarg } => {
-                self.mem_instr(state, "i32.atomic.load16_u", memarg, 2)?
-            }
-            I64AtomicLoad8U { memarg } => self.mem_instr(state, "i64.atomic.load8_u", memarg, 1)?,
-            I64AtomicLoad16U { memarg } => {
-                self.mem_instr(state, "i64.atomic.load16_u", memarg, 2)?
-            }
-            I64AtomicLoad32U { memarg } => {
-                self.mem_instr(state, "i64.atomic.load32_u", memarg, 4)?
-            }
-
-            I32AtomicStore { memarg } => self.mem_instr(state, "i32.atomic.store", memarg, 4)?,
-            I64AtomicStore { memarg } => self.mem_instr(state, "i64.atomic.store", memarg, 8)?,
-            I32AtomicStore8 { memarg } => self.mem_instr(state, "i32.atomic.store8", memarg, 1)?,
-            I32AtomicStore16 { memarg } => {
-                self.mem_instr(state, "i32.atomic.store16", memarg, 2)?
-            }
-            I64AtomicStore8 { memarg } => self.mem_instr(state, "i64.atomic.store8", memarg, 1)?,
-            I64AtomicStore16 { memarg } => {
-                self.mem_instr(state, "i64.atomic.store16", memarg, 2)?
-            }
-            I64AtomicStore32 { memarg } => {
-                self.mem_instr(state, "i64.atomic.store32", memarg, 4)?
-            }
-
-            I32AtomicRmwAdd { memarg } => self.mem_instr(state, "i32.atomic.rmw.add", memarg, 4)?,
-            I64AtomicRmwAdd { memarg } => self.mem_instr(state, "i64.atomic.rmw.add", memarg, 8)?,
-            I32AtomicRmw8AddU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.add_u", memarg, 1)?
-            }
-            I32AtomicRmw16AddU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.add_u", memarg, 2)?
-            }
-            I64AtomicRmw8AddU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.add_u", memarg, 1)?
-            }
-            I64AtomicRmw16AddU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.add_u", memarg, 2)?
-            }
-            I64AtomicRmw32AddU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.add_u", memarg, 4)?
-            }
-
-            I32AtomicRmwSub { memarg } => self.mem_instr(state, "i32.atomic.rmw.sub", memarg, 4)?,
-            I64AtomicRmwSub { memarg } => self.mem_instr(state, "i64.atomic.rmw.sub", memarg, 8)?,
-            I32AtomicRmw8SubU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.sub_u", memarg, 1)?
-            }
-            I32AtomicRmw16SubU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.sub_u", memarg, 2)?
-            }
-            I64AtomicRmw8SubU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.sub_u", memarg, 1)?
-            }
-            I64AtomicRmw16SubU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.sub_u", memarg, 2)?
-            }
-            I64AtomicRmw32SubU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.sub_u", memarg, 4)?
-            }
-
-            I32AtomicRmwAnd { memarg } => self.mem_instr(state, "i32.atomic.rmw.and", memarg, 4)?,
-            I64AtomicRmwAnd { memarg } => self.mem_instr(state, "i64.atomic.rmw.and", memarg, 8)?,
-            I32AtomicRmw8AndU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.and_u", memarg, 1)?
-            }
-            I32AtomicRmw16AndU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.and_u", memarg, 2)?
-            }
-            I64AtomicRmw8AndU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.and_u", memarg, 1)?
-            }
-            I64AtomicRmw16AndU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.and_u", memarg, 2)?
-            }
-            I64AtomicRmw32AndU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.and_u", memarg, 4)?
-            }
-
-            I32AtomicRmwOr { memarg } => self.mem_instr(state, "i32.atomic.rmw.or", memarg, 4)?,
-            I64AtomicRmwOr { memarg } => self.mem_instr(state, "i64.atomic.rmw.or", memarg, 8)?,
-            I32AtomicRmw8OrU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.or_u", memarg, 1)?
-            }
-            I32AtomicRmw16OrU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.or_u", memarg, 2)?
-            }
-            I64AtomicRmw8OrU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.or_u", memarg, 1)?
-            }
-            I64AtomicRmw16OrU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.or_u", memarg, 2)?
-            }
-            I64AtomicRmw32OrU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.or_u", memarg, 4)?
-            }
-
-            I32AtomicRmwXor { memarg } => self.mem_instr(state, "i32.atomic.rmw.xor", memarg, 4)?,
-            I64AtomicRmwXor { memarg } => self.mem_instr(state, "i64.atomic.rmw.xor", memarg, 8)?,
-            I32AtomicRmw8XorU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.xor_u", memarg, 1)?
-            }
-            I32AtomicRmw16XorU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.xor_u", memarg, 2)?
-            }
-            I64AtomicRmw8XorU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.xor_u", memarg, 1)?
-            }
-            I64AtomicRmw16XorU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.xor_u", memarg, 2)?
-            }
-            I64AtomicRmw32XorU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.xor_u", memarg, 4)?
-            }
-
-            I32AtomicRmwXchg { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw.xchg", memarg, 4)?
-            }
-            I64AtomicRmwXchg { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw.xchg", memarg, 8)?
-            }
-            I32AtomicRmw8XchgU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.xchg_u", memarg, 1)?
-            }
-            I32AtomicRmw16XchgU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.xchg_u", memarg, 2)?
-            }
-            I64AtomicRmw8XchgU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.xchg_u", memarg, 1)?
-            }
-            I64AtomicRmw16XchgU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.xchg_u", memarg, 2)?
-            }
-            I64AtomicRmw32XchgU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.xchg_u", memarg, 4)?
-            }
-
-            I32AtomicRmwCmpxchg { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw.cmpxchg", memarg, 4)?
-            }
-            I64AtomicRmwCmpxchg { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw.cmpxchg", memarg, 8)?
-            }
-            I32AtomicRmw8CmpxchgU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw8.cmpxchg_u", memarg, 1)?
-            }
-            I32AtomicRmw16CmpxchgU { memarg } => {
-                self.mem_instr(state, "i32.atomic.rmw16.cmpxchg_u", memarg, 2)?
-            }
-            I64AtomicRmw8CmpxchgU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw8.cmpxchg_u", memarg, 1)?
-            }
-            I64AtomicRmw16CmpxchgU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw16.cmpxchg_u", memarg, 2)?
-            }
-            I64AtomicRmw32CmpxchgU { memarg } => {
-                self.mem_instr(state, "i64.atomic.rmw32.cmpxchg_u", memarg, 4)?
-            }
-
-            V128Load { memarg } => self.mem_instr(state, "v128.load", memarg, 16)?,
-            V128Store { memarg } => self.mem_instr(state, "v128.store", memarg, 16)?,
-            V128Const { value } => {
-                write!(self.result, "v128.const i32x4")?;
-                for chunk in value.bytes().chunks(4) {
-                    write!(
-                        self.result,
-                        " 0x{:02x}{:02x}{:02x}{:02x}",
-                        chunk[3], chunk[2], chunk[1], chunk[0]
-                    )?;
-                }
-            }
-
-            I8x16Splat => self.result.push_str("i8x16.splat"),
-            I8x16ExtractLaneS { lane } => write!(self.result, "i8x16.extract_lane_s {}", lane)?,
-            I8x16ExtractLaneU { lane } => write!(self.result, "i8x16.extract_lane_u {}", lane)?,
-            I8x16ReplaceLane { lane } => write!(self.result, "i8x16.replace_lane {}", lane)?,
-            I16x8Splat => self.result.push_str("i16x8.splat"),
-            I16x8ExtractLaneS { lane } => write!(self.result, "i16x8.extract_lane_s {}", lane)?,
-            I16x8ExtractLaneU { lane } => write!(self.result, "i16x8.extract_lane_u {}", lane)?,
-            I16x8ReplaceLane { lane } => write!(self.result, "i16x8.replace_lane {}", lane)?,
-            I32x4Splat => self.result.push_str("i32x4.splat"),
-            I32x4ExtractLane { lane } => write!(self.result, "i32x4.extract_lane {}", lane)?,
-            I32x4ReplaceLane { lane } => write!(self.result, "i32x4.replace_lane {}", lane)?,
-            I64x2Splat => self.result.push_str("i64x2.splat"),
-            I64x2ExtractLane { lane } => write!(self.result, "i64x2.extract_lane {}", lane)?,
-            I64x2ReplaceLane { lane } => write!(self.result, "i64x2.replace_lane {}", lane)?,
-            F32x4Splat => self.result.push_str("f32x4.splat"),
-            F32x4ExtractLane { lane } => write!(self.result, "f32x4.extract_lane {}", lane)?,
-            F32x4ReplaceLane { lane } => write!(self.result, "f32x4.replace_lane {}", lane)?,
-            F64x2Splat => self.result.push_str("f64x2.splat"),
-            F64x2ExtractLane { lane } => write!(self.result, "f64x2.extract_lane {}", lane)?,
-            F64x2ReplaceLane { lane } => write!(self.result, "f64x2.replace_lane {}", lane)?,
-
-            I8x16Eq => self.result.push_str("i8x16.eq"),
-            I8x16Ne => self.result.push_str("i8x16.ne"),
-            I8x16LtS => self.result.push_str("i8x16.lt_s"),
-            I8x16LtU => self.result.push_str("i8x16.lt_u"),
-            I8x16GtS => self.result.push_str("i8x16.gt_s"),
-            I8x16GtU => self.result.push_str("i8x16.gt_u"),
-            I8x16LeS => self.result.push_str("i8x16.le_s"),
-            I8x16LeU => self.result.push_str("i8x16.le_u"),
-            I8x16GeS => self.result.push_str("i8x16.ge_s"),
-            I8x16GeU => self.result.push_str("i8x16.ge_u"),
-
-            I16x8Eq => self.result.push_str("i16x8.eq"),
-            I16x8Ne => self.result.push_str("i16x8.ne"),
-            I16x8LtS => self.result.push_str("i16x8.lt_s"),
-            I16x8LtU => self.result.push_str("i16x8.lt_u"),
-            I16x8GtS => self.result.push_str("i16x8.gt_s"),
-            I16x8GtU => self.result.push_str("i16x8.gt_u"),
-            I16x8LeS => self.result.push_str("i16x8.le_s"),
-            I16x8LeU => self.result.push_str("i16x8.le_u"),
-            I16x8GeS => self.result.push_str("i16x8.ge_s"),
-            I16x8GeU => self.result.push_str("i16x8.ge_u"),
-
-            I32x4Eq => self.result.push_str("i32x4.eq"),
-            I32x4Ne => self.result.push_str("i32x4.ne"),
-            I32x4LtS => self.result.push_str("i32x4.lt_s"),
-            I32x4LtU => self.result.push_str("i32x4.lt_u"),
-            I32x4GtS => self.result.push_str("i32x4.gt_s"),
-            I32x4GtU => self.result.push_str("i32x4.gt_u"),
-            I32x4LeS => self.result.push_str("i32x4.le_s"),
-            I32x4LeU => self.result.push_str("i32x4.le_u"),
-            I32x4GeS => self.result.push_str("i32x4.ge_s"),
-            I32x4GeU => self.result.push_str("i32x4.ge_u"),
-
-            I64x2Eq => self.result.push_str("i64x2.eq"),
-            I64x2Ne => self.result.push_str("i64x2.ne"),
-            I64x2LtS => self.result.push_str("i64x2.lt_s"),
-            I64x2GtS => self.result.push_str("i64x2.gt_s"),
-            I64x2LeS => self.result.push_str("i64x2.le_s"),
-            I64x2GeS => self.result.push_str("i64x2.ge_s"),
-
-            F32x4Eq => self.result.push_str("f32x4.eq"),
-            F32x4Ne => self.result.push_str("f32x4.ne"),
-            F32x4Lt => self.result.push_str("f32x4.lt"),
-            F32x4Gt => self.result.push_str("f32x4.gt"),
-            F32x4Le => self.result.push_str("f32x4.le"),
-            F32x4Ge => self.result.push_str("f32x4.ge"),
-
-            F64x2Eq => self.result.push_str("f64x2.eq"),
-            F64x2Ne => self.result.push_str("f64x2.ne"),
-            F64x2Lt => self.result.push_str("f64x2.lt"),
-            F64x2Gt => self.result.push_str("f64x2.gt"),
-            F64x2Le => self.result.push_str("f64x2.le"),
-            F64x2Ge => self.result.push_str("f64x2.ge"),
-
-            V128Not => self.result.push_str("v128.not"),
-            V128And => self.result.push_str("v128.and"),
-            V128AndNot => self.result.push_str("v128.andnot"),
-            V128Or => self.result.push_str("v128.or"),
-            V128Xor => self.result.push_str("v128.xor"),
-            V128Bitselect => self.result.push_str("v128.bitselect"),
-            V128AnyTrue => self.result.push_str("v128.any_true"),
-
-            I8x16Abs => self.result.push_str("i8x16.abs"),
-            I8x16Neg => self.result.push_str("i8x16.neg"),
-            I8x16AllTrue => self.result.push_str("i8x16.all_true"),
-            I8x16Bitmask => self.result.push_str("i8x16.bitmask"),
-            I8x16Shl => self.result.push_str("i8x16.shl"),
-            I8x16ShrU => self.result.push_str("i8x16.shr_u"),
-            I8x16ShrS => self.result.push_str("i8x16.shr_s"),
-            I8x16Add => self.result.push_str("i8x16.add"),
-            I8x16AddSatS => self.result.push_str("i8x16.add_sat_s"),
-            I8x16AddSatU => self.result.push_str("i8x16.add_sat_u"),
-            I8x16Sub => self.result.push_str("i8x16.sub"),
-            I8x16SubSatS => self.result.push_str("i8x16.sub_sat_s"),
-            I8x16SubSatU => self.result.push_str("i8x16.sub_sat_u"),
-
-            I16x8Abs => self.result.push_str("i16x8.abs"),
-            I16x8Neg => self.result.push_str("i16x8.neg"),
-            I16x8AllTrue => self.result.push_str("i16x8.all_true"),
-            I16x8Bitmask => self.result.push_str("i16x8.bitmask"),
-            I16x8Shl => self.result.push_str("i16x8.shl"),
-            I16x8ShrU => self.result.push_str("i16x8.shr_u"),
-            I16x8ShrS => self.result.push_str("i16x8.shr_s"),
-            I16x8Add => self.result.push_str("i16x8.add"),
-            I16x8AddSatS => self.result.push_str("i16x8.add_sat_s"),
-            I16x8AddSatU => self.result.push_str("i16x8.add_sat_u"),
-            I16x8Sub => self.result.push_str("i16x8.sub"),
-            I16x8SubSatS => self.result.push_str("i16x8.sub_sat_s"),
-            I16x8SubSatU => self.result.push_str("i16x8.sub_sat_u"),
-            I16x8Mul => self.result.push_str("i16x8.mul"),
-
-            I32x4Abs => self.result.push_str("i32x4.abs"),
-            I32x4Neg => self.result.push_str("i32x4.neg"),
-            I32x4AllTrue => self.result.push_str("i32x4.all_true"),
-            I32x4Bitmask => self.result.push_str("i32x4.bitmask"),
-            I32x4Shl => self.result.push_str("i32x4.shl"),
-            I32x4ShrU => self.result.push_str("i32x4.shr_u"),
-            I32x4ShrS => self.result.push_str("i32x4.shr_s"),
-            I32x4Add => self.result.push_str("i32x4.add"),
-            I32x4Sub => self.result.push_str("i32x4.sub"),
-            I32x4Mul => self.result.push_str("i32x4.mul"),
-
-            I64x2Abs => self.result.push_str("i64x2.abs"),
-            I64x2Neg => self.result.push_str("i64x2.neg"),
-            I64x2AllTrue => self.result.push_str("i64x2.all_true"),
-            I64x2Bitmask => self.result.push_str("i64x2.bitmask"),
-            I64x2Shl => self.result.push_str("i64x2.shl"),
-            I64x2ShrU => self.result.push_str("i64x2.shr_u"),
-            I64x2ShrS => self.result.push_str("i64x2.shr_s"),
-            I64x2Add => self.result.push_str("i64x2.add"),
-            I64x2Sub => self.result.push_str("i64x2.sub"),
-            I64x2Mul => self.result.push_str("i64x2.mul"),
-
-            F32x4Ceil => self.result.push_str("f32x4.ceil"),
-            F32x4Floor => self.result.push_str("f32x4.floor"),
-            F32x4Trunc => self.result.push_str("f32x4.trunc"),
-            F32x4Nearest => self.result.push_str("f32x4.nearest"),
-            F64x2Ceil => self.result.push_str("f64x2.ceil"),
-            F64x2Floor => self.result.push_str("f64x2.floor"),
-            F64x2Trunc => self.result.push_str("f64x2.trunc"),
-            F64x2Nearest => self.result.push_str("f64x2.nearest"),
-            F32x4Abs => self.result.push_str("f32x4.abs"),
-            F32x4Neg => self.result.push_str("f32x4.neg"),
-            F32x4Sqrt => self.result.push_str("f32x4.sqrt"),
-            F32x4Add => self.result.push_str("f32x4.add"),
-            F32x4Sub => self.result.push_str("f32x4.sub"),
-            F32x4Div => self.result.push_str("f32x4.div"),
-            F32x4Mul => self.result.push_str("f32x4.mul"),
-            F32x4Min => self.result.push_str("f32x4.min"),
-            F32x4Max => self.result.push_str("f32x4.max"),
-            F32x4PMin => self.result.push_str("f32x4.pmin"),
-            F32x4PMax => self.result.push_str("f32x4.pmax"),
-
-            F64x2Abs => self.result.push_str("f64x2.abs"),
-            F64x2Neg => self.result.push_str("f64x2.neg"),
-            F64x2Sqrt => self.result.push_str("f64x2.sqrt"),
-            F64x2Add => self.result.push_str("f64x2.add"),
-            F64x2Sub => self.result.push_str("f64x2.sub"),
-            F64x2Div => self.result.push_str("f64x2.div"),
-            F64x2Mul => self.result.push_str("f64x2.mul"),
-            F64x2Min => self.result.push_str("f64x2.min"),
-            F64x2Max => self.result.push_str("f64x2.max"),
-            F64x2PMin => self.result.push_str("f64x2.pmin"),
-            F64x2PMax => self.result.push_str("f64x2.pmax"),
-
-            I32x4TruncSatF32x4S => self.result.push_str("i32x4.trunc_sat_f32x4_s"),
-            I32x4TruncSatF32x4U => self.result.push_str("i32x4.trunc_sat_f32x4_u"),
-            F32x4ConvertI32x4S => self.result.push_str("f32x4.convert_i32x4_s"),
-            F32x4ConvertI32x4U => self.result.push_str("f32x4.convert_i32x4_u"),
-
-            I8x16Swizzle => self.result.push_str("i8x16.swizzle"),
-            I8x16Shuffle { lanes } => {
-                self.result.push_str("i8x16.shuffle");
-                for lane in lanes {
-                    write!(self.result, " {}", lane)?;
-                }
-            }
-            V128Load8Splat { memarg } => self.mem_instr(state, "v128.load8_splat", memarg, 1)?,
-            V128Load16Splat { memarg } => self.mem_instr(state, "v128.load16_splat", memarg, 2)?,
-            V128Load32Splat { memarg } => self.mem_instr(state, "v128.load32_splat", memarg, 4)?,
-            V128Load64Splat { memarg } => self.mem_instr(state, "v128.load64_splat", memarg, 8)?,
-
-            V128Load32Zero { memarg } => self.mem_instr(state, "v128.load32_zero", memarg, 4)?,
-            V128Load64Zero { memarg } => self.mem_instr(state, "v128.load64_zero", memarg, 8)?,
-
-            I8x16NarrowI16x8S => self.result.push_str("i8x16.narrow_i16x8_s"),
-            I8x16NarrowI16x8U => self.result.push_str("i8x16.narrow_i16x8_u"),
-            I16x8NarrowI32x4S => self.result.push_str("i16x8.narrow_i32x4_s"),
-            I16x8NarrowI32x4U => self.result.push_str("i16x8.narrow_i32x4_u"),
-
-            I16x8ExtendLowI8x16S => self.result.push_str("i16x8.extend_low_i8x16_s"),
-            I16x8ExtendHighI8x16S => self.result.push_str("i16x8.extend_high_i8x16_s"),
-            I16x8ExtendLowI8x16U => self.result.push_str("i16x8.extend_low_i8x16_u"),
-            I16x8ExtendHighI8x16U => self.result.push_str("i16x8.extend_high_i8x16_u"),
-            I32x4ExtendLowI16x8S => self.result.push_str("i32x4.extend_low_i16x8_s"),
-            I32x4ExtendHighI16x8S => self.result.push_str("i32x4.extend_high_i16x8_s"),
-            I32x4ExtendLowI16x8U => self.result.push_str("i32x4.extend_low_i16x8_u"),
-            I32x4ExtendHighI16x8U => self.result.push_str("i32x4.extend_high_i16x8_u"),
-            I64x2ExtendLowI32x4S => self.result.push_str("i64x2.extend_low_i32x4_s"),
-            I64x2ExtendHighI32x4S => self.result.push_str("i64x2.extend_high_i32x4_s"),
-            I64x2ExtendLowI32x4U => self.result.push_str("i64x2.extend_low_i32x4_u"),
-            I64x2ExtendHighI32x4U => self.result.push_str("i64x2.extend_high_i32x4_u"),
-
-            I16x8ExtMulLowI8x16S => self.result.push_str("i16x8.extmul_low_i8x16_s"),
-            I16x8ExtMulHighI8x16S => self.result.push_str("i16x8.extmul_high_i8x16_s"),
-            I16x8ExtMulLowI8x16U => self.result.push_str("i16x8.extmul_low_i8x16_u"),
-            I16x8ExtMulHighI8x16U => self.result.push_str("i16x8.extmul_high_i8x16_u"),
-            I32x4ExtMulLowI16x8S => self.result.push_str("i32x4.extmul_low_i16x8_s"),
-            I32x4ExtMulHighI16x8S => self.result.push_str("i32x4.extmul_high_i16x8_s"),
-            I32x4ExtMulLowI16x8U => self.result.push_str("i32x4.extmul_low_i16x8_u"),
-            I32x4ExtMulHighI16x8U => self.result.push_str("i32x4.extmul_high_i16x8_u"),
-            I64x2ExtMulLowI32x4S => self.result.push_str("i64x2.extmul_low_i32x4_s"),
-            I64x2ExtMulHighI32x4S => self.result.push_str("i64x2.extmul_high_i32x4_s"),
-            I64x2ExtMulLowI32x4U => self.result.push_str("i64x2.extmul_low_i32x4_u"),
-            I64x2ExtMulHighI32x4U => self.result.push_str("i64x2.extmul_high_i32x4_u"),
-
-            I16x8Q15MulrSatS => self.result.push_str("i16x8.q15mulr_sat_s"),
-
-            V128Load8x8S { memarg } => self.mem_instr(state, "v128.load8x8_s", memarg, 8)?,
-            V128Load8x8U { memarg } => self.mem_instr(state, "v128.load8x8_u", memarg, 8)?,
-            V128Load16x4S { memarg } => self.mem_instr(state, "v128.load16x4_s", memarg, 8)?,
-            V128Load16x4U { memarg } => self.mem_instr(state, "v128.load16x4_u", memarg, 8)?,
-            V128Load32x2S { memarg } => self.mem_instr(state, "v128.load32x2_s", memarg, 8)?,
-            V128Load32x2U { memarg } => self.mem_instr(state, "v128.load32x2_u", memarg, 8)?,
-
-            V128Load8Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.load8_lane", memarg, 1)?;
-                write!(self.result, " {}", lane)?;
-            }
-            V128Load16Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.load16_lane", memarg, 2)?;
-                write!(self.result, " {}", lane)?;
-            }
-            V128Load32Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.load32_lane", memarg, 4)?;
-                write!(self.result, " {}", lane)?;
-            }
-            V128Load64Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.load64_lane", memarg, 8)?;
-                write!(self.result, " {}", lane)?;
-            }
-
-            V128Store8Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.store8_lane", memarg, 1)?;
-                write!(self.result, " {}", lane)?;
-            }
-            V128Store16Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.store16_lane", memarg, 2)?;
-                write!(self.result, " {}", lane)?;
-            }
-            V128Store32Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.store32_lane", memarg, 4)?;
-                write!(self.result, " {}", lane)?;
-            }
-            V128Store64Lane { memarg, lane } => {
-                self.mem_instr(state, "v128.store64_lane", memarg, 8)?;
-                write!(self.result, " {}", lane)?;
-            }
-
-            I8x16RoundingAverageU => self.result.push_str("i8x16.avgr_u"),
-            I16x8RoundingAverageU => self.result.push_str("i16x8.avgr_u"),
-
-            I8x16MinS => self.result.push_str("i8x16.min_s"),
-            I8x16MinU => self.result.push_str("i8x16.min_u"),
-            I8x16MaxS => self.result.push_str("i8x16.max_s"),
-            I8x16MaxU => self.result.push_str("i8x16.max_u"),
-            I16x8MinS => self.result.push_str("i16x8.min_s"),
-            I16x8MinU => self.result.push_str("i16x8.min_u"),
-            I16x8MaxS => self.result.push_str("i16x8.max_s"),
-            I16x8MaxU => self.result.push_str("i16x8.max_u"),
-            I32x4MinS => self.result.push_str("i32x4.min_s"),
-            I32x4MinU => self.result.push_str("i32x4.min_u"),
-            I32x4MaxS => self.result.push_str("i32x4.max_s"),
-            I32x4MaxU => self.result.push_str("i32x4.max_u"),
-            I32x4DotI16x8S => self.result.push_str("i32x4.dot_i16x8_s"),
-
-            F32x4DemoteF64x2Zero => self.result.push_str("f32x4.demote_f64x2_zero"),
-            F64x2PromoteLowF32x4 => self.result.push_str("f64x2.promote_low_f32x4"),
-            F64x2ConvertLowI32x4S => self.result.push_str("f64x2.convert_low_i32x4_s"),
-            F64x2ConvertLowI32x4U => self.result.push_str("f64x2.convert_low_i32x4_u"),
-            I32x4TruncSatF64x2SZero => self.result.push_str("i32x4.trunc_sat_f64x2_s_zero"),
-            I32x4TruncSatF64x2UZero => self.result.push_str("i32x4.trunc_sat_f64x2_u_zero"),
-
-            I8x16Popcnt => self.result.push_str("i8x16.popcnt"),
-
-            I16x8ExtAddPairwiseI8x16S => self.result.push_str("i16x8.extadd_pairwise_i8x16_s"),
-            I16x8ExtAddPairwiseI8x16U => self.result.push_str("i16x8.extadd_pairwise_i8x16_u"),
-            I32x4ExtAddPairwiseI16x8S => self.result.push_str("i32x4.extadd_pairwise_i16x8_s"),
-            I32x4ExtAddPairwiseI16x8U => self.result.push_str("i32x4.extadd_pairwise_i16x8_u"),
-
-            I8x16RelaxedSwizzle => self.result.push_str("i8x16.relaxed_swizzle"),
-            I32x4RelaxedTruncSatF32x4S => self.result.push_str("i32x4.relaxed_trunc_f32x4_s"),
-            I32x4RelaxedTruncSatF32x4U => self.result.push_str("i32x4.relaxed_trunc_f32x4_u"),
-            I32x4RelaxedTruncSatF64x2SZero => {
-                self.result.push_str("i32x4.relaxed_trunc_f64x2_s_zero")
-            }
-            I32x4RelaxedTruncSatF64x2UZero => {
-                self.result.push_str("i32x4.relaxed_trunc_f64x2_u_zero")
-            }
-            F32x4Fma => self.result.push_str("f32x4.fma"),
-            F32x4Fms => self.result.push_str("f32x4.fms"),
-            F64x2Fma => self.result.push_str("f64x2.fma"),
-            F64x2Fms => self.result.push_str("f64x2.fms"),
-            I8x16LaneSelect => self.result.push_str("i8x16.laneselect"),
-            I16x8LaneSelect => self.result.push_str("i16x8.laneselect"),
-            I32x4LaneSelect => self.result.push_str("i32x4.laneselect"),
-            I64x2LaneSelect => self.result.push_str("i64x2.laneselect"),
-            F32x4RelaxedMin => self.result.push_str("f32x4.relaxed_min"),
-            F32x4RelaxedMax => self.result.push_str("f32x4.relaxed_max"),
-            F64x2RelaxedMin => self.result.push_str("f64x2.relaxed_min"),
-            F64x2RelaxedMax => self.result.push_str("f64x2.relaxed_max"),
-        }
-        Ok(())
-    }
-
     fn mem_instr(
         &mut self,
         state: &State,
         name: &str,
-        memarg: &MemoryImmediate,
+        memarg: &MemArg,
         default_align: u32,
     ) -> Result<()> {
         self.result.push_str(name);
@@ -1921,9 +1037,10 @@ impl Printer {
     }
 
     fn print_exports(&mut self, state: &State, data: ExportSectionReader) -> Result<()> {
-        for export in data {
-            self.newline();
-            self.print_export(state, &export?)?;
+        for export in data.into_iter_with_offsets() {
+            let (offset, export) = export?;
+            self.newline(offset);
+            self.print_export(state, &export)?;
         }
         Ok(())
     }
@@ -2016,9 +1133,9 @@ impl Printer {
     }
 
     fn print_elems(&mut self, state: &mut State, data: ElementSectionReader) -> Result<()> {
-        for (i, elem) in data.into_iter().enumerate() {
-            let mut elem = elem?;
-            self.newline();
+        for (i, elem) in data.into_iter_with_offsets().enumerate() {
+            let (offset, mut elem) = elem?;
+            self.newline(offset);
             self.start_group("elem ");
             self.print_name(&state.core.element_names, i as u32)?;
             match &mut elem.kind {
@@ -2060,9 +1177,9 @@ impl Printer {
     }
 
     fn print_data(&mut self, state: &mut State, data: DataSectionReader) -> Result<()> {
-        for (i, data) in data.into_iter().enumerate() {
-            let data = data?;
-            self.newline();
+        for (i, data) in data.into_iter_with_offsets().enumerate() {
+            let (offset, data) = data?;
+            self.newline(offset);
             self.start_group("data ");
             self.print_name(&state.core.data_names, i as u32)?;
             self.result.push(' ');
@@ -2097,58 +1214,71 @@ impl Printer {
         explicit: &str,
     ) -> Result<()> {
         self.start_group("");
+        let mut prev = mem::take(&mut self.result);
+        let mut reader = expr.get_operators_reader();
+        let mut op_printer = operator::PrintOperator::new(self, state);
         let mut first_op = None;
-        for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
-            match op? {
-                Operator::End => {}
+        for i in 0.. {
+            if reader.eof() {
+                break;
+            }
+            match reader.visit_with_offset(&mut op_printer)?? {
+                operator::OpKind::End if reader.eof() => {}
 
-                // Save the first operator to get printed later.
-                other if i == 0 => first_op = Some(other),
+                _ if i == 0 => first_op = Some(mem::take(&mut op_printer.printer.result)),
 
-                // If this is the second operator (i == 1) then we push our
-                // un-sugared form with `explicit` as the starting delimiter and
-                // then the operators are printed.
-                other => {
+                _ => {
                     if i == 1 {
-                        self.result.push_str(explicit);
-                        self.result.push(' ');
-                        self.print_operator(state, &first_op.take().unwrap(), self.nesting)?;
+                        prev.push_str(explicit);
+                        prev.push(' ');
+                        prev.push_str(&first_op.take().unwrap());
                     }
-                    self.result.push(' ');
-                    self.print_operator(state, &other, self.nesting)?;
+                    prev.push(' ');
+                    prev.push_str(&op_printer.printer.result);
                 }
             }
+
+            op_printer.printer.result.truncate(0);
         }
 
         // If `first_op` is still set here then it means we don't need to print
         // an expression with `explicit` as the leading token, instead we can
         // print the single operator.
         if let Some(op) = first_op {
-            self.print_operator(state, &op, self.nesting)?;
+            prev.push_str(&op);
         }
+        self.result = prev;
         self.end_group();
         Ok(())
     }
 
     /// Prints the operators of `expr` space-separated.
     fn print_const_expr(&mut self, state: &mut State, expr: &ConstExpr) -> Result<()> {
-        for (i, op) in expr.get_operators_reader().into_iter().enumerate() {
-            match op? {
-                Operator::End => {}
-                other => {
-                    if i > 0 {
-                        self.result.push(' ');
-                    }
-                    self.print_operator(state, &other, self.nesting)?
+        let mut reader = expr.get_operators_reader();
+        let mut first = true;
+
+        let mut result = mem::take(&mut self.result);
+        let mut op_printer = operator::PrintOperator::new(self, state);
+        while !reader.eof() {
+            if first {
+                first = false;
+            } else {
+                op_printer.printer.result.push(' ');
+            }
+            match reader.visit_with_offset(&mut op_printer)?? {
+                operator::OpKind::End if reader.eof() => {}
+                _ => {
+                    result.push_str(&op_printer.printer.result);
+                    op_printer.printer.result.truncate(0);
                 }
             }
         }
+        self.result = result;
         Ok(())
     }
 
     fn print_primitive_val_type(&mut self, ty: &PrimitiveValType) {
         match ty {
-            PrimitiveValType::Unit => self.result.push_str("unit"),
             PrimitiveValType::Bool => self.result.push_str("bool"),
             PrimitiveValType::S8 => self.result.push_str("s8"),
             PrimitiveValType::U8 => self.result.push_str("u8"),
@@ -2189,8 +1319,11 @@ impl Printer {
             self.result.push(' ');
             self.start_group("case ");
             self.print_str(case.name)?;
-            self.result.push(' ');
-            self.print_component_val_type(state, &case.ty)?;
+
+            if let Some(ty) = case.ty {
+                self.result.push(' ');
+                self.print_component_val_type(state, &ty)?;
+            }
 
             if let Some(refines) = case.refines {
                 self.result.push(' ');
@@ -2244,17 +1377,28 @@ impl Printer {
         Ok(())
     }
 
-    fn print_expected_type(
+    fn print_result_type(
         &mut self,
         state: &State,
-        ok: &ComponentValType,
-        error: &ComponentValType,
+        ok: Option<ComponentValType>,
+        err: Option<ComponentValType>,
     ) -> Result<()> {
-        self.start_group("expected ");
-        self.print_component_val_type(state, ok)?;
-        self.result.push(' ');
-        self.print_component_val_type(state, error)?;
+        self.start_group("result");
+
+        if let Some(ok) = ok {
+            self.result.push(' ');
+            self.print_component_val_type(state, &ok)?;
+        }
+
+        if let Some(err) = err {
+            self.result.push(' ');
+            self.start_group("error ");
+            self.print_component_val_type(state, &err)?;
+            self.end_group();
+        }
+
         self.end_group();
+
         Ok(())
     }
 
@@ -2273,9 +1417,7 @@ impl Printer {
                 self.print_tuple_or_union_type("union", state, tys)?
             }
             ComponentDefinedType::Option(ty) => self.print_option_type(state, ty)?,
-            ComponentDefinedType::Expected { ok, error } => {
-                self.print_expected_type(state, ok, error)?
-            }
+            ComponentDefinedType::Result { ok, err } => self.print_result_type(state, *ok, *err)?,
         }
 
         Ok(())
@@ -2298,10 +1440,10 @@ impl Printer {
         decls: Vec<ModuleTypeDeclaration>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Module));
-        self.newline();
+        self.newline_unknown_pos();
         self.start_group("module");
         for decl in decls {
-            self.newline();
+            self.newline_unknown_pos();
             match decl {
                 ModuleTypeDeclaration::Type(ty) => {
                     self.print_type(states.last_mut().unwrap(), ty)?
@@ -2330,10 +1472,10 @@ impl Printer {
         decls: Vec<ComponentTypeDeclaration<'a>>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
-        self.newline();
+        self.newline_unknown_pos();
         self.start_group("component");
         for decl in decls {
-            self.newline();
+            self.newline_unknown_pos();
             match decl {
                 ComponentTypeDeclaration::CoreType(ty) => self.print_core_type(states, ty)?,
                 ComponentTypeDeclaration::Type(ty) => self.print_component_type_def(states, ty)?,
@@ -2368,10 +1510,10 @@ impl Printer {
         decls: Vec<InstanceTypeDeclaration<'a>>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
-        self.newline();
+        self.newline_unknown_pos();
         self.start_group("instance");
         for decl in decls {
-            self.newline();
+            self.newline_unknown_pos();
             match decl {
                 InstanceTypeDeclaration::CoreType(ty) => self.print_core_type(states, ty)?,
                 InstanceTypeDeclaration::Type(ty) => self.print_component_type_def(states, ty)?,
@@ -2515,14 +1657,15 @@ impl Printer {
             self.end_group()
         }
 
-        if !matches!(
-            ty.result,
-            ComponentValType::Primitive(PrimitiveValType::Unit)
-        ) {
+        for (name, ty) in ty.results.iter() {
             self.result.push(' ');
             self.start_group("result ");
-            self.print_component_val_type(state, &ty.result)?;
-            self.end_group();
+            if let Some(name) = name {
+                self.print_str(name)?;
+                self.result.push(' ');
+            }
+            self.print_component_val_type(state, ty)?;
+            self.end_group()
         }
 
         self.end_group();
@@ -2567,9 +1710,9 @@ impl Printer {
         states: &mut Vec<State>,
         parser: ComponentTypeSectionReader<'a>,
     ) -> Result<()> {
-        for ty in parser {
-            let ty = ty?;
-            self.newline();
+        for ty in parser.into_iter_with_offsets() {
+            let (offset, ty) = ty?;
+            self.newline(offset);
             self.print_component_type_def(states, ty)?;
         }
 
@@ -2581,9 +1724,9 @@ impl Printer {
         state: &mut State,
         parser: ComponentImportSectionReader,
     ) -> Result<()> {
-        for import in parser {
-            let import = import?;
-            self.newline();
+        for import in parser.into_iter_with_offsets() {
+            let (offset, import) = import?;
+            self.newline(offset);
             self.print_component_import(state, &import, true)?;
             match import.ty {
                 ComponentTypeRef::Module(_) => {
@@ -2693,9 +1836,9 @@ impl Printer {
         state: &mut State,
         parser: ComponentExportSectionReader,
     ) -> Result<()> {
-        for export in parser {
-            let export = export?;
-            self.newline();
+        for export in parser.into_iter_with_offsets() {
+            let (offset, export) = export?;
+            self.newline(offset);
             self.print_component_export(state, &export)?;
         }
         Ok(())
@@ -2788,9 +1931,10 @@ impl Printer {
         state: &mut State,
         parser: ComponentCanonicalSectionReader,
     ) -> Result<()> {
-        for func in parser {
-            self.newline();
-            match func? {
+        for func in parser.into_iter_with_offsets() {
+            let (offset, func) = func?;
+            self.newline(offset);
+            match func {
                 CanonicalFunction::Lift {
                     core_func_index,
                     type_index,
@@ -2835,17 +1979,18 @@ impl Printer {
     }
 
     fn print_instances(&mut self, state: &mut State, parser: InstanceSectionReader) -> Result<()> {
-        for instance in parser {
-            self.newline();
+        for instance in parser.into_iter_with_offsets() {
+            let (offset, instance) = instance?;
+            self.newline(offset);
             self.start_group("core instance ");
             self.print_name(&state.core.instance_names, state.core.instances)?;
             self.result.push(' ');
-            match instance? {
+            match instance {
                 Instance::Instantiate { module_index, args } => {
                     self.start_group("instantiate ");
                     self.print_idx(&state.core.module_names, module_index)?;
                     for arg in args.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_instantiation_arg(state, arg)?;
                     }
                     self.end_group();
@@ -2853,7 +1998,7 @@ impl Printer {
                 }
                 Instance::FromExports(exports) => {
                     for export in exports.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_export(state, export)?;
                     }
                     state.core.instances += 1;
@@ -2869,12 +2014,13 @@ impl Printer {
         state: &mut State,
         parser: ComponentInstanceSectionReader,
     ) -> Result<()> {
-        for instance in parser {
-            self.newline();
+        for instance in parser.into_iter_with_offsets() {
+            let (offset, instance) = instance?;
+            self.newline(offset);
             self.start_group("instance ");
             self.print_name(&state.component.instance_names, state.component.instances)?;
             state.component.instances += 1;
-            match instance? {
+            match instance {
                 ComponentInstance::Instantiate {
                     component_index,
                     args,
@@ -2883,14 +2029,14 @@ impl Printer {
                     self.start_group("instantiate ");
                     self.print_idx(&state.component.component_names, component_index)?;
                     for arg in args.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_component_instantiation_arg(state, arg)?;
                     }
                     self.end_group();
                 }
                 ComponentInstance::FromExports(exports) => {
                     for export in exports.iter() {
-                        self.newline();
+                        self.newline(offset);
                         self.print_component_export(state, export)?;
                     }
                 }
@@ -2933,9 +2079,10 @@ impl Printer {
         state: &mut State,
         mut parser: ComponentStartSectionReader,
     ) -> Result<()> {
+        let pos = parser.original_position();
         let start = parser.read()?;
 
-        self.newline();
+        self.newline(pos);
         self.start_group("start ");
         self.print_idx(&state.component.func_names, start.func_index)?;
 
@@ -2944,6 +2091,16 @@ impl Printer {
             self.start_group("value ");
             self.print_idx(&state.component.value_names, *arg)?;
             self.end_group();
+        }
+
+        for _ in 0..start.results {
+            self.result.push(' ');
+            self.start_group("result ");
+            self.start_group("value ");
+            self.print_name(&state.component.value_names, state.component.values)?;
+            self.end_group();
+            self.end_group();
+            state.component.values += 1;
         }
 
         self.end_group(); // start
@@ -3009,10 +2166,11 @@ impl Printer {
         Ok(())
     }
 
-    fn print_aliases(&mut self, states: &mut Vec<State>, parser: AliasSectionReader) -> Result<()> {
-        for alias in parser {
-            self.newline();
-            self.print_alias(states, alias?, true)?;
+    fn print_aliases(&mut self, states: &mut [State], parser: AliasSectionReader) -> Result<()> {
+        for alias in parser.into_iter_with_offsets() {
+            let (offset, alias) = alias?;
+            self.newline(offset);
+            self.print_alias(states, alias, true)?;
         }
         Ok(())
     }
@@ -3022,9 +2180,10 @@ impl Printer {
         states: &mut [State],
         parser: ComponentAliasSectionReader,
     ) -> Result<()> {
-        for alias in parser {
-            self.newline();
-            match alias? {
+        for alias in parser.into_iter_with_offsets() {
+            let (offset, alias) = alias?;
+            self.newline(offset);
+            match alias {
                 ComponentAlias::InstanceExport {
                     kind,
                     instance_index,

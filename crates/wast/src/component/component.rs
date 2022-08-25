@@ -222,8 +222,8 @@ pub struct Start<'a> {
     pub func: Index<'a>,
     /// The arguments to pass to the function.
     pub args: Vec<ItemRef<'a, kw::value>>,
-    /// Name of the result value.
-    pub result: Option<Id<'a>>,
+    /// Names of the result values.
+    pub results: Vec<Option<Id<'a>>>,
 }
 
 impl<'a> Parse<'a> for Start<'a> {
@@ -234,23 +234,23 @@ impl<'a> Parse<'a> for Start<'a> {
         while !parser.is_empty() && !parser.peek2::<kw::result>() {
             args.push(parser.parens(|parser| parser.parse())?);
         }
-        let result = if !parser.is_empty() {
-            parser.parens(|parser| {
+
+        let mut results = Vec::new();
+        while !parser.is_empty() && parser.peek2::<kw::result>() {
+            results.push(parser.parens(|parser| {
                 parser.parse::<kw::result>()?;
-                if !parser.is_empty() {
-                    parser.parens(|parser| {
-                        parser.parse::<kw::value>()?;
-                        let id = parser.parse()?;
-                        Ok(Some(id))
-                    })
-                } else {
-                    Ok(None)
-                }
-            })?
-        } else {
-            None
-        };
-        Ok(Start { func, args, result })
+                parser.parens(|parser| {
+                    parser.parse::<kw::value>()?;
+                    parser.parse()
+                })
+            })?);
+        }
+
+        Ok(Start {
+            func,
+            args,
+            results,
+        })
     }
 }
 

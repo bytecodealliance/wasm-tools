@@ -28,7 +28,7 @@
     (type (;25;) (variant (case "a" s8) (case "b" u8) (case "c" s16) (case "d" u16) (case "e" s32) (case "f" u32) (case "g" s64) (case "h" u64) (case "i" float32) (case "j" float64) (case "k" bool) (case "l" string) (case "m" 13)))
     (type (;26;) (option 25))
     (type (;27;) (func (param "x" 26)))
-    (type (;28;) (expected 13 string))
+    (type (;28;) (result 13 (error string)))
     (type (;29;) (func (result 28)))
     (export "record1" (type 13))
     (export "flags1" (type 19))
@@ -235,7 +235,7 @@
     (type (;25;) (variant (case "a" s8) (case "b" u8) (case "c" s16) (case "d" u16) (case "e" s32) (case "f" u32) (case "g" s64) (case "h" u64) (case "i" float32) (case "j" float64) (case "k" bool) (case "l" string) (case "m" 13)))
     (type (;26;) (option 25))
     (type (;27;) (func (param "x" 26)))
-    (type (;28;) (expected 13 string))
+    (type (;28;) (result 13 (error string)))
     (type (;29;) (func (result 28)))
     (type (;30;) 
       (instance

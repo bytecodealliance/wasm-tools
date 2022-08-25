@@ -66,16 +66,26 @@ pub enum HeapType {
 
 /// funcref, in both reference types and function references, represented
 /// using the general ref syntax
-pub(crate) const FUNC_REF: RefType = RefType {
+pub const FUNC_REF: RefType = RefType {
     nullable: true,
     heap_type: HeapType::Func,
 };
 /// externref, in both reference types and function references, represented
 /// using the general ref syntax
-pub(crate) const EXTERN_REF: RefType = RefType {
+pub const EXTERN_REF: RefType = RefType {
     nullable: true,
     heap_type: HeapType::Extern,
 };
+
+impl ValType {
+    /// Returns whether this value type is a "reference type".
+    ///
+    /// Only reference types are allowed in tables, for example, and with some
+    /// instructions. Current reference types include `funcref` and `externref`.
+    pub fn is_reference_type(&self) -> bool {
+        matches!(self, ValType::Ref(_))
+    }
+}
 
 /// Represents a type in a WebAssembly module.
 #[derive(Debug, Clone)]

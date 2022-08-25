@@ -1,5 +1,5 @@
 use super::operators::OperatorValidator;
-use crate::{BinaryReader, Result, ValType};
+use crate::{BinaryReader, HeapType, Result, ValType};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 
 /// Validation context for a WebAssembly function.
@@ -44,7 +44,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// This returns the height of the whole operand stack for this function,
     /// not just for the current control frame.
     pub fn operand_stack_height(&self) -> u32 {
-        self.validator.operands.len() as u32
+        self.validator.operand_stack_height() as u32
     }
 
     /// Convenience function to validate an entire function's body.
@@ -56,9 +56,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.read_locals(&mut reader)?;
         reader.allow_memarg64(self.validator.features.memory64);
         while !reader.eof() {
-            let pos = reader.original_position();
-            let op = reader.read_operator()?;
-            self.op(pos, &op)?;
+            reader.visit_operator(self)??;
         }
         self.finish(reader.original_position())
     }
@@ -95,9 +93,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
         self.validator
-            .process_operator(operator, &self.resources)
-            .map_err(|e| e.set_offset(offset))?;
-        Ok(())
+            .with_resources(&self.resources)
+            .visit_operator(offset, operator)
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -109,8 +106,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// The `offset` provided to this function will be used as a position for an
     /// error if validation fails.
     pub fn finish(&mut self, offset: usize) -> Result<()> {
-        self.validator.finish().map_err(|e| e.set_offset(offset))?;
-        Ok(())
+        self.validator.finish(offset)
     }
 
     /// Returns the underlying module resources that this validator is using.
@@ -224,4 +220,27 @@ mod tests {
         assert!(v.op(2, &Operator::I32Const { value: 99 }).is_ok());
         assert_eq!(v.operand_stack_height(), 2);
     }
+}
+
+use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, VisitOperator, V128};
+
+macro_rules! define_visit_operator {
+    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+        $(
+            fn $visit(&mut self, offset: usize $($(,$arg: $argty)*)?) -> Result<()> {
+                self.validator.with_resources(&self.resources)
+                    .$visit(offset $($(,$arg)*)?)
+            }
+        )*
+    }
+}
+
+#[allow(unused_variables)]
+impl<'a, T> VisitOperator<'a> for FuncValidator<T>
+where
+    T: WasmModuleResources,
+{
+    type Output = Result<()>;
+
+    for_each_operator!(define_visit_operator);
 }

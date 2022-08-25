@@ -1140,10 +1140,10 @@ instructions! {
 
         // Relaxed SIMD proposal
         I8x16RelaxedSwizzle : [0xfd, 0xa2]: "i8x16.relaxed_swizzle",
-        I32x4RelaxedTruncSatF32x4S : [0xfd, 0xa5]: "i32x4.relaxed_trunc_f32x4_s",
-        I32x4RelaxedTruncSatF32x4U : [0xfd, 0xa6]: "i32x4.relaxed_trunc_f32x4_u",
-        I32x4RelaxedTruncSatF64x2SZero : [0xfd, 0xc5]: "i32x4.relaxed_trunc_f64x2_s_zero",
-        I32x4RelaxedTruncSatF64x2UZero : [0xfd, 0xc6]: "i32x4.relaxed_trunc_f64x2_u_zero",
+        I32x4RelaxedTruncF32x4S : [0xfd, 0xa5]: "i32x4.relaxed_trunc_f32x4_s",
+        I32x4RelaxedTruncF32x4U : [0xfd, 0xa6]: "i32x4.relaxed_trunc_f32x4_u",
+        I32x4RelaxedTruncF64x2SZero : [0xfd, 0xc5]: "i32x4.relaxed_trunc_f64x2_s_zero",
+        I32x4RelaxedTruncF64x2UZero : [0xfd, 0xc6]: "i32x4.relaxed_trunc_f64x2_u_zero",
         F32x4Fma : [0xfd, 0xaf]: "f32x4.fma",
         F32x4Fms : [0xfd, 0xb0]: "f32x4.fms",
         F64x4Fma : [0xfd, 0xcf]: "f64x2.fma",
@@ -1659,7 +1659,6 @@ impl<'a> Parse<'a> for BrOnCast<'a> {
 
 /// Different ways to specify a `v128.const` instruction
 #[derive(Debug)]
-#[rustfmt::skip]
 #[allow(missing_docs)]
 pub enum V128Const {
     I8x16([i8; 16]),

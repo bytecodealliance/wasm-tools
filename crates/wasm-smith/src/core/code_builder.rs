@@ -425,8 +425,8 @@ instructions! {
     (Some(simd_v128_v128_on_stack), i8x16_max_s, Vector),
     (Some(simd_v128_v128_on_stack), i8x16_max_u, Vector),
     (Some(simd_v128_v128_on_stack), i8x16_rounding_average_u, Vector),
-    (Some(simd_v128_on_stack), i16x8_ext_add_pairwise_i8x16s, Vector),
-    (Some(simd_v128_on_stack), i16x8_ext_add_pairwise_i8x16u, Vector),
+    (Some(simd_v128_on_stack), i16x8_extadd_pairwise_i8x16s, Vector),
+    (Some(simd_v128_on_stack), i16x8_extadd_pairwise_i8x16u, Vector),
     (Some(simd_v128_on_stack), i16x8_abs, Vector),
     (Some(simd_v128_on_stack), i16x8_neg, Vector),
     (Some(simd_v128_v128_on_stack), i16x8q15_mulr_sat_s, Vector),
@@ -453,12 +453,12 @@ instructions! {
     (Some(simd_v128_v128_on_stack), i16x8_max_s, Vector),
     (Some(simd_v128_v128_on_stack), i16x8_max_u, Vector),
     (Some(simd_v128_v128_on_stack), i16x8_rounding_average_u, Vector),
-    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_low_i8x16s, Vector),
-    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_high_i8x16s, Vector),
-    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_low_i8x16u, Vector),
-    (Some(simd_v128_v128_on_stack), i16x8_ext_mul_high_i8x16u, Vector),
-    (Some(simd_v128_on_stack), i32x4_ext_add_pairwise_i16x8s, Vector),
-    (Some(simd_v128_on_stack), i32x4_ext_add_pairwise_i16x8u, Vector),
+    (Some(simd_v128_v128_on_stack), i16x8_extmul_low_i8x16s, Vector),
+    (Some(simd_v128_v128_on_stack), i16x8_extmul_high_i8x16s, Vector),
+    (Some(simd_v128_v128_on_stack), i16x8_extmul_low_i8x16u, Vector),
+    (Some(simd_v128_v128_on_stack), i16x8_extmul_high_i8x16u, Vector),
+    (Some(simd_v128_on_stack), i32x4_extadd_pairwise_i16x8s, Vector),
+    (Some(simd_v128_on_stack), i32x4_extadd_pairwise_i16x8u, Vector),
     (Some(simd_v128_on_stack), i32x4_abs, Vector),
     (Some(simd_v128_on_stack), i32x4_neg, Vector),
     (Some(simd_v128_on_stack), i32x4_all_true, Vector),
@@ -478,10 +478,10 @@ instructions! {
     (Some(simd_v128_v128_on_stack), i32x4_max_s, Vector),
     (Some(simd_v128_v128_on_stack), i32x4_max_u, Vector),
     (Some(simd_v128_v128_on_stack), i32x4_dot_i16x8s, Vector),
-    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_low_i16x8s, Vector),
-    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_high_i16x8s, Vector),
-    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_low_i16x8u, Vector),
-    (Some(simd_v128_v128_on_stack), i32x4_ext_mul_high_i16x8u, Vector),
+    (Some(simd_v128_v128_on_stack), i32x4_extmul_low_i16x8s, Vector),
+    (Some(simd_v128_v128_on_stack), i32x4_extmul_high_i16x8s, Vector),
+    (Some(simd_v128_v128_on_stack), i32x4_extmul_low_i16x8u, Vector),
+    (Some(simd_v128_v128_on_stack), i32x4_extmul_high_i16x8u, Vector),
     (Some(simd_v128_on_stack), i64x2_abs, Vector),
     (Some(simd_v128_on_stack), i64x2_neg, Vector),
     (Some(simd_v128_on_stack), i64x2_all_true, Vector),
@@ -496,10 +496,10 @@ instructions! {
     (Some(simd_v128_v128_on_stack), i64x2_add, Vector),
     (Some(simd_v128_v128_on_stack), i64x2_sub, Vector),
     (Some(simd_v128_v128_on_stack), i64x2_mul, Vector),
-    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_low_i32x4s, Vector),
-    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_high_i32x4s, Vector),
-    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_low_i32x4u, Vector),
-    (Some(simd_v128_v128_on_stack), i64x2_ext_mul_high_i32x4u, Vector),
+    (Some(simd_v128_v128_on_stack), i64x2_extmul_low_i32x4s, Vector),
+    (Some(simd_v128_v128_on_stack), i64x2_extmul_high_i32x4s, Vector),
+    (Some(simd_v128_v128_on_stack), i64x2_extmul_low_i32x4u, Vector),
+    (Some(simd_v128_v128_on_stack), i64x2_extmul_high_i32x4u, Vector),
     (Some(simd_v128_on_stack), f32x4_ceil, Vector),
     (Some(simd_v128_on_stack), f32x4_floor, Vector),
     (Some(simd_v128_on_stack), f32x4_trunc, Vector),
@@ -1096,6 +1096,7 @@ fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
         ValType::V128 => Instruction::V128Const(u.arbitrary().unwrap_or(0)),
         ValType::ExternRef => Instruction::RefNull(ValType::ExternRef),
         ValType::FuncRef => Instruction::RefNull(ValType::FuncRef),
+        ValType::Ref(_) => unimplemented!(),
     }
 }
 
@@ -1557,11 +1558,10 @@ fn select(_: &mut Unstructured, _: &Module, builder: &mut CodeBuilder) -> Result
     let ty = t.or(u);
     builder.allocs.operands.push(ty);
     match ty {
-        Some(ty @ ValType::ExternRef) | Some(ty @ ValType::FuncRef) => {
-            Ok(Instruction::TypedSelect(ty))
-        }
+        Some(ty @ (ValType::ExternRef | ValType::FuncRef)) => Ok(Instruction::TypedSelect(ty)),
         Some(ValType::I32) | Some(ValType::I64) | Some(ValType::F32) | Some(ValType::F64)
         | Some(ValType::V128) | None => Ok(Instruction::Select),
+        Some(ValType::Ref(_)) => unimplemented!(),
     }
 }
 
@@ -3829,8 +3829,8 @@ simd_binop!(I8x16MinU, i8x16_min_u);
 simd_binop!(I8x16MaxS, i8x16_max_s);
 simd_binop!(I8x16MaxU, i8x16_max_u);
 simd_binop!(I8x16RoundingAverageU, i8x16_rounding_average_u);
-simd_unop!(I16x8ExtAddPairwiseI8x16S, i16x8_ext_add_pairwise_i8x16s);
-simd_unop!(I16x8ExtAddPairwiseI8x16U, i16x8_ext_add_pairwise_i8x16u);
+simd_unop!(I16x8ExtAddPairwiseI8x16S, i16x8_extadd_pairwise_i8x16s);
+simd_unop!(I16x8ExtAddPairwiseI8x16U, i16x8_extadd_pairwise_i8x16u);
 simd_unop!(I16x8Abs, i16x8_abs);
 simd_unop!(I16x8Neg, i16x8_neg);
 simd_binop!(I16x8Q15MulrSatS, i16x8q15_mulr_sat_s);
@@ -3857,12 +3857,12 @@ simd_binop!(I16x8MinU, i16x8_min_u);
 simd_binop!(I16x8MaxS, i16x8_max_s);
 simd_binop!(I16x8MaxU, i16x8_max_u);
 simd_binop!(I16x8RoundingAverageU, i16x8_rounding_average_u);
-simd_binop!(I16x8ExtMulLowI8x16S, i16x8_ext_mul_low_i8x16s);
-simd_binop!(I16x8ExtMulHighI8x16S, i16x8_ext_mul_high_i8x16s);
-simd_binop!(I16x8ExtMulLowI8x16U, i16x8_ext_mul_low_i8x16u);
-simd_binop!(I16x8ExtMulHighI8x16U, i16x8_ext_mul_high_i8x16u);
-simd_unop!(I32x4ExtAddPairwiseI16x8S, i32x4_ext_add_pairwise_i16x8s);
-simd_unop!(I32x4ExtAddPairwiseI16x8U, i32x4_ext_add_pairwise_i16x8u);
+simd_binop!(I16x8ExtMulLowI8x16S, i16x8_extmul_low_i8x16s);
+simd_binop!(I16x8ExtMulHighI8x16S, i16x8_extmul_high_i8x16s);
+simd_binop!(I16x8ExtMulLowI8x16U, i16x8_extmul_low_i8x16u);
+simd_binop!(I16x8ExtMulHighI8x16U, i16x8_extmul_high_i8x16u);
+simd_unop!(I32x4ExtAddPairwiseI16x8S, i32x4_extadd_pairwise_i16x8s);
+simd_unop!(I32x4ExtAddPairwiseI16x8U, i32x4_extadd_pairwise_i16x8u);
 simd_unop!(I32x4Abs, i32x4_abs);
 simd_unop!(I32x4Neg, i32x4_neg);
 simd_unop!(I32x4AllTrue, i32x4_all_true, V128 -> I32);
@@ -3882,10 +3882,10 @@ simd_binop!(I32x4MinU, i32x4_min_u);
 simd_binop!(I32x4MaxS, i32x4_max_s);
 simd_binop!(I32x4MaxU, i32x4_max_u);
 simd_binop!(I32x4DotI16x8S, i32x4_dot_i16x8s);
-simd_binop!(I32x4ExtMulLowI16x8S, i32x4_ext_mul_low_i16x8s);
-simd_binop!(I32x4ExtMulHighI16x8S, i32x4_ext_mul_high_i16x8s);
-simd_binop!(I32x4ExtMulLowI16x8U, i32x4_ext_mul_low_i16x8u);
-simd_binop!(I32x4ExtMulHighI16x8U, i32x4_ext_mul_high_i16x8u);
+simd_binop!(I32x4ExtMulLowI16x8S, i32x4_extmul_low_i16x8s);
+simd_binop!(I32x4ExtMulHighI16x8S, i32x4_extmul_high_i16x8s);
+simd_binop!(I32x4ExtMulLowI16x8U, i32x4_extmul_low_i16x8u);
+simd_binop!(I32x4ExtMulHighI16x8U, i32x4_extmul_high_i16x8u);
 simd_unop!(I64x2Abs, i64x2_abs);
 simd_unop!(I64x2Neg, i64x2_neg);
 simd_unop!(I64x2AllTrue, i64x2_all_true, V128 -> I32);
@@ -3900,10 +3900,10 @@ simd_shift!(I64x2ShrU, i64x2_shr_u);
 simd_binop!(I64x2Add, i64x2_add);
 simd_binop!(I64x2Sub, i64x2_sub);
 simd_binop!(I64x2Mul, i64x2_mul);
-simd_binop!(I64x2ExtMulLowI32x4S, i64x2_ext_mul_low_i32x4s);
-simd_binop!(I64x2ExtMulHighI32x4S, i64x2_ext_mul_high_i32x4s);
-simd_binop!(I64x2ExtMulLowI32x4U, i64x2_ext_mul_low_i32x4u);
-simd_binop!(I64x2ExtMulHighI32x4U, i64x2_ext_mul_high_i32x4u);
+simd_binop!(I64x2ExtMulLowI32x4S, i64x2_extmul_low_i32x4s);
+simd_binop!(I64x2ExtMulHighI32x4S, i64x2_extmul_high_i32x4s);
+simd_binop!(I64x2ExtMulLowI32x4U, i64x2_extmul_low_i32x4u);
+simd_binop!(I64x2ExtMulHighI32x4U, i64x2_extmul_high_i32x4u);
 simd_unop!(F32x4Ceil, f32x4_ceil);
 simd_unop!(F32x4Floor, f32x4_floor);
 simd_unop!(F32x4Trunc, f32x4_trunc);

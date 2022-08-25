@@ -16,11 +16,11 @@ use crate::{
         UnionType, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExternalKind, ComponentOuterAliasKind,
-    ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType,
-    PrimitiveValType, Result, TableType, TypeBounds, ValType, WasmFeatures,
+    ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, Result,
+    TableType, TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{IndexMap, IndexSet};
-use std::mem;
+use std::{collections::HashSet, mem};
 
 pub(crate) struct ComponentState {
     // Core index spaces
@@ -437,6 +437,7 @@ impl ComponentState {
         &mut self,
         func_index: u32,
         args: &[u32],
+        results: u32,
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
@@ -462,6 +463,16 @@ impl ComponentState {
             ));
         }
 
+        if ft.results.len() as u32 != results {
+            return Err(BinaryReaderError::new(
+                format!(
+                    "component start function has a result count of {results} but the function type has a result count of {type_results}",
+                    type_results = ft.results.len(),
+                ),
+                offset,
+            ));
+        }
+
         for (i, ((_, ty), arg)) in ft.params.iter().zip(args).enumerate() {
             // Ensure the value's type is a subtype of the parameter type
             if !ComponentValType::internal_is_subtype_of(
@@ -480,11 +491,8 @@ impl ComponentState {
             }
         }
 
-        match ft.result {
-            ComponentValType::Primitive(PrimitiveValType::Unit) => {}
-            ty => {
-                self.values.push((ty, false));
-            }
+        for (_, ty) in ft.results.iter() {
+            self.values.push((*ty, false));
         }
 
         self.has_start = true;
@@ -902,12 +910,17 @@ impl ComponentState {
     ) -> Result<ComponentFuncType> {
         let mut type_size = 1;
 
+        let mut set = HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.len()));
+
         let params = ty
             .params
             .iter()
             .map(|(name, ty)| {
                 if let Some(name) = name {
                     Self::check_name(name, "function parameter", offset)?;
+                    if !set.insert(name) {
+                        return Err(BinaryReaderError::new("duplicate parameter name", offset));
+                    }
                 }
                 let ty = self.create_component_val_type(*ty, types, offset)?;
                 type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
@@ -915,13 +928,28 @@ impl ComponentState {
             })
             .collect::<Result<_>>()?;
 
-        let result = self.create_component_val_type(ty.result, types, offset)?;
-        type_size = combine_type_sizes(type_size, result.type_size(), offset)?;
+        set.clear();
+
+        let results = ty
+            .results
+            .iter()
+            .map(|(name, ty)| {
+                if let Some(name) = name {
+                    Self::check_name(name, "function result", offset)?;
+                    if !set.insert(name) {
+                        return Err(BinaryReaderError::new("duplicate result name", offset));
+                    }
+                }
+                let ty = self.create_component_val_type(*ty, types, offset)?;
+                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                Ok((name.map(ToOwned::to_owned), ty))
+            })
+            .collect::<Result<_>>()?;
 
         Ok(ComponentFuncType {
             type_size,
             params,
-            result,
+            results,
         })
     }
 
@@ -1529,15 +1557,13 @@ impl ComponentState {
                         self.values.push((*ty, false));
                         Ok(())
                     }
-                    _ => {
-                        return Err(BinaryReaderError::new(
-                            format!(
-                                "export `{}` for instance {} is not a value",
-                                name, instance_index
-                            ),
-                            offset,
-                        ))
-                    }
+                    _ => Err(BinaryReaderError::new(
+                        format!(
+                            "export `{}` for instance {} is not a value",
+                            name, instance_index
+                        ),
+                        offset,
+                    )),
                 }
             }
             ComponentExternalKind::Type => {
@@ -1657,12 +1683,14 @@ impl ComponentState {
             crate::ComponentDefinedType::Option(ty) => Ok(ComponentDefinedType::Option(
                 self.create_component_val_type(ty, types, offset)?,
             )),
-            crate::ComponentDefinedType::Expected { ok, error } => {
-                Ok(ComponentDefinedType::Expected(
-                    self.create_component_val_type(ok, types, offset)?,
-                    self.create_component_val_type(error, types, offset)?,
-                ))
-            }
+            crate::ComponentDefinedType::Result { ok, err } => Ok(ComponentDefinedType::Result {
+                ok: ok
+                    .map(|ty| self.create_component_val_type(ty, types, offset))
+                    .transpose()?,
+                err: err
+                    .map(|ty| self.create_component_val_type(ty, types, offset))
+                    .transpose()?,
+            }),
         }
     }
 
@@ -1710,6 +1738,13 @@ impl ComponentState {
             ));
         }
 
+        if cases.len() > u32::MAX as usize {
+            return Err(BinaryReaderError::new(
+                "variant type cannot be represented with a 32-bit discriminant value",
+                offset,
+            ));
+        }
+
         for (i, case) in cases.iter().enumerate() {
             Self::check_name(case.name, "variant case", offset)?;
             if let Some(refines) = case.refines {
@@ -1720,8 +1755,13 @@ impl ComponentState {
                     ));
                 }
             }
-            let ty = self.create_component_val_type(case.ty, types, offset)?;
-            type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+            let ty = case
+                .ty
+                .map(|ty| self.create_component_val_type(ty, types, offset))
+                .transpose()?;
+
+            type_size =
+                combine_type_sizes(type_size, ty.map(|ty| ty.type_size()).unwrap_or(1), offset)?;
 
             if case_map
                 .insert(
@@ -1782,7 +1822,7 @@ impl ComponentState {
     }
 
     fn create_enum_type(&self, cases: &[&str], offset: usize) -> Result<ComponentDefinedType> {
-        if cases.len() > u32::max_value() as usize {
+        if cases.len() > u32::MAX as usize {
             return Err(BinaryReaderError::new(
                 "enumeration type cannot be represented with a 32-bit discriminant value",
                 offset,
@@ -1901,12 +1941,10 @@ impl ComponentState {
             .get(name)
         {
             Some(export) => Ok(export),
-            None => {
-                return Err(BinaryReaderError::new(
-                    format!("instance {} has no export named `{}`", instance_index, name),
-                    offset,
-                ))
-            }
+            None => Err(BinaryReaderError::new(
+                format!("instance {} has no export named `{}`", instance_index, name),
+                offset,
+            )),
         }
     }
 
@@ -1988,15 +2026,13 @@ impl ComponentState {
             .get(name)
         {
             Some(export) => Ok(export),
-            None => {
-                return Err(BinaryReaderError::new(
-                    format!(
-                        "core instance {} has no export named `{}`",
-                        instance_index, name
-                    ),
-                    offset,
-                ))
-            }
+            None => Err(BinaryReaderError::new(
+                format!(
+                    "core instance {} has no export named `{}`",
+                    instance_index, name
+                ),
+                offset,
+            )),
         }
     }
 

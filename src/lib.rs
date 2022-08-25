@@ -99,7 +99,9 @@ impl OutputArg {
                 std::fs::write(path, output)
                     .context(format!("failed to write `{}`", path.display()))?;
             }
-            None => println!("{output}"),
+            None => std::io::stdout()
+                .write_all(output.as_bytes())
+                .context("failed to write to stdout")?,
         }
         Ok(())
     }

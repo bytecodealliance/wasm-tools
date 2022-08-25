@@ -762,14 +762,17 @@ impl<'a> DFGBuilder {
                 }
 
                 Operator::RefNull {
-                    ty: wasmparser::ValType::ExternRef,
+                    ty: wasmparser::HeapType::Extern,
                 } => {
                     self.push_node(Lang::RefNull(RefType::Extern), idx);
                 }
                 Operator::RefNull {
-                    ty: wasmparser::ValType::FuncRef,
+                    ty: wasmparser::HeapType::Func,
                 } => {
                     self.push_node(Lang::RefNull(RefType::Func), idx);
+                }
+                Operator::RefNull { .. } => {
+                    unimplemented!()
                 }
                 Operator::RefFunc { function_index } => {
                     self.push_node(Lang::RefFunc(*function_index), idx);
@@ -1101,19 +1104,14 @@ impl<'a> DFGBuilder {
         self.unop_cb(idx, |id| op([id]))
     }
 
-    fn load(
-        &mut self,
-        idx: usize,
-        memarg: &wasmparser::MemoryImmediate,
-        op: fn(MemArg, Id) -> Lang,
-    ) {
+    fn load(&mut self, idx: usize, memarg: &wasmparser::MemArg, op: fn(MemArg, Id) -> Lang) {
         self.unop_cb(idx, |id| op(memarg.into(), id))
     }
 
     fn load_lane(
         &mut self,
         idx: usize,
-        memarg: &wasmparser::MemoryImmediate,
+        memarg: &wasmparser::MemArg,
         lane: &u8,
         op: fn(MemArgLane, [Id; 2]) -> Lang,
     ) {
@@ -1162,12 +1160,7 @@ impl<'a> DFGBuilder {
         self.push_node(op([Id::from(a), Id::from(b), Id::from(c)]), idx);
     }
 
-    fn store(
-        &mut self,
-        idx: usize,
-        memarg: &wasmparser::MemoryImmediate,
-        op: fn(MemArg, [Id; 2]) -> Lang,
-    ) {
+    fn store(&mut self, idx: usize, memarg: &wasmparser::MemArg, op: fn(MemArg, [Id; 2]) -> Lang) {
         let leftidx = self.pop_operand(idx, false);
         let rightidx = self.pop_operand(idx, false);
 
@@ -1183,7 +1176,7 @@ impl<'a> DFGBuilder {
     fn store_lane(
         &mut self,
         idx: usize,
-        memarg: &wasmparser::MemoryImmediate,
+        memarg: &wasmparser::MemArg,
         lane: &u8,
         op: fn(MemArgLane, [Id; 2]) -> Lang,
     ) {
@@ -1229,8 +1222,8 @@ impl std::fmt::Display for MiniDFG {
     }
 }
 
-impl From<&wasmparser::MemoryImmediate> for MemArg {
-    fn from(mem: &wasmparser::MemoryImmediate) -> MemArg {
+impl From<&wasmparser::MemArg> for MemArg {
+    fn from(mem: &wasmparser::MemArg) -> MemArg {
         MemArg {
             align: mem.align,
             mem: mem.memory,

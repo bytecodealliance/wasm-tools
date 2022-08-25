@@ -1,6 +1,6 @@
 [package]
 name = "wasm-compose"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Peter Huene <peter@huene.dev>"]
 license = "Apache-2.0 WITH LLVM-exception"
@@ -11,9 +11,9 @@ documentation = "https://docs.rs/wasm-compose"
 description = "A library for composing WebAssembly components."
 
 [dependencies]
-wat = { version = "1.0.47", path = "../wat" }
-wasm-encoder = { version = "0.15.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.88.0", path = "../wasmparser" }
+wat = { version = "1.0.48", path = "../wat" }
+wasm-encoder = { version = "0.16.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.89.0", path = "../wasmparser" }
 indexmap = { version = "1.9.1", features = ["serde"] }
 anyhow = "1.0.58"
 serde = { version = "1.0.137", features = ["derive"] }
@@ -29,4 +29,4 @@ cli = ["clap"]
 [dev-dependencies]
 glob = "0.3.0"
 pretty_assertions = "1.2.1"
-wasmprinter = { version = "0.2.37", path = "../wasmprinter" }
+wasmprinter = { version = "0.2.39", path = "../wasmprinter" }

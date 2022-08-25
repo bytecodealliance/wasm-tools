@@ -1219,8 +1219,44 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         type_fuel: &mut u32,
     ) -> Result<Rc<FuncType>> {
-        let mut params = vec![];
-        let mut param_names = HashSet::new();
+        let mut params = Vec::new();
+        let mut results = Vec::new();
+        let mut names = HashSet::new();
+
+        fn push(
+            b: &ComponentBuilder,
+            u: &mut Unstructured,
+            type_fuel: &mut u32,
+            names: &mut HashSet<String>,
+            items: &mut Vec<(Option<String>, ComponentValType)>,
+        ) -> Result<bool> {
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
+            // If the collection is empty (i.e. first push), then arbitrarily give it a name.
+            // Otherwise, all of the items must be named.
+            let name = if items.is_empty() {
+                // Most of the time we should have named parameters/results.
+                u.ratio::<u8>(99, 100)?
+                    .then(|| crate::unique_non_empty_string(100, names, u))
+                    .transpose()?
+            } else {
+                Some(crate::unique_non_empty_string(100, names, u)?)
+            };
+
+            let ty = b.arbitrary_component_val_type(u)?;
+
+            items.push((name, ty));
+
+            // There can be only one unnamed parameter/result.
+            if items.len() == 1 && items[0].0.is_none() {
+                return Ok(false);
+            }
+
+            Ok(true)
+        }
 
         // Note: parameters are currently limited to a maximum of 16
         // because any additional parameters will require indirect access
@@ -1232,18 +1268,19 @@ impl ComponentBuilder {
         // we should increase this maximum to test indirect parameter
         // passing.
         arbitrary_loop(u, 0, 16, |u| {
-            *type_fuel = type_fuel.saturating_sub(1);
-            if *type_fuel == 0 {
-                return Ok(false);
-            }
-
-            params.push(self.arbitrary_optional_named_type(u, &mut param_names)?);
-            Ok(true)
+            push(self, u, type_fuel, &mut names, &mut params)
         })?;
 
-        let result = self.arbitrary_component_val_type(u)?;
+        names.clear();
 
-        Ok(Rc::new(FuncType { params, result }))
+        // Likewise, the limit for results is 1 before the memory option is
+        // required. When the memory option is implemented, this restriction
+        // should be relaxed.
+        arbitrary_loop(u, 0, 1, |u| {
+            push(self, u, type_fuel, &mut names, &mut results)
+        })?;
+
+        Ok(Rc::new(FuncType { params, results }))
     }
 
     fn arbitrary_component_val_type(&self, u: &mut Unstructured) -> Result<ComponentValType> {
@@ -1266,47 +1303,22 @@ impl ComponentBuilder {
     }
 
     fn arbitrary_primitive_val_type(&self, u: &mut Unstructured) -> Result<PrimitiveValType> {
-        match u.int_in_range(0..=13)? {
-            0 => Ok(PrimitiveValType::Unit),
-            1 => Ok(PrimitiveValType::Bool),
-            2 => Ok(PrimitiveValType::S8),
-            3 => Ok(PrimitiveValType::U8),
-            4 => Ok(PrimitiveValType::S16),
-            5 => Ok(PrimitiveValType::U16),
-            6 => Ok(PrimitiveValType::S32),
-            7 => Ok(PrimitiveValType::U32),
-            8 => Ok(PrimitiveValType::S64),
-            9 => Ok(PrimitiveValType::U64),
-            10 => Ok(PrimitiveValType::Float32),
-            11 => Ok(PrimitiveValType::Float64),
-            12 => Ok(PrimitiveValType::Char),
-            13 => Ok(PrimitiveValType::String),
+        match u.int_in_range(0..=12)? {
+            0 => Ok(PrimitiveValType::Bool),
+            1 => Ok(PrimitiveValType::S8),
+            2 => Ok(PrimitiveValType::U8),
+            3 => Ok(PrimitiveValType::S16),
+            4 => Ok(PrimitiveValType::U16),
+            5 => Ok(PrimitiveValType::S32),
+            6 => Ok(PrimitiveValType::U32),
+            7 => Ok(PrimitiveValType::S64),
+            8 => Ok(PrimitiveValType::U64),
+            9 => Ok(PrimitiveValType::Float32),
+            10 => Ok(PrimitiveValType::Float64),
+            11 => Ok(PrimitiveValType::Char),
+            12 => Ok(PrimitiveValType::String),
             _ => unreachable!(),
         }
-    }
-
-    fn arbitrary_named_type(
-        &self,
-        u: &mut Unstructured,
-        names: &mut HashSet<String>,
-    ) -> Result<NamedType> {
-        let name = crate::unique_non_empty_string(100, names, u)?;
-        let ty = self.arbitrary_component_val_type(u)?;
-        Ok(NamedType { name, ty })
-    }
-
-    fn arbitrary_optional_named_type(
-        &self,
-        u: &mut Unstructured,
-        names: &mut HashSet<String>,
-    ) -> Result<OptionalNamedType> {
-        let name = if u.arbitrary()? {
-            Some(crate::unique_non_empty_string(100, names, u)?)
-        } else {
-            None
-        };
-        let ty = self.arbitrary_component_val_type(u)?;
-        Ok(OptionalNamedType { name, ty })
     }
 
     fn arbitrary_record_type(
@@ -1322,7 +1334,10 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            fields.push(self.arbitrary_named_type(u, &mut field_names)?);
+            let name = crate::unique_non_empty_string(100, &mut field_names, u)?;
+            let ty = self.arbitrary_component_val_type(u)?;
+
+            fields.push((name, ty));
             Ok(true)
         })?;
         Ok(RecordType { fields })
@@ -1341,14 +1356,21 @@ impl ComponentBuilder {
                 return Ok(false);
             }
 
-            let default = if !cases.is_empty() && u.arbitrary()? {
+            let name = crate::unique_non_empty_string(100, &mut case_names, u)?;
+
+            let ty = u
+                .arbitrary::<bool>()?
+                .then(|| self.arbitrary_component_val_type(u))
+                .transpose()?;
+
+            let refines = if !cases.is_empty() && u.arbitrary()? {
                 let max_cases = u32::try_from(cases.len() - 1).unwrap();
                 Some(u.int_in_range(0..=max_cases)?)
             } else {
                 None
             };
 
-            cases.push((self.arbitrary_named_type(u, &mut case_names)?, default));
+            cases.push((name, ty, refines));
             Ok(true)
         })?;
 
@@ -1425,10 +1447,16 @@ impl ComponentBuilder {
         })
     }
 
-    fn arbitrary_expected_type(&self, u: &mut Unstructured) -> Result<ExpectedType> {
-        Ok(ExpectedType {
-            ok_ty: self.arbitrary_component_val_type(u)?,
-            err_ty: self.arbitrary_component_val_type(u)?,
+    fn arbitrary_result_type(&self, u: &mut Unstructured) -> Result<ResultType> {
+        Ok(ResultType {
+            ok_ty: u
+                .arbitrary::<bool>()?
+                .then(|| self.arbitrary_component_val_type(u))
+                .transpose()?,
+            err_ty: u
+                .arbitrary::<bool>()?
+                .then(|| self.arbitrary_component_val_type(u))
+                .transpose()?,
         })
     }
 
@@ -1453,7 +1481,7 @@ impl ComponentBuilder {
             6 => Ok(DefinedType::Enum(self.arbitrary_enum_type(u, type_fuel)?)),
             7 => Ok(DefinedType::Union(self.arbitrary_union_type(u, type_fuel)?)),
             8 => Ok(DefinedType::Option(self.arbitrary_option_type(u)?)),
-            9 => Ok(DefinedType::Expected(self.arbitrary_expected_type(u)?)),
+            9 => Ok(DefinedType::Result(self.arbitrary_result_type(u)?)),
             _ => unreachable!(),
         }
     }
@@ -1745,7 +1773,6 @@ impl ComponentBuilder {
 fn canonical_abi_for(func_ty: &FuncType) -> Rc<crate::core::FuncType> {
     let to_core_ty = |ty| match ty {
         ComponentValType::Primitive(prim_ty) => match prim_ty {
-            PrimitiveValType::Unit => None,
             PrimitiveValType::Char
             | PrimitiveValType::Bool
             | PrimitiveValType::S8
@@ -1753,10 +1780,10 @@ fn canonical_abi_for(func_ty: &FuncType) -> Rc<crate::core::FuncType> {
             | PrimitiveValType::S16
             | PrimitiveValType::U16
             | PrimitiveValType::S32
-            | PrimitiveValType::U32 => Some(ValType::I32),
-            PrimitiveValType::S64 | PrimitiveValType::U64 => Some(ValType::I64),
-            PrimitiveValType::Float32 => Some(ValType::F32),
-            PrimitiveValType::Float64 => Some(ValType::F64),
+            | PrimitiveValType::U32 => ValType::I32,
+            PrimitiveValType::S64 | PrimitiveValType::U64 => ValType::I64,
+            PrimitiveValType::Float32 => ValType::F32,
+            PrimitiveValType::Float64 => ValType::F64,
             PrimitiveValType::String => {
                 unimplemented!("non-scalar types are not supported yet")
             }
@@ -1768,9 +1795,13 @@ fn canonical_abi_for(func_ty: &FuncType) -> Rc<crate::core::FuncType> {
         params: func_ty
             .params
             .iter()
-            .flat_map(|ty| to_core_ty(ty.ty))
+            .map(|(_, ty)| to_core_ty(*ty))
             .collect(),
-        results: to_core_ty(func_ty.result).into_iter().collect(),
+        results: func_ty
+            .results
+            .iter()
+            .map(|(_, ty)| to_core_ty(*ty))
+            .collect(),
     })
 }
 
@@ -1799,51 +1830,41 @@ fn inverse_scalar_canonical_abi_for(
             .cloned(),
         ValType::F32 => Ok(ComponentValType::Primitive(PrimitiveValType::Float32)),
         ValType::F64 => Ok(ComponentValType::Primitive(PrimitiveValType::Float64)),
-        ValType::V128 | ValType::FuncRef | ValType::ExternRef => {
+        ValType::V128 | ValType::FuncRef | ValType::ExternRef | ValType::Ref(_) => {
             unreachable!("not used in canonical ABI")
         }
     };
 
-    let mut param_names = HashSet::default();
+    let mut names = HashSet::default();
     let mut params = vec![];
-    if u.ratio::<u8>(1, 25)? {
-        params.push(OptionalNamedType {
-            name: if u.arbitrary()? {
-                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
-            } else {
-                None
-            },
-            ty: ComponentValType::Primitive(PrimitiveValType::Unit),
-        });
-    }
+
     for core_ty in &core_func_ty.params {
-        params.push(OptionalNamedType {
-            name: if u.arbitrary()? {
-                Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
+        params.push((
+            if core_func_ty.params.len() > 1 || u.arbitrary()? {
+                Some(crate::unique_non_empty_string(100, &mut names, u)?)
             } else {
                 None
             },
-            ty: from_core_ty(u, *core_ty)?,
-        });
-        if u.ratio::<u8>(1, 25)? {
-            params.push(OptionalNamedType {
-                name: if u.arbitrary()? {
-                    Some(crate::unique_non_empty_string(100, &mut param_names, u)?)
-                } else {
-                    None
-                },
-                ty: ComponentValType::Primitive(PrimitiveValType::Unit),
-            });
-        }
+            from_core_ty(u, *core_ty)?,
+        ));
     }
 
-    let result = match core_func_ty.results.len() {
-        0 => ComponentValType::Primitive(PrimitiveValType::Unit),
-        1 => from_core_ty(u, core_func_ty.results[0])?,
+    names.clear();
+
+    let results = match core_func_ty.results.len() {
+        0 => Vec::new(),
+        1 => vec![(
+            if u.arbitrary()? {
+                Some(crate::unique_non_empty_string(100, &mut names, u)?)
+            } else {
+                None
+            },
+            from_core_ty(u, core_func_ty.results[0])?,
+        )],
         _ => unimplemented!("non-scalar types are not supported yet"),
     };
 
-    Ok(FuncType { params, result })
+    Ok(FuncType { params, results })
 }
 
 #[derive(Debug)]
@@ -2014,33 +2035,42 @@ enum InstanceTypeDef {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct FuncType {
-    params: Vec<OptionalNamedType>,
-    result: ComponentValType,
+    params: Vec<(Option<String>, ComponentValType)>,
+    results: Vec<(Option<String>, ComponentValType)>,
 }
 
 impl FuncType {
-    fn is_scalar(&self) -> bool {
-        self.params.iter().all(|p| p.is_scalar()) && is_scalar(&self.result)
+    fn unnamed_param_ty(&self) -> Option<ComponentValType> {
+        if self.params.len() == 1 {
+            let (name, ty) = &self.params[0];
+            if name.is_none() {
+                return Some(*ty);
+            }
+        }
+        None
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct OptionalNamedType {
-    name: Option<String>,
-    ty: ComponentValType,
-}
+    fn unnamed_result_ty(&self) -> Option<ComponentValType> {
+        if self.results.len() == 1 {
+            let (name, ty) = &self.results[0];
+            if name.is_none() {
+                return Some(*ty);
+            }
+        }
+        None
+    }
 
-impl OptionalNamedType {
     fn is_scalar(&self) -> bool {
-        is_scalar(&self.ty)
+        self.params.iter().all(|(_, ty)| is_scalar(ty))
+            && self.results.len() == 1
+            && is_scalar(&self.results[0].1)
     }
 }
 
 fn is_scalar(ty: &ComponentValType) -> bool {
     match ty {
         ComponentValType::Primitive(prim) => match prim {
-            PrimitiveValType::Unit
-            | PrimitiveValType::Bool
+            PrimitiveValType::Bool
             | PrimitiveValType::S8
             | PrimitiveValType::U8
             | PrimitiveValType::S16
@@ -2059,12 +2089,6 @@ fn is_scalar(ty: &ComponentValType) -> bool {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct NamedType {
-    name: String,
-    ty: ComponentValType,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum DefinedType {
     Primitive(PrimitiveValType),
     Record(RecordType),
@@ -2075,17 +2099,17 @@ enum DefinedType {
     Enum(EnumType),
     Union(UnionType),
     Option(OptionType),
-    Expected(ExpectedType),
+    Result(ResultType),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct RecordType {
-    fields: Vec<NamedType>,
+    fields: Vec<(String, ComponentValType)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VariantType {
-    cases: Vec<(NamedType, Option<u32>)>,
+    cases: Vec<(String, Option<ComponentValType>, Option<u32>)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -2119,9 +2143,9 @@ struct OptionType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct ExpectedType {
-    ok_ty: ComponentValType,
-    err_ty: ComponentValType,
+struct ResultType {
+    ok_ty: Option<ComponentValType>,
+    err_ty: Option<ComponentValType>,
 }
 
 #[derive(Debug)]

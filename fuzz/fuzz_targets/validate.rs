@@ -1,14 +1,21 @@
 #![no_main]
 
+use arbitrary::{Arbitrary, Unstructured};
 use libfuzzer_sys::*;
+use wasm_smith::MaybeInvalidModule;
 use wasmparser::{Validator, WasmFeatures};
 
 fuzz_target!(|data: &[u8]| {
+    drop(env_logger::try_init());
     let byte1 = match data.get(0) {
         Some(byte) => byte,
         None => return,
     };
     let byte2 = match data.get(1) {
+        Some(byte) => byte,
+        None => return,
+    };
+    let byte3 = match data.get(2) {
         Some(byte) => byte,
         None => return,
     };
@@ -30,6 +37,19 @@ fuzz_target!(|data: &[u8]| {
         saturating_float_to_int: (byte2 & 0b0100_0000) != 0,
         sign_extension: (byte2 & 0b1000_0000) != 0,
     });
+    let use_maybe_invalid = byte3 & 0b0000_0001 != 0;
 
-    drop(validator.validate_all(&data[2..]));
+    let wasm = &data[3..];
+    if log::log_enabled!(log::Level::Debug) {
+        log::debug!("writing input to `test.wasm`");
+        std::fs::write("test.wasm", wasm).unwrap();
+    }
+    if use_maybe_invalid {
+        let mut u = Unstructured::new(wasm);
+        if let Ok(module) = MaybeInvalidModule::arbitrary(&mut u) {
+            drop(validator.validate_all(&module.to_bytes()));
+        }
+    } else {
+        drop(validator.validate_all(wasm));
+    }
 });

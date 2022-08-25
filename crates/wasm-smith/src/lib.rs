@@ -62,7 +62,8 @@ mod config;
 mod core;
 
 pub use crate::core::{
-    ConfiguredModule, InstructionKind, InstructionKinds, MaybeInvalidModule, Module,
+    no_traps::NotSupported, ConfiguredModule, InstructionKind, InstructionKinds,
+    MaybeInvalidModule, Module,
 };
 use arbitrary::{Result, Unstructured};
 pub use component::{Component, ConfiguredComponent};

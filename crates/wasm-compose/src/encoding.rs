@@ -159,14 +159,22 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::ValType::F32 => ValType::F32,
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::FuncRef => ValType::FuncRef,
-            wasmparser::ValType::ExternRef => ValType::ExternRef,
+            wasmparser::ValType::Ref(ty) => Self::ref_type(ty),
+            wasmparser::ValType::Bot => unimplemented!(),
+        }
+    }
+
+    fn ref_type(ty: wasmparser::RefType) -> ValType {
+        match ty {
+            wasmparser::FUNC_REF => ValType::FuncRef,
+            wasmparser::EXTERN_REF => ValType::FuncRef,
+            _ => unimplemented!(),
         }
     }
 
     fn table_type(ty: wasmparser::TableType) -> TableType {
         TableType {
-            element_type: Self::val_type(ty.element_type),
+            element_type: Self::ref_type(ty.element_type),
             minimum: ty.initial,
             maximum: ty.maximum,
         }
@@ -190,7 +198,6 @@ impl<'a> TypeEncoder<'a> {
 
     fn primitive(ty: wasmparser::PrimitiveValType) -> PrimitiveValType {
         match ty {
-            wasmparser::PrimitiveValType::Unit => PrimitiveValType::Unit,
             wasmparser::PrimitiveValType::Bool => PrimitiveValType::Bool,
             wasmparser::PrimitiveValType::S8 => PrimitiveValType::S8,
             wasmparser::PrimitiveValType::U8 => PrimitiveValType::U8,
@@ -334,18 +341,43 @@ impl<'a> TypeEncoder<'a> {
             .as_component_func_type()
             .unwrap();
 
-        let mut params = Vec::with_capacity(ty.params.len());
-        for (name, ty) in ty.params.iter() {
-            params.push((
-                name.as_deref(),
-                self.component_val_type(encodable, types, *ty),
-            ));
-        }
+        let params = ty
+            .params
+            .iter()
+            .map(|(name, ty)| {
+                (
+                    name.as_deref(),
+                    self.component_val_type(encodable, types, *ty),
+                )
+            })
+            .collect::<Vec<_>>();
 
-        let result = self.component_val_type(encodable, types, ty.result);
+        let results = ty
+            .results
+            .iter()
+            .map(|(name, ty)| {
+                (
+                    name.as_deref(),
+                    self.component_val_type(encodable, types, *ty),
+                )
+            })
+            .collect::<Vec<_>>();
 
         let index = encodable.type_count();
-        encodable.ty().function(params, result);
+        let mut f = encodable.ty().function();
+
+        if params.len() == 1 && params[0].0.is_none() {
+            f.param(params[0].1);
+        } else {
+            f.params(params.into_iter().map(|(name, ty)| (name.unwrap(), ty)));
+        }
+
+        if results.len() == 1 && results[0].0.is_none() {
+            f.result(results[0].1);
+        } else {
+            f.results(results.into_iter().map(|(name, ty)| (name.unwrap(), ty)));
+        }
+
         types.insert(id, index);
         index
     }
@@ -425,8 +457,8 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::ComponentDefinedType::Option(ty) => {
                 self.option(encodable, types, *ty)
             }
-            wasmparser::types::ComponentDefinedType::Expected(ok, err) => {
-                self.expected(encodable, types, *ok, *err)
+            wasmparser::types::ComponentDefinedType::Result { ok, err } => {
+                self.result(encodable, types, *ok, *err)
             }
         };
 
@@ -463,7 +495,7 @@ impl<'a> TypeEncoder<'a> {
             .map(|(n, c)| {
                 (
                     n.as_str(),
-                    self.component_val_type(encodable, types, c.ty),
+                    c.ty.map(|ty| self.component_val_type(encodable, types, ty)),
                     c.refines
                         .as_deref()
                         .map(|r| variant.cases.iter().position(|(n, _)| n == r).unwrap() as u32),
@@ -551,18 +583,18 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn expected(
+    fn result(
         &self,
         encodable: &mut impl Encodable,
         types: &mut HashMap<TypeId, u32>,
-        ok: wasmparser::types::ComponentValType,
-        err: wasmparser::types::ComponentValType,
+        ok: Option<wasmparser::types::ComponentValType>,
+        err: Option<wasmparser::types::ComponentValType>,
     ) -> u32 {
-        let ok = self.component_val_type(encodable, types, ok);
-        let err = self.component_val_type(encodable, types, err);
+        let ok = ok.map(|ty| self.component_val_type(encodable, types, ty));
+        let err = err.map(|ty| self.component_val_type(encodable, types, ty));
 
         let index = encodable.type_count();
-        encodable.ty().defined_type().expected(ok, err);
+        encodable.ty().defined_type().result(ok, err);
         index
     }
 }

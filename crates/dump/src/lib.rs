@@ -551,8 +551,8 @@ impl<'a> Dump<'a> {
 
     fn print_ops(&mut self, mut i: OperatorsReader) -> Result<()> {
         while !i.eof() {
-            match i.read() {
-                Ok(op) => write!(self.state, "{:?}", op)?,
+            match i.visit_with_offset(self) {
+                Ok(()) => {}
                 Err(_) => write!(self.state, "??")?,
             }
             self.print(i.original_position())?;
@@ -615,4 +615,28 @@ fn inc(spot: &mut u32) -> u32 {
     let ret = *spot;
     *spot += 1;
     ret
+}
+
+macro_rules! define_visit_operator {
+    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+        $(
+            fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+                write!(
+                    self.state,
+                    concat!(
+                        "{}"
+                        $( $(, " ", stringify!($arg), ":{:?}")* )?
+                    ),
+                    stringify!($visit).strip_prefix("visit_").unwrap(),
+                    $( $($arg,)* )?
+                ).unwrap();
+            }
+        )*
+    }
+}
+
+impl<'a> VisitOperator<'a> for Dump<'_> {
+    type Output = ();
+
+    wasmparser::for_each_operator!(define_visit_operator);
 }
