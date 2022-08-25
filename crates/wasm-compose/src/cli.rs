@@ -28,7 +28,7 @@ pub struct WasmComposeCommand {
     #[clap(long)]
     pub skip_validation: bool,
 
-    /// The path to the component to compose.
+    /// The path to the root component to compose.
     #[clap(value_name = "COMPONENT")]
     pub component: PathBuf,
 }
