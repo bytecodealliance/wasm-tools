@@ -333,6 +333,7 @@ impl ModuleState {
         macro_rules! define_visit_operator {
             ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
                 $(
+                    #[allow(unused_variables)]
                     fn $visit(&mut self, pos: usize $($(,$arg: $argty)*)?) -> Self::Output {
                         define_visit_operator!(@visit self $visit pos $($($arg)*)?)
                     }
@@ -403,7 +404,6 @@ impl ModuleState {
             }};
 
             (@visit $self:ident $op:ident $pos:ident $($args:tt)*) => {{
-                $(drop($args);)*
                 Err(BinaryReaderError::new(
                     "constant expression required: non-constant operator",
                     $pos,

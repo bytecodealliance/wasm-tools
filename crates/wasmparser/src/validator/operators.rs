@@ -110,7 +110,7 @@ pub struct Frame {
 }
 
 /// The kind of a control flow [`Frame`].
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FrameKind {
     /// A Wasm `block` control block.
     Block,
