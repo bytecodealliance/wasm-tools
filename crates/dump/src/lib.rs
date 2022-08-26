@@ -254,23 +254,6 @@ impl<'a> Dump<'a> {
                     me.print(end)
                 })?,
 
-                Payload::AliasSection(s) => self.section(s, "core alias", |me, end, a| {
-                    let (kind, num) = match a {
-                        Alias::InstanceExport { kind, .. } => match kind {
-                            ExternalKind::Func => ("func", inc(&mut i.core_funcs)),
-                            ExternalKind::Table => ("table", inc(&mut i.core_tables)),
-                            ExternalKind::Memory => ("memory", inc(&mut i.core_memories)),
-                            ExternalKind::Global => ("global", inc(&mut i.core_globals)),
-                            ExternalKind::Tag => ("tag", inc(&mut i.core_tags)),
-                        },
-                        Alias::Outer { kind, .. } => match kind {
-                            OuterAliasKind::Type => ("type", inc(&mut i.core_types)),
-                        },
-                    };
-                    write!(me.state, "core alias [{} {}] {:?}", kind, num, a)?;
-                    me.print(end)
-                })?,
-
                 Payload::CoreTypeSection(s) => self.section(s, "core type", |me, end, t| {
                     write!(me.state, "[core type {}] {:?}", inc(&mut i.core_types), t)?;
                     me.print(end)
@@ -338,6 +321,13 @@ impl<'a> Dump<'a> {
                                 kind: ComponentOuterAliasKind::Component,
                                 ..
                             } => ("component", inc(&mut i.components)),
+                            ComponentAlias::CoreInstanceExport { kind, .. } => match kind {
+                                ExternalKind::Func => ("core func", inc(&mut i.core_funcs)),
+                                ExternalKind::Table => ("core table", inc(&mut i.core_tables)),
+                                ExternalKind::Memory => ("core memory", inc(&mut i.core_memories)),
+                                ExternalKind::Global => ("core global", inc(&mut i.core_globals)),
+                                ExternalKind::Tag => ("core tag", inc(&mut i.core_tags)),
+                            },
                         };
 
                         write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
