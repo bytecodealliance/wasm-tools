@@ -75,7 +75,7 @@ impl State {
             data.resize(1024, 0);
             rng.fill_bytes(&mut data);
             loop {
-                match self.run_once(&mut data) {
+                match self.run_once(&data) {
                     Ok(()) => break,
                     Err(Error::NotEnoughData) => {
                         let cur = data.len();
