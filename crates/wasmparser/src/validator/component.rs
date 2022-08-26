@@ -140,32 +140,6 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn add_core_alias(
-        components: &mut [Self],
-        alias: crate::Alias,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
-        match alias {
-            crate::Alias::InstanceExport {
-                instance_index,
-                kind,
-                name,
-            } => components.last_mut().unwrap().alias_core_instance_export(
-                instance_index,
-                kind,
-                name,
-                types,
-                offset,
-            ),
-            crate::Alias::Outer { kind, count, index } => match kind {
-                crate::OuterAliasKind::Type => {
-                    Self::alias_core_type(components, count, index, offset)
-                }
-            },
-        }
-    }
-
     pub fn add_type(
         components: &mut Vec<Self>,
         ty: crate::ComponentType,
@@ -412,6 +386,17 @@ impl ComponentState {
                 kind,
                 name,
             } => components.last_mut().unwrap().alias_instance_export(
+                instance_index,
+                kind,
+                name,
+                types,
+                offset,
+            ),
+            crate::ComponentAlias::CoreInstanceExport {
+                instance_index,
+                kind,
+                name,
+            } => components.last_mut().unwrap().alias_core_instance_export(
                 instance_index,
                 kind,
                 name,
@@ -737,39 +722,31 @@ impl ComponentState {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;
                     state.add_export(name, ty, features, offset, true)?;
                 }
-                crate::ModuleTypeDeclaration::Alias(alias) => match alias {
-                    crate::Alias::InstanceExport { .. } => {
+                crate::ModuleTypeDeclaration::OuterAlias { kind, count, index } => {
+                    if count > 1 {
                         return Err(BinaryReaderError::new(
-                            "only outer type aliases are allowed in module type declarations",
-                            offset,
-                        ))
-                    }
-                    crate::Alias::Outer { kind, count, index } => {
-                        if count > 1 {
-                            return Err(BinaryReaderError::new(
                                     "outer type aliases in module type declarations are limited to a maximum count of 1",
                                     offset,
                                 ));
-                        }
-                        match kind {
-                            crate::OuterAliasKind::Type => {
-                                let ty = if count == 0 {
-                                    // Local alias, check the local module state
-                                    state.type_at(index, offset)?
-                                } else {
-                                    // Otherwise, check the enclosing component state
-                                    let component =
-                                        Self::check_alias_count(components, count - 1, offset)?;
-                                    component.type_at(index, true, offset)?
-                                };
+                    }
+                    match kind {
+                        crate::OuterAliasKind::Type => {
+                            let ty = if count == 0 {
+                                // Local alias, check the local module state
+                                state.type_at(index, offset)?
+                            } else {
+                                // Otherwise, check the enclosing component state
+                                let component =
+                                    Self::check_alias_count(components, count - 1, offset)?;
+                                component.type_at(index, true, offset)?
+                            };
 
-                                check_max(state.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
+                            check_max(state.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-                                state.types.push(ty);
-                            }
+                            state.types.push(ty);
                         }
                     }
-                },
+                }
                 crate::ModuleTypeDeclaration::Import(import) => {
                     state.add_import(import, features, types, offset)?;
                 }
