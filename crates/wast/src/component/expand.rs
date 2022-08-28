@@ -122,7 +122,6 @@ impl<'a> Expander<'a> {
                 None
             }
             ComponentField::Start(_)
-            | ComponentField::CoreAlias(_)
             | ComponentField::Alias(_)
             | ComponentField::Export(_)
             | ComponentField::Custom(_) => None,
@@ -252,11 +251,11 @@ impl<'a> Expander<'a> {
 
     fn expand_core_func(&mut self, func: &mut CoreFunc<'a>) -> Option<ComponentField<'a>> {
         match &mut func.kind {
-            CoreFuncKind::Alias(a) => Some(ComponentField::CoreAlias(CoreAlias {
+            CoreFuncKind::Alias(a) => Some(ComponentField::Alias(Alias {
                 span: func.span,
                 id: func.id,
                 name: func.name,
-                target: CoreAliasTarget::Export {
+                target: AliasTarget::CoreExport {
                     instance: a.instance,
                     name: a.name,
                     kind: core::ExportKind::Func,

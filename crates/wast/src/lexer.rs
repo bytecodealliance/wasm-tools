@@ -94,7 +94,7 @@ pub enum Token<'a> {
 ///
 /// All lexing errors have line/colum/position information as well as a
 /// `LexError` indicating what kind of error happened while lexing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LexError {
     /// A dangling block comment was found with an unbalanced `(;` which was
@@ -151,7 +151,7 @@ pub enum LexError {
 }
 
 /// A sign token for an integer.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SignToken {
     /// Plus sign: "+",
     Plus,
@@ -196,7 +196,7 @@ struct WasmStringInner<'a> {
 }
 
 /// Possible parsed float values
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum FloatVal<'a> {
     /// A float `NaN` representation
     Nan {
@@ -300,7 +300,7 @@ impl<'a> Lexer<'a> {
         // This `match` generally parses the grammar specified at
         //
         // https://webassembly.github.io/spec/core/text/lexical.html#text-token
-        let byte = match self.remaining.as_bytes().get(0) {
+        let byte = match self.remaining.as_bytes().first() {
             Some(b) => b,
             None => return Ok(None),
         };
@@ -326,13 +326,13 @@ impl<'a> Lexer<'a> {
                     while let Some(ch) = iter.next() {
                         match ch {
                             b'(' => {
-                                if let Some(b';') = iter.as_slice().get(0) {
+                                if let Some(b';') = iter.as_slice().first() {
                                     level += 1;
                                     iter.next();
                                 }
                             }
                             b';' => {
-                                if let Some(b')') = iter.as_slice().get(0) {
+                                if let Some(b')') = iter.as_slice().first() {
                                     level -= 1;
                                     iter.next();
                                     if level == 0 {
@@ -367,10 +367,7 @@ impl<'a> Lexer<'a> {
             b' ' | b'\n' | b'\r' | b'\t' => Ok(Some(Token::Whitespace(self.split_ws()))),
 
             c @ idchars!() => {
-                let reserved = self.split_while(|b| match b {
-                    idchars!() => true,
-                    _ => false,
-                });
+                let reserved = self.split_while(|b| matches!(b, idchars!()));
 
                 // https://webassembly.github.io/spec/core/text/values.html#integers
                 if let Some(number) = self.number(reserved) {
@@ -968,11 +965,18 @@ fn escape_char(c: char) -> String {
 ///
 /// [1]: https://www.trojansource.codes/
 fn is_confusing_unicode(ch: char) -> bool {
-    match ch {
-        '\u{202a}' | '\u{202b}' | '\u{202d}' | '\u{202e}' | '\u{2066}' | '\u{2067}'
-        | '\u{2068}' | '\u{206c}' | '\u{2069}' => true,
-        _ => false,
-    }
+    matches!(
+        ch,
+        '\u{202a}'
+            | '\u{202b}'
+            | '\u{202d}'
+            | '\u{202e}'
+            | '\u{2066}'
+            | '\u{2067}'
+            | '\u{2068}'
+            | '\u{206c}'
+            | '\u{2069}'
+    )
 }
 
 #[cfg(test)]
