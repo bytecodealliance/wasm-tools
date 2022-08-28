@@ -18,7 +18,7 @@
     (func (export "start-post-return") (param i32))
   )
   (core instance $main (instantiate $Main (with "libc" (instance $libc))))
-  (core alias export $main "start" (func $main_func))
+  (alias core export $main "start" (core func $main_func))
   (func $start (param string) (result string)
     (canon lift (core func $main_func)
       (memory $libc "memory")
