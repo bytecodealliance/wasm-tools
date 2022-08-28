@@ -87,7 +87,7 @@ fn component_composing() -> Result<()> {
         };
 
         if std::env::var_os("BLESS").is_some() {
-            fs::write(&baseline_path, output)?;
+            fs::write(&baseline_path, output + "\n")?;
         } else {
             assert_eq!(
                 fs::read_to_string(&baseline_path)
