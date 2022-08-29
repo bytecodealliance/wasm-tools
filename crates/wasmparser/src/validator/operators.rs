@@ -226,17 +226,17 @@ impl OperatorValidator {
     }
 
     /// Returns the optional value type of the value operand at the given
-    /// `index` from the top of the operand stack.
+    /// `depth` from the top of the operand stack.
     ///
-    /// - Returns `None` if the `index` is out of bounds.
+    /// - Returns `None` if the `depth` is out of bounds.
     /// - Returns `Some(None)` if there is a value with unknown type
-    /// at the given `index`.
+    /// at the given `depth`.
     ///
     /// # Note
     ///
-    /// An `index` of 0 will refer to the last operand on the stack.
-    pub fn peek_operand_at(&self, index: usize) -> Option<Option<ValType>> {
-        self.operands.iter().rev().nth(index).copied()
+    /// An `depth` of 0 will refer to the last operand on the stack.
+    pub fn peek_operand_at(&self, depth: usize) -> Option<Option<ValType>> {
+        self.operands.iter().rev().nth(depth).copied()
     }
 
     /// Returns the number of frames on the control flow stack.

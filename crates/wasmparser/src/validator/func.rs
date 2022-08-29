@@ -130,11 +130,17 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     }
 
     /// Returns the optional value type of the value operand at the given
-    /// `index` from the top of the operand stack.
+    /// `depth` from the top of the operand stack.
     ///
-    /// Returns `None` if the `index` is out of bounds.
-    pub fn get_operand_type(&self, index: usize) -> Option<Option<ValType>> {
-        self.validator.peek_operand_at(index)
+    /// - Returns `None` if the `depth` is out of bounds.
+    /// - Returns `Some(None)` if there is a value with unknown type
+    /// at the given `depth`.
+    ///
+    /// # Note
+    ///
+    /// An `depth` of 0 will refer to the last operand on the stack.
+    pub fn get_operand_type(&self, depth: usize) -> Option<Option<ValType>> {
+        self.validator.peek_operand_at(depth)
     }
 
     /// Returns the number of frames on the control flow stack.
