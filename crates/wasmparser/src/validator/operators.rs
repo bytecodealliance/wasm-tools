@@ -1700,46 +1700,46 @@ where
     fn visit_i32_wrap_i64(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I32, ValType::I64)
     }
-    fn visit_i32_trunc_f32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_f32_s(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I32, ValType::F32)
     }
-    fn visit_i32_trunc_f32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_f32_u(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I32, ValType::F32)
     }
-    fn visit_i32_trunc_f64s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_f64_s(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I32, ValType::F64)
     }
-    fn visit_i32_trunc_f64u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32_trunc_f64_u(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I32, ValType::F64)
     }
-    fn visit_i64_extend_i32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_extend_i32_s(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I64, ValType::I32)
     }
-    fn visit_i64_extend_i32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_extend_i32_u(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I64, ValType::I32)
     }
-    fn visit_i64_trunc_f32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_f32_s(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I64, ValType::F32)
     }
-    fn visit_i64_trunc_f32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_f32_u(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I64, ValType::F32)
     }
-    fn visit_i64_trunc_f64s(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_f64_s(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I64, ValType::F64)
     }
-    fn visit_i64_trunc_f64u(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64_trunc_f64_u(&mut self, offset: usize) -> Self::Output {
         self.check_conversion_op(offset, ValType::I64, ValType::F64)
     }
-    fn visit_f32_convert_i32s(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32_convert_i32_s(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F32, ValType::I32)
     }
-    fn visit_f32_convert_i32u(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32_convert_i32_u(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F32, ValType::I32)
     }
-    fn visit_f32_convert_i64s(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32_convert_i64_s(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F32, ValType::I64)
     }
-    fn visit_f32_convert_i64u(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32_convert_i64_u(&mut self, offset: usize) -> Self::Output {
         self.check_fconversion_op(offset, ValType::F32, ValType::I64)
     }
     fn visit_f32_demote_f64(&mut self, offset: usize) -> Self::Output {
