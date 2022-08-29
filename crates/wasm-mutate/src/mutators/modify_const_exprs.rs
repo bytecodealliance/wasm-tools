@@ -98,12 +98,14 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
                 T::F32 if should_zero => CE::f32_const(0.0),
                 T::F64 if should_zero => CE::f64_const(0.0),
                 T::I32 => CE::i32_const(if let O::I32Const { value } = op {
-                    self.config.rng().gen_range(0..value)
+                    let range = if value < 0 { value..0 } else { 0..value };
+                    self.config.rng().gen_range(range)
                 } else {
                     self.config.rng().gen()
                 }),
                 T::I64 => CE::i64_const(if let O::I64Const { value } = op {
-                    self.config.rng().gen_range(0..value)
+                    let range = if value < 0 { value..0 } else { 0..value };
+                    self.config.rng().gen_range(range)
                 } else {
                     self.config.rng().gen()
                 }),
