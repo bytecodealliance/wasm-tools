@@ -1,6 +1,7 @@
+use super::CORE_TYPE_SORT;
 use crate::{
     encode_section, ComponentOuterAliasKind, ComponentSection, ComponentSectionId,
-    ComponentTypeRef, CoreOuterAliasKind, Encode, EntityType, ValType,
+    ComponentTypeRef, Encode, EntityType, ValType,
 };
 
 /// Represents the type of a core module.
@@ -15,18 +16,6 @@ impl ModuleType {
     /// Creates a new core module type.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Defines an outer core type alias in this module type.
-    pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
-        self.bytes.push(0x02);
-        CoreOuterAliasKind::Type.encode(&mut self.bytes);
-        self.bytes.push(0x01);
-        count.encode(&mut self.bytes);
-        index.encode(&mut self.bytes);
-        self.num_added += 1;
-        self.types_added += 1;
-        self
     }
 
     /// Defines an import in this module type.
@@ -48,6 +37,18 @@ impl ModuleType {
         self.num_added += 1;
         self.types_added += 1;
         CoreTypeEncoder(&mut self.bytes)
+    }
+
+    /// Defines an outer core type alias in this module type.
+    pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
+        self.bytes.push(0x02);
+        self.bytes.push(CORE_TYPE_SORT);
+        self.bytes.push(0x01); // outer
+        count.encode(&mut self.bytes);
+        index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self.types_added += 1;
+        self
     }
 
     /// Defines an export in this module type.
@@ -223,11 +224,11 @@ impl ComponentType {
     pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         ComponentOuterAliasKind::CoreType.encode(&mut self.bytes);
-        self.bytes.push(0x01);
+        self.bytes.push(0x02);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         self.num_added += 1;
-        self.types_added += 1;
+        self.core_types_added += 1;
         self
     }
 
@@ -235,7 +236,7 @@ impl ComponentType {
     pub fn alias_outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         ComponentOuterAliasKind::Type.encode(&mut self.bytes);
-        self.bytes.push(0x01);
+        self.bytes.push(0x02);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -321,11 +322,11 @@ impl InstanceType {
     pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         ComponentOuterAliasKind::CoreType.encode(&mut self.bytes);
-        self.bytes.push(0x01);
+        self.bytes.push(0x02);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         self.num_added += 1;
-        self.types_added += 1;
+        self.core_types_added += 1;
         self
     }
 
@@ -333,7 +334,7 @@ impl InstanceType {
     pub fn alias_outer_type(&mut self, count: u32, index: u32) -> &mut Self {
         self.bytes.push(0x02);
         ComponentOuterAliasKind::Type.encode(&mut self.bytes);
-        self.bytes.push(0x01);
+        self.bytes.push(0x02);
         count.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         self.num_added += 1;

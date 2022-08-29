@@ -49,7 +49,6 @@ impl Opts {
                     printer.start(Encoding::Module)?;
                 }
                 InstanceSection(s) => printer.section(s, "core instances")?,
-                AliasSection(s) => printer.section(s, "core aliases")?,
                 CoreTypeSection(s) => printer.section(s, "core types")?,
                 ComponentSection { range, .. } => {
                     printer.section_raw(range, 1, "component")?;

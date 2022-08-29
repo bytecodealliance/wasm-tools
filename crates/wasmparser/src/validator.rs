@@ -442,7 +442,6 @@ impl Validator {
                 return Ok(ValidPayload::Parser(parser.clone()));
             }
             InstanceSection(s) => self.instance_section(s)?,
-            AliasSection(s) => self.alias_section(s)?,
             CoreTypeSection(s) => self.core_type_section(s)?,
             ComponentSection { parser, range, .. } => {
                 self.component_section(range)?;
@@ -936,20 +935,6 @@ impl Validator {
                     .last_mut()
                     .unwrap()
                     .add_core_instance(instance, types, offset)
-            },
-        )
-    }
-
-    /// Validates [`Payload::AliasSection`](crate::Payload).
-    ///
-    /// This method should only be called when parsing a component.
-    pub fn alias_section(&mut self, section: &crate::AliasSectionReader) -> Result<()> {
-        self.process_component_section(
-            section,
-            "core alias",
-            |_, _, _, _| Ok(()), // maximums checked via `add_alias`
-            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
-                ComponentState::add_core_alias(components, alias, types, offset)
             },
         )
     }

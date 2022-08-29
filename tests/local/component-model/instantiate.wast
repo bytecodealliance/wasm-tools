@@ -577,11 +577,11 @@
       (export "global mut" (global (mut i64)))
     ))
     (core instance $libc (instantiate $libc))
-    (core alias export $libc "memory" (memory $mem))
-    (core alias export $libc "table" (table $tbl))
-    (core alias export $libc "func" (func $func))
-    (core alias export $libc "global" (global $global))
-    (core alias export $libc "global mut" (global $global_mut))
+    (alias core export $libc "memory" (core memory $mem))
+    (alias core export $libc "table" (core table $tbl))
+    (alias core export $libc "func" (core func $func))
+    (alias core export $libc "global" (core global $global))
+    (alias core export $libc "global mut" (core global $global_mut))
 
     (import "x" (core module $needs_libc
       (import "" "memory" (memory 1))

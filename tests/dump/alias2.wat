@@ -64,10 +64,10 @@
   (core instance $i (instantiate $m1))
   (core instance (instantiate $m2 (with "" (instance $i))))
 
-  (core alias export $i "1" (func $f))
-  (core alias export $i "2" (memory $m))
-  (core alias export $i "3" (global $g))
-  (core alias export $i "4" (table $t))
+  (alias core export $i "1" (core func $f))
+  (alias core export $i "2" (core memory $m))
+  (alias core export $i "3" (core global $g))
+  (alias core export $i "4" (core table $t))
 
   (core instance
     (instantiate $m2

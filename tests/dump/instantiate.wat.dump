@@ -1,19 +1,19 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 08 03       | component type section
+  0x8 | 07 03       | component type section
   0xa | 01          | 1 count
   0xb | 41 00       | [type 0] Component([])
-  0xd | 0b 05       | component import section
+  0xd | 0a 05       | component import section
   0xf | 01          | 1 count
  0x10 | 01 61 04 00 | [component 0] ComponentImport { name: "a", ty: Component(0) }
- 0x14 | 08 06       | component type section
+ 0x14 | 07 06       | component type section
  0x16 | 01          | 1 count
  0x17 | 40 01 00 01 | [type 1] Func(ComponentFuncType { params: Named([]), results: Named([]) })
       | 00         
- 0x1c | 0b 05       | component import section
+ 0x1c | 0a 05       | component import section
  0x1e | 01          | 1 count
  0x1f | 01 66 01 01 | [func 0] ComponentImport { name: "f", ty: Func(1) }
- 0x23 | 06 08       | component instance section
+ 0x23 | 05 08       | component instance section
  0x25 | 01          | 1 count
  0x26 | 00 00 01 01 | [instance 0] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "a", kind: Func, index: 0 }] }
       | 61 01 00   

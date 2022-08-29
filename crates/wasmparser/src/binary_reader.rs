@@ -362,7 +362,24 @@ impl<'a> BinaryReader<'a> {
         Ok(match self.read_u8()? {
             0x00 => ModuleTypeDeclaration::Import(self.read_import()?),
             0x01 => ModuleTypeDeclaration::Type(self.read_type()?),
-            0x02 => ModuleTypeDeclaration::Alias(self.read_alias()?),
+            0x02 => {
+                let kind = match self.read_u8()? {
+                    0x10 => OuterAliasKind::Type,
+                    x => {
+                        return self.invalid_leading_byte(x, "outer alias kind");
+                    }
+                };
+                match self.read_u8()? {
+                    0x01 => ModuleTypeDeclaration::OuterAlias {
+                        kind,
+                        count: self.read_var_u32()?,
+                        index: self.read_var_u32()?,
+                    },
+                    x => {
+                        return self.invalid_leading_byte(x, "outer alias target");
+                    }
+                }
+            }
             0x03 => ModuleTypeDeclaration::Export {
                 name: self.read_string()?,
                 ty: self.read_type_ref()?,
@@ -659,34 +676,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_alias(&mut self) -> Result<Alias<'a>> {
-        let offset = self.original_position();
-        let kind = self.read_u8()?;
-
-        Ok(match self.read_u8()? {
-            0x00 => Alias::InstanceExport {
-                kind: Self::external_kind_from_byte(kind, offset)?,
-                instance_index: self.read_var_u32()?,
-                name: self.read_string()?,
-            },
-            0x01 => Alias::Outer {
-                kind: match kind {
-                    0x10 => OuterAliasKind::Type,
-                    x => {
-                        return Err(Self::invalid_leading_byte_error(
-                            x,
-                            "outer alias kind",
-                            offset,
-                        ))
-                    }
-                },
-                count: self.read_var_u32()?,
-                index: self.read_var_u32()?,
-            },
-            x => return self.invalid_leading_byte(x, "alias"),
-        })
-    }
-
     fn component_outer_alias_kind_from_bytes(
         byte1: u8,
         byte2: Option<u8>,
@@ -732,7 +721,17 @@ impl<'a> BinaryReader<'a> {
                 instance_index: self.read_var_u32()?,
                 name: self.read_string()?,
             },
-            0x01 => ComponentAlias::Outer {
+            0x01 => ComponentAlias::CoreInstanceExport {
+                kind: Self::external_kind_from_byte(
+                    byte2.ok_or_else(|| {
+                        Self::invalid_leading_byte_error(byte1, "core instance export kind", offset)
+                    })?,
+                    offset,
+                )?,
+                instance_index: self.read_var_u32()?,
+                name: self.read_string()?,
+            },
+            0x02 => ComponentAlias::Outer {
                 kind: Self::component_outer_alias_kind_from_bytes(byte1, byte2, offset)?,
                 count: self.read_var_u32()?,
                 index: self.read_var_u32()?,

@@ -1,11 +1,11 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 04 0d       | core type section
+  0x8 | 03 0d       | core type section
   0xa | 01          | 1 count
   0xb | 50 02 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) })])
       | 00 00 00 00
       | 01 66 00 00
- 0x17 | 0b 05       | component import section
+ 0x17 | 0a 05       | component import section
  0x19 | 01          | 1 count
  0x1a | 00 00 11 00 | [module 0] ComponentImport { name: "", ty: Module(0) }
  0x1e | 01 2b       | [core module 1] inline size
