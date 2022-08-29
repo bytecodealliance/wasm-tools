@@ -234,7 +234,7 @@ impl OperatorValidator {
     ///
     /// # Note
     ///
-    /// An `depth` of 0 will refer to the last operand on the stack.
+    /// A `depth` of 0 will refer to the last operand on the stack.
     pub fn peek_operand_at(&self, depth: usize) -> Option<Option<ValType>> {
         self.operands.iter().rev().nth(depth).copied()
     }

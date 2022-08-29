@@ -138,7 +138,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     ///
     /// # Note
     ///
-    /// An `depth` of 0 will refer to the last operand on the stack.
+    /// A `depth` of 0 will refer to the last operand on the stack.
     pub fn get_operand_type(&self, depth: usize) -> Option<Option<ValType>> {
         self.validator.peek_operand_at(depth)
     }
