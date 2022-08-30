@@ -2301,7 +2301,7 @@ impl<'a> OperatorFactory<'a> {
 }
 
 macro_rules! define_visit_operator {
-    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) -> Operator<'a> {
                 Operator::$op $({ $($arg),* })?

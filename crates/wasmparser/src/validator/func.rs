@@ -254,7 +254,7 @@ mod tests {
 use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, VisitOperator, V128};
 
 macro_rules! define_visit_operator {
-    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             fn $visit(&mut self, offset: usize $($(,$arg: $argty)*)?) -> Result<()> {
                 self.validator.with_resources(&self.resources)
