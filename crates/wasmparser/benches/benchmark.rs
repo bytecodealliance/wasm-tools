@@ -318,7 +318,7 @@ criterion_main!(benchmark);
 struct NopVisit;
 
 macro_rules! define_visit_operator {
-    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
                 define_visit_operator!(@visit $op $( $($arg)* )?);
