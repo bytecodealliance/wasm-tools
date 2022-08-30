@@ -30,9 +30,52 @@
 /// the [`VisitOperator`] trait if your use case uniformly handles all operators
 /// the same way.
 ///
+/// It is also possible to specialize handling of operators depending on the
+/// Wasm proposal from which they are originating.
+///
 /// This is an "iterator macro" where this macro is invoked with the name of
 /// another macro, and then that macro is invoked with the list of all
 /// operators. An example invocation of this looks like:
+///
+/// The list of specializable Wasm proposals is as follows:
+///
+/// - `@mvp`: Denoting a Wasm operator from the initial Wasm MVP version.
+/// - `@exceptions`: [Wasm `expection-handling` proposal]
+/// - `@tail_calls`: [Wasm `tail-calls` proposal]
+/// - `@reference_types`: [Wasm `reference-types` proposal]
+/// - `@sign_ext_ops`: [Wasm `sign-extension-ops` proposal]
+/// - `@non_trapping_f2i_conversions`: [Wasm `non_trapping_float-to-int-conversions` proposal]
+/// - `@bulk_memory `:[Wasm `bulk-memory` proposal]
+/// - `@threads`: [Wasm `threads` proposal]
+/// - `@simd`: [Wasm `simd` proposal]
+/// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
+///
+/// [Wasm `expection-handling` proposal]:
+/// https://github.com/WebAssembly/exception-handling
+///
+/// [Wasm `tail-calls` proposal]:
+/// https://github.com/WebAssembly/tail-call
+///
+/// [Wasm `reference-types` proposal]:
+/// https://github.com/WebAssembly/reference-types
+///
+/// [Wasm `sign-extension-ops` proposal]:
+/// https://github.com/WebAssembly/sign-extension-ops
+///
+/// [Wasm `non_trapping_float-to-int-conversions` proposal]:
+/// https://github.com/WebAssembly/nontrapping-float-to-int-conversions
+///
+/// [Wasm `bulk-memory` proposal]:
+/// https://github.com/WebAssembly/bulk-memory-operations
+///
+/// [Wasm `threads` proposal]:
+/// https://github.com/webassembly/threads
+///
+/// [Wasm `simd` proposal]:
+/// https://github.com/webassembly/simd
+///
+/// [Wasm `relaxed-simd` proposal]:
+/// https://github.com/WebAssembly/relaxed-simd
 ///
 /// ```
 /// // These names are referred to by the types of each payload and must
@@ -42,6 +85,12 @@
 /// macro_rules! define_visit_operator {
 ///     // The outer layer of repetition represents how all operators are
 ///     // provided to the macro at the same time.
+///     //
+///     // The `$proposal` identifier indicates the Wasm proposals from which
+///     // the Wasm operator is originating.
+///     // For example to specialize the macro match arm for Wasm SIMD proposal
+///     // operators you could write `@simd` instead of `@$proposal:ident` to
+///     // only catch those operators.
 ///     //
 ///     // The `$op` name is bound to the `Operator` variant name. The
 ///     // payload of the operator is optionally specified (the `$(...)?`
