@@ -124,6 +124,14 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/try_delegate.wast",
         "exception-handling/try_catch.wast",
         "exception-handling/throw.wast",
+        // TODO: The call_ref instructions formats changed: the testsuite needs
+        // to be updated. Remove local/function-references/call_ref/ as well.
+        "function-references/br_on_non_null.wast",
+        "function-references/br_on_null.wast",
+        "function-references/call_ref.wast",
+        "function-references/func_bind.wast",
+        "function-references/ref_as_non_null.wast",
+        "function-references/return_call_ref.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
