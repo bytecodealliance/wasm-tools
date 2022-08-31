@@ -998,6 +998,7 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     ///
     /// If `BinaryReader` has no bytes remaining.
+    #[inline]
     pub fn read_u8(&mut self) -> Result<u8> {
         let b = match self.buffer.get(self.position) {
             Some(b) => *b,
