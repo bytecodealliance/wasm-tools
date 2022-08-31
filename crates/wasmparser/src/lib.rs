@@ -178,7 +178,7 @@ macro_rules! for_each_operator {
             @mvp I64Const { value: i64 } => visit_i64_const
             @mvp F32Const { value: Ieee32 } => visit_f32_const
             @mvp F64Const { value: Ieee64 } => visit_f64_const
-            @reference_types RefNull { ty: ValType } => visit_ref_null
+            @reference_types RefNull { ty: HeapType } => visit_ref_null
             @reference_types RefIsNull => visit_ref_is_null
             @reference_types RefFunc { function_index: u32 } => visit_ref_func
             @mvp I32Eqz => visit_i32_eqz
@@ -663,6 +663,14 @@ macro_rules! for_each_operator {
             @relaxed_simd F32x4RelaxedMax => visit_f32x4_relaxed_max
             @relaxed_simd F64x2RelaxedMin => visit_f64x2_relaxed_min
             @relaxed_simd F64x2RelaxedMax => visit_f64x2_relaxed_max
+
+            // Typed Function references
+            @function_references CallRef => visit_call_ref
+            @function_references ReturnCallRef => visit_return_call_ref
+            @function_references RefAsNonNull => visit_ref_as_non_null
+            @function_references BrOnNull { relative_depth: u32 } => visit_br_on_null
+            @function_references BrOnNonNull { relative_depth: u32 } => visit_br_on_non_null
+
         }
     };
 }

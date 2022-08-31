@@ -7,10 +7,10 @@ use super::{
 };
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, Operator, RefType, Result,
-    TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType,
-    WasmModuleResources, FUNC_REF,
+    limits::*, BinaryReaderError, BlockType, BrTable, ConstExpr, Data, DataKind, Element,
+    ElementItem, ElementKind, ExternalKind, FuncType, Global, GlobalType, HeapType, Ieee32, Ieee64,
+    MemArg, MemoryType, RefType, Result, TableType, TagType, TypeRef, ValType, VisitOperator,
+    WasmFeatures, WasmFuncType, WasmModuleResources, FUNC_REF, V128,
 };
 use indexmap::IndexMap;
 use std::{collections::HashSet, sync::Arc};
@@ -459,7 +459,7 @@ impl Module {
     ) -> Result<()> {
         let ty = match ty {
             crate::Type::Func(t) => {
-                for ty in t.params.iter().chain(t.returns.iter()) {
+                for ty in t.params().iter().chain(t.results()) {
                     self.check_value_type(*ty, features, types, offset)?;
                 }
                 if t.results().len() > 1 && !features.multi_value {

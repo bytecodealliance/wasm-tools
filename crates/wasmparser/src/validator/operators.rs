@@ -239,7 +239,7 @@ impl OperatorValidator {
     /// # Note
     ///
     /// A `depth` of 0 will refer to the last operand on the stack.
-    pub fn peek_operand_at(&self, depth: usize) -> Option<Option<ValType>> {
+    pub fn peek_operand_at(&self, depth: usize) -> Option<ValType> {
         self.operands.iter().rev().nth(depth).copied()
     }
 
@@ -344,10 +344,12 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         // pop it. If we shouldn't have popped it then it's passed to the slow
         // path to get pushed back onto the stack.
         let popped = if let Some(actual_ty) = self.operands.pop() {
-            if actual_ty == expected {
-                if let Some(control) = self.control.last() {
-                    if self.operands.len() >= control.height {
-                        return Ok(actual_ty);
+            if let Some(expected) = expected {
+                if actual_ty == expected {
+                    if let Some(control) = self.control.last() {
+                        if self.operands.len() >= control.height {
+                            return Ok(actual_ty);
+                        }
                     }
                 }
             }
@@ -368,7 +370,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         offset: usize,
         expected: Option<ValType>,
         popped: Option<ValType>,
-    ) -> Result<Option<ValType>> {
+    ) -> Result<ValType> {
         self.operands.extend(popped);
         let control = match self.control.last() {
             Some(c) => c,
@@ -415,7 +417,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 heap_type: HeapType::Bot,
             }),
             ValType::Ref(rt) => Ok(rt),
-            ty => bail_op_err!(
+            ty => bail!(
                 offset,
                 "type mismatch: expected ref but found {}",
                 ty_to_str(ty)
@@ -588,14 +590,14 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     fn check_function_references_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.function_references {
-            bail_op_err!(offset, "function references support is not enabled",);
+            bail!(offset, "function references support is not enabled",);
         }
         Ok(())
     }
 
     fn check_tail_call_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.tail_call {
-            bail_op_err!(offset, "tail call support is not enabled",);
+            bail!(offset, "tail call support is not enabled",);
         }
         Ok(())
     }
@@ -680,10 +682,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         let ty = match self.resources.func_type_at(type_index) {
             Some(i) => i,
             None => {
-                bail_op_err!(
+                bail!(
                     offset,
-                    "unknown type {}: type index out of bounds",
-                    type_index
+                    "unknown type {type_index}: type index out of bounds",
                 );
             }
         };
@@ -1248,7 +1249,7 @@ where
         match rt.heap_type {
             HeapType::Index(type_index) => self.check_call_ty(offset, type_index)?,
             HeapType::Bot => (),
-            _ => bail_op_err!(
+            _ => bail!(
                 offset,
                 "type mismatch: instruction requires function reference type but stack has {}",
                 ty_to_str(ValType::Ref(rt))
@@ -2229,7 +2230,7 @@ where
                     )
                 }
             }
-            Some(ty) => bail_op_err!(
+            Some(ty) => bail!(
                 offset,
                 "type mismatch: expected {} but found {}",
                 ty_to_str(rt0),
