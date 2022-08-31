@@ -1,6 +1,6 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 04 23       | core type section
+  0x8 | 03 23       | core type section
   0xa | 01          | 1 count
   0xb | 50 05 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) }), Import(Import { module: "", name: "g", ty: Global(GlobalType { content_type: I32, mutable: false }) }), Import(Import { module: "", name: "t", ty: Table(TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }) }), Import(Import { module: "", name: "m", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) })])
       | 00 00 00 00
@@ -11,9 +11,9 @@
       | 70 00 01 00
       | 00 01 6d 02
       | 00 01      
- 0x2d | 0b 05       | component import section
+ 0x2d | 0a 05       | component import section
  0x2f | 01          | 1 count
  0x30 | 00 00 11 00 | [module 0] ComponentImport { name: "", ty: Module(0) }
- 0x34 | 08 03       | component type section
+ 0x34 | 07 03       | component type section
  0x36 | 01          | 1 count
  0x37 | 42 00       | [type 0] Instance([])

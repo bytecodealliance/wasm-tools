@@ -50,7 +50,10 @@ subcommands! {
 }
 
 fn main() -> ExitCode {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
+        .format_target(false)
+        .init();
+
     let err = match <WasmTools as Parser>::parse().run() {
         Ok(()) => return ExitCode::SUCCESS,
         Err(e) => e,

@@ -22,7 +22,7 @@ indexmap = "1.6"
 leb128 = "0.2.4"
 serde = { version = "1", features = ['derive'], optional = true }
 wasm-encoder = { version = "0.16.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.89.0", path = "../wasmparser" }
+wasmparser = { version = "0.90.0", path = "../wasmparser" }
 
 [dev-dependencies]
 criterion = "0.3.3"

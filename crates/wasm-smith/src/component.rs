@@ -865,17 +865,16 @@ impl ComponentBuilder {
 
                 // Alias
                 3 => {
-                    let alias = self.arbitrary_outer_core_type_alias(u, &types)?;
-                    let ty = match &alias {
-                        CoreAlias::InstanceExport { .. } => unreachable!(),
-                        CoreAlias::Outer {
-                            count,
-                            i,
-                            kind: CoreOuterAliasKind::Type(ty),
-                        } => ty,
+                    let (count, index, kind) = self.arbitrary_outer_core_type_alias(u, &types)?;
+                    let ty = match &kind {
+                        CoreOuterAliasKind::Type(ty) => ty.clone(),
                     };
-                    types.push(ty.clone());
-                    defs.push(ModuleTypeDef::Alias(alias));
+                    types.push(ty);
+                    defs.push(ModuleTypeDef::OuterAlias {
+                        count,
+                        i: index,
+                        kind,
+                    });
                 }
 
                 _ => unreachable!(),
@@ -1145,7 +1144,7 @@ impl ComponentBuilder {
         &self,
         u: &mut Unstructured,
         local_types: &[Rc<crate::core::FuncType>],
-    ) -> Result<CoreAlias> {
+    ) -> Result<(u32, u32, CoreOuterAliasKind)> {
         let enclosing_type_len = if !self.types.is_empty() {
             self.types.last().unwrap().core_func_types.len()
         } else {
@@ -1174,11 +1173,7 @@ impl ComponentBuilder {
             unreachable!()
         };
 
-        Ok(CoreAlias::Outer {
-            count,
-            i: index,
-            kind: CoreOuterAliasKind::Type(ty),
-        })
+        Ok((count, index, CoreOuterAliasKind::Type(ty)))
     }
 
     fn arbitrary_outer_type_alias(&self, u: &mut Unstructured) -> Result<Alias> {
@@ -1872,7 +1867,6 @@ enum Section {
     Custom(CustomSection),
     CoreModule(crate::Module),
     CoreInstance(CoreInstanceSection),
-    CoreAlias(CoreAliasSection),
     CoreType(CoreTypeSection),
     Component(Component),
     Instance(InstanceSection),
@@ -1921,7 +1915,11 @@ struct ModuleType {
 enum ModuleTypeDef {
     TypeDef(crate::core::Type),
     Import(crate::core::Import),
-    Alias(CoreAlias),
+    OuterAlias {
+        count: u32,
+        i: u32,
+        kind: CoreOuterAliasKind,
+    },
     Export(String, crate::core::EntityType),
 }
 
@@ -1931,20 +1929,6 @@ enum Type {
     Func(Rc<FuncType>),
     Component(Rc<ComponentType>),
     Instance(Rc<InstanceType>),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-enum CoreAlias {
-    InstanceExport {
-        instance: u32,
-        name: String,
-        kind: CoreInstanceExportAliasKind,
-    },
-    Outer {
-        count: u32,
-        i: u32,
-        kind: CoreOuterAliasKind,
-    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1967,6 +1951,11 @@ enum Alias {
         instance: u32,
         name: String,
         kind: InstanceExportAliasKind,
+    },
+    CoreInstanceExport {
+        instance: u32,
+        name: String,
+        kind: CoreInstanceExportAliasKind,
     },
     Outer {
         count: u32,
@@ -2201,9 +2190,6 @@ struct AliasSection {}
 
 #[derive(Debug)]
 struct CoreInstanceSection {}
-
-#[derive(Debug)]
-struct CoreAliasSection {}
 
 #[derive(Debug)]
 struct CoreTypeSection {

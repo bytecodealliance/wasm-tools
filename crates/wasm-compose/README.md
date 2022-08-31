@@ -26,25 +26,46 @@ It is made available as the `compose` subcommand of `wasm-tools`.
 A quick note on the implementation status of the component model
 proposal:
 
-__At this time of this writing, no WebAssembly runtimes have fully
-implemented the component model proposal.__
+At this time of this writing, no WebAssembly runtimes have fully
+implemented the component model proposal.
 
 __[Wasmtime](https://github.com/bytecodealliance/wasmtime)
-has implementation efforts underway to support it, but it's still a
-_work-in-progress_.__
+has implementation efforts underway to support it.__
 
 ## Usage
 
-With a configuration file present, run the `compose` command without
-any options to compose a component:
+To composed a component, run the `compose` command:
 
 ```sh
-wasm-tools compose
+wasm-tools compose -o composed.wasm component.wasm
 ```
+
+This will automatically search for dependencies at the same location
+as the input component, `component.wasm`, and create a composed
+component named `composed.wasm`.
+
+Any unresolved dependencies will remain as imports in the composed
+component.
 
 ## Configuration
 
 See [configuring `wasm-compose`](CONFIG.md) for more information on authoring configuration files.
+
+## How it works
+
+`wasm-compose` starts with the input component and then processes each of the component's instance imports.
+
+For each instance import, `wasm-compose` will consult its configuration to determine how to locate a dependency with the same name as the import.
+
+If the dependency is not specified in the configuration, `wasm-compose` will search the configured search paths for a matching component file.
+
+If a component to satisfy the dependency cannot be found, it will remain as an instance import in the composed component; at least one dependency must be satisfied for the component to be composed.
+
+`wasm-compose` then repeats this process for all of the transitive imports of dependent components that have been found.
+
+The composed component will, by default, define the transitive component dependencies directly in the composed component; it will then instantiate the dependencies in a topological order.
+
+Finally the input component is instantiated and all of its exports are then exported from the composed component.
 
 ## Example
 

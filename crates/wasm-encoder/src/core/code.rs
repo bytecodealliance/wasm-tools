@@ -138,7 +138,7 @@ impl Section for CodeSection {
 /// let mut code = CodeSection::new();
 /// code.function(&func);
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Function {
     bytes: Vec<u8>,
 }

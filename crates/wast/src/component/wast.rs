@@ -98,30 +98,32 @@ static CASES: &[(&str, fn(Parser<'_>) -> Result<WastVal<'_>>)] = {
             let payload = if p.is_empty() {
                 None
             } else {
-                Some(Box::new(p.parse()?))
+                Some(Box::new(p.parens(|p| p.parse())?))
             };
             Ok(Variant(name, payload))
         }),
         ("enum.const", |p| Ok(Enum(p.parse()?))),
         ("union.const", |p| {
             let num = p.parse()?;
-            let payload = Box::new(p.parse()?);
+            let payload = Box::new(p.parens(|p| p.parse())?);
             Ok(Union(num, payload))
         }),
         ("option.none", |_| Ok(Option(None))),
-        ("option.some", |p| Ok(Option(Some(Box::new(p.parse()?))))),
+        ("option.some", |p| {
+            Ok(Option(Some(Box::new(p.parens(|p| p.parse())?))))
+        }),
         ("result.ok", |p| {
             Ok(Result(Ok(if p.is_empty() {
                 None
             } else {
-                Some(Box::new(p.parse()?))
+                Some(Box::new(p.parens(|p| p.parse())?))
             })))
         }),
         ("result.err", |p| {
             Ok(Result(Err(if p.is_empty() {
                 None
             } else {
-                Some(Box::new(p.parse()?))
+                Some(Box::new(p.parens(|p| p.parse())?))
             })))
         }),
         ("flags.const", |p| {

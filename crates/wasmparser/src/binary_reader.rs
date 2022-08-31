@@ -75,6 +75,11 @@ impl BinaryReaderError {
     }
 
     #[cold]
+    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
+        BinaryReaderError::new(args.to_string(), offset)
+    }
+
+    #[cold]
     pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
@@ -215,7 +220,7 @@ impl<'a> BinaryReader<'a> {
             arguments: (0..size)
                 .map(|_| self.read_var_u32())
                 .collect::<Result<_>>()?,
-            results: self.read_var_u32()?,
+            results: self.read_size(MAX_WASM_FUNCTION_RETURNS, "start function results")? as u32,
         })
     }
 
@@ -279,20 +284,17 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
-        let params_len = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
-        let mut params = Vec::with_capacity(params_len);
-        for _ in 0..params_len {
-            params.push(self.read_val_type()?);
+        let len_params = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
+        let mut params_results = Vec::with_capacity(len_params);
+        for _ in 0..len_params {
+            params_results.push(self.read_val_type()?);
         }
-        let returns_len = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
-        let mut returns = Vec::with_capacity(returns_len);
-        for _ in 0..returns_len {
-            returns.push(self.read_val_type()?);
+        let len_results = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
+        params_results.reserve(len_results);
+        for _ in 0..len_results {
+            params_results.push(self.read_val_type()?);
         }
-        Ok(FuncType {
-            params: params.into_boxed_slice(),
-            returns: returns.into_boxed_slice(),
-        })
+        Ok(FuncType::from_raw_parts(params_results.into(), len_params))
     }
 
     pub(crate) fn read_type(&mut self) -> Result<Type> {
@@ -372,7 +374,24 @@ impl<'a> BinaryReader<'a> {
         Ok(match self.read_u8()? {
             0x00 => ModuleTypeDeclaration::Import(self.read_import()?),
             0x01 => ModuleTypeDeclaration::Type(self.read_type()?),
-            0x02 => ModuleTypeDeclaration::Alias(self.read_alias()?),
+            0x02 => {
+                let kind = match self.read_u8()? {
+                    0x10 => OuterAliasKind::Type,
+                    x => {
+                        return self.invalid_leading_byte(x, "outer alias kind");
+                    }
+                };
+                match self.read_u8()? {
+                    0x01 => ModuleTypeDeclaration::OuterAlias {
+                        kind,
+                        count: self.read_var_u32()?,
+                        index: self.read_var_u32()?,
+                    },
+                    x => {
+                        return self.invalid_leading_byte(x, "outer alias target");
+                    }
+                }
+            }
             0x03 => ModuleTypeDeclaration::Export {
                 name: self.read_string()?,
                 ty: self.read_type_ref()?,
@@ -669,34 +688,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_alias(&mut self) -> Result<Alias<'a>> {
-        let offset = self.original_position();
-        let kind = self.read_u8()?;
-
-        Ok(match self.read_u8()? {
-            0x00 => Alias::InstanceExport {
-                kind: Self::external_kind_from_byte(kind, offset)?,
-                instance_index: self.read_var_u32()?,
-                name: self.read_string()?,
-            },
-            0x01 => Alias::Outer {
-                kind: match kind {
-                    0x10 => OuterAliasKind::Type,
-                    x => {
-                        return Err(Self::invalid_leading_byte_error(
-                            x,
-                            "outer alias kind",
-                            offset,
-                        ))
-                    }
-                },
-                count: self.read_var_u32()?,
-                index: self.read_var_u32()?,
-            },
-            x => return self.invalid_leading_byte(x, "alias"),
-        })
-    }
-
     fn component_outer_alias_kind_from_bytes(
         byte1: u8,
         byte2: Option<u8>,
@@ -742,7 +733,17 @@ impl<'a> BinaryReader<'a> {
                 instance_index: self.read_var_u32()?,
                 name: self.read_string()?,
             },
-            0x01 => ComponentAlias::Outer {
+            0x01 => ComponentAlias::CoreInstanceExport {
+                kind: Self::external_kind_from_byte(
+                    byte2.ok_or_else(|| {
+                        Self::invalid_leading_byte_error(byte1, "core instance export kind", offset)
+                    })?,
+                    offset,
+                )?,
+                instance_index: self.read_var_u32()?,
+                name: self.read_string()?,
+            },
+            0x02 => ComponentAlias::Outer {
                 kind: Self::component_outer_alias_kind_from_bytes(byte1, byte2, offset)?,
                 count: self.read_var_u32()?,
                 index: self.read_var_u32()?,
@@ -856,10 +857,7 @@ impl<'a> BinaryReader<'a> {
     fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
         let size = self.read_var_u32()? as usize;
         if size > limit {
-            return Err(BinaryReaderError::new(
-                format!("{} size is out of bounds", desc),
-                self.original_position() - 4,
-            ));
+            bail!(self.original_position() - 4, "{desc} size is out of bounds",);
         }
         Ok(size)
     }
@@ -1007,6 +1005,7 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     ///
     /// If `BinaryReader` has no bytes remaining.
+    #[inline]
     pub fn read_u8(&mut self) -> Result<u8> {
         let b = match self.buffer.get(self.position) {
             Some(b) => *b,
@@ -1319,12 +1318,8 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    #[cold]
     fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> BinaryReaderError {
-        BinaryReaderError::new(
-            format!("invalid leading byte (0x{:x}) for {}", byte, desc),
-            offset,
-        )
+        format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 
     fn peek(&self) -> Result<u8> {
@@ -1619,20 +1614,20 @@ impl<'a> BinaryReader<'a> {
             0xa5 => visitor.visit_f64_max(pos),
             0xa6 => visitor.visit_f64_copysign(pos),
             0xa7 => visitor.visit_i32_wrap_i64(pos),
-            0xa8 => visitor.visit_i32_trunc_f32s(pos),
-            0xa9 => visitor.visit_i32_trunc_f32u(pos),
-            0xaa => visitor.visit_i32_trunc_f64s(pos),
-            0xab => visitor.visit_i32_trunc_f64u(pos),
-            0xac => visitor.visit_i64_extend_i32s(pos),
-            0xad => visitor.visit_i64_extend_i32u(pos),
-            0xae => visitor.visit_i64_trunc_f32s(pos),
-            0xaf => visitor.visit_i64_trunc_f32u(pos),
-            0xb0 => visitor.visit_i64_trunc_f64s(pos),
-            0xb1 => visitor.visit_i64_trunc_f64u(pos),
-            0xb2 => visitor.visit_f32_convert_i32s(pos),
-            0xb3 => visitor.visit_f32_convert_i32u(pos),
-            0xb4 => visitor.visit_f32_convert_i64s(pos),
-            0xb5 => visitor.visit_f32_convert_i64u(pos),
+            0xa8 => visitor.visit_i32_trunc_f32_s(pos),
+            0xa9 => visitor.visit_i32_trunc_f32_u(pos),
+            0xaa => visitor.visit_i32_trunc_f64_s(pos),
+            0xab => visitor.visit_i32_trunc_f64_u(pos),
+            0xac => visitor.visit_i64_extend_i32_s(pos),
+            0xad => visitor.visit_i64_extend_i32_u(pos),
+            0xae => visitor.visit_i64_trunc_f32_s(pos),
+            0xaf => visitor.visit_i64_trunc_f32_u(pos),
+            0xb0 => visitor.visit_i64_trunc_f64_s(pos),
+            0xb1 => visitor.visit_i64_trunc_f64_u(pos),
+            0xb2 => visitor.visit_f32_convert_i32_s(pos),
+            0xb3 => visitor.visit_f32_convert_i32_u(pos),
+            0xb4 => visitor.visit_f32_convert_i64_s(pos),
+            0xb5 => visitor.visit_f32_convert_i64_u(pos),
             0xb6 => visitor.visit_f32_demote_f64(pos),
             0xb7 => visitor.visit_f64_convert_i32_s(pos),
             0xb8 => visitor.visit_f64_convert_i32_u(pos),
@@ -1657,27 +1652,22 @@ impl<'a> BinaryReader<'a> {
             0xd4 => visitor.visit_br_on_null(pos, self.read_var_u32()?),
             0xd6 => visitor.visit_br_on_non_null(pos, self.read_var_u32()?),
 
-            0xfc => self.visit_0xfc_operator(visitor)?,
-            0xfd => self.visit_0xfd_operator(visitor)?,
-            0xfe => self.visit_0xfe_operator(visitor)?,
+            0xfc => self.visit_0xfc_operator(pos, visitor)?,
+            0xfd => self.visit_0xfd_operator(pos, visitor)?,
+            0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("illegal opcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "illegal opcode: 0x{code:x}"),
         })
     }
 
     fn visit_0xfc_operator<T>(
         &mut self,
+        pos: usize,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
-        let pos = self.original_position();
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => visitor.visit_i32_trunc_sat_f32_s(pos),
@@ -1736,23 +1726,18 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_table_fill(pos, table)
             }
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("unknown 0xfc subopcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "unknown 0xfc subopcode: 0x{code:x}"),
         })
     }
 
     fn visit_0xfd_operator<T>(
         &mut self,
+        pos: usize,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
-        let pos = self.original_position();
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => visitor.visit_v128_load(pos, self.read_memarg()?),
@@ -2054,23 +2039,18 @@ impl<'a> BinaryReader<'a> {
             0xfe => visitor.visit_f64x2_convert_low_i32x4_s(pos),
             0xff => visitor.visit_f64x2_convert_low_i32x4_u(pos),
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("unknown 0xfd subopcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "unknown 0xfd subopcode: 0x{code:x}"),
         })
     }
 
     fn visit_0xfe_operator<T>(
         &mut self,
+        pos: usize,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
-        let pos = self.original_position();
         let code = self.read_var_u32()?;
         Ok(match code {
             0x00 => visitor.visit_memory_atomic_notify(pos, self.read_memarg_of_align(2)?),
@@ -2141,12 +2121,7 @@ impl<'a> BinaryReader<'a> {
             0x4d => visitor.visit_i64_atomic_rmw16_cmpxchg_u(pos, self.read_memarg_of_align(1)?),
             0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(pos, self.read_memarg_of_align(2)?),
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("unknown 0xfe subopcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })
     }
 
@@ -2365,7 +2340,7 @@ impl<'a> OperatorFactory<'a> {
 }
 
 macro_rules! define_visit_operator {
-    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) -> Operator<'a> {
                 Operator::$op $({ $($arg),* })?

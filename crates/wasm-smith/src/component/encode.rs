@@ -27,7 +27,6 @@ impl Section {
                 });
             }
             Self::CoreInstance(_) => todo!(),
-            Self::CoreAlias(_) => todo!(),
             Self::CoreType(sec) => sec.encode(component),
             Self::Component(comp) => {
                 let bytes = comp.to_bytes();
@@ -128,15 +127,10 @@ impl CoreType {
                                 func_ty.results.iter().copied(),
                             );
                         }
-                        ModuleTypeDef::Alias(alias) => match alias {
-                            CoreAlias::Outer {
-                                count,
-                                i,
-                                kind: CoreOuterAliasKind::Type(_),
-                            } => {
+                        ModuleTypeDef::OuterAlias { count, i, kind } => match kind {
+                            CoreOuterAliasKind::Type(_) => {
                                 enc_mod_ty.alias_outer_core_type(*count, *i);
                             }
-                            CoreAlias::InstanceExport { .. } => unreachable!(),
                         },
                         ModuleTypeDef::Import(imp) => {
                             enc_mod_ty.import(

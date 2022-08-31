@@ -1,0 +1,4 @@
+instantiations:
+  $component:
+    arguments:
+      invalid: a

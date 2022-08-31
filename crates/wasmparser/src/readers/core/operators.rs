@@ -101,7 +101,7 @@ impl V128 {
 }
 
 macro_rules! define_operator {
-    ($($op:ident $({ $($payload:tt)* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($payload:tt)* })? => $visit:ident)*) => {
         /// Instructions as defined [here].
         ///
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
@@ -298,7 +298,7 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
 }
 
 macro_rules! define_visit_operator {
-    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             fn $visit(&mut self, offset: usize $($(,$arg: $argty)*)?) -> Self::Output;
         )*
@@ -321,7 +321,7 @@ pub trait VisitOperator<'a> {
     /// implement [`VisitOperator`] on their own.
     fn visit_operator(&mut self, offset: usize, op: &Operator<'a>) -> Self::Output {
         macro_rules! visit_operator {
-            ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
                 match op {
                     $(
                         Operator::$op $({ $($arg),* })? => self.$visit(offset, $($($arg.clone()),*)?),

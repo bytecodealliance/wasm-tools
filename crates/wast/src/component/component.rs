@@ -139,7 +139,6 @@ impl<'a> Parse<'a> for Component<'a> {
 pub enum ComponentField<'a> {
     CoreModule(CoreModule<'a>),
     CoreInstance(CoreInstance<'a>),
-    CoreAlias(CoreAlias<'a>),
     CoreType(CoreType<'a>),
     Component(NestedComponent<'a>),
     Instance(Instance<'a>),
@@ -172,9 +171,6 @@ impl<'a> Parse<'a> for ComponentField<'a> {
             }
             if parser.peek2::<kw::instance>() {
                 return Ok(Self::CoreInstance(parser.parse()?));
-            }
-            if parser.peek2::<kw::alias>() {
-                return Ok(Self::CoreAlias(parser.parse()?));
             }
             if parser.peek2::<kw::r#type>() {
                 return Ok(Self::CoreType(parser.parse()?));

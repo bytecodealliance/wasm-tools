@@ -1,212 +1,123 @@
 # Configuring `wasm-compose`
 
-By default, `wasm-tools compose` looks for a composition configuration file
-named `wasm-compose.yml` in the current directory.
+`wasm-compose` can be configured using a YAML configuration file.
 
-The composition configuration currently has three mappings:
+To specify the configuration file to use, pass the `--config` option to
+`wasm-tools compose`.
 
-* `components` - maps a friendly name to a component to be instantiated.
-* `instantiations` - maps a friendly name to an instantiation of a component.
-* `exports` - specifies what gets exported from the resulting composed component.
+The configuration file has the following top-level fields:
 
-## Components
+* `search-paths` : `list<string>` (optional) - a list of paths to search for dependencies.
+* `skip-validation` : `bool` (optional) - a boolean indicating whether to skip 
+  validation of the resulting composed component.
+* `dependencies` : `map<string, dependency>` (optional) - a map specifying the explicit
+  locations of transitive dependencies.
+* `instantiations` : `map<string, instantiation>` (optional) - a map specifying the explicit
+  instantiations of transitive dependencies.
 
-Each component specified in the `components` mapping will result in a component
-definition (embedding) or a component import in the resulting composed component.
+## Dependencies
 
-A component has the following fields:
+Each `dependency` specifies a path where `wasm-compose` may locate a dependency, rather
+than searching the configured search paths.
 
-* `path`: string - the path to the WebAssembly component file.
-  The path is relative to the configuration file.
+A dependency has the following fields:
 
-* `import`: string (optional) - the name to use for to import the component.
-  If unspecified, the component at the given path will be embedded directly in
+* `path` : `string` - the path to the WebAssembly component file; the path is
+  relative to the configuration file.
+
+* `import` : `string` (optional) - the name to use for importing the component.
+  If not present, the component at the given path will be defined directly in
   the composed component.
 
-An example:
+Dependencies may be specified as a `string` rather than a `map`, in which case
+it is treated as having a `path` field with the value of the string.
+
+### Dependencies example
+
+An example of specifying dependencies:
 
 ```yaml
-components:
-  foo:
-    path: foo.wasm
-  bar:
-    path: bar.wasm
-    import: bar
+dependencies:
+  a: a.wasm
+  b:
+    path: b.wasm
+    import: b
 ```
 
-In the above example, two components are defined in the configuration:
+In the above example, two dependencies are defined in the configuration:
 
-* `foo` - the contents of `foo.wasm` will be embedded directly in the composed
-  component as a defined component.
-* `bar` - a component of the same type as `bar.wasm` will be imported in the composed
-  component with name `bar`; the original file will not be embedded in the composed
+* `a` - the contents of `a.wasm` will be defined directly in the composed component.
+* `b` - a component of the same type as `b.wasm` will be imported in the composed
+  component with name `b`; the original file will not be embedded in the composed
   component.
-
-Each component is referred to by its friendly name (e.g. `foo`) for the remainder of
-the configuration file.
 
 _Note: importing components from a composed component is not currently supported in_
 _[Wasmtime](https://github.com/bytecodealliance/wasmtime)._
 
+Dependency names should match the expected name of imports from components in the
+component graph.
+
 ## Instantiations
 
-The `instantiations` mapping defines how the components are instantiated in the
-composed component.
+Each `instantiation` specifies how a particular dependency is to be instantiated, even
+allowing a dependency to be instantiated multiple times.
 
 An instantiation has the following fields:
 
-* `component`: (optional) string - the friendly name of the component to instantiate.
-  If unspecified, the instantiation will be for a component of the same name as the
+* `dependency` : `string` (optional) - the name of the dependency to instantiate.
+  If unspecified, the instantiation will be for a dependency of the same name as the
   instantiation itself.
 
-* `with`: (optional) mapping - a mapping of instantiation argument names to
-  instantiation names. This is used to explicitly specify the arguments to an
-  instantiation.
+* `arguments` : `map<string, argument>` (optional) - a mapping of argument names to
+  arguments; argument names match the names of the imports of the dependency being
+  instantiated.
 
-* `dependencies`: (optional) list of strings - the friendly names of the instances
-  that can be used to automatically resolve instantiation arguments that were not
-  specified in `with`.
-
-An example:
-
-```yaml
-...
-
-instantiations:
-  foo: {}
-  bar:
-    dependencies: [foo]
-```
-
-In the above example, there are two instantiations defined in the configuration:
-
-* `foo` - an instantiation of component `foo` with no arguments or dependencies on other
-  instances; this assumes that `foo.wasm` has no imported items.
-
-* `bar` - an instantiation of component `bar` using instance `foo` to resolve all
-  arguments for the instantiation.
-
-Each instance resulting from an instantiation is referred to by its friendly name (e.g. `foo`)
-for the remainder of the configuration file.
-
-Because component `foo` has no imports, we can omit it from the list of instances to have it
-implicitly instantiated when referenced from another instantiation:
-
-```yaml
-...
-
-instantiations:
-  bar:
-    dependencies: [foo]
-```
-
-The above example is semantically equivalent to the previous example.
-
-By default, an instantiation looks for a component of the same name in the configuration.
-This can be overridden by using the `component` field:
-
-```yaml
-...
-
-instantiations:
-  bar:
-    component: foo
-```
-
-With the above example, the instance named `bar` instantiates the component named `foo`
-instead of component named `bar`.
+Note that the instantiation name `$component` is special and signifies how the input
+component is to be instantiated.
 
 ### Instantiation arguments
 
-To instantiate a component, it must be instantiated with the imports the component
-expects.
+Each `argument` specifies exactly which instance should be provided as argument to the
+instantiation of a dependency.
 
-Each expected import of a component is treated as an "argument" that gets passed another
-instance defined in the configuration.
+An argument has the following fields:
 
-There are two ways of specifying the arguments of an instantiation: _explicit_ and
-_implicit_.
+* `instance` : `string` - the name of the instance to pass as the argument.
 
-#### Explicit instantiation arguments
+* `export` : `string` (optional) - the name of the exported instance on `instance` to use
+  as the argument; if not present, the instance specified by `instance` will be passed
+  directly.
 
-Instantiation arguments may be explicitly specified using the `with` field when
-defining an instantiation:
+Arguments may be specified as a `string` rather than a `map`, in which case
+it is treated as having an `instance` field with the value of the string.
+
+## Instantiations example
+
+A slightly complex example of configuring instantiations:
 
 ```yaml
-...
-
 instantiations:
-  bar:
-    with:
-      a: foo
+  $component:
+    arguments:
+      a: b
+  b:
+    arguments:
+      c:
+        instance: d
+        export: e
+  d:
+    dependency: f
 ```
 
-The example above defines an instantiation named `bar` that will instantiate
-component `bar` with instance `foo` as the argument named `a`.
+In the above example, the `$component` instantiation (i.e. the root instantiation) has explicitly
+specified that the argument named `a` is to be provided instance `b`.
 
-It is an error if component `bar` does not have an import named `a` or if instance
-`foo` is incompatible with what component `bar` expects to import.
+It also defines an instantiation named `b` which is to be passed an instance export named `e`
+from instance `d` (of a dependency named `f`) for the instantiation argument named `c`.
 
-#### Implicit instantiation arguments
+By default, `wasm-compose` will minimize the number of instantiations and dependencies which share
+an import of the same name will share the same instance of that dependency, provided that the
+instance is compatible with every import.
 
-In addition to (or in lieu of) explicitly specifying the arguments of an instantiation,
-instantiation arguments may be automatically resolved by `wasm-compose` from a list of
-instance dependencies.
-
-The list of instance dependencies can be specified using the `dependencies` field:
-
-```yaml
-...
-
-instantiations:
-  bar:
-    dependencies: [foo]
-```
-
-In the above example, the instantiation named `bar` will resolve all of the arguments
-using instance `foo`. As in the previous example, if we assume that component `bar`
-has a single import named `a` that is compatible with instance `foo`, then
-`wasm-compose` will automatically pass instance `foo` as the argument named `a`.
-
-The resolution of implicit arguments is performed using the following steps:
-
-* For each import of the component that does not have an explicit argument
-  (i.e. not used in the `with` mapping):
-  * For each instance specified in the `dependencies` list:
-    * If the import is compatible with the instance, then the instance is passed
-      as the argument and it moves on to the next import.
-    * If the import is not compatible with the instance, then it moves on
-      to the next instance in the `dependencies` list.
-
-It is an error if more than one instance in the `dependencies` list is compatible
-with a particular import of the component being instantiated.
-
-If this occurs, an explicit argument must be specified using the `with` field.
-
-### Aliasing exports for instantiations
-
-Currently `wasm-compose` only looks at the direct exports of an instance to resolve
-instantiation arguments.
-
-Support for aliasing of instance exports so they can be used in the `with` field or
-automatically resolved by `wasm-compose` via the `dependencies` list is forthcoming.
-
-## Exports
-
-The `exports` mapping defines the exports of the composed component.
-
-Currently, it only supports exporting the _default_ interface from a single
-instance:
-
-```yaml
-...
-
-exports:
-  default: foo
-```
-
-Here the composed component will export the _default_ interface (i.e. all functions
-directly exported) of instance `foo`.
-
-Support for aliasing and exporting non-default interfaces from an instance is
-forthcoming.
+Configuring instantiations for `wasm-compose` allows for a custom instantiation graph to be
+constructed in the composed component.

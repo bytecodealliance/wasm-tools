@@ -1,8 +1,15 @@
 use crate::{
-    Alias, BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, FuncType, Import,
-    Result, SectionIteratorLimited, SectionReader, SectionWithLimitedItems, Type, TypeRef,
+    BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, FuncType, Import, Result,
+    SectionIteratorLimited, SectionReader, SectionWithLimitedItems, Type, TypeRef,
 };
 use std::ops::Range;
+
+/// Represents the kind of an outer core alias in a WebAssembly component.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OuterAliasKind {
+    /// The alias is to a core type.
+    Type,
+}
 
 /// Represents a core type in a WebAssembly component.
 #[derive(Debug, Clone)]
@@ -25,8 +32,15 @@ pub enum ModuleTypeDeclaration<'a> {
         /// The type reference of the export.
         ty: TypeRef,
     },
-    /// The module type declaration is for an alias.
-    Alias(Alias<'a>),
+    /// The module type declaration is for an outer alias.
+    OuterAlias {
+        /// The alias kind.
+        kind: OuterAliasKind,
+        /// The outward count, starting at zero for the current type.
+        count: u32,
+        /// The index of the item within the outer type.
+        index: u32,
+    },
     /// The module type definition is for an import.
     Import(Import<'a>),
 }

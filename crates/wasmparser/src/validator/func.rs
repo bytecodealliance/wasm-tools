@@ -1,4 +1,4 @@
-use super::operators::OperatorValidator;
+use super::operators::{Frame, OperatorValidator};
 use crate::{BinaryReader, HeapType, Result, ValType};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 
@@ -37,14 +37,6 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             resources,
             index,
         })
-    }
-
-    /// Get the current height of the operand stack.
-    ///
-    /// This returns the height of the whole operand stack for this function,
-    /// not just for the current control frame.
-    pub fn operand_stack_height(&self) -> u32 {
-        self.validator.operand_stack_height() as u32
     }
 
     /// Convenience function to validate an entire function's body.
@@ -118,6 +110,58 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// is being validated.
     pub fn index(&self) -> u32 {
         self.index
+    }
+
+    /// Returns the number of defined local variables in the function.
+    pub fn len_locals(&self) -> u32 {
+        self.validator.locals.len_locals()
+    }
+
+    /// Returns the type of the local variable at the given `index` if any.
+    pub fn get_local_type(&self, index: u32) -> Option<ValType> {
+        self.validator.locals.get(index)
+    }
+
+    /// Get the current height of the operand stack.
+    ///
+    /// This returns the height of the whole operand stack for this function,
+    /// not just for the current control frame.
+    pub fn operand_stack_height(&self) -> u32 {
+        self.validator.operand_stack_height() as u32
+    }
+
+    /// Returns the optional value type of the value operand at the given
+    /// `depth` from the top of the operand stack.
+    ///
+    /// - Returns `None` if the `depth` is out of bounds.
+    /// - Returns `Some(None)` if there is a value with unknown type
+    /// at the given `depth`.
+    ///
+    /// # Note
+    ///
+    /// A `depth` of 0 will refer to the last operand on the stack.
+    pub fn get_operand_type(&self, depth: usize) -> Option<Option<ValType>> {
+        self.validator.peek_operand_at(depth)
+    }
+
+    /// Returns the number of frames on the control flow stack.
+    ///
+    /// This returns the height of the whole control stack for this function,
+    /// not just for the current control frame.
+    pub fn control_stack_height(&self) -> u32 {
+        self.validator.control_stack_height() as u32
+    }
+
+    /// Returns a shared reference to the control flow [`Frame`] of the
+    /// control flow stack at the given `depth` if any.
+    ///
+    /// Returns `None` if the `depth` is out of bounds.
+    ///
+    /// # Note
+    ///
+    /// A `depth` of 0 will refer to the last frame on the stack.
+    pub fn get_control_frame(&self, depth: usize) -> Option<&Frame> {
+        self.validator.get_frame(depth)
     }
 }
 
@@ -225,7 +269,7 @@ mod tests {
 use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, VisitOperator, V128};
 
 macro_rules! define_visit_operator {
-    ($($op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             fn $visit(&mut self, offset: usize $($(,$arg: $argty)*)?) -> Result<()> {
                 self.validator.with_resources(&self.resources)

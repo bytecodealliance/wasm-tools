@@ -60,13 +60,13 @@ impl Mutator for AddTypeMutator {
                 match ty {
                     wasmparser::Type::Func(ty) => {
                         let params = ty
-                            .params
+                            .params()
                             .iter()
                             .copied()
                             .map(map_type)
                             .collect::<Result<Vec<_>, _>>()?;
                         let results = ty
-                            .returns
+                            .results()
                             .iter()
                             .copied()
                             .map(map_type)
