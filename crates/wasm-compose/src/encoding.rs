@@ -208,7 +208,7 @@ impl<'a> TypeEncoder<'a> {
     fn ref_type(ty: wasmparser::RefType) -> ValType {
         match ty {
             wasmparser::FUNC_REF => ValType::FuncRef,
-            wasmparser::EXTERN_REF => ValType::FuncRef,
+            wasmparser::EXTERN_REF => ValType::ExternRef,
             _ => unimplemented!(),
         }
     }
