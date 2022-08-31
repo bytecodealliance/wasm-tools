@@ -598,13 +598,11 @@ impl Parser {
                     (Encoding::Component, 1 /* module */)
                     | (Encoding::Component, 4 /* component */) => {
                         if len as usize > MAX_WASM_MODULE_SIZE {
-                            return Err(BinaryReaderError::new(
-                                format!(
-                                    "{} section is too large",
-                                    if id == 1 { "module" } else { "component " }
-                                ),
+                            bail!(
                                 len_pos,
-                            ));
+                                "{} section is too large",
+                                if id == 1 { "module" } else { "component " }
+                            );
                         }
 
                         let range =
@@ -895,10 +893,10 @@ fn single_u32<'a>(
     // expected.
     let index = content.read_var_u32().map_err(clear_hint)?;
     if !content.eof() {
-        return Err(BinaryReaderError::new(
-            format!("unexpected content in the {} section", desc),
+        bail!(
             content.original_position(),
-        ));
+            "unexpected content in the {desc} section",
+        );
     }
     Ok((index, range))
 }

@@ -1862,12 +1862,14 @@ impl<T> SnapshotList<T> {
 impl<T> std::ops::Index<usize> for SnapshotList<T> {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: usize) -> &T {
         self.get(index).unwrap()
     }
 }
 
 impl<T> std::ops::IndexMut<usize> for SnapshotList<T> {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut T {
         self.get_mut(index).unwrap()
     }
@@ -1876,12 +1878,14 @@ impl<T> std::ops::IndexMut<usize> for SnapshotList<T> {
 impl<T> std::ops::Index<TypeId> for SnapshotList<T> {
     type Output = T;
 
+    #[inline]
     fn index(&self, id: TypeId) -> &T {
         self.get(id.index).unwrap()
     }
 }
 
 impl<T> std::ops::IndexMut<TypeId> for SnapshotList<T> {
+    #[inline]
     fn index_mut(&mut self, id: TypeId) -> &mut T {
         self.get_mut(id.index).unwrap()
     }

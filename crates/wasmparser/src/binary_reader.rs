@@ -75,6 +75,11 @@ impl BinaryReaderError {
     }
 
     #[cold]
+    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
+        BinaryReaderError::new(args.to_string(), offset)
+    }
+
+    #[cold]
     pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
@@ -845,10 +850,7 @@ impl<'a> BinaryReader<'a> {
     fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
         let size = self.read_var_u32()? as usize;
         if size > limit {
-            return Err(BinaryReaderError::new(
-                format!("{} size is out of bounds", desc),
-                self.original_position() - 4,
-            ));
+            bail!(self.original_position() - 4, "{desc} size is out of bounds",);
         }
         Ok(size)
     }
@@ -996,6 +998,7 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     ///
     /// If `BinaryReader` has no bytes remaining.
+    #[inline]
     pub fn read_u8(&mut self) -> Result<u8> {
         let b = match self.buffer.get(self.position) {
             Some(b) => *b,
@@ -1308,12 +1311,8 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    #[cold]
     fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> BinaryReaderError {
-        BinaryReaderError::new(
-            format!("invalid leading byte (0x{:x}) for {}", byte, desc),
-            offset,
-        )
+        format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 
     fn peek(&self) -> Result<u8> {
@@ -1597,12 +1596,7 @@ impl<'a> BinaryReader<'a> {
             0xfd => self.visit_0xfd_operator(pos, visitor)?,
             0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("illegal opcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "illegal opcode: 0x{code:x}"),
         })
     }
 
@@ -1672,12 +1666,7 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_table_fill(pos, table)
             }
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("unknown 0xfc subopcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "unknown 0xfc subopcode: 0x{code:x}"),
         })
     }
 
@@ -1990,12 +1979,7 @@ impl<'a> BinaryReader<'a> {
             0xfe => visitor.visit_f64x2_convert_low_i32x4_s(pos),
             0xff => visitor.visit_f64x2_convert_low_i32x4_u(pos),
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("unknown 0xfd subopcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "unknown 0xfd subopcode: 0x{code:x}"),
         })
     }
 
@@ -2077,12 +2061,7 @@ impl<'a> BinaryReader<'a> {
             0x4d => visitor.visit_i64_atomic_rmw16_cmpxchg_u(pos, self.read_memarg_of_align(1)?),
             0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(pos, self.read_memarg_of_align(2)?),
 
-            _ => {
-                return Err(BinaryReaderError::new(
-                    format!("unknown 0xfe subopcode: 0x{:x}", code),
-                    self.original_position() - 1,
-                ));
-            }
+            _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })
     }
 

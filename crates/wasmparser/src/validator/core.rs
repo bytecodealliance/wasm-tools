@@ -556,9 +556,9 @@ impl Module {
         self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
 
         match self.exports.insert(name.to_string(), ty) {
-            Some(_) => Err(BinaryReaderError::new(
-                format!("duplicate export name `{}` already defined", name),
+            Some(_) => Err(format_err!(
                 offset,
+                "duplicate export name `{name}` already defined"
             )),
             None => Ok(()),
         }
@@ -605,12 +605,10 @@ impl Module {
     }
 
     pub fn type_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
-        self.types.get(idx as usize).copied().ok_or_else(|| {
-            BinaryReaderError::new(
-                format!("unknown type {}: type index out of bounds", idx),
-                offset,
-            )
-        })
+        self.types
+            .get(idx as usize)
+            .copied()
+            .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
 
     fn func_type_at<'a>(
@@ -621,12 +619,7 @@ impl Module {
     ) -> Result<&'a FuncType> {
         types[self.type_at(type_index, offset)?]
             .as_func_type()
-            .ok_or_else(|| {
-                BinaryReaderError::new(
-                    format!("type index {} is not a function type", type_index),
-                    offset,
-                )
-            })
+            .ok_or_else(|| format_err!(offset, "type index {type_index} is not a function type"))
     }
 
     pub fn check_type_ref(
@@ -742,18 +735,19 @@ impl Module {
         offset: usize,
     ) -> Result<IndexMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model
-        self.imports.iter().map(|((module, name), types)| {
-            if types.len() != 1 {
-                return Err(BinaryReaderError::new(
-                    format!(
-                        "module has a duplicate import name `{}:{}` that is not allowed in components",
-                        module, name
-                    ),
-                    offset,
-                ));
-            }
-            Ok(((module.clone(), name.clone()), types[0]))
-        }).collect::<Result<_>>()
+        self.imports
+            .iter()
+            .map(|((module, name), types)| {
+                if types.len() != 1 {
+                    bail!(
+                        offset,
+                        "module has a duplicate import name `{module}:{name}` \
+                         that is not allowed in components",
+                    );
+                }
+                Ok(((module.clone(), name.clone()), types[0]))
+            })
+            .collect::<Result<_>>()
     }
 
     fn check_tag_type(
@@ -826,13 +820,9 @@ impl Module {
     ) -> Result<EntityType> {
         let check = |ty: &str, index: u32, total: usize| {
             if index as usize >= total {
-                Err(BinaryReaderError::new(
-                    format!(
-                        "unknown {ty} {index}: exported {ty} index out of bounds",
-                        index = index,
-                        ty = ty,
-                    ),
+                Err(format_err!(
                     offset,
+                    "unknown {ty} {index}: exported {ty} index out of bounds",
                 ))
             } else {
                 Ok(())
@@ -872,9 +862,9 @@ impl Module {
     ) -> Result<&'a FuncType> {
         match self.functions.get(func_idx as usize) {
             Some(idx) => self.func_type_at(*idx, types, offset),
-            None => Err(BinaryReaderError::new(
-                format!("unknown function {}: func index out of bounds", func_idx),
+            None => Err(format_err!(
                 offset,
+                "unknown function {func_idx}: func index out of bounds",
             )),
         }
     }
@@ -882,9 +872,9 @@ impl Module {
     fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
         match self.globals.get(idx as usize) {
             Some(t) => Ok(t),
-            None => Err(BinaryReaderError::new(
-                format!("unknown global {}: global index out of bounds", idx,),
+            None => Err(format_err!(
                 offset,
+                "unknown global {idx}: global index out of bounds"
             )),
         }
     }
@@ -892,9 +882,9 @@ impl Module {
     fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
         match self.tables.get(idx as usize) {
             Some(t) => Ok(t),
-            None => Err(BinaryReaderError::new(
-                format!("unknown table {}: table index out of bounds", idx),
+            None => Err(format_err!(
                 offset,
+                "unknown table {idx}: table index out of bounds"
             )),
         }
     }
@@ -902,9 +892,9 @@ impl Module {
     fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
         match self.memories.get(idx as usize) {
             Some(t) => Ok(t),
-            None => Err(BinaryReaderError::new(
-                format!("unknown memory {}: memory index out of bounds", idx,),
+            None => Err(format_err!(
                 offset,
+                "unknown memory {idx}: memory index out of bounds"
             )),
         }
     }

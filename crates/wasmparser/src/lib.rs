@@ -667,6 +667,16 @@ macro_rules! for_each_operator {
     };
 }
 
+macro_rules! format_err {
+    ($offset:expr, $($arg:tt)*) => {
+        crate::BinaryReaderError::fmt(format_args!($($arg)*), $offset)
+    }
+}
+
+macro_rules! bail {
+    ($($arg:tt)*) => {return Err(format_err!($($arg)*))}
+}
+
 pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
 pub use crate::parser::*;
 pub use crate::readers::*;

@@ -28,20 +28,6 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-/// Create a `BinaryReaderError` with a format string.
-macro_rules! format_op_err {
-    ( $offset:expr, $( $arg:expr ),* $(,)* ) => {
-        BinaryReaderError::new(format!( $( $arg ),* ), $offset)
-    }
-}
-
-/// Early return an `Err(BinaryReaderError)` with a format string.
-macro_rules! bail_op_err {
-    ( $offset:expr, $( $arg:expr ),* $(,)* ) => {
-        return Err(format_op_err!( $offset, $( $arg ),* ))
-    }
-}
-
 pub(crate) struct OperatorValidator {
     pub(super) locals: Locals,
 
@@ -265,7 +251,7 @@ impl OperatorValidator {
 
     pub fn finish(&mut self, offset: usize) -> Result<()> {
         if self.control.last().is_some() {
-            bail_op_err!(
+            bail!(
                 offset,
                 "control frames remain at end of function: END opcode expected"
             );
@@ -282,7 +268,7 @@ impl OperatorValidator {
     }
 
     fn err_beyond_end(&self, offset: usize) -> BinaryReaderError {
-        format_op_err!(offset, "operators remaining after end of function")
+        format_err!(offset, "operators remaining after end of function")
     }
 }
 
@@ -333,6 +319,44 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// expected and a type was successfully popped, but its exact type is
     /// indeterminate because the current block is unreachable.
     fn pop_operand(&mut self, offset: usize, expected: Option<ValType>) -> Result<Option<ValType>> {
+        // This method is one of the hottest methods in the validator so to
+        // improve codegen this method contains a fast-path success case where
+        // if the top operand on the stack is as expected it's returned
+        // immediately. This is the most common case where the stack will indeed
+        // have the expected type and all we need to do is pop it off.
+        //
+        // Note that this still has to be careful to be correct, though. For
+        // efficiency an operand is unconditionally popped and on success it is
+        // matched against the state of the world to see if we could actually
+        // pop it. If we shouldn't have popped it then it's passed to the slow
+        // path to get pushed back onto the stack.
+        let popped = if let Some(actual_ty) = self.operands.pop() {
+            if actual_ty == expected {
+                if let Some(control) = self.control.last() {
+                    if self.operands.len() >= control.height {
+                        return Ok(actual_ty);
+                    }
+                }
+            }
+            Some(actual_ty)
+        } else {
+            None
+        };
+
+        self._pop_operand(offset, expected, popped)
+    }
+
+    // This is the "real" implementation of `pop_operand` which is 100%
+    // spec-compliant with little attention paid to efficiency since this is the
+    // slow-path from the actual `pop_operand` function above.
+    #[cold]
+    fn _pop_operand(
+        &mut self,
+        offset: usize,
+        expected: Option<ValType>,
+        popped: Option<Option<ValType>>,
+    ) -> Result<Option<ValType>> {
+        self.operands.extend(popped);
         let control = match self.control.last() {
             Some(c) => c,
             None => return Err(self.err_beyond_end(offset)),
@@ -345,10 +369,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                     Some(ty) => ty_to_str(ty),
                     None => "a type",
                 };
-                bail_op_err!(
+                bail!(
                     offset,
-                    "type mismatch: expected {} but nothing on stack",
-                    desc
+                    "type mismatch: expected {desc} but nothing on stack"
                 )
             }
         } else {
@@ -356,7 +379,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         };
         if let (Some(actual_ty), Some(expected_ty)) = (actual, expected) {
             if actual_ty != expected_ty {
-                bail_op_err!(
+                bail!(
                     offset,
                     "type mismatch: expected {}, found {}",
                     ty_to_str(expected_ty),
@@ -372,7 +395,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn local(&self, offset: usize, idx: u32) -> Result<ValType> {
         match self.locals.get(idx) {
             Some(ty) => Ok(ty),
-            None => bail_op_err!(offset, "unknown local {}: local index out of bounds", idx),
+            None => bail!(offset, "unknown local {}: local index out of bounds", idx),
         }
     }
 
@@ -436,7 +459,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         // Make sure that the operand stack has returned to is original
         // height...
         if self.operands.len() != height {
-            bail_op_err!(
+            bail!(
                 offset,
                 "type mismatch: values remaining on stack at end of block"
             );
@@ -459,7 +482,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 let frame = &self.control[i];
                 Ok((frame.block_type, frame.kind))
             }
-            None => bail_op_err!(offset, "unknown label: branch depth too large"),
+            None => bail!(offset, "unknown label: branch depth too large"),
         }
     }
 
@@ -467,11 +490,11 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// type of address used to index the memory specified.
     fn check_memory_index(&self, offset: usize, memory_index: u32) -> Result<ValType> {
         if memory_index > 0 && !self.features.multi_memory {
-            bail_op_err!(offset, "multi-memory support is not enabled");
+            bail!(offset, "multi-memory support is not enabled");
         }
         match self.resources.memory_at(memory_index) {
             Some(mem) => Ok(mem.index_type()),
-            None => bail_op_err!(offset, "unknown memory {}", memory_index),
+            None => bail!(offset, "unknown memory {}", memory_index),
         }
     }
 
@@ -481,10 +504,10 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         let index_ty = self.check_memory_index(offset, memarg.memory)?;
         let align = memarg.align;
         if align > max_align {
-            bail_op_err!(offset, "alignment must not be larger than natural");
+            bail!(offset, "alignment must not be larger than natural");
         }
         if index_ty == ValType::I32 && memarg.offset > u64::from(u32::MAX) {
-            bail_op_err!(offset, "offset out of range: must be <= 2**32");
+            bail!(offset, "offset out of range: must be <= 2**32");
         }
         Ok(index_ty)
     }
@@ -492,21 +515,21 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     #[cfg_attr(not(feature = "deterministic"), inline(always))]
     fn check_non_deterministic_enabled(&self, offset: usize) -> Result<()> {
         if cfg!(feature = "deterministic") && !self.features.deterministic_only {
-            bail_op_err!(offset, "deterministic_only support is not enabled");
+            bail!(offset, "deterministic_only support is not enabled");
         }
         Ok(())
     }
 
     fn check_threads_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.threads {
-            bail_op_err!(offset, "threads support is not enabled")
+            bail!(offset, "threads support is not enabled")
         }
         Ok(())
     }
 
     fn check_reference_types_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.reference_types {
-            bail_op_err!(offset, "reference types support is not enabled")
+            bail!(offset, "reference types support is not enabled")
         }
         Ok(())
     }
@@ -514,7 +537,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Checks if Wasm proposal `saturating_float_to_int` is enabled.
     fn check_saturating_float_to_int_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.saturating_float_to_int {
-            bail_op_err!(
+            bail!(
                 offset,
                 "saturating float to int conversions support is not enabled"
             );
@@ -525,14 +548,14 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Checks if Wasm proposal `sign_extension` is enabled.
     fn check_sign_extension_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.sign_extension {
-            bail_op_err!(offset, "sign extension operations support is not enabled");
+            bail!(offset, "sign extension operations support is not enabled");
         }
         Ok(())
     }
 
     fn check_simd_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.simd {
-            bail_op_err!(offset, "SIMD support is not enabled");
+            bail!(offset, "SIMD support is not enabled");
         }
         Ok(())
     }
@@ -542,21 +565,21 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_non_deterministic_enabled(offset)?;
         self.check_simd_enabled(offset)?;
         if !self.features.relaxed_simd {
-            bail_op_err!(offset, "Relaxed SIMD support is not enabled");
+            bail!(offset, "Relaxed SIMD support is not enabled");
         }
         Ok(())
     }
 
     fn check_exceptions_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.exceptions {
-            bail_op_err!(offset, "Exceptions support is not enabled");
+            bail!(offset, "Exceptions support is not enabled");
         }
         Ok(())
     }
 
     fn check_bulk_memory_enabled(&self, offset: usize) -> Result<()> {
         if !self.features.bulk_memory {
-            bail_op_err!(offset, "bulk memory support is not enabled");
+            bail!(offset, "bulk memory support is not enabled");
         }
         Ok(())
     }
@@ -567,7 +590,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     fn check_simd_lane_index(&self, offset: usize, index: u8, max: u8) -> Result<()> {
         if index >= max {
-            bail_op_err!(offset, "SIMD index out of bounds");
+            bail!(offset, "SIMD index out of bounds");
         }
         Ok(())
     }
@@ -582,7 +605,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 .map_err(|e| BinaryReaderError::new(e, offset)),
             BlockType::FuncType(idx) => {
                 if !self.features.multi_value {
-                    bail_op_err!(
+                    bail!(
                         offset,
                         "blocks, loops, and ifs may only produce a resulttype \
                          when multi-value is not enabled",
@@ -600,7 +623,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         let ty = match self.resources.type_of_function(function_index) {
             Some(i) => i,
             None => {
-                bail_op_err!(
+                bail!(
                     offset,
                     "unknown function {}: function index out of bounds",
                     function_index
@@ -620,11 +643,11 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_call_indirect(&mut self, offset: usize, index: u32, table_index: u32) -> Result<()> {
         match self.resources.table_at(table_index) {
             None => {
-                bail_op_err!(offset, "unknown table: table index out of bounds");
+                bail!(offset, "unknown table: table index out of bounds");
             }
             Some(tab) => {
                 if tab.element_type != ValType::FuncRef {
-                    bail_op_err!(offset, "indirect calls must go through a table of funcref");
+                    bail!(offset, "indirect calls must go through a table of funcref");
                 }
             }
         }
@@ -857,13 +880,13 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn func_type_at(&self, at: u32, offset: usize) -> Result<&'resources R::FuncType> {
         self.resources
             .func_type_at(at)
-            .ok_or_else(|| format_op_err!(offset, "unknown type: type index out of bounds"))
+            .ok_or_else(|| format_err!(offset, "unknown type: type index out of bounds"))
     }
 
     fn tag_at(&self, at: u32, offset: usize) -> Result<&'resources R::FuncType> {
         self.resources
             .tag_at(at)
-            .ok_or_else(|| format_op_err!(offset, "unknown tag {}: tag index out of bounds", at))
+            .ok_or_else(|| format_err!(offset, "unknown tag {}: tag index out of bounds", at))
     }
 
     fn params(
@@ -955,7 +978,7 @@ where
     fn visit_else(&mut self, offset: usize) -> Self::Output {
         let frame = self.pop_ctrl(offset)?;
         if frame.kind != FrameKind::If {
-            bail_op_err!(offset, "else found outside of an `if` block");
+            bail!(offset, "else found outside of an `if` block");
         }
         self.push_ctrl(offset, FrameKind::Else, frame.block_type)?;
         Ok(())
@@ -973,7 +996,7 @@ where
         self.check_exceptions_enabled(offset)?;
         let frame = self.pop_ctrl(offset)?;
         if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
-            bail_op_err!(offset, "catch found outside of an `try` block");
+            bail!(offset, "catch found outside of an `try` block");
         }
         // Start a new frame and push `exnref` value.
         let height = self.operands.len();
@@ -998,7 +1021,7 @@ where
             self.pop_operand(offset, Some(ty))?;
         }
         if ty.outputs().len() > 0 {
-            bail_op_err!(offset, "result type expected to be empty for exception");
+            bail!(offset, "result type expected to be empty for exception");
         }
         self.unreachable(offset)?;
         Ok(())
@@ -1009,7 +1032,7 @@ where
         // targets an actual `catch` to get the exception.
         let (_, kind) = self.jump(offset, relative_depth)?;
         if kind != FrameKind::Catch && kind != FrameKind::CatchAll {
-            bail_op_err!(
+            bail!(
                 offset,
                 "invalid rethrow label: target was not a `catch` block"
             );
@@ -1021,7 +1044,7 @@ where
         self.check_exceptions_enabled(offset)?;
         let frame = self.pop_ctrl(offset)?;
         if frame.kind != FrameKind::Try {
-            bail_op_err!(offset, "delegate found outside of an `try` block");
+            bail!(offset, "delegate found outside of an `try` block");
         }
         // This operation is not a jump, but we need to check the
         // depth for validity
@@ -1035,9 +1058,9 @@ where
         self.check_exceptions_enabled(offset)?;
         let frame = self.pop_ctrl(offset)?;
         if frame.kind == FrameKind::CatchAll {
-            bail_op_err!(offset, "only one catch_all allowed per `try` block");
+            bail!(offset, "only one catch_all allowed per `try` block");
         } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
-            bail_op_err!(offset, "catch_all found outside of a `try` block");
+            bail!(offset, "catch_all found outside of a `try` block");
         }
         let height = self.operands.len();
         self.control.push(Frame {
@@ -1079,10 +1102,11 @@ where
     fn visit_br_if(&mut self, offset: usize, relative_depth: u32) -> Self::Output {
         self.pop_operand(offset, Some(ValType::I32))?;
         let (ty, kind) = self.jump(offset, relative_depth)?;
-        for ty in self.label_types(offset, ty, kind)?.rev() {
+        let types = self.label_types(offset, ty, kind)?;
+        for ty in types.clone().rev() {
             self.pop_operand(offset, Some(ty))?;
         }
-        for ty in self.label_types(offset, ty, kind)? {
+        for ty in types {
             self.push_operand(ty)?;
         }
         Ok(())
@@ -1096,7 +1120,7 @@ where
             let block = self.jump(offset, relative_depth)?;
             let tys = self.label_types(offset, block.0, block.1)?;
             if tys.len() != default_types.len() {
-                bail_op_err!(
+                bail!(
                     offset,
                     "type mismatch: br_table target labels have different number of types"
                 );
@@ -1126,7 +1150,7 @@ where
     }
     fn visit_return_call(&mut self, offset: usize, function_index: u32) -> Self::Output {
         if !self.features.tail_call {
-            bail_op_err!(offset, "tail calls support is not enabled");
+            bail!(offset, "tail calls support is not enabled");
         }
         self.check_call(offset, function_index)?;
         self.check_return(offset)?;
@@ -1140,7 +1164,7 @@ where
         table_byte: u8,
     ) -> Self::Output {
         if table_byte != 0 && !self.features.reference_types {
-            bail_op_err!(offset, "reference-types not enabled: zero byte expected");
+            bail!(offset, "reference-types not enabled: zero byte expected");
         }
         self.check_call_indirect(offset, index, table_index)?;
         Ok(())
@@ -1152,7 +1176,7 @@ where
         table_index: u32,
     ) -> Self::Output {
         if !self.features.tail_call {
-            bail_op_err!(offset, "tail calls support is not enabled");
+            bail!(offset, "tail calls support is not enabled");
         }
         self.check_call_indirect(offset, index, table_index)?;
         self.check_return(offset)?;
@@ -1178,10 +1202,10 @@ where
             )
         }
         if !is_num(ty1) || !is_num(ty2) {
-            bail_op_err!(offset, "type mismatch: select only takes integral types")
+            bail!(offset, "type mismatch: select only takes integral types")
         }
         if ty1 != ty2 && ty1 != None && ty2 != None {
-            bail_op_err!(
+            bail!(
                 offset,
                 "type mismatch: select operands have different types"
             )
@@ -1219,21 +1243,21 @@ where
         if let Some(ty) = self.resources.global_at(global_index) {
             self.push_operand(ty.content_type)?;
         } else {
-            bail_op_err!(offset, "unknown global: global index out of bounds");
+            bail!(offset, "unknown global: global index out of bounds");
         };
         Ok(())
     }
     fn visit_global_set(&mut self, offset: usize, global_index: u32) -> Self::Output {
         if let Some(ty) = self.resources.global_at(global_index) {
             if !ty.mutable {
-                bail_op_err!(
+                bail!(
                     offset,
                     "global is immutable: cannot modify it with `global.set`"
                 );
             }
             self.pop_operand(offset, Some(ty.content_type))?;
         } else {
-            bail_op_err!(offset, "unknown global: global index out of bounds");
+            bail!(offset, "unknown global: global index out of bounds");
         };
         Ok(())
     }
@@ -1366,7 +1390,7 @@ where
     }
     fn visit_memory_size(&mut self, offset: usize, mem: u32, mem_byte: u8) -> Self::Output {
         if mem_byte != 0 && !self.features.multi_memory {
-            bail_op_err!(offset, "multi-memory not enabled: zero byte expected");
+            bail!(offset, "multi-memory not enabled: zero byte expected");
         }
         let index_ty = self.check_memory_index(offset, mem)?;
         self.push_operand(index_ty)?;
@@ -1374,7 +1398,7 @@ where
     }
     fn visit_memory_grow(&mut self, offset: usize, mem: u32, mem_byte: u8) -> Self::Output {
         if mem_byte != 0 && !self.features.multi_memory {
-            bail_op_err!(offset, "multi-memory not enabled: zero byte expected");
+            bail!(offset, "multi-memory not enabled: zero byte expected");
         }
         let index_ty = self.check_memory_index(offset, mem)?;
         self.pop_operand(offset, Some(index_ty))?;
@@ -2037,7 +2061,7 @@ where
     fn visit_atomic_fence(&mut self, offset: usize, flags: u8) -> Self::Output {
         self.check_threads_enabled(offset)?;
         if flags != 0 {
-            bail_op_err!(offset, "non-zero flags for fence not supported yet");
+            bail!(offset, "non-zero flags for fence not supported yet");
         }
         Ok(())
     }
@@ -2047,7 +2071,7 @@ where
             .check_value_type(ty)
             .map_err(|e| BinaryReaderError::new(e, offset))?;
         if !ty.is_reference_type() {
-            bail_op_err!(offset, "invalid non-reference type in ref.null");
+            bail!(offset, "invalid non-reference type in ref.null");
         }
         self.push_operand(ty)?;
         Ok(())
@@ -2058,7 +2082,7 @@ where
             None => {}
             Some(t) => {
                 if !t.is_reference_type() {
-                    bail_op_err!(
+                    bail!(
                         offset,
                         "type mismatch: invalid reference type in ref.is_null"
                     );
@@ -2071,14 +2095,14 @@ where
     fn visit_ref_func(&mut self, offset: usize, function_index: u32) -> Self::Output {
         self.check_reference_types_enabled(offset)?;
         if self.resources.type_of_function(function_index).is_none() {
-            bail_op_err!(
+            bail!(
                 offset,
                 "unknown function {}: function index out of bounds",
                 function_index,
             );
         }
         if !self.resources.is_function_referenced(function_index) {
-            bail_op_err!(offset, "undeclared function reference");
+            bail!(offset, "undeclared function reference");
         }
         self.push_operand(ValType::FuncRef)?;
         Ok(())
@@ -2992,9 +3016,9 @@ where
         self.check_bulk_memory_enabled(offset)?;
         let ty = self.check_memory_index(offset, mem)?;
         match self.resources.data_count() {
-            None => bail_op_err!(offset, "data count section required"),
+            None => bail!(offset, "data count section required"),
             Some(count) if segment < count => {}
-            Some(_) => bail_op_err!(offset, "unknown data segment {}", segment),
+            Some(_) => bail!(offset, "unknown data segment {}", segment),
         }
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -3004,9 +3028,9 @@ where
     fn visit_data_drop(&mut self, offset: usize, segment: u32) -> Self::Output {
         self.check_bulk_memory_enabled(offset)?;
         match self.resources.data_count() {
-            None => bail_op_err!(offset, "data count section required"),
+            None => bail!(offset, "data count section required"),
             Some(count) if segment < count => {}
-            Some(_) => bail_op_err!(offset, "unknown data segment {}", segment),
+            Some(_) => bail!(offset, "unknown data segment {}", segment),
         }
         Ok(())
     }
@@ -3046,18 +3070,18 @@ where
         }
         let table = match self.resources.table_at(table) {
             Some(table) => table,
-            None => bail_op_err!(offset, "unknown table {}: table index out of bounds", table),
+            None => bail!(offset, "unknown table {}: table index out of bounds", table),
         };
         let segment_ty = match self.resources.element_type_at(segment) {
             Some(ty) => ty,
-            None => bail_op_err!(
+            None => bail!(
                 offset,
                 "unknown elem segment {}: segment index out of bounds",
                 segment
             ),
         };
         if segment_ty != table.element_type {
-            bail_op_err!(offset, "type mismatch");
+            bail!(offset, "type mismatch");
         }
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -3067,7 +3091,7 @@ where
     fn visit_elem_drop(&mut self, offset: usize, segment: u32) -> Self::Output {
         self.check_bulk_memory_enabled(offset)?;
         if segment >= self.resources.element_count() {
-            bail_op_err!(
+            bail!(
                 offset,
                 "unknown elem segment {}: segment index out of bounds",
                 segment
@@ -3085,10 +3109,10 @@ where
             self.resources.table_at(dst_table),
         ) {
             (Some(a), Some(b)) => (a, b),
-            _ => bail_op_err!(offset, "table index out of bounds"),
+            _ => bail!(offset, "table index out of bounds"),
         };
         if src.element_type != dst.element_type {
-            bail_op_err!(offset, "type mismatch");
+            bail!(offset, "type mismatch");
         }
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -3099,7 +3123,7 @@ where
         self.check_reference_types_enabled(offset)?;
         let ty = match self.resources.table_at(table) {
             Some(ty) => ty.element_type,
-            None => bail_op_err!(offset, "table index out of bounds"),
+            None => bail!(offset, "table index out of bounds"),
         };
         self.pop_operand(offset, Some(ValType::I32))?;
         self.push_operand(ty)?;
@@ -3109,7 +3133,7 @@ where
         self.check_reference_types_enabled(offset)?;
         let ty = match self.resources.table_at(table) {
             Some(ty) => ty.element_type,
-            None => bail_op_err!(offset, "table index out of bounds"),
+            None => bail!(offset, "table index out of bounds"),
         };
         self.pop_operand(offset, Some(ty))?;
         self.pop_operand(offset, Some(ValType::I32))?;
@@ -3119,7 +3143,7 @@ where
         self.check_reference_types_enabled(offset)?;
         let ty = match self.resources.table_at(table) {
             Some(ty) => ty.element_type,
-            None => bail_op_err!(offset, "table index out of bounds"),
+            None => bail!(offset, "table index out of bounds"),
         };
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
@@ -3129,7 +3153,7 @@ where
     fn visit_table_size(&mut self, offset: usize, table: u32) -> Self::Output {
         self.check_reference_types_enabled(offset)?;
         if self.resources.table_at(table).is_none() {
-            bail_op_err!(offset, "table index out of bounds");
+            bail!(offset, "table index out of bounds");
         }
         self.push_operand(ValType::I32)?;
         Ok(())
@@ -3138,7 +3162,7 @@ where
         self.check_bulk_memory_enabled(offset)?;
         let ty = match self.resources.table_at(table) {
             Some(ty) => ty.element_type,
-            None => bail_op_err!(offset, "table index out of bounds"),
+            None => bail!(offset, "table index out of bounds"),
         };
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
@@ -3147,6 +3171,7 @@ where
     }
 }
 
+#[derive(Clone)]
 enum Either<A, B> {
     A(A),
     B(B),
@@ -3192,8 +3217,8 @@ where
     }
 }
 
-trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator {}
-impl<T: ExactSizeIterator + DoubleEndedIterator> PreciseIterator for T {}
+trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator + Clone {}
+impl<T: ExactSizeIterator + DoubleEndedIterator + Clone> PreciseIterator for T {}
 
 impl Locals {
     /// Defines another group of `count` local variables of type `ty`.
@@ -3225,20 +3250,26 @@ impl Locals {
     }
 
     /// Returns the type of the local variable at the given index if any.
+    #[inline]
     pub(super) fn get(&self, idx: u32) -> Option<ValType> {
-        self.first.get(idx as usize).copied().or_else(|| {
-            match self.all.binary_search_by_key(&idx, |(idx, _)| *idx) {
-                // If this index would be inserted at the end of the list, then the
-                // index is out of bounds and we return an error.
-                Err(i) if i == self.all.len() => None,
+        match self.first.get(idx as usize) {
+            Some(ty) => Some(*ty),
+            None => self.get_bsearch(idx),
+        }
+    }
 
-                // If `Ok` is returned we found the index exactly, or if `Err` is
-                // returned the position is the one which is the least index
-                // greater that `idx`, which is still the type of `idx` according
-                // to our "compressed" representation. In both cases we access the
-                // list at index `i`.
-                Ok(i) | Err(i) => Some(self.all[i].1),
-            }
-        })
+    fn get_bsearch(&self, idx: u32) -> Option<ValType> {
+        match self.all.binary_search_by_key(&idx, |(idx, _)| *idx) {
+            // If this index would be inserted at the end of the list, then the
+            // index is out of bounds and we return an error.
+            Err(i) if i == self.all.len() => None,
+
+            // If `Ok` is returned we found the index exactly, or if `Err` is
+            // returned the position is the one which is the least index
+            // greater that `idx`, which is still the type of `idx` according
+            // to our "compressed" representation. In both cases we access the
+            // list at index `i`.
+            Ok(i) | Err(i) => Some(self.all[i].1),
+        }
     }
 }
