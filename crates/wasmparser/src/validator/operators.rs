@@ -1243,23 +1243,35 @@ where
         self.check_return(offset)?;
         Ok(())
     }
-    fn visit_call_ref(&mut self, offset: usize) -> Self::Output {
+    fn visit_call_ref(&mut self, offset: usize, ty: HeapType) -> Self::Output {
         self.check_function_references_enabled(offset)?;
         let rt = self.pop_ref(offset)?;
-        match rt.heap_type {
+        let expected = RefType {
+            nullable: true,
+            heap_type: ty,
+        };
+        if !self
+            .resources
+            .matches(ValType::Ref(rt), ValType::Ref(expected))
+        {
+            bail!(
+                offset,
+                "type mismatch: funcref on stack does not match specified type",
+            );
+        }
+        match ty {
             HeapType::Index(type_index) => self.check_call_ty(offset, type_index)?,
             HeapType::Bot => (),
             _ => bail!(
                 offset,
-                "type mismatch: instruction requires function reference type but stack has {}",
-                ty_to_str(ValType::Ref(rt))
+                "type mismatch: instruction requires function reference type",
             ),
         }
         Ok(())
     }
-    fn visit_return_call_ref(&mut self, offset: usize) -> Self::Output {
+    fn visit_return_call_ref(&mut self, offset: usize, ty: HeapType) -> Self::Output {
         self.check_tail_call_enabled(offset)?;
-        self.visit_call_ref(offset)?;
+        self.visit_call_ref(offset, ty)?;
         self.check_return(offset)
     }
     fn visit_call_indirect(

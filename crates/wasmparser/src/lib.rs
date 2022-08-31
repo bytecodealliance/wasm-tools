@@ -665,8 +665,8 @@ macro_rules! for_each_operator {
             @relaxed_simd F64x2RelaxedMax => visit_f64x2_relaxed_max
 
             // Typed Function references
-            @function_references CallRef => visit_call_ref
-            @function_references ReturnCallRef => visit_return_call_ref
+            @function_references CallRef { ty: HeapType } => visit_call_ref
+            @function_references ReturnCallRef { ty: HeapType } => visit_return_call_ref
             @function_references RefAsNonNull => visit_ref_as_non_null
             @function_references BrOnNull { relative_depth: u32 } => visit_br_on_null
             @function_references BrOnNonNull { relative_depth: u32 } => visit_br_on_non_null

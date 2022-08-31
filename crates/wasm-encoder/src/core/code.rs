@@ -322,9 +322,9 @@ pub enum Instruction<'a> {
     BrOnNonNull(u32),
     Return,
     Call(u32),
-    CallRef,
+    CallRef(ValType),
     CallIndirect { ty: u32, table: u32 },
-    ReturnCallRef,
+    ReturnCallRef(ValType),
     Throw(u32),
     Rethrow(u32),
 
@@ -916,13 +916,19 @@ impl Encode for Instruction<'_> {
                 sink.push(0x10);
                 f.encode(sink);
             }
-            Instruction::CallRef => sink.push(0x14),
+            Instruction::CallRef(ty) => {
+                sink.push(0x14);
+                ty.encode(sink);
+            }
             Instruction::CallIndirect { ty, table } => {
                 sink.push(0x11);
                 ty.encode(sink);
                 table.encode(sink);
             }
-            Instruction::ReturnCallRef => sink.push(0x15),
+            Instruction::ReturnCallRef(ty) => {
+                sink.push(0x15);
+                ty.encode(sink);
+            }
             Instruction::Delegate(l) => {
                 sink.push(0x18);
                 l.encode(sink);

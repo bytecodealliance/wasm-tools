@@ -1453,8 +1453,8 @@ impl<'a> BinaryReader<'a> {
             0x13 => {
                 visitor.visit_return_call_indirect(pos, self.read_var_u32()?, self.read_var_u32()?)
             }
-            0x14 => visitor.visit_call_ref(pos),
-            0x15 => visitor.visit_return_call_ref(pos),
+            0x14 => visitor.visit_call_ref(pos, self.read_heap_type()?),
+            0x15 => visitor.visit_return_call_ref(pos, self.read_heap_type()?),
             0x18 => visitor.visit_delegate(pos, self.read_var_u32()?),
             0x19 => visitor.visit_catch_all(pos),
             0x1a => visitor.visit_drop(pos),

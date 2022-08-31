@@ -190,11 +190,15 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
         self.print_func_idx(function_index)?;
         Ok(OpKind::Normal)
     }
-    fn visit_call_ref(&mut self, _pos: usize) -> Self::Output {
-        self.instr("call_ref")
+    fn visit_call_ref(&mut self, _pos: usize, ty: HeapType) -> Self::Output {
+        self.push_str("call_ref ");
+        self.printer.print_heaptype(ty)?;
+        Ok(OpKind::Normal)
     }
-    fn visit_return_call_ref(&mut self, _pos: usize) -> Self::Output {
-        self.instr("return_call_ref")
+    fn visit_return_call_ref(&mut self, _pos: usize, ty: HeapType) -> Self::Output {
+        self.push_str("return_call_ref ");
+        self.printer.print_heaptype(ty)?;
+        Ok(OpKind::Normal)
     }
     fn visit_call_indirect(
         &mut self,
