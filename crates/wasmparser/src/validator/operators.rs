@@ -489,9 +489,6 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Validates that `memory_index` is valid in this module, and returns the
     /// type of address used to index the memory specified.
     fn check_memory_index(&self, offset: usize, memory_index: u32) -> Result<ValType> {
-        if memory_index > 0 && !self.features.multi_memory {
-            bail!(offset, "multi-memory support is not enabled");
-        }
         match self.resources.memory_at(memory_index) {
             Some(mem) => Ok(mem.index_type()),
             None => bail!(offset, "unknown memory {}", memory_index),

@@ -142,6 +142,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Gets the original position of the binary reader.
+    #[inline]
     pub fn original_position(&self) -> usize {
         self.original_offset + self.position
     }
@@ -939,16 +940,19 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Returns whether the `BinaryReader` has reached the end of the file.
+    #[inline]
     pub fn eof(&self) -> bool {
         self.position >= self.buffer.len()
     }
 
     /// Returns the `BinaryReader`'s current position.
+    #[inline]
     pub fn current_position(&self) -> usize {
         self.position
     }
 
     /// Returns the number of bytes remaining in the `BinaryReader`.
+    #[inline]
     pub fn bytes_remaining(&self) -> usize {
         self.buffer.len() - self.position
     }
