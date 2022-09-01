@@ -96,6 +96,13 @@ pub struct Config {
     #[serde(default)]
     pub skip_validation: bool,
 
+    /// Whether or not to disallow instance imports in the output component.
+    ///
+    /// Enabling this option will cause an error if a dependency cannot be
+    /// located.
+    #[serde(default)]
+    pub disallow_imports: bool,
+
     /// The explicit, transitive dependencies of the root component.
     #[serde(default, deserialize_with = "de::index_map")]
     pub dependencies: IndexMap<String, Dependency>,

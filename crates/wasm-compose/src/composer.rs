@@ -572,6 +572,12 @@ impl<'a> InstantiationGraphBuilder<'a> {
                 Instance::Instantiation { component }
             }
             None => {
+                if self.config.disallow_imports {
+                    bail!(
+                        "a dependency named `{component_name}` could not be found and instance imports are not allowed",
+                    );
+                }
+
                 log::warn!("instance `{name}` will be imported because a dependency named `{component_name}` could not be found");
                 Instance::Import([import.unwrap()].into())
             }
