@@ -46,7 +46,7 @@ impl Component {
         import_name: Option<String>,
     ) -> Result<Self> {
         let path = path.into();
-        log::debug!("parsing WebAssembly component `{}`", path.display());
+        log::info!("parsing WebAssembly component `{}`", path.display());
 
         let bytes = wat::parse_file(&path).with_context(|| {
             format!("failed to parse component `{path}`", path = path.display())
@@ -518,7 +518,7 @@ impl<'a> InstantiationGraphBuilder<'a> {
         }
 
         // Otherwise, search the paths for a valid component with the same name
-        log::debug!("searching for a component with name `{name}`");
+        log::info!("searching for a component with name `{name}`");
         for dir in std::iter::once(&self.config.dir).chain(self.config.search_paths.iter()) {
             if let Some(component) = Self::parse_component(index, dir, name)? {
                 return Ok(Some(component));
@@ -537,7 +537,7 @@ impl<'a> InstantiationGraphBuilder<'a> {
         for ext in ["wasm", "wat"] {
             path.set_extension(ext);
             if !path.is_file() {
-                log::debug!("component `{path}` does not exist", path = path.display());
+                log::info!("component `{path}` does not exist", path = path.display());
                 continue;
             }
 
@@ -684,7 +684,7 @@ impl<'a> InstantiationGraphBuilder<'a> {
     fn process_dependency(&mut self, dependency: Dependency) -> Result<(InstanceIndex, bool)> {
         let name = self.config.dependency_name(&dependency.instance);
 
-        log::debug!(
+        log::info!(
             "processing dependency `{name}` from instance `{dependent}` to instance `{instance}`",
             dependent = self
                 .graph
