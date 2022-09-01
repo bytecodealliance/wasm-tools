@@ -65,7 +65,6 @@ impl Opts {
 
                 ModuleSection { .. }
                 | InstanceSection(_)
-                | AliasSection(_)
                 | CoreTypeSection(_)
                 | ComponentSection { .. }
                 | ComponentInstanceSection(_)

@@ -36,11 +36,11 @@
     (export "global mut" (global (mut i64)))
   ))
   (core instance $libc (instantiate $libc))
-  (core alias export $libc "memory" (memory $mem))
-  (core alias export $libc "table" (table $tbl))
-  (core alias export $libc "func" (func $func))
-  (core alias export $libc "global" (global $global))
-  (core alias export $libc "global mut" (global $global_mut))
+  (alias core export $libc "memory" (core memory $mem))
+  (alias core export $libc "table" (core table $tbl))
+  (alias core export $libc "func" (core func $func))
+  (alias core export $libc "global" (core global $global))
+  (alias core export $libc "global mut" (core global $global_mut))
 
   (import "x" (core module $needs_libc
     (import "" "memory" (memory 1))
@@ -118,7 +118,7 @@
   (component
     (import "" (core module))
     (core instance (instantiate 0))
-    (core alias export 0 "" (func))
+    (alias core export 0 "" (core func))
   )
   "core instance 0 has no export named ``")
 
@@ -126,7 +126,7 @@
   (component
     (core module)
     (core instance (instantiate 0))
-    (core alias export 0 "" (func))
+    (alias core export 0 "" (core func))
   )
   "core instance 0 has no export named ``")
 
@@ -228,10 +228,10 @@
 (component $C
   (core type $t (func))
   (component $C2
-    (core alias outer $C $t (type $t2))
+    (alias outer $C $t (core type $t2))
     (component
-      (core alias outer $C $t (type))
-      (core alias outer $C2 $t2 (type))
+      (alias outer $C $t (core type))
+      (alias outer $C2 $t2 (core type))
     )
   )
 )
@@ -249,11 +249,11 @@
 )
 
 (assert_invalid
-  (component (core alias outer 100 0 (type)))
+  (component (alias outer 100 0 (core type)))
   "invalid outer alias count of 100")
 
 (assert_invalid
-  (component (core alias outer 0 0 (type)))
+  (component (alias outer 0 0 (core type)))
   "index out of bounds")
 
 (assert_invalid

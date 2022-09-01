@@ -30,8 +30,8 @@
 
   (core instance $libc (instantiate $libc))
 
-  (core alias export $libc "canonical_abi_realloc" (func $realloc))
-  (core alias export $libc "memory" (memory $memory))
+  (alias core export $libc "canonical_abi_realloc" (core func $realloc))
+  (alias core export $libc "memory" (core memory $memory))
   (core func $log_lower_utf8 (canon lower (func $log) string-encoding=utf8 (memory $memory) (realloc $realloc)))
   (core func $log_lower_utf16 (canon lower (func $log) string-encoding=utf16 (memory $memory) (realloc $realloc)))
   (core func $log_lower_compact_utf16 (canon lower (func $log) string-encoding=latin1+utf16 (memory $memory) (realloc $realloc)))

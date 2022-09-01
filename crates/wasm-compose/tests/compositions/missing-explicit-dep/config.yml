@@ -1,0 +1,7 @@
+dependencies:
+  a: a.wat
+
+instantiations:
+  $component:
+    arguments:
+      '': a

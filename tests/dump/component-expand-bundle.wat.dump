@@ -41,12 +41,13 @@
  0x57 | 02 04       | core instance section
  0x59 | 01          | 1 count
  0x5a | 00 00 00    | [core instance 0] Instantiate { module_index: 0, args: [] }
- 0x5d | 03 05       | core alias section
+ 0x5d | 06 06       | component alias section
  0x5f | 01          | 1 count
- 0x60 | 00 00 00 00 | core alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "" }
- 0x64 | 02 0d       | core instance section
- 0x66 | 02          | 2 count
- 0x67 | 01 01 01 61 | [core instance 1] FromExports([Export { name: "a", kind: Func, index: 0 }])
+ 0x60 | 00 00 01 00 | alias [core func 0] CoreInstanceExport { kind: Func, instance_index: 0, name: "" }
+      | 00         
+ 0x65 | 02 0d       | core instance section
+ 0x67 | 02          | 2 count
+ 0x68 | 01 01 01 61 | [core instance 1] FromExports([Export { name: "a", kind: Func, index: 0 }])
       | 00 00      
- 0x6d | 00 01 01 00 | [core instance 2] Instantiate { module_index: 1, args: [InstantiationArg { name: "", kind: Instance, index: 1 }] }
+ 0x6e | 00 01 01 00 | [core instance 2] Instantiate { module_index: 1, args: [InstantiationArg { name: "", kind: Instance, index: 1 }] }
       | 12 01      

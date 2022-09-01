@@ -1,1 +1,1 @@
-instantiation `a` does not have an argument named `invalid`
+component `tests/compositions/invalid-instantiation-arg/root.wat` has no import named `invalid`

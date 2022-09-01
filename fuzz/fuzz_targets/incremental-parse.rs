@@ -157,7 +157,6 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 parser = p;
             }
             (InstanceSection(a), InstanceSection(b)) => assert_eq!(a.range(), b.range()),
-            (AliasSection(a), AliasSection(b)) => assert_eq!(a.range(), b.range()),
             (
                 ComponentSection {
                     parser: p,

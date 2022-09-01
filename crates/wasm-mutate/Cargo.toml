@@ -9,7 +9,7 @@ description = "A WebAssembly test case mutator"
 [dependencies]
 clap = { optional = true, version = "3.0", features = ['derive'] }
 thiserror = "1.0.28"
-wasmparser = { version = "0.89.0", path = "../wasmparser" }
+wasmparser = { version = "0.90.0", path = "../wasmparser" }
 wasm-encoder = { version = "0.16.0", path = "../wasm-encoder"}
 rand = { version = "0.8.0", features = ["small_rng"] }
 log = "0.4.14"

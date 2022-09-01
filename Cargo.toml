@@ -25,7 +25,7 @@ tempfile = "3.2.0"
 wat = { path = "crates/wat", version = '1.0.48' }
 
 # Dependencies of `validate`
-wasmparser = { path = "crates/wasmparser", optional = true, version = '0.89.0' }
+wasmparser = { path = "crates/wasmparser", optional = true, version = '0.90.0' }
 rayon = { version = "1.0", optional = true }
 
 # Dependencies of `print`

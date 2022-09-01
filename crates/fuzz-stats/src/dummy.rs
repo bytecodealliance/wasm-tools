@@ -4,7 +4,7 @@ use anyhow::Result;
 use wasmtime::*;
 
 /// Create a set of dummy functions/globals/etc for the given imports.
-pub fn dummy_imports<'module, T>(store: &mut Store<T>, module: &Module) -> Result<Vec<Extern>> {
+pub fn dummy_imports<T>(store: &mut Store<T>, module: &Module) -> Result<Vec<Extern>> {
     let mut result = Vec::new();
     for import in module.imports() {
         result.push(dummy_extern(store, import.ty())?);
@@ -58,7 +58,7 @@ pub fn dummy_global<T>(store: &mut Store<T>, ty: GlobalType) -> Global {
 
 /// Construct a dummy table for the given table type.
 pub fn dummy_table<T>(store: &mut Store<T>, ty: TableType) -> Result<Table> {
-    let init_val = dummy_value(ty.element().clone());
+    let init_val = dummy_value(ty.element());
     Table::new(store, ty, init_val)
 }
 

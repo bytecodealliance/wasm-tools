@@ -1,0 +1,6 @@
+instantiations:
+  $component:
+    arguments:
+      a:
+        instance: a
+        export: x

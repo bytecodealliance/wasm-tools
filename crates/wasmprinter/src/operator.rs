@@ -190,11 +190,15 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
         self.print_func_idx(function_index)?;
         Ok(OpKind::Normal)
     }
-    fn visit_call_ref(&mut self, _pos: usize) -> Self::Output {
-        self.instr("call_ref")
+    fn visit_call_ref(&mut self, _pos: usize, ty: HeapType) -> Self::Output {
+        self.push_str("call_ref ");
+        self.printer.print_heaptype(ty)?;
+        Ok(OpKind::Normal)
     }
-    fn visit_return_call_ref(&mut self, _pos: usize) -> Self::Output {
-        self.instr("return_call_ref")
+    fn visit_return_call_ref(&mut self, _pos: usize, ty: HeapType) -> Self::Output {
+        self.push_str("return_call_ref ");
+        self.printer.print_heaptype(ty)?;
+        Ok(OpKind::Normal)
     }
     fn visit_call_indirect(
         &mut self,
@@ -775,47 +779,47 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_i32_wrap_i64(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.wrap_i64")
     }
-    fn visit_i32_trunc_f32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_f32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_f32_s")
     }
-    fn visit_i32_trunc_f32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_f32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_f32_u")
     }
-    fn visit_i32_trunc_f64s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_f64_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_f64_s")
     }
-    fn visit_i32_trunc_f64u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i32_trunc_f64_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i32.trunc_f64_u")
     }
-    fn visit_i64_extend_i32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_extend_i32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.extend_i32_s")
     }
-    fn visit_i64_extend_i32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_extend_i32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.extend_i32_u")
     }
-    fn visit_i64_trunc_f32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_f32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_f32_s")
     }
-    fn visit_i64_trunc_f32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_f32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_f32_u")
     }
-    fn visit_i64_trunc_f64s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_f64_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_f64_s")
     }
-    fn visit_i64_trunc_f64u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_i64_trunc_f64_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("i64.trunc_f64_u")
     }
 
-    fn visit_f32_convert_i32s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f32_convert_i32_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32.convert_i32_s")
     }
-    fn visit_f32_convert_i32u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f32_convert_i32_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32.convert_i32_u")
     }
-    fn visit_f32_convert_i64s(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f32_convert_i64_s(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32.convert_i64_s")
     }
-    fn visit_f32_convert_i64u(&mut self, _pos: usize) -> Self::Output {
+    fn visit_f32_convert_i64_u(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32.convert_i64_u")
     }
     fn visit_f32_demote_f64(&mut self, _pos: usize) -> Self::Output {

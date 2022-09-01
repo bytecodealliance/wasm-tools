@@ -13,7 +13,7 @@ description = "A library for composing WebAssembly components."
 [dependencies]
 wat = { version = "1.0.48", path = "../wat" }
 wasm-encoder = { version = "0.16.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.89.0", path = "../wasmparser" }
+wasmparser = { version = "0.90.0", path = "../wasmparser" }
 indexmap = { version = "1.9.1", features = ["serde"] }
 anyhow = "1.0.58"
 serde = { version = "1.0.137", features = ["derive"] }

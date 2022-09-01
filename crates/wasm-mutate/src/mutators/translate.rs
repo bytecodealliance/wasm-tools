@@ -125,11 +125,11 @@ pub fn type_def(t: &mut dyn Translator, ty: Type, s: &mut TypeSection) -> Result
     match ty {
         Type::Func(f) => {
             s.function(
-                f.params
+                f.params()
                     .iter()
                     .map(|ty| t.translate_ty(ty))
                     .collect::<Result<Vec<_>>>()?,
-                f.returns
+                f.results()
                     .iter()
                     .map(|ty| t.translate_ty(ty))
                     .collect::<Result<Vec<_>>>()?,
@@ -322,7 +322,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
 
         O::Return => I::Return,
         O::Call { function_index } => I::Call(t.remap(Item::Function, *function_index)?),
-        O::CallRef => I::CallRef,
+        O::CallRef { ty } => I::CallRef(t.translate_heapty(ty)?),
         O::CallIndirect {
             index,
             table_index,
@@ -331,7 +331,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
             ty: t.remap(Item::Type, *index)?,
             table: t.remap(Item::Table, *table_index)?,
         },
-        O::ReturnCallRef => I::ReturnCallRef,
+        O::ReturnCallRef { ty } => I::ReturnCallRef(t.translate_heapty(ty)?),
         O::Delegate { relative_depth } => I::Delegate(*relative_depth),
         O::CatchAll => I::CatchAll,
         O::Drop => I::Drop,

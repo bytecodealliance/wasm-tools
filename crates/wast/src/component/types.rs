@@ -83,8 +83,8 @@ impl<'a> Parse<'a> for ModuleType<'a> {
 pub enum ModuleTypeDecl<'a> {
     /// A core type.
     Type(core::Type<'a>),
-    /// An alias local to the module type.
-    Alias(CoreAlias<'a>),
+    /// An alias local to the component type.
+    Alias(Alias<'a>),
     /// An import.
     Import(core::Import<'a>),
     /// An export.
@@ -97,10 +97,7 @@ impl<'a> Parse<'a> for ModuleTypeDecl<'a> {
         if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
         } else if l.peek::<kw::alias>() {
-            let span = parser.parse::<kw::alias>()?.0;
-            Ok(Self::Alias(CoreAlias::parse_outer_type_alias(
-                span, parser,
-            )?))
+            Ok(Self::Alias(Alias::parse_outer_type_alias(parser, true)?))
         } else if l.peek::<kw::import>() {
             Ok(Self::Import(parser.parse()?))
         } else if l.peek::<kw::export>() {
@@ -795,7 +792,7 @@ impl<'a> Parse<'a> for ComponentTypeDecl<'a> {
         } else if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
         } else if l.peek::<kw::alias>() {
-            Ok(Self::Alias(Alias::parse_outer_type_alias(parser)?))
+            Ok(Self::Alias(Alias::parse_outer_type_alias(parser, false)?))
         } else if l.peek::<kw::import>() {
             Ok(Self::Import(parser.parse()?))
         } else if l.peek::<kw::export>() {
@@ -853,7 +850,7 @@ impl<'a> Parse<'a> for InstanceTypeDecl<'a> {
         } else if l.peek::<kw::r#type>() {
             Ok(Self::Type(parser.parse()?))
         } else if l.peek::<kw::alias>() {
-            Ok(Self::Alias(Alias::parse_outer_type_alias(parser)?))
+            Ok(Self::Alias(Alias::parse_outer_type_alias(parser, false)?))
         } else if l.peek::<kw::export>() {
             Ok(Self::Export(parser.parse()?))
         } else {
