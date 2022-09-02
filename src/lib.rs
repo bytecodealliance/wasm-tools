@@ -5,6 +5,29 @@ use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
+/// Implements the verbosity flag for the CLI commands.
+#[derive(clap::Parser)]
+pub struct Verbosity {
+    /// Use verbose output (-vv very verbose output).
+    #[clap(long = "verbose", short = 'v', parse(from_occurrences))]
+    verbose: usize,
+}
+
+impl Verbosity {
+    /// Initializes the logger based on the verbosity level.
+    pub fn init_logger(&self) {
+        let default = match self.verbose {
+            0 => "warn",
+            1 => "info",
+            _ => "debug",
+        };
+
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(default))
+            .format_target(false)
+            .init();
+    }
+}
+
 // This is intended to be included in a struct as:
 //
 //      #[clap(flatten)]

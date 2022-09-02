@@ -110,7 +110,7 @@ impl Config {
     pub fn from_file(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
 
-        log::debug!("reading configuration file `{}`", path.display());
+        log::info!("reading configuration file `{}`", path.display());
 
         let config = fs::read_to_string(&path)
             .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
