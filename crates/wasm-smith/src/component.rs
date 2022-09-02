@@ -729,6 +729,7 @@ impl ComponentBuilder {
                 "memory".into(),
                 crate::core::EntityType::Memory(self.arbitrary_core_memory_type(u)?),
             ));
+            exports.insert("memory".into());
             counts.memories += 1;
             has_memory = true;
         }
