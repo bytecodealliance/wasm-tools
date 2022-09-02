@@ -782,13 +782,6 @@ impl<'a> TypeEncoder<'a> {
             );
         }
 
-        if function.is_async {
-            bail!(
-                "unsupported function `{}`: only synchronous functions are currently supported",
-                function.name
-            );
-        }
-
         Ok(())
     }
 }

@@ -218,8 +218,6 @@ fn to_json(i: &Interface) -> String {
     #[derive(Serialize)]
     struct Function {
         name: String,
-        #[serde(rename = "async", skip_serializing_if = "Option::is_none")]
-        is_async: Option<bool>,
         params: Vec<String>,
         result: String,
     }
@@ -255,7 +253,6 @@ fn to_json(i: &Interface) -> String {
         .iter()
         .map(|f| Function {
             name: f.name.clone(),
-            is_async: if f.is_async { Some(f.is_async) } else { None },
             params: f.params.iter().map(|(_, ty)| translate_type(ty)).collect(),
             result: translate_type(&f.result),
         })

@@ -80,7 +80,6 @@ pub enum Token {
     Static,
     Interface,
     Tuple,
-    Async,
     Unit,
     Implements,
 
@@ -271,7 +270,6 @@ impl<'a> Tokenizer<'a> {
                     "static" => Static,
                     "interface" => Interface,
                     "tuple" => Tuple,
-                    "async" => Async,
                     "unit" => Unit,
                     "implements" => Implements,
                     _ => Id,
@@ -540,7 +538,6 @@ impl Token {
             Static => "keyword `static`",
             Interface => "keyword `interface`",
             Tuple => "keyword `tuple`",
-            Async => "keyword `async`",
             Unit => "keyword `unit`",
             Implements => "keyword `implements`",
         }

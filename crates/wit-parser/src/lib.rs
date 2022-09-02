@@ -253,7 +253,6 @@ pub struct Global {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
-    pub is_async: bool,
     pub docs: Docs,
     pub name: String,
     pub kind: FunctionKind,

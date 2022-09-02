@@ -171,7 +171,6 @@ struct UnionCase<'a> {
 
 enum ValueKind<'a> {
     Function {
-        is_async: bool,
         params: Vec<(Id<'a>, Type<'a>)>,
         result: Type<'a>,
     },
@@ -409,16 +408,13 @@ impl<'a> Value<'a> {
         tokens.expect(Token::Colon)?;
 
         let kind = if tokens.eat(Token::Func)? {
-            parse_func(tokens, false)?
-        } else if tokens.eat(Token::Async)? {
-            tokens.expect(Token::Func)?;
-            parse_func(tokens, true)?
+            parse_func(tokens)?
         } else {
             ValueKind::Global(Type::parse(tokens)?)
         };
         return Ok(Value { docs, name, kind });
 
-        fn parse_func<'a>(tokens: &mut Tokenizer<'a>, is_async: bool) -> Result<ValueKind<'a>> {
+        fn parse_func<'a>(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
             let params = parse_list(
                 tokens,
                 Token::LeftParen,
@@ -435,11 +431,7 @@ impl<'a> Value<'a> {
             } else {
                 Type::Unit
             };
-            Ok(ValueKind::Function {
-                is_async,
-                params,
-                result,
-            })
+            Ok(ValueKind::Function { params, result })
         }
     }
 }
