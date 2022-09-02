@@ -865,13 +865,7 @@ impl Validator {
             "data",
             |state, _, _, count, offset| {
                 state.data_segment_count = count;
-                check_max(
-                    state.module.data_count.unwrap_or(0) as usize,
-                    count,
-                    MAX_WASM_DATA_SEGMENTS,
-                    "data segments",
-                    offset,
-                )
+                check_max(0, count, MAX_WASM_DATA_SEGMENTS, "data segments", offset)
             },
             |state, features, types, d, offset| state.add_data_segment(d, features, types, offset),
         )
