@@ -53,6 +53,9 @@ wasm-encoder = { path = "crates/wasm-encoder", optional = true, version = '0.17.
 # Dependencies of `compose`
 wasm-compose = { path = "crates/wasm-compose", optional = true, version = '0.1.1', features = ['cli'] }
 
+# Dependencies of `componentize`
+wasm-componentize = { path = "crates/wasm-componentize", optional = true, version = '0.1.0', features = ['cli'] }
+
 [dev-dependencies]
 anyhow = "1.0"
 getopts = "0.2"
@@ -72,7 +75,7 @@ harness = false
 
 [features]
 # By default, all subcommands are built
-default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump', 'strip', 'compose']
+default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump', 'strip', 'compose', 'componentize']
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = ['wasmparser', 'rayon']
@@ -85,3 +88,4 @@ dump = ['wasmparser-dump']
 objdump = ['wasmparser']
 strip = ['wasm-encoder']
 compose = ['wasm-compose']
+componentize = ['wasm-componentize']

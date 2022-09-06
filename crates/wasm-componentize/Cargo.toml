@@ -1,0 +1,22 @@
+[package]
+name = "wasm-componentize"
+version = "0.1.0"
+edition = "2021"
+authors = ["Pat Hickey <phickey@fastly.com>"]
+license = "Apache-2.0 WITH LLVM-exception"
+readme = "README.md"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-componentize"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-componentize"
+documentation = "https://docs.rs/wasm-componentize"
+description = "A library for translating Wasm core modules into Wasm components"
+
+[dependencies]
+wasm-encoder = { version = "0.16.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.90.0", path = "../wasmparser" }
+anyhow = "1.0.58"
+log = "0.4.17"
+clap = { version = "3.2.7", features = ["derive"], optional = true }
+
+[features]
+default = []
+cli = ["clap"]
