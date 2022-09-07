@@ -729,6 +729,7 @@ impl ComponentBuilder {
                 "memory".into(),
                 crate::core::EntityType::Memory(self.arbitrary_core_memory_type(u)?),
             ));
+            exports.insert("memory".into());
             counts.memories += 1;
             has_memory = true;
         }
@@ -1079,20 +1080,20 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         exports: &mut HashSet<String>,
         type_fuel: &mut u32,
-    ) -> Result<InstanceTypeDef> {
+    ) -> Result<InstanceTypeDecl> {
         let mut choices: Vec<
             fn(
                 &mut ComponentBuilder,
                 &mut HashSet<String>,
                 &mut Unstructured,
                 &mut u32,
-            ) -> Result<InstanceTypeDef>,
+            ) -> Result<InstanceTypeDecl>,
         > = Vec::with_capacity(3);
 
         // Export.
         if self.current_type_scope().can_ref_type() {
             choices.push(|me, exports, u, _type_fuel| {
-                Ok(InstanceTypeDef::Export {
+                Ok(InstanceTypeDecl::Export {
                     name: crate::unique_string(100, exports, u)?,
                     ty: me.arbitrary_type_ref(u, false, true)?.unwrap(),
                 })
@@ -1118,7 +1119,7 @@ impl ComponentBuilder {
                     } => me.current_type_scope_mut().push_core(ty.clone()),
                     _ => unreachable!(),
                 };
-                Ok(InstanceTypeDef::Alias(alias))
+                Ok(InstanceTypeDecl::Alias(alias))
             });
         }
 
@@ -1126,15 +1127,17 @@ impl ComponentBuilder {
         choices.push(|me, _exports, u, type_fuel| {
             let ty = me.arbitrary_core_type(u, type_fuel)?;
             me.current_type_scope_mut().push_core(ty.clone());
-            Ok(InstanceTypeDef::CoreType(ty))
+            Ok(InstanceTypeDecl::CoreType(ty))
         });
 
         // Type definition.
-        choices.push(|me, _exports, u, type_fuel| {
-            let ty = me.arbitrary_type(u, type_fuel)?;
-            me.current_type_scope_mut().push(ty.clone());
-            Ok(InstanceTypeDef::Type(ty))
-        });
+        if self.types.len() < self.config.max_nesting_depth() {
+            choices.push(|me, _exports, u, type_fuel| {
+                let ty = me.arbitrary_type(u, type_fuel)?;
+                me.current_type_scope_mut().push(ty.clone());
+                Ok(InstanceTypeDecl::Type(ty))
+            });
+        }
 
         let f = u.choose(&choices)?;
         f(self, exports, u, type_fuel)
@@ -1998,24 +2001,24 @@ enum ComponentTypeDef {
     Export { name: String, ty: ComponentTypeRef },
 }
 
-impl From<InstanceTypeDef> for ComponentTypeDef {
-    fn from(def: InstanceTypeDef) -> Self {
+impl From<InstanceTypeDecl> for ComponentTypeDef {
+    fn from(def: InstanceTypeDecl) -> Self {
         match def {
-            InstanceTypeDef::CoreType(t) => Self::CoreType(t),
-            InstanceTypeDef::Type(t) => Self::Type(t),
-            InstanceTypeDef::Export { name, ty } => Self::Export { name, ty },
-            InstanceTypeDef::Alias(a) => Self::Alias(a),
+            InstanceTypeDecl::CoreType(t) => Self::CoreType(t),
+            InstanceTypeDecl::Type(t) => Self::Type(t),
+            InstanceTypeDecl::Export { name, ty } => Self::Export { name, ty },
+            InstanceTypeDecl::Alias(a) => Self::Alias(a),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct InstanceType {
-    defs: Vec<InstanceTypeDef>,
+    defs: Vec<InstanceTypeDecl>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-enum InstanceTypeDef {
+enum InstanceTypeDecl {
     CoreType(Rc<CoreType>),
     Type(Rc<Type>),
     Alias(Alias),
