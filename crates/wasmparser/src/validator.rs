@@ -55,7 +55,7 @@ use self::component::*;
 pub use self::core::ValidatorResources;
 use self::core::*;
 use self::types::{TypeList, Types, TypesRef};
-pub use func::FuncValidator;
+pub use func::{FuncToValidate, FuncValidator, FuncValidatorAllocations};
 pub use operators::{Frame, FrameKind};
 
 fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usize) -> Result<()> {
@@ -292,7 +292,7 @@ pub enum ValidPayload<'a> {
     /// of the currently-used parser until this returned one ends.
     Parser(Parser),
     /// A function was found to be validate.
-    Func(FuncValidator<ValidatorResources>, FunctionBody<'a>),
+    Func(FuncToValidate<ValidatorResources>, FunctionBody<'a>),
     /// The end payload was validated and the types known to the validator
     /// are provided.
     End(Types),
@@ -351,8 +351,11 @@ impl Validator {
             }
         }
 
-        for (mut validator, body) in functions_to_validate {
+        let mut allocs = FuncValidatorAllocations::default();
+        for (func, body) in functions_to_validate {
+            let mut validator = func.into_validator(allocs);
             validator.validate(&body)?;
+            allocs = validator.into_allocations();
         }
 
         Ok(last_types.unwrap())
@@ -822,37 +825,33 @@ impl Validator {
 
     /// Validates [`Payload::CodeSectionEntry`](crate::Payload).
     ///
-    /// This function will prepare a [`FuncValidator`] which can be used to
-    /// validate the function. The function body provided will be parsed only
-    /// enough to create the function validation context. After this the
-    /// [`OperatorsReader`](crate::readers::OperatorsReader) returned can be used to read the
-    /// opcodes of the function as well as feed information into the validator.
+    /// This function will prepare a [`FuncToValidate`] which can be used to
+    /// create a [`FuncValidator`] to validate the function. The function body
+    /// provided will not be parsed or validated by this function.
     ///
-    /// Note that the returned [`FuncValidator`] is "connected" to this
+    /// Note that the returned [`FuncToValidate`] is "connected" to this
     /// [`Validator`] in that it uses the internal context of this validator for
-    /// validating the function. The [`FuncValidator`] can be sent to
-    /// another thread, for example, to offload actual processing of functions
+    /// validating the function. The [`FuncToValidate`] can be sent to another
+    /// thread, for example, to offload actual processing of functions
     /// elsewhere.
     ///
     /// This method should only be called when parsing a module.
     pub fn code_section_entry(
         &mut self,
         body: &crate::FunctionBody,
-    ) -> Result<FuncValidator<ValidatorResources>> {
+    ) -> Result<FuncToValidate<ValidatorResources>> {
         let offset = body.range().start;
         self.state.ensure_module("code", offset)?;
 
         let state = self.module.as_mut().unwrap();
 
         let (index, ty) = state.next_code_index_and_type(offset)?;
-        Ok(FuncValidator::new(
+        Ok(FuncToValidate::new(
             index,
             ty,
-            0,
             ValidatorResources(state.module.arc().clone()),
             &self.features,
-        )
-        .unwrap())
+        ))
     }
 
     /// Validates [`Payload::DataSection`](crate::Payload).

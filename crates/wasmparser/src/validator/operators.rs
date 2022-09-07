@@ -52,7 +52,6 @@ pub(crate) struct OperatorValidator {
 // it if you so like.
 const MAX_LOCALS_TO_TRACK: usize = 50;
 
-#[derive(Default)]
 pub(super) struct Locals {
     // Total number of locals in the function.
     num_locals: u32,
@@ -131,7 +130,43 @@ struct OperatorValidatorTemp<'validator, 'resources, T> {
     resources: &'resources T,
 }
 
+#[derive(Default)]
+pub struct OperatorValidatorAllocations {
+    br_table_tmp: Vec<Option<ValType>>,
+    control: Vec<Frame>,
+    operands: Vec<Option<ValType>>,
+    locals_first: Vec<ValType>,
+    locals_all: Vec<(u32, ValType)>,
+}
+
 impl OperatorValidator {
+    fn new(features: &WasmFeatures, allocs: OperatorValidatorAllocations) -> Self {
+        let OperatorValidatorAllocations {
+            br_table_tmp,
+            control,
+            operands,
+            locals_first,
+            locals_all,
+        } = allocs;
+        debug_assert!(br_table_tmp.is_empty());
+        debug_assert!(control.is_empty());
+        debug_assert!(operands.is_empty());
+        debug_assert!(locals_first.is_empty());
+        debug_assert!(locals_all.is_empty());
+        OperatorValidator {
+            locals: Locals {
+                num_locals: 0,
+                first: locals_first,
+                all: locals_all,
+            },
+            features: *features,
+            br_table_tmp,
+            operands,
+            control,
+            end_which_emptied_control: None,
+        }
+    }
+
     /// Creates a new operator validator which will be used to validate a
     /// function whose type is the `ty` index specified.
     ///
@@ -142,23 +177,18 @@ impl OperatorValidator {
         offset: usize,
         features: &WasmFeatures,
         resources: &T,
+        allocs: OperatorValidatorAllocations,
     ) -> Result<Self>
     where
         T: WasmModuleResources,
     {
-        let mut ret = OperatorValidator {
-            locals: Locals::default(),
-            features: *features,
-            br_table_tmp: Vec::new(),
-            operands: Vec::new(),
-            control: vec![Frame {
-                kind: FrameKind::Block,
-                block_type: BlockType::FuncType(ty),
-                height: 0,
-                unreachable: false,
-            }],
-            end_which_emptied_control: None,
-        };
+        let mut ret = OperatorValidator::new(features, allocs);
+        ret.control.push(Frame {
+            kind: FrameKind::Block,
+            block_type: BlockType::FuncType(ty),
+            height: 0,
+            unreachable: false,
+        });
         let params = OperatorValidatorTemp {
             inner: &mut ret,
             resources,
@@ -174,20 +204,19 @@ impl OperatorValidator {
     /// Creates a new operator validator which will be used to validate an
     /// `init_expr` constant expression which should result in the `ty`
     /// specified.
-    pub fn new_const_expr(features: &WasmFeatures, ty: ValType) -> Self {
-        OperatorValidator {
-            locals: Locals::default(),
-            features: *features,
-            br_table_tmp: Vec::new(),
-            operands: Vec::new(),
-            control: vec![Frame {
-                kind: FrameKind::Block,
-                block_type: BlockType::Type(ty),
-                height: 0,
-                unreachable: false,
-            }],
-            end_which_emptied_control: None,
-        }
+    pub fn new_const_expr(
+        features: &WasmFeatures,
+        ty: ValType,
+        allocs: OperatorValidatorAllocations,
+    ) -> Self {
+        let mut ret = OperatorValidator::new(features, allocs);
+        ret.control.push(Frame {
+            kind: FrameKind::Block,
+            block_type: BlockType::Type(ty),
+            height: 0,
+            unreachable: false,
+        });
+        ret
     }
 
     pub fn define_locals(&mut self, offset: usize, count: u32, ty: ValType) -> Result<()> {
@@ -269,6 +298,20 @@ impl OperatorValidator {
 
     fn err_beyond_end(&self, offset: usize) -> BinaryReaderError {
         format_err!(offset, "operators remaining after end of function")
+    }
+
+    pub fn into_allocations(self) -> OperatorValidatorAllocations {
+        fn truncate<T>(mut tmp: Vec<T>) -> Vec<T> {
+            tmp.truncate(0);
+            tmp
+        }
+        OperatorValidatorAllocations {
+            br_table_tmp: truncate(self.br_table_tmp),
+            control: truncate(self.control),
+            operands: truncate(self.operands),
+            locals_first: truncate(self.locals.first),
+            locals_all: truncate(self.locals.all),
+        }
     }
 }
 

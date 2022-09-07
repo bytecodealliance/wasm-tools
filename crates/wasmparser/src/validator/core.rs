@@ -2,7 +2,7 @@
 //!
 use super::{
     check_max, combine_type_sizes,
-    operators::OperatorValidator,
+    operators::{OperatorValidator, OperatorValidatorAllocations},
     types::{EntityType, Type, TypeId, TypeList},
 };
 use crate::validator::core::arc::MaybeOwned;
@@ -13,6 +13,7 @@ use crate::{
     WasmModuleResources, V128,
 };
 use indexmap::IndexMap;
+use std::mem;
 use std::{collections::HashSet, sync::Arc};
 
 fn check_value_type(ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
@@ -71,6 +72,8 @@ pub(crate) struct ModuleState {
     /// entry in the code section (used to figure out what type is next for the
     /// function being validated).
     pub expected_code_bodies: Option<u32>,
+
+    const_expr_allocs: OperatorValidatorAllocations,
 
     /// When parsing the code section, represents the current index in the section.
     code_section_index: Option<usize>,
@@ -241,7 +244,11 @@ impl ModuleState {
         let mut validator = VisitConstOperator {
             order: self.order,
             uninserted_funcref: false,
-            ops: OperatorValidator::new_const_expr(features, expected_ty),
+            ops: OperatorValidator::new_const_expr(
+                features,
+                expected_ty,
+                mem::take(&mut self.const_expr_allocs),
+            ),
             resources: OperatorValidatorResources {
                 types,
                 module: &mut self.module,
@@ -256,6 +263,8 @@ impl ModuleState {
 
         // See comment in `RefFunc` below for why this is an assert.
         assert!(!validator.uninserted_funcref);
+
+        self.const_expr_allocs = validator.ops.into_allocations();
 
         return Ok(());
 
