@@ -519,15 +519,25 @@ impl<'a> Lexer<'a> {
                 // https://webassembly.github.io/spec/core/text/values.html#text-string
                 b'"' => {
                     strings += 1;
-
-                    let mut it = self.remaining[pos + 1..].chars();
+                    pos += 1;
+                    let mut it = self.remaining[pos..].chars();
                     let result = Lexer::parse_str(&mut it, self.allow_confusing_unicode);
                     pos = self.remaining.len() - it.as_str().len();
                     match result {
                         Ok(s) => last_string_val = Some(s),
                         Err(e) => {
+                            let start = self.input.len() - self.remaining.len();
                             self.remaining = &self.remaining[pos..];
-                            let err_pos = self.input.len() - self.remaining.len() + pos;
+                            let err_pos = match &e {
+                                LexError::UnexpectedEof => self.input.len(),
+                                _ => {
+                                    self.input[..start + pos]
+                                        .char_indices()
+                                        .next_back()
+                                        .unwrap()
+                                        .0
+                                }
+                            };
                             return Err(self.error(err_pos, e));
                         }
                     }
