@@ -496,7 +496,9 @@ impl<'a> Lexer<'a> {
     /// https://github.com/WebAssembly/spec/pull/1499 but the general gist is
     /// that this is parsing the grammar:
     ///
-    ///     reserved := (idchar | string)+
+    /// ```text
+    /// reserved := (idchar | string)+
+    /// ```
     ///
     /// which means that it is eating any number of adjacent string/idchar
     /// tokens (e.g. `a"b"c`) and returning the classification of what was
