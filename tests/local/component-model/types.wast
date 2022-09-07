@@ -124,7 +124,7 @@
       (alias outer $c $t (type))
     ))
   )
-  "failed to find core type named `$t`")
+  "unknown core type")
 
 (assert_invalid
   (component $c
@@ -149,7 +149,7 @@
       (alias outer $c $t (type))
     ))
   )
-  "failed to find type named `$t`")
+  "unknown type")
 
 (assert_invalid
   (component $c
@@ -203,7 +203,7 @@
       (alias outer $c $t (type))
     ))
   )
-  "failed to find type named `$t`")
+  "unknown type")
 
 (assert_invalid
   (component $c

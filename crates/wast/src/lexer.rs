@@ -90,6 +90,12 @@ pub enum Token<'a> {
     Float(Float<'a>),
 }
 
+enum ReservedKind<'a> {
+    String(Cow<'a, [u8]>),
+    Idchars,
+    Reserved,
+}
+
 /// Errors that can be generated while lexing.
 ///
 /// All lexing errors have line/colum/position information as well as a
@@ -354,37 +360,51 @@ impl<'a> Lexer<'a> {
 
             b')' => Ok(Some(Token::RParen(self.split_first_byte()))),
 
-            b'"' => {
-                let val = self.string()?;
-                let src = &self.input[pos..self.cur()];
-                return Ok(Some(Token::String(WasmString(Box::new(WasmStringInner {
-                    val,
-                    src,
-                })))));
-            }
-
             // https://webassembly.github.io/spec/core/text/lexical.html#white-space
             b' ' | b'\n' | b'\r' | b'\t' => Ok(Some(Token::Whitespace(self.split_ws()))),
 
-            c @ idchars!() => {
-                let reserved = self.split_while(|b| matches!(b, idchars!()));
+            c @ (idchars!() | b'"') => {
+                let (kind, src) = self.split_reserved()?;
+                match kind {
+                    // If the reserved token was simply a single string then
+                    // that is converted to a standalone string token
+                    ReservedKind::String(val) => {
+                        return Ok(Some(Token::String(WasmString(Box::new(WasmStringInner {
+                            val,
+                            src,
+                        })))));
+                    }
 
-                // https://webassembly.github.io/spec/core/text/values.html#integers
-                if let Some(number) = self.number(reserved) {
-                    Ok(Some(number))
-                // https://webassembly.github.io/spec/core/text/values.html#text-id
-                } else if *c == b'$' && reserved.len() > 1 {
-                    Ok(Some(Token::Id(reserved)))
-                // https://webassembly.github.io/spec/core/text/lexical.html#text-keyword
-                } else if b'a' <= *c && *c <= b'z' {
-                    Ok(Some(Token::Keyword(reserved)))
-                } else {
-                    Ok(Some(Token::Reserved(reserved)))
+                    // If only idchars were consumed then this could be a
+                    // specific kind of standalone token we're interested in.
+                    ReservedKind::Idchars => {
+                        // https://webassembly.github.io/spec/core/text/values.html#integers
+                        if let Some(number) = self.number(src) {
+                            return Ok(Some(number));
+                        // https://webassembly.github.io/spec/core/text/values.html#text-id
+                        } else if *c == b'$' && src.len() > 1 {
+                            return Ok(Some(Token::Id(src)));
+                        // https://webassembly.github.io/spec/core/text/lexical.html#text-keyword
+                        } else if b'a' <= *c && *c <= b'z' {
+                            return Ok(Some(Token::Keyword(src)));
+                        }
+                    }
+
+                    // ... otherwise this was a conglomeration of idchars,
+                    // strings, or just idchars that don't match a prior rule,
+                    // meaning this falls through to the fallback `Reserved`
+                    // token.
+                    ReservedKind::Reserved => {}
                 }
+
+                Ok(Some(Token::Reserved(src)))
             }
 
             // This could be a line comment, otherwise `;` is a reserved token.
             // The second byte is checked to see if it's a `;;` line comment
+            //
+            // Note that this character being considered as part of a
+            // `reserved` token is part of the annotations proposal.
             b';' => match self.remaining.as_bytes().get(1) {
                 Some(b';') => {
                     let comment = self.split_until(b'\n');
@@ -395,6 +415,9 @@ impl<'a> Lexer<'a> {
             },
 
             // Other known reserved tokens other than `;`
+            //
+            // Note that these characters being considered as part of a
+            // `reserved` token is part of the annotations proposal.
             b',' | b'[' | b']' | b'{' | b'}' => Ok(Some(Token::Reserved(self.split_first_byte()))),
 
             _ => {
@@ -466,16 +489,62 @@ impl<'a> Lexer<'a> {
         ret
     }
 
-    fn split_while(&mut self, f: impl Fn(u8) -> bool) -> &'a str {
-        let pos = self
-            .remaining
-            .as_bytes()
-            .iter()
-            .position(|b| !f(*b))
-            .unwrap_or(self.remaining.len());
+    /// Splits off a "reserved" token which is then further processed later on
+    /// to figure out which kind of token it is `depending on `ReservedKind`.
+    ///
+    /// For more information on this method see the clarification at
+    /// https://github.com/WebAssembly/spec/pull/1499 but the general gist is
+    /// that this is parsing the grammar:
+    ///
+    ///     reserved := (idchar | string)+
+    ///
+    /// which means that it is eating any number of adjacent string/idchar
+    /// tokens (e.g. `a"b"c`) and returning the classification of what was
+    /// eaten. The classification assists in determining what the actual token
+    /// here eaten looks like.
+    fn split_reserved(&mut self) -> Result<(ReservedKind<'a>, &'a str), Error> {
+        let mut idchars = false;
+        let mut strings = 0u32;
+        let mut last_string_val = None;
+        let mut pos = 0;
+        while let Some(byte) = self.remaining.as_bytes().get(pos) {
+            match byte {
+                // Normal `idchars` production which appends to the reserved
+                // token that's being produced.
+                idchars!() => {
+                    idchars = true;
+                    pos += 1;
+                }
+
+                // https://webassembly.github.io/spec/core/text/values.html#text-string
+                b'"' => {
+                    strings += 1;
+
+                    let mut it = self.remaining[pos + 1..].chars();
+                    let result = Lexer::parse_str(&mut it, self.allow_confusing_unicode);
+                    pos = self.remaining.len() - it.as_str().len();
+                    match result {
+                        Ok(s) => last_string_val = Some(s),
+                        Err(e) => {
+                            self.remaining = &self.remaining[pos..];
+                            let err_pos = self.input.len() - self.remaining.len() + pos;
+                            return Err(self.error(err_pos, e));
+                        }
+                    }
+                }
+
+                // Nothing else is considered part of a reserved token
+                _ => break,
+            }
+        }
         let (ret, remaining) = self.remaining.split_at(pos);
         self.remaining = remaining;
-        ret
+        Ok(match (idchars, strings) {
+            (false, 0) => unreachable!(),
+            (false, 1) => (ReservedKind::String(last_string_val.unwrap()), ret),
+            (true, 0) => (ReservedKind::Idchars, ret),
+            _ => (ReservedKind::Reserved, ret),
+        })
     }
 
     fn number(&self, src: &'a str) -> Option<Token<'a>> {
@@ -686,24 +755,6 @@ impl<'a> Lexer<'a> {
         }
 
         Ok(())
-    }
-
-    /// Reads everything for a literal string except the leading `"`. Returns
-    /// the string value that has been read.
-    ///
-    /// https://webassembly.github.io/spec/core/text/values.html#text-string
-    fn string(&mut self) -> Result<Cow<'a, [u8]>, Error> {
-        let mut it = self.remaining[1..].chars();
-        let result = Lexer::parse_str(&mut it, self.allow_confusing_unicode);
-        let end = self.input.len() - it.as_str().len();
-        self.remaining = &self.input[end..];
-        result.map_err(|e| {
-            let err_pos = match &e {
-                LexError::UnexpectedEof => self.input.len(),
-                _ => self.input[..end].char_indices().next_back().unwrap().0,
-            };
-            self.error(err_pos, e)
-        })
     }
 
     fn parse_str(

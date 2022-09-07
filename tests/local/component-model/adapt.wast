@@ -252,7 +252,7 @@
     (core instance $i (instantiate $m))
     (core func (canon lower (func $i "")))
   )
-  "failed to find instance named `$i`")
+  "unknown instance: failed to find name `$i`")
 
 (assert_invalid
   (component
@@ -284,4 +284,4 @@
     (import "" (func $f))
     (func (export "foo") (canon lift (core func $f)))
   )
-  "failed to find core func named `$f`")
+  "unknown core func: failed to find name `$f`")

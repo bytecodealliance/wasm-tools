@@ -204,7 +204,7 @@
     (type (instance
       (export "" (core module (type $t)))
     )))
-  "failed to find core type named `$t`")
+  "unknown core type")
 
 (assert_invalid
   (component
