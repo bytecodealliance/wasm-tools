@@ -1,5 +1,5 @@
 use super::operators::{Frame, OperatorValidator, OperatorValidatorAllocations};
-use crate::{BinaryReader, Result, ValType};
+use crate::{BinaryReader, Result, ValType, VisitOperator};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 
 /// Resources necessary to perform validation of a function.
@@ -307,8 +307,6 @@ mod tests {
         assert_eq!(v.operand_stack_height(), 2);
     }
 }
-
-use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, VisitOperator, V128};
 
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
