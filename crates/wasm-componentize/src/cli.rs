@@ -1,6 +1,5 @@
 //! Module for CLI parsing.
 
-use crate::componentize;
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
@@ -37,7 +36,7 @@ impl WasmComponentizeCommand {
             )
         })?;
 
-        let bytes = componentize(&bytes)?;
+        let bytes = crate::lift(&bytes)?;
 
         std::fs::write(&self.output, &bytes).with_context(|| {
             format!(
