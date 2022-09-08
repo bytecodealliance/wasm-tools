@@ -7,10 +7,9 @@ use super::{
 };
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    limits::*, BinaryReaderError, BlockType, BrTable, ConstExpr, Data, DataKind, Element,
-    ElementItem, ElementKind, ExternalKind, FuncType, Global, GlobalType, Ieee32, Ieee64, MemArg,
-    MemoryType, Result, TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources, V128,
+    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
+    ExternalKind, FuncType, Global, GlobalType, MemoryType, Result, TableType, TagType, TypeRef,
+    ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
