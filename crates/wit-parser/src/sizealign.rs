@@ -28,7 +28,7 @@ impl SizeAlign {
             TypeDefKind::Variant(v) => self.variant(v.tag(), v.cases.iter().map(|c| &c.ty)),
             TypeDefKind::Enum(e) => self.variant(e.tag(), []),
             TypeDefKind::Option(t) => self.variant(Int::U8, [&Type::Unit, t]),
-            TypeDefKind::Expected(e) => self.variant(Int::U8, [&e.ok, &e.err]),
+            TypeDefKind::Result(r) => self.variant(Int::U8, [&r.ok, &r.err]),
             TypeDefKind::Union(u) => self.variant(u.tag(), u.cases.iter().map(|c| &c.ty)),
             // A future is represented as an index.
             TypeDefKind::Future(_) => (4, 4),

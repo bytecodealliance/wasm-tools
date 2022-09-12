@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use std::fmt::Write;
 use wit_parser::{
-    Enum, Expected, Flags, Interface, Record, Tuple, Type, TypeDefKind, TypeId, Union, Variant,
+    Enum, Flags, Interface, Record, Result_, Tuple, Type, TypeDefKind, TypeId, Union, Variant,
 };
 
 /// A utility for printing WebAssembly interface definitions to a string.
@@ -77,8 +77,8 @@ impl InterfacePrinter {
                     TypeDefKind::Option(t) => {
                         self.print_option_type(interface, t)?;
                     }
-                    TypeDefKind::Expected(t) => {
-                        self.print_expected_type(interface, t)?;
+                    TypeDefKind::Result(t) => {
+                        self.print_result_type(interface, t)?;
                     }
                     TypeDefKind::Record(_) => {
                         bail!("interface has an unnamed record type");
@@ -136,11 +136,11 @@ impl InterfacePrinter {
         Ok(())
     }
 
-    fn print_expected_type(&mut self, interface: &Interface, expected: &Expected) -> Result<()> {
-        self.output.push_str("expected<");
-        self.print_type_name(interface, &expected.ok)?;
+    fn print_result_type(&mut self, interface: &Interface, result: &Result_) -> Result<()> {
+        self.output.push_str("result<");
+        self.print_type_name(interface, &result.ok)?;
         self.output.push_str(", ");
-        self.print_type_name(interface, &expected.err)?;
+        self.print_type_name(interface, &result.err)?;
         self.output.push('>');
         Ok(())
     }
@@ -185,8 +185,8 @@ impl InterfacePrinter {
                     TypeDefKind::Option(t) => {
                         self.declare_option(interface, ty.name.as_deref(), t)?
                     }
-                    TypeDefKind::Expected(e) => {
-                        self.declare_expected(interface, ty.name.as_deref(), e)?
+                    TypeDefKind::Result(r) => {
+                        self.declare_result(interface, ty.name.as_deref(), r)?
                     }
                     TypeDefKind::Enum(e) => self.declare_enum(ty.name.as_deref(), e)?,
                     TypeDefKind::List(inner) => {
@@ -336,18 +336,18 @@ impl InterfacePrinter {
         Ok(())
     }
 
-    fn declare_expected(
+    fn declare_result(
         &mut self,
         interface: &Interface,
         name: Option<&str>,
-        expected: &Expected,
+        result: &Result_,
     ) -> Result<()> {
-        self.declare_type(interface, &expected.ok)?;
-        self.declare_type(interface, &expected.err)?;
+        self.declare_type(interface, &result.ok)?;
+        self.declare_type(interface, &result.err)?;
 
         if let Some(name) = name {
             write!(&mut self.output, "type {} = ", name)?;
-            self.print_expected_type(interface, expected)?;
+            self.print_result_type(interface, result)?;
             self.output.push_str("\n\n");
         }
         Ok(())

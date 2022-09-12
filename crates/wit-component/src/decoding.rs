@@ -304,7 +304,7 @@ impl<'a> InterfaceDecoder<'a> {
                         }
                         types::ComponentDefinedType::Option(ty) => self.decode_option(name, ty)?,
                         types::ComponentDefinedType::Expected(ok, err) => {
-                            self.decode_expected(name, ok, err)?
+                            self.decode_result(name, ok, err)?
                         }
                     },
                     _ => unreachable!(),
@@ -523,7 +523,7 @@ impl<'a> InterfaceDecoder<'a> {
         ))
     }
 
-    fn decode_expected(
+    fn decode_result(
         &mut self,
         name: Option<String>,
         ok: &types::ComponentValType,
@@ -533,7 +533,7 @@ impl<'a> InterfaceDecoder<'a> {
         let err = self.decode_type(err)?;
         Ok(Type::Id(self.alloc_type(
             name,
-            TypeDefKind::Expected(Expected { ok, err }),
+            TypeDefKind::Result(Result_ { ok, err }),
         )))
     }
 

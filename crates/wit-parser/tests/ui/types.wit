@@ -14,10 +14,10 @@ type t11 = char
 type t12 = list<char>
 type t13 = string
 type t14 = option<u32>
-type t15 = expected<u32, u32>
-type t16 = expected<unit, u32>
-type t17 = expected<u32, unit>
-type t18 = expected<unit, unit>
+type t15 = result<u32, u32>
+type t16 = result<unit, u32>
+type t17 = result<u32, unit>
+type t18 = result<unit, unit>
 type t19 = handle x
 record t20 {}
 record t21 { a: u32 }

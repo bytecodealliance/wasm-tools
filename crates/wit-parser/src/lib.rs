@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 pub mod abi;
 mod ast;
+pub mod mangle;
 mod sizealign;
 pub use sizealign::*;
 
@@ -59,7 +60,7 @@ pub enum TypeDefKind {
     Variant(Variant),
     Enum(Enum),
     Option(Type),
-    Expected(Expected),
+    Result(Result_),
     Union(Union),
     List(Type),
     Future(Type),
@@ -196,7 +197,7 @@ impl Enum {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Expected {
+pub struct Result_ {
     pub ok: Type,
     pub err: Type,
 }
@@ -432,9 +433,9 @@ impl Interface {
                 }
             }
             TypeDefKind::Option(ty) => self.topo_visit_ty(ty, list, visited),
-            TypeDefKind::Expected(e) => {
-                self.topo_visit_ty(&e.ok, list, visited);
-                self.topo_visit_ty(&e.err, list, visited);
+            TypeDefKind::Result(r) => {
+                self.topo_visit_ty(&r.ok, list, visited);
+                self.topo_visit_ty(&r.err, list, visited);
             }
             TypeDefKind::Union(u) => {
                 for t in u.cases.iter() {
@@ -479,7 +480,7 @@ impl Interface {
                 | TypeDefKind::Variant(_)
                 | TypeDefKind::Enum(_)
                 | TypeDefKind::Option(_)
-                | TypeDefKind::Expected(_)
+                | TypeDefKind::Result(_)
                 | TypeDefKind::Future(_)
                 | TypeDefKind::Stream(_)
                 | TypeDefKind::Union(_) => false,

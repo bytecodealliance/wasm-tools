@@ -82,7 +82,7 @@
     {
       "idx": 15,
       "name": "t15",
-      "expected": {
+      "result": {
         "ok": "u32",
         "err": "u32"
       }
@@ -90,7 +90,7 @@
     {
       "idx": 16,
       "name": "t16",
-      "expected": {
+      "result": {
         "ok": "unit",
         "err": "u32"
       }
@@ -98,7 +98,7 @@
     {
       "idx": 17,
       "name": "t17",
-      "expected": {
+      "result": {
         "ok": "u32",
         "err": "unit"
       }
@@ -106,7 +106,7 @@
     {
       "idx": 18,
       "name": "t18",
-      "expected": {
+      "result": {
         "ok": "unit",
         "err": "unit"
       }

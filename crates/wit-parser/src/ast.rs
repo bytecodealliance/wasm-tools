@@ -97,7 +97,7 @@ enum Type<'a> {
     Tuple(Vec<Type<'a>>),
     Enum(Enum<'a>),
     Option(Box<Type<'a>>),
-    Expected(Expected<'a>),
+    Result(Result_<'a>),
     Future(Box<Type<'a>>),
     Stream(Stream<'a>),
     Union(Union<'a>),
@@ -143,7 +143,7 @@ struct EnumCase<'a> {
     name: Id<'a>,
 }
 
-struct Expected<'a> {
+struct Result_<'a> {
     ok: Box<Type<'a>>,
     err: Box<Type<'a>>,
 }
@@ -514,14 +514,14 @@ impl<'a> Type<'a> {
                 Ok(Type::Option(Box::new(ty)))
             }
 
-            // expected<T, E>
-            Some((_span, Token::Expected)) => {
+            // result<T, E>
+            Some((_span, Token::Result_)) => {
                 tokens.expect(Token::LessThan)?;
                 let ok = Box::new(Type::parse(tokens)?);
                 tokens.expect(Token::Comma)?;
                 let err = Box::new(Type::parse(tokens)?);
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::Expected(Expected { ok, err }))
+                Ok(Type::Result(Result_ { ok, err }))
             }
 
             // future<T>

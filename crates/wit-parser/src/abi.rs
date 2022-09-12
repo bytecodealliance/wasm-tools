@@ -1,6 +1,6 @@
 use crate::sizealign::align_to;
 use crate::{
-    Enum, Expected, Flags, FlagsRepr, Function, Int, Interface, Record, ResourceId, Tuple, Type,
+    Enum, Flags, FlagsRepr, Function, Int, Interface, Record, ResourceId, Result_, Tuple, Type,
     TypeDefKind, TypeId, Union, Variant,
 };
 
@@ -613,20 +613,20 @@ def_instruction! {
             ty: TypeId,
         } : [1] => [1],
 
-        /// Specialization of `VariantLower` for specifically `expected<T, E>`
+        /// Specialization of `VariantLower` for specifically `result<T, E>`
         /// types, otherwise behaves the same as `VariantLower` (e.g. two blocks
         /// for the two cases.
-        ExpectedLower {
-            expected: &'a Expected,
+        ResultLower {
+            result: &'a Result_
             ty: TypeId,
             results: &'a [WasmType],
         } : [1] => [results.len()],
 
-        /// Specialization of `VariantLift` for specifically the `expected<T,
+        /// Specialization of `VariantLift` for specifically the `result<T,
         /// E>` type. Otherwise behaves the same as the `VariantLift`
         /// instruction with two blocks for the lift.
-        ExpectedLift {
-            expected: &'a Expected,
+        ResultLift {
+            result: &'a Result_,
             ty: TypeId,
         } : [1] => [1],
 
@@ -636,7 +636,8 @@ def_instruction! {
         /// provided inline as well as the types if necessary.
         CallWasm {
             iface: &'a Interface,
-            name: &'a str,
+            base_name: &'a str,
+            mangled_name: String,
             sig: &'a WasmSignature,
         } : [sig.params.len()] => [sig.results.len()],
 
@@ -912,9 +913,9 @@ impl Interface {
                     self.push_wasm_variants(variant, [&Type::Unit, t], result);
                 }
 
-                TypeDefKind::Expected(e) => {
+                TypeDefKind::Result(r) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, [&e.ok, &e.err], result);
+                    self.push_wasm_variants(variant, [&r.ok, &r.err], result);
                 }
 
                 TypeDefKind::Union(u) => {
@@ -1047,7 +1048,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         // malloc needs to be called.
                         AbiVariant::GuestExport => {
                             self.emit(&Instruction::Malloc {
-                                realloc: "canonical_abi_realloc",
+                                realloc: "cabi_realloc",
                                 size,
                                 align,
                             });
@@ -1080,7 +1081,8 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 assert_eq!(self.stack.len(), sig.params.len());
                 self.emit(&Instruction::CallWasm {
                     iface: self.iface,
-                    name: &func.name,
+                    base_name: &func.name,
+                    mangled_name: self.iface.mangle_funcname(func),
                     sig: &sig,
                 });
 
@@ -1387,10 +1389,10 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         results: &results,
                     });
                 }
-                TypeDefKind::Expected(e) => {
-                    let results = self.lower_variant_arms(ty, [&e.ok, &e.err]);
-                    self.emit(&ExpectedLower {
-                        expected: e,
+                TypeDefKind::Result(r) => {
+                    let results = self.lower_variant_arms(ty, [&r.ok, &r.err]);
+                    self.emit(&ResultLower {
+                        result: r,
                         ty: id,
                         results: &results,
                     });
@@ -1469,7 +1471,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         // ownership in all other cases.
         match (self.variant, self.lift_lower) {
             (AbiVariant::GuestImport, LiftLower::LowerArgsLiftResults) => None,
-            _ => Some("canonical_abi_realloc"),
+            _ => Some("cabi_realloc"),
         }
     }
 
@@ -1597,12 +1599,9 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&OptionLift { payload: t, ty: id });
                 }
 
-                TypeDefKind::Expected(e) => {
-                    self.lift_variant_arms(ty, [&e.ok, &e.err]);
-                    self.emit(&ExpectedLift {
-                        expected: e,
-                        ty: id,
-                    });
+                TypeDefKind::Result(r) => {
+                    self.lift_variant_arms(ty, [&r.ok, &r.err]);
+                    self.emit(&ResultLift { result: r, ty: id });
                 }
 
                 TypeDefKind::Union(union) => {
@@ -1756,10 +1755,10 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     });
                 }
 
-                TypeDefKind::Expected(e) => {
-                    self.write_variant_arms_to_memory(offset, addr, Int::U8, [&e.ok, &e.err]);
-                    self.emit(&ExpectedLower {
-                        expected: e,
+                TypeDefKind::Result(r) => {
+                    self.write_variant_arms_to_memory(offset, addr, Int::U8, [&r.ok, &r.err]);
+                    self.emit(&ResultLower {
+                        result: r,
                         ty: id,
                         results: &[],
                     });
@@ -1937,12 +1936,9 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&OptionLift { payload: t, ty: id });
                 }
 
-                TypeDefKind::Expected(e) => {
-                    self.read_variant_arms_from_memory(offset, addr, Int::U8, [&e.ok, &e.err]);
-                    self.emit(&ExpectedLift {
-                        expected: e,
-                        ty: id,
-                    });
+                TypeDefKind::Result(r) => {
+                    self.read_variant_arms_from_memory(offset, addr, Int::U8, [&r.ok, &r.err]);
+                    self.emit(&ResultLift { result: r, ty: id });
                 }
 
                 TypeDefKind::Enum(e) => {

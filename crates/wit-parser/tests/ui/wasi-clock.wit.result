@@ -105,7 +105,7 @@
     },
     {
       "idx": 3,
-      "expected": {
+      "result": {
         "ok": "type-1",
         "err": "type-2"
       }

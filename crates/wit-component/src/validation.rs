@@ -15,7 +15,7 @@ fn is_wasi(name: &str) -> bool {
 }
 
 fn is_canonical_function(name: &str) -> bool {
-    name.starts_with("canonical_abi_")
+    name.starts_with("cabi_")
 }
 
 pub fn expected_export_name<'a>(interface: Option<&str>, func: &'a str) -> Cow<'a, str> {
@@ -115,8 +115,8 @@ pub fn validate_module<'a>(
                     match export.kind {
                         ExternalKind::Func => {
                             if is_canonical_function(export.name) {
-                                if export.name == "canonical_abi_realloc" {
-                                    // TODO: validate that the canonical_abi_realloc function is [i32, i32, i32, i32] -> [i32]
+                                if export.name == "cabi_realloc" {
+                                    // TODO: validate that the cabi_realloc function is [i32, i32, i32, i32] -> [i32]
                                     has_realloc = true;
                                 }
                                 continue;

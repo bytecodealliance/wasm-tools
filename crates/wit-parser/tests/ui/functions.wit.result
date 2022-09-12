@@ -15,7 +15,7 @@
     },
     {
       "idx": 2,
-      "expected": {
+      "result": {
         "ok": "u32",
         "err": "float32"
       }

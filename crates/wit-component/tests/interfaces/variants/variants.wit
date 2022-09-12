@@ -77,21 +77,21 @@ option-result: func() -> tuple<option<bool>, option<tuple<>>, option<u32>, optio
 
 casts: func(a: casts1, b: casts2, c: casts3, d: casts4, e: casts5, f: casts6) -> tuple<casts1, casts2, casts3, casts4, casts5, casts6>
 
-expected-arg: func(a: expected<unit, unit>, b: expected<unit, e1>, c: expected<e1, unit>, d: expected<tuple<>, tuple<>>, e: expected<u32, v1>, f: expected<string, list<u8>>)
+expected-arg: func(a: result<unit, unit>, b: result<unit, e1>, c: result<e1, unit>, d: result<tuple<>, tuple<>>, e: result<u32, v1>, f: result<string, list<u8>>)
 
-expected-result: func() -> tuple<expected<unit, unit>, expected<unit, e1>, expected<e1, unit>, expected<tuple<>, tuple<>>, expected<u32, v1>, expected<string, list<u8>>>
+expected-result: func() -> tuple<result<unit, unit>, result<unit, e1>, result<e1, unit>, result<tuple<>, tuple<>>, result<u32, v1>, result<string, list<u8>>>
 
-return-expected-sugar: func() -> expected<s32, my-errno>
+return-expected-sugar: func() -> result<s32, my-errno>
 
-return-expected-sugar2: func() -> expected<unit, my-errno>
+return-expected-sugar2: func() -> result<unit, my-errno>
 
-return-expected-sugar3: func() -> expected<my-errno, my-errno>
+return-expected-sugar3: func() -> result<my-errno, my-errno>
 
-return-expected-sugar4: func() -> expected<tuple<s32, u32>, my-errno>
+return-expected-sugar4: func() -> result<tuple<s32, u32>, my-errno>
 
 return-option-sugar: func() -> option<s32>
 
 return-option-sugar2: func() -> option<my-errno>
 
-expected-simple: func() -> expected<u32, s32>
+expected-simple: func() -> result<u32, s32>
 

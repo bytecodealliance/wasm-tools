@@ -85,14 +85,13 @@ resource body {
     /// @param dest - destination buffer to write into
     /// @return result - a result containing the number of bytes written on success
     // TODO: check if `out-buffer` is the right way to express this
-    // NOTE: s/expected/result/
-    read: func(dest: list<u8>) -> expected<u64, error>
+    read: func(dest: list<u8>) -> result<u64, error>
 
     /// Write to a body.
     /// @param source - source buffer to read from
     /// @return result - a result containing the number of bytes read on success
     // TODO: check if `in-buffer` is the right way to express this
-    write: func(source: list<u8>) -> expected<u64, error>
+    write: func(source: list<u8>) -> result<u64, error>
 }
 /*
 
@@ -144,7 +143,7 @@ enum error {
 
 /// A function returning a Result, with the enum above as one of the options
 /// @return result - a `Result` containing either the desired number, or an `error`
-maybe-number: func() -> expected<u64, error>
+maybe-number: func() -> result<u64, error>
 
 /// A simple struct
 record timestamp {

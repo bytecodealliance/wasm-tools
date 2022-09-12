@@ -12,7 +12,7 @@ use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Enum, Expected, Flags, Function, FunctionKind, Interface, Record, Tuple, Type, TypeDef,
+    Enum, Flags, Function, FunctionKind, Interface, Record, Result_, Tuple, Type, TypeDef,
     TypeDefKind, Union, Variant,
 };
 
@@ -167,19 +167,19 @@ impl PartialEq for TypeDefKey<'_> {
                     interface: other.interface,
                     ty: *t2,
                 }),
-                (TypeDefKind::Expected(e1), TypeDefKind::Expected(e2)) => {
+                (TypeDefKind::Result(r1), TypeDefKind::Result(r2)) => {
                     TypeKey {
                         interface: self.interface,
-                        ty: e1.ok,
+                        ty: r1.ok,
                     } == TypeKey {
                         interface: other.interface,
-                        ty: e2.ok,
+                        ty: r2.ok,
                     } && TypeKey {
                         interface: self.interface,
-                        ty: e1.err,
+                        ty: r1.err,
                     } == TypeKey {
                         interface: other.interface,
-                        ty: e2.err,
+                        ty: r2.err,
                     }
                 }
                 _ => false,
@@ -262,16 +262,16 @@ impl Hash for TypeDefKey<'_> {
                 }
                 .hash(state);
             }
-            TypeDefKind::Expected(e) => {
+            TypeDefKind::Result(r) => {
                 state.write_u8(8);
                 TypeKey {
                     interface: self.interface,
-                    ty: e.ok,
+                    ty: r.ok,
                 }
                 .hash(state);
                 TypeKey {
                     interface: self.interface,
-                    ty: e.err,
+                    ty: r.err,
                 }
                 .hash(state);
             }
@@ -560,8 +560,8 @@ impl<'a> TypeEncoder<'a> {
                         TypeDefKind::Option(t) => {
                             self.encode_option(interface, t, export_named_types)?
                         }
-                        TypeDefKind::Expected(e) => {
-                            self.encode_expected(interface, e, export_named_types)?
+                        TypeDefKind::Result(r) => {
+                            self.encode_result(interface, r, export_named_types)?
                         }
                         TypeDefKind::Enum(e) => self.encode_enum(e)?,
                         TypeDefKind::List(ty) => {
@@ -714,14 +714,14 @@ impl<'a> TypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_expected(
+    fn encode_result(
         &mut self,
         interface: &'a Interface,
-        expected: &Expected,
+        result: &Result_,
         export_named_types: bool,
     ) -> Result<ComponentValType> {
-        let ok = self.encode_valtype(interface, &expected.ok, export_named_types)?;
-        let error = self.encode_valtype(interface, &expected.err, export_named_types)?;
+        let ok = self.encode_valtype(interface, &result.ok, export_named_types)?;
+        let error = self.encode_valtype(interface, &result.err, export_named_types)?;
         let index = self.types.len();
         let encoder = self.types.defined_type();
         encoder.expected(ok, error);
@@ -823,8 +823,8 @@ impl RequiredOptions {
                 TypeDefKind::Tuple(t) => Self::for_types(interface, t.types.iter()),
                 TypeDefKind::Flags(_) => Self::None,
                 TypeDefKind::Option(t) => Self::for_type(interface, t),
-                TypeDefKind::Expected(e) => {
-                    Self::for_type(interface, &e.ok) | Self::for_type(interface, &e.err)
+                TypeDefKind::Result(r) => {
+                    Self::for_type(interface, &r.ok) | Self::for_type(interface, &r.err)
                 }
                 TypeDefKind::Variant(v) => {
                     Self::for_types(interface, v.cases.iter().map(|c| &c.ty))
@@ -912,7 +912,7 @@ impl RequiredOptions {
         }
 
         iter.push(CanonicalOption::Realloc(realloc_index.ok_or_else(
-            || anyhow!("module does not export a function named `canonical_abi_realloc`"),
+            || anyhow!("module does not export a function named `cabi_realloc`"),
         )?));
 
         if self == RequiredOptions::Realloc {
@@ -1356,7 +1356,7 @@ impl EncodingState {
                 &mut aliases,
                 instance_index,
                 ExportKind::Func,
-                "canonical_abi_realloc",
+                "cabi_realloc",
             ));
         }
 
