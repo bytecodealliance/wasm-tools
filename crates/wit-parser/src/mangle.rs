@@ -81,18 +81,14 @@ impl Interface {
     }
 
     fn mangle_recordtype(&self, fields: &[Field]) -> String {
-        if fields.is_empty() {
-            "record {}".to_owned()
-        } else {
-            format!(
-                "record {{ {} }}",
-                fields
-                    .iter()
-                    .map(|f| format!("{}: {}", f.name, self.mangle_valtype(f.ty)))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
+        format!(
+            "record {{ {} }}",
+            fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, self.mangle_valtype(f.ty)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 
     fn mangle_tupletype(&self, ts: &[Type]) -> String {
@@ -106,63 +102,47 @@ impl Interface {
     }
 
     fn mangle_flags(&self, labels: &[Flag]) -> String {
-        if labels.is_empty() {
-            "flags {}".to_owned()
-        } else {
-            format!(
-                "flags {{ {} }}",
-                labels
-                    .iter()
-                    .map(|f| f.name.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
+        format!(
+            "flags {{ {} }}",
+            labels
+                .iter()
+                .map(|f| f.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 
     fn mangle_varianttype(&self, cases: &[Case]) -> String {
-        if cases.is_empty() {
-            "variant {}".to_owned()
-        } else {
-            format!(
-                "variant {{ {} }}",
-                cases
-                    .iter()
-                    .map(|c| format!("{}{}", c.name, format!("({})", self.mangle_valtype(c.ty)),))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
+        format!(
+            "variant {{ {} }}",
+            cases
+                .iter()
+                .map(|c| format!("{}{}", c.name, format!("({})", self.mangle_valtype(c.ty)),))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 
     fn mangle_enumtype(&self, labels: &[EnumCase]) -> String {
-        if labels.is_empty() {
-            "enum {}".to_owned()
-        } else {
-            format!(
-                "enum {{ {} }}",
-                labels
-                    .iter()
-                    .map(|l| l.name.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
+        format!(
+            "enum {{ {} }}",
+            labels
+                .iter()
+                .map(|l| l.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 
     fn mangle_uniontype(&self, cases: &[UnionCase]) -> String {
-        if cases.is_empty() {
-            "union {}".to_owned()
-        } else {
-            format!(
-                "union {{ {} }}",
-                cases
-                    .iter()
-                    .map(|case| self.mangle_valtype(case.ty))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
+        format!(
+            "union {{ {} }}",
+            cases
+                .iter()
+                .map(|case| self.mangle_valtype(case.ty))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 
     fn mangle_optiontype(&self, t: Type) -> String {
@@ -286,7 +266,7 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Record(Record { fields: Vec::new() })),
-            "record {}"
+            "record {  }"
         );
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Record(Record {
@@ -343,7 +323,7 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Flags(Flags { flags: Vec::new() })),
-            "flags {}"
+            "flags {  }"
         );
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Flags(Flags {
@@ -376,7 +356,7 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Variant(Variant { cases: Vec::new() })),
-            "variant {}"
+            "variant {  }"
         );
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Variant(Variant {
@@ -412,7 +392,7 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Enum(Enum { cases: Vec::new() })),
-            "enum {}"
+            "enum {  }"
         );
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Enum(Enum {
@@ -445,7 +425,7 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Union(Union { cases: Vec::new() })),
-            "union {}"
+            "union {  }"
         );
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Union(Union {
