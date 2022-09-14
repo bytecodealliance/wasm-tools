@@ -2828,13 +2828,13 @@ where
     fn visit_f32x4_fma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_f32x4_fms(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32x4_fnma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
     fn visit_f64x2_fma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_f64x2_fms(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64x2_fnma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
     fn visit_i8x16_laneselect(&mut self, offset: usize) -> Self::Output {

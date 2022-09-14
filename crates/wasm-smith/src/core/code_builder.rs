@@ -545,9 +545,9 @@ instructions! {
     (Some(simd_v128_on_stack_relaxed), i32x4_relaxed_trunc_sat_f64x2s_zero, Vector),
     (Some(simd_v128_on_stack_relaxed), i32x4_relaxed_trunc_sat_f64x2u_zero, Vector),
     (Some(simd_v128_v128_v128_on_stack_relaxed), f32x4_fma, Vector),
-    (Some(simd_v128_v128_v128_on_stack_relaxed), f32x4_fms, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f32x4_fnma, Vector),
     (Some(simd_v128_v128_v128_on_stack_relaxed), f64x2_fma, Vector),
-    (Some(simd_v128_v128_v128_on_stack_relaxed), f64x2_fms, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f64x2_fnma, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f32x4_relaxed_min, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f32x4_relaxed_max, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_relaxed_min, Vector),
@@ -3957,9 +3957,9 @@ simd_unop!(
     i32x4_relaxed_trunc_sat_f64x2u_zero
 );
 simd_ternop!(F32x4Fma, f32x4_fma);
-simd_ternop!(F32x4Fms, f32x4_fms);
+simd_ternop!(F32x4Fnma, f32x4_fnma);
 simd_ternop!(F64x2Fma, f64x2_fma);
-simd_ternop!(F64x2Fms, f64x2_fms);
+simd_ternop!(F64x2Fnma, f64x2_fnma);
 simd_ternop!(I8x16LaneSelect, i8x16_laneselect);
 simd_ternop!(I16x8LaneSelect, i16x8_laneselect);
 simd_ternop!(I32x4LaneSelect, i32x4_laneselect);

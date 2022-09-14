@@ -648,9 +648,9 @@ macro_rules! for_each_operator {
             @relaxed_simd I32x4RelaxedTruncSatF64x2SZero => visit_i32x4_relaxed_trunc_sat_f64x2_s_zero
             @relaxed_simd I32x4RelaxedTruncSatF64x2UZero => visit_i32x4_relaxed_trunc_sat_f64x2_u_zero
             @relaxed_simd F32x4Fma => visit_f32x4_fma
-            @relaxed_simd F32x4Fms => visit_f32x4_fms
+            @relaxed_simd F32x4Fnma => visit_f32x4_fnma
             @relaxed_simd F64x2Fma => visit_f64x2_fma
-            @relaxed_simd F64x2Fms => visit_f64x2_fms
+            @relaxed_simd F64x2Fnma => visit_f64x2_fnma
             @relaxed_simd I8x16LaneSelect => visit_i8x16_laneselect
             @relaxed_simd I16x8LaneSelect => visit_i16x8_laneselect
             @relaxed_simd I32x4LaneSelect => visit_i32x4_laneselect

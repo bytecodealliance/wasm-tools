@@ -1729,14 +1729,14 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f32x4_fma(&mut self, _pos: usize) -> Self::Output {
         self.instr("f32x4.fma")
     }
-    fn visit_f32x4_fms(&mut self, _pos: usize) -> Self::Output {
-        self.instr("f32x4.fms")
+    fn visit_f32x4_fnma(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f32x4.fnma")
     }
     fn visit_f64x2_fma(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.fma")
     }
-    fn visit_f64x2_fms(&mut self, _pos: usize) -> Self::Output {
-        self.instr("f64x2.fms")
+    fn visit_f64x2_fnma(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f64x2.fnma")
     }
     fn visit_i8x16_laneselect(&mut self, _pos: usize) -> Self::Output {
         self.instr("i8x16.laneselect")

@@ -27,11 +27,11 @@
     local.get 2
     f32x4.fma)
 
-  (func $f32x4_fms (param v128 v128 v128) (result v128)
+  (func $f32x4_fnma (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    f32x4.fms)
+    f32x4.fnma)
 
   (func $f64x2_fma (param v128 v128 v128) (result v128)
     local.get 0
@@ -39,11 +39,11 @@
     local.get 2
     f64x2.fma)
 
-  (func $f64x2_fms (param v128 v128 v128) (result v128)
+  (func $f64x2_fnma (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    f64x2.fms)
+    f64x2.fnma)
 
   (func $i8x16_laneselect (param v128 v128 v128) (result v128)
     local.get 0

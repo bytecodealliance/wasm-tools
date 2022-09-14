@@ -767,9 +767,9 @@ pub enum Instruction<'a> {
     I32x4RelaxedTruncSatF64x2SZero,
     I32x4RelaxedTruncSatF64x2UZero,
     F32x4Fma,
-    F32x4Fms,
+    F32x4Fnma,
     F64x2Fma,
-    F64x2Fms,
+    F64x2Fnma,
     I8x16LaneSelect,
     I16x8LaneSelect,
     I32x4LaneSelect,
@@ -2343,7 +2343,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFD);
                 0xAFu32.encode(sink);
             }
-            Instruction::F32x4Fms => {
+            Instruction::F32x4Fnma => {
                 sink.push(0xFD);
                 0xB0u32.encode(sink);
             }
@@ -2351,7 +2351,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFD);
                 0xCFu32.encode(sink);
             }
-            Instruction::F64x2Fms => {
+            Instruction::F64x2Fnma => {
                 sink.push(0xFD);
                 0xD0u32.encode(sink);
             }
