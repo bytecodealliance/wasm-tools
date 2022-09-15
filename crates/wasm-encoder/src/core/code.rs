@@ -2321,71 +2321,71 @@ impl Encode for Instruction<'_> {
             }
             Instruction::I8x16RelaxedSwizzle => {
                 sink.push(0xFD);
-                0xA2u32.encode(sink);
+                0x100u32.encode(sink);
             }
             Instruction::I32x4RelaxedTruncSatF32x4S => {
                 sink.push(0xFD);
-                0xA5u32.encode(sink);
+                0x101u32.encode(sink);
             }
             Instruction::I32x4RelaxedTruncSatF32x4U => {
                 sink.push(0xFD);
-                0xA6u32.encode(sink);
+                0x102u32.encode(sink);
             }
             Instruction::I32x4RelaxedTruncSatF64x2SZero => {
                 sink.push(0xFD);
-                0xC5u32.encode(sink);
+                0x103u32.encode(sink);
             }
             Instruction::I32x4RelaxedTruncSatF64x2UZero => {
                 sink.push(0xFD);
-                0xC6u32.encode(sink);
+                0x104u32.encode(sink);
             }
             Instruction::F32x4RelaxedFma => {
                 sink.push(0xFD);
-                0xAFu32.encode(sink);
+                0x105u32.encode(sink);
             }
             Instruction::F32x4RelaxedFnma => {
                 sink.push(0xFD);
-                0xB0u32.encode(sink);
+                0x106u32.encode(sink);
             }
             Instruction::F64x2RelaxedFma => {
                 sink.push(0xFD);
-                0xCFu32.encode(sink);
+                0x107u32.encode(sink);
             }
             Instruction::F64x2RelaxedFnma => {
                 sink.push(0xFD);
-                0xD0u32.encode(sink);
+                0x108u32.encode(sink);
             }
             Instruction::I8x16RelaxedLaneselect => {
                 sink.push(0xFD);
-                0xB2u32.encode(sink);
+                0x109u32.encode(sink);
             }
             Instruction::I16x8RelaxedLaneselect => {
                 sink.push(0xFD);
-                0xB3u32.encode(sink);
+                0x10Au32.encode(sink);
             }
             Instruction::I32x4RelaxedLaneselect => {
                 sink.push(0xFD);
-                0xD2u32.encode(sink);
+                0x10Bu32.encode(sink);
             }
             Instruction::I64x2RelaxedLaneselect => {
                 sink.push(0xFD);
-                0xD3u32.encode(sink);
+                0x10Cu32.encode(sink);
             }
             Instruction::F32x4RelaxedMin => {
                 sink.push(0xFD);
-                0xB4u32.encode(sink);
+                0x10Du32.encode(sink);
             }
             Instruction::F32x4RelaxedMax => {
                 sink.push(0xFD);
-                0xE2u32.encode(sink);
+                0x10Eu32.encode(sink);
             }
             Instruction::F64x2RelaxedMin => {
                 sink.push(0xFD);
-                0xD4u32.encode(sink);
+                0x10Fu32.encode(sink);
             }
             Instruction::F64x2RelaxedMax => {
                 sink.push(0xFD);
-                0xEEu32.encode(sink);
+                0x110u32.encode(sink);
             }
 
             // Atmoic instructions from the thread proposal
