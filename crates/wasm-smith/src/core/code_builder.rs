@@ -553,6 +553,9 @@ instructions! {
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_relaxed_min, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_relaxed_max, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), i16x8_relaxed_q15mulr_s, Vector),
+    (Some(simd_v128_v128_on_stack_relaxed), i16x8_dot_i8x16_i7x16_s, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), i32x4_dot_i8x16_i7x16_add_s, Vector),
+    (Some(simd_v128_v128_v128_on_stack_relaxed), f32x4_relaxed_dot_bf16x8_add_f32x4, Vector),
 }
 
 pub(crate) struct CodeBuilderAllocations {
@@ -3970,3 +3973,9 @@ simd_binop!(F32x4RelaxedMax, f32x4_relaxed_max);
 simd_binop!(F64x2RelaxedMin, f64x2_relaxed_min);
 simd_binop!(F64x2RelaxedMax, f64x2_relaxed_max);
 simd_binop!(I16x8RelaxedQ15mulrS, i16x8_relaxed_q15mulr_s);
+simd_binop!(I16x8DotI8x16I7x16S, i16x8_dot_i8x16_i7x16_s);
+simd_ternop!(I32x4DotI8x16I7x16AddS, i32x4_dot_i8x16_i7x16_add_s);
+simd_ternop!(
+    F32x4RelaxedDotBf16x8AddF32x4,
+    f32x4_relaxed_dot_bf16x8_add_f32x4
+);

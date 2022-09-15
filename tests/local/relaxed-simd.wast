@@ -93,4 +93,21 @@
     local.get 0
     local.get 1
     i16x8.relaxed_q15mulr_s)
+
+  (func $i16x8_dot_i8x16_i7x16_s (param v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    i16x8.dot_i8x16_i7x16_s)
+
+  (func $i32x4_dot_i8x16_i7x16_add_s (param v128 v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    i32x4.dot_i8x16_i7x16_add_s)
+
+  (func $f32x4_relaxed_dot_bf16x8_add_f32x4 (param v128 v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    f32x4.relaxed_dot_bf16x8_add_f32x4)
 )

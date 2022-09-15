@@ -852,6 +852,9 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         O::F64x2RelaxedMin => I::F64x2RelaxedMin,
         O::F64x2RelaxedMax => I::F64x2RelaxedMax,
         O::I16x8RelaxedQ15mulrS => I::I16x8RelaxedQ15mulrS,
+        O::I16x8DotI8x16I7x16S => I::I16x8DotI8x16I7x16S,
+        O::I32x4DotI8x16I7x16AddS => I::I32x4DotI8x16I7x16AddS,
+        O::F32x4RelaxedDotBf16x8AddF32x4 => I::F32x4RelaxedDotBf16x8AddF32x4,
 
         // Note that these cases are not supported in `wasm_encoder` yet,
         // and in general `wasmparser` often parses more things than

@@ -1157,6 +1157,9 @@ instructions! {
         F64x2RelaxedMin : [0xfd, 0x10F]: "f64x2.relaxed_min",
         F64x2RelaxedMax : [0xfd, 0x110]: "f64x2.relaxed_max",
         I16x8RelaxedQ15mulrS: [0xfd, 0x111]: "i16x8.relaxed_q15mulr_s",
+        I16x8DotI8x16I7x16S: [0xfd, 0x112]: "i16x8.dot_i8x16_i7x16_s",
+        I32x4DotI8x16I7x16AddS: [0xfd, 0x113]: "i32x4.dot_i8x16_i7x16_add_s",
+        F32x4RelaxedDotBf16x8AddF32x4: [0xfd, 0x114]: "f32x4.relaxed_dot_bf16x8_add_f32x4",
     }
 }
 

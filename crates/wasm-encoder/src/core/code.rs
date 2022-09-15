@@ -779,6 +779,9 @@ pub enum Instruction<'a> {
     F64x2RelaxedMin,
     F64x2RelaxedMax,
     I16x8RelaxedQ15mulrS,
+    I16x8DotI8x16I7x16S,
+    I32x4DotI8x16I7x16AddS,
+    F32x4RelaxedDotBf16x8AddF32x4,
 
     // Atomic instructions (the threads proposal)
     MemoryAtomicNotify { memarg: MemArg },
@@ -2389,6 +2392,18 @@ impl Encode for Instruction<'_> {
                 0x110u32.encode(sink);
             }
             Instruction::I16x8RelaxedQ15mulrS => {
+                sink.push(0xFD);
+                0x111u32.encode(sink);
+            }
+            Instruction::I16x8DotI8x16I7x16S => {
+                sink.push(0xFD);
+                0x111u32.encode(sink);
+            }
+            Instruction::I32x4DotI8x16I7x16AddS => {
+                sink.push(0xFD);
+                0x111u32.encode(sink);
+            }
+            Instruction::F32x4RelaxedDotBf16x8AddF32x4 => {
                 sink.push(0xFD);
                 0x111u32.encode(sink);
             }

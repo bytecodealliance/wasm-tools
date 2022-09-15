@@ -1983,6 +1983,9 @@ impl<'a> BinaryReader<'a> {
             0x10f => visitor.visit_f64x2_relaxed_min(pos),
             0x110 => visitor.visit_f64x2_relaxed_max(pos),
             0x111 => visitor.visit_i16x8_relaxed_q15mulr_s(pos),
+            0x112 => visitor.visit_i16x8_dot_i8x16_i7x16_s(pos),
+            0x113 => visitor.visit_i32x4_dot_i8x16_i7x16_add_s(pos),
+            0x114 => visitor.visit_f32x4_relaxed_dot_bf16x8_add_f32x4(pos),
 
             _ => bail!(pos, "unknown 0xfd subopcode: 0x{code:x}"),
         })
