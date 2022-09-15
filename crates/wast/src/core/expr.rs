@@ -1156,6 +1156,7 @@ instructions! {
         F32x4RelaxedMax : [0xfd, 0x10E]: "f32x4.relaxed_max",
         F64x2RelaxedMin : [0xfd, 0x10F]: "f64x2.relaxed_min",
         F64x2RelaxedMax : [0xfd, 0x110]: "f64x2.relaxed_max",
+        I16x8RelaxedQ15mulrS: [0xfd, 0x111]: "i16x8.relaxed_q15mulr_s",
     }
 }
 

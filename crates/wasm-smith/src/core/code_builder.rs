@@ -552,6 +552,7 @@ instructions! {
     (Some(simd_v128_v128_on_stack_relaxed), f32x4_relaxed_max, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_relaxed_min, Vector),
     (Some(simd_v128_v128_on_stack_relaxed), f64x2_relaxed_max, Vector),
+    (Some(simd_v128_v128_on_stack_relaxed), i16x8_relaxed_q15mulr_s, Vector),
 }
 
 pub(crate) struct CodeBuilderAllocations {
@@ -3968,3 +3969,4 @@ simd_binop!(F32x4RelaxedMin, f32x4_relaxed_min);
 simd_binop!(F32x4RelaxedMax, f32x4_relaxed_max);
 simd_binop!(F64x2RelaxedMin, f64x2_relaxed_min);
 simd_binop!(F64x2RelaxedMax, f64x2_relaxed_max);
+simd_binop!(I16x8RelaxedQ15mulrS, i16x8_relaxed_q15mulr_s);

@@ -1274,6 +1274,9 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f64x2_relaxed_max(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.relaxed_max")
     }
+    fn visit_i16x8_relaxed_q15mulr_s(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i16x8.relaxed_q15mulr_s")
+    }
 
     fn visit_i8x16_eq(&mut self, _pos: usize) -> Self::Output {
         self.instr("i8x16.eq")

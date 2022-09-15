@@ -2382,6 +2382,9 @@ where
     fn visit_f64x2_relaxed_max(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_binary_op(offset)
     }
+    fn visit_i16x8_relaxed_q15mulr_s(&mut self, offset: usize) -> Self::Output {
+        self.check_v128_relaxed_binary_op(offset)
+    }
     fn visit_i8x16_eq(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }

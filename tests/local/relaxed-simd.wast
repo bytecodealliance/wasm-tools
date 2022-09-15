@@ -88,4 +88,9 @@
     local.get 0
     local.get 1
     f64x2.relaxed_max)
+
+  (func $i16x8_q15mulr_s (param v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    i16x8.relaxed_q15mulr_s)
 )

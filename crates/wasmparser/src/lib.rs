@@ -659,6 +659,7 @@ macro_rules! for_each_operator {
             @relaxed_simd F32x4RelaxedMax => visit_f32x4_relaxed_max
             @relaxed_simd F64x2RelaxedMin => visit_f64x2_relaxed_min
             @relaxed_simd F64x2RelaxedMax => visit_f64x2_relaxed_max
+            @relaxed_simd I16x8RelaxedQ15mulrS => visit_i16x8_relaxed_q15mulr_s
         }
     };
 }
