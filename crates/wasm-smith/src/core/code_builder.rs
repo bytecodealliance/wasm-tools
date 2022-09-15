@@ -3956,14 +3956,14 @@ simd_unop!(
     I32x4RelaxedTruncSatF64x2UZero,
     i32x4_relaxed_trunc_sat_f64x2u_zero
 );
-simd_ternop!(F32x4Fma, f32x4_fma);
-simd_ternop!(F32x4Fnma, f32x4_fnma);
-simd_ternop!(F64x2Fma, f64x2_fma);
-simd_ternop!(F64x2Fnma, f64x2_fnma);
-simd_ternop!(I8x16LaneSelect, i8x16_laneselect);
-simd_ternop!(I16x8LaneSelect, i16x8_laneselect);
-simd_ternop!(I32x4LaneSelect, i32x4_laneselect);
-simd_ternop!(I64x2LaneSelect, i64x2_laneselect);
+simd_ternop!(F32x4RelaxedFma, f32x4_fma);
+simd_ternop!(F32x4RelaxedFnma, f32x4_fnma);
+simd_ternop!(F64x2RelaxedFma, f64x2_fma);
+simd_ternop!(F64x2RelaxedFnma, f64x2_fnma);
+simd_ternop!(I8x16RelaxedLaneselect, i8x16_laneselect);
+simd_ternop!(I16x8RelaxedLaneselect, i16x8_laneselect);
+simd_ternop!(I32x4RelaxedLaneselect, i32x4_laneselect);
+simd_ternop!(I64x2RelaxedLaneselect, i64x2_laneselect);
 simd_binop!(F32x4RelaxedMin, f32x4_relaxed_min);
 simd_binop!(F32x4RelaxedMax, f32x4_relaxed_max);
 simd_binop!(F64x2RelaxedMin, f64x2_relaxed_min);

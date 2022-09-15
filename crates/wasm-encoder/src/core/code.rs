@@ -766,14 +766,14 @@ pub enum Instruction<'a> {
     I32x4RelaxedTruncSatF32x4U,
     I32x4RelaxedTruncSatF64x2SZero,
     I32x4RelaxedTruncSatF64x2UZero,
-    F32x4Fma,
-    F32x4Fnma,
-    F64x2Fma,
-    F64x2Fnma,
-    I8x16LaneSelect,
-    I16x8LaneSelect,
-    I32x4LaneSelect,
-    I64x2LaneSelect,
+    F32x4RelaxedFma,
+    F32x4RelaxedFnma,
+    F64x2RelaxedFma,
+    F64x2RelaxedFnma,
+    I8x16RelaxedLaneselect,
+    I16x8RelaxedLaneselect,
+    I32x4RelaxedLaneselect,
+    I64x2RelaxedLaneselect,
     F32x4RelaxedMin,
     F32x4RelaxedMax,
     F64x2RelaxedMin,
@@ -2339,35 +2339,35 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFD);
                 0xC6u32.encode(sink);
             }
-            Instruction::F32x4Fma => {
+            Instruction::F32x4RelaxedFma => {
                 sink.push(0xFD);
                 0xAFu32.encode(sink);
             }
-            Instruction::F32x4Fnma => {
+            Instruction::F32x4RelaxedFnma => {
                 sink.push(0xFD);
                 0xB0u32.encode(sink);
             }
-            Instruction::F64x2Fma => {
+            Instruction::F64x2RelaxedFma => {
                 sink.push(0xFD);
                 0xCFu32.encode(sink);
             }
-            Instruction::F64x2Fnma => {
+            Instruction::F64x2RelaxedFnma => {
                 sink.push(0xFD);
                 0xD0u32.encode(sink);
             }
-            Instruction::I8x16LaneSelect => {
+            Instruction::I8x16RelaxedLaneselect => {
                 sink.push(0xFD);
                 0xB2u32.encode(sink);
             }
-            Instruction::I16x8LaneSelect => {
+            Instruction::I16x8RelaxedLaneselect => {
                 sink.push(0xFD);
                 0xB3u32.encode(sink);
             }
-            Instruction::I32x4LaneSelect => {
+            Instruction::I32x4RelaxedLaneselect => {
                 sink.push(0xFD);
                 0xD2u32.encode(sink);
             }
-            Instruction::I64x2LaneSelect => {
+            Instruction::I64x2RelaxedLaneselect => {
                 sink.push(0xFD);
                 0xD3u32.encode(sink);
             }

@@ -25,49 +25,49 @@
     local.get 0
     local.get 1
     local.get 2
-    f32x4.fma)
+    f32x4.relaxed_fma)
 
   (func $f32x4_fnma (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    f32x4.fnma)
+    f32x4.relaxed_fnma)
 
   (func $f64x2_fma (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    f64x2.fma)
+    f64x2.relaxed_fma)
 
   (func $f64x2_fnma (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    f64x2.fnma)
+    f64x2.relaxed_fnma)
 
   (func $i8x16_laneselect (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    i8x16.laneselect)
+    i8x16.relaxed_laneselect)
 
   (func $i16x8_laneselect (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    i16x8.laneselect)
+    i16x8.relaxed_laneselect)
 
   (func $i32x4_laneselect (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    i32x4.laneselect)
+    i32x4.relaxed_laneselect)
 
   (func $i64x2_laneselect (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
     local.get 2
-    i64x2.laneselect)
+    i64x2.relaxed_laneselect)
 
   (func $f32x4_min (param v128 v128) (result v128)
     local.get 0
