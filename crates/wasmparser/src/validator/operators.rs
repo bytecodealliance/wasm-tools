@@ -2382,6 +2382,12 @@ where
     fn visit_f64x2_relaxed_max(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_binary_op(offset)
     }
+    fn visit_i16x8_relaxed_q15mulr_s(&mut self, offset: usize) -> Self::Output {
+        self.check_v128_relaxed_binary_op(offset)
+    }
+    fn visit_i16x8_dot_i8x16_i7x16_s(&mut self, offset: usize) -> Self::Output {
+        self.check_v128_relaxed_binary_op(offset)
+    }
     fn visit_i8x16_eq(&mut self, offset: usize) -> Self::Output {
         self.check_v128_binary_op(offset)
     }
@@ -2825,28 +2831,34 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f32x4_fma(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32x4_relaxed_fma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_f32x4_fms(&mut self, offset: usize) -> Self::Output {
+    fn visit_f32x4_relaxed_fnma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_f64x2_fma(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64x2_relaxed_fma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_f64x2_fms(&mut self, offset: usize) -> Self::Output {
+    fn visit_f64x2_relaxed_fnma(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i8x16_laneselect(&mut self, offset: usize) -> Self::Output {
+    fn visit_i8x16_relaxed_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i16x8_laneselect(&mut self, offset: usize) -> Self::Output {
+    fn visit_i16x8_relaxed_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i32x4_laneselect(&mut self, offset: usize) -> Self::Output {
+    fn visit_i32x4_relaxed_laneselect(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
-    fn visit_i64x2_laneselect(&mut self, offset: usize) -> Self::Output {
+    fn visit_i64x2_relaxed_laneselect(&mut self, offset: usize) -> Self::Output {
+        self.check_v128_relaxed_ternary_op(offset)
+    }
+    fn visit_i32x4_dot_i8x16_i7x16_add_s(&mut self, offset: usize) -> Self::Output {
+        self.check_v128_relaxed_ternary_op(offset)
+    }
+    fn visit_f32x4_relaxed_dot_bf16x8_add_f32x4(&mut self, offset: usize) -> Self::Output {
         self.check_v128_relaxed_ternary_op(offset)
     }
     fn visit_v128_any_true(&mut self, offset: usize) -> Self::Output {

@@ -1274,6 +1274,12 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_f64x2_relaxed_max(&mut self, _pos: usize) -> Self::Output {
         self.instr("f64x2.relaxed_max")
     }
+    fn visit_i16x8_relaxed_q15mulr_s(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i16x8.relaxed_q15mulr_s")
+    }
+    fn visit_i16x8_dot_i8x16_i7x16_s(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i16x8.dot_i8x16_i7x16_s")
+    }
 
     fn visit_i8x16_eq(&mut self, _pos: usize) -> Self::Output {
         self.instr("i8x16.eq")
@@ -1726,29 +1732,35 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
     fn visit_v128_bitselect(&mut self, _pos: usize) -> Self::Output {
         self.instr("v128.bitselect")
     }
-    fn visit_f32x4_fma(&mut self, _pos: usize) -> Self::Output {
-        self.instr("f32x4.fma")
+    fn visit_f32x4_relaxed_fma(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f32x4.relaxed_fma")
     }
-    fn visit_f32x4_fms(&mut self, _pos: usize) -> Self::Output {
-        self.instr("f32x4.fms")
+    fn visit_f32x4_relaxed_fnma(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f32x4.relaxed_fnma")
     }
-    fn visit_f64x2_fma(&mut self, _pos: usize) -> Self::Output {
-        self.instr("f64x2.fma")
+    fn visit_f64x2_relaxed_fma(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f64x2.relaxed_fma")
     }
-    fn visit_f64x2_fms(&mut self, _pos: usize) -> Self::Output {
-        self.instr("f64x2.fms")
+    fn visit_f64x2_relaxed_fnma(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f64x2.relaxed_fnma")
     }
-    fn visit_i8x16_laneselect(&mut self, _pos: usize) -> Self::Output {
-        self.instr("i8x16.laneselect")
+    fn visit_i8x16_relaxed_laneselect(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i8x16.relaxed_laneselect")
     }
-    fn visit_i16x8_laneselect(&mut self, _pos: usize) -> Self::Output {
-        self.instr("i16x8.laneselect")
+    fn visit_i16x8_relaxed_laneselect(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i16x8.relaxed_laneselect")
     }
-    fn visit_i32x4_laneselect(&mut self, _pos: usize) -> Self::Output {
-        self.instr("i32x4.laneselect")
+    fn visit_i32x4_relaxed_laneselect(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i32x4.relaxed_laneselect")
     }
-    fn visit_i64x2_laneselect(&mut self, _pos: usize) -> Self::Output {
-        self.instr("i64x2.laneselect")
+    fn visit_i64x2_relaxed_laneselect(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i64x2.relaxed_laneselect")
+    }
+    fn visit_i32x4_dot_i8x16_i7x16_add_s(&mut self, _pos: usize) -> Self::Output {
+        self.instr("i32x4.dot_i8x16_i7x16_add_s")
+    }
+    fn visit_f32x4_relaxed_dot_bf16x8_add_f32x4(&mut self, _pos: usize) -> Self::Output {
+        self.instr("f32x4.relaxed_dot_bf16x8_add_f32x4")
     }
     fn visit_v128_any_true(&mut self, _pos: usize) -> Self::Output {
         self.instr("v128.any_true")
