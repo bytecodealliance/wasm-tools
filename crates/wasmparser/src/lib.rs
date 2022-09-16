@@ -123,8 +123,8 @@ macro_rules! for_each_operator {
             @mvp If { ty: $crate::BlockType } => visit_if
             @mvp Else => visit_else
             @exceptions Try { ty: $crate::BlockType } => visit_try
-            @exceptions Catch { index: u32 } => visit_catch
-            @exceptions Throw { index: u32 } => visit_throw
+            @exceptions Catch { tag_index: u32 } => visit_catch
+            @exceptions Throw { tag_index: u32 } => visit_throw
             @exceptions Rethrow { relative_depth: u32 } => visit_rethrow
             @mvp End => visit_end
             @mvp Br { relative_depth: u32 } => visit_br
@@ -132,9 +132,9 @@ macro_rules! for_each_operator {
             @mvp BrTable { table: $crate::BrTable<'a> } => visit_br_table
             @mvp Return => visit_return
             @mvp Call { function_index: u32 } => visit_call
-            @mvp CallIndirect { index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
+            @mvp CallIndirect { type_index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
             @tail_calls ReturnCall { function_index: u32 } => visit_return_call
-            @tail_calls ReturnCallIndirect { index: u32, table_index: u32 } => visit_return_call_indirect
+            @tail_calls ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect
             @exceptions Delegate { relative_depth: u32 } => visit_delegate
             @exceptions CatchAll => visit_catch_all
             @mvp Drop => visit_drop
