@@ -292,8 +292,8 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         O::Else => I::Else,
 
         O::Try { ty } => I::Try(t.translate_block_type(ty)?),
-        O::Catch { index } => I::Catch(t.remap(Item::Tag, *index)?),
-        O::Throw { index } => I::Throw(t.remap(Item::Tag, *index)?),
+        O::Catch { tag_index } => I::Catch(t.remap(Item::Tag, *tag_index)?),
+        O::Throw { tag_index } => I::Throw(t.remap(Item::Tag, *tag_index)?),
         O::Rethrow { relative_depth } => I::Rethrow(*relative_depth),
         O::End => I::End,
         O::Br { relative_depth } => I::Br(*relative_depth),
@@ -309,11 +309,11 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         O::Return => I::Return,
         O::Call { function_index } => I::Call(t.remap(Item::Function, *function_index)?),
         O::CallIndirect {
-            index,
+            type_index,
             table_index,
             table_byte: _,
         } => I::CallIndirect {
-            ty: t.remap(Item::Type, *index)?,
+            ty: t.remap(Item::Type, *type_index)?,
             table: t.remap(Item::Table, *table_index)?,
         },
         O::Delegate { relative_depth } => I::Delegate(*relative_depth),
