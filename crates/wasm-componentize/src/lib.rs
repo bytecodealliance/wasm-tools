@@ -1,24 +1,26 @@
+#![allow(dead_code, unused_imports, dead_code, unused_variables)]
 #[cfg(feature = "cli")]
 pub mod cli;
 
 use anyhow::{bail, Result};
 use wasmparser::{
-    types::Types, Chunk, ComponentExport, ComponentImport, Encoding, Parser, Payload, Validator,
-    WasmFeatures,
+    types::{ComponentEntityType, ComponentFuncType, ComponentValType, Type, Types},
+    Chunk, ComponentExport, ComponentExternalKind, ComponentImport, ComponentType,
+    ComponentTypeRef, Encoding, Parser, Payload, PrimitiveValType, Validator, WasmFeatures,
 };
 
 pub fn lift(_bytes: &[u8]) -> Result<Vec<u8>> {
     todo!()
 }
 
-struct ComponentType<'a> {
+struct Component<'a> {
     types: Types,
     imports: Vec<ComponentImport<'a>>,
     exports: Vec<ComponentExport<'a>>,
 }
 
-impl<'a> ComponentType<'a> {
-    pub fn parse(mut bytes: &'a [u8]) -> Result<ComponentType<'a>> {
+impl<'a> Component<'a> {
+    pub fn parse(mut bytes: &'a [u8]) -> Result<Component<'a>> {
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
         let mut validator = Validator::new_with_features(WasmFeatures {
@@ -167,15 +169,101 @@ impl<'a> ComponentType<'a> {
             }
         }
     }
+
+    fn start_params(&self) -> impl Iterator<Item = (&'a str, ComponentValType)> + '_ {
+        self.imports.iter().filter_map(|i| {
+            match self
+                .types
+                .component_entity_type_from_import(&i)
+                .expect("component import")
+            {
+                ComponentEntityType::Value(v) => Some((i.name, v)),
+                _ => None,
+            }
+        })
+    }
+
+    fn import_funcs(&self) -> impl Iterator<Item = (&'a str, &'_ ComponentFuncType)> + '_ {
+        self.imports.iter().filter_map(|i| {
+            match self
+                .types
+                .component_entity_type_from_import(&i)
+                .expect("component import")
+            {
+                ComponentEntityType::Func(f) => Some((
+                    i.name,
+                    match self.types.type_from_id(f).expect("type from id") {
+                        Type::ComponentFunc(ft) => ft,
+                        _ => unreachable!("entity type was Func, but didnt find a ComponentFunc?"),
+                    },
+                )),
+                _ => None,
+            }
+        })
+    }
+
+    fn start_returns(&self) -> impl Iterator<Item = (&'a str, ComponentValType)> + '_ {
+        self.exports.iter().filter_map(|i| match i.kind {
+            ComponentExternalKind::Value => Some((
+                i.name,
+                self.types.value_at(i.index).expect("component value"),
+            )),
+            _ => None,
+        })
+    }
+
+    fn export_funcs(&self) -> impl Iterator<Item = (&'a str, &'_ ComponentFuncType)> + '_ {
+        self.exports.iter().filter_map(|e| {
+            match self
+                .types
+                .component_entity_type_from_export(e)
+                .expect("component export")
+            {
+                ComponentEntityType::Func(f) => Some((
+                    e.name,
+                    match self.types.type_from_id(f).expect("type from id") {
+                        Type::ComponentFunc(ft) => ft,
+                        _ => {
+                            unreachable!("entity type was a Func, but didnt find a ComponentFunc?")
+                        }
+                    },
+                )),
+                _ => None,
+            }
+        })
+    }
 }
+
+fn mangle_instances(
+    xs: Vec<()>,   /* imports or exports? */
+    path: Vec<()>, /* path to instance */
+) -> Result<(Vec<()> /* params */, Vec<()> /* funcs */)> {
+    todo!()
+    // values = []
+    // funcs = []
+    // for x in xs:
+    //   name = path + x.name
+    //   match x.t:
+    //     case ValueType(t):
+    //       values.append((name, t))
+    //     case FuncType(_):
+    //       funcs.append((name, x.t))
+    //     case InstanceType(exports):
+    //       vs, fs = mangle_instances(exports, name + '.')
+    //       values += vs
+    //       funcs += fs
+    //     case TypeType(bounds):
+    //       unimplemented!("resource types")
+    //     case ComponentType(imports, exports):
+    //       unimplemented!("canon instantiate")
+    //     case ModuleType(imports, exports):
+    //       unimplemented!("canonical shared-everything linking")
+    // return (values, funcs)
+}
+
 // aka canonical_module_type
 pub fn lower(bytes: &[u8]) -> Result<Vec<u8>> {
-    let mut validator = Validator::new_with_features(WasmFeatures {
-        component_model: true,
-        ..Default::default()
-    });
-
-    let types = validator.validate_all(bytes)?;
+    let ct = Component::parse(bytes)?;
 
     // input: ComponentType
     // output: ModuleType
@@ -211,33 +299,6 @@ pub fn lower(bytes: &[u8]) -> Result<Vec<u8>> {
     //      case Variant(cases): return any(contains_dynamic_allocation(c.t) for c in cases)
     //      case _: return False,
     todo!()
-}
-
-fn mangle_instances(
-    xs: Vec<()>,   /* imports or exports? */
-    path: Vec<()>, /* path to instance */
-) -> Result<(Vec<()> /* params */, Vec<()> /* funcs */)> {
-    todo!()
-    // values = []
-    // funcs = []
-    // for x in xs:
-    //   name = path + x.name
-    //   match x.t:
-    //     case ValueType(t):
-    //       values.append((name, t))
-    //     case FuncType(_):
-    //       funcs.append((name, x.t))
-    //     case InstanceType(exports):
-    //       vs, fs = mangle_instances(exports, name + '.')
-    //       values += vs
-    //       funcs += fs
-    //     case TypeType(bounds):
-    //       unimplemented!("resource types")
-    //     case ComponentType(imports, exports):
-    //       unimplemented!("canon instantiate")
-    //     case ModuleType(imports, exports):
-    //       unimplemented!("canonical shared-everything linking")
-    // return (values, funcs)
 }
 
 enum FlatteningContext {
