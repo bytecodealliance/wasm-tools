@@ -198,16 +198,6 @@ impl Module {
             type_size: 0,
         }
     }
-
-    fn import_count(&self) -> usize {
-        self.imports
-            .iter()
-            .filter(|imp| match imp.entity_type {
-                EntityType::Func(_, _) => true,
-                _ => false,
-            })
-            .count()
-    }
 }
 
 impl<'a, C: Config + Arbitrary<'a>> Arbitrary<'a> for ConfiguredModule<C> {
