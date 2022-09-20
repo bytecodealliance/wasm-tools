@@ -2430,7 +2430,7 @@ fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 
     // The non-trapping case for memory copy has not yet been implemented,
     // so we are excluding them for now
-    if !module.config.disallow_traps() {
+    if module.config.disallow_traps() {
         return false;
     }
 
