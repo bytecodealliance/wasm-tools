@@ -88,7 +88,7 @@ macro_rules! instructions {
 //    less than 1000.
 instructions! {
     // Control instructions.
-    (None, unreachable, Control, 990),
+    (Some(unreachable_valid), unreachable, Control, 990),
     (None, nop, Control, 800),
     (None, block, Control),
     (None, r#loop, Control),
@@ -314,14 +314,14 @@ instructions! {
     (Some(simd_have_memory_and_offset), v128_load32_zero, Vector),
     (Some(simd_have_memory_and_offset), v128_load64_zero, Vector),
     (Some(simd_v128_store_valid), v128_store, Vector),
-    (Some(simd_have_memory_and_offset_and_v128), v128_load8_lane, Vector),
-    (Some(simd_have_memory_and_offset_and_v128), v128_load16_lane, Vector),
-    (Some(simd_have_memory_and_offset_and_v128), v128_load32_lane, Vector),
-    (Some(simd_have_memory_and_offset_and_v128), v128_load64_lane, Vector),
-    (Some(simd_v128_store_valid), v128_store8_lane, Vector),
-    (Some(simd_v128_store_valid), v128_store16_lane, Vector),
-    (Some(simd_v128_store_valid), v128_store32_lane, Vector),
-    (Some(simd_v128_store_valid), v128_store64_lane, Vector),
+    (Some(simd_load_lane_valid), v128_load8_lane, Vector),
+    (Some(simd_load_lane_valid), v128_load16_lane, Vector),
+    (Some(simd_load_lane_valid), v128_load32_lane, Vector),
+    (Some(simd_load_lane_valid), v128_load64_lane, Vector),
+    (Some(simd_store_lane_valid), v128_store8_lane, Vector),
+    (Some(simd_store_lane_valid), v128_store16_lane, Vector),
+    (Some(simd_store_lane_valid), v128_store32_lane, Vector),
+    (Some(simd_store_lane_valid), v128_store64_lane, Vector),
     (Some(simd_enabled), v128_const, Vector),
     (Some(simd_v128_v128_on_stack), i8x16_shuffle, Vector),
     (Some(simd_v128_on_stack), i8x16_extract_lane_s, Vector),
@@ -1099,6 +1099,11 @@ fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
     }
 }
 
+#[inline]
+fn unreachable_valid(module: &Module, _: &mut CodeBuilder) -> bool {
+    !module.config.disallow_traps()
+}
+
 fn unreachable(
     _: &mut Unstructured,
     _: &Module,
@@ -1536,6 +1541,13 @@ fn call(
 #[inline]
 fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if builder.allocs.funcref_tables.is_empty() || !builder.type_on_stack(ValType::I32) {
+        return false;
+    }
+    if module.config.disallow_traps() {
+        // We have no way to reflect, at run time, on a `funcref` in
+        // the `i`th slot in a table and dynamically avoid trapping
+        // `call_indirect`s. Therefore, we can't emit *any*
+        // `call_indirect` instructions if we want to avoid traps.
         return false;
     }
     let ty = builder.allocs.operands.pop().unwrap();
@@ -2357,6 +2369,7 @@ fn memory_grow(
 fn memory_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
         && have_data(module, builder)
+        && !module.config.disallow_traps() // Non-trapping memory init not yet implemented
         && (builder.allocs.memory32.len() > 0
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
             || (builder.allocs.memory64.len() > 0
@@ -2385,6 +2398,7 @@ fn memory_init(
 #[inline]
 fn memory_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
+        && !module.config.disallow_traps() // Non-trapping memory fill generation not yet implemented
         && (builder.allocs.memory32.len() > 0
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
             || (builder.allocs.memory64.len() > 0
@@ -2411,6 +2425,12 @@ fn memory_fill(
 #[inline]
 fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !module.config.bulk_memory_enabled() {
+        return false;
+    }
+
+    // The non-trapping case for memory copy has not yet been implemented,
+    // so we are excluding them for now
+    if !module.config.disallow_traps() {
         return false;
     }
 
@@ -4419,6 +4439,7 @@ fn ref_is_null(
 fn table_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && module.config.bulk_memory_enabled()
+        && !module.config.disallow_traps() // Non-trapping table fill generation not yet implemented
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty, ValType::I32])
                 && module.tables.iter().any(|t| t.element_type == *ty)
@@ -4442,6 +4463,7 @@ fn table_fill(
 #[inline]
 fn table_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
+    && !module.config.disallow_traps() // Non-trapping table.set generation not yet implemented
         && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty])
                 && module.tables.iter().any(|t| t.element_type == *ty)
@@ -4464,6 +4486,7 @@ fn table_set(
 #[inline]
 fn table_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
+    && !module.config.disallow_traps() // Non-trapping table.get generation not yet implemented
         && builder.type_on_stack(ValType::I32)
         && module.tables.len() > 0
 }
@@ -4525,6 +4548,7 @@ fn table_grow(
 #[inline]
 fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
+    && !module.config.disallow_traps() // Non-trapping table.copy generation not yet implemented
         && module.tables.len() > 0
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
@@ -4548,6 +4572,7 @@ fn table_copy(
 #[inline]
 fn table_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
+    && !module.config.disallow_traps() // Non-trapping table.init generation not yet implemented.
         && builder.allocs.table_init_possible
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
@@ -4699,8 +4724,20 @@ fn simd_have_memory_and_offset_and_v128(module: &Module, builder: &mut CodeBuild
 }
 
 #[inline]
+fn simd_load_lane_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    // The SIMD non-trapping case is not yet implemented.
+    !module.config.disallow_traps() && simd_have_memory_and_offset_and_v128(module, builder)
+}
+
+#[inline]
 fn simd_v128_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.simd_enabled() && store_valid(module, builder, || ValType::V128)
+}
+
+#[inline]
+fn simd_store_lane_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    // The SIMD non-trapping case is not yet implemented.
+    !module.config.disallow_traps() && simd_v128_store_valid(module, builder)
 }
 
 #[inline]

@@ -486,6 +486,7 @@ pub struct SwarmConfig {
     pub available_imports: Option<Vec<u8>>,
     pub bulk_memory_enabled: bool,
     pub canonicalize_nans: bool,
+    pub disallow_traps: bool,
     pub exceptions_enabled: bool,
     pub export_everything: bool,
     pub max_aliases: usize,
@@ -607,6 +608,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             available_imports: None,
             threads_enabled: false,
             export_everything: false,
+            disallow_traps: false,
         })
     }
 }
