@@ -18,10 +18,9 @@
  0x24 | 0a 04       | component import section
  0x26 | 01          | 1 count
  0x27 | 00 05 01    | [instance 0] ComponentImport { name: "", ty: Instance(1) }
- 0x2a | 07 06       | component type section
+ 0x2a | 07 05       | component type section
  0x2c | 01          | 1 count
- 0x2d | 40 01 00 01 | [type 2] Func(ComponentFuncType { params: Named([]), results: Named([]) })
-      | 00         
- 0x32 | 0a 04       | component import section
- 0x34 | 01          | 1 count
- 0x35 | 00 01 02    | [func 0] ComponentImport { name: "", ty: Func(2) }
+ 0x2d | 40 00 01 00 | [type 2] Func(ComponentFuncType { params: [], results: Named([]) })
+ 0x31 | 0a 04       | component import section
+ 0x33 | 01          | 1 count
+ 0x34 | 00 01 02    | [func 0] ComponentImport { name: "", ty: Func(2) }

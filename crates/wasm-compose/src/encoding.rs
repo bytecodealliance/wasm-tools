@@ -376,7 +376,7 @@ impl<'a> TypeEncoder<'a> {
             .iter()
             .map(|(name, ty)| {
                 (
-                    name.as_deref(),
+                    name.as_str(),
                     self.component_val_type(encodable, types, *ty),
                 )
             })
@@ -396,11 +396,7 @@ impl<'a> TypeEncoder<'a> {
         let index = encodable.type_count();
         let mut f = encodable.ty().function();
 
-        if params.len() == 1 && params[0].0.is_none() {
-            f.param(params[0].1);
-        } else {
-            f.params(params.into_iter().map(|(name, ty)| (name.unwrap(), ty)));
-        }
+        f.params(params);
 
         if results.len() == 1 && results[0].0.is_none() {
             f.result(results[0].1);

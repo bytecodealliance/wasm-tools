@@ -1,46 +1,40 @@
   0x0 | 00 61 73 6d | version 65546 (Component)
       | 0a 00 01 00
-  0x8 | 07 0f       | component type section
+  0x8 | 07 0e       | component type section
   0xa | 02          | 2 count
   0xb | 73          | [type 0] Defined(Primitive(String))
-  0xc | 41 02 02 03 | [type 1] Component([Alias(Outer { kind: Type, count: 1, index: 0 }), Type(Func(ComponentFuncType { params: Named([]), results: Unnamed(Type(0)) }))])
+  0xc | 41 02 02 03 | [type 1] Component([Alias(Outer { kind: Type, count: 1, index: 0 }), Type(Func(ComponentFuncType { params: [], results: Unnamed(Type(0)) }))])
       | 02 01 00 01
-      | 40 01 00 00
-      | 00         
- 0x19 | 04 17       | [component 0] inline size
-   0x1b | 00 61 73 6d | version 65546 (Component)
+      | 40 00 00 00
+ 0x18 | 04 16       | [component 0] inline size
+   0x1a | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x23 | 06 05       | component alias section
-   0x25 | 01          | 1 count
-   0x26 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
-   0x2a | 07 06       | component type section
-   0x2c | 01          | 1 count
-   0x2d | 40 01 00 00 | [type 1] Func(ComponentFuncType { params: Named([]), results: Unnamed(Type(0)) })
-        | 00         
- 0x32 | 04 1c       | [component 1] inline size
-   0x34 | 00 61 73 6d | version 65546 (Component)
+   0x22 | 06 05       | component alias section
+   0x24 | 01          | 1 count
+   0x25 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
+   0x29 | 07 05       | component type section
+   0x2b | 01          | 1 count
+   0x2c | 40 00 00 00 | [type 1] Func(ComponentFuncType { params: [], results: Unnamed(Type(0)) })
+ 0x30 | 04 1a       | [component 1] inline size
+   0x32 | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x3c | 06 05       | component alias section
-   0x3e | 01          | 1 count
-   0x3f | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
-   0x43 | 07 0b       | component type section
-   0x45 | 02          | 2 count
-   0x46 | 40 01 00 00 | [type 1] Func(ComponentFuncType { params: Named([]), results: Unnamed(Type(0)) })
-        | 00         
-   0x4b | 40 01 00 00 | [type 2] Func(ComponentFuncType { params: Named([]), results: Unnamed(Type(0)) })
-        | 00         
- 0x50 | 07 02       | component type section
- 0x52 | 01          | 1 count
- 0x53 | 7d          | [type 2] Defined(Primitive(U8))
- 0x54 | 04 1c       | [component 2] inline size
-   0x56 | 00 61 73 6d | version 65546 (Component)
+   0x3a | 06 05       | component alias section
+   0x3c | 01          | 1 count
+   0x3d | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
+   0x41 | 07 09       | component type section
+   0x43 | 02          | 2 count
+   0x44 | 40 00 00 00 | [type 1] Func(ComponentFuncType { params: [], results: Unnamed(Type(0)) })
+   0x48 | 40 00 00 00 | [type 2] Func(ComponentFuncType { params: [], results: Unnamed(Type(0)) })
+ 0x4c | 07 02       | component type section
+ 0x4e | 01          | 1 count
+ 0x4f | 7d          | [type 2] Defined(Primitive(U8))
+ 0x50 | 04 1a       | [component 2] inline size
+   0x52 | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
-   0x5e | 06 05       | component alias section
-   0x60 | 01          | 1 count
-   0x61 | 03 02 01 02 | alias [type 0] Outer { kind: Type, count: 1, index: 2 }
-   0x65 | 07 0b       | component type section
-   0x67 | 02          | 2 count
-   0x68 | 40 01 00 00 | [type 1] Func(ComponentFuncType { params: Named([]), results: Unnamed(Type(0)) })
-        | 00         
-   0x6d | 40 01 00 00 | [type 2] Func(ComponentFuncType { params: Named([]), results: Unnamed(Type(0)) })
-        | 00         
+   0x5a | 06 05       | component alias section
+   0x5c | 01          | 1 count
+   0x5d | 03 02 01 02 | alias [type 0] Outer { kind: Type, count: 1, index: 2 }
+   0x61 | 07 09       | component type section
+   0x63 | 02          | 2 count
+   0x64 | 40 00 00 00 | [type 1] Func(ComponentFuncType { params: [], results: Unnamed(Type(0)) })
+   0x68 | 40 00 00 00 | [type 2] Func(ComponentFuncType { params: [], results: Unnamed(Type(0)) })

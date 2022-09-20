@@ -706,7 +706,7 @@ pub struct ComponentFuncType {
     /// The effective type size for the component function type.
     pub(crate) type_size: usize,
     /// The function parameters.
-    pub params: Box<[(Option<String>, ComponentValType)]>,
+    pub params: Box<[(String, ComponentValType)]>,
     /// The function's results.
     pub results: Box<[(Option<String>, ComponentValType)]>,
 }

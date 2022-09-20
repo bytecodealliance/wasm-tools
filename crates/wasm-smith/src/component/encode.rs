@@ -159,16 +159,7 @@ impl Type {
             Self::Func(func_ty) => {
                 let mut f = enc.function();
 
-                if let Some(ty) = func_ty.unnamed_param_ty() {
-                    f.param(ty);
-                } else {
-                    f.params(
-                        func_ty
-                            .params
-                            .iter()
-                            .map(|(name, ty)| (name.as_deref().unwrap(), *ty)),
-                    );
-                }
+                f.params(func_ty.params.iter().map(|(name, ty)| (name.as_str(), *ty)));
 
                 if let Some(ty) = func_ty.unnamed_result_ty() {
                     f.result(ty);

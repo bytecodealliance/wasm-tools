@@ -863,21 +863,20 @@ impl ComponentState {
     ) -> Result<ComponentFuncType> {
         let mut type_size = 1;
 
-        let mut set = HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.len()));
+        let mut set =
+            HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.type_count()));
 
         let params = ty
             .params
             .iter()
             .map(|(name, ty)| {
-                if let Some(name) = name {
-                    Self::check_name(name, "function parameter", offset)?;
-                    if !set.insert(name) {
-                        return Err(BinaryReaderError::new("duplicate parameter name", offset));
-                    }
+                Self::check_name(name, "function parameter", offset)?;
+                if !set.insert(*name) {
+                    return Err(BinaryReaderError::new("duplicate parameter name", offset));
                 }
                 let ty = self.create_component_val_type(*ty, types, offset)?;
                 type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
-                Ok((name.map(ToOwned::to_owned), ty))
+                Ok((name.to_string(), ty))
             })
             .collect::<Result<_>>()?;
 
