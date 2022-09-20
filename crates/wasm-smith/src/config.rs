@@ -449,6 +449,16 @@ pub trait Config: 'static + std::fmt::Debug {
     fn threads_enabled(&self) -> bool {
         false
     }
+
+    /// Returns whether we should avoid generating code that will possibly trap.
+    ///
+    /// For some trapping instructions, this will emit extra instructions to ensure
+    /// they don't trap, while some instructions will simply be excluded.
+    ///
+    /// Defaults to `false`.
+    fn disallow_traps(&self) -> bool {
+        false
+    }
 }
 
 /// The default configuration.

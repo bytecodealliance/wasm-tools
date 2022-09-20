@@ -2,7 +2,6 @@
 
 mod code_builder;
 pub(crate) mod encode;
-pub(crate) mod no_traps;
 mod terminate;
 
 use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
@@ -198,6 +197,16 @@ impl Module {
             data: Vec::new(),
             type_size: 0,
         }
+    }
+
+    fn import_count(&self) -> usize {
+        self.imports
+            .iter()
+            .filter(|imp| match imp.entity_type {
+                EntityType::Func(_, _) => true,
+                _ => false,
+            })
+            .count()
     }
 }
 
