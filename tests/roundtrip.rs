@@ -135,6 +135,9 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         // TODO: new syntax for table types has been added with an optional
         // initializer which needs parsing in the text format.
         "function-references/table.wast",
+        // TODO: This references an instruction which has since been removed
+        // from the proposal so the test needs an update.
+        "relaxed-simd/relaxed_fma_fms.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -463,6 +466,7 @@ impl TestState {
                 "component-model" => features.component_model = true,
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
+                "relaxed-simd" => features.relaxed_simd = true,
                 _ => {}
             }
         }
