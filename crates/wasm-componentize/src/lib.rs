@@ -1,10 +1,19 @@
-#![allow(dead_code, unused_imports, dead_code, unused_variables)]
+#![allow(
+    dead_code,
+    unused_imports,
+    dead_code,
+    unused_variables,
+    unreachable_code
+)]
 #[cfg(feature = "cli")]
 pub mod cli;
 
 use anyhow::{bail, Result};
+use indexmap::IndexMap;
 use wasmparser::{
-    types::{ComponentEntityType, ComponentFuncType, ComponentValType, Type, Types},
+    types::{
+        ComponentDefinedType, ComponentEntityType, ComponentFuncType, ComponentValType, Type, Types,
+    },
     Chunk, ComponentExport, ComponentExternalKind, ComponentImport, ComponentType,
     ComponentTypeRef, Encoding, Parser, Payload, PrimitiveValType, Validator, WasmFeatures,
 };
@@ -13,10 +22,24 @@ pub fn lift(_bytes: &[u8]) -> Result<Vec<u8>> {
     todo!()
 }
 
+/// FIXME this is a deliberate hack to get interior mutability without actually implementing it
+/// properly
+struct StrArena<'a>(std::marker::PhantomData<&'a ()>);
+
+impl<'a> StrArena<'a> {
+    pub fn new() -> Self {
+        StrArena(std::marker::PhantomData)
+    }
+    pub fn insert(&self, val: impl AsRef<String>) -> &'a str {
+        Box::leak(Box::new(val.as_ref().to_owned()))
+    }
+}
+
 struct Component<'a> {
     types: Types,
     imports: Vec<ComponentImport<'a>>,
     exports: Vec<ComponentExport<'a>>,
+    owned_strs: StrArena<'a>,
 }
 
 impl<'a> Component<'a> {
@@ -159,6 +182,7 @@ impl<'a> Component<'a> {
                                         types,
                                         exports,
                                         imports,
+                                        owned_strs: StrArena::new(),
                                     })
                                 }
                             }
@@ -168,6 +192,10 @@ impl<'a> Component<'a> {
                 Chunk::NeedMoreData(_) => bail!("incomplete module"),
             }
         }
+    }
+
+    fn mkstr(&self, s: impl AsRef<String>) -> &'a str {
+        self.owned_strs.insert(s)
     }
 
     fn start_params(&self) -> impl Iterator<Item = (&'a str, ComponentValType)> + '_ {
@@ -232,33 +260,138 @@ impl<'a> Component<'a> {
             }
         })
     }
+
+    fn despecialize_val_type(&self, val_type: &ComponentValType) -> ComponentDespecializedType {
+        match val_type {
+            ComponentValType::Primitive(prim) => ComponentDespecializedType::Primitive(*prim),
+            ComponentValType::Type(ty) => {
+                match self.types.type_from_id(*ty).expect("type id in val type") {
+                    Type::Defined(def) => match def {
+                        ComponentDefinedType::Primitive(prim) => {
+                            ComponentDespecializedType::Primitive(*prim)
+                        }
+                        ComponentDefinedType::Record(record) => ComponentDespecializedType::Record(
+                            record
+                                .fields
+                                .iter()
+                                .map(|(name, valtype)| {
+                                    (name.clone(), self.despecialize_val_type(valtype))
+                                })
+                                .collect(),
+                        ),
+                        ComponentDefinedType::Variant(variant) => {
+                            ComponentDespecializedType::Variant(
+                                variant
+                                    .cases
+                                    .iter()
+                                    .map(|(name, variant_case)| {
+                                        (
+                                            name.clone(),
+                                            variant_case
+                                                .ty
+                                                .as_ref()
+                                                .map(|t| self.despecialize_val_type(t)),
+                                        )
+                                    })
+                                    .collect(),
+                            )
+                        }
+                        ComponentDefinedType::List(valtype) => ComponentDespecializedType::List(
+                            Box::new(self.despecialize_val_type(valtype)),
+                        ),
+                        ComponentDefinedType::Tuple(tuple) => ComponentDespecializedType::Record(
+                            tuple
+                                .types
+                                .iter()
+                                .enumerate()
+                                .map(|(ix, valtype)| {
+                                    (format!("{}", ix), self.despecialize_val_type(valtype))
+                                })
+                                .collect::<IndexMap<_, _>>(),
+                        ),
+                        ComponentDefinedType::Flags(flags) => ComponentDespecializedType::Record(
+                            flags
+                                .iter()
+                                .map(|name| {
+                                    (
+                                        name.clone(),
+                                        ComponentDespecializedType::Primitive(
+                                            PrimitiveValType::Bool,
+                                        ),
+                                    )
+                                })
+                                .collect::<IndexMap<_, _>>(),
+                        ),
+                        ComponentDefinedType::Union(cases) => ComponentDespecializedType::Variant(
+                            cases
+                                .types
+                                .iter()
+                                .enumerate()
+                                .map(|(ix, valtype)| {
+                                    (format!("{}", ix), Some(self.despecialize_val_type(valtype)))
+                                })
+                                .collect::<IndexMap<_, _>>(),
+                        ),
+                        ComponentDefinedType::Enum(labels) => ComponentDespecializedType::Variant(
+                            labels
+                                .iter()
+                                .map(|label| (label.clone(), None))
+                                .collect::<IndexMap<_, _>>(),
+                        ),
+                        ComponentDefinedType::Option(t) => ComponentDespecializedType::Variant(
+                            [
+                                ("none".to_owned(), None),
+                                ("some".to_owned(), Some(self.despecialize_val_type(t))),
+                            ]
+                            .into_iter()
+                            .collect::<IndexMap<_, _>>(),
+                        ),
+                        ComponentDefinedType::Result { ok, err } => {
+                            ComponentDespecializedType::Variant(
+                                [
+                                    (
+                                        "ok".to_owned(),
+                                        ok.as_ref().map(|t| self.despecialize_val_type(t)),
+                                    ),
+                                    (
+                                        "err".to_owned(),
+                                        err.as_ref().map(|t| self.despecialize_val_type(t)),
+                                    ),
+                                ]
+                                .into_iter()
+                                .collect::<IndexMap<_, _>>(),
+                            )
+                        }
+                    },
+                    _ => unreachable!("val type can only contain prim and defined type"),
+                }
+            }
+        }
+    }
 }
 
-fn mangle_instances(
-    xs: Vec<()>,   /* imports or exports? */
-    path: Vec<()>, /* path to instance */
-) -> Result<(Vec<()> /* params */, Vec<()> /* funcs */)> {
-    todo!()
-    // values = []
-    // funcs = []
-    // for x in xs:
-    //   name = path + x.name
-    //   match x.t:
-    //     case ValueType(t):
-    //       values.append((name, t))
-    //     case FuncType(_):
-    //       funcs.append((name, x.t))
-    //     case InstanceType(exports):
-    //       vs, fs = mangle_instances(exports, name + '.')
-    //       values += vs
-    //       funcs += fs
-    //     case TypeType(bounds):
-    //       unimplemented!("resource types")
-    //     case ComponentType(imports, exports):
-    //       unimplemented!("canon instantiate")
-    //     case ModuleType(imports, exports):
-    //       unimplemented!("canonical shared-everything linking")
-    // return (values, funcs)
+pub enum ComponentDespecializedType {
+    Primitive(PrimitiveValType),
+    Record(IndexMap<String, ComponentDespecializedType>),
+    Variant(IndexMap<String, Option<ComponentDespecializedType>>),
+    List(Box<ComponentDespecializedType>),
+}
+
+impl ComponentDespecializedType {
+    pub fn contains_dynamic_allocation(&self) -> bool {
+        use ComponentDespecializedType::*;
+        match self {
+            Primitive(PrimitiveValType::String) => true,
+            Primitive(_) => false,
+            Record(fields) => fields.iter().any(|(_, t)| t.contains_dynamic_allocation()),
+            Variant(cases) => cases.iter().any(|(_, t)| {
+                t.as_ref()
+                    .map(|t| t.contains_dynamic_allocation())
+                    .unwrap_or(false)
+            }),
+            List(t) => t.contains_dynamic_allocation(),
+        }
+    }
 }
 
 // aka canonical_module_type
@@ -291,7 +424,7 @@ pub fn lower(bytes: &[u8]) -> Result<Vec<u8>> {
     //     exports.append(CoreExportDecl('cabi_post_' + name, CoreFuncType(flat_ft.results, [])))
     //  return ModuleType(imports, exports)
     //
-    //  def contains_dynamic_allication(t):A
+    //  def contains_dynamic_allication(t)
     //    match despecialize(t):
     //      case String(): return True
     //      case List(_): return True
@@ -363,15 +496,4 @@ fn flatten_type(t: () /* component type */) -> Vec<()> /* set of core types */ {
     //    if (a == 'i32' and b == 'f32') or (a == 'f32' and b == 'i32'): return 'i32'
     //    return 'i64'
     //
-}
-
-fn despecialize(t: () /* component type */) -> () /* component type */ {
-    todo!();
-    // match t:
-    //  case Tuple(ts): return Record([ Field(str(i), t) for i,t in enumerate(ts)])
-    //  case Union(ts): return Variant([ Case(str(i), t) for i,t in enumerate(ts)])
-    //  case Enum(labels): return Variant([ Case(l, None) for l in labels)])
-    //  case Option(t): return Variant([ Case("none", None), Case("some", t)])
-    //  case Result(ok, error): return Variant([ Case("ok",ok), Case("error", error)])
-    //  case _: return t
 }
