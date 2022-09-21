@@ -15,31 +15,18 @@ use wasmparser::{
         ComponentDefinedType, ComponentEntityType, ComponentFuncType, ComponentValType, Type, Types,
     },
     Chunk, ComponentExport, ComponentExternalKind, ComponentImport, ComponentType,
-    ComponentTypeRef, Encoding, Parser, Payload, PrimitiveValType, Validator, WasmFeatures,
+    ComponentTypeRef, Encoding, Parser, Payload, PrimitiveValType, ValType, Validator,
+    WasmFeatures,
 };
 
 pub fn lift(_bytes: &[u8]) -> Result<Vec<u8>> {
     todo!()
 }
 
-/// FIXME this is a deliberate hack to get interior mutability without actually implementing it
-/// properly
-struct StrArena<'a>(std::marker::PhantomData<&'a ()>);
-
-impl<'a> StrArena<'a> {
-    pub fn new() -> Self {
-        StrArena(std::marker::PhantomData)
-    }
-    pub fn insert(&self, val: impl AsRef<String>) -> &'a str {
-        Box::leak(Box::new(val.as_ref().to_owned()))
-    }
-}
-
 struct Component<'a> {
     types: Types,
     imports: Vec<ComponentImport<'a>>,
     exports: Vec<ComponentExport<'a>>,
-    owned_strs: StrArena<'a>,
 }
 
 impl<'a> Component<'a> {
@@ -182,7 +169,6 @@ impl<'a> Component<'a> {
                                         types,
                                         exports,
                                         imports,
-                                        owned_strs: StrArena::new(),
                                     })
                                 }
                             }
@@ -192,10 +178,6 @@ impl<'a> Component<'a> {
                 Chunk::NeedMoreData(_) => bail!("incomplete module"),
             }
         }
-    }
-
-    fn mkstr(&self, s: impl AsRef<String>) -> &'a str {
-        self.owned_strs.insert(s)
     }
 
     fn start_params(&self) -> impl Iterator<Item = (&'a str, ComponentValType)> + '_ {
@@ -388,6 +370,10 @@ impl ComponentDespecializedType {
             }),
             List(t) => t.contains_dynamic_allocation(),
         }
+    }
+
+    pub fn flatten(&self) -> Vec<ValType> {
+        todo!()
     }
 }
 
