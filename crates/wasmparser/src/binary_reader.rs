@@ -318,8 +318,7 @@ impl<'a> BinaryReader<'a> {
             0x40 => ComponentType::Func(ComponentFuncType {
                 params: self
                     .read_type_vec(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?,
-                results: self
-                    .read_type_vec(MAX_WASM_FUNCTION_RETURNS, "component function results")?,
+                results: self.read_component_func_result()?,
             }),
             0x41 => {
                 let size =
@@ -349,19 +348,25 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_type_vec(&mut self, max: usize, desc: &str) -> Result<TypeVec<'a>> {
+    pub(crate) fn read_component_func_result(&mut self) -> Result<ComponentFuncResult<'a>> {
         Ok(match self.read_u8()? {
-            0x00 => TypeVec::Unnamed(self.read_component_val_type()?),
-            0x01 => {
-                let size = self.read_size(max, desc)?;
-                TypeVec::Named(
-                    (0..size)
-                        .map(|_| Ok((self.read_string()?, self.read_component_val_type()?)))
-                        .collect::<Result<_>>()?,
-                )
-            }
-            x => return self.invalid_leading_byte(x, desc),
+            0x00 => ComponentFuncResult::Unnamed(self.read_component_val_type()?),
+            0x01 => ComponentFuncResult::Named(
+                self.read_type_vec(MAX_WASM_FUNCTION_RETURNS, "component function results")?,
+            ),
+            x => return self.invalid_leading_byte(x, "component function results"),
         })
+    }
+
+    pub(crate) fn read_type_vec(
+        &mut self,
+        max: usize,
+        desc: &str,
+    ) -> Result<Box<[(&'a str, ComponentValType)]>> {
+        let size = self.read_size(max, desc)?;
+        (0..size)
+            .map(|_| Ok((self.read_string()?, self.read_component_val_type()?)))
+            .collect::<Result<_>>()
     }
 
     pub(crate) fn read_module_type_decl(&mut self) -> Result<ModuleTypeDeclaration<'a>> {
@@ -851,7 +856,7 @@ impl<'a> BinaryReader<'a> {
     fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
         let size = self.read_var_u32()? as usize;
         if size > limit {
-            bail!(self.original_position() - 4, "{desc} size is out of bounds",);
+            bail!(self.original_position() - 4, "{desc} size is out of bounds");
         }
         Ok(size)
     }

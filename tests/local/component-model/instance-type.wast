@@ -43,8 +43,8 @@
     (export "c" (func (@name "bar")))
     (export "d" (func $foo (@name "bar")))
     (export "e" (func (type $t)))
-    (export "f" (func (param string)))
-    (export "g" (func (param s32) (result u32)))
+    (export "f" (func (param "f" string)))
+    (export "g" (func (param "g" s32) (result u32)))
     (export "h" (func (type $t)))
 
     ;; components
@@ -135,15 +135,15 @@
   (type (component
     (import "a" (func))
     (import "b" (func (type $empty)))
-    (import "c" (func (param s32)))
-    (import "d" (func (param s32) (result s32)))
+    (import "c" (func (param "c" s32)))
+    (import "d" (func (param "d" s32) (result s32)))
 
     (import "h" (instance))
     (import "i" (instance (type $i)))
     (import "j" (instance
       (export "a" (func))
       (export "b" (func (type $empty)))
-      (export "c" (func (param s32)))
+      (export "c" (func (param "c" s32)))
     ))
 
     (import "k" (core module))
@@ -157,12 +157,12 @@
 
     (export "a" (func))
     (export "e" (func (type $empty)))
-    (export "f" (func (param s32)))
+    (export "f" (func (param "f" s32)))
 
     (export "g" (instance
       (export "a" (func))
       (export "b" (func (type $empty)))
-      (export "c" (func (param s32)))
+      (export "c" (func (param "c" s32)))
     ))
 
     (export "h" (core module

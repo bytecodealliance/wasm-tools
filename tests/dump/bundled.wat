@@ -1,7 +1,7 @@
 (component
   (type $WasiFile (instance
-      (export "read" (func $read (param u32) (result (list u8))))
-      (export "write" (func $write (param (list u8)) (result u32)))
+      (export "read" (func $read (param "len" u32) (result (list u8))))
+      (export "write" (func $write (param "buf" (list u8)) (result u32)))
     ))
   (import "wasi_file" (instance $real-wasi (type $WasiFile)))
 

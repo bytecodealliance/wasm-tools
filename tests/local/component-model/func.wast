@@ -7,16 +7,9 @@
 
 (component
   (import "" (func))
-  (import "a" (func (param string)))
+  (import "a" (func (param "p1" string)))
   (import "b" (func (result u32)))
-  (import "c" (func (param bool) (result string)))
-)
-
-(assert_invalid
-  (component
-    (import "a" (func (param "foo" string) (param s32) (param "bar" u32)))
-  )
-  "function parameter name cannot be empty"
+  (import "c" (func (param "p1" bool) (result string)))
 )
 
 (assert_invalid
@@ -56,7 +49,7 @@
 )
 
 (component
-  (import "" (func $log (param string)))
+  (import "" (func $log (param "msg" string)))
   (core module $libc
     (memory (export "memory") 1)
   )
@@ -135,7 +128,7 @@
     )
     (core instance $i (instantiate $m))
 
-    (func (export "param-list") (param (list u8))
+    (func (export "param-list") (param "bytes" (list u8))
       (canon lift (core func $i "param-list") (memory $i "memory"))
     )
   )

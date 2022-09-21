@@ -1,7 +1,7 @@
 (component
   (import "i" (instance $i
     (export "f1" (func $f1))
-    (export "f2" (func $f2 (param string)))
+    (export "f2" (func $f2 (param "p1" string)))
   ))
 
   (func (alias export $i "f1"))

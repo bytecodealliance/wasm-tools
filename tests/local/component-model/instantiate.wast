@@ -190,7 +190,7 @@
     (import "" (component $m
       (import "" (func))
     ))
-    (import "i" (func (param string)))
+    (import "i" (func (param "i" string)))
     (instance $i (instantiate $m (with "" (func 0))))
   )
   "function type mismatch")

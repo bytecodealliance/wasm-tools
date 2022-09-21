@@ -95,7 +95,7 @@
 (assert_invalid
   (component
     (type $t (func))
-    (type (func (param $t)))
+    (type (func (param "t" $t)))
   )
   "type index 0 is not a defined type")
 
