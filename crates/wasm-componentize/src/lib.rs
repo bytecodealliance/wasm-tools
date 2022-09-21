@@ -15,7 +15,7 @@ use wasmparser::{
         ComponentDefinedType, ComponentEntityType, ComponentFuncType, ComponentValType, Type, Types,
     },
     Chunk, ComponentExport, ComponentExternalKind, ComponentImport, ComponentType,
-    ComponentTypeRef, Encoding, Parser, Payload, PrimitiveValType, ValType, Validator,
+    ComponentTypeRef, Encoding, FuncType, Parser, Payload, PrimitiveValType, ValType, Validator,
     WasmFeatures,
 };
 
@@ -347,6 +347,38 @@ impl<'a> Component<'a> {
             }
         }
     }
+
+    fn flatten_functype(&self, ft: &ComponentFuncType, context: FlatteningContext) -> FuncType {
+        // FIXME idk the values for these
+        const MAX_FLAT_PARAMS: usize = 123;
+        const MAX_FLAT_RESULTS: usize = 123;
+
+        let mut flat_params = Vec::new();
+        for (_param_name, ty) in ft.params.iter() {
+            flat_params.append(&mut self.despecialize_val_type(ty).flatten());
+        }
+        if flat_params.len() > MAX_FLAT_PARAMS {
+            flat_params = vec![ValType::I32];
+        }
+
+        let mut flat_results = Vec::new();
+        for (_result_name, ty) in ft.results.iter() {
+            flat_results.append(&mut self.despecialize_val_type(ty).flatten());
+        }
+        if flat_results.len() > MAX_FLAT_RESULTS {
+            match context {
+                FlatteningContext::Lift => flat_results = vec![ValType::I32],
+                FlatteningContext::Lower => {
+                    // FIXME does this mean the params length could exceed MAX_FLAT_PARAMS? is that
+                    // ok in the spec or not allowed?
+                    flat_params.push(ValType::I32);
+                    flat_results = Vec::new();
+                }
+            }
+        }
+
+        FuncType::new(flat_params, flat_results)
+    }
 }
 
 pub enum ComponentDespecializedType {
@@ -483,63 +515,4 @@ pub fn lower(bytes: &[u8]) -> Result<Vec<u8>> {
 enum FlatteningContext {
     Lift,
     Lower,
-}
-fn flatten_functype(ft: () /* component function type */, context: FlatteningContext) -> () /* core wasm function type */
-{
-    todo!();
-    // flat_params = flatten_types(ft.param_types())
-    // if len(flat_params) > MAX_FLAT_PARAMS:
-    //   flat_params = ['i32']
-    // flat_results = flatten_types(ft.result_types())
-    // if len(flat_results) > MAX_FLAT_RESULTS:
-    //   match context:
-    //     case 'lift':
-    //       flat_results = ['i32']
-    //     case 'lower':
-    //       flat_params += ['i32']
-    //       flat_results = []
-    //  return CoreFuncType(flat_params, flat_results)
-    //
-    //  def flatten_types(ts):
-    //    return [ ft for t in ts for ft in flatten_type(t) ]
-}
-
-fn flatten_type(t: () /* component type */) -> Vec<()> /* set of core types */ {
-    todo!();
-    // match despecialize(t):
-    //  case Bool() : return ['i32']
-    //  case U8() | U16() | U32() | S8() | S16() | S32(): return ['i32']
-    //  case S64() | U64: return ['i64']
-    //  case Float32() : return ['f32']
-    //  case Float64() : return ['64']
-    //  case Char() : return ['i32']
-    //  case String() | List(_): return ['i32', 'i32']
-    //  case Record(fields): return flatten_record(fields)
-    //  case Variant(cases): return flatten_variant(cases)
-    //  case Flags(labels): return ['i32'] * num_i32_flags(labels)
-    //  _: unreachable()
-    //
-    //
-    //  def flatten_record(fields):
-    //    flat = []
-    //    for f in fields:
-    //      flat += flatten_type(f.t)
-    //    return flat
-    //
-    //  def flatten_variant(cases):
-    //    flat = []
-    //    for c in cases:
-    //      if c.t is not None:
-    //        for (i,ft) in enumerate(flatten_type(c.t)):
-    //          if i < len(flat):
-    //            flat[i] = join(flat[i], ft)
-    //          else:
-    //            flat.append(ft)
-    //    return flatten_type(discriminant_type(cases)) + flat
-    //
-    //  def join(a, b):
-    //    if a == b: return a
-    //    if (a == 'i32' and b == 'f32') or (a == 'f32' and b == 'i32'): return 'i32'
-    //    return 'i64'
-    //
 }
