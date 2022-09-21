@@ -132,6 +132,12 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "function-references/func_bind.wast",
         "function-references/ref_as_non_null.wast",
         "function-references/return_call_ref.wast",
+        // TODO: new syntax for table types has been added with an optional
+        // initializer which needs parsing in the text format.
+        "function-references/table.wast",
+        // TODO: This references an instruction which has since been removed
+        // from the proposal so the test needs an update.
+        "relaxed-simd/relaxed_fma_fms.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
@@ -460,6 +466,7 @@ impl TestState {
                 "component-model" => features.component_model = true,
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
+                "relaxed-simd" => features.relaxed_simd = true,
                 _ => {}
             }
         }
@@ -600,6 +607,10 @@ fn error_matches(error: &str, message: &str) -> bool {
     // the text file, not a validation error of the binary.
     if message == "memory size must be at most 65536 pages (4GiB)" {
         return error.contains("invalid u32 number: constant out of range");
+    }
+
+    if message == "unknown global" {
+        return error.contains("global.get of locally defined global");
     }
 
     return false;

@@ -52,4 +52,4 @@
   (module quote
     "(func (try $l (do) (delegate $l)))"
   )
-  "failed to find label")
+  "unknown label")

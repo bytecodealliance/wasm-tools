@@ -57,7 +57,7 @@
   (component
     (type $t (variant (case "x" (refines $y)) (case $y "y" string)))
   )
-  "failed to find variant case named `$y`"
+  "unknown variant case"
 )
 
 (assert_invalid
@@ -65,8 +65,9 @@
     (type $t string)
     (type $v (variant (case "x" $t (refines $z))))
   )
-  "failed to find variant case named `$z`"
+  "unknown variant case"
 )
+
 
 (assert_invalid
   (component
