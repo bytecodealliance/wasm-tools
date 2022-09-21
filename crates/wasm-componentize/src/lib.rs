@@ -373,7 +373,70 @@ impl ComponentDespecializedType {
     }
 
     pub fn flatten(&self) -> Vec<ValType> {
-        todo!()
+        use ComponentDespecializedType::*;
+
+        match self {
+            Primitive(PrimitiveValType::Bool) => vec![ValType::I32],
+            Primitive(PrimitiveValType::U8 | PrimitiveValType::U16 | PrimitiveValType::U32) => {
+                vec![ValType::I32]
+            }
+            Primitive(PrimitiveValType::S8 | PrimitiveValType::S16 | PrimitiveValType::S32) => {
+                vec![ValType::I32]
+            }
+            Primitive(PrimitiveValType::U64 | PrimitiveValType::S64) => {
+                vec![ValType::I64]
+            }
+            Primitive(PrimitiveValType::Float32) => vec![ValType::F32],
+            Primitive(PrimitiveValType::Float64) => vec![ValType::F64],
+            Primitive(PrimitiveValType::Char) => vec![ValType::I32],
+            Primitive(PrimitiveValType::String) => vec![ValType::I32, ValType::I32],
+            List(_) => vec![ValType::I32, ValType::I32],
+            Record(fields) => {
+                let mut flat = Vec::new();
+                for (_name, ty) in fields {
+                    flat.append(&mut ty.flatten());
+                }
+                flat
+            }
+            Variant(cases) => {
+                let mut flat = Vec::new();
+                for (_name, maybe_ty) in cases {
+                    if let Some(ty) = maybe_ty {
+                        for (ix, ft) in ty.flatten().iter().enumerate() {
+                            if ix < flat.len() {
+                                flat[ix] = join(flat[ix], *ft);
+                            } else {
+                                flat.push(*ft)
+                            }
+                        }
+                    }
+                }
+
+                let mut with_discriminant = vec![ValType::I32];
+                with_discriminant.append(&mut flat);
+                with_discriminant
+            }
+        }
+    }
+}
+
+fn join(a: ValType, b: ValType) -> ValType {
+    if a == ValType::V128
+        || a == ValType::FuncRef
+        || a == ValType::ExternRef
+        || b == ValType::V128
+        || b == ValType::FuncRef
+        || b == ValType::ExternRef
+    {
+        unreachable!("V128, FuncRef, and ExternRef shouldnt be supported??");
+    }
+    match (a, b) {
+        _ if a == b => a,
+        (ValType::I32, ValType::F32) => ValType::I32,
+        (ValType::F32, ValType::I32) => ValType::I32,
+        (ValType::I64, ValType::F64) => ValType::I64,
+        (ValType::F64, ValType::I64) => ValType::I64,
+        _ => ValType::I64,
     }
 }
 
