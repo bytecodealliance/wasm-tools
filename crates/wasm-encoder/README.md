@@ -16,11 +16,10 @@
 
 ## Usage
 
-Add this to your `Cargo.toml`:
+Add `wasm-encoder` to your `Cargo.toml`
 
-```toml
-[dependencies]
-wasm-encoder = "0.16.0"
+```sh
+$ cargo add wasm-encoder
 ```
 
 And then you can encode WebAssembly binaries via:

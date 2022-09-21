@@ -17,11 +17,10 @@
 
 ## Usage
 
-Add this to your `Cargo.toml`:
+Add `wat` to your `Cargo.toml`
 
-```toml
-[dependencies]
-wat = "1.0"
+```sh
+$ cargo add wat
 ```
 
 And then you can parse WAT to binary WebAssembly via:

@@ -11,11 +11,8 @@
 //!
 //! Next, add `wasm-smith` to your dependencies:
 //!
-//! ```toml
-//! # fuzz/Cargo.toml
-//!
-//! [dependencies]
-//! wasm-smith = "0.4.0"
+//! ```shell
+//! $ cargo add wasm-smith
 //! ```
 //!
 //! Then, define your fuzz target so that it takes arbitrary
