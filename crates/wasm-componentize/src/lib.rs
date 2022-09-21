@@ -348,7 +348,7 @@ impl<'a> Component<'a> {
         }
     }
 
-    fn flatten_functype(&self, ft: &ComponentFuncType, context: FlatteningContext) -> FuncType {
+    fn flatten_func_type(&self, ft: &ComponentFuncType, context: FlatteningContext) -> FuncType {
         // FIXME idk the values for these
         const MAX_FLAT_PARAMS: usize = 123;
         const MAX_FLAT_RESULTS: usize = 123;
@@ -378,6 +378,17 @@ impl<'a> Component<'a> {
         }
 
         FuncType::new(flat_params, flat_results)
+    }
+
+    /// This takes slices of params and results, rather than a ComponentFuncType, because
+    /// I can't construct a ComponentFuncType to use for the start function
+    pub fn mangle_funcname(
+        &self,
+        name: &str,
+        func_params: &[(Option<String>, ComponentValType)],
+        func_results: &[(Option<String>, ComponentValType)],
+    ) -> String {
+        todo!()
     }
 }
 
@@ -460,6 +471,7 @@ fn join(a: ValType, b: ValType) -> ValType {
         || b == ValType::FuncRef
         || b == ValType::ExternRef
     {
+        // FIXME is this true? what does the spec say about these types
         unreachable!("V128, FuncRef, and ExternRef shouldnt be supported??");
     }
     match (a, b) {
@@ -472,9 +484,46 @@ fn join(a: ValType, b: ValType) -> ValType {
     }
 }
 
+pub struct ModuleType {
+    pub imports: IndexMap<(String, String), EntityType>,
+    pub exports: IndexMap<String, EntityType>,
+}
+
+pub enum EntityType {
+    Func(FuncType),
+    Memory,
+}
+
 // aka canonical_module_type
-pub fn lower(bytes: &[u8]) -> Result<Vec<u8>> {
+pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
+    // FIXME
+    const CABI_VERSION: &str = "idk";
+
     let ct = Component::parse(bytes)?;
+
+    let mut imports = IndexMap::new();
+    for (name, func_type) in ct.import_funcs() {
+        let flat_ft = ct.flatten_func_type(func_type, FlatteningContext::Lower);
+        imports.insert(
+            (
+                "".to_owned(),
+                ct.mangle_funcname(name, &func_type.params, &func_type.results),
+            ),
+            EntityType::Func(flat_ft),
+        );
+    }
+
+    let mut exports = IndexMap::new();
+    exports.insert("cabi_memory".to_owned(), EntityType::Memory);
+    exports.insert(
+        "cabi_realloc".to_owned(),
+        EntityType::Func(FuncType::new(
+            [ValType::I32, ValType::I32, ValType::I32, ValType::I32],
+            [ValType::I32],
+        )),
+    );
+
+    Ok(ModuleType { imports, exports })
 
     // input: ComponentType
     // output: ModuleType
@@ -509,7 +558,6 @@ pub fn lower(bytes: &[u8]) -> Result<Vec<u8>> {
     //      case Record(fields): return any(contains_dynamic_allocation(f.t) for f in fields)
     //      case Variant(cases): return any(contains_dynamic_allocation(c.t) for c in cases)
     //      case _: return False,
-    todo!()
 }
 
 enum FlatteningContext {
