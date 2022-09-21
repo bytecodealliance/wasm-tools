@@ -212,7 +212,7 @@ impl<'a> Component<'a> {
         })
     }
 
-    fn start_returns(&self) -> impl Iterator<Item = (&'a str, ComponentValType)> + '_ {
+    fn start_results(&self) -> impl Iterator<Item = (&'a str, ComponentValType)> + '_ {
         self.exports.iter().filter_map(|i| match i.kind {
             ComponentExternalKind::Value => Some((
                 i.name,
@@ -522,42 +522,36 @@ pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
             [ValType::I32],
         )),
     );
+    let start_name = ct.mangle_funcname(
+        &format!("cabi_start{{cabi={}}}", CABI_VERSION),
+        ct.start_params()
+            .map(|(name, ty)| (Some(name.to_owned()), ty))
+            .collect::<Vec<_>>()
+            .as_slice(),
+        ct.start_results()
+            .map(|(name, ty)| (Some(name.to_owned()), ty))
+            .collect::<Vec<_>>()
+            .as_slice(),
+    );
+
+    for (name, func_type) in ct.export_funcs() {
+        let flat_ft = ct.flatten_func_type(func_type, FlatteningContext::Lift);
+        exports.insert(
+            ct.mangle_funcname(name, &func_type.params, &func_type.results),
+            EntityType::Func(flat_ft.clone()),
+        );
+        if func_type.results.iter().any(|(_, val_type)| {
+            ct.despecialize_val_type(val_type)
+                .contains_dynamic_allocation()
+        }) {
+            exports.insert(
+                format!("cabi_post_{}", name),
+                EntityType::Func(FuncType::new(flat_ft.results().iter().cloned(), [])),
+            );
+        }
+    }
 
     Ok(ModuleType { imports, exports })
-
-    // input: ComponentType
-    // output: ModuleType
-    //
-    // start_params, import_funcs = mangle_instances(ct.imports)
-    // start_results, export_funcs = mangle_instances(ct.exports)
-    //
-    // imports = []
-    // for name,ft in import_funcs:
-    //   flat_ft = flatten_functype(ft, 'lower')
-    //   imports.append(CoreImportDecl('', mangle_funcname(name, ft), flat_ft))
-    //
-    // exports = []
-    // exports.append(CoreExportDecl('cabi_memory', CoreMemoryType(initial=0, maximum=None)))
-    // exports.append(CoreExportDecl('cabi_realloc', CoreFuncType(['i32','i32','i32','i32'],['i32'])))
-    //
-    // start_ft = FuncType(start_params, start_results)
-    // start_name = mangle_funcname('cabi_start{cabi=' + CABI_VERSION + '}', start_ft)
-    // exports.append(CoreExportDecl(start_name, flatten_functype(start_ft, 'lift')))
-    //
-    // for name,ft in export_funcs:
-    //   flat_ft = flatten_functype(ft, 'lift')
-    //   exports.append(CoreExportDecl(mangle_funcname(name, ft), flat_ft))
-    //   if any(contains_dynamic_allocation(t) for t in ft.results):
-    //     exports.append(CoreExportDecl('cabi_post_' + name, CoreFuncType(flat_ft.results, [])))
-    //  return ModuleType(imports, exports)
-    //
-    //  def contains_dynamic_allication(t)
-    //    match despecialize(t):
-    //      case String(): return True
-    //      case List(_): return True
-    //      case Record(fields): return any(contains_dynamic_allocation(f.t) for f in fields)
-    //      case Variant(cases): return any(contains_dynamic_allocation(c.t) for c in cases)
-    //      case _: return False,
 }
 
 enum FlatteningContext {
