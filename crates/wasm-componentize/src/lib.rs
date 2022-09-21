@@ -307,7 +307,7 @@ impl<'a> Component<'a> {
                                 .map(|(ix, valtype)| {
                                     (format!("{}", ix), self.despecialize_val_type(valtype))
                                 })
-                                .collect::<IndexMap<_, _>>(),
+                                .collect(),
                         ),
                         ComponentDefinedType::Flags(flags) => ComponentDespecializedType::Record(
                             flags
@@ -320,7 +320,7 @@ impl<'a> Component<'a> {
                                         ),
                                     )
                                 })
-                                .collect::<IndexMap<_, _>>(),
+                                .collect(),
                         ),
                         ComponentDefinedType::Union(cases) => ComponentDespecializedType::Variant(
                             cases
@@ -330,13 +330,10 @@ impl<'a> Component<'a> {
                                 .map(|(ix, valtype)| {
                                     (format!("{}", ix), Some(self.despecialize_val_type(valtype)))
                                 })
-                                .collect::<IndexMap<_, _>>(),
+                                .collect(),
                         ),
                         ComponentDefinedType::Enum(labels) => ComponentDespecializedType::Variant(
-                            labels
-                                .iter()
-                                .map(|label| (label.clone(), None))
-                                .collect::<IndexMap<_, _>>(),
+                            labels.iter().map(|label| (label.clone(), None)).collect(),
                         ),
                         ComponentDefinedType::Option(t) => ComponentDespecializedType::Variant(
                             [
@@ -344,7 +341,7 @@ impl<'a> Component<'a> {
                                 ("some".to_owned(), Some(self.despecialize_val_type(t))),
                             ]
                             .into_iter()
-                            .collect::<IndexMap<_, _>>(),
+                            .collect(),
                         ),
                         ComponentDefinedType::Result { ok, err } => {
                             ComponentDespecializedType::Variant(
@@ -359,7 +356,7 @@ impl<'a> Component<'a> {
                                     ),
                                 ]
                                 .into_iter()
-                                .collect::<IndexMap<_, _>>(),
+                                .collect(),
                             )
                         }
                     },
