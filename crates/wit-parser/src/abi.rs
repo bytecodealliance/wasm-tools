@@ -438,40 +438,24 @@ def_instruction! {
         /// exactly matches the canonical ABI definition of the type.
         ///
         /// This will consume two `i32` values from the stack, a pointer and a
-        /// length, and then produces an interface value list. If the `free`
-        /// field is set to `Some` then the pointer/length should be considered
-        /// an owned allocation and need to be deallocated by the receiver. If
-        /// it is set to `None` then a view is provided but it does not need to
-        /// be deallocated.
-        ///
-        /// The `free` field is set to `Some` in similar situations as described
-        /// by `ListCanonLower`. If `free` is `Some` then the memory must be
-        /// deallocated after the lifted list is done being consumed. If it is
-        /// `None` then the receiver of the lifted list does not own the memory
-        /// and must leave the memory as-is.
+        /// length, and then produces an interface value list.
         ListCanonLift {
             element: &'a Type,
-            free: Option<&'a str>,
             ty: TypeId,
         } : [2] => [1],
 
         /// Same as `ListCanonLift`, but used for strings
-        StringLift {
-            free: Option<&'a str>,
-        } : [2] => [1],
+        StringLift : [2] => [1],
 
         /// Lifts a list which into an interface types value.
         ///
         /// This will consume two `i32` values from the stack, a pointer and a
-        /// length, and then produces an interface value list. Note that the
-        /// pointer/length popped are **owned** and need to be deallocated with
-        /// the wasm `free` function when the list is no longer needed.
+        /// length, and then produces an interface value list.
         ///
         /// This will also pop a block from the block stack which is how to
         /// read each individual element from the list.
         ListLift {
             element: &'a Type,
-            free: Option<&'a str>,
             ty: TypeId,
         } : [2] => [1],
 
@@ -659,12 +643,38 @@ def_instruction! {
             align: usize,
         } : [0] => [1],
 
-        /// Calls the `free` function specified to deallocate the pointer on the
-        /// stack which has `size` bytes with alignment `align`.
-        Free {
-            free: &'static str,
+        /// Used exclusively for guest-code generation this indicates that
+        /// the standard memory deallocation function needs to be invoked with
+        /// the specified parameters.
+        ///
+        /// This will pop a pointer from the stack and push nothing.
+        GuestDeallocate {
             size: usize,
             align: usize,
+        } : [1] => [0],
+
+        /// Used exclusively for guest-code generation this indicates that
+        /// a string is being deallocated. The ptr/length are on the stack and
+        /// are poppped off and used to deallocate the string.
+        GuestDeallocateString : [2] => [0],
+
+        /// Used exclusively for guest-code generation this indicates that
+        /// a list is being deallocated. The ptr/length are on the stack and
+        /// are poppped off and used to deallocate the list.
+        ///
+        /// This variant also pops a block off the block stack to be used as the
+        /// body of the deallocation loop.
+        GuestDeallocateList {
+            element: &'a Type,
+        } : [2] => [0],
+
+        /// Used exclusively for guest-code generation this indicates that
+        /// a variant is being deallocated. The integer discriminant is popped
+        /// off the stack as well as `blocks` number of blocks popped from the
+        /// blocks stack. The variant is used to select, at runtime, which of
+        /// the blocks is executed to deallocate the variant.
+        GuestDeallocateVariant {
+            blocks: usize,
         } : [1] => [0],
     }
 }
@@ -982,6 +992,73 @@ impl Interface {
     ) {
         Generator::new(self, variant, lift_lower, bindgen).call(func);
     }
+
+    /// Returns whether the `Function` specified needs a post-return function to
+    /// be generated in guest code.
+    ///
+    /// This is used when the return value contains a memory allocation such as
+    /// a list or a string primarily.
+    pub fn guest_export_needs_post_return(&self, func: &Function) -> bool {
+        func.results.iter_types().any(|t| self.needs_post_return(t))
+    }
+
+    fn needs_post_return(&self, ty: &Type) -> bool {
+        match ty {
+            Type::String => true,
+            Type::Id(id) => match &self.types[*id].kind {
+                TypeDefKind::List(_) => true,
+                TypeDefKind::Type(t) => self.needs_post_return(t),
+                TypeDefKind::Record(r) => r.fields.iter().any(|f| self.needs_post_return(&f.ty)),
+                TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.needs_post_return(t)),
+                TypeDefKind::Union(t) => t.cases.iter().any(|t| self.needs_post_return(&t.ty)),
+                TypeDefKind::Variant(t) => t
+                    .cases
+                    .iter()
+                    .filter_map(|t| t.ty.as_ref())
+                    .any(|t| self.needs_post_return(t)),
+                TypeDefKind::Option(t) => self.needs_post_return(t),
+                TypeDefKind::Result(t) => [&t.ok, &t.err]
+                    .iter()
+                    .filter_map(|t| t.as_ref())
+                    .any(|t| self.needs_post_return(t)),
+                TypeDefKind::Flags(_) | TypeDefKind::Enum(_) => false,
+                TypeDefKind::Future(_) | TypeDefKind::Stream(_) => unimplemented!(),
+            },
+
+            // TODO: this is probably not correct, unsure though as handles are
+            // in flux at the moment
+            Type::Handle(_) => false,
+
+            Type::Bool
+            | Type::U8
+            | Type::S8
+            | Type::U16
+            | Type::S16
+            | Type::U32
+            | Type::S32
+            | Type::U64
+            | Type::S64
+            | Type::Float32
+            | Type::Float64
+            | Type::Char => false,
+        }
+    }
+
+    /// Used in a similar manner as the `Interface::call` function except is
+    /// used to generate the `post-return` callback for `func`.
+    ///
+    /// This is only intended to be used in guest generators for exported
+    /// functions and will primarily generate `GuestDeallocate*` instructions,
+    /// plus others used as input to those instructions.
+    pub fn post_return(&self, func: &Function, bindgen: &mut impl Bindgen) {
+        Generator::new(
+            self,
+            AbiVariant::GuestExport,
+            LiftLower::LiftArgsLowerResults,
+            bindgen,
+        )
+        .post_return(func);
+    }
 }
 
 struct Generator<'a, B: Bindgen> {
@@ -1160,11 +1237,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                             .sizes()
                             .record(func.params.iter().map(|t| &t.1));
                         self.emit(&Instruction::GetArg { nth: 0 });
-                        self.emit(&Instruction::Free {
-                            free: "canonical_abi_free",
-                            size,
-                            align,
-                        });
+                        self.emit(&Instruction::GuestDeallocate { size, align });
                     }
                 }
 
@@ -1216,6 +1289,34 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 });
             }
         }
+
+        assert!(
+            self.stack.is_empty(),
+            "stack has {} items remaining",
+            self.stack.len()
+        );
+    }
+
+    fn post_return(&mut self, func: &Function) {
+        let sig = self.iface.wasm_signature(self.variant, func);
+
+        // Currently post-return is only used for lists and lists are always
+        // returned indirectly through memory due to their flat representation
+        // having more than one type. Assert that a return pointer is used,
+        // though, in case this ever changes.
+        assert!(sig.retptr);
+
+        self.emit(&Instruction::GetArg { nth: 0 });
+        let addr = self.stack.pop().unwrap();
+        for (offset, ty) in self
+            .bindgen
+            .sizes()
+            .field_offsets(func.results.iter_types())
+        {
+            let offset = i32::try_from(offset).unwrap();
+            self.deallocate(ty, addr.clone(), offset);
+        }
+        self.emit(&Instruction::Return { func, amt: 0 });
 
         assert!(
             self.stack.is_empty(),
@@ -1517,32 +1618,20 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&HandleOwnedFromI32 { ty });
                 }
             }
-            Type::String => {
-                let free = self.list_free();
-                self.emit(&StringLift { free });
-            }
+            Type::String => self.emit(&StringLift),
             Type::Id(id) => match &self.iface.types[id].kind {
                 TypeDefKind::Type(t) => self.lift(t),
                 TypeDefKind::List(element) => {
-                    let free = self.list_free();
                     if self.is_char(element) || self.bindgen.is_list_canonical(self.iface, element)
                     {
-                        self.emit(&ListCanonLift {
-                            element,
-                            free,
-                            ty: id,
-                        });
+                        self.emit(&ListCanonLift { element, ty: id });
                     } else {
                         self.push_block();
                         self.emit(&IterBasePointer);
                         let addr = self.stack.pop().unwrap();
                         self.read_from_memory(element, addr, 0);
                         self.finish_block(1);
-                        self.emit(&ListLift {
-                            element,
-                            free,
-                            ty: id,
-                        });
+                        self.emit(&ListLift { element, ty: id });
                     }
                 }
                 TypeDefKind::Record(record) => {
@@ -1666,16 +1755,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 self.lift(ty);
             }
             self.finish_block(ty.is_some() as usize);
-        }
-    }
-
-    fn list_free(&self) -> Option<&'static str> {
-        // Lifting the arguments of a defined import means that, if
-        // possible, the caller still retains ownership and we don't
-        // free anything.
-        match (self.variant, self.lift_lower) {
-            (AbiVariant::GuestImport, LiftLower::LiftArgsLowerResults) => None,
-            _ => Some("canonical_abi_free"),
         }
     }
 
@@ -2075,6 +2154,137 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 _ => false,
             },
             _ => false,
+        }
+    }
+
+    fn deallocate(&mut self, ty: &Type, addr: B::Operand, offset: i32) {
+        use Instruction::*;
+
+        // No need to execute any instructions if this type itself doesn't
+        // require any form of post-return.
+        if !self.iface.needs_post_return(ty) {
+            return;
+        }
+
+        match *ty {
+            Type::Handle(_) => unimplemented!(),
+
+            Type::String => {
+                self.stack.push(addr.clone());
+                self.emit(&Instruction::I32Load { offset });
+                self.stack.push(addr);
+                self.emit(&Instruction::I32Load { offset: offset + 4 });
+                self.emit(&Instruction::GuestDeallocateString);
+            }
+
+            Type::Bool
+            | Type::U8
+            | Type::S8
+            | Type::U16
+            | Type::S16
+            | Type::U32
+            | Type::S32
+            | Type::Char
+            | Type::U64
+            | Type::S64
+            | Type::Float32
+            | Type::Float64 => {}
+
+            Type::Id(id) => match &self.iface.types[id].kind {
+                TypeDefKind::Type(t) => self.deallocate(t, addr, offset),
+
+                TypeDefKind::List(element) => {
+                    self.push_block();
+                    self.emit(&IterBasePointer);
+                    let elemaddr = self.stack.pop().unwrap();
+                    self.deallocate(element, elemaddr, 0);
+                    self.finish_block(0);
+
+                    self.stack.push(addr.clone());
+                    self.emit(&Instruction::I32Load { offset });
+                    self.stack.push(addr);
+                    self.emit(&Instruction::I32Load { offset: offset + 4 });
+                    self.emit(&Instruction::GuestDeallocateList { element });
+                }
+
+                TypeDefKind::Record(record) => {
+                    self.deallocate_fields(
+                        &record.fields.iter().map(|f| f.ty).collect::<Vec<_>>(),
+                        addr,
+                        offset,
+                    );
+                }
+                TypeDefKind::Tuple(tuple) => {
+                    self.deallocate_fields(&tuple.types, addr, offset);
+                }
+
+                TypeDefKind::Flags(_) => {}
+
+                TypeDefKind::Variant(variant) => {
+                    self.deallocate_variant(
+                        offset,
+                        addr,
+                        variant.tag(),
+                        variant.cases.iter().map(|c| c.ty.as_ref()),
+                    );
+                    self.emit(&GuestDeallocateVariant {
+                        blocks: variant.cases.len(),
+                    });
+                }
+
+                TypeDefKind::Option(t) => {
+                    self.deallocate_variant(offset, addr, Int::U8, [None, Some(t)]);
+                    self.emit(&GuestDeallocateVariant { blocks: 2 });
+                }
+
+                TypeDefKind::Result(e) => {
+                    self.deallocate_variant(offset, addr, Int::U8, [e.ok.as_ref(), e.err.as_ref()]);
+                    self.emit(&GuestDeallocateVariant { blocks: 2 });
+                }
+
+                TypeDefKind::Enum(_) => {}
+
+                TypeDefKind::Union(union) => {
+                    self.deallocate_variant(
+                        offset,
+                        addr,
+                        union.tag(),
+                        union.cases.iter().map(|c| Some(&c.ty)),
+                    );
+                    self.emit(&GuestDeallocateVariant {
+                        blocks: union.cases.len(),
+                    });
+                }
+
+                TypeDefKind::Future(_) => todo!("read future from memory"),
+                TypeDefKind::Stream(_) => todo!("read stream from memory"),
+            },
+        }
+    }
+
+    fn deallocate_variant<'b>(
+        &mut self,
+        offset: i32,
+        addr: B::Operand,
+        tag: Int,
+        cases: impl IntoIterator<Item = Option<&'b Type>> + Clone,
+    ) {
+        self.stack.push(addr.clone());
+        self.load_intrepr(offset, tag);
+        let payload_offset =
+            offset + (self.bindgen.sizes().payload_offset(tag, cases.clone()) as i32);
+        for ty in cases {
+            self.push_block();
+            if let Some(ty) = ty {
+                self.deallocate(ty, addr.clone(), payload_offset);
+            }
+            self.finish_block(0);
+        }
+    }
+
+    fn deallocate_fields(&mut self, tys: &[Type], addr: B::Operand, offset: i32) {
+        for (field_offset, ty) in self.bindgen.sizes().field_offsets(tys) {
+            self.deallocate(ty, addr.clone(), offset + (field_offset as i32));
         }
     }
 }
