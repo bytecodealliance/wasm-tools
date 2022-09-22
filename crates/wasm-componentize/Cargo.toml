@@ -11,12 +11,12 @@ documentation = "https://docs.rs/wasm-componentize"
 description = "A library for translating Wasm core modules into Wasm components"
 
 [dependencies]
-wasm-encoder = { version = "0.16.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.90.0", path = "../wasmparser" }
+wasm-encoder = { version = "0.17.0", path = "../wasm-encoder" }
+wasmparser = { version = "0.91.0", path = "../wasmparser" }
 anyhow = "1.0.58"
 log = "0.4.17"
 clap = { version = "3.2.7", features = ["derive"], optional = true }
-indexmap = "*"
+indexmap = "1.9"
 
 [features]
 default = []

@@ -385,7 +385,7 @@ impl<'a> Component<'a> {
     pub fn mangle_funcname(
         &self,
         name: &str,
-        func_params: &[(Option<String>, ComponentValType)],
+        func_params: &[(String, ComponentValType)],
         func_results: &[(Option<String>, ComponentValType)],
     ) -> String {
         todo!()
@@ -507,7 +507,7 @@ pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
         imports.insert(
             (
                 "".to_owned(),
-                ct.mangle_funcname(name, &func_type.params, &func_type.results),
+                ct.mangle_funcname(name, &*func_type.params, &*func_type.results),
             ),
             EntityType::Func(flat_ft),
         );
@@ -525,7 +525,7 @@ pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
     let start_name = ct.mangle_funcname(
         &format!("cabi_start{{cabi={}}}", CABI_VERSION),
         ct.start_params()
-            .map(|(name, ty)| (Some(name.to_owned()), ty))
+            .map(|(name, ty)| (name.to_owned(), ty))
             .collect::<Vec<_>>()
             .as_slice(),
         ct.start_results()
@@ -537,7 +537,7 @@ pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
     for (name, func_type) in ct.export_funcs() {
         let flat_ft = ct.flatten_func_type(func_type, FlatteningContext::Lift);
         exports.insert(
-            ct.mangle_funcname(name, &func_type.params, &func_type.results),
+            ct.mangle_funcname(name, &*func_type.params, &*func_type.results),
             EntityType::Func(flat_ft.clone()),
         );
         if func_type.results.iter().any(|(_, val_type)| {
