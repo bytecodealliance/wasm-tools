@@ -349,9 +349,8 @@ impl<'a> Component<'a> {
     }
 
     fn flatten_func_type(&self, ft: &ComponentFuncType, context: FlatteningContext) -> FuncType {
-        // FIXME idk the values for these
-        const MAX_FLAT_PARAMS: usize = 123;
-        const MAX_FLAT_RESULTS: usize = 123;
+        const MAX_FLAT_PARAMS: usize = 16;
+        const MAX_FLAT_RESULTS: usize = 1;
 
         let mut flat_params = Vec::new();
         for (_param_name, ty) in ft.params.iter() {
@@ -639,8 +638,7 @@ pub enum EntityType {
 
 // aka canonical_module_type
 pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
-    // FIXME
-    const CABI_VERSION: &str = "idk";
+    const CABI_VERSION: &str = "0.1";
 
     let ct = Component::parse(bytes)?;
 
