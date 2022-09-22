@@ -1,4 +1,0 @@
-dependencies:
-  a:
-    path: a.wat
-    import: b

@@ -1,1 +1,0 @@
-cannot import dependency `a` (`tests/compositions/import-conflict/a.wat`) with name `b` because it conflicts with an imported instance or component of the same name

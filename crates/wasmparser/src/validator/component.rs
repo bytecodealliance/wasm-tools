@@ -1898,7 +1898,7 @@ impl ComponentState {
         let id = self.type_at(idx, false, offset)?;
         match &types[id] {
             Type::Defined(_) => Ok(id),
-            _ => bail!(offset, "type index {} is not a defined type", id.index),
+            _ => bail!(offset, "type index {} is not a defined type", idx),
         }
     }
 

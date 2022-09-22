@@ -13,21 +13,6 @@
   (component (;0;)
     (type (;0;)
       (instance
-        (type (;0;) (func (param "x" string)))
-        (export "a" (func (type 0)))
-        (type (;1;) (func (param "y" u64)))
-        (export "c" (func (type 1)))
-      )
-    )
-    (import "a" (instance (;0;) (type 0)))
-  )
-  (instance (;1;) (instantiate 0
-      (with "a" (instance 0))
-    )
-  )
-  (component (;1;)
-    (type (;0;)
-      (instance
         (type (;0;) (func))
         (export "b" (func (type 0)))
         (type (;1;) (func (param "y" u32)))
@@ -40,7 +25,22 @@
     )
     (import "b" (instance (;1;) (type 1)))
   )
-  (instance (;2;) (instantiate 1
+  (component (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func (param "x" string)))
+        (export "a" (func (type 0)))
+        (type (;1;) (func (param "y" u64)))
+        (export "c" (func (type 1)))
+      )
+    )
+    (import "a" (instance (;0;) (type 0)))
+  )
+  (instance (;1;) (instantiate 1
+      (with "a" (instance 0))
+    )
+  )
+  (instance (;2;) (instantiate 0
       (with "b" (instance 1))
       (with "a" (instance 0))
     )
