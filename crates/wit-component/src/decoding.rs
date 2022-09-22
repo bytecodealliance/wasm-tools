@@ -99,9 +99,6 @@ impl<'a> ComponentInfo<'a> {
                         Payload::InstanceSection(s) => {
                             validator.instance_section(&s)?;
                         }
-                        Payload::AliasSection(s) => {
-                            validator.alias_section(&s)?;
-                        }
                         Payload::CoreTypeSection(s) => {
                             validator.core_type_section(&s)?;
                         }
@@ -228,23 +225,18 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_params(
         &mut self,
         func_name: &str,
-        ps: &[(Option<String>, types::ComponentValType)],
+        ps: &[(String, types::ComponentValType)],
     ) -> Result<Params> {
         let mut params = Vec::new();
         for (name, ty) in ps.iter() {
-            let name = name
-                .as_ref()
-                .ok_or_else(|| anyhow!("function `{}` has a parameter without a name", func_name))?
-                .clone();
-
-            validate_id(&name).with_context(|| {
+            validate_id(name).with_context(|| {
                 format!(
                     "function `{}` has a parameter `{}` that is not a valid identifier",
                     func_name, name
                 )
             })?;
 
-            params.push((name, self.decode_type(ty)?));
+            params.push((name.clone(), self.decode_type(ty)?));
         }
         Ok(params)
     }

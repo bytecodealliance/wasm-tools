@@ -1109,11 +1109,12 @@ impl EncodingState {
             .enumerate()
             .map(|(instance_index, (name, import))| {
                 let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
+                let mut aliases = ComponentAliasSection::new();
+                let mut functions = CanonicalFunctionSection::new();
 
-                let mut core_aliases = AliasSection::new();
                 for lowering in &import.indirect {
                     let index = self.alias_core_item(
-                        &mut core_aliases,
+                        &mut aliases,
                         self.shim_instance_index
                             .expect("shim should be instantiated"),
                         ExportKind::Func,
@@ -1121,10 +1122,6 @@ impl EncodingState {
                     );
                     exports.push((lowering.name, ExportKind::Func, index));
                 }
-                self.component.section(&core_aliases);
-
-                let mut aliases = ComponentAliasSection::new();
-                let mut functions = CanonicalFunctionSection::new();
 
                 for lowering in &import.direct {
                     let func_index =
@@ -1173,7 +1170,7 @@ impl EncodingState {
 
         for (export, is_default) in exports {
             // Alias the exports from the core module
-            let mut aliases = AliasSection::new();
+            let mut aliases = ComponentAliasSection::new();
             let mut functions = CanonicalFunctionSection::new();
             let mut interface_exports = Vec::new();
             for func in &export.functions {
@@ -1374,19 +1371,17 @@ impl EncodingState {
             .shim_instance_index
             .expect("must have an instantiated shim");
 
-        let mut core_aliases = AliasSection::new();
+        let mut aliases = ComponentAliasSection::new();
         let table_index = self.alias_core_item(
-            &mut core_aliases,
+            &mut aliases,
             shim_instance_index,
             ExportKind::Table,
             INDIRECT_TABLE_NAME,
         );
-        self.component.section(&core_aliases);
 
         let mut exports = Vec::with_capacity(imports.indirect_count as usize);
         exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
 
-        let mut aliases = ComponentAliasSection::new();
         let mut functions = CanonicalFunctionSection::new();
         for (instance_index, import) in imports.map.values().enumerate() {
             for lowering in &import.indirect {
@@ -1431,7 +1426,7 @@ impl EncodingState {
         assert!(self.instance_index.is_none());
 
         let mut instances = InstanceSection::new();
-        let mut aliases = AliasSection::new();
+        let mut aliases = ComponentAliasSection::new();
 
         let instance_index = self.instantiate(
             &mut instances,
@@ -1479,12 +1474,12 @@ impl EncodingState {
 
     fn alias_core_item(
         &mut self,
-        aliases: &mut AliasSection,
+        aliases: &mut ComponentAliasSection,
         instance: u32,
         kind: ExportKind,
         name: &str,
     ) -> u32 {
-        aliases.instance_export(instance, kind, name);
+        aliases.core_instance_export(instance, kind, name);
         match kind {
             ExportKind::Func => self.indexes.alloc_core_func(),
             ExportKind::Table => self.indexes.alloc_core_table(),

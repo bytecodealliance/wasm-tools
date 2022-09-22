@@ -156,9 +156,9 @@ impl InterfacePrinter {
                 err: Some(err),
             } => {
                 self.output.push_str("result<");
-                self.print_type_name(interface, &ok)?;
+                self.print_type_name(interface, ok)?;
                 self.output.push_str(", ");
-                self.print_type_name(interface, &err)?;
+                self.print_type_name(interface, err)?;
                 self.output.push('>');
             }
             Result_ {
@@ -166,7 +166,7 @@ impl InterfacePrinter {
                 err: Some(err),
             } => {
                 self.output.push_str("result<_, ");
-                self.print_type_name(interface, &err)?;
+                self.print_type_name(interface, err)?;
                 self.output.push('>');
             }
             Result_ {
@@ -174,7 +174,7 @@ impl InterfacePrinter {
                 err: None,
             } => {
                 self.output.push_str("result<");
-                self.print_type_name(interface, &ok)?;
+                self.print_type_name(interface, ok)?;
                 self.output.push('>');
             }
             Result_ {
