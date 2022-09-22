@@ -2,7 +2,7 @@
 name = "wit-parser"
 version = "0.2.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 id-arena = "2"
