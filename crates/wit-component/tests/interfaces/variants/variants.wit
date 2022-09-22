@@ -77,13 +77,13 @@ option-result: func() -> tuple<option<bool>, option<tuple<>>, option<u32>, optio
 
 casts: func(a: casts1, b: casts2, c: casts3, d: casts4, e: casts5, f: casts6) -> tuple<casts1, casts2, casts3, casts4, casts5, casts6>
 
-expected-arg: func(a: result<unit, unit>, b: result<unit, e1>, c: result<e1, unit>, d: result<tuple<>, tuple<>>, e: result<u32, v1>, f: result<string, list<u8>>)
+expected-arg: func(a: result, b: result<_, e1>, c: result<e1>, d: result<tuple<>, tuple<>>, e: result<u32, v1>, f: result<string, list<u8>>)
 
-expected-result: func() -> tuple<result<unit, unit>, result<unit, e1>, result<e1, unit>, result<tuple<>, tuple<>>, result<u32, v1>, result<string, list<u8>>>
+expected-result: func() -> tuple<result, result<_, e1>, result<e1>, result<tuple<>, tuple<>>, result<u32, v1>, result<string, list<u8>>>
 
 return-expected-sugar: func() -> result<s32, my-errno>
 
-return-expected-sugar2: func() -> result<unit, my-errno>
+return-expected-sugar2: func() -> result<_, my-errno>
 
 return-expected-sugar3: func() -> result<my-errno, my-errno>
 

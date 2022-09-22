@@ -3,17 +3,17 @@
     {
       "name": "x",
       "params": [],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "y",
       "params": [],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "z",
       "params": [],
-      "result": "unit"
+      "results": []
     }
   ]
 }

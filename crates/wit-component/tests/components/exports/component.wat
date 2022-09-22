@@ -5,7 +5,7 @@
   (type (;3;) (func (result 2)))
   (type (;4;) (flags "a" "b" "c"))
   (type (;5;) (func (param "x" 4)))
-  (type (;6;) (variant (case $c0 "a" unit) (case $c1 "b" string) (case $c2 "c" s64)))
+  (type (;6;) (variant (case "a") (case "b" string) (case "c" s64)))
   (type (;7;) (func (param "x" string) (result 6)))
   (type (;8;) (func (param "x" 6) (result string)))
   (core module (;0;)

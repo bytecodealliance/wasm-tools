@@ -75,28 +75,28 @@
       "params": [
         "handle-4"
       ],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "f::x",
       "params": [
         "handle-5"
       ],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "f::y",
       "params": [
         "handle-5"
       ],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "i::z",
       "params": [
         "handle-8"
       ],
-      "result": "unit"
+      "results": []
     }
   ]
 }

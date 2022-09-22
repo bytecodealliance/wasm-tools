@@ -1,4 +1,4 @@
-use super::{Error, Item, Span, Value, ValueKind};
+use super::{Error, Item, ParamList, ResultList, Span, Value, ValueKind};
 use crate::*;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -19,17 +19,17 @@ pub struct Resolver {
 
 #[derive(PartialEq, Eq, Hash)]
 enum Key {
-    Variant(Vec<(String, Type)>),
+    Variant(Vec<(String, Option<Type>)>),
     Record(Vec<(String, Type)>),
     Flags(Vec<String>),
     Tuple(Vec<Type>),
     Enum(Vec<String>),
     List(Type),
     Option(Type),
-    Result(Type, Type),
+    Result(Option<Type>, Option<Type>),
     Union(Vec<Type>),
-    Future(Type),
-    Stream(Type, Type),
+    Future(Option<Type>),
+    Stream(Option<Type>, Option<Type>),
 }
 
 impl Resolver {
@@ -228,7 +228,7 @@ impl Resolver {
                         .map(|case| Case {
                             docs: case.docs.clone(),
                             name: case.name.clone(),
-                            ty: self.copy_type(dep_name, dep, case.ty),
+                            ty: self.copy_optional_type(dep_name, dep, case.ty),
                         })
                         .collect(),
                 }),
@@ -238,8 +238,8 @@ impl Resolver {
                 TypeDefKind::List(t) => TypeDefKind::List(self.copy_type(dep_name, dep, *t)),
                 TypeDefKind::Option(t) => TypeDefKind::Option(self.copy_type(dep_name, dep, *t)),
                 TypeDefKind::Result(r) => TypeDefKind::Result(Result_ {
-                    ok: self.copy_type(dep_name, dep, r.ok),
-                    err: self.copy_type(dep_name, dep, r.err),
+                    ok: self.copy_optional_type(dep_name, dep, r.ok),
+                    err: self.copy_optional_type(dep_name, dep, r.err),
                 }),
                 TypeDefKind::Union(u) => TypeDefKind::Union(Union {
                     cases: u
@@ -251,10 +251,12 @@ impl Resolver {
                         })
                         .collect(),
                 }),
-                TypeDefKind::Future(t) => TypeDefKind::Future(self.copy_type(dep_name, dep, *t)),
+                TypeDefKind::Future(t) => {
+                    TypeDefKind::Future(self.copy_optional_type(dep_name, dep, *t))
+                }
                 TypeDefKind::Stream(e) => TypeDefKind::Stream(Stream {
-                    element: self.copy_type(dep_name, dep, e.element),
-                    end: self.copy_type(dep_name, dep, e.end),
+                    element: self.copy_optional_type(dep_name, dep, e.element),
+                    end: self.copy_optional_type(dep_name, dep, e.end),
                 }),
             },
         };
@@ -267,6 +269,19 @@ impl Resolver {
         match ty {
             Type::Id(id) => Type::Id(self.copy_type_def(dep_name, dep, id)),
             Type::Handle(id) => Type::Handle(self.copy_resource(dep_name, dep, id)),
+            other => other,
+        }
+    }
+
+    fn copy_optional_type(
+        &mut self,
+        dep_name: &str,
+        dep: &Interface,
+        ty: Option<Type>,
+    ) -> Option<Type> {
+        match ty {
+            Some(Type::Id(id)) => Some(Type::Id(self.copy_type_def(dep_name, dep, id))),
+            Some(Type::Handle(id)) => Some(Type::Handle(self.copy_resource(dep_name, dep, id))),
             other => other,
         }
     }
@@ -351,7 +366,6 @@ impl Resolver {
 
     fn resolve_type_def(&mut self, ty: &super::Type<'_>) -> Result<TypeDefKind> {
         Ok(match ty {
-            super::Type::Unit => TypeDefKind::Type(Type::Unit),
             super::Type::Bool => TypeDefKind::Type(Type::Bool),
             super::Type::U8 => TypeDefKind::Type(Type::U8),
             super::Type::U16 => TypeDefKind::Type(Type::U16),
@@ -442,10 +456,7 @@ impl Resolver {
                         Ok(Case {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
-                            ty: match &case.ty {
-                                Some(ty) => self.resolve_type(ty)?,
-                                None => Type::Unit,
-                            },
+                            ty: self.resolve_optional_type(case.ty.as_ref())?,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -473,8 +484,8 @@ impl Resolver {
             }
             super::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(ty)?),
             super::Type::Result(r) => TypeDefKind::Result(Result_ {
-                ok: self.resolve_type(&r.ok)?,
-                err: self.resolve_type(&r.err)?,
+                ok: self.resolve_optional_type(r.ok.as_deref())?,
+                err: self.resolve_optional_type(r.err.as_deref())?,
             }),
             super::Type::Union(e) => {
                 if e.cases.is_empty() {
@@ -496,10 +507,12 @@ impl Resolver {
                     .collect::<Result<Vec<_>>>()?;
                 TypeDefKind::Union(Union { cases })
             }
-            super::Type::Future(t) => TypeDefKind::Future(self.resolve_type(t)?),
+            super::Type::Future(t) => {
+                TypeDefKind::Future(self.resolve_optional_type(t.as_deref())?)
+            }
             super::Type::Stream(s) => TypeDefKind::Stream(Stream {
-                element: self.resolve_type(&s.element)?,
-                end: self.resolve_type(&s.end)?,
+                element: self.resolve_optional_type(s.element.as_deref())?,
+                end: self.resolve_optional_type(s.end.as_deref())?,
             }),
         })
     }
@@ -512,6 +525,21 @@ impl Resolver {
             docs: Docs::default(),
             foreign_module: None,
         }))
+    }
+
+    fn resolve_optional_type(&mut self, ty: Option<&super::Type<'_>>) -> Result<Option<Type>> {
+        match ty {
+            Some(ty) => {
+                let kind = self.resolve_type_def(ty)?;
+                Ok(Some(self.anon_type_def(TypeDef {
+                    kind,
+                    name: None,
+                    docs: Docs::default(),
+                    foreign_module: None,
+                })))
+            }
+            None => Ok(None),
+        }
     }
 
     fn anon_type_def(&mut self, ty: TypeDef) -> Type {
@@ -579,18 +607,15 @@ impl Resolver {
     fn resolve_value(&mut self, value: &Value<'_>) -> Result<()> {
         let docs = self.docs(&value.docs);
         match &value.kind {
-            ValueKind::Function { params, result } => {
-                let params = params
-                    .iter()
-                    .map(|(name, ty)| Ok((name.name.to_string(), self.resolve_type(ty)?)))
-                    .collect::<Result<_>>()?;
-                let result = self.resolve_type(result)?;
+            ValueKind::Function { params, results } => {
+                let params = self.resolve_params(params)?;
+                let results = self.resolve_results(results)?;
                 self.functions.push(Function {
                     docs,
                     name: value.name.name.to_string(),
                     kind: FunctionKind::Freestanding,
                     params,
-                    result,
+                    results,
                 });
             }
             ValueKind::Global(ty) => {
@@ -605,12 +630,26 @@ impl Resolver {
         Ok(())
     }
 
+    fn resolve_params(&mut self, params: &ParamList<'_>) -> Result<Params> {
+        params
+            .iter()
+            .map(|(name, ty)| Ok((name.name.to_string(), self.resolve_type(ty)?)))
+            .collect::<Result<_>>()
+    }
+
+    fn resolve_results(&mut self, results: &ResultList<'_>) -> Result<Results> {
+        match results {
+            ResultList::Named(rs) => Ok(Results::Named(self.resolve_params(rs)?)),
+            ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
+        }
+    }
+
     fn resolve_resource(&mut self, resource: &super::Resource<'_>) -> Result<()> {
         let mut names = HashSet::new();
         let id = self.resource_lookup[&*resource.name.name];
         for (statik, value) in resource.values.iter() {
-            let (params, result) = match &value.kind {
-                ValueKind::Function { params, result } => (params, result),
+            let (params, results) = match &value.kind {
+                ValueKind::Function { params, results } => (params, results),
                 ValueKind::Global(_) => {
                     return Err(Error {
                         span: value.name.span,
@@ -627,11 +666,8 @@ impl Resolver {
                 .into());
             }
             let docs = self.docs(&value.docs);
-            let mut params = params
-                .iter()
-                .map(|(name, ty)| Ok((name.name.to_string(), self.resolve_type(ty)?)))
-                .collect::<Result<Vec<_>>>()?;
-            let result = self.resolve_type(result)?;
+            let mut params = self.resolve_params(params)?;
+            let results = self.resolve_results(results)?;
             let kind = if *statik {
                 FunctionKind::Static {
                     resource: id,
@@ -649,7 +685,7 @@ impl Resolver {
                 name: format!("{}::{}", resource.name.name, value.name.name),
                 kind,
                 params,
-                result,
+                results,
             });
         }
         Ok(())
@@ -679,7 +715,7 @@ impl Resolver {
             }
             TypeDefKind::Variant(v) => {
                 for case in v.cases.iter() {
-                    if let Type::Id(id) = case.ty {
+                    if let Some(Type::Id(id)) = case.ty {
                         self.validate_type_not_recursive(span, id, visiting, valid)?;
                     }
                 }
@@ -705,23 +741,23 @@ impl Resolver {
                 }
             }
             TypeDefKind::Result(r) => {
-                if let Type::Id(id) = r.ok {
+                if let Some(Type::Id(id)) = r.ok {
                     self.validate_type_not_recursive(span, id, visiting, valid)?
                 }
-                if let Type::Id(id) = r.err {
+                if let Some(Type::Id(id)) = r.err {
                     self.validate_type_not_recursive(span, id, visiting, valid)?
                 }
             }
             TypeDefKind::Future(t) => {
-                if let Type::Id(id) = *t {
+                if let Some(Type::Id(id)) = *t {
                     self.validate_type_not_recursive(span, id, visiting, valid)?
                 }
             }
             TypeDefKind::Stream(s) => {
-                if let Type::Id(id) = s.element {
+                if let Some(Type::Id(id)) = s.element {
                     self.validate_type_not_recursive(span, id, visiting, valid)?
                 }
-                if let Type::Id(id) = s.end {
+                if let Some(Type::Id(id)) = s.end {
                     self.validate_type_not_recursive(span, id, visiting, valid)?
                 }
             }

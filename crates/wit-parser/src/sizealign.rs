@@ -25,11 +25,11 @@ impl SizeAlign {
                 FlagsRepr::U16 => (2, 2),
                 FlagsRepr::U32(n) => (n * 4, 4),
             },
-            TypeDefKind::Variant(v) => self.variant(v.tag(), v.cases.iter().map(|c| &c.ty)),
+            TypeDefKind::Variant(v) => self.variant(v.tag(), v.cases.iter().map(|c| c.ty.as_ref())),
             TypeDefKind::Enum(e) => self.variant(e.tag(), []),
-            TypeDefKind::Option(t) => self.variant(Int::U8, [&Type::Unit, t]),
-            TypeDefKind::Result(r) => self.variant(Int::U8, [&r.ok, &r.err]),
-            TypeDefKind::Union(u) => self.variant(u.tag(), u.cases.iter().map(|c| &c.ty)),
+            TypeDefKind::Option(t) => self.variant(Int::U8, [Some(t)]),
+            TypeDefKind::Result(r) => self.variant(Int::U8, [r.ok.as_ref(), r.err.as_ref()]),
+            TypeDefKind::Union(u) => self.variant(u.tag(), u.cases.iter().map(|c| Some(&c.ty))),
             // A future is represented as an index.
             TypeDefKind::Future(_) => (4, 4),
             // A stream is represented as an index.
@@ -39,7 +39,6 @@ impl SizeAlign {
 
     pub fn size(&self, ty: &Type) -> usize {
         match ty {
-            Type::Unit => 0,
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
             Type::U32 | Type::S32 | Type::Float32 | Type::Char | Type::Handle(_) => 4,
@@ -50,7 +49,7 @@ impl SizeAlign {
 
     pub fn align(&self, ty: &Type) -> usize {
         match ty {
-            Type::Unit | Type::Bool | Type::U8 | Type::S8 => 1,
+            Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
             Type::U32 | Type::S32 | Type::Float32 | Type::Char | Type::Handle(_) | Type::String => {
                 4
@@ -60,22 +59,31 @@ impl SizeAlign {
         }
     }
 
-    pub fn field_offsets<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> Vec<usize> {
+    pub fn field_offsets<'a>(
+        &self,
+        types: impl IntoIterator<Item = &'a Type>,
+    ) -> Vec<(usize, &'a Type)> {
         let mut cur = 0;
         types
             .into_iter()
             .map(|ty| {
                 let ret = align_to(cur, self.align(ty));
                 cur = ret + self.size(ty);
-                ret
+                (ret, ty)
             })
             .collect()
     }
 
-    pub fn payload_offset<'a>(&self, tag: Int, cases: impl IntoIterator<Item = &'a Type>) -> usize {
+    pub fn payload_offset<'a>(
+        &self,
+        tag: Int,
+        cases: impl IntoIterator<Item = Option<&'a Type>>,
+    ) -> usize {
         let mut max_align = 1;
         for ty in cases {
-            max_align = max_align.max(self.align(ty));
+            if let Some(ty) = ty {
+                max_align = max_align.max(self.align(ty));
+            }
         }
         let tag_size = int_size_align(tag).0;
         align_to(tag_size, max_align)
@@ -93,15 +101,25 @@ impl SizeAlign {
         (align_to(size, align), align)
     }
 
-    fn variant<'a>(&self, tag: Int, types: impl IntoIterator<Item = &'a Type>) -> (usize, usize) {
+    pub fn params<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> (usize, usize) {
+        self.record(types.into_iter())
+    }
+
+    fn variant<'a>(
+        &self,
+        tag: Int,
+        types: impl IntoIterator<Item = Option<&'a Type>>,
+    ) -> (usize, usize) {
         let (discrim_size, discrim_align) = int_size_align(tag);
         let mut size = discrim_size;
         let mut align = discrim_align;
         for ty in types {
-            let case_size = self.size(ty);
-            let case_align = self.align(ty);
-            align = align.max(case_align);
-            size = size.max(align_to(discrim_size, case_align) + case_size);
+            if let Some(ty) = ty {
+                let case_size = self.size(ty);
+                let case_align = self.align(ty);
+                align = align.max(case_align);
+                size = size.max(align_to(discrim_size, case_align) + case_size);
+            }
         }
         (size, align)
     }

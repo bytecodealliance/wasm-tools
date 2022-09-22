@@ -63,14 +63,13 @@ pub enum TypeDefKind {
     Result(Result_),
     Union(Union),
     List(Type),
-    Future(Type),
+    Future(Option<Type>),
     Stream(Stream),
     Type(Type),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Type {
-    Unit,
     Bool,
     U8,
     U16,
@@ -160,7 +159,7 @@ pub struct Variant {
 pub struct Case {
     pub docs: Docs,
     pub name: String,
-    pub ty: Type,
+    pub ty: Option<Type>,
 }
 
 impl Variant {
@@ -198,8 +197,8 @@ impl Enum {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Result_ {
-    pub ok: Type,
-    pub err: Type,
+    pub ok: Option<Type>,
+    pub err: Option<Type>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -226,8 +225,8 @@ impl Union {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
-    pub element: Type,
-    pub end: Type,
+    pub element: Option<Type>,
+    pub end: Option<Type>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -252,13 +251,67 @@ pub struct Global {
     pub ty: Type,
 }
 
+pub type Params = Vec<(String, Type)>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Results {
+    Named(Params),
+    Anon(Type),
+}
+
+pub enum ResultsTypeIter<'a> {
+    Named(std::slice::Iter<'a, (String, Type)>),
+    Anon(std::iter::Once<&'a Type>),
+}
+
+impl<'a> Iterator for ResultsTypeIter<'a> {
+    type Item = &'a Type;
+
+    fn next(&mut self) -> Option<&'a Type> {
+        match self {
+            ResultsTypeIter::Named(ps) => ps.next().map(|p| &p.1),
+            ResultsTypeIter::Anon(ty) => ty.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            ResultsTypeIter::Named(ps) => ps.size_hint(),
+            ResultsTypeIter::Anon(ty) => ty.size_hint(),
+        }
+    }
+}
+
+impl<'a> ExactSizeIterator for ResultsTypeIter<'a> {}
+
+impl Results {
+    // For the common case of an empty results list.
+    pub fn empty() -> Results {
+        Results::Named(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Results::Named(params) => params.len(),
+            Results::Anon(_) => 1,
+        }
+    }
+
+    pub fn iter_types(&self) -> ResultsTypeIter {
+        match self {
+            Results::Named(ps) => ResultsTypeIter::Named(ps.iter()),
+            Results::Anon(ty) => ResultsTypeIter::Anon(std::iter::once(ty)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub docs: Docs,
     pub name: String,
     pub kind: FunctionKind,
-    pub params: Vec<(String, Type)>,
-    pub result: Type,
+    pub params: Params,
+    pub results: Results,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -429,13 +482,19 @@ impl Interface {
             }
             TypeDefKind::Variant(v) => {
                 for v in v.cases.iter() {
-                    self.topo_visit_ty(&v.ty, list, visited);
+                    if let Some(ty) = v.ty {
+                        self.topo_visit_ty(&ty, list, visited);
+                    }
                 }
             }
             TypeDefKind::Option(ty) => self.topo_visit_ty(ty, list, visited),
             TypeDefKind::Result(r) => {
-                self.topo_visit_ty(&r.ok, list, visited);
-                self.topo_visit_ty(&r.err, list, visited);
+                if let Some(ok) = r.ok {
+                    self.topo_visit_ty(&ok, list, visited);
+                }
+                if let Some(err) = r.err {
+                    self.topo_visit_ty(&err, list, visited);
+                }
             }
             TypeDefKind::Union(u) => {
                 for t in u.cases.iter() {
@@ -443,11 +502,17 @@ impl Interface {
                 }
             }
             TypeDefKind::Future(ty) => {
-                self.topo_visit_ty(ty, list, visited);
+                if let Some(ty) = ty {
+                    self.topo_visit_ty(ty, list, visited);
+                }
             }
             TypeDefKind::Stream(s) => {
-                self.topo_visit_ty(&s.element, list, visited);
-                self.topo_visit_ty(&s.end, list, visited);
+                if let Some(element) = s.element {
+                    self.topo_visit_ty(&element, list, visited);
+                }
+                if let Some(end) = s.end {
+                    self.topo_visit_ty(&end, list, visited);
+                }
             }
         }
         list.push(id);
@@ -461,8 +526,7 @@ impl Interface {
 
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
         match ty {
-            Type::Unit
-            | Type::U8
+            Type::U8
             | Type::S8
             | Type::U16
             | Type::S16

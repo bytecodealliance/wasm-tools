@@ -91,7 +91,7 @@
       "idx": 16,
       "name": "t16",
       "result": {
-        "ok": "unit",
+        "ok": null,
         "err": "u32"
       }
     },
@@ -100,15 +100,15 @@
       "name": "t17",
       "result": {
         "ok": "u32",
-        "err": "unit"
+        "err": null
       }
     },
     {
       "idx": 18,
       "name": "t18",
       "result": {
-        "ok": "unit",
-        "err": "unit"
+        "ok": null,
+        "err": null
       }
     },
     {
@@ -269,7 +269,7 @@
         "cases": [
           [
             "a",
-            "unit"
+            null
           ]
         ]
       }
@@ -281,11 +281,11 @@
         "cases": [
           [
             "a",
-            "unit"
+            null
           ],
           [
             "b",
-            "unit"
+            null
           ]
         ]
       }
@@ -297,11 +297,11 @@
         "cases": [
           [
             "a",
-            "unit"
+            null
           ],
           [
             "b",
-            "unit"
+            null
           ]
         ]
       }
@@ -313,7 +313,7 @@
         "cases": [
           [
             "a",
-            "unit"
+            null
           ],
           [
             "b",
@@ -329,7 +329,7 @@
         "cases": [
           [
             "a",
-            "unit"
+            null
           ],
           [
             "b",
@@ -427,7 +427,7 @@
       "idx": 50,
       "name": "t49",
       "stream": {
-        "element": "unit",
+        "element": null,
         "end": "u32"
       }
     },
@@ -436,15 +436,15 @@
       "name": "t50",
       "stream": {
         "element": "u32",
-        "end": "unit"
+        "end": null
       }
     },
     {
       "idx": 52,
       "name": "t51",
       "stream": {
-        "element": "unit",
-        "end": "unit"
+        "element": null,
+        "end": null
       }
     },
     {
@@ -455,7 +455,7 @@
     {
       "idx": 54,
       "name": "t53",
-      "future": "unit"
+      "future": null
     },
     {
       "idx": 55,

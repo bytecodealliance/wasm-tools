@@ -3,7 +3,9 @@
     {
       "name": "foo",
       "params": [],
-      "result": "string"
+      "results": [
+        "string"
+      ]
     }
   ]
 }

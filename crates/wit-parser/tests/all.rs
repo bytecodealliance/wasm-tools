@@ -202,24 +202,42 @@ fn to_json(i: &Interface) -> String {
     #[serde(rename_all = "kebab-case")]
     enum Type {
         Primitive(String),
-        Record { fields: Vec<(String, String)> },
-        Flags { flags: Vec<String> },
-        Enum { cases: Vec<String> },
-        Variant { cases: Vec<(String, String)> },
-        Tuple { types: Vec<String> },
+        Record {
+            fields: Vec<(String, String)>,
+        },
+        Flags {
+            flags: Vec<String>,
+        },
+        Enum {
+            cases: Vec<String>,
+        },
+        Variant {
+            cases: Vec<(String, Option<String>)>,
+        },
+        Tuple {
+            types: Vec<String>,
+        },
         Option(String),
-        Result { ok: String, err: String },
-        Future(String),
-        Stream { element: String, end: String },
+        Result {
+            ok: Option<String>,
+            err: Option<String>,
+        },
+        Future(Option<String>),
+        Stream {
+            element: Option<String>,
+            end: Option<String>,
+        },
         List(String),
-        Union { cases: Vec<String> },
+        Union {
+            cases: Vec<String>,
+        },
     }
 
     #[derive(Serialize)]
     struct Function {
         name: String,
         params: Vec<String>,
-        result: String,
+        results: Vec<String>,
     }
 
     #[derive(Serialize)]
@@ -254,7 +272,11 @@ fn to_json(i: &Interface) -> String {
         .map(|f| Function {
             name: f.name.clone(),
             params: f.params.iter().map(|(_, ty)| translate_type(ty)).collect(),
-            result: translate_type(&f.result),
+            results: f
+                .results
+                .iter_types()
+                .map(|ty| translate_type(ty))
+                .collect(),
         })
         .collect::<Vec<_>>();
     let globals = i
@@ -297,18 +319,18 @@ fn to_json(i: &Interface) -> String {
                 cases: v
                     .cases
                     .iter()
-                    .map(|f| (f.name.clone(), translate_type(&f.ty)))
+                    .map(|f| (f.name.clone(), translate_optional_type(f.ty.as_ref())))
                     .collect(),
             },
             TypeDefKind::Option(t) => Type::Option(translate_type(t)),
             TypeDefKind::Result(r) => Type::Result {
-                ok: translate_type(&r.ok),
-                err: translate_type(&r.err),
+                ok: translate_optional_type(r.ok.as_ref()),
+                err: translate_optional_type(r.err.as_ref()),
             },
-            TypeDefKind::Future(t) => Type::Future(translate_type(t)),
+            TypeDefKind::Future(t) => Type::Future(translate_optional_type(t.as_ref())),
             TypeDefKind::Stream(s) => Type::Stream {
-                element: translate_type(&s.element),
-                end: translate_type(&s.end),
+                element: translate_optional_type(s.element.as_ref()),
+                end: translate_optional_type(s.end.as_ref()),
             },
             TypeDefKind::List(ty) => Type::List(translate_type(ty)),
             TypeDefKind::Union(u) => Type::Union {
@@ -320,7 +342,6 @@ fn to_json(i: &Interface) -> String {
     fn translate_type(ty: &wit_parser::Type) -> String {
         use wit_parser::Type;
         match ty {
-            Type::Unit => format!("unit"),
             Type::Bool => format!("bool"),
             Type::U8 => format!("u8"),
             Type::U16 => format!("u16"),
@@ -337,5 +358,9 @@ fn to_json(i: &Interface) -> String {
             Type::Handle(resource) => format!("handle-{}", resource.index()),
             Type::Id(id) => format!("type-{}", id.index()),
         }
+    }
+
+    fn translate_optional_type(ty: Option<&wit_parser::Type>) -> Option<String> {
+        ty.map(translate_type)
     }
 }

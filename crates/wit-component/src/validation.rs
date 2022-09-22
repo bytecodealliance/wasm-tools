@@ -37,20 +37,10 @@ fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
         }
     }
 
-    FuncType {
-        params: signature
-            .params
-            .iter()
-            .map(from_wasm_type)
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-        returns: signature
-            .results
-            .iter()
-            .map(from_wasm_type)
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    }
+    FuncType::new(
+        signature.params.iter().map(from_wasm_type),
+        signature.results.iter().map(from_wasm_type),
+    )
 }
 
 /// This function validates the following:
@@ -197,10 +187,10 @@ fn validate_imported_interface(
                     "type mismatch for function `{}` on imported interface `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
                     func_name,
                     name,
-                    expected.params,
-                    expected.returns,
-                    ty.params,
-                    ty.returns
+                    expected.params(),
+                    expected.results(),
+                    ty.params(),
+                    ty.results()
                 );
         }
     }
@@ -227,18 +217,18 @@ fn validate_exported_interface(
                             "type mismatch for function `{}` from exported interface `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
                             f.name,
                             name,
-                            expected_ty.params,
-                            expected_ty.returns,
-                            ty.params,
-                            ty.returns
+                            expected_ty.params(),
+                            expected_ty.results(),
+                            ty.params(),
+                            ty.results()
                         ),
                         None => bail!(
                             "type mismatch for default interface function `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
                             f.name,
-                            expected_ty.params,
-                            expected_ty.returns,
-                            ty.params,
-                            ty.returns
+                            expected_ty.params(),
+                            expected_ty.results(),
+                            ty.params(),
+                            ty.results()
                         )
                     }
                 }

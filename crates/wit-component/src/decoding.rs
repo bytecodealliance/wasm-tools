@@ -225,12 +225,13 @@ impl<'a> InterfaceDecoder<'a> {
         Ok(self.interface)
     }
 
-    fn add_function(&mut self, func_name: &str, ty: &types::ComponentFuncType) -> Result<()> {
-        validate_id(func_name)
-            .with_context(|| format!("function name `{}` is not a valid identifier", func_name))?;
-
+    fn decode_params(
+        &mut self,
+        func_name: &str,
+        ps: &[(Option<String>, types::ComponentValType)],
+    ) -> Result<Params> {
         let mut params = Vec::new();
-        for (name, ty) in ty.params.iter() {
+        for (name, ty) in ps.iter() {
             let name = name
                 .as_ref()
                 .ok_or_else(|| anyhow!("function `{}` has a parameter without a name", func_name))?
@@ -245,15 +246,78 @@ impl<'a> InterfaceDecoder<'a> {
 
             params.push((name, self.decode_type(ty)?));
         }
+        Ok(params)
+    }
 
-        let result = self.decode_type(&ty.result)?;
+    fn decode_results(
+        &mut self,
+        func_name: &str,
+        ps: &[(Option<String>, types::ComponentValType)],
+    ) -> Result<Results> {
+        let mut results = Vec::new();
+        for (name, ty) in ps.iter() {
+            let name = match name {
+                Some(name) => {
+                    let name = name.to_string();
+                    validate_id(&name).with_context(|| {
+                        format!(
+                            "function `{}` has a result type `{}` that is not a valid identifier",
+                            func_name, name
+                        )
+                    })?;
+                    Some(name)
+                }
+                None => None,
+            };
+
+            results.push((name, self.decode_type(ty)?));
+        }
+
+        // Results must be either
+        // - A single anonymous type
+        // - Any number of named types
+        match results.len() {
+            1 => {
+                // We either have a single anonymous type or a single
+                // named type. Either is valid.
+                let (name, ty) = results.into_iter().next().unwrap();
+                match name {
+                    Some(name) => Ok(Results::Named(vec![(name, ty)])),
+                    None => Ok(Results::Anon(ty)),
+                }
+            }
+            _ => {
+                // Otherwise, all types must be named.
+                let mut rs = Vec::new();
+                for (name, ty) in results.into_iter() {
+                    match name {
+                        Some(name) => rs.push((name, ty)),
+                        None => {
+                            return Err(anyhow!(
+                                "function `{}` is missing a result type name",
+                                func_name
+                            ))
+                        }
+                    }
+                }
+                Ok(Results::Named(rs))
+            }
+        }
+    }
+
+    fn add_function(&mut self, func_name: &str, ty: &types::ComponentFuncType) -> Result<()> {
+        validate_id(func_name)
+            .with_context(|| format!("function name `{}` is not a valid identifier", func_name))?;
+
+        let params = self.decode_params(func_name, &ty.params)?;
+        let results = self.decode_results(func_name, &ty.results)?;
 
         self.interface.functions.push(Function {
             docs: Docs::default(),
             name: func_name.to_string(),
             kind: FunctionKind::Freestanding,
             params,
-            result,
+            results,
         });
 
         Ok(())
@@ -303,8 +367,8 @@ impl<'a> InterfaceDecoder<'a> {
                             self.decode_union(name, &u.types)?
                         }
                         types::ComponentDefinedType::Option(ty) => self.decode_option(name, ty)?,
-                        types::ComponentDefinedType::Expected(ok, err) => {
-                            self.decode_result(name, ok, err)?
+                        types::ComponentDefinedType::Result { ok, err } => {
+                            self.decode_result(name, ok.as_ref(), err.as_ref())?
                         }
                     },
                     _ => unreachable!(),
@@ -314,6 +378,16 @@ impl<'a> InterfaceDecoder<'a> {
                 ty
             }
         })
+    }
+
+    fn decode_optional_type(
+        &mut self,
+        ty: Option<&types::ComponentValType>,
+    ) -> Result<Option<Type>> {
+        match ty {
+            Some(ty) => self.decode_type(ty).map(Some),
+            None => Ok(None),
+        }
     }
 
     fn decode_named_primitive(
@@ -334,7 +408,6 @@ impl<'a> InterfaceDecoder<'a> {
 
     fn decode_primitive(&mut self, ty: PrimitiveValType) -> Result<Type> {
         Ok(match ty {
-            PrimitiveValType::Unit => Type::Unit,
             PrimitiveValType::Bool => Type::Bool,
             PrimitiveValType::S8 => Type::S8,
             PrimitiveValType::U8 => Type::U8,
@@ -405,7 +478,7 @@ impl<'a> InterfaceDecoder<'a> {
                     Ok(Case {
                         docs: Docs::default(),
                         name: name.to_string(),
-                        ty: self.decode_type(&case.ty)?,
+                        ty: self.decode_optional_type(case.ty.as_ref())?,
                     })
                 })
                 .collect::<Result<_>>()?,
@@ -526,11 +599,11 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_result(
         &mut self,
         name: Option<String>,
-        ok: &types::ComponentValType,
-        err: &types::ComponentValType,
+        ok: Option<&types::ComponentValType>,
+        err: Option<&types::ComponentValType>,
     ) -> Result<Type> {
-        let ok = self.decode_type(ok)?;
-        let err = self.decode_type(err)?;
+        let ok = self.decode_optional_type(ok)?;
+        let err = self.decode_optional_type(err)?;
         Ok(Type::Id(self.alloc_type(
             name,
             TypeDefKind::Result(Result_ { ok, err }),

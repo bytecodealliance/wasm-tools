@@ -74,7 +74,6 @@ pub struct TypeDef<'a> {
 }
 
 enum Type<'a> {
-    Unit,
     Bool,
     U8,
     U16,
@@ -98,7 +97,7 @@ enum Type<'a> {
     Enum(Enum<'a>),
     Option(Box<Type<'a>>),
     Result(Result_<'a>),
-    Future(Box<Type<'a>>),
+    Future(Option<Box<Type<'a>>>),
     Stream(Stream<'a>),
     Union(Union<'a>),
 }
@@ -144,13 +143,13 @@ struct EnumCase<'a> {
 }
 
 struct Result_<'a> {
-    ok: Box<Type<'a>>,
-    err: Box<Type<'a>>,
+    ok: Option<Box<Type<'a>>>,
+    err: Option<Box<Type<'a>>>,
 }
 
 struct Stream<'a> {
-    element: Box<Type<'a>>,
-    end: Box<Type<'a>>,
+    element: Option<Box<Type<'a>>>,
+    end: Option<Box<Type<'a>>>,
 }
 
 pub struct Value<'a> {
@@ -169,10 +168,17 @@ struct UnionCase<'a> {
     ty: Type<'a>,
 }
 
+type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
+
+enum ResultList<'a> {
+    Named(ParamList<'a>),
+    Anon(Type<'a>),
+}
+
 enum ValueKind<'a> {
     Function {
-        params: Vec<(Id<'a>, Type<'a>)>,
-        result: Type<'a>,
+        params: ParamList<'a>,
+        results: ResultList<'a>,
     },
     Global(Type<'a>),
 }
@@ -414,24 +420,34 @@ impl<'a> Value<'a> {
         };
         return Ok(Value { docs, name, kind });
 
-        fn parse_func<'a>(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
-            let params = parse_list(
-                tokens,
-                Token::LeftParen,
-                Token::RightParen,
-                |_docs, tokens| {
-                    let name = parse_id(tokens)?;
-                    tokens.expect(Token::Colon)?;
-                    let ty = Type::parse(tokens)?;
-                    Ok((name, ty))
-                },
-            )?;
-            let result = if tokens.eat(Token::RArrow)? {
-                Type::parse(tokens)?
-            } else {
-                Type::Unit
+        fn parse_params<'a>(tokens: &mut Tokenizer<'a>, left_paren: bool) -> Result<ParamList<'a>> {
+            if left_paren {
+                tokens.expect(Token::LeftParen)?;
             };
-            Ok(ValueKind::Function { params, result })
+            parse_list_trailer(tokens, Token::RightParen, |_docs, tokens| {
+                let name = parse_id(tokens)?;
+                tokens.expect(Token::Colon)?;
+                let ty = Type::parse(tokens)?;
+                Ok((name, ty))
+            })
+        }
+
+        fn parse_func<'a>(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
+            let params = parse_params(tokens, true)?;
+            let results = if tokens.eat(Token::RArrow)? {
+                // If we eat a '(', parse the remainder of the named
+                // result types. Otherwise parse a single anonymous type.
+                if tokens.eat(Token::LeftParen)? {
+                    let results = parse_params(tokens, false)?;
+                    ResultList::Named(results)
+                } else {
+                    let ty = Type::parse(tokens)?;
+                    ResultList::Anon(ty)
+                }
+            } else {
+                ResultList::Named(Vec::new())
+            };
+            Ok(ValueKind::Function { params, results })
         }
     }
 }
@@ -494,7 +510,6 @@ impl<'a> Type<'a> {
                 Ok(Type::Tuple(types))
             }
 
-            Some((_span, Token::Unit)) => Ok(Type::Unit),
             Some((_span, Token::Bool)) => Ok(Type::Bool),
             Some((_span, Token::String_)) => Ok(Type::String),
 
@@ -515,30 +530,60 @@ impl<'a> Type<'a> {
             }
 
             // result<T, E>
+            // result<_, E>
+            // result<T>
+            // result
             Some((_span, Token::Result_)) => {
-                tokens.expect(Token::LessThan)?;
-                let ok = Box::new(Type::parse(tokens)?);
-                tokens.expect(Token::Comma)?;
-                let err = Box::new(Type::parse(tokens)?);
-                tokens.expect(Token::GreaterThan)?;
+                let mut ok = None;
+                let mut err = None;
+
+                if tokens.eat(Token::LessThan)? {
+                    if tokens.eat(Token::Underscore)? {
+                        tokens.expect(Token::Comma)?;
+                        err = Some(Box::new(Type::parse(tokens)?));
+                    } else {
+                        ok = Some(Box::new(Type::parse(tokens)?));
+                        if tokens.eat(Token::Comma)? {
+                            err = Some(Box::new(Type::parse(tokens)?));
+                        }
+                    };
+                    tokens.expect(Token::GreaterThan)?;
+                };
                 Ok(Type::Result(Result_ { ok, err }))
             }
 
             // future<T>
+            // future
             Some((_span, Token::Future)) => {
-                tokens.expect(Token::LessThan)?;
-                let ty = Box::new(Type::parse(tokens)?);
-                tokens.expect(Token::GreaterThan)?;
+                let mut ty = None;
+
+                if tokens.eat(Token::LessThan)? {
+                    ty = Some(Box::new(Type::parse(tokens)?));
+                    tokens.expect(Token::GreaterThan)?;
+                };
                 Ok(Type::Future(ty))
             }
 
             // stream<T, Z>
+            // stream<_, Z>
+            // stream<T>
+            // stream
             Some((_span, Token::Stream)) => {
-                tokens.expect(Token::LessThan)?;
-                let element = Box::new(Type::parse(tokens)?);
-                tokens.expect(Token::Comma)?;
-                let end = Box::new(Type::parse(tokens)?);
-                tokens.expect(Token::GreaterThan)?;
+                let mut element = None;
+                let mut end = None;
+
+                if tokens.eat(Token::LessThan)? {
+                    if tokens.eat(Token::Underscore)? {
+                        tokens.expect(Token::Comma)?;
+                        end = Some(Box::new(Type::parse(tokens)?));
+                    } else {
+                        element = Some(Box::new(Type::parse(tokens)?));
+                        if tokens.eat(Token::Comma)? {
+                            end = Some(Box::new(Type::parse(tokens)?));
+                        }
+                    };
+                    tokens.expect(Token::GreaterThan)?;
+                };
                 Ok(Type::Stream(Stream { element, end }))
             }
 
@@ -579,9 +624,17 @@ fn parse_list<'a, T>(
     tokens: &mut Tokenizer<'a>,
     start: Token,
     end: Token,
-    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T>,
+    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T>,
 ) -> Result<Vec<T>> {
     tokens.expect(start)?;
+    parse_list_trailer(tokens, end, parse)
+}
+
+fn parse_list_trailer<'a, T>(
+    tokens: &mut Tokenizer<'a>,
+    end: Token,
+    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T>,
+) -> Result<Vec<T>> {
     let mut items = Vec::new();
     loop {
         // get docs before we skip them to try to eat the end token

@@ -2,7 +2,8 @@ use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use std::fmt::Write;
 use wit_parser::{
-    Enum, Flags, Interface, Record, Result_, Tuple, Type, TypeDefKind, TypeId, Union, Variant,
+    Enum, Flags, Interface, Record, Result_, Results, Tuple, Type, TypeDefKind, TypeId, Union,
+    Variant,
 };
 
 /// A utility for printing WebAssembly interface definitions to a string.
@@ -16,7 +17,12 @@ impl InterfacePrinter {
     /// Print the given WebAssembly interface to a string.
     pub fn print(&mut self, interface: &Interface) -> Result<String> {
         for func in &interface.functions {
-            for ty in func.params.iter().map(|p| &p.1).chain([&func.result]) {
+            for ty in func
+                .params
+                .iter()
+                .map(|(_, ty)| ty)
+                .chain(func.results.iter_types())
+            {
                 self.declare_type(interface, ty)?;
             }
         }
@@ -32,13 +38,21 @@ impl InterfacePrinter {
             }
             self.output.push(')');
 
-            match &func.result {
-                Type::Unit => {}
-                other => {
+            match &func.results {
+                Results::Named(rs) => match rs.len() {
+                    0 => (),
+                    1 => {
+                        self.output.push_str(" -> ");
+                        self.print_type_name(interface, &rs[0].1)?;
+                    }
+                    _ => todo!("multireturn: wit component printing"),
+                },
+                Results::Anon(ty) => {
                     self.output.push_str(" -> ");
-                    self.print_type_name(interface, other)?;
+                    self.print_type_name(interface, ty)?;
                 }
             }
+
             self.output.push_str("\n\n");
         }
 
@@ -48,7 +62,6 @@ impl InterfacePrinter {
 
     fn print_type_name(&mut self, interface: &Interface, ty: &Type) -> Result<()> {
         match ty {
-            Type::Unit => self.output.push_str("unit"),
             Type::Bool => self.output.push_str("bool"),
             Type::U8 => self.output.push_str("u8"),
             Type::U16 => self.output.push_str("u16"),
@@ -137,18 +150,46 @@ impl InterfacePrinter {
     }
 
     fn print_result_type(&mut self, interface: &Interface, result: &Result_) -> Result<()> {
-        self.output.push_str("result<");
-        self.print_type_name(interface, &result.ok)?;
-        self.output.push_str(", ");
-        self.print_type_name(interface, &result.err)?;
-        self.output.push('>');
+        match result {
+            Result_ {
+                ok: Some(ok),
+                err: Some(err),
+            } => {
+                self.output.push_str("result<");
+                self.print_type_name(interface, &ok)?;
+                self.output.push_str(", ");
+                self.print_type_name(interface, &err)?;
+                self.output.push('>');
+            }
+            Result_ {
+                ok: None,
+                err: Some(err),
+            } => {
+                self.output.push_str("result<_, ");
+                self.print_type_name(interface, &err)?;
+                self.output.push('>');
+            }
+            Result_ {
+                ok: Some(ok),
+                err: None,
+            } => {
+                self.output.push_str("result<");
+                self.print_type_name(interface, &ok)?;
+                self.output.push('>');
+            }
+            Result_ {
+                ok: None,
+                err: None,
+            } => {
+                self.output.push_str("result");
+            }
+        }
         Ok(())
     }
 
     fn declare_type(&mut self, interface: &Interface, ty: &Type) -> Result<()> {
         match ty {
-            Type::Unit
-            | Type::Bool
+            Type::Bool
             | Type::U8
             | Type::U16
             | Type::U32
@@ -275,7 +316,9 @@ impl InterfacePrinter {
         variant: &Variant,
     ) -> Result<()> {
         for case in variant.cases.iter() {
-            self.declare_type(interface, &case.ty)?;
+            if let Some(ty) = case.ty {
+                self.declare_type(interface, &ty)?;
+            }
         }
 
         let name = match name {
@@ -285,9 +328,9 @@ impl InterfacePrinter {
         writeln!(&mut self.output, "variant {} {{", name)?;
         for case in &variant.cases {
             write!(&mut self.output, "  {}", case.name)?;
-            if case.ty != Type::Unit {
+            if let Some(ty) = case.ty {
                 self.output.push('(');
-                self.print_type_name(interface, &case.ty)?;
+                self.print_type_name(interface, &ty)?;
                 self.output.push(')');
             }
             self.output.push_str(",\n");
@@ -342,8 +385,12 @@ impl InterfacePrinter {
         name: Option<&str>,
         result: &Result_,
     ) -> Result<()> {
-        self.declare_type(interface, &result.ok)?;
-        self.declare_type(interface, &result.err)?;
+        if let Some(ok) = result.ok {
+            self.declare_type(interface, &ok)?;
+        }
+        if let Some(err) = result.err {
+            self.declare_type(interface, &err)?;
+        }
 
         if let Some(name) = name {
             write!(&mut self.output, "type {} = ", name)?;

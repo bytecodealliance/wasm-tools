@@ -15,9 +15,9 @@ type t12 = list<char>
 type t13 = string
 type t14 = option<u32>
 type t15 = result<u32, u32>
-type t16 = result<unit, u32>
-type t17 = result<u32, unit>
-type t18 = result<unit, unit>
+type t16 = result<_, u32>
+type t17 = result<u32>
+type t18 = result
 type t19 = handle x
 record t20 {}
 record t21 { a: u32 }
@@ -49,11 +49,11 @@ type t45 = list<list<list<t32>>>
 type t46 = t44
 type t47 = %t44
 type t48 = stream<u32, u32>
-type t49 = stream<unit, u32>
-type t50 = stream<u32, unit>
-type t51 = stream<unit, unit>
+type t49 = stream<_, u32>
+type t50 = stream<u32>
+type t51 = stream
 type t52 = future<u32>
-type t53 = future<unit>
+type t53 = future
 
 // type order doesn't matter
 type foo = bar

@@ -12,8 +12,8 @@ use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Enum, Flags, Function, FunctionKind, Interface, Record, Result_, Tuple, Type, TypeDef,
-    TypeDefKind, Union, Variant,
+    Enum, Flags, Function, FunctionKind, Interface, Params, Record, Result_, Results, Tuple, Type,
+    TypeDef, TypeDefKind, Union, Variant,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -123,12 +123,18 @@ impl PartialEq for TypeDefKey<'_> {
 
                     v1.cases.iter().zip(v2.cases.iter()).all(|(c1, c2)| {
                         c1.name == c2.name
-                            && TypeKey {
-                                interface: self.interface,
-                                ty: c1.ty,
-                            } == TypeKey {
-                                interface: other.interface,
-                                ty: c2.ty,
+                            && match (c1.ty, c2.ty) {
+                                (Some(ty1), Some(ty2)) => {
+                                    TypeKey {
+                                        interface: self.interface,
+                                        ty: ty1,
+                                    } == TypeKey {
+                                        interface: other.interface,
+                                        ty: ty2,
+                                    }
+                                }
+                                (None, None) => true,
+                                _ => false,
                             }
                     })
                 }
@@ -168,19 +174,33 @@ impl PartialEq for TypeDefKey<'_> {
                     ty: *t2,
                 }),
                 (TypeDefKind::Result(r1), TypeDefKind::Result(r2)) => {
-                    TypeKey {
-                        interface: self.interface,
-                        ty: r1.ok,
-                    } == TypeKey {
-                        interface: other.interface,
-                        ty: r2.ok,
-                    } && TypeKey {
-                        interface: self.interface,
-                        ty: r1.err,
-                    } == TypeKey {
-                        interface: other.interface,
-                        ty: r2.err,
-                    }
+                    let ok_eq = match (r1.ok, r2.ok) {
+                        (Some(ok1), Some(ok2)) => {
+                            TypeKey {
+                                interface: self.interface,
+                                ty: ok1,
+                            } == TypeKey {
+                                interface: other.interface,
+                                ty: ok2,
+                            }
+                        }
+                        (None, None) => true,
+                        _ => false,
+                    };
+                    let err_eq = match (r1.err, r2.err) {
+                        (Some(err1), Some(err2)) => {
+                            TypeKey {
+                                interface: self.interface,
+                                ty: err1,
+                            } == TypeKey {
+                                interface: other.interface,
+                                ty: err2,
+                            }
+                        }
+                        (None, None) => true,
+                        _ => false,
+                    };
+                    ok_eq && err_eq
                 }
                 _ => false,
             }
@@ -225,11 +245,13 @@ impl Hash for TypeDefKey<'_> {
                 state.write_u8(3);
                 for c in &v.cases {
                     c.name.hash(state);
-                    TypeKey {
-                        interface: self.interface,
-                        ty: c.ty,
+                    if let Some(ty) = c.ty {
+                        TypeKey {
+                            interface: self.interface,
+                            ty,
+                        }
+                        .hash(state);
                     }
-                    .hash(state);
                 }
             }
             TypeDefKind::Enum(e) => {
@@ -264,16 +286,20 @@ impl Hash for TypeDefKey<'_> {
             }
             TypeDefKind::Result(r) => {
                 state.write_u8(8);
-                TypeKey {
-                    interface: self.interface,
-                    ty: r.ok,
+                if let Some(ok) = r.ok {
+                    TypeKey {
+                        interface: self.interface,
+                        ty: ok,
+                    }
+                    .hash(state);
                 }
-                .hash(state);
-                TypeKey {
-                    interface: self.interface,
-                    ty: r.err,
+                if let Some(err) = r.err {
+                    TypeKey {
+                        interface: self.interface,
+                        ty: err,
+                    }
+                    .hash(state);
                 }
-                .hash(state);
             }
             TypeDefKind::Union(u) => {
                 state.write_u8(9);
@@ -304,29 +330,31 @@ impl PartialEq for FunctionKey<'_> {
             return false;
         }
 
-        self.func
-            .params
-            .iter()
-            .zip(other.func.params.iter())
-            .all(|((n1, t1), (n2, t2))| {
-                n1 == n2
-                    && TypeKey {
-                        interface: self.interface,
-                        ty: *t1,
-                    }
-                    .eq(&TypeKey {
-                        interface: other.interface,
-                        ty: *t2,
-                    })
-            })
-            && TypeKey {
+        let key_equal = |t1, t2| {
+            TypeKey {
                 interface: self.interface,
-                ty: self.func.result,
+                ty: t1,
             }
             .eq(&TypeKey {
                 interface: other.interface,
-                ty: other.func.result,
+                ty: t2,
             })
+        };
+
+        let params_equal = |ps: &Params, ops: &Params| {
+            ps.iter()
+                .zip(ops.iter())
+                .all(|((n1, t1), (n2, t2))| n1 == n2 && key_equal(*t1, *t2))
+        };
+
+        let results_equal = |rs: &Results, ors: &Results| match (rs, ors) {
+            (Results::Named(rs), Results::Named(ors)) => params_equal(rs, ors),
+            (Results::Anon(ty), Results::Anon(oty)) => key_equal(*ty, *oty),
+            _ => false,
+        };
+
+        params_equal(&self.func.params, &other.func.params)
+            && results_equal(&self.func.results, &other.func.results)
     }
 }
 
@@ -335,7 +363,7 @@ impl Eq for FunctionKey<'_> {}
 impl Hash for FunctionKey<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.func.params.len().hash(state);
-        for (name, ty) in &self.func.params {
+        for (name, ty) in self.func.params.iter() {
             name.hash(state);
             TypeKey {
                 interface: self.interface,
@@ -343,11 +371,25 @@ impl Hash for FunctionKey<'_> {
             }
             .hash(state);
         }
-        TypeKey {
-            interface: self.interface,
-            ty: self.func.result,
+        match &self.func.results {
+            Results::Named(rs) => {
+                for (name, ty) in rs.iter() {
+                    name.hash(state);
+                    TypeKey {
+                        interface: self.interface,
+                        ty: *ty,
+                    }
+                    .hash(state);
+                }
+            }
+            Results::Anon(ty) => {
+                TypeKey {
+                    interface: self.interface,
+                    ty: *ty,
+                }
+                .hash(state);
+            }
         }
-        .hash(state);
     }
 }
 
@@ -485,6 +527,23 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
+    fn encode_params(
+        &mut self,
+        interface: &'a Interface,
+        params: &'a Params,
+        export_named_types: bool,
+    ) -> Result<Vec<(&'a str, ComponentValType)>> {
+        params
+            .iter()
+            .map(|(name, ty)| {
+                Ok((
+                    name.as_str(),
+                    self.encode_valtype(interface, ty, export_named_types)?,
+                ))
+            })
+            .collect::<Result<_>>()
+    }
+
     fn encode_func_type(
         &mut self,
         interface: &'a Interface,
@@ -497,21 +556,30 @@ impl<'a> TypeEncoder<'a> {
         }
 
         // Encode all referenced parameter types from this function.
-        let params: Vec<_> = func
-            .params
-            .iter()
-            .map(|(name, ty)| {
-                Ok((
-                    Some(name.as_str()),
-                    self.encode_valtype(interface, ty, export_named_types)?,
-                ))
-            })
-            .collect::<Result<_>>()?;
-        let result = self.encode_valtype(interface, &func.result, export_named_types)?;
+        let params: Vec<_> = self.encode_params(interface, &func.params, export_named_types)?;
+
+        enum EncodedResults<'a> {
+            Named(Vec<(&'a str, ComponentValType)>),
+            Anon(ComponentValType),
+        }
+
+        let results = match &func.results {
+            Results::Named(rs) => {
+                EncodedResults::Named(self.encode_params(interface, rs, export_named_types)?)
+            }
+            Results::Anon(ty) => {
+                EncodedResults::Anon(self.encode_valtype(interface, ty, export_named_types)?)
+            }
+        };
 
         // Encode the function type
         let index = self.types.len();
-        self.types.function(params, result);
+        let mut f = self.types.function();
+        f.params(params);
+        match results {
+            EncodedResults::Named(rs) => f.results(rs),
+            EncodedResults::Anon(ty) => f.result(ty),
+        };
         self.func_type_map.insert(key, index);
         Ok(index)
     }
@@ -523,7 +591,6 @@ impl<'a> TypeEncoder<'a> {
         export_named_types: bool,
     ) -> Result<ComponentValType> {
         Ok(match ty {
-            Type::Unit => ComponentValType::Primitive(PrimitiveValType::Unit),
             Type::Bool => ComponentValType::Primitive(PrimitiveValType::Bool),
             Type::U8 => ComponentValType::Primitive(PrimitiveValType::U8),
             Type::U16 => ComponentValType::Primitive(PrimitiveValType::U16),
@@ -612,6 +679,20 @@ impl<'a> TypeEncoder<'a> {
         })
     }
 
+    fn encode_optional_valtype(
+        &mut self,
+        interface: &'a Interface,
+        ty: Option<&Type>,
+        export_named_types: bool,
+    ) -> Result<Option<ComponentValType>> {
+        match ty {
+            Some(ty) => self
+                .encode_valtype(interface, ty, export_named_types)
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
     fn encode_record(
         &mut self,
         interface: &'a Interface,
@@ -671,7 +752,7 @@ impl<'a> TypeEncoder<'a> {
             .map(|c| {
                 Ok((
                     c.name.as_str(),
-                    self.encode_valtype(interface, &c.ty, export_named_types)?,
+                    self.encode_optional_valtype(interface, c.ty.as_ref(), export_named_types)?,
                     None, // TODO: support defaulting case values in the future
                 ))
             })
@@ -720,11 +801,12 @@ impl<'a> TypeEncoder<'a> {
         result: &Result_,
         export_named_types: bool,
     ) -> Result<ComponentValType> {
-        let ok = self.encode_valtype(interface, &result.ok, export_named_types)?;
-        let error = self.encode_valtype(interface, &result.err, export_named_types)?;
+        let ok = self.encode_optional_valtype(interface, result.ok.as_ref(), export_named_types)?;
+        let error =
+            self.encode_optional_valtype(interface, result.err.as_ref(), export_named_types)?;
         let index = self.types.len();
         let encoder = self.types.defined_type();
-        encoder.expected(ok, error);
+        encoder.result(ok, error);
         Ok(ComponentValType::Type(index))
     }
 
@@ -814,6 +896,20 @@ impl RequiredOptions {
         }
     }
 
+    fn for_optional_types<'a>(
+        interface: &Interface,
+        types: impl Iterator<Item = Option<&'a Type>>,
+    ) -> Self {
+        Self::for_types(interface, types.flatten())
+    }
+
+    fn for_optional_type(interface: &Interface, ty: Option<&Type>) -> Self {
+        match ty {
+            Some(ty) => Self::for_type(interface, ty),
+            None => Self::None,
+        }
+    }
+
     fn for_type(interface: &Interface, ty: &Type) -> Self {
         match ty {
             Type::Id(id) => match &interface.types[*id].kind {
@@ -824,10 +920,11 @@ impl RequiredOptions {
                 TypeDefKind::Flags(_) => Self::None,
                 TypeDefKind::Option(t) => Self::for_type(interface, t),
                 TypeDefKind::Result(r) => {
-                    Self::for_type(interface, &r.ok) | Self::for_type(interface, &r.err)
+                    Self::for_optional_type(interface, r.ok.as_ref())
+                        | Self::for_optional_type(interface, r.err.as_ref())
                 }
                 TypeDefKind::Variant(v) => {
-                    Self::for_types(interface, v.cases.iter().map(|c| &c.ty))
+                    Self::for_optional_types(interface, v.cases.iter().map(|c| c.ty.as_ref()))
                 }
                 TypeDefKind::Union(v) => Self::for_types(interface, v.cases.iter().map(|c| &c.ty)),
                 TypeDefKind::Enum(_) => Self::None,
@@ -853,7 +950,7 @@ impl RequiredOptions {
                 .params
                 .iter()
                 .map(|(_, ty)| ty)
-                .chain([&function.result]),
+                .chain(function.results.iter_types()),
         )
     }
 
@@ -1217,7 +1314,7 @@ impl EncodingState {
 
         elements.active(
             None,
-            &Instruction::I32Const(0),
+            &ConstExpr::i32_const(0),
             ValType::FuncRef,
             Elements::Functions(&func_indexes),
         );

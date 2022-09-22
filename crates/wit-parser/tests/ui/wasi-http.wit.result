@@ -78,54 +78,70 @@
       "params": [
         "handle-0"
       ],
-      "result": "handle-1"
+      "results": [
+        "handle-1"
+      ]
     },
     {
       "name": "request::request",
       "params": [],
-      "result": "handle-0"
+      "results": [
+        "handle-0"
+      ]
     },
     {
       "name": "request::method",
       "params": [
         "handle-0"
       ],
-      "result": "string"
+      "results": [
+        "string"
+      ]
     },
     {
       "name": "request::headers",
       "params": [
         "handle-0"
       ],
-      "result": "handle-2"
+      "results": [
+        "handle-2"
+      ]
     },
     {
       "name": "request::body",
       "params": [
         "handle-0"
       ],
-      "result": "handle-3"
+      "results": [
+        "handle-3"
+      ]
     },
     {
       "name": "response::status",
       "params": [
         "handle-1"
       ],
-      "result": "u16"
+      "results": [
+        "u16"
+      ]
     },
     {
       "name": "response::headers",
       "params": [
         "handle-1"
       ],
-      "result": "handle-2"
+      "results": [
+        "handle-2"
+      ]
     },
     {
       "name": "response::body",
       "params": [
         "handle-1"
       ],
-      "result": "handle-3"
+      "results": [
+        "handle-3"
+      ]
     },
     {
       "name": "headers::get",
@@ -133,7 +149,9 @@
         "handle-2",
         "string"
       ],
-      "result": "type-6"
+      "results": [
+        "type-6"
+      ]
     },
     {
       "name": "body::read",
@@ -141,7 +159,9 @@
         "handle-3",
         "type-7"
       ],
-      "result": "type-8"
+      "results": [
+        "type-8"
+      ]
     },
     {
       "name": "body::write",
@@ -149,12 +169,16 @@
         "handle-3",
         "type-7"
       ],
-      "result": "type-8"
+      "results": [
+        "type-8"
+      ]
     },
     {
       "name": "maybe-number",
       "params": [],
-      "result": "type-8"
+      "results": [
+        "type-8"
+      ]
     }
   ],
   "globals": [

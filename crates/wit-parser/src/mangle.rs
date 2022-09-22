@@ -4,14 +4,15 @@
 //! [here]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#canonical-module-type
 
 use crate::{
-    Case, EnumCase, Field, Flag, Function, Interface, ResourceId, Stream, Type, TypeDefKind,
-    UnionCase,
+    Case, EnumCase, Field, Flag, Function, Interface, Params, ResourceId, Result_, Results, Stream,
+    Type, TypeDefKind, UnionCase,
 };
 
 const CABI_VERSION: &str = "0.1";
 
 enum PreSpace {
     False,
+    True,
 }
 
 impl Interface {
@@ -27,12 +28,12 @@ impl Interface {
         format!(
             "{}: func{} -> {}",
             name,
-            self.mangle_funcvec(&func.params, PreSpace::False),
-            self.mangle_valtype(func.result)
+            self.mangle_param_types(&func.params, PreSpace::False),
+            self.mangle_result_types(&func.results, PreSpace::True)
         )
     }
 
-    fn mangle_funcvec(&self, es: &[(String, Type)], _pre_space: PreSpace) -> String {
+    fn mangle_param_types(&self, es: &Params, _pre_space: PreSpace) -> String {
         format!(
             "({})",
             es.iter()
@@ -42,9 +43,23 @@ impl Interface {
         )
     }
 
+    fn mangle_result_types(&self, es: &Results, _pre_space: PreSpace) -> String {
+        match es {
+            Results::Named(es) => {
+                format!(
+                    "({})",
+                    es.iter()
+                        .map(|e| format!("{}: {}", e.0, self.mangle_valtype(e.1)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+            Results::Anon(ty) => self.mangle_valtype(*ty),
+        }
+    }
+
     fn mangle_valtype(&self, t: Type) -> String {
         match t {
-            Type::Unit => "unit".to_owned(),
             Type::Bool => "bool".to_owned(),
             Type::S8 => "s8".to_owned(),
             Type::U8 => "u8".to_owned(),
@@ -73,7 +88,7 @@ impl Interface {
             TypeDefKind::Enum(e) => self.mangle_enumtype(&e.cases),
             TypeDefKind::Union(u) => self.mangle_uniontype(&u.cases),
             TypeDefKind::Option(t) => self.mangle_optiontype(*t),
-            TypeDefKind::Result(r) => self.mangle_resulttype(r.ok, r.err),
+            TypeDefKind::Result(r) => self.mangle_resulttype(r),
             TypeDefKind::Future(t) => self.mangle_futuretype(*t),
             TypeDefKind::Stream(s) => self.mangle_streamtype(s),
             TypeDefKind::Type(t) => self.mangle_valtype(*t),
@@ -117,7 +132,14 @@ impl Interface {
             "variant {{ {} }}",
             cases
                 .iter()
-                .map(|c| format!("{}{}", c.name, format!("({})", self.mangle_valtype(c.ty)),))
+                .map(|c| format!(
+                    "{}{}",
+                    c.name,
+                    match c.ty {
+                        Some(ty) => format!("({})", self.mangle_valtype(ty)),
+                        None => "".to_string(),
+                    }
+                ))
                 .collect::<Vec<_>>()
                 .join(", ")
         )
@@ -149,28 +171,81 @@ impl Interface {
         format!("option<{}>", self.mangle_valtype(t))
     }
 
-    fn mangle_resulttype(&self, ok: Type, error: Type) -> String {
-        format!(
-            "result<{}, {}>",
-            self.mangle_valtype(ok),
-            self.mangle_valtype(error)
-        )
+    fn mangle_resulttype(&self, result: &Result_) -> String {
+        match result {
+            Result_ {
+                ok: Some(ok),
+                err: Some(err),
+            } => {
+                format!(
+                    "result<{}, {}>",
+                    self.mangle_valtype(*ok),
+                    self.mangle_valtype(*err)
+                )
+            }
+            Result_ {
+                ok: None,
+                err: Some(err),
+            } => {
+                format!("result<_, {}>", self.mangle_valtype(*err))
+            }
+            Result_ {
+                ok: Some(ok),
+                err: None,
+            } => {
+                format!("result<{}>", self.mangle_valtype(*ok))
+            }
+            Result_ {
+                ok: None,
+                err: None,
+            } => {
+                format!("result",)
+            }
+        }
     }
 
     fn mangle_handletype(&self, id: ResourceId) -> String {
         format!("handle<{}>", self.resources[id].name)
     }
 
-    fn mangle_futuretype(&self, ty: Type) -> String {
-        format!("future<{}>", self.mangle_valtype(ty))
+    fn mangle_futuretype(&self, ty: Option<Type>) -> String {
+        match ty {
+            Some(ty) => format!("future<{}>", self.mangle_valtype(ty)),
+            None => format!("future"),
+        }
     }
 
     fn mangle_streamtype(&self, stream: &Stream) -> String {
-        format!(
-            "stream<{}, {}>",
-            self.mangle_valtype(stream.element),
-            self.mangle_valtype(stream.end)
-        )
+        match stream {
+            Stream {
+                element: Some(element),
+                end: Some(end),
+            } => {
+                format!(
+                    "stream<{}, {}>",
+                    self.mangle_valtype(*element),
+                    self.mangle_valtype(*end)
+                )
+            }
+            Stream {
+                element: None,
+                end: Some(end),
+            } => {
+                format!("stream<_, {}>", self.mangle_valtype(*end))
+            }
+            Stream {
+                element: Some(element),
+                end: None,
+            } => {
+                format!("stream<{}>", self.mangle_valtype(*element))
+            }
+            Stream {
+                element: None,
+                end: None,
+            } => {
+                format!("stream",)
+            }
+        }
     }
 }
 
@@ -191,9 +266,9 @@ mod tests {
                 name: "foo".to_owned(),
                 kind: FunctionKind::Freestanding,
                 params: Vec::new(),
-                result: Type::Unit
+                results: Results::empty(),
             }),
-            "foo: func() -> unit"
+            "foo: func() -> ()"
         );
         assert_eq!(
             interface.mangle_funcname(&Function {
@@ -201,7 +276,7 @@ mod tests {
                 name: "foo".to_owned(),
                 kind: FunctionKind::Freestanding,
                 params: vec![("a".to_owned(), Type::S64)],
-                result: Type::S32
+                results: Results::Anon(Type::S32)
             }),
             "foo: func(a: s64) -> s32"
         );
@@ -211,9 +286,22 @@ mod tests {
                 name: "foo".to_owned(),
                 kind: FunctionKind::Freestanding,
                 params: vec![("a".to_owned(), Type::S64), ("b".to_owned(), Type::U64)],
-                result: Type::S32
+                results: Results::Anon(Type::S32)
             }),
             "foo: func(a: s64, b: u64) -> s32"
+        );
+        assert_eq!(
+            interface.mangle_funcname(&Function {
+                docs: Docs::default(),
+                name: "foo".to_owned(),
+                kind: FunctionKind::Freestanding,
+                params: vec![("a".to_owned(), Type::S64), ("b".to_owned(), Type::U64)],
+                results: Results::Named(vec![
+                    ("x".to_owned(), Type::S32),
+                    ("y".to_owned(), Type::U32)
+                ])
+            }),
+            "foo: func(a: s64, b: u64) -> (x: s32, y: u32)"
         );
     }
 
@@ -227,16 +315,15 @@ mod tests {
                 name: "foo".to_owned(),
                 kind: FunctionKind::Freestanding,
                 params: Vec::new(),
-                result: Type::Unit
+                results: Results::empty(),
             }),
-            format!("cabi_start{{cabi={}}}: func() -> unit", CABI_VERSION)
+            format!("cabi_start{{cabi={}}}: func() -> ()", CABI_VERSION)
         );
     }
 
     #[test]
     fn test_types() {
         let iface = Interface::default();
-        assert_eq!(iface.mangle_valtype(Type::Unit), "unit");
         assert_eq!(iface.mangle_valtype(Type::Bool), "bool");
         assert_eq!(iface.mangle_valtype(Type::S8), "s8");
         assert_eq!(iface.mangle_valtype(Type::U8), "u8");
@@ -363,7 +450,7 @@ mod tests {
                 cases: vec![Case {
                     name: "x".to_owned(),
                     docs: Docs::default(),
-                    ty: Type::Float32
+                    ty: Some(Type::Float32)
                 }]
             })),
             "variant { x(float32) }"
@@ -374,16 +461,21 @@ mod tests {
                     Case {
                         name: "x".to_owned(),
                         docs: Docs::default(),
-                        ty: Type::Float32
+                        ty: Some(Type::Float32)
                     },
                     Case {
                         name: "y".to_owned(),
                         docs: Docs::default(),
-                        ty: Type::Float64
+                        ty: Some(Type::Float64)
+                    },
+                    Case {
+                        name: "z".to_owned(),
+                        docs: Docs::default(),
+                        ty: None,
                     }
                 ]
             })),
-            "variant { x(float32), y(float64) }"
+            "variant { x(float32), y(float64), z }"
         );
     }
 
@@ -467,10 +559,31 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Result(Result_ {
-                ok: Type::S32,
-                err: Type::U32
+                ok: Some(Type::S32),
+                err: Some(Type::U32)
             })),
             "result<s32, u32>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Result(Result_ {
+                ok: None,
+                err: Some(Type::U32)
+            })),
+            "result<_, u32>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Result(Result_ {
+                ok: Some(Type::S32),
+                err: None
+            })),
+            "result<s32>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Result(Result_ {
+                ok: None,
+                err: None
+            })),
+            "result"
         );
     }
 
@@ -490,8 +603,12 @@ mod tests {
     fn test_futuretype() {
         let iface = Interface::default();
         assert_eq!(
-            iface.mangle_valtypedef(&TypeDefKind::Future(Type::S8)),
+            iface.mangle_valtypedef(&TypeDefKind::Future(Some(Type::S8))),
             "future<s8>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Future(None)),
+            "future"
         );
     }
 
@@ -500,10 +617,31 @@ mod tests {
         let iface = Interface::default();
         assert_eq!(
             iface.mangle_valtypedef(&TypeDefKind::Stream(Stream {
-                element: Type::S8,
-                end: Type::U8
+                element: Some(Type::S8),
+                end: Some(Type::U8)
             })),
             "stream<s8, u8>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Stream(Stream {
+                element: None,
+                end: Some(Type::U8)
+            })),
+            "stream<_, u8>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Stream(Stream {
+                element: Some(Type::S8),
+                end: None
+            })),
+            "stream<s8>"
+        );
+        assert_eq!(
+            iface.mangle_valtypedef(&TypeDefKind::Stream(Stream {
+                element: None,
+                end: None
+            })),
+            "stream"
         );
     }
 }

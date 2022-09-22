@@ -25,31 +25,35 @@
     {
       "name": "f1",
       "params": [],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "f2",
       "params": [
         "u32"
       ],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "f3",
       "params": [
         "u32"
       ],
-      "result": "unit"
+      "results": []
     },
     {
       "name": "f4",
       "params": [],
-      "result": "u32"
+      "results": [
+        "u32"
+      ]
     },
     {
       "name": "f6",
       "params": [],
-      "result": "type-0"
+      "results": [
+        "type-0"
+      ]
     },
     {
       "name": "f7",
@@ -57,14 +61,38 @@
         "float32",
         "float32"
       ],
-      "result": "type-0"
+      "results": [
+        "type-0"
+      ]
     },
     {
       "name": "f8",
       "params": [
         "type-1"
       ],
-      "result": "type-2"
+      "results": [
+        "type-2"
+      ]
+    },
+    {
+      "name": "f9",
+      "params": [],
+      "results": [
+        "u32",
+        "float32"
+      ]
+    },
+    {
+      "name": "f10",
+      "params": [],
+      "results": [
+        "u32"
+      ]
+    },
+    {
+      "name": "f11",
+      "params": [],
+      "results": []
     }
   ]
 }
