@@ -388,8 +388,151 @@ impl<'a> Component<'a> {
         func_params: &[(String, ComponentValType)],
         func_results: &[(Option<String>, ComponentValType)],
     ) -> String {
-        todo!()
+        let params = String::new();
+        let results = String::new();
+
+        format!("{name}: func{params} -> {results}")
     }
+    pub fn mangle_named_types(&self, named_types: &[(Option<String>, ComponentValType)]) -> String {
+        let named_types = named_types.iter().map(|(maybe_name, val)| {
+            (
+                maybe_name.as_ref().expect("named types should have a name"),
+                self.mangle_valtype(&val),
+            )
+        });
+
+        format!("")
+    }
+
+    fn mangle_valtype(&self, val: &ComponentValType) -> String {
+        match val {
+            ComponentValType::Primitive(prim) => mangle_primitivetypes(prim),
+            ComponentValType::Type(ty) => {
+                match self.types.type_from_id(*ty).expect("type from id") {
+                    Type::Defined(ty) => match ty {
+                        ComponentDefinedType::Primitive(prim) => mangle_primitivetypes(prim),
+                        ComponentDefinedType::Record(rec) => self.mangle_recordtype(rec),
+                        ComponentDefinedType::Variant(var) => self.mangle_varianttype(var),
+                        ComponentDefinedType::List(item) => {
+                            format!("list<{}>", self.mangle_valtype(item))
+                        }
+                        ComponentDefinedType::Tuple(tup) => self.mangle_tupletype(tup),
+                        ComponentDefinedType::Flags(flags) => self.mangle_flags(flags),
+                        ComponentDefinedType::Enum(enum_) => self.mangle_enumtype(enum_),
+                        ComponentDefinedType::Union(union_) => self.mangle_uniontype(union_),
+                        ComponentDefinedType::Option(opt) => self.mangle_optiontype(opt),
+                        ComponentDefinedType::Result { ok, err } => self.mangle_resulttype(ok, err),
+                    },
+                    _ => unreachable!("value type"),
+                }
+            }
+        }
+    }
+
+    fn mangle_recordtype(&self, rec: &wasmparser::types::RecordType) -> String {
+        let field_str = rec
+            .fields
+            .iter()
+            .map(|(name, ty)| format!("{name}: {}", self.mangle_valtype(ty)))
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!("record {{ {field_str} }}")
+    }
+
+    fn mangle_varianttype(&self, var: &wasmparser::types::VariantType) -> String {
+        let case_str = var
+            .cases
+            .iter()
+            .map(|(name, case)| {
+                format!(
+                    "{name}{}",
+                    case.ty
+                        .as_ref()
+                        .map(|ty| format!("({})", self.mangle_valtype(ty)))
+                        .unwrap_or("".to_owned())
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!("variant {{ {case_str} }}")
+    }
+
+    fn mangle_tupletype(&self, tup: &wasmparser::types::TupleType) -> String {
+        format!(
+            "tuple<{}>",
+            tup.types
+                .iter()
+                .map(|t| self.mangle_valtype(t))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+
+    fn mangle_flags(&self, flags: &indexmap::IndexSet<String>) -> String {
+        format!(
+            "flags {{ {} }}",
+            flags.iter().cloned().collect::<Vec<String>>().join(", ")
+        )
+    }
+
+    fn mangle_enumtype(&self, r#enum: &indexmap::IndexSet<String>) -> String {
+        format!(
+            "enum {{ {} }}",
+            r#enum.iter().cloned().collect::<Vec<String>>().join(", ")
+        )
+    }
+
+    fn mangle_uniontype(&self, union: &wasmparser::types::UnionType) -> String {
+        format!(
+            "union {{ {} }}",
+            union
+                .types
+                .iter()
+                .map(|valtype| self.mangle_valtype(valtype))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+
+    fn mangle_optiontype(&self, opt: &ComponentValType) -> String {
+        format!("option<{}>", self.mangle_valtype(opt))
+    }
+
+    fn mangle_resulttype(
+        &self,
+        ok: &Option<ComponentValType>,
+        err: &Option<ComponentValType>,
+    ) -> String {
+        match (ok, err) {
+            (None, None) => "result".to_owned(),
+            (None, Some(err)) => format!("result<_, {}>", self.mangle_valtype(err)),
+            (Some(ok), None) => format!("result<{}>", self.mangle_valtype(ok)),
+            (Some(ok), Some(err)) => format!(
+                "result<{}, {}>",
+                self.mangle_valtype(ok),
+                self.mangle_valtype(err)
+            ),
+        }
+    }
+}
+
+fn mangle_primitivetypes(prim: &PrimitiveValType) -> String {
+    match prim {
+        PrimitiveValType::Bool => "bool",
+        PrimitiveValType::S8 => "s8",
+        PrimitiveValType::U8 => "u8",
+        PrimitiveValType::S16 => "s16",
+        PrimitiveValType::U16 => "u16",
+        PrimitiveValType::S32 => "s32",
+        PrimitiveValType::U32 => "u32",
+        PrimitiveValType::S64 => "s64",
+        PrimitiveValType::U64 => "u64",
+        PrimitiveValType::Float32 => "float32",
+        PrimitiveValType::Float64 => "float64",
+        PrimitiveValType::Char => "char",
+        PrimitiveValType::String => "string",
+    }
+    .to_owned()
 }
 
 pub enum ComponentDespecializedType {
