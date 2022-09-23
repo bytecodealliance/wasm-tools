@@ -1,10 +1,3 @@
-#![allow(
-    dead_code,
-    unused_imports,
-    dead_code,
-    unused_variables,
-    unreachable_code
-)]
 #[cfg(feature = "cli")]
 pub mod cli;
 
@@ -14,9 +7,8 @@ use wasmparser::{
     types::{
         ComponentDefinedType, ComponentEntityType, ComponentFuncType, ComponentValType, Type, Types,
     },
-    Chunk, ComponentExport, ComponentExternalKind, ComponentImport, ComponentType,
-    ComponentTypeRef, Encoding, FuncType, Parser, Payload, PrimitiveValType, ValType, Validator,
-    WasmFeatures,
+    Chunk, ComponentExport, ComponentExternalKind, ComponentImport, Encoding, FuncType, Parser,
+    Payload, PrimitiveValType, ValType, Validator, WasmFeatures,
 };
 
 pub fn lift(_bytes: &[u8]) -> Result<Vec<u8>> {
@@ -348,12 +340,17 @@ impl<'a> Component<'a> {
         }
     }
 
-    fn flatten_func_type(&self, ft: &ComponentFuncType, context: FlatteningContext) -> FuncType {
+    fn flatten_func_type(
+        &self,
+        params: &[(String, ComponentValType)],
+        results: &[(Option<String>, ComponentValType)],
+        context: FlatteningContext,
+    ) -> FuncType {
         const MAX_FLAT_PARAMS: usize = 16;
         const MAX_FLAT_RESULTS: usize = 1;
 
         let mut flat_params = Vec::new();
-        for (_param_name, ty) in ft.params.iter() {
+        for (_param_name, ty) in params.iter() {
             flat_params.append(&mut self.despecialize_val_type(ty).flatten());
         }
         if flat_params.len() > MAX_FLAT_PARAMS {
@@ -361,7 +358,7 @@ impl<'a> Component<'a> {
         }
 
         let mut flat_results = Vec::new();
-        for (_result_name, ty) in ft.results.iter() {
+        for (_result_name, ty) in results.iter() {
             flat_results.append(&mut self.despecialize_val_type(ty).flatten());
         }
         if flat_results.len() > MAX_FLAT_RESULTS {
@@ -384,23 +381,31 @@ impl<'a> Component<'a> {
     pub fn mangle_funcname(
         &self,
         name: &str,
-        func_params: &[(String, ComponentValType)],
-        func_results: &[(Option<String>, ComponentValType)],
+        params: &[(String, ComponentValType)],
+        results: &[(Option<String>, ComponentValType)],
     ) -> String {
-        let params = String::new();
-        let results = String::new();
+        let params = self.mangle_named_types(params);
+        let results = if results.len() == 1 && results[0].0.is_none() {
+            self.mangle_valtype(&results[0].1)
+        } else {
+            self.mangle_named_types(
+                &*results
+                    .iter()
+                    .cloned()
+                    .map(|(m_name, ty)| (m_name.expect("multiple results must be named"), ty))
+                    .collect::<Vec<_>>(),
+            )
+        };
 
         format!("{name}: func{params} -> {results}")
     }
-    pub fn mangle_named_types(&self, named_types: &[(Option<String>, ComponentValType)]) -> String {
-        let named_types = named_types.iter().map(|(maybe_name, val)| {
-            (
-                maybe_name.as_ref().expect("named types should have a name"),
-                self.mangle_valtype(&val),
-            )
-        });
-
-        format!("")
+    pub fn mangle_named_types(&self, named_types: &[(String, ComponentValType)]) -> String {
+        let named_types = named_types
+            .iter()
+            .map(|(name, valtype)| format!("{name}: {}", self.mangle_valtype(&valtype)))
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!("({named_types})")
     }
 
     fn mangle_valtype(&self, val: &ComponentValType) -> String {
@@ -626,17 +631,19 @@ fn join(a: ValType, b: ValType) -> ValType {
     }
 }
 
+#[derive(Debug)]
 pub struct ModuleType {
     pub imports: IndexMap<(String, String), EntityType>,
     pub exports: IndexMap<String, EntityType>,
 }
 
+#[derive(Debug)]
 pub enum EntityType {
     Func(FuncType),
     Memory,
 }
 
-// aka canonical_module_type
+/// Derive the Canonical ModuleType from a Component
 pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
     const CABI_VERSION: &str = "0.1";
 
@@ -644,7 +651,11 @@ pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
 
     let mut imports = IndexMap::new();
     for (name, func_type) in ct.import_funcs() {
-        let flat_ft = ct.flatten_func_type(func_type, FlatteningContext::Lower);
+        let flat_ft = ct.flatten_func_type(
+            &func_type.params,
+            &func_type.results,
+            FlatteningContext::Lower,
+        );
         imports.insert(
             (
                 "".to_owned(),
@@ -663,20 +674,35 @@ pub fn lower(bytes: &[u8]) -> Result<ModuleType> {
             [ValType::I32],
         )),
     );
+
+    let start_params = ct
+        .start_params()
+        .map(|(name, ty)| (name.to_owned(), ty))
+        .collect::<Vec<_>>();
+    let start_results = ct
+        .start_results()
+        .map(|(name, ty)| (Some(name.to_owned()), ty))
+        .collect::<Vec<_>>();
     let start_name = ct.mangle_funcname(
         &format!("cabi_start{{cabi={}}}", CABI_VERSION),
-        ct.start_params()
-            .map(|(name, ty)| (name.to_owned(), ty))
-            .collect::<Vec<_>>()
-            .as_slice(),
-        ct.start_results()
-            .map(|(name, ty)| (Some(name.to_owned()), ty))
-            .collect::<Vec<_>>()
-            .as_slice(),
+        start_params.as_slice(),
+        start_results.as_slice(),
+    );
+    exports.insert(
+        start_name,
+        EntityType::Func(ct.flatten_func_type(
+            start_params.as_slice(),
+            start_results.as_slice(),
+            FlatteningContext::Lift,
+        )),
     );
 
     for (name, func_type) in ct.export_funcs() {
-        let flat_ft = ct.flatten_func_type(func_type, FlatteningContext::Lift);
+        let flat_ft = ct.flatten_func_type(
+            &func_type.params,
+            &func_type.results,
+            FlatteningContext::Lift,
+        );
         exports.insert(
             ct.mangle_funcname(name, &*func_type.params, &*func_type.results),
             EntityType::Func(flat_ft.clone()),
