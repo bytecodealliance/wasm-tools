@@ -202,7 +202,7 @@ impl Encode for Rec<'_> {
             return;
         }
 
-        e.push(0x45);
+        e.push(0x4f);
         self.types.len().encode(e);
         for ty in &self.types {
             ty.encode(e);
