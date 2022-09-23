@@ -36,9 +36,13 @@ impl WasmComponentizeCommand {
             )
         })?;
 
-        let bytes = crate::lift(&bytes)?;
+        let lowered = crate::lower(&bytes)?;
 
-        std::fs::write(&self.output, &bytes).with_context(|| {
+        println!("{:?}", lowered);
+
+        let lifted = crate::lift(&bytes)?;
+
+        std::fs::write(&self.output, &lifted).with_context(|| {
             format!(
                 "failed to write composed component `{output}`",
                 output = self.output.display()
@@ -52,7 +56,7 @@ impl WasmComponentizeCommand {
                 component_model: true,
                 ..Default::default()
             })
-            .validate_all(&bytes)
+            .validate_all(&lifted)
             .with_context(|| {
                 format!(
                     "failed to validate output component `{output}`",
