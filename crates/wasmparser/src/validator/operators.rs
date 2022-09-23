@@ -324,7 +324,7 @@ impl<R> Deref for OperatorValidatorTemp<'_, '_, R> {
 
 impl<R> DerefMut for OperatorValidatorTemp<'_, '_, R> {
     fn deref_mut(&mut self) -> &mut OperatorValidator {
-        &mut self.inner
+        self.inner
     }
 }
 
