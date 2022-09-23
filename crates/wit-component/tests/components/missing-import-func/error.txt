@@ -1,1 +1,1 @@
-import interface `foo` is missing function `bar` that is required by the module
+module does not import required function `a: func() -> ()`

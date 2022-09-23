@@ -1120,14 +1120,18 @@ impl EncodingState {
                         ExportKind::Func,
                         &lowering.export_name,
                     );
-                    exports.push((lowering.name, ExportKind::Func, index));
+                    exports.push((lowering.mangled_name.as_str(), ExportKind::Func, index));
                 }
 
                 for lowering in &import.direct {
                     let func_index =
                         self.alias_func(&mut aliases, instance_index as u32, lowering.name);
                     let core_func_index = self.lower_func(&mut functions, func_index, []);
-                    exports.push((lowering.name, ExportKind::Func, core_func_index));
+                    exports.push((
+                        lowering.mangled_name.as_str(),
+                        ExportKind::Func,
+                        core_func_index,
+                    ));
                 }
 
                 self.component.section(&aliases);
@@ -1174,8 +1178,11 @@ impl EncodingState {
             let mut functions = CanonicalFunctionSection::new();
             let mut interface_exports = Vec::new();
             for func in &export.functions {
-                let name =
-                    expected_export_name((!is_default).then(|| export.name.as_str()), &func.name);
+                let mangled_name = export.mangle_funcname(func);
+                let name = expected_export_name(
+                    (!is_default).then_some(export.name.as_str()),
+                    &mangled_name,
+                );
 
                 let core_func_index = self.alias_core_item(
                     &mut aliases,
@@ -1557,11 +1564,13 @@ impl EncodingState {
 #[derive(Debug)]
 struct DirectLowering<'a> {
     name: &'a str,
+    mangled_name: String,
 }
 
 #[derive(Debug)]
 struct IndirectLowering<'a> {
     name: &'a str,
+    mangled_name: String,
     sig: WasmSignature,
     options: RequiredOptions,
     export_name: String,
@@ -1613,6 +1622,8 @@ impl<'a> ImportEncoder<'a> {
                             RequiredOptions::None
                         });
 
+                    let mangled_name = interface.mangle_funcname(f);
+
                     match options {
                         RequiredOptions::All
                         | RequiredOptions::Realloc
@@ -1621,6 +1632,7 @@ impl<'a> ImportEncoder<'a> {
                             self.indirect_count += 1;
                             indirect.push(IndirectLowering {
                                 name: &f.name,
+                                mangled_name,
                                 sig,
                                 options,
                                 export_name: element_index.to_string(),
@@ -1628,7 +1640,10 @@ impl<'a> ImportEncoder<'a> {
                         }
                         RequiredOptions::None => {
                             self.direct_count += 1;
-                            direct.push(DirectLowering { name: &f.name });
+                            direct.push(DirectLowering {
+                                name: &f.name,
+                                mangled_name,
+                            });
                         }
                     }
                 }

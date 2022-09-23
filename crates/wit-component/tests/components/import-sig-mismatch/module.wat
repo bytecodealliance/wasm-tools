@@ -1,3 +1,3 @@
 (module
-  (import "foo" "bar" (func))
+  (import "foo" "bar: func(s: string) -> ()" (func))
 )
