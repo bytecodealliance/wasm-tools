@@ -8,7 +8,6 @@ edition = "2021"
 id-arena = "2"
 anyhow = "1.0"
 pulldown-cmark = { version = "0.8", default-features = false }
-wast = { version = "33", default-features = false, optional = true }
 unicode-xid = "0.2.2"
 unicode-normalization = "0.1.19"
 
