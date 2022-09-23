@@ -481,6 +481,8 @@ impl Module {
         self.types.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: Some(self.types.len()),
+            is_core: true,
         });
         types.push(ty);
         Ok(())
