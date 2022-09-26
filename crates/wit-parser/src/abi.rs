@@ -1114,7 +1114,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         .record(func.params.iter().map(|t| &t.1));
                     let ptr = match self.variant {
                         // When a wasm module calls an import it will provide
-                        // static space that isn't dynamically allocated.
+                        // space that isn't explicitly deallocated.
                         AbiVariant::GuestImport => {
                             self.bindgen.return_pointer(self.iface, size, align)
                         }
