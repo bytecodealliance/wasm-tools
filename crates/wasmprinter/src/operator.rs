@@ -27,7 +27,11 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn print_blockty(&mut self, ty: &BlockType) -> Result<()> {
-        self.printer.print_blockty(self.state, ty, self.cur_depth())
+        // Note that 1 is added to the current depth here since if a block type
+        // is being printed then a block is being created which will increase
+        // the label depth of the block itself.
+        self.printer
+            .print_blockty(self.state, ty, self.cur_depth() + 1)
     }
 
     fn cur_depth(&self) -> u32 {
