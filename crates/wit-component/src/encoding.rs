@@ -471,19 +471,23 @@ impl<'a> TypeEncoder<'a> {
     fn encode_instance_imports(
         &mut self,
         interfaces: &'a [Interface],
-        required_imports: &IndexSet<&'a str>,
+        required_imports: &IndexMap<&'a str, IndexSet<&'a str>>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
         for import in interfaces {
-            if !required_imports.contains(import.name.as_str()) {
-                continue;
-            }
+            let required_funcs = match required_imports.get(import.name.as_str()) {
+                Some(required) => required,
+                None => continue,
+            };
 
             Self::validate_interface(import)?;
 
             let mut instance = InstanceTypeEncoder::default();
 
             for func in &import.functions {
+                if !required_funcs.contains(func.name.as_str()) {
+                    continue;
+                }
                 Self::validate_function(func)?;
 
                 let index = self.encode_func_type(import, func, false)?;
@@ -491,7 +495,7 @@ impl<'a> TypeEncoder<'a> {
             }
 
             let index = self.encode_instance_type(&instance.ty);
-            imports.import(import, ComponentTypeRef::Instance(index))?;
+            imports.import(import, ComponentTypeRef::Instance(index), required_funcs)?;
         }
 
         Ok(())
@@ -1594,7 +1598,12 @@ struct ImportEncoder<'a> {
 }
 
 impl<'a> ImportEncoder<'a> {
-    fn import(&mut self, interface: &'a Interface, ty: ComponentTypeRef) -> Result<()> {
+    fn import(
+        &mut self,
+        interface: &'a Interface,
+        ty: ComponentTypeRef,
+        funcs: &IndexSet<&'a str>,
+    ) -> Result<()> {
         match self.map.entry(&interface.name) {
             indexmap::map::Entry::Occupied(e) => {
                 if e.get().ty != ty {
@@ -1605,6 +1614,9 @@ impl<'a> ImportEncoder<'a> {
                 let mut direct = Vec::new();
                 let mut indirect = Vec::new();
                 for f in &interface.functions {
+                    if !funcs.contains(f.name.as_str()) {
+                        continue;
+                    }
                     let sig = interface.wasm_signature(AbiVariant::GuestImport, f);
                     let options = RequiredOptions::for_function(interface, f)
                         | (if sig.retptr || sig.indirect_params {

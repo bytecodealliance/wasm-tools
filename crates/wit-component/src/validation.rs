@@ -55,7 +55,7 @@ pub fn validate_module<'a>(
     interface: &Option<&Interface>,
     imports: &[Interface],
     exports: &[Interface],
-) -> Result<(IndexSet<&'a str>, bool, bool)> {
+) -> Result<(IndexMap<&'a str, IndexSet<&'a str>>, bool, bool)> {
     let imports: IndexMap<&str, &Interface> =
         imports.iter().map(|i| (i.name.as_str(), i)).collect();
     let exports: IndexMap<&str, &Interface> =
@@ -155,7 +155,10 @@ pub fn validate_module<'a>(
     }
 
     Ok((
-        import_funcs.keys().cloned().collect(),
+        import_funcs
+            .into_iter()
+            .map(|(name, funcs)| (name, funcs.into_iter().map(|(f, _ty)| f).collect()))
+            .collect(),
         has_memory,
         has_realloc,
     ))
