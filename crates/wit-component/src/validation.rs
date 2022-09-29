@@ -167,18 +167,25 @@ fn validate_imported_interface(
     imports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
-    for f in &interface.functions {
-        let mangled_name = interface.mangle_funcname(f);
-        let ty = imports
-            .get(mangled_name.as_str())
-            .ok_or_else(|| anyhow!("module does not import required function `{mangled_name}`"))?;
+    for (func_name, ty) in imports {
+        let f = interface
+            .functions
+            .iter()
+            .find(|f| f.name == *func_name)
+            .ok_or_else(|| {
+                anyhow!(
+                    "import interface `{}` is missing function `{}` that is required by the module",
+                    name,
+                    func_name,
+                )
+            })?;
 
         let expected = wasm_sig_to_func_type(interface.wasm_signature(AbiVariant::GuestImport, f));
         let ty = types.func_type_at(*ty).unwrap();
         if ty != &expected {
             bail!(
                     "type mismatch for function `{}` on imported interface `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
-                    f.name,
+                    func_name,
                     name,
                     expected.params(),
                     expected.results(),
@@ -198,8 +205,7 @@ fn validate_exported_interface(
     types: &Types,
 ) -> Result<()> {
     for f in &interface.functions {
-        let mangled_name = interface.mangle_funcname(f);
-        let expected_export = expected_export_name(name, &mangled_name);
+        let expected_export = expected_export_name(name, &f.name);
         match exports.get(expected_export.as_ref()) {
             Some(func_index) => {
                 let expected_ty =

@@ -1,3 +1,3 @@
 (module
-  (func (export "a: func(x: string) -> string") unreachable)
+  (func (export "a") unreachable)
 )

@@ -45,19 +45,7 @@ impl InterfacePrinter {
                         self.output.push_str(" -> ");
                         self.print_type_name(interface, &rs[0].1)?;
                     }
-                    _ => {
-                        self.output.push_str(" -> (");
-                        for (i, (name, ty)) in rs.iter().enumerate() {
-                            if i > 0 {
-                                self.output.push_str(", ");
-                            }
-
-                            self.output.push_str(name);
-                            self.output.push_str(": ");
-                            self.print_type_name(interface, ty)?;
-                        }
-                        self.output.push(')');
-                    }
+                    _ => todo!("multireturn: wit component printing"),
                 },
                 Results::Anon(ty) => {
                     self.output.push_str(" -> ");
