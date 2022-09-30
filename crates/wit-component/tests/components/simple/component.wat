@@ -42,7 +42,7 @@
   (alias core export 0 "c" (core func (;3;)))
   (alias core export 0 "d" (core func (;4;)))
   (func (;0;) (type 0) (canon lift (core func 1)))
-  (func (;1;) (type 1) (canon lift (core func 2) (memory 0) (realloc 0) string-encoding=utf8))
+  (func (;1;) (type 1) (canon lift (core func 2) (memory 0) string-encoding=utf8))
   (func (;2;) (type 2) (canon lift (core func 3) (memory 0) (realloc 0) string-encoding=utf8))
   (func (;3;) (type 4) (canon lift (core func 4) (memory 0) (realloc 0) string-encoding=utf8))
   (export "a" (func 0))

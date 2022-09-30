@@ -94,7 +94,7 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias export 0 "a" (func (;1;)))
   (alias export 1 "baz" (func (;2;)))
-  (core func (;4;) (canon lower (func 1) (memory 0) (realloc 3) string-encoding=utf8))
+  (core func (;4;) (canon lower (func 1) (memory 0) string-encoding=utf8))
   (core func (;5;) (canon lower (func 2) (memory 0) (realloc 3)))
   (core instance (;5;) 
     (export "$imports" (table 0))

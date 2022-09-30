@@ -80,7 +80,7 @@
   (alias core export 2 "bar#a" (core func (;4;)))
   (alias core export 2 "bar#b" (core func (;5;)))
   (func (;2;) (type 2) (canon lift (core func 4)))
-  (func (;3;) (type 3) (canon lift (core func 5) (memory 0) (realloc 1) string-encoding=utf8))
+  (func (;3;) (type 3) (canon lift (core func 5) (memory 0) string-encoding=utf8))
   (instance (;1;)
     (export "a" (func 2))
     (export "b" (func 3))

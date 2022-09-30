@@ -4,10 +4,7 @@ use crate::{
 };
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
-use std::{
-    hash::{Hash, Hasher},
-    ops::{BitOr, BitOrAssign},
-};
+use std::hash::{Hash, Hasher};
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
@@ -872,90 +869,85 @@ impl<'a> TypeEncoder<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RequiredOptions {
-    // No required options.
-    None,
-    // Only the memory option is required.
-    Memory,
-    // The realloc option (and, by extension, the memory option) is required.
-    Realloc,
-    // The encoding, realloc, and memory options are required.
-    All,
+bitflags::bitflags! {
+    struct RequiredOptions: u8 {
+        const MEMORY = 1 << 0;
+        const REALLOC = 1 << 1;
+        const STRING_ENCODING = 1 << 2;
+    }
 }
 
 impl RequiredOptions {
-    fn for_types<'a>(interface: &Interface, mut types: impl Iterator<Item = &'a Type>) -> Self {
-        match types.try_fold(Self::None, |mut acc, ty| {
-            acc |= Self::for_type(interface, ty);
-            if acc == Self::All {
-                // If something requires all the options, then we're done searching.
-                // Returning an error here so that the operation terminates early.
-                Err(acc)
-            } else {
-                Ok(acc)
-            }
-        }) {
-            Ok(o) | Err(o) => o,
-        }
-    }
-
-    fn for_optional_types<'a>(
-        interface: &Interface,
-        types: impl Iterator<Item = Option<&'a Type>>,
-    ) -> Self {
-        Self::for_types(interface, types.flatten())
-    }
-
-    fn for_optional_type(interface: &Interface, ty: Option<&Type>) -> Self {
-        match ty {
-            Some(ty) => Self::for_type(interface, ty),
-            None => Self::None,
-        }
-    }
-
-    fn for_type(interface: &Interface, ty: &Type) -> Self {
-        match ty {
-            Type::Id(id) => match &interface.types[*id].kind {
-                TypeDefKind::Record(r) => {
-                    Self::for_types(interface, r.fields.iter().map(|f| &f.ty))
-                }
-                TypeDefKind::Tuple(t) => Self::for_types(interface, t.types.iter()),
-                TypeDefKind::Flags(_) => Self::None,
-                TypeDefKind::Option(t) => Self::for_type(interface, t),
-                TypeDefKind::Result(r) => {
-                    Self::for_optional_type(interface, r.ok.as_ref())
-                        | Self::for_optional_type(interface, r.err.as_ref())
-                }
-                TypeDefKind::Variant(v) => {
-                    Self::for_optional_types(interface, v.cases.iter().map(|c| c.ty.as_ref()))
-                }
-                TypeDefKind::Union(v) => Self::for_types(interface, v.cases.iter().map(|c| &c.ty)),
-                TypeDefKind::Enum(_) => Self::None,
-                TypeDefKind::List(t) => {
-                    // Lists need at least the `realloc` option, but may require
-                    // the encoding option if there's a string somewhere in the
-                    // type.
-                    Self::for_type(interface, t) | Self::Realloc
-                }
-                TypeDefKind::Type(t) => Self::for_type(interface, t),
-                TypeDefKind::Future(_) => todo!("encoding for future"),
-                TypeDefKind::Stream(_) => todo!("encoding for stream"),
-            },
-            Type::String => Self::All,
-            _ => Self::None,
-        }
-    }
-
-    fn for_function(interface: &Interface, function: &Function) -> Self {
-        Self::for_types(
+    fn for_import(interface: &Interface, func: &Function) -> RequiredOptions {
+        let sig = interface.wasm_signature(AbiVariant::GuestImport, func);
+        let mut ret = RequiredOptions::empty();
+        // Lift the params and lower the results for imports
+        ret.add_lift(TypeContents::for_types(
             interface,
-            function
-                .params
-                .iter()
-                .map(|(_, ty)| ty)
-                .chain(function.results.iter_types()),
-        )
+            func.params.iter().map(|(_, t)| t),
+        ));
+        ret.add_lower(TypeContents::for_types(
+            interface,
+            func.results.iter_types(),
+        ));
+
+        // If anything is indirect then `memory` will be required to read the
+        // indirect values.
+        if sig.retptr || sig.indirect_params {
+            ret |= RequiredOptions::MEMORY;
+        }
+        ret
+    }
+
+    fn for_export(interface: &Interface, func: &Function) -> RequiredOptions {
+        let sig = interface.wasm_signature(AbiVariant::GuestExport, func);
+        let mut ret = RequiredOptions::empty();
+        // Lower the params and lift the results for exports
+        ret.add_lower(TypeContents::for_types(
+            interface,
+            func.params.iter().map(|(_, t)| t),
+        ));
+        ret.add_lift(TypeContents::for_types(
+            interface,
+            func.results.iter_types(),
+        ));
+
+        // If anything is indirect then `memory` will be required to read the
+        // indirect values, but if the arguments are indirect then `realloc` is
+        // additionally required to allocate space for the parameters.
+        if sig.retptr || sig.indirect_params {
+            ret |= RequiredOptions::MEMORY;
+            if sig.indirect_params {
+                ret |= RequiredOptions::REALLOC;
+            }
+        }
+        ret
+    }
+
+    fn add_lower(&mut self, types: TypeContents) {
+        // If lists/strings are lowered into wasm then memory is required as
+        // usual but `realloc` is also required to allow the external caller to
+        // allocate space in the destination for the list/string.
+        if types.contains(TypeContents::LIST) {
+            *self |= RequiredOptions::MEMORY | RequiredOptions::REALLOC;
+        }
+        if types.contains(TypeContents::STRING) {
+            *self |= RequiredOptions::MEMORY
+                | RequiredOptions::STRING_ENCODING
+                | RequiredOptions::REALLOC;
+        }
+    }
+
+    fn add_lift(&mut self, types: TypeContents) {
+        // Unlike for `lower` when lifting a string/list all that's needed is
+        // memory, since the string/list already resides in memory `realloc`
+        // isn't needed.
+        if types.contains(TypeContents::LIST) {
+            *self |= RequiredOptions::MEMORY;
+        }
+        if types.contains(TypeContents::STRING) {
+            *self |= RequiredOptions::MEMORY | RequiredOptions::STRING_ENCODING;
+        }
     }
 
     fn into_iter(
@@ -1000,48 +992,81 @@ impl RequiredOptions {
 
         let mut iter = Iter::default();
 
-        if self == RequiredOptions::None {
-            return Ok(iter);
+        if self.contains(RequiredOptions::MEMORY) {
+            iter.push(CanonicalOption::Memory(memory_index.ok_or_else(|| {
+                anyhow!("module does not export a memory named `memory`")
+            })?));
         }
 
-        iter.push(CanonicalOption::Memory(memory_index.ok_or_else(|| {
-            anyhow!("module does not export a memory named `memory`")
-        })?));
-
-        if self == RequiredOptions::Memory {
-            return Ok(iter);
+        if self.contains(RequiredOptions::REALLOC) {
+            iter.push(CanonicalOption::Realloc(realloc_index.ok_or_else(
+                || anyhow!("module does not export a function named `cabi_realloc`"),
+            )?));
         }
 
-        iter.push(CanonicalOption::Realloc(realloc_index.ok_or_else(
-            || anyhow!("module does not export a function named `cabi_realloc`"),
-        )?));
-
-        if self == RequiredOptions::Realloc {
-            return Ok(iter);
+        if self.contains(RequiredOptions::STRING_ENCODING) {
+            iter.push(encoding.into());
         }
 
-        assert_eq!(self, RequiredOptions::All);
-
-        iter.push(encoding.into());
         Ok(iter)
     }
 }
 
-impl BitOrAssign for RequiredOptions {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs;
+bitflags::bitflags! {
+    struct TypeContents: u8 {
+        const STRING = 1 << 0;
+        const LIST = 1 << 1;
     }
 }
 
-impl BitOr for RequiredOptions {
-    type Output = RequiredOptions;
+impl TypeContents {
+    fn for_types<'a>(interface: &Interface, types: impl Iterator<Item = &'a Type>) -> Self {
+        let mut cur = TypeContents::empty();
+        for ty in types {
+            cur |= Self::for_type(interface, ty);
+        }
+        cur
+    }
 
-    fn bitor(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::All, _) | (_, Self::All) => Self::All,
-            (Self::Realloc, _) | (_, Self::Realloc) => Self::Realloc,
-            (Self::Memory, _) | (_, Self::Memory) => Self::Memory,
-            (Self::None, Self::None) => Self::None,
+    fn for_optional_types<'a>(
+        interface: &Interface,
+        types: impl Iterator<Item = Option<&'a Type>>,
+    ) -> Self {
+        Self::for_types(interface, types.flatten())
+    }
+
+    fn for_optional_type(interface: &Interface, ty: Option<&Type>) -> Self {
+        match ty {
+            Some(ty) => Self::for_type(interface, ty),
+            None => Self::empty(),
+        }
+    }
+
+    fn for_type(interface: &Interface, ty: &Type) -> Self {
+        match ty {
+            Type::Id(id) => match &interface.types[*id].kind {
+                TypeDefKind::Record(r) => {
+                    Self::for_types(interface, r.fields.iter().map(|f| &f.ty))
+                }
+                TypeDefKind::Tuple(t) => Self::for_types(interface, t.types.iter()),
+                TypeDefKind::Flags(_) => Self::empty(),
+                TypeDefKind::Option(t) => Self::for_type(interface, t),
+                TypeDefKind::Result(r) => {
+                    Self::for_optional_type(interface, r.ok.as_ref())
+                        | Self::for_optional_type(interface, r.err.as_ref())
+                }
+                TypeDefKind::Variant(v) => {
+                    Self::for_optional_types(interface, v.cases.iter().map(|c| c.ty.as_ref()))
+                }
+                TypeDefKind::Union(v) => Self::for_types(interface, v.cases.iter().map(|c| &c.ty)),
+                TypeDefKind::Enum(_) => Self::empty(),
+                TypeDefKind::List(t) => Self::for_type(interface, t) | Self::LIST,
+                TypeDefKind::Type(t) => Self::for_type(interface, t),
+                TypeDefKind::Future(_) => todo!("encoding for future"),
+                TypeDefKind::Stream(_) => todo!("encoding for stream"),
+            },
+            Type::String => Self::STRING,
+            _ => Self::empty(),
         }
     }
 }
@@ -1195,13 +1220,7 @@ impl EncodingState {
                     })
                     .expect("the type should be encoded");
 
-                let sig = export.wasm_signature(AbiVariant::GuestExport, func);
-                let options = RequiredOptions::for_function(export, func)
-                    | (if sig.retptr || sig.indirect_params {
-                        RequiredOptions::Memory
-                    } else {
-                        RequiredOptions::None
-                    });
+                let options = RequiredOptions::for_export(export, func);
 
                 // TODO: support the post-return option somehow (not yet supported in wit-bindgen)
                 let func_index = self.lift_func(
@@ -1617,31 +1636,21 @@ impl<'a> ImportEncoder<'a> {
                     if !funcs.contains(f.name.as_str()) {
                         continue;
                     }
-                    let sig = interface.wasm_signature(AbiVariant::GuestImport, f);
-                    let options = RequiredOptions::for_function(interface, f)
-                        | (if sig.retptr || sig.indirect_params {
-                            RequiredOptions::Memory
-                        } else {
-                            RequiredOptions::None
-                        });
+                    let options = RequiredOptions::for_import(interface, f);
 
-                    match options {
-                        RequiredOptions::All
-                        | RequiredOptions::Realloc
-                        | RequiredOptions::Memory => {
-                            let element_index = self.indirect_count;
-                            self.indirect_count += 1;
-                            indirect.push(IndirectLowering {
-                                name: &f.name,
-                                sig,
-                                options,
-                                export_name: element_index.to_string(),
-                            });
-                        }
-                        RequiredOptions::None => {
-                            self.direct_count += 1;
-                            direct.push(DirectLowering { name: &f.name });
-                        }
+                    if options.is_empty() {
+                        self.direct_count += 1;
+                        direct.push(DirectLowering { name: &f.name });
+                    } else {
+                        let element_index = self.indirect_count;
+                        let sig = interface.wasm_signature(AbiVariant::GuestImport, f);
+                        self.indirect_count += 1;
+                        indirect.push(IndirectLowering {
+                            name: &f.name,
+                            sig,
+                            options,
+                            export_name: element_index.to_string(),
+                        });
                     }
                 }
 
