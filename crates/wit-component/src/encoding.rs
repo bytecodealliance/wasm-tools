@@ -1222,13 +1222,19 @@ impl EncodingState {
 
                 let options = RequiredOptions::for_export(export, func);
 
-                // TODO: support the post-return option somehow (not yet supported in wit-bindgen)
-                let func_index = self.lift_func(
-                    &mut functions,
-                    core_func_index,
-                    ty,
-                    options.into_iter(encoding, self.memory_index, self.realloc_index)?,
-                );
+                let mut options = options
+                    .into_iter(encoding, self.memory_index, self.realloc_index)?
+                    .collect::<Vec<_>>();
+                if export.guest_export_needs_post_return(func) {
+                    let post_return = self.alias_core_item(
+                        &mut aliases,
+                        core_instance_index,
+                        ExportKind::Func,
+                        &format!("cabi_post_{name}"),
+                    );
+                    options.push(CanonicalOption::PostReturn(post_return));
+                }
+                let func_index = self.lift_func(&mut functions, core_func_index, ty, options);
 
                 if is_default {
                     // Directly export the lifted function
