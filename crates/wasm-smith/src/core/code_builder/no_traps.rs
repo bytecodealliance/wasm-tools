@@ -300,29 +300,29 @@ fn get_memarg(inst: &Instruction) -> wasm_encoder::MemArg {
         | Instruction::I64Load(memarg)
         | Instruction::F32Load(memarg)
         | Instruction::F64Load(memarg)
-        | Instruction::I32Load8_S(memarg)
-        | Instruction::I32Load8_U(memarg)
-        | Instruction::I32Load16_S(memarg)
-        | Instruction::I32Load16_U(memarg)
-        | Instruction::I64Load8_S(memarg)
-        | Instruction::I64Load8_U(memarg)
-        | Instruction::I64Load16_S(memarg)
-        | Instruction::I64Load16_U(memarg)
-        | Instruction::I64Load32_S(memarg)
-        | Instruction::I64Load32_U(memarg)
-        | Instruction::V128Load { memarg }
-        | Instruction::V128Load8x8S { memarg }
-        | Instruction::V128Load8x8U { memarg }
-        | Instruction::V128Load16x4S { memarg }
-        | Instruction::V128Load16x4U { memarg }
-        | Instruction::V128Load32x2S { memarg }
-        | Instruction::V128Load32x2U { memarg }
-        | Instruction::V128Load8Splat { memarg }
-        | Instruction::V128Load16Splat { memarg }
-        | Instruction::V128Load32Splat { memarg }
-        | Instruction::V128Load64Splat { memarg }
-        | Instruction::V128Load32Zero { memarg }
-        | Instruction::V128Load64Zero { memarg }
+        | Instruction::I32Load8S(memarg)
+        | Instruction::I32Load8U(memarg)
+        | Instruction::I32Load16S(memarg)
+        | Instruction::I32Load16U(memarg)
+        | Instruction::I64Load8S(memarg)
+        | Instruction::I64Load8U(memarg)
+        | Instruction::I64Load16S(memarg)
+        | Instruction::I64Load16U(memarg)
+        | Instruction::I64Load32S(memarg)
+        | Instruction::I64Load32U(memarg)
+        | Instruction::V128Load(memarg)
+        | Instruction::V128Load8x8S(memarg)
+        | Instruction::V128Load8x8U(memarg)
+        | Instruction::V128Load16x4S(memarg)
+        | Instruction::V128Load16x4U(memarg)
+        | Instruction::V128Load32x2S(memarg)
+        | Instruction::V128Load32x2U(memarg)
+        | Instruction::V128Load8Splat(memarg)
+        | Instruction::V128Load16Splat(memarg)
+        | Instruction::V128Load32Splat(memarg)
+        | Instruction::V128Load64Splat(memarg)
+        | Instruction::V128Load32Zero(memarg)
+        | Instruction::V128Load64Zero(memarg)
         | Instruction::I32Store(memarg)
         | Instruction::I64Store(memarg)
         | Instruction::F32Store(memarg)
@@ -332,7 +332,7 @@ fn get_memarg(inst: &Instruction) -> wasm_encoder::MemArg {
         | Instruction::I64Store8(memarg)
         | Instruction::I64Store16(memarg)
         | Instruction::I64Store32(memarg)
-        | Instruction::V128Store { memarg } => memarg,
+        | Instruction::V128Store(memarg) => memarg,
         _ => unreachable!(),
     }
 }
@@ -397,21 +397,21 @@ fn type_of_float_conversion(inst: &Instruction) -> ValType {
 fn type_of_memory_access(inst: &Instruction) -> ValType {
     match inst {
         Instruction::I32Load(_)
-        | Instruction::I32Load8_S(_)
-        | Instruction::I32Load8_U(_)
-        | Instruction::I32Load16_S(_)
-        | Instruction::I32Load16_U(_)
+        | Instruction::I32Load8S(_)
+        | Instruction::I32Load8U(_)
+        | Instruction::I32Load16S(_)
+        | Instruction::I32Load16U(_)
         | Instruction::I32Store(_)
         | Instruction::I32Store8(_)
         | Instruction::I32Store16(_) => ValType::I32,
 
         Instruction::I64Load(_)
-        | Instruction::I64Load8_S(_)
-        | Instruction::I64Load8_U(_)
-        | Instruction::I64Load16_S(_)
-        | Instruction::I64Load16_U(_)
-        | Instruction::I64Load32_S(_)
-        | Instruction::I64Load32_U(_)
+        | Instruction::I64Load8S(_)
+        | Instruction::I64Load8U(_)
+        | Instruction::I64Load16S(_)
+        | Instruction::I64Load16U(_)
+        | Instruction::I64Load32S(_)
+        | Instruction::I64Load32U(_)
         | Instruction::I64Store(_)
         | Instruction::I64Store8(_)
         | Instruction::I64Store16(_)
