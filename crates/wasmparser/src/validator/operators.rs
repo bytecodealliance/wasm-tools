@@ -2098,11 +2098,8 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_atomic_fence(&mut self, offset: usize, flags: u8) -> Self::Output {
+    fn visit_atomic_fence(&mut self, offset: usize) -> Self::Output {
         self.check_threads_enabled(offset)?;
-        if flags != 0 {
-            bail!(offset, "non-zero flags for fence not supported yet");
-        }
         Ok(())
     }
     fn visit_ref_null(&mut self, offset: usize, ty: ValType) -> Self::Output {

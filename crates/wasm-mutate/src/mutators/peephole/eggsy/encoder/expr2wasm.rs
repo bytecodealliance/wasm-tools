@@ -106,16 +106,16 @@ pub fn expr2wasm(
                     Lang::I64Load(memarg, _) => insn(Instruction::I64Load(memarg.into())),
                     Lang::F32Load(memarg, _) => insn(Instruction::F32Load(memarg.into())),
                     Lang::F64Load(memarg, _) => insn(Instruction::F64Load(memarg.into())),
-                    Lang::I32Load8U(memarg, _) => insn(Instruction::I32Load8_U(memarg.into())),
-                    Lang::I32Load8S(memarg, _) => insn(Instruction::I32Load8_S(memarg.into())),
-                    Lang::I32Load16U(memarg, _) => insn(Instruction::I32Load16_U(memarg.into())),
-                    Lang::I32Load16S(memarg, _) => insn(Instruction::I32Load16_S(memarg.into())),
-                    Lang::I64Load8U(memarg, _) => insn(Instruction::I64Load8_U(memarg.into())),
-                    Lang::I64Load8S(memarg, _) => insn(Instruction::I64Load8_S(memarg.into())),
-                    Lang::I64Load16U(memarg, _) => insn(Instruction::I64Load16_U(memarg.into())),
-                    Lang::I64Load16S(memarg, _) => insn(Instruction::I64Load16_S(memarg.into())),
-                    Lang::I64Load32U(memarg, _) => insn(Instruction::I64Load32_U(memarg.into())),
-                    Lang::I64Load32S(memarg, _) => insn(Instruction::I64Load32_S(memarg.into())),
+                    Lang::I32Load8U(memarg, _) => insn(Instruction::I32Load8U(memarg.into())),
+                    Lang::I32Load8S(memarg, _) => insn(Instruction::I32Load8S(memarg.into())),
+                    Lang::I32Load16U(memarg, _) => insn(Instruction::I32Load16U(memarg.into())),
+                    Lang::I32Load16S(memarg, _) => insn(Instruction::I32Load16S(memarg.into())),
+                    Lang::I64Load8U(memarg, _) => insn(Instruction::I64Load8U(memarg.into())),
+                    Lang::I64Load8S(memarg, _) => insn(Instruction::I64Load8S(memarg.into())),
+                    Lang::I64Load16U(memarg, _) => insn(Instruction::I64Load16U(memarg.into())),
+                    Lang::I64Load16S(memarg, _) => insn(Instruction::I64Load16S(memarg.into())),
+                    Lang::I64Load32U(memarg, _) => insn(Instruction::I64Load32U(memarg.into())),
+                    Lang::I64Load32S(memarg, _) => insn(Instruction::I64Load32S(memarg.into())),
                     Lang::RandI32 => insn(Instruction::I32Const(config.rng().gen())),
                     Lang::RandI64 => insn(Instruction::I64Const(config.rng().gen())),
                     Lang::RandF32 => {
@@ -328,13 +328,13 @@ pub fn expr2wasm(
                     Lang::MemoryInit(init, _) => {
                         newfunc.instruction(&Instruction::MemoryInit {
                             mem: init.memory,
-                            data: init.segment,
+                            data_index: init.segment,
                         });
                     }
                     Lang::MemoryCopy(cp, _) => {
                         newfunc.instruction(&Instruction::MemoryCopy {
-                            src: cp.src,
-                            dst: cp.dst,
+                            src_mem: cp.src,
+                            dst_mem: cp.dst,
                         });
                     }
                     Lang::MemoryFill(mem, _) => insn(Instruction::MemoryFill(*mem)),
@@ -342,21 +342,21 @@ pub fn expr2wasm(
                     Lang::TableInit(init, _) => {
                         newfunc.instruction(&Instruction::TableInit {
                             table: init.table,
-                            segment: init.segment,
+                            elem_index: init.segment,
                         });
                     }
                     Lang::TableCopy(cp, _) => {
                         newfunc.instruction(&Instruction::TableCopy {
-                            src: cp.src,
-                            dst: cp.dst,
+                            src_table: cp.src,
+                            dst_table: cp.dst,
                         });
                     }
-                    Lang::TableFill(table, _) => insn(Instruction::TableFill { table: *table }),
-                    Lang::ElemDrop(idx) => insn(Instruction::ElemDrop { segment: *idx }),
-                    Lang::TableGrow(table, _) => insn(Instruction::TableGrow { table: *table }),
-                    Lang::TableSize(table) => insn(Instruction::TableSize { table: *table }),
-                    Lang::TableGet(table, _) => insn(Instruction::TableGet { table: *table }),
-                    Lang::TableSet(table, _) => insn(Instruction::TableSet { table: *table }),
+                    Lang::TableFill(table, _) => insn(Instruction::TableFill(*table)),
+                    Lang::ElemDrop(idx) => insn(Instruction::ElemDrop(*idx)),
+                    Lang::TableGrow(table, _) => insn(Instruction::TableGrow(*table)),
+                    Lang::TableSize(table) => insn(Instruction::TableSize(*table)),
+                    Lang::TableGet(table, _) => insn(Instruction::TableGet(*table)),
+                    Lang::TableSet(table, _) => insn(Instruction::TableSet(*table)),
                     Lang::I32UseGlobal(_) => {
                         // Request a new global
                         let request = ResourceRequest::Global {
@@ -419,74 +419,46 @@ pub fn expr2wasm(
                     Lang::V128Bitselect(_) => insn(Instruction::V128Bitselect),
 
                     Lang::V128Load(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load(memarg.into()));
                     }
                     Lang::V128Load8x8S(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8x8S {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load8x8S(memarg.into()));
                     }
                     Lang::V128Load8x8U(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8x8U {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load8x8U(memarg.into()));
                     }
                     Lang::V128Load16x4S(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16x4S {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load16x4S(memarg.into()));
                     }
                     Lang::V128Load16x4U(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16x4U {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load16x4U(memarg.into()));
                     }
                     Lang::V128Load32x2S(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32x2S {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load32x2S(memarg.into()));
                     }
                     Lang::V128Load32x2U(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32x2U {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load32x2U(memarg.into()));
                     }
                     Lang::V128Load8Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8Splat {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load8Splat(memarg.into()));
                     }
                     Lang::V128Load16Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16Splat {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load16Splat(memarg.into()));
                     }
                     Lang::V128Load32Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32Splat {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load32Splat(memarg.into()));
                     }
                     Lang::V128Load64Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load64Splat {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load64Splat(memarg.into()));
                     }
                     Lang::V128Load32Zero(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32Zero {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load32Zero(memarg.into()));
                     }
                     Lang::V128Load64Zero(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load64Zero {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Load64Zero(memarg.into()));
                     }
                     Lang::V128Store(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Store {
-                            memarg: memarg.into(),
-                        });
+                        newfunc.instruction(&Instruction::V128Store(memarg.into()));
                     }
                     Lang::V128Load8Lane(memarg, _) => {
                         newfunc.instruction(&Instruction::V128Load8Lane {
@@ -537,48 +509,20 @@ pub fn expr2wasm(
                         });
                     }
 
-                    Lang::I8x16ExtractLaneS(lane, _) => {
-                        insn(Instruction::I8x16ExtractLaneS { lane: *lane })
-                    }
-                    Lang::I8x16ExtractLaneU(lane, _) => {
-                        insn(Instruction::I8x16ExtractLaneU { lane: *lane })
-                    }
-                    Lang::I8x16ReplaceLane(lane, _) => {
-                        insn(Instruction::I8x16ReplaceLane { lane: *lane })
-                    }
-                    Lang::I16x8ExtractLaneS(lane, _) => {
-                        insn(Instruction::I16x8ExtractLaneS { lane: *lane })
-                    }
-                    Lang::I16x8ExtractLaneU(lane, _) => {
-                        insn(Instruction::I16x8ExtractLaneU { lane: *lane })
-                    }
-                    Lang::I16x8ReplaceLane(lane, _) => {
-                        insn(Instruction::I16x8ReplaceLane { lane: *lane })
-                    }
-                    Lang::I32x4ExtractLane(lane, _) => {
-                        insn(Instruction::I32x4ExtractLane { lane: *lane })
-                    }
-                    Lang::I32x4ReplaceLane(lane, _) => {
-                        insn(Instruction::I32x4ReplaceLane { lane: *lane })
-                    }
-                    Lang::I64x2ExtractLane(lane, _) => {
-                        insn(Instruction::I64x2ExtractLane { lane: *lane })
-                    }
-                    Lang::I64x2ReplaceLane(lane, _) => {
-                        insn(Instruction::I64x2ReplaceLane { lane: *lane })
-                    }
-                    Lang::F32x4ExtractLane(lane, _) => {
-                        insn(Instruction::F32x4ExtractLane { lane: *lane })
-                    }
-                    Lang::F32x4ReplaceLane(lane, _) => {
-                        insn(Instruction::F32x4ReplaceLane { lane: *lane })
-                    }
-                    Lang::F64x2ExtractLane(lane, _) => {
-                        insn(Instruction::F64x2ExtractLane { lane: *lane })
-                    }
-                    Lang::F64x2ReplaceLane(lane, _) => {
-                        insn(Instruction::F64x2ReplaceLane { lane: *lane })
-                    }
+                    Lang::I8x16ExtractLaneS(lane, _) => insn(Instruction::I8x16ExtractLaneS(*lane)),
+                    Lang::I8x16ExtractLaneU(lane, _) => insn(Instruction::I8x16ExtractLaneU(*lane)),
+                    Lang::I8x16ReplaceLane(lane, _) => insn(Instruction::I8x16ReplaceLane(*lane)),
+                    Lang::I16x8ExtractLaneS(lane, _) => insn(Instruction::I16x8ExtractLaneS(*lane)),
+                    Lang::I16x8ExtractLaneU(lane, _) => insn(Instruction::I16x8ExtractLaneU(*lane)),
+                    Lang::I16x8ReplaceLane(lane, _) => insn(Instruction::I16x8ReplaceLane(*lane)),
+                    Lang::I32x4ExtractLane(lane, _) => insn(Instruction::I32x4ExtractLane(*lane)),
+                    Lang::I32x4ReplaceLane(lane, _) => insn(Instruction::I32x4ReplaceLane(*lane)),
+                    Lang::I64x2ExtractLane(lane, _) => insn(Instruction::I64x2ExtractLane(*lane)),
+                    Lang::I64x2ReplaceLane(lane, _) => insn(Instruction::I64x2ReplaceLane(*lane)),
+                    Lang::F32x4ExtractLane(lane, _) => insn(Instruction::F32x4ExtractLane(*lane)),
+                    Lang::F32x4ReplaceLane(lane, _) => insn(Instruction::F32x4ReplaceLane(*lane)),
+                    Lang::F64x2ExtractLane(lane, _) => insn(Instruction::F64x2ExtractLane(*lane)),
+                    Lang::F64x2ReplaceLane(lane, _) => insn(Instruction::F64x2ReplaceLane(*lane)),
 
                     Lang::I8x16Swizzle(_) => insn(Instruction::I8x16Swizzle),
                     Lang::I8x16Splat(_) => insn(Instruction::I8x16Splat),

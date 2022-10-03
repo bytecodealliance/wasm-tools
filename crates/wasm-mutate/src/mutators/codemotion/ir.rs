@@ -271,14 +271,14 @@ impl AstBuilder {
 
         for (idx, (operator, _)) in operators.iter().enumerate() {
             match operator {
-                Operator::If { ty } => {
+                Operator::If { blockty } => {
                     // push current code first
                     if !parse_context.current_code_is_empty() {
                         parse_context.push_current_code_as_node();
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::If, Some(*ty), idx);
+                    parse_context.push_frame(State::If, Some(*blockty), idx);
                 }
                 Operator::Else => {
                     if !parse_context.current_code_is_empty() {
@@ -288,21 +288,21 @@ impl AstBuilder {
                     parse_context.push_state();
                     parse_context.push_frame(State::Else, None, idx);
                 }
-                Operator::Block { ty } => {
+                Operator::Block { blockty } => {
                     if !parse_context.current_code_is_empty() {
                         parse_context.push_current_code_as_node();
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::Block, Some(*ty), idx);
+                    parse_context.push_frame(State::Block, Some(*blockty), idx);
                 }
-                Operator::Loop { ty } => {
+                Operator::Loop { blockty } => {
                     if !parse_context.current_code_is_empty() {
                         parse_context.push_current_code_as_node();
                     }
                     parse_context.reset_code_range_at(idx + 1);
                     parse_context.push_state();
-                    parse_context.push_frame(State::Loop, Some(*ty), idx);
+                    parse_context.push_frame(State::Loop, Some(*blockty), idx);
                 }
                 Operator::End => {
                     if !parse_context.current_code_is_empty() {
