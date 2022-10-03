@@ -7,12 +7,10 @@ use { x as import-me-x } from import-me-too
 
 type x = foo
 type y = bar
-type z1 = import-me-x
-type z2 = handle import-me-x
+type z = import-me-x
 
-use { %handle } from import-me-too
+use { handle } from import-me-too
 resource xyz
-type my-handle = handle xyz
-type my-handle2 = xyz
+type my-handle = xyz
 
 use { some-record } from import-me-too

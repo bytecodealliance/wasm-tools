@@ -8,7 +8,10 @@
     {
       "idx": 0,
       "name": "bar",
-      "primitive": "handle-0"
+      "stream": {
+        "element": "handle-0",
+        "end": null
+      }
     },
     {
       "idx": 1,

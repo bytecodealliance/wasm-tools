@@ -18,7 +18,7 @@ type t15 = result<u32, u32>
 type t16 = result<_, u32>
 type t17 = result<u32>
 type t18 = result
-type t19 = handle x
+type t19 = x
 record t20 {}
 record t21 { a: u32 }
 record t22 { a: u32, }

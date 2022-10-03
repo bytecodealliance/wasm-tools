@@ -39,11 +39,6 @@
       "idx": 4,
       "name": "my-handle",
       "primitive": "handle-0"
-    },
-    {
-      "idx": 5,
-      "name": "my-handle2",
-      "primitive": "type-3"
     }
   ]
 }

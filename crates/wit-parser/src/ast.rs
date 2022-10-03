@@ -87,7 +87,6 @@ enum Type<'a> {
     Float64,
     Char,
     String,
-    Handle(Id<'a>),
     Name(Id<'a>),
     List(Box<Type<'a>>),
     Record(Record<'a>),
@@ -494,10 +493,6 @@ impl<'a> Type<'a> {
             Some((_span, Token::Float32)) => Ok(Type::Float32),
             Some((_span, Token::Float64)) => Ok(Type::Float64),
             Some((_span, Token::Char)) => Ok(Type::Char),
-            Some((_span, Token::Handle)) => {
-                let name = parse_id(tokens)?;
-                Ok(Type::Handle(name))
-            }
 
             // tuple<T, U, ...>
             Some((_span, Token::Tuple)) => {
@@ -592,7 +587,7 @@ impl<'a> Type<'a> {
                 name: tokens.parse_id(span)?.into(),
                 span,
             })),
-            // `@foo`
+            // `%foo`
             Some((span, Token::ExplicitId)) => Ok(Type::Name(Id {
                 name: tokens.parse_explicit_id(span)?.into(),
                 span,

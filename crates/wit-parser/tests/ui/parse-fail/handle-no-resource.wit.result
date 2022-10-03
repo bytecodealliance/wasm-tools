@@ -1,5 +1,0 @@
-no resource named `foo`
-     --> tests/ui/parse-fail/handle-no-resource.wit:2:19
-      |
-    2 | type foo = handle foo
-      |                   ^--

@@ -7,7 +7,7 @@
 
 
 type /* foo */ bar /* baz */ = //
-handle //
+stream < //
 //
 //
 
@@ -15,5 +15,7 @@ handle //
 
 
 x
+
+>
 
 resource /* x */ x // ...

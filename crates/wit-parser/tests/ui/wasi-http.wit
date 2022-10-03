@@ -31,14 +31,14 @@
 //
 // Note: the `blocking` attribute means that different lowering can be generated for this
 // function, either based on synchronous, blocking calls, or on a callback-style interface.
-fetch: /*blocking*/ func(req: handle request) -> handle response
+fetch: /*blocking*/ func(req: request) -> response
 
 /// A request resource, with lots of things missing for now.
 // Note: `resource` blocks serve two purposes:
 // 1. namespacing the definition of a Handle type with functions for operating on that handle
 // 2. providing a way to define said functions such that they implicitly take the handle itself as
 //    the first argument. E.g., `method` in `request` is roughly equivalent to
-//    `request::method: func(self: handle request) -> (string)`
+//    `request::method: func(self: request) -> (string)`
 //    ("Roughly" because the `resource` semantics allow us to generate better bindings for languages
 //     that have a concept of implicit receivers, such as `this` in JS.)
 resource request {
@@ -47,26 +47,26 @@ resource request {
     /// @return req - returns a new `request`
     // Note: `static` here simply means that no implicit receiver argument will be passed.
     // I.e., this is ~roughly~ analogous to a top-level definition of
-    // `request::request: func() -> (req: handle request)`
+    // `request::request: func() -> (req: request)`
     // whereas without `static`, it'd be analogous to
-    // `request::request: func(self: handle<request>) -> (req: handle<request>)`
-    static request: func() -> handle request
+    // `request::request: func(self: request) -> (req: request)`
+    static request: func() -> request
 
     method: func() -> string
 
     // Note: We could consider allowing the parens to be omitted for single return values, like so:
-    headers: func() -> handle headers
+    headers: func() -> headers
 
     // Note: Or we could even allow leaving off the return value identifier, making it use the
     // function name, like so:
-    body: func() -> handle body // This return type would be shorthand for `(body: body)`
+    body: func() -> body // This return type would be shorthand for `(body: body)`
 }
 
 /// A response resource, with lots of things missing for now.
 resource response {
     status: func() -> u16
-    headers: func() -> handle headers
-    body: func() -> handle body
+    headers: func() -> headers
+    body: func() -> body
 }
 
 /// A headers resource, with lots of things missing for now.
@@ -101,13 +101,13 @@ interface nested-interface1 {
     resource better-request {
         // TODO: do we need to have a ctor with special semantics? E.g. to generate actual
         // constructors for languages that have them, such as JS?
-        new: func(request: handle<request>) -> handle<better-request>
+        new: func(request: request) -> better-request
         // Note: sadly, the sauce better-request uses must remain secret, so it doesn't actually
         // expose any of its functionality, and hence doesn't need any other methods.
     }
     /// Maps a request to an even better request.
     // Note: the containing scope's members are in scope in a nested interface
-    fun: func(request: handle<request>) -> handle<response>
+    fun: func(request: request) -> response
 }
 
 /// Another nested interface, doing something even more neat and elaborate.
@@ -127,7 +127,7 @@ interface nested-interface2 {
     /// @return response - a boring, normal response
     /// @return added-shiny - the shiny!
     // Note: this just exists to demonstrate multiple return values, including their documentation
-    fun: func(request: better-request) -> tuple<handle<response>, handle<the-thiny>>
+    fun: func(request: better-request) -> tuple<response, the-shiny>
 }
 */
 
@@ -155,4 +155,4 @@ record timestamp {
 my-int: u32
 
 /// A handle to a request
-my-request: handle request
+my-request: request

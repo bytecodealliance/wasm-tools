@@ -18,7 +18,7 @@ resource x
 ## `handle`
 ```wit
 /// This is handle.
-type %handle = handle x
+type handle = x
 ```
 
 ## `some-record`

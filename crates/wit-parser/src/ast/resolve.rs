@@ -379,31 +379,25 @@ impl Resolver {
             super::Type::Float64 => TypeDefKind::Type(Type::Float64),
             super::Type::Char => TypeDefKind::Type(Type::Char),
             super::Type::String => TypeDefKind::Type(Type::String),
-            super::Type::Handle(resource) => {
-                let id = match self.resource_lookup.get(&*resource.name) {
-                    Some(id) => *id,
-                    None => {
-                        return Err(Error {
-                            span: resource.span,
-                            msg: format!("no resource named `{}`", resource.name),
-                        }
-                        .into())
-                    }
-                };
-                TypeDefKind::Type(Type::Handle(id))
-            }
             super::Type::Name(name) => {
-                let id = match self.type_lookup.get(&*name.name) {
-                    Some(id) => *id,
-                    None => {
-                        return Err(Error {
-                            span: name.span,
-                            msg: format!("no type named `{}`", name.name),
+                // Because resources are referred to directly by name,
+                // first check to see if we can look up this name as a
+                // resource.
+                if let Some(id) = self.resource_lookup.get(&*name.name) {
+                    TypeDefKind::Type(Type::Handle(*id))
+                } else {
+                    let id = match self.type_lookup.get(&*name.name) {
+                        Some(id) => *id,
+                        None => {
+                            return Err(Error {
+                                span: name.span,
+                                msg: format!("no type named `{}`", name.name),
+                            }
+                            .into())
                         }
-                        .into())
-                    }
-                };
-                TypeDefKind::Type(Type::Id(id))
+                    };
+                    TypeDefKind::Type(Type::Id(id))
+                }
             }
             super::Type::List(list) => {
                 let ty = self.resolve_type(list)?;

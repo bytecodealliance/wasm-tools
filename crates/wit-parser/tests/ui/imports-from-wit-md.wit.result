@@ -50,27 +50,17 @@
     },
     {
       "idx": 6,
-      "name": "z1",
-      "primitive": "type-1"
-    },
-    {
-      "idx": 7,
-      "name": "z2",
+      "name": "z",
       "primitive": "handle-0"
     },
     {
-      "idx": 8,
+      "idx": 7,
       "primitive": "handle-1"
     },
     {
-      "idx": 9,
+      "idx": 8,
       "name": "my-handle",
       "primitive": "handle-1"
-    },
-    {
-      "idx": 10,
-      "name": "my-handle2",
-      "primitive": "type-8"
     }
   ]
 }
