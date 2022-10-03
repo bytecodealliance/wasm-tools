@@ -5,6 +5,7 @@ use crate::{
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::hash::{Hash, Hasher};
+use std::mem;
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
@@ -455,13 +456,15 @@ struct TypeEncoder<'a> {
 }
 
 impl<'a> TypeEncoder<'a> {
-    fn finish(&self, component: &mut Component) {
+    fn finish(&self, component: &mut ComponentEncoding) {
         if !self.types.is_empty() {
-            component.section(&self.types);
+            component.flush();
+            component.component.section(&self.types);
         }
 
         if !self.exports.is_empty() {
-            component.section(&self.exports);
+            component.flush();
+            component.component.section(&self.exports);
         }
     }
 
@@ -1075,9 +1078,7 @@ impl TypeContents {
 #[derive(Default)]
 struct EncodingState {
     /// The component being encoded.
-    component: Component,
-    /// The various index spaces used in the encoding.
-    indexes: Indexes,
+    component: ComponentEncoding,
     /// The index into the core module index space for the inner core module.
     ///
     /// If `None`, the core module has not been encoded.
@@ -1106,14 +1107,10 @@ struct EncodingState {
 
 impl EncodingState {
     fn encode_core_module(&mut self, module: &[u8]) -> u32 {
-        *self.module_index.get_or_insert_with(|| {
-            self.component.section(&wasm_encoder::RawSection {
-                id: ComponentSectionId::CoreModule.into(),
-                data: module,
-            });
-
-            self.indexes.alloc_core_module()
-        })
+        assert!(self.module_index.is_none());
+        let ret = self.component.core_module_raw(module);
+        self.module_index = Some(ret);
+        ret
     }
 
     fn encode_core_instantiation(
@@ -1131,19 +1128,15 @@ impl EncodingState {
         // Encode a shim instantiation if needed
         self.encode_shim_instantiation(imports);
 
-        let mut instances = InstanceSection::new();
         let args: Vec<_> = imports
             .map
             .iter()
             .enumerate()
             .map(|(instance_index, (name, import))| {
                 let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
-                let mut aliases = ComponentAliasSection::new();
-                let mut functions = CanonicalFunctionSection::new();
 
                 for lowering in &import.indirect {
-                    let index = self.alias_core_item(
-                        &mut aliases,
+                    let index = self.component.alias_core_item(
                         self.shim_instance_index
                             .expect("shim should be instantiated"),
                         ExportKind::Func,
@@ -1153,36 +1146,25 @@ impl EncodingState {
                 }
 
                 for lowering in &import.direct {
-                    let func_index =
-                        self.alias_func(&mut aliases, instance_index as u32, lowering.name);
-                    let core_func_index = self.lower_func(&mut functions, func_index, []);
+                    let func_index = self
+                        .component
+                        .alias_func(instance_index as u32, lowering.name);
+                    let core_func_index = self.component.lower_func(func_index, []);
                     exports.push((lowering.name, ExportKind::Func, core_func_index));
                 }
 
-                self.component.section(&aliases);
-                self.component.section(&functions);
-
-                let index = self.instantiate_core_exports(&mut instances, exports);
+                let index = self.component.instantiate_core_exports(exports);
                 (*name, ModuleArg::Instance(index))
             })
             .collect();
-
-        self.component.section(&instances);
 
         self.instantiate_core_module(args, has_memory, has_realloc);
         self.encode_indirect_lowerings(encoding, imports)
     }
 
     fn encode_imports(&mut self, imports: &ImportEncoder) {
-        let mut section = ComponentImportSection::default();
-
         for (name, import) in &imports.map {
-            section.import(name, import.ty);
-            self.indexes.alloc_instance();
-        }
-
-        if !section.is_empty() {
-            self.component.section(&section);
+            self.component.import(name, import.ty);
         }
     }
 
@@ -1194,20 +1176,14 @@ impl EncodingState {
     ) -> Result<()> {
         let core_instance_index = self.instance_index.expect("must be instantiated");
 
-        let mut section = ComponentExportSection::default();
-        let mut instances = ComponentInstanceSection::new();
-
         for (export, is_default) in exports {
             // Alias the exports from the core module
-            let mut aliases = ComponentAliasSection::new();
-            let mut functions = CanonicalFunctionSection::new();
             let mut interface_exports = Vec::new();
             for func in &export.functions {
                 let name =
                     expected_export_name((!is_default).then(|| export.name.as_str()), &func.name);
 
-                let core_func_index = self.alias_core_item(
-                    &mut aliases,
+                let core_func_index = self.component.alias_core_item(
                     core_instance_index,
                     ExportKind::Func,
                     name.as_ref(),
@@ -1226,19 +1202,19 @@ impl EncodingState {
                     .into_iter(encoding, self.memory_index, self.realloc_index)?
                     .collect::<Vec<_>>();
                 if export.guest_export_needs_post_return(func) {
-                    let post_return = self.alias_core_item(
-                        &mut aliases,
+                    let post_return = self.component.alias_core_item(
                         core_instance_index,
                         ExportKind::Func,
                         &format!("cabi_post_{name}"),
                     );
                     options.push(CanonicalOption::PostReturn(post_return));
                 }
-                let func_index = self.lift_func(&mut functions, core_func_index, ty, options);
+                let func_index = self.component.lift_func(core_func_index, ty, options);
 
                 if is_default {
                     // Directly export the lifted function
-                    section.export(&func.name, ComponentExportKind::Func, func_index);
+                    self.component
+                        .export(&func.name, ComponentExportKind::Func, func_index);
                 } else {
                     // Otherwise, add it to the list for later instantiation
                     interface_exports.push((
@@ -1249,25 +1225,15 @@ impl EncodingState {
                 }
             }
 
-            self.component.section(&aliases);
-            self.component.section(&functions);
-
             if !interface_exports.is_empty() {
                 if export.name.is_empty() {
                     bail!("cannot export an unnamed interface");
                 }
 
-                let instance_index = self.instantiate_exports(&mut instances, interface_exports);
-                section.export(&export.name, ComponentExportKind::Instance, instance_index);
+                let instance_index = self.component.instantiate_exports(interface_exports);
+                self.component
+                    .export(&export.name, ComponentExportKind::Instance, instance_index);
             }
-        }
-
-        if !instances.is_empty() {
-            self.component.section(&instances);
-        }
-
-        if !section.is_empty() {
-            self.component.section(&section);
         }
 
         Ok(())
@@ -1357,15 +1323,9 @@ impl EncodingState {
         fixups.section(&imports_section);
         fixups.section(&elements);
 
-        let shim_module_index = self.indexes.alloc_core_module();
-        self.component.section(&ModuleSection(&shim));
-
-        self.fixups_module_index = Some(self.indexes.alloc_core_module());
-        self.component.section(&ModuleSection(&fixups));
-
-        let mut instances = InstanceSection::default();
-        self.shim_instance_index = Some(self.instantiate(&mut instances, shim_module_index, []));
-        self.component.section(&instances);
+        let shim_module_index = self.component.core_module(&shim);
+        self.fixups_module_index = Some(self.component.core_module(&fixups));
+        self.shim_instance_index = Some(self.component.instantiate(shim_module_index, []));
     }
 
     fn encode_shim_function(
@@ -1400,9 +1360,7 @@ impl EncodingState {
             .shim_instance_index
             .expect("must have an instantiated shim");
 
-        let mut aliases = ComponentAliasSection::new();
-        let table_index = self.alias_core_item(
-            &mut aliases,
+        let table_index = self.component.alias_core_item(
             shim_instance_index,
             ExportKind::Table,
             INDIRECT_TABLE_NAME,
@@ -1411,14 +1369,13 @@ impl EncodingState {
         let mut exports = Vec::with_capacity(imports.indirect_count as usize);
         exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
 
-        let mut functions = CanonicalFunctionSection::new();
         for (instance_index, import) in imports.map.values().enumerate() {
             for lowering in &import.indirect {
-                let func_index =
-                    self.alias_func(&mut aliases, instance_index as u32, lowering.name);
+                let func_index = self
+                    .component
+                    .alias_func(instance_index as u32, lowering.name);
 
-                let core_func_index = self.lower_func(
-                    &mut functions,
+                let core_func_index = self.component.lower_func(
                     func_index,
                     lowering
                         .options
@@ -1433,17 +1390,11 @@ impl EncodingState {
             }
         }
 
-        self.component.section(&aliases);
-        self.component.section(&functions);
-
-        let mut instances = InstanceSection::new();
-        let instance_index = self.instantiate_core_exports(&mut instances, exports);
-        self.instantiate(
-            &mut instances,
+        let instance_index = self.component.instantiate_core_exports(exports);
+        self.component.instantiate(
             self.fixups_module_index.expect("must have fixup module"),
             [("", ModuleArg::Instance(instance_index))],
         );
-        self.component.section(&instances);
         Ok(())
     }
 
@@ -1454,18 +1405,12 @@ impl EncodingState {
     {
         assert!(self.instance_index.is_none());
 
-        let mut instances = InstanceSection::new();
-        let mut aliases = ComponentAliasSection::new();
-
-        let instance_index = self.instantiate(
-            &mut instances,
-            self.module_index.expect("core module encoded"),
-            args,
-        );
+        let instance_index = self
+            .component
+            .instantiate(self.module_index.expect("core module encoded"), args);
 
         if has_memory {
-            self.memory_index = Some(self.alias_core_item(
-                &mut aliases,
+            self.memory_index = Some(self.component.alias_core_item(
                 instance_index,
                 ExportKind::Memory,
                 "memory",
@@ -1473,113 +1418,14 @@ impl EncodingState {
         }
 
         if has_realloc {
-            self.realloc_index = Some(self.alias_core_item(
-                &mut aliases,
+            self.realloc_index = Some(self.component.alias_core_item(
                 instance_index,
                 ExportKind::Func,
                 "cabi_realloc",
             ));
         }
 
-        self.component.section(&instances);
-        self.component.section(&aliases);
-
         self.instance_index = Some(instance_index);
-    }
-
-    fn instantiate<'a, A>(
-        &mut self,
-        instances: &mut InstanceSection,
-        module_index: u32,
-        args: A,
-    ) -> u32
-    where
-        A: IntoIterator<Item = (&'a str, ModuleArg)>,
-        A::IntoIter: ExactSizeIterator,
-    {
-        instances.instantiate(module_index, args);
-        self.indexes.alloc_core_instance()
-    }
-
-    fn alias_core_item(
-        &mut self,
-        aliases: &mut ComponentAliasSection,
-        instance: u32,
-        kind: ExportKind,
-        name: &str,
-    ) -> u32 {
-        aliases.core_instance_export(instance, kind, name);
-        match kind {
-            ExportKind::Func => self.indexes.alloc_core_func(),
-            ExportKind::Table => self.indexes.alloc_core_table(),
-            ExportKind::Memory => self.indexes.alloc_core_memory(),
-            ExportKind::Global | ExportKind::Tag => unreachable!(),
-        }
-    }
-
-    fn alias_func(
-        &mut self,
-        aliases: &mut ComponentAliasSection,
-        instance: u32,
-        name: &str,
-    ) -> u32 {
-        aliases.instance_export(instance, ComponentExportKind::Func, name);
-        self.indexes.alloc_func()
-    }
-
-    fn lower_func<O>(
-        &mut self,
-        functions: &mut CanonicalFunctionSection,
-        func_index: u32,
-        options: O,
-    ) -> u32
-    where
-        O: IntoIterator<Item = CanonicalOption>,
-        O::IntoIter: ExactSizeIterator,
-    {
-        functions.lower(func_index, options);
-        self.indexes.alloc_core_func()
-    }
-
-    fn lift_func<O>(
-        &mut self,
-        functions: &mut CanonicalFunctionSection,
-        core_func_index: u32,
-        type_index: u32,
-        options: O,
-    ) -> u32
-    where
-        O: IntoIterator<Item = CanonicalOption>,
-        O::IntoIter: ExactSizeIterator,
-    {
-        functions.lift(core_func_index, type_index, options);
-        self.indexes.alloc_func()
-    }
-
-    fn instantiate_core_exports<'a, E>(
-        &mut self,
-        instances: &mut InstanceSection,
-        exports: E,
-    ) -> u32
-    where
-        E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
-        E::IntoIter: ExactSizeIterator,
-    {
-        instances.export_items(exports);
-        self.indexes.alloc_core_instance()
-    }
-
-    fn instantiate_exports<'a, E>(
-        &mut self,
-        instances: &mut ComponentInstanceSection,
-        exports: E,
-    ) -> u32
-    where
-        E: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
-        E::IntoIter: ExactSizeIterator,
-    {
-        instances.export_items(exports);
-        self.indexes.alloc_instance()
     }
 }
 
@@ -1601,6 +1447,177 @@ struct ImportedInterface<'a> {
     ty: ComponentTypeRef,
     direct: Vec<DirectLowering<'a>>,
     indirect: Vec<IndirectLowering<'a>>,
+}
+
+#[derive(Default)]
+struct ComponentEncoding {
+    component: Component,
+    /// The last section which was appended to during encoding.
+    last_section: LastSection,
+    // Core index spaces
+    core_modules: u32,
+    core_funcs: u32,
+    core_memories: u32,
+    core_tables: u32,
+    core_instances: u32,
+
+    // Component index spaces
+    funcs: u32,
+    instances: u32,
+}
+
+impl ComponentEncoding {
+    fn finish(mut self) -> Vec<u8> {
+        self.flush();
+        self.component.finish()
+    }
+
+    fn instantiate<'a, A>(&mut self, module_index: u32, args: A) -> u32
+    where
+        A: IntoIterator<Item = (&'a str, ModuleArg)>,
+        A::IntoIter: ExactSizeIterator,
+    {
+        self.instances().instantiate(module_index, args);
+        inc(&mut self.core_instances)
+    }
+
+    fn alias_func(&mut self, instance: u32, name: &str) -> u32 {
+        self.aliases()
+            .instance_export(instance, ComponentExportKind::Func, name);
+        inc(&mut self.funcs)
+    }
+
+    fn lower_func<O>(&mut self, func_index: u32, options: O) -> u32
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.canonical_functions().lower(func_index, options);
+        inc(&mut self.core_funcs)
+    }
+
+    fn lift_func<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> u32
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.canonical_functions()
+            .lift(core_func_index, type_index, options);
+        inc(&mut self.funcs)
+    }
+
+    fn instantiate_core_exports<'a, E>(&mut self, exports: E) -> u32
+    where
+        E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
+        E::IntoIter: ExactSizeIterator,
+    {
+        self.instances().export_items(exports);
+        inc(&mut self.core_instances)
+    }
+
+    fn instantiate_exports<'a, E>(&mut self, exports: E) -> u32
+    where
+        E: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
+        E::IntoIter: ExactSizeIterator,
+    {
+        self.component_instances().export_items(exports);
+        inc(&mut self.instances)
+    }
+
+    fn core_module(&mut self, module: &Module) -> u32 {
+        self.flush();
+        self.component.section(&ModuleSection(module));
+        inc(&mut self.core_modules)
+    }
+
+    fn core_module_raw(&mut self, module: &[u8]) -> u32 {
+        self.flush();
+        self.component.section(&wasm_encoder::RawSection {
+            id: ComponentSectionId::CoreModule.into(),
+            data: module,
+        });
+        inc(&mut self.core_modules)
+    }
+
+    fn alias_core_item(&mut self, instance: u32, kind: ExportKind, name: &str) -> u32 {
+        self.aliases().core_instance_export(instance, kind, name);
+        match kind {
+            ExportKind::Func => inc(&mut self.core_funcs),
+            ExportKind::Table => inc(&mut self.core_tables),
+            ExportKind::Memory => inc(&mut self.core_memories),
+            ExportKind::Global | ExportKind::Tag => unreachable!(),
+        }
+    }
+
+    fn export(&mut self, name: &str, kind: ComponentExportKind, idx: u32) {
+        self.exports().export(name, kind, idx);
+    }
+
+    fn import(&mut self, name: &str, ty: ComponentTypeRef) -> u32 {
+        let ret = match &ty {
+            ComponentTypeRef::Instance(_) => inc(&mut self.instances),
+            ComponentTypeRef::Func(_) => inc(&mut self.funcs),
+            _ => unimplemented!(),
+        };
+        self.imports().import(name, ty);
+        ret
+    }
+}
+
+macro_rules! section_accessors {
+    ($($method:ident => $section:ident)*) => (
+        #[derive(Default)]
+        enum LastSection {
+            #[default]
+            None,
+            $($section($section),)*
+        }
+
+        impl ComponentEncoding {
+            $(
+                fn $method(&mut self) -> &mut $section {
+                    match &self.last_section {
+                        LastSection::$section(_) => {}
+                        _ => {
+                            self.flush();
+                            self.last_section = LastSection::$section($section::new());
+                        }
+                    }
+                    match &mut self.last_section {
+                        LastSection::$section(ret) => ret,
+                        _ => unreachable!()
+                    }
+                }
+            )*
+
+            fn flush(&mut self) {
+                match mem::take(&mut self.last_section) {
+                    LastSection::None => {}
+                    $(
+                        LastSection::$section(section) => {
+                            self.component.section(&section);
+                        }
+                    )*
+                }
+            }
+
+        }
+    )
+}
+
+section_accessors! {
+    component_instances => ComponentInstanceSection
+    instances => InstanceSection
+    canonical_functions => CanonicalFunctionSection
+    aliases => ComponentAliasSection
+    exports => ComponentExportSection
+    imports => ComponentImportSection
+}
+
+fn inc(idx: &mut u32) -> u32 {
+    let ret = *idx;
+    *idx += 1;
+    ret
 }
 
 /// The import encoder handles indirect lowering of any imports
@@ -1669,64 +1686,6 @@ impl<'a> ImportEncoder<'a> {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Default)]
-struct Indexes {
-    // Core index spaces
-    core_modules: u32,
-    core_funcs: u32,
-    core_memories: u32,
-    core_tables: u32,
-    core_instances: u32,
-
-    // Component index spaces
-    funcs: u32,
-    instances: u32,
-}
-
-impl Indexes {
-    fn alloc_core_module(&mut self) -> u32 {
-        let index = self.core_modules;
-        self.core_modules += 1;
-        index
-    }
-
-    fn alloc_core_func(&mut self) -> u32 {
-        let index = self.core_funcs;
-        self.core_funcs += 1;
-        index
-    }
-
-    fn alloc_core_memory(&mut self) -> u32 {
-        let index = self.core_memories;
-        self.core_memories += 1;
-        index
-    }
-
-    fn alloc_core_table(&mut self) -> u32 {
-        let index = self.core_tables;
-        self.core_tables += 1;
-        index
-    }
-
-    fn alloc_core_instance(&mut self) -> u32 {
-        let index = self.core_instances;
-        self.core_instances += 1;
-        index
-    }
-
-    fn alloc_func(&mut self) -> u32 {
-        let index = self.funcs;
-        self.funcs += 1;
-        index
-    }
-
-    fn alloc_instance(&mut self) -> u32 {
-        let index = self.instances;
-        self.instances += 1;
-        index
     }
 }
 
@@ -1859,7 +1818,7 @@ impl<'a> InterfaceEncoder<'a> {
 
     /// Encode the interface as a component and return the bytes.
     pub fn encode(&self) -> Result<Vec<u8>> {
-        let mut component = Component::default();
+        let mut component = ComponentEncoding::default();
 
         let mut types = TypeEncoder::default();
         types.encode_func_types([(self.interface, true)].into_iter(), true)?;
