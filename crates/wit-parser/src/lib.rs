@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 pub mod abi;
 mod ast;
-pub mod mangle;
 mod sizealign;
 pub use sizealign::*;
 
