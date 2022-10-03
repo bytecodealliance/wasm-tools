@@ -1,13 +1,13 @@
 [package]
 name = "wit-parser"
-version = "0.2.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 id-arena = "2"
-anyhow = "1.0"
-pulldown-cmark = { version = "0.8", default-features = false }
+anyhow = { workspace = true }
+pulldown-cmark = { workspace = true }
 unicode-xid = "0.2.2"
 unicode-normalization = "0.1.19"
 
