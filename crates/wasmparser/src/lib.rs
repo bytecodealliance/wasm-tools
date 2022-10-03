@@ -319,12 +319,12 @@ macro_rules! for_each_operator {
 
             // 0xFC operators
             // bulk memory https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md
-            @bulk_memory MemoryInit { segment: u32, mem: u32 } => visit_memory_init
-            @bulk_memory DataDrop { segment: u32 } => visit_data_drop
+            @bulk_memory MemoryInit { data_index: u32, mem: u32 } => visit_memory_init
+            @bulk_memory DataDrop { data_index: u32 } => visit_data_drop
             @bulk_memory MemoryCopy { dst_mem: u32, src_mem: u32 } => visit_memory_copy
             @bulk_memory MemoryFill { mem: u32 } => visit_memory_fill
-            @bulk_memory TableInit { segment: u32, table: u32 } => visit_table_init
-            @bulk_memory ElemDrop { segment: u32 } => visit_elem_drop
+            @bulk_memory TableInit { elem_index: u32, table: u32 } => visit_table_init
+            @bulk_memory ElemDrop { elem_index: u32 } => visit_elem_drop
             @bulk_memory TableCopy { dst_table: u32, src_table: u32 } => visit_table_copy
             @bulk_memory TableFill { table: u32 } => visit_table_fill
             @bulk_memory TableGet { table: u32 } => visit_table_get
@@ -337,7 +337,7 @@ macro_rules! for_each_operator {
             @threads MemoryAtomicNotify { memarg: $crate::MemArg } => visit_memory_atomic_notify
             @threads MemoryAtomicWait32 { memarg: $crate::MemArg } => visit_memory_atomic_wait32
             @threads MemoryAtomicWait64 { memarg: $crate::MemArg } => visit_memory_atomic_wait64
-            @threads AtomicFence { flags: u8 } => visit_atomic_fence
+            @threads AtomicFence => visit_atomic_fence
             @threads I32AtomicLoad { memarg: $crate::MemArg } => visit_i32_atomic_load
             @threads I64AtomicLoad { memarg: $crate::MemArg } => visit_i64_atomic_load
             @threads I32AtomicLoad8U { memarg: $crate::MemArg } => visit_i32_atomic_load8_u

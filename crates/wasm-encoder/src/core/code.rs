@@ -321,6 +321,8 @@ pub enum Instruction<'a> {
     Return,
     Call(u32),
     CallIndirect { ty: u32, table: u32 },
+    ReturnCall(u32),
+    ReturnCallIndirect { ty: u32, table: u32 },
     Throw(u32),
     Rethrow(u32),
 
@@ -361,7 +363,7 @@ pub enum Instruction<'a> {
     I64Store32(MemArg),
     MemorySize(u32),
     MemoryGrow(u32),
-    MemoryInit { mem: u32, segment: u32 },
+    MemoryInit { mem: u32, data_index: u32 },
     DataDrop(u32),
     MemoryCopy { src_mem: u32, dst_mem: u32 },
     MemoryFill(u32),
@@ -515,7 +517,7 @@ pub enum Instruction<'a> {
     RefFunc(u32),
 
     // Bulk memory instructions.
-    TableInit { segment: u32, table: u32 },
+    TableInit { elem_index: u32, table: u32 },
     ElemDrop(u32),
     TableFill(u32),
     TableSet(u32),
@@ -912,6 +914,15 @@ impl Encode for Instruction<'_> {
                 ty.encode(sink);
                 table.encode(sink);
             }
+            Instruction::ReturnCall(f) => {
+                sink.push(0x12);
+                f.encode(sink);
+            }
+            Instruction::ReturnCallIndirect { ty, table } => {
+                sink.push(0x13);
+                ty.encode(sink);
+                table.encode(sink);
+            }
             Instruction::Delegate(l) => {
                 sink.push(0x18);
                 l.encode(sink);
@@ -1059,10 +1070,10 @@ impl Encode for Instruction<'_> {
                 sink.push(0x40);
                 i.encode(sink);
             }
-            Instruction::MemoryInit { mem, segment } => {
+            Instruction::MemoryInit { mem, data_index } => {
                 sink.push(0xfc);
                 sink.push(0x08);
-                segment.encode(sink);
+                data_index.encode(sink);
                 mem.encode(sink);
             }
             Instruction::DataDrop(data) => {
@@ -1275,10 +1286,10 @@ impl Encode for Instruction<'_> {
             }
 
             // Bulk memory instructions.
-            Instruction::TableInit { segment, table } => {
+            Instruction::TableInit { elem_index, table } => {
                 sink.push(0xfc);
                 sink.push(0x0c);
-                segment.encode(sink);
+                elem_index.encode(sink);
                 table.encode(sink);
             }
             Instruction::ElemDrop(segment) => {

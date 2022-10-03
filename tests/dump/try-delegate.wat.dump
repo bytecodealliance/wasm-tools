@@ -11,8 +11,8 @@
 ============== func 0 ====================
  0x15 | 09          | size of function
  0x16 | 00          | 0 local blocks
- 0x17 | 06 40       | try ty:Empty
- 0x19 | 06 40       | try ty:Empty
+ 0x17 | 06 40       | try blockty:Empty
+ 0x19 | 06 40       | try blockty:Empty
  0x1b | 18 00       | delegate relative_depth:0
  0x1d | 0b          | end
  0x1e | 0b          | end

@@ -2009,7 +2009,12 @@ impl<'a> BinaryReader<'a> {
             0x00 => visitor.visit_memory_atomic_notify(pos, self.read_memarg_of_align(2)?),
             0x01 => visitor.visit_memory_atomic_wait32(pos, self.read_memarg_of_align(2)?),
             0x02 => visitor.visit_memory_atomic_wait64(pos, self.read_memarg_of_align(3)?),
-            0x03 => visitor.visit_atomic_fence(pos, self.read_u8()? as u8),
+            0x03 => {
+                if self.read_u8()? != 0 {
+                    bail!(pos, "nonzero byte after `atomic.fence`");
+                }
+                visitor.visit_atomic_fence(pos)
+            }
             0x10 => visitor.visit_i32_atomic_load(pos, self.read_memarg_of_align(2)?),
             0x11 => visitor.visit_i64_atomic_load(pos, self.read_memarg_of_align(3)?),
             0x12 => visitor.visit_i32_atomic_load8_u(pos, self.read_memarg_of_align(0)?),
@@ -2211,8 +2216,8 @@ impl<'a> BrTable<'a> {
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
     /// let mut reader = wasmparser::BinaryReader::new(&buf);
     /// let op = reader.read_operator().unwrap();
-    /// if let wasmparser::Operator::BrTable { table } = op {
-    ///     let targets = table.targets().collect::<Result<Vec<_>, _>>().unwrap();
+    /// if let wasmparser::Operator::BrTable { targets } = op {
+    ///     let targets = targets.targets().collect::<Result<Vec<_>, _>>().unwrap();
     ///     assert_eq!(targets, [1, 2]);
     /// }
     /// ```

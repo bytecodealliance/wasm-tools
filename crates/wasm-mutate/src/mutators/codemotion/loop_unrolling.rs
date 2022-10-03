@@ -94,9 +94,9 @@ impl LoopUnrollWriter {
                                 to_fix.insert(idx, Instruction::BrIf(relative_depth + 1));
                             }
                         }
-                        Operator::BrTable { table } => {
+                        Operator::BrTable { targets } => {
                             let mut jmpfix = vec![];
-                            for i in table.targets() {
+                            for i in targets.targets() {
                                 let d = i?;
                                 if d > current_depth {
                                     // Out jump...annotate for fixing
@@ -106,7 +106,7 @@ impl LoopUnrollWriter {
                                 }
                             }
 
-                            let mut def = table.default();
+                            let mut def = targets.default();
                             if def > current_depth {
                                 def += 1;
                             }

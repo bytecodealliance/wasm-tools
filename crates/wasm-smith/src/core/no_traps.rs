@@ -157,7 +157,7 @@ impl Module {
                                 ValType::V128 if can_store_args_to_memory => {
                                     new_insts.push(address.clone());
                                     new_insts.push(Instruction::LocalGet(val_to_store));
-                                    new_insts.push(Instruction::V128Store { memarg });
+                                    new_insts.push(Instruction::V128Store(memarg));
                                 }
                                 _ => {
                                     new_insts.push(Instruction::Drop);
@@ -177,29 +177,29 @@ impl Module {
                     | Instruction::I64Load(memarg)
                     | Instruction::F32Load(memarg)
                     | Instruction::F64Load(memarg)
-                    | Instruction::I32Load8_S(memarg)
-                    | Instruction::I32Load8_U(memarg)
-                    | Instruction::I32Load16_S(memarg)
-                    | Instruction::I32Load16_U(memarg)
-                    | Instruction::I64Load8_S(memarg)
-                    | Instruction::I64Load8_U(memarg)
-                    | Instruction::I64Load16_S(memarg)
-                    | Instruction::I64Load16_U(memarg)
-                    | Instruction::I64Load32_S(memarg)
-                    | Instruction::I64Load32_U(memarg)
-                    | Instruction::V128Load { memarg }
-                    | Instruction::V128Load8x8S { memarg }
-                    | Instruction::V128Load8x8U { memarg }
-                    | Instruction::V128Load16x4S { memarg }
-                    | Instruction::V128Load16x4U { memarg }
-                    | Instruction::V128Load32x2S { memarg }
-                    | Instruction::V128Load32x2U { memarg }
-                    | Instruction::V128Load8Splat { memarg }
-                    | Instruction::V128Load16Splat { memarg }
-                    | Instruction::V128Load32Splat { memarg }
-                    | Instruction::V128Load64Splat { memarg }
-                    | Instruction::V128Load32Zero { memarg }
-                    | Instruction::V128Load64Zero { memarg } => {
+                    | Instruction::I32Load8S(memarg)
+                    | Instruction::I32Load8U(memarg)
+                    | Instruction::I32Load16S(memarg)
+                    | Instruction::I32Load16U(memarg)
+                    | Instruction::I64Load8S(memarg)
+                    | Instruction::I64Load8U(memarg)
+                    | Instruction::I64Load16S(memarg)
+                    | Instruction::I64Load16U(memarg)
+                    | Instruction::I64Load32S(memarg)
+                    | Instruction::I64Load32U(memarg)
+                    | Instruction::V128Load(memarg)
+                    | Instruction::V128Load8x8S(memarg)
+                    | Instruction::V128Load8x8U(memarg)
+                    | Instruction::V128Load16x4S(memarg)
+                    | Instruction::V128Load16x4U(memarg)
+                    | Instruction::V128Load32x2S(memarg)
+                    | Instruction::V128Load32x2U(memarg)
+                    | Instruction::V128Load8Splat(memarg)
+                    | Instruction::V128Load16Splat(memarg)
+                    | Instruction::V128Load32Splat(memarg)
+                    | Instruction::V128Load64Splat(memarg)
+                    | Instruction::V128Load32Zero(memarg)
+                    | Instruction::V128Load64Zero(memarg) => {
                         let memory = &self.memories[memarg.memory_index as usize];
                         let address_type = if memory.memory64 {
                             ValType::I64
@@ -280,7 +280,7 @@ impl Module {
                     | Instruction::I64Store8(memarg)
                     | Instruction::I64Store16(memarg)
                     | Instruction::I64Store32(memarg)
-                    | Instruction::V128Store { memarg } => {
+                    | Instruction::V128Store(memarg) => {
                         let memory = &self.memories[memarg.memory_index as usize];
                         let address_type = if memory.memory64 {
                             ValType::I64
@@ -347,11 +347,15 @@ impl Module {
                         return Err(NotSupported { opcode: inst })
                     }
 
-                    Instruction::MemoryCopy { src: _, dst: _ }
-                    | Instruction::MemoryFill(_)
-                    | Instruction::MemoryInit { mem: _, data: _ } => {
-                        return Err(NotSupported { opcode: inst })
+                    Instruction::MemoryCopy {
+                        src_mem: _,
+                        dst_mem: _,
                     }
+                    | Instruction::MemoryFill(_)
+                    | Instruction::MemoryInit {
+                        mem: _,
+                        data_index: _,
+                    } => return Err(NotSupported { opcode: inst }),
 
                     // Unsigned integer division and remainder will trap when
                     // the divisor is 0. To avoid the trap, we will set any 0
@@ -521,16 +525,17 @@ impl Module {
                         // [input_or_0:conv_type]
                         new_insts.push(inst);
                     }
-                    Instruction::TableFill { table: _ }
-                    | Instruction::TableSet { table: _ }
-                    | Instruction::TableGet { table: _ }
+                    Instruction::TableFill(_)
+                    | Instruction::TableSet(_)
+                    | Instruction::TableGet(_)
                     | Instruction::TableInit {
-                        segment: _,
+                        elem_index: _,
                         table: _,
                     }
-                    | Instruction::TableCopy { src: _, dst: _ } => {
-                        return Err(NotSupported { opcode: inst })
-                    }
+                    | Instruction::TableCopy {
+                        src_table: _,
+                        dst_table: _,
+                    } => return Err(NotSupported { opcode: inst }),
 
                     // None of the other instructions can trap, so just copy them over.
                     inst => new_insts.push(inst),
@@ -691,21 +696,21 @@ fn type_of_float_conversion(inst: &Instruction) -> ValType {
 fn type_of_memory_access(inst: &Instruction) -> ValType {
     match inst {
         Instruction::I32Load(_)
-        | Instruction::I32Load8_S(_)
-        | Instruction::I32Load8_U(_)
-        | Instruction::I32Load16_S(_)
-        | Instruction::I32Load16_U(_)
+        | Instruction::I32Load8S(_)
+        | Instruction::I32Load8U(_)
+        | Instruction::I32Load16S(_)
+        | Instruction::I32Load16U(_)
         | Instruction::I32Store(_)
         | Instruction::I32Store8(_)
         | Instruction::I32Store16(_) => ValType::I32,
 
         Instruction::I64Load(_)
-        | Instruction::I64Load8_S(_)
-        | Instruction::I64Load8_U(_)
-        | Instruction::I64Load16_S(_)
-        | Instruction::I64Load16_U(_)
-        | Instruction::I64Load32_S(_)
-        | Instruction::I64Load32_U(_)
+        | Instruction::I64Load8S(_)
+        | Instruction::I64Load8U(_)
+        | Instruction::I64Load16S(_)
+        | Instruction::I64Load16U(_)
+        | Instruction::I64Load32S(_)
+        | Instruction::I64Load32U(_)
         | Instruction::I64Store(_)
         | Instruction::I64Store8(_)
         | Instruction::I64Store16(_)
@@ -715,20 +720,20 @@ fn type_of_memory_access(inst: &Instruction) -> ValType {
 
         Instruction::F64Load(_) | Instruction::F64Store(_) => ValType::F64,
 
-        Instruction::V128Load { .. }
-        | Instruction::V128Load8x8S { .. }
-        | Instruction::V128Load8x8U { .. }
-        | Instruction::V128Load16x4S { .. }
-        | Instruction::V128Load16x4U { .. }
-        | Instruction::V128Load32x2S { .. }
-        | Instruction::V128Load32x2U { .. }
-        | Instruction::V128Load8Splat { .. }
-        | Instruction::V128Load16Splat { .. }
-        | Instruction::V128Load32Splat { .. }
-        | Instruction::V128Load64Splat { .. }
-        | Instruction::V128Load32Zero { .. }
-        | Instruction::V128Load64Zero { .. }
-        | Instruction::V128Store { .. } => ValType::V128,
+        Instruction::V128Load(_)
+        | Instruction::V128Load8x8S(_)
+        | Instruction::V128Load8x8U(_)
+        | Instruction::V128Load16x4S(_)
+        | Instruction::V128Load16x4U(_)
+        | Instruction::V128Load32x2S(_)
+        | Instruction::V128Load32x2U(_)
+        | Instruction::V128Load8Splat(_)
+        | Instruction::V128Load16Splat(_)
+        | Instruction::V128Load32Splat(_)
+        | Instruction::V128Load64Splat(_)
+        | Instruction::V128Load32Zero(_)
+        | Instruction::V128Load64Zero(_)
+        | Instruction::V128Store(_) => ValType::V128,
 
         _ => panic!("not a memory access instruction"),
     }

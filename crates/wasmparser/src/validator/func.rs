@@ -296,7 +296,7 @@ mod tests {
             .op(
                 1,
                 &Operator::Block {
-                    ty: crate::BlockType::Empty
+                    blockty: crate::BlockType::Empty
                 }
             )
             .is_ok());

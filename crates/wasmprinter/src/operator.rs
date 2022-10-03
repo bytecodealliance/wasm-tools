@@ -1079,7 +1079,7 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
         self.mem_instr("i64.atomic.rmw32.cmpxchg_u", &memarg, 4)
     }
 
-    fn visit_atomic_fence(&mut self, _pos: usize, _flags: u8) -> Self::Output {
+    fn visit_atomic_fence(&mut self, _pos: usize) -> Self::Output {
         self.instr("atomic.fence")
     }
 

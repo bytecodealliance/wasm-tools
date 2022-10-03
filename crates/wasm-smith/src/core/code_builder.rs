@@ -1746,7 +1746,7 @@ fn i32_load_8_s(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load8_S(memarg))
+    Ok(Instruction::I32Load8S(memarg))
 }
 
 fn i32_load_8_u(
@@ -1756,7 +1756,7 @@ fn i32_load_8_u(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load8_U(memarg))
+    Ok(Instruction::I32Load8U(memarg))
 }
 
 fn i32_load_16_s(
@@ -1766,7 +1766,7 @@ fn i32_load_16_s(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load16_S(memarg))
+    Ok(Instruction::I32Load16S(memarg))
 }
 
 fn i32_load_16_u(
@@ -1776,7 +1776,7 @@ fn i32_load_16_u(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
-    Ok(Instruction::I32Load16_U(memarg))
+    Ok(Instruction::I32Load16U(memarg))
 }
 
 fn i64_load_8_s(
@@ -1786,7 +1786,7 @@ fn i64_load_8_s(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load8_S(memarg))
+    Ok(Instruction::I64Load8S(memarg))
 }
 
 fn i64_load_16_s(
@@ -1796,7 +1796,7 @@ fn i64_load_16_s(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load16_S(memarg))
+    Ok(Instruction::I64Load16S(memarg))
 }
 
 fn i64_load_32_s(
@@ -1806,7 +1806,7 @@ fn i64_load_32_s(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load32_S(memarg))
+    Ok(Instruction::I64Load32S(memarg))
 }
 
 fn i64_load_8_u(
@@ -1816,7 +1816,7 @@ fn i64_load_8_u(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load8_U(memarg))
+    Ok(Instruction::I64Load8U(memarg))
 }
 
 fn i64_load_16_u(
@@ -1826,7 +1826,7 @@ fn i64_load_16_u(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load16_U(memarg))
+    Ok(Instruction::I64Load16U(memarg))
 }
 
 fn i64_load_32_u(
@@ -1836,7 +1836,7 @@ fn i64_load_32_u(
 ) -> Result<Instruction> {
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
-    Ok(Instruction::I64Load32_U(memarg))
+    Ok(Instruction::I64Load32U(memarg))
 }
 
 #[inline]
@@ -2014,9 +2014,9 @@ fn memory_init(
         ValType::I64
     };
     let mem = memory_index(u, builder, ty)?;
-    let data = data_index(u, module)?;
+    let data_index = data_index(u, module)?;
     builder.pop_operands(&[ty]);
-    Ok(Instruction::MemoryInit { mem, data })
+    Ok(Instruction::MemoryInit { mem, data_index })
 }
 
 #[inline]
@@ -2079,7 +2079,8 @@ fn memory_copy(
     _module: &Module,
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
-    let (src, dst) = if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64]) {
+    let (src_mem, dst_mem) = if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64])
+    {
         builder.pop_operands(&[ValType::I64, ValType::I64, ValType::I64]);
         (
             memory_index(u, builder, ValType::I64)?,
@@ -2106,7 +2107,7 @@ fn memory_copy(
     } else {
         unreachable!()
     };
-    Ok(Instruction::MemoryCopy { dst, src })
+    Ok(Instruction::MemoryCopy { dst_mem, src_mem })
 }
 
 #[inline]
@@ -3302,7 +3303,7 @@ fn table_fill(
     let ty = pop_reference_type(builder);
     builder.pop_operands(&[ValType::I32]);
     let table = table_index(ty, u, module)?;
-    Ok(Instruction::TableFill { table })
+    Ok(Instruction::TableFill(table))
 }
 
 #[inline]
@@ -3322,7 +3323,7 @@ fn table_set(
     let ty = pop_reference_type(builder);
     builder.pop_operands(&[ValType::I32]);
     let table = table_index(ty, u, module)?;
-    Ok(Instruction::TableSet { table })
+    Ok(Instruction::TableSet(table))
 }
 
 #[inline]
@@ -3341,7 +3342,7 @@ fn table_get(
     let idx = u.int_in_range(0..=module.tables.len() - 1)?;
     let ty = module.tables[idx].element_type;
     builder.push_operands(&[ty]);
-    Ok(Instruction::TableGet { table: idx as u32 })
+    Ok(Instruction::TableGet(idx as u32))
 }
 
 #[inline]
@@ -3356,7 +3357,7 @@ fn table_size(
 ) -> Result<Instruction> {
     let table = u.int_in_range(0..=module.tables.len() - 1)? as u32;
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::TableSize { table })
+    Ok(Instruction::TableSize(table))
 }
 
 #[inline]
@@ -3377,7 +3378,7 @@ fn table_grow(
     let ty = pop_reference_type(builder);
     let table = table_index(ty, u, module)?;
     builder.push_operands(&[ValType::I32]);
-    Ok(Instruction::TableGrow { table })
+    Ok(Instruction::TableGrow(table))
 }
 
 #[inline]
@@ -3393,9 +3394,12 @@ fn table_copy(
     builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
-    let src = u.int_in_range(0..=module.tables.len() - 1)? as u32;
-    let dst = table_index(module.tables[src as usize].element_type, u, module)?;
-    Ok(Instruction::TableCopy { src, dst })
+    let src_table = u.int_in_range(0..=module.tables.len() - 1)? as u32;
+    let dst_table = table_index(module.tables[src_table as usize].element_type, u, module)?;
+    Ok(Instruction::TableCopy {
+        src_table,
+        dst_table,
+    })
 }
 
 #[inline]
@@ -3421,7 +3425,7 @@ fn table_init(
     let segment = *u.choose(&segments)?;
     let table = table_index(module.elems[segment].ty, u, module)?;
     Ok(Instruction::TableInit {
-        segment: segment as u32,
+        elem_index: segment as u32,
         table,
     })
 }
@@ -3437,7 +3441,7 @@ fn elem_drop(
     _builder: &mut CodeBuilder,
 ) -> Result<Instruction> {
     let segment = u.int_in_range(0..=module.elems.len() - 1)? as u32;
-    Ok(Instruction::ElemDrop { segment })
+    Ok(Instruction::ElemDrop(segment))
 }
 
 fn pop_reference_type(builder: &mut CodeBuilder) -> ValType {
@@ -3566,7 +3570,7 @@ macro_rules! simd_load {
         ) -> Result<Instruction> {
             let memarg = mem_arg(u, module, builder, $alignments)?;
             builder.push_operands(&[ValType::V128]);
-            Ok(Instruction::$instruction { memarg })
+            Ok(Instruction::$instruction(memarg))
         }
     };
 }
@@ -3592,7 +3596,7 @@ fn v128_store(
 ) -> Result<Instruction> {
     builder.pop_operands(&[ValType::V128]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3, 4])?;
-    Ok(Instruction::V128Store { memarg })
+    Ok(Instruction::V128Store(memarg))
 }
 
 macro_rules! simd_load_lane {
@@ -3657,7 +3661,7 @@ fn i8x16_shuffle(
     for i in 0..16 {
         lanes[i] = u.int_in_range(0..=31)?;
     }
-    Ok(Instruction::I8x16Shuffle { lanes })
+    Ok(Instruction::I8x16Shuffle(lanes))
 }
 
 macro_rules! simd_lane_access {
@@ -3669,9 +3673,7 @@ macro_rules! simd_lane_access {
         ) -> Result<Instruction> {
             builder.pop_operands($in_types);
             builder.push_operands($out_types);
-            Ok(Instruction::$instruction {
-                lane: lane_index(u, $number_of_lanes)?,
-            })
+            Ok(Instruction::$instruction(lane_index(u, $number_of_lanes)?))
         }
     };
 }
