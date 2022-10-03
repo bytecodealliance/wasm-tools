@@ -1,22 +1,22 @@
 [package]
 name = "wasm-mutate"
 version = "0.2.9"
-edition = "2021"
+edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-mutate"
 description = "A WebAssembly test case mutator"
 
 [dependencies]
-clap = { optional = true, version = "3.0", features = ['derive'] }
+clap = { workspace = true, optional = true }
 thiserror = "1.0.28"
-wasmparser = { version = "0.92.0", path = "../wasmparser" }
-wasm-encoder = { version = "0.18.0", path = "../wasm-encoder"}
-rand = { version = "0.8.0", features = ["small_rng"] }
-log = "0.4.14"
+wasmparser = { workspace = true }
+wasm-encoder = { workspace = true }
+rand = { workspace = true }
+log = { workspace = true }
 egg = "0.6.0"
 
 [dev-dependencies]
-anyhow = "1"
+anyhow = { workspace = true }
 wat = { path = "../wat" }
 wasmprinter = { path = "../wasmprinter" }
-env_logger = "0.9"
+env_logger = { workspace = true }
