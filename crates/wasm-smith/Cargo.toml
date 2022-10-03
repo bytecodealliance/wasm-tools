@@ -3,7 +3,7 @@ authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 categories = ["command-line-utilities", "development-tools", "development-tools::testing", "wasm"]
 description = "A WebAssembly test case generator"
 documentation = "https://docs.rs/wasm-smith"
-edition = "2021"
+edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
 name = "wasm-smith"
 readme = "./README.md"
@@ -16,18 +16,18 @@ name = "corpus"
 harness = false
 
 [dependencies]
-arbitrary = { version = "1.1.0", features = ["derive"] }
+arbitrary = { workspace = true, features = ["derive"] }
 flagset = "0.4"
-indexmap = "1.6"
-leb128 = "0.2.4"
-serde = { version = "1", features = ['derive'], optional = true }
-wasm-encoder = { version = "0.18.0", path = "../wasm-encoder" }
-wasmparser = { version = "0.92.0", path = "../wasmparser" }
+indexmap = { workspace = true }
+leb128 = { workspace = true }
+serde = { workspace = true, optional = true }
+wasm-encoder = { workspace = true }
+wasmparser = { workspace = true }
 
 [dev-dependencies]
-criterion = "0.3.3"
-libfuzzer-sys = "0.4.0"
-rand = { version = "0.8.0", features = ["small_rng"] }
+criterion = { workspace = true }
+libfuzzer-sys = { workspace = true }
+rand = { workspace = true }
 wasmprinter = { path = "../wasmprinter" }
 wat = { path = "../wat" }
 

@@ -84,6 +84,8 @@ jobs:
       - run: cargo check --no-default-features --features mutate
       - run: cargo check --no-default-features --features dump
       - run: cargo check --no-default-features --features objdump
+      - run: cargo check --no-default-features --features strip
+      - run: cargo check --no-default-features --features compose
 
   doc:
     runs-on: ubuntu-latest

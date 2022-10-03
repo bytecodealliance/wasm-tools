@@ -2,23 +2,23 @@
 name = "wasm-tools-fuzz"
 version = "0.0.1"
 publish = false
-edition = "2021"
+edition.workspace = true
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
-anyhow = "1"
-arbitrary = "1"
-env_logger = "0.9"
-libfuzzer-sys = "0.4.0"
-log = "0.4"
+anyhow = { workspace = true }
+arbitrary = { workspace = true }
+env_logger = { workspace = true }
+libfuzzer-sys = { workspace = true }
+log = { workspace = true }
 tempfile = "3.0"
 wasm-mutate = { path = "../crates/wasm-mutate" }
 wasm-smith = { path = "../crates/wasm-smith" }
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
-wasmtime = { version = "0.38.1", optional = true }
+wasmtime = { workspace = true, optional = true }
 wast = { path = "../crates/wast" }
 wat = { path = "../crates/wat" }
 
