@@ -272,6 +272,8 @@ impl PeepholeMutator {
                     .map(move |expr| {
                         log::trace!("Yielding expression:\n{}", expr.pretty(60));
 
+                        config.consume_fuel(1)?;
+
                         let mut newfunc = self.copy_locals(reader)?;
                         let needed_resources = Encoder::build_function(
                             config,
@@ -406,7 +408,6 @@ impl PeepholeMutator {
                             },
                         );
 
-                        config.consume_fuel(1)?;
                         Ok(module)
                     })
                     .map_while(|module: Result<Module>| match module {
