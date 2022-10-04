@@ -11,6 +11,7 @@ use wit_parser::Interface;
 pub mod cli;
 mod decoding;
 mod encoding;
+mod gc;
 mod printing;
 mod validation;
 

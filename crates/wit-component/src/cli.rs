@@ -11,11 +11,24 @@ use clap::Parser;
 use std::path::{Path, PathBuf};
 use wit_parser::Interface;
 
-fn parse_named_interface(s: &str) -> Result<Interface> {
-    let (name, path) = s
-        .split_once('=')
-        .ok_or_else(|| anyhow::anyhow!("expected a value with format `NAME=INTERFACE`"))?;
+fn parse_optionally_name_file(s: &str) -> (&str, &str) {
+    let mut parts = s.splitn(2, '=');
+    let name_or_path = parts.next().unwrap();
+    match parts.next() {
+        Some(path) => (name_or_path, path),
+        None => {
+            let name = Path::new(name_or_path)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            (name, name_or_path)
+        }
+    }
+}
 
+fn parse_named_interface(s: &str) -> Result<Interface> {
+    let (name, path) = parse_optionally_name_file(s);
     parse_interface(Some(name.to_string()), Path::new(path))
 }
 
@@ -36,6 +49,26 @@ fn parse_interface(name: Option<String>, path: &Path) -> Result<Interface> {
     Ok(interface)
 }
 
+fn parse_adapter(s: &str) -> Result<(String, Vec<u8>, Interface)> {
+    let mut parts = s.splitn(2, ':');
+    let maybe_named_module = parts.next().unwrap();
+    let (name, path) = parse_optionally_name_file(maybe_named_module);
+    let wasm = wat::parse_file(path)?;
+
+    match parts.next() {
+        Some(maybe_named_interface) => {
+            let interface = parse_named_interface(maybe_named_interface)?;
+            Ok((name.to_string(), wasm, interface))
+        }
+        None => {
+            // TODO: implement inferring the `interface` from the `wasm`
+            // specified
+            drop((name, wasm));
+            bail!("inferring from the core wasm module is not supported at this time")
+        }
+    }
+}
+
 /// WebAssembly component encoder.
 ///
 /// Encodes a WebAssembly component from a core WebAssembly module.
@@ -43,12 +76,26 @@ fn parse_interface(name: Option<String>, path: &Path) -> Result<Interface> {
 #[clap(name = "component-encoder", version = env!("CARGO_PKG_VERSION"))]
 pub struct WitComponentApp {
     /// The path to an interface definition file the component imports.
-    #[clap(long = "import", value_name = "NAME=INTERFACE", value_parser = parse_named_interface)]
+    #[clap(long = "import", value_name = "[NAME=]INTERFACE", value_parser = parse_named_interface)]
     pub imports: Vec<Interface>,
 
     /// The path to an interface definition file the component exports.
-    #[clap(long = "export", value_name = "NAME=INTERFACE", value_parser = parse_named_interface)]
+    #[clap(long = "export", value_name = "[NAME=]INTERFACE", value_parser = parse_named_interface)]
     pub exports: Vec<Interface>,
+
+    /// The path to an adapter module to satisfy imports.
+    ///
+    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
+    /// ABI, for example, to one that uses the component model. The first
+    /// `[NAME=]` specified in the argument is inferred from the name of file
+    /// specified by `MODULE` if not present and is the name of the import
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
+    ///
+    /// The second part of this argument, optionally specified, is the interface
+    /// that this adapter module imports. If not specified then the interface
+    /// imported is inferred from the adapter module itself.
+    #[clap(long = "adapt", value_name = "[NAME=]MODULE[:[NAME=]INTERFACE]", value_parser = parse_adapter)]
+    pub adapters: Vec<(String, Vec<u8>, Interface)>,
 
     /// The path of the output WebAssembly component.
     #[clap(long, short = 'o', value_name = "OUTPUT")]
@@ -96,6 +143,10 @@ impl WitComponentApp {
             .imports(&self.imports)
             .exports(&self.exports)
             .validate(!self.skip_validation);
+
+        for (name, wasm, interface) in self.adapters.iter() {
+            encoder = encoder.adapter(name, wasm, interface);
+        }
 
         if let Some(interface) = &self.interface {
             encoder = encoder.interface(interface);

@@ -1,5 +1,62 @@
+//! Support for encoding a core wasm module into a component.
+//!
+//! This module, at a high level, is tasked with transforming a core wasm
+//! module into a component. This will process the imports/exports of the core
+//! wasm module and translate between the `wit-parser` AST and the component
+//! model binary format, producing a final component which sill import
+//! `*.wit` defined interfaces and export `*.wit` defined interfaces as well
+//! with everything wired up internally according to the canonical ABI and such.
+//!
+//! This doc block here is not currently 100% complete and doesn't cover the
+//! full functionality of this module.
+//!
+//! # Adapter Modules
+//!
+//! One feature of this encoding process which is non-obvious is the support for
+//! "adapter modules". The general idea here is that historical host API
+//! definitions have been around for quite some time, such as
+//! `wasi_snapshot_preview1`, but these host API definitions are not compatible
+//! with the canonical ABI or component model exactly. These APIs, however, can
+//! in most situations be roughly adapted to component-model equivalents. This
+//! is where adapter modules come into play, they're converting from some
+//! arbitrary API/ABI into a component-model using API.
+//!
+//! An adapter module is a separately compiled `*.wasm` blob which will export
+//! functions matching the desired ABI (e.g. exporting functions matching the
+//! `wasi_snapshot_preview1` ABI). The `*.wasm` blob will then import functions
+//! in the canonical ABI and internally adapt the exported functions to the
+//! imported functions. The encoding support in this module is what wires
+//! everything up and makes sure that everything is imported and exported to the
+//! right place. Adapter modules currently always use "indirect lowerings"
+//! meaning that a shim module is created and provided as the imports to the
+//! main core wasm module, and the shim module is "filled in" at a later time
+//! during the instantiation process.
+//!
+//! Adapter modules are not intended to be general purpose and are currently
+//! very restrictive, namely:
+//!
+//! * They must import a linear memory and not define their own linear memory
+//!   otherwise. In other words they import memory and cannot use multi-memory.
+//! * They cannot define any `elem` or `data` segments since otherwise there's
+//!   no knowledge ahead-of-time of where their data or element segments could
+//!   go. This means things like no panics, no indirect calls, etc.
+//! * Only one mutable global is allowed and it's assumed to be the stack
+//!   pointer. This stack pointer is automatically configured with an injected
+//!   `start` function that is allocated with `memory.grow (i32.const 1)`,
+//!   meaning that the shim module has 64k of stack space and no protection if
+//!   that overflows.
+//!
+//! This means that adapter modules are not meant to be written by everyone.
+//! It's assumed that these will be relatively few and far between yet still a
+//! crucial part of the transition process from to the component model since
+//! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
+//! component model.
+
 use crate::{
-    validation::{expected_export_name, validate_module},
+    validation::{
+        expected_export_name, validate_adapter_module, validate_module, ValidatedAdapter,
+        ValidatedModule,
+    },
     StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
@@ -471,32 +528,42 @@ impl<'a> TypeEncoder<'a> {
     fn encode_instance_imports(
         &mut self,
         interfaces: &'a [Interface],
-        required_imports: &IndexMap<&'a str, IndexSet<&'a str>>,
+        info: &ValidatedModule<'a>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
         for import in interfaces {
-            let required_funcs = match required_imports.get(import.name.as_str()) {
+            let required_funcs = match info.required_imports.get(import.name.as_str()) {
                 Some(required) => required,
                 None => continue,
             };
-
-            Self::validate_interface(import)?;
-
-            let mut instance = InstanceTypeEncoder::default();
-
-            for func in &import.functions {
-                if !required_funcs.contains(func.name.as_str()) {
-                    continue;
-                }
-                Self::validate_function(func)?;
-
-                let index = self.encode_func_type(import, func, false)?;
-                instance.export(&func.name, ComponentTypeRef::Func(index))?;
-            }
-
-            let index = self.encode_instance_type(&instance.ty);
-            imports.import(import, ComponentTypeRef::Instance(index), required_funcs)?;
+            self.encode_instance_import(import, required_funcs, imports)?;
         }
+
+        Ok(())
+    }
+
+    fn encode_instance_import(
+        &mut self,
+        import: &'a Interface,
+        required_funcs: &IndexSet<&'a str>,
+        imports: &mut ImportEncoder<'a>,
+    ) -> Result<()> {
+        Self::validate_interface(import)?;
+
+        let mut instance = InstanceTypeEncoder::default();
+
+        for func in &import.functions {
+            if !required_funcs.contains(func.name.as_str()) {
+                continue;
+            }
+            Self::validate_function(func)?;
+
+            let index = self.encode_func_type(import, func, false)?;
+            instance.export(&func.name, ComponentTypeRef::Func(index))?;
+        }
+
+        let index = self.encode_instance_type(&instance.ty);
+        imports.import(import, ComponentTypeRef::Instance(index), required_funcs)?;
 
         Ok(())
     }
@@ -873,9 +940,17 @@ impl<'a> TypeEncoder<'a> {
 }
 
 bitflags::bitflags! {
+    /// Options in the `canon lower` or `canon lift` required for a particular
+    /// function.
     struct RequiredOptions: u8 {
+        /// A memory must be specified, typically the "main module"'s memory
+        /// export.
         const MEMORY = 1 << 0;
+        /// A `realloc` function must be specified, typically named
+        /// `cabi_realloc`.
         const REALLOC = 1 << 1;
+        /// A string encoding must be specified, which is always utf-8 for now
+        /// today.
         const STRING_ENCODING = 1 << 2;
     }
 }
@@ -1016,6 +1091,8 @@ impl RequiredOptions {
 }
 
 bitflags::bitflags! {
+    /// Flags about what kinds of types are present within the recursive
+    /// structure of a type.
     struct TypeContents: u8 {
         const STRING = 1 << 0;
         const LIST = 1 << 1;
@@ -1076,7 +1153,7 @@ impl TypeContents {
 
 /// State relating to encoding a component.
 #[derive(Default)]
-struct EncodingState {
+struct EncodingState<'a> {
     /// The component being encoded.
     component: ComponentEncoding,
     /// The index into the core module index space for the inner core module.
@@ -1103,9 +1180,18 @@ struct EncodingState {
     ///
     /// If `None`, then a fixup module has not yet been encoded.
     fixups_module_index: Option<u32>,
+
+    /// A map of named adapter modules and the index that the module was defined
+    /// at.
+    adapter_modules: IndexMap<&'a str, u32>,
+    /// A map of adapter module instances and the index of their instance.
+    adapter_instances: IndexMap<&'a str, u32>,
+    /// A map of the index of the aliased realloc function for each adapter
+    /// module.
+    adapter_reallocs: IndexMap<&'a str, Option<u32>>,
 }
 
-impl EncodingState {
+impl<'a> EncodingState<'a> {
     fn encode_core_module(&mut self, module: &[u8]) -> u32 {
         assert!(self.module_index.is_none());
         let ret = self.component.core_module_raw(module);
@@ -1113,53 +1199,119 @@ impl EncodingState {
         ret
     }
 
+    fn encode_core_adapter_module(&mut self, name: &'a str, module: &[u8]) -> u32 {
+        let index = self.component.core_module_raw(module);
+        assert!(self.adapter_modules.insert(name, index).is_none());
+        index
+    }
+
     fn encode_core_instantiation(
         &mut self,
         encoding: StringEncoding,
-        imports: &ImportEncoder,
-        has_memory: bool,
-        has_realloc: bool,
+        imports: &ImportEncoder<'a>,
+        info: &ValidatedModule<'a>,
     ) -> Result<()> {
         if imports.map.is_empty() {
-            self.instantiate_core_module([], has_memory, has_realloc);
+            self.instantiate_core_module([], info);
             return Ok(());
         }
 
         // Encode a shim instantiation if needed
-        self.encode_shim_instantiation(imports);
+        let shims = self.encode_shim_instantiation(imports, info);
 
-        let args: Vec<_> = imports
-            .map
-            .iter()
-            .enumerate()
-            .map(|(instance_index, (name, import))| {
-                let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
+        // For each instance import into the main module create a
+        // pseudo-core-wasm-module via a bag-of-exports.
+        let mut args = Vec::new();
+        for name in info.required_imports.keys() {
+            let index = self.import_instance_to_lowered_core_instance(
+                CustomModule::Main,
+                name,
+                imports,
+                &shims,
+            );
+            args.push((*name, ModuleArg::Instance(index)));
+        }
 
-                for lowering in &import.indirect {
-                    let index = self.component.alias_core_item(
-                        self.shim_instance_index
-                            .expect("shim should be instantiated"),
-                        ExportKind::Func,
-                        &lowering.export_name,
-                    );
-                    exports.push((lowering.name, ExportKind::Func, index));
-                }
+        // For each adapter module instance imported into the core wasm module
+        // the appropriate shim is packaged up into a bag-of-exports instance.
+        // Note that adapter modules currently don't deal with
+        // indirect-vs-direct lowerings, everything is indirect.
+        for (adapter, funcs) in info.adapters_required.iter() {
+            let shim_instance = self
+                .shim_instance_index
+                .expect("shim should be instantiated");
+            let mut exports = Vec::new();
 
-                for lowering in &import.direct {
-                    let func_index = self
-                        .component
-                        .alias_func(instance_index as u32, lowering.name);
-                    let core_func_index = self.component.lower_func(func_index, []);
-                    exports.push((lowering.name, ExportKind::Func, core_func_index));
-                }
+            for (func, _ty) in funcs {
+                let index = self.component.alias_core_item(
+                    shim_instance,
+                    ExportKind::Func,
+                    &shims.shim_names[&ShimKind::Adapter { adapter, func }],
+                );
+                exports.push((*func, ExportKind::Func, index));
+            }
 
-                let index = self.component.instantiate_core_exports(exports);
-                (*name, ModuleArg::Instance(index))
-            })
-            .collect();
+            let index = self.component.instantiate_core_exports(exports);
+            args.push((*adapter, ModuleArg::Instance(index)));
+        }
 
-        self.instantiate_core_module(args, has_memory, has_realloc);
-        self.encode_indirect_lowerings(encoding, imports)
+        // Instantiate the main module now that all of its arguments have been
+        // prepared. With this we know have the main linear memory for
+        // liftings/lowerings later on as well as the adapter modules, if any,
+        // instantiated after the core wasm module.
+        self.instantiate_core_module(args, info);
+        self.instantiate_adapter_modules(imports, info, &shims);
+
+        // With all the core wasm instances in play now the original shim
+        // module, if present, can be filled in with lowerings/adapters/etc.
+        self.encode_indirect_lowerings(encoding, imports, shims)
+    }
+
+    /// Lowers a named imported interface a core wasm instances suitable to
+    /// provide as an instantiation argument to another core wasm module.
+    ///
+    /// * `for_module` the module that this instance is being created for, or
+    ///   otherwise which `realloc` option is used for the lowerings.
+    /// * `name` - the name of the imported interface that's being lowered.
+    /// * `imports` - the list of all imports known for this encoding.
+    /// * `shims` - the indirect/adapter shims created prior, if any.
+    fn import_instance_to_lowered_core_instance(
+        &mut self,
+        for_module: CustomModule<'_>,
+        name: &str,
+        imports: &ImportEncoder<'_>,
+        shims: &Shims<'_>,
+    ) -> u32 {
+        let (instance_index, _, import) = imports.map.get_full(name).unwrap();
+        let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
+
+        // Add an entry for all indirect lowerings which come as an export of
+        // the shim module.
+        for (i, lowering) in import.indirect.iter().enumerate() {
+            let index = self.component.alias_core_item(
+                self.shim_instance_index
+                    .expect("shim should be instantiated"),
+                ExportKind::Func,
+                &shims.shim_names[&ShimKind::IndirectLowering {
+                    interface: name,
+                    indirect_index: i,
+                    realloc: for_module,
+                }],
+            );
+            exports.push((lowering.name, ExportKind::Func, index));
+        }
+
+        // All direct lowerings can be `canon lower`'d here immediately and
+        // passed as arguments.
+        for lowering in &import.direct {
+            let func_index = self
+                .component
+                .alias_func(instance_index as u32, lowering.name);
+            let core_func_index = self.component.lower_func(func_index, []);
+            exports.push((lowering.name, ExportKind::Func, core_func_index));
+        }
+
+        self.component.instantiate_core_exports(exports)
     }
 
     fn encode_imports(&mut self, imports: &ImportEncoder) {
@@ -1168,11 +1320,11 @@ impl EncodingState {
         }
     }
 
-    fn encode_exports<'a>(
+    fn encode_exports<'b>(
         &mut self,
         encoding: StringEncoding,
-        exports: impl Iterator<Item = (&'a Interface, bool)>,
-        func_types: &IndexMap<FunctionKey<'a>, u32>,
+        exports: impl Iterator<Item = (&'b Interface, bool)>,
+        func_types: &IndexMap<FunctionKey<'b>, u32>,
     ) -> Result<()> {
         let core_instance_index = self.instance_index.expect("must be instantiated");
 
@@ -1239,9 +1391,60 @@ impl EncodingState {
         Ok(())
     }
 
-    fn encode_shim_instantiation(&mut self, imports: &ImportEncoder) {
-        if imports.indirect_count == 0 {
-            return;
+    fn encode_shim_instantiation(
+        &mut self,
+        imports: &ImportEncoder<'a>,
+        info: &ValidatedModule<'a>,
+    ) -> Shims<'a> {
+        let mut signatures = Vec::new();
+        let mut ret = Shims::default();
+
+        // For all interfaces imported into the main module record all of their
+        // indirect lowerings into `Shims`.
+        for name in info.required_imports.keys() {
+            let import = &imports.map[name];
+            ret.append_indirect(name, CustomModule::Main, import, &mut signatures);
+        }
+
+        // For all required adapter modules a shim is created for each required
+        // function and additionally a set of shims are created for the
+        // interface imported into the shim module itself.
+        for (adapter, funcs) in info.adapters_required.iter() {
+            let info = &imports.adapters[adapter];
+            if let Some(name) = info.required_import {
+                let import = &imports.map[name];
+                ret.append_indirect(
+                    name,
+                    CustomModule::Adapter(adapter),
+                    import,
+                    &mut signatures,
+                );
+            }
+            for (func, ty) in funcs {
+                let name = ret.list.len().to_string();
+                log::debug!("shim {name} is adapter `{adapter}::{func}`");
+                signatures.push(WasmSignature {
+                    params: ty.params().iter().map(to_wasm_type).collect(),
+                    results: ty.results().iter().map(to_wasm_type).collect(),
+                    indirect_params: false,
+                    retptr: false,
+                });
+                ret.list.push(Shim {
+                    name,
+                    // Pessimistically assume that all adapters require memory
+                    // in one form or another. While this isn't technically true
+                    // it's true enough for WASI.
+                    options: RequiredOptions::MEMORY,
+                    kind: ShimKind::Adapter { adapter, func },
+                });
+            }
+        }
+        if ret.list.is_empty() {
+            return ret;
+        }
+
+        for shim in ret.list.iter() {
+            ret.shim_names.insert(shim.kind.clone(), shim.name.clone());
         }
 
         assert!(self.shim_instance_index.is_none());
@@ -1265,38 +1468,29 @@ impl EncodingState {
         let mut elements = ElementSection::new();
         let mut func_indexes = Vec::new();
 
-        let mut func_index = 0;
-        for import in imports.map.values() {
-            for lowering in &import.indirect {
-                let type_index = *sigs.entry(&lowering.sig).or_insert_with(|| {
-                    let index = types.len();
-                    types.function(
-                        lowering.sig.params.iter().map(to_val_type),
-                        lowering.sig.results.iter().map(to_val_type),
-                    );
-                    index
-                });
-
-                functions.function(type_index);
-                Self::encode_shim_function(
-                    type_index,
-                    func_index,
-                    &mut code,
-                    lowering.sig.params.len() as u32,
+        for (i, (sig, shim)) in signatures.iter().zip(&ret.list).enumerate() {
+            let i = i as u32;
+            let type_index = *sigs.entry(sig).or_insert_with(|| {
+                let index = types.len();
+                types.function(
+                    sig.params.iter().map(to_val_type),
+                    sig.results.iter().map(to_val_type),
                 );
-                exports.export(&lowering.export_name, ExportKind::Func, func_index);
+                index
+            });
 
-                imports_section.import("", &lowering.export_name, EntityType::Function(type_index));
-                func_indexes.push(func_index);
+            functions.function(type_index);
+            Self::encode_shim_function(type_index, i, &mut code, sig.params.len() as u32);
+            exports.export(&shim.name, ExportKind::Func, i);
 
-                func_index += 1;
-            }
+            imports_section.import("", &shim.name, EntityType::Function(type_index));
+            func_indexes.push(i);
         }
 
         let table_type = TableType {
             element_type: ValType::FuncRef,
-            minimum: func_index,
-            maximum: Some(func_index),
+            minimum: signatures.len() as u32,
+            maximum: Some(signatures.len() as u32),
         };
 
         tables.table(table_type);
@@ -1326,6 +1520,18 @@ impl EncodingState {
         let shim_module_index = self.component.core_module(&shim);
         self.fixups_module_index = Some(self.component.core_module(&fixups));
         self.shim_instance_index = Some(self.component.instantiate(shim_module_index, []));
+
+        return ret;
+
+        fn to_wasm_type(ty: &wasmparser::ValType) -> WasmType {
+            match ty {
+                wasmparser::ValType::I32 => WasmType::I32,
+                wasmparser::ValType::I64 => WasmType::I64,
+                wasmparser::ValType::F32 => WasmType::F32,
+                wasmparser::ValType::F64 => WasmType::F64,
+                _ => unreachable!(),
+            }
+        }
     }
 
     fn encode_shim_function(
@@ -1351,8 +1557,9 @@ impl EncodingState {
         &mut self,
         encoding: StringEncoding,
         imports: &ImportEncoder,
+        shims: Shims<'_>,
     ) -> Result<()> {
-        if imports.indirect_count == 0 {
+        if shims.list.is_empty() {
             return Ok(());
         }
 
@@ -1369,25 +1576,49 @@ impl EncodingState {
         let mut exports = Vec::with_capacity(imports.indirect_count as usize);
         exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
 
-        for (instance_index, import) in imports.map.values().enumerate() {
-            for lowering in &import.indirect {
-                let func_index = self
-                    .component
-                    .alias_func(instance_index as u32, lowering.name);
+        for shim in shims.list.iter() {
+            let core_func_index = match &shim.kind {
+                // Indirect lowerings are a `canon lower`'d function with
+                // options specified from a previously instantiated instance.
+                // This previous instance could either be the main module or an
+                // adapter module, which affects the `realloc` option here.
+                // Currently only one linear memory is supported so the linear
+                // memory always comes from the main module.
+                ShimKind::IndirectLowering {
+                    interface,
+                    indirect_index,
+                    realloc,
+                } => {
+                    let (instance_index, _, interface) = imports.map.get_full(interface).unwrap();
+                    let func_index = self.component.alias_func(
+                        instance_index as u32,
+                        &interface.indirect[*indirect_index].name,
+                    );
 
-                let core_func_index = self.component.lower_func(
-                    func_index,
-                    lowering
-                        .options
-                        .into_iter(encoding, self.memory_index, self.realloc_index)?,
-                );
+                    let realloc = match realloc {
+                        CustomModule::Main => self.realloc_index,
+                        CustomModule::Adapter(name) => self.adapter_reallocs[name],
+                    };
 
-                exports.push((
-                    lowering.export_name.as_str(),
+                    self.component.lower_func(
+                        func_index,
+                        shim.options
+                            .into_iter(encoding, self.memory_index, realloc)?,
+                    )
+                }
+
+                // Adapter shims are defined by an export from and adapter
+                // instance, so use the specified name here and the previously
+                // created instances to get the core item that represents the
+                // shim.
+                ShimKind::Adapter { adapter, func } => self.component.alias_core_item(
+                    self.adapter_instances[adapter],
                     ExportKind::Func,
-                    core_func_index,
-                ));
-            }
+                    func,
+                ),
+            };
+
+            exports.push((shim.name.as_str(), ExportKind::Func, core_func_index));
         }
 
         let instance_index = self.component.instantiate_core_exports(exports);
@@ -1398,9 +1629,9 @@ impl EncodingState {
         Ok(())
     }
 
-    fn instantiate_core_module<'a, A>(&mut self, args: A, has_memory: bool, has_realloc: bool)
+    fn instantiate_core_module<'b, A>(&mut self, args: A, info: &ValidatedModule<'_>)
     where
-        A: IntoIterator<Item = (&'a str, ModuleArg)>,
+        A: IntoIterator<Item = (&'b str, ModuleArg)>,
         A::IntoIter: ExactSizeIterator,
     {
         assert!(self.instance_index.is_none());
@@ -1409,7 +1640,7 @@ impl EncodingState {
             .component
             .instantiate(self.module_index.expect("core module encoded"), args);
 
-        if has_memory {
+        if info.has_memory {
             self.memory_index = Some(self.component.alias_core_item(
                 instance_index,
                 ExportKind::Memory,
@@ -1417,7 +1648,7 @@ impl EncodingState {
             ));
         }
 
-        if has_realloc {
+        if info.has_realloc {
             self.realloc_index = Some(self.component.alias_core_item(
                 instance_index,
                 ExportKind::Func,
@@ -1426,6 +1657,173 @@ impl EncodingState {
         }
 
         self.instance_index = Some(instance_index);
+    }
+
+    /// This function will instantiate all required adapter modules required by
+    /// the main module (specified by `info`).
+    ///
+    /// Each adapter here is instantiated with its required imported interface,
+    /// if any.
+    fn instantiate_adapter_modules(
+        &mut self,
+        imports: &ImportEncoder<'a>,
+        info: &ValidatedModule<'a>,
+        shims: &Shims<'_>,
+    ) {
+        for name in info.adapters_required.keys() {
+            let info = &imports.adapters[name];
+            let mut args = Vec::new();
+
+            // If the adapter module requires a `memory` import then specify
+            // that here. For now assume that the module name of the memory is
+            // different from the imported interface. That's true enough for now
+            // since it's `env::memory`.
+            if let Some((module, name)) = &info.needs_memory {
+                if let Some(import_name) = info.required_import {
+                    assert!(module != import_name);
+                }
+                assert!(module != name);
+                let memory = self.memory_index.unwrap();
+                let instance = self.component.instantiate_core_exports([(
+                    name.as_str(),
+                    ExportKind::Memory,
+                    memory,
+                )]);
+                args.push((module.as_str(), ModuleArg::Instance(instance)));
+            }
+            if let Some(import_name) = info.required_import {
+                let instance = self.import_instance_to_lowered_core_instance(
+                    CustomModule::Adapter(name),
+                    import_name,
+                    imports,
+                    shims,
+                );
+                args.push((import_name, ModuleArg::Instance(instance)));
+            }
+            let instance = self.component.instantiate(self.adapter_modules[name], args);
+            self.adapter_instances.insert(name, instance);
+            let realloc = if info.has_realloc {
+                Some(
+                    self.component
+                        .alias_core_item(instance, ExportKind::Func, "cabi_realloc"),
+                )
+            } else {
+                None
+            };
+            self.adapter_reallocs.insert(name, realloc);
+        }
+    }
+}
+
+/// A list of "shims" which start out during the component instantiation process
+/// as functions which immediately trap due to a `call_indirect`-to-`null` but
+/// will get filled in by the time the component instantiation process
+/// completes.
+///
+/// Shims currently include:
+///
+/// * "Indirect functions" lowered from imported instances where the lowering
+///   requires an item exported from the main module. These are indirect due to
+///   the circular dependency between the module needing an import and the
+///   import needing the module.
+///
+/// * Adapter modules which convert from a historical ABI to the component
+///   model's ABI (e.g. wasi preview1 to preview2) get a shim since the adapters
+///   are currently indicated as always requiring the memory of the main module.
+///
+/// This structure is created by `encode_shim_instantiation`.
+#[derive(Default)]
+struct Shims<'a> {
+    /// The list of all shims that a module will require.
+    list: Vec<Shim<'a>>,
+
+    /// A map from a shim to the name of the shim in the shim instance.
+    shim_names: IndexMap<ShimKind<'a>, String>,
+}
+
+struct Shim<'a> {
+    /// Canonical ABI options required by this shim, used during `canon lower`
+    /// operations.
+    options: RequiredOptions,
+
+    /// The name, in the shim instance, of this shim.
+    ///
+    /// Currently this is `"0"`, `"1"`, ...
+    name: String,
+
+    /// Precise information about what this shim is a lowering of.
+    kind: ShimKind<'a>,
+}
+
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+enum ShimKind<'a> {
+    /// This shim is a late indirect lowering of an imported function in a
+    /// component which is only possible after prior core wasm modules are
+    /// instantiated so their memories and functions are available.
+    IndirectLowering {
+        /// The name of the interface that's being lowered.
+        interface: &'a str,
+        /// The index within the `indirect` array of the function being lowered.
+        indirect_index: usize,
+        /// Which instance to pull the `realloc` function from, if necessary.
+        realloc: CustomModule<'a>,
+    },
+    /// This shim is a core wasm function defined in an adapter module but isn't
+    /// available until the adapter module is itself instantiated.
+    Adapter {
+        /// The name of the adapter module this shim comes from.
+        adapter: &'a str,
+        /// The name of the export in the adapter module this shim points to.
+        func: &'a str,
+    },
+}
+
+/// Indicator for which module is being used for a lowering or where options
+/// like `realloc` are drawn from.
+///
+/// This is necessary for situations such as an imported function being lowered
+/// into the main module and additionally into an adapter module. For example an
+/// adapter might adapt from preview1 to preview2 for the standard library of a
+/// programming language but the main module's custom application code may also
+/// explicitly import from preview2. These two different lowerings of a preview2
+/// function are parameterized by this enumeration.
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+enum CustomModule<'a> {
+    /// This points to the "main module" which is generally the "output of LLVM"
+    /// or what a user wrote.
+    Main,
+    /// This is selecting an adapter module, identified by name here, where
+    /// something is being lowered into.
+    Adapter(&'a str),
+}
+
+impl<'a> Shims<'a> {
+    /// Adds all shims necessary for the `import` provided, namely iterating
+    /// over its indirect lowerings and appending a shim per lowering.
+    fn append_indirect(
+        &mut self,
+        name: &'a str,
+        for_module: CustomModule<'a>,
+        import: &ImportedInterface<'a>,
+        sigs: &mut Vec<WasmSignature>,
+    ) {
+        for (indirect_index, lowering) in import.indirect.iter().enumerate() {
+            let shim_name = self.list.len().to_string();
+            log::debug!(
+                "shim {shim_name} is import `{name}` lowering {indirect_index} `{}`",
+                lowering.name
+            );
+            sigs.push(lowering.sig.clone());
+            self.list.push(Shim {
+                name: shim_name,
+                options: lowering.options,
+                kind: ShimKind::IndirectLowering {
+                    interface: name,
+                    indirect_index,
+                    realloc: for_module,
+                },
+            });
+        }
     }
 }
 
@@ -1439,7 +1837,6 @@ struct IndirectLowering<'a> {
     name: &'a str,
     sig: WasmSignature,
     options: RequiredOptions,
-    export_name: String,
 }
 
 #[derive(Debug)]
@@ -1449,11 +1846,22 @@ struct ImportedInterface<'a> {
     indirect: Vec<IndirectLowering<'a>>,
 }
 
+/// Helper type used when encoding a component to have helpers that
+/// simultaneously encode an item while returning its corresponding index in the
+/// generated index spaces as well.
 #[derive(Default)]
 struct ComponentEncoding {
+    /// The binary component as created by `wasm-encoder`.
     component: Component,
-    /// The last section which was appended to during encoding.
+
+    /// The last section which was appended to during encoding. This type is
+    /// generated by the `section_accessors` macro below.
+    ///
+    /// When something is encoded this is used if it matches the kind of item
+    /// being encoded, otherwise it's "flushed" to the output component and a
+    /// new section is started.
     last_section: LastSection,
+
     // Core index spaces
     core_modules: u32,
     core_funcs: u32,
@@ -1564,6 +1972,9 @@ impl ComponentEncoding {
     }
 }
 
+// Helper macro to generate methods on `ComponentEncoding` to get specific
+// section encoders that automatically flush and write out prior sections as
+// necessary.
 macro_rules! section_accessors {
     ($($method:ident => $section:ident)*) => (
         #[derive(Default)]
@@ -1577,7 +1988,13 @@ macro_rules! section_accessors {
             $(
                 fn $method(&mut self) -> &mut $section {
                     match &self.last_section {
+                        // The last encoded section matches the section that's
+                        // being requested, so no change is necessary.
                         LastSection::$section(_) => {}
+
+                        // Otherwise the last section didn't match this section,
+                        // so flush any prior section if needed and start
+                        // encoding the desired section of this method.
                         _ => {
                             self.flush();
                             self.last_section = LastSection::$section($section::new());
@@ -1590,6 +2007,8 @@ macro_rules! section_accessors {
                 }
             )*
 
+            /// Writes out the last section into the final component binary if
+            /// there is a section specified, otherwise does nothing.
             fn flush(&mut self) {
                 match mem::take(&mut self.last_section) {
                     LastSection::None => {}
@@ -1635,6 +2054,7 @@ fn inc(idx: &mut u32) -> u32 {
 #[derive(Debug, Default)]
 struct ImportEncoder<'a> {
     map: IndexMap<&'a str, ImportedInterface<'a>>,
+    adapters: IndexMap<&'a str, ValidatedAdapter<'a>>,
     direct_count: u32,
     indirect_count: u32,
 }
@@ -1665,14 +2085,12 @@ impl<'a> ImportEncoder<'a> {
                         self.direct_count += 1;
                         direct.push(DirectLowering { name: &f.name });
                     } else {
-                        let element_index = self.indirect_count;
                         let sig = interface.wasm_signature(AbiVariant::GuestImport, f);
                         self.indirect_count += 1;
                         indirect.push(IndirectLowering {
                             name: &f.name,
                             sig,
                             options,
-                            export_name: element_index.to_string(),
                         });
                     }
                 }
@@ -1699,6 +2117,7 @@ pub struct ComponentEncoder<'a> {
     exports: &'a [Interface],
     validate: bool,
     types_only: bool,
+    adapters: IndexMap<&'a str, (&'a [u8], &'a Interface)>,
 }
 
 impl<'a> ComponentEncoder<'a> {
@@ -1738,12 +2157,41 @@ impl<'a> ComponentEncoder<'a> {
         self
     }
 
+    /// Specifies a new adapter which is used to translate from a historical
+    /// wasm ABI to the canonical ABI and the `interface` provided.
+    ///
+    /// This is primarily used to polyfill, for example,
+    /// `wasi_snapshot_preview1` with a component-model using interface. The
+    /// `name` provided is the module name of the adapter that is being
+    /// polyfilled, for example `"wasi_snapshot_preview1"`.
+    ///
+    /// The `bytes` provided is a core wasm module which implements the `name`
+    /// interface in terms of the `interface` interface. This core wasm module
+    /// is severely restricted in its shape, for example it cannot have any data
+    /// segments or element segments.
+    ///
+    /// The `interface` provided is the component-model-using-interface that the
+    /// wasm module specified by `bytes` imports. The `bytes` will then import
+    /// `interface` and export functions to get imported from the module `name`
+    /// in the core wasm that's being wrapped.
+    pub fn adapter(mut self, name: &'a str, bytes: &'a [u8], interface: &'a Interface) -> Self {
+        self.adapters.insert(name, (bytes, interface));
+        self
+    }
+
     /// Encode the component and return the bytes.
     pub fn encode(&self) -> Result<Vec<u8>> {
-        let (required_imports, has_memory, has_realloc) = if !self.module.is_empty() {
-            validate_module(self.module, &self.interface, self.imports, self.exports)?
+        let info = if !self.module.is_empty() {
+            let adapters = self.adapters.keys().copied().collect::<IndexSet<_>>();
+            validate_module(
+                self.module,
+                &self.interface,
+                self.imports,
+                self.exports,
+                &adapters,
+            )?
         } else {
-            (Default::default(), false, false)
+            Default::default()
         };
 
         let exports = self
@@ -1757,21 +2205,37 @@ impl<'a> ComponentEncoder<'a> {
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
         types.encode_func_types(exports.clone(), false)?;
-        types.encode_instance_imports(self.imports, &required_imports, &mut imports)?;
-        types.finish(&mut state.component);
+        types.encode_instance_imports(self.imports, &info, &mut imports)?;
 
         if self.types_only {
             if !self.module.is_empty() {
                 bail!("a module cannot be specified for a types-only encoding");
             }
+            types.finish(&mut state.component);
         } else {
             if self.module.is_empty() {
                 bail!("a module is required when encoding a component");
             }
 
+            // For all required adapters lookup the corresponding adapter
+            // provided to this encoder, gc it to an appropriate size, and then
+            // register its metadata in our data structures.
+            for (name, required) in info.adapters_required.iter() {
+                let (wasm, interface) = &self.adapters[*name];
+                let wasm = crate::gc::run(wasm, required)
+                    .context("failed to reduce input adapter module to its minimal size")?;
+                let info = validate_adapter_module(&wasm, interface, required)
+                    .context("failed to validate the imports of the minimized adapter module")?;
+                state.encode_core_adapter_module(name, &wasm);
+                types.encode_instance_import(interface, &info.required_funcs, &mut imports)?;
+                imports.adapters.insert(name, info);
+            }
+
+            types.finish(&mut state.component);
+
             state.encode_imports(&imports);
             state.encode_core_module(self.module);
-            state.encode_core_instantiation(self.encoding, &imports, has_memory, has_realloc)?;
+            state.encode_core_instantiation(self.encoding, &imports, &info)?;
             state.encode_exports(self.encoding, exports, &types.func_type_map)?;
         }
 

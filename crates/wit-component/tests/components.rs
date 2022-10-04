@@ -27,6 +27,32 @@ fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<Interface>> {
         .collect::<Result<_>>()
 }
 
+fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, Interface)>> {
+    glob::glob(dir.join("adapt-*.wat").to_str().unwrap())?
+        .map(|p| {
+            let p = p?;
+            let adapter =
+                wat::parse_file(&p).with_context(|| format!("expected file `{}`", p.display()))?;
+            let stem = p.file_stem().unwrap().to_str().unwrap();
+            let glob = format!("{stem}-import-*.wit");
+            let wit = match glob::glob(dir.join(&glob).to_str().unwrap())?.next() {
+                Some(path) => path?,
+                None => bail!("failed to find `{glob}` match"),
+            };
+            let mut i = read_interface(&wit)?;
+            i.name = wit
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .trim_start_matches(stem)
+                .trim_start_matches("-import-")
+                .to_string();
+            Ok((stem.trim_start_matches("adapt-").to_string(), adapter, i))
+        })
+        .collect::<Result<_>>()
+}
+
 /// Tests the encoding of components.
 ///
 /// This test looks in the `components/` directory for test cases.
@@ -53,6 +79,8 @@ fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<Interface>> {
 /// either `component.wat` or `error.txt` depending on the outcome of the encoding.
 #[test]
 fn component_encoding() -> Result<()> {
+    drop(env_logger::try_init());
+
     for entry in fs::read_dir("tests/components")? {
         let path = entry?.path();
         if !path.is_dir() {
@@ -74,12 +102,17 @@ fn component_encoding() -> Result<()> {
             .transpose()?;
         let imports = read_interfaces(&path, "import-*.wit")?;
         let exports = read_interfaces(&path, "export-*.wit")?;
+        let adapters = read_adapters(&path)?;
 
         let mut encoder = ComponentEncoder::default()
             .module(&module)
             .imports(&imports)
             .exports(&exports)
             .validate(true);
+
+        for (name, wasm, interface) in adapters.iter() {
+            encoder = encoder.adapter(name, wasm, interface);
+        }
 
         if let Some(interface) = &interface {
             encoder = encoder.interface(interface);
