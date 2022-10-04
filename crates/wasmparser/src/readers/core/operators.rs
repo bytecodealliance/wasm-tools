@@ -29,7 +29,7 @@ pub enum BlockType {
 }
 
 /// Represents a memory immediate in a WebAssembly memory instruction.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MemArg {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
@@ -50,7 +50,7 @@ pub struct MemArg {
 
 /// A br_table entries representation.
 #[derive(Clone)]
-pub struct BrTable<'a> {
+pub struct <'a> {
     pub(crate) reader: crate::BinaryReader<'a>,
     pub(crate) cnt: u32,
     pub(crate) default: u32,
