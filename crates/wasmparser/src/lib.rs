@@ -41,10 +41,10 @@
 ///
 /// - `@mvp`: Denoting a Wasm operator from the initial Wasm MVP version.
 /// - `@exceptions`: [Wasm `expection-handling` proposal]
-/// - `@tail_calls`: [Wasm `tail-calls` proposal]
+/// - `@tail_call`: [Wasm `tail-calls` proposal]
 /// - `@reference_types`: [Wasm `reference-types` proposal]
-/// - `@sign_ext_ops`: [Wasm `sign-extension-ops` proposal]
-/// - `@non_trapping_f2i_conversions`: [Wasm `non_trapping_float-to-int-conversions` proposal]
+/// - `@sign_extension`: [Wasm `sign-extension-ops` proposal]
+/// - `@saturating_float_to_int`: [Wasm `non_trapping_float-to-int-conversions` proposal]
 /// - `@bulk_memory `:[Wasm `bulk-memory` proposal]
 /// - `@threads`: [Wasm `threads` proposal]
 /// - `@simd`: [Wasm `simd` proposal]
@@ -133,8 +133,8 @@ macro_rules! for_each_operator {
             @mvp Return => visit_return
             @mvp Call { function_index: u32 } => visit_call
             @mvp CallIndirect { type_index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
-            @tail_calls ReturnCall { function_index: u32 } => visit_return_call
-            @tail_calls ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect
+            @tail_call ReturnCall { function_index: u32 } => visit_return_call
+            @tail_call ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect
             @exceptions Delegate { relative_depth: u32 } => visit_delegate
             @exceptions CatchAll => visit_catch_all
             @mvp Drop => visit_drop
@@ -300,23 +300,23 @@ macro_rules! for_each_operator {
             @mvp I64ReinterpretF64 => visit_i64_reinterpret_f64
             @mvp F32ReinterpretI32 => visit_f32_reinterpret_i32
             @mvp F64ReinterpretI64 => visit_f64_reinterpret_i64
-            @sign_ext_ops I32Extend8S => visit_i32_extend8_s
-            @sign_ext_ops I32Extend16S => visit_i32_extend16_s
-            @sign_ext_ops I64Extend8S => visit_i64_extend8_s
-            @sign_ext_ops I64Extend16S => visit_i64_extend16_s
-            @sign_ext_ops I64Extend32S => visit_i64_extend32_s
+            @sign_extension I32Extend8S => visit_i32_extend8_s
+            @sign_extension I32Extend16S => visit_i32_extend16_s
+            @sign_extension I64Extend8S => visit_i64_extend8_s
+            @sign_extension I64Extend16S => visit_i64_extend16_s
+            @sign_extension I64Extend32S => visit_i64_extend32_s
 
             // 0xFC operators
             // Non-trapping Float-to-int Conversions
             // https://github.com/WebAssembly/nontrapping-float-to-int-conversions
-            @non_trapping_f2i_conversions I32TruncSatF32S => visit_i32_trunc_sat_f32_s
-            @non_trapping_f2i_conversions I32TruncSatF32U => visit_i32_trunc_sat_f32_u
-            @non_trapping_f2i_conversions I32TruncSatF64S => visit_i32_trunc_sat_f64_s
-            @non_trapping_f2i_conversions I32TruncSatF64U => visit_i32_trunc_sat_f64_u
-            @non_trapping_f2i_conversions I64TruncSatF32S => visit_i64_trunc_sat_f32_s
-            @non_trapping_f2i_conversions I64TruncSatF32U => visit_i64_trunc_sat_f32_u
-            @non_trapping_f2i_conversions I64TruncSatF64S => visit_i64_trunc_sat_f64_s
-            @non_trapping_f2i_conversions I64TruncSatF64U => visit_i64_trunc_sat_f64_u
+            @saturating_float_to_int I32TruncSatF32S => visit_i32_trunc_sat_f32_s
+            @saturating_float_to_int I32TruncSatF32U => visit_i32_trunc_sat_f32_u
+            @saturating_float_to_int I32TruncSatF64S => visit_i32_trunc_sat_f64_s
+            @saturating_float_to_int I32TruncSatF64U => visit_i32_trunc_sat_f64_u
+            @saturating_float_to_int I64TruncSatF32S => visit_i64_trunc_sat_f32_s
+            @saturating_float_to_int I64TruncSatF32U => visit_i64_trunc_sat_f32_u
+            @saturating_float_to_int I64TruncSatF64S => visit_i64_trunc_sat_f64_s
+            @saturating_float_to_int I64TruncSatF64U => visit_i64_trunc_sat_f64_u
 
             // 0xFC prefixed operators
             // bulk memory operations
