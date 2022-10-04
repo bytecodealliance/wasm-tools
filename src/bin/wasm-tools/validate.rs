@@ -30,7 +30,7 @@ pub struct Opts {
     /// The placeholder "all" can be used to enable all wasm features. If a "-"
     /// character is present in front of a feature it will disable that feature.
     /// For example "all,-simd" would enable everything but simd.
-    #[clap(long, short = 'f', parse(try_from_str = parse_features))]
+    #[clap(long, short = 'f', value_parser = parse_features)]
     features: Option<WasmFeatures>,
 
     #[clap(flatten)]
