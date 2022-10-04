@@ -26,7 +26,7 @@ use crate::mutators::{
 use info::ModuleInfo;
 use mutators::Mutator;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use std::{cell::Cell, sync::Arc};
+use std::sync::Arc;
 
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -177,7 +177,7 @@ pub struct WasmMutate<'wasm> {
             parse(try_from_str = parse_fuel),
         )
     )]
-    fuel: Cell<u64>,
+    fuel: u64,
 
     /// Only perform size-reducing transformations on the Wasm module. This
     /// allows `wasm-mutate` to be used as a test case reducer.
@@ -197,8 +197,8 @@ pub struct WasmMutate<'wasm> {
 }
 
 #[cfg(feature = "clap")]
-fn parse_fuel(s: &str) -> Result<Cell<u64>, String> {
-    s.parse::<u64>().map(Cell::new).map_err(|s| s.to_string())
+fn parse_fuel(s: &str) -> Result<u64, String> {
+    s.parse::<u64>().map_err(|s| s.to_string())
 }
 
 impl Default for WasmMutate<'_> {
@@ -209,7 +209,7 @@ impl Default for WasmMutate<'_> {
             preserve_semantics: false,
             reduce: false,
             raw_mutate_func: None,
-            fuel: Cell::new(u64::MAX),
+            fuel: u64::MAX,
             rng: None,
             info: None,
         }
@@ -235,7 +235,7 @@ impl<'wasm> WasmMutate<'wasm> {
 
     /// Configure the fuel used during the mutation
     pub fn fuel(&mut self, fuel: u64) -> &mut Self {
-        self.fuel = Cell::new(fuel);
+        self.fuel = fuel;
         self
     }
 
@@ -269,12 +269,12 @@ impl<'wasm> WasmMutate<'wasm> {
         self
     }
 
-    pub(crate) fn consume_fuel(&self, qt: u64) -> Result<()> {
-        if qt > self.fuel.get() {
+    pub(crate) fn consume_fuel(&mut self, qt: u64) -> Result<()> {
+        if qt > self.fuel {
             log::info!("Out of fuel");
             return Err(Error::out_of_fuel());
         }
-        self.fuel.set(self.fuel.get() - qt);
+        self.fuel -= qt;
         Ok(())
     }
 
