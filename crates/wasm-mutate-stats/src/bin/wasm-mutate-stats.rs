@@ -81,7 +81,7 @@ struct Options {
     /// List of engine configurations.
     /// Allowed values: [O0, O2, Os]
     /// If it is not set, the default configuration of wasmtime will be used
-    #[clap(short = 'c', long = "compilation-configs", parse(try_from_str=parse_optimization_types) )]
+    #[clap(short = 'c', long = "compilation-configs", value_parser = parse_optimization_types)]
     configs: Option<Vec<OptLevel>>,
     /// Target triple during compilation, e.g. "x86_64-apple-darwin"
     #[clap(short = 'a', long = "triple")]
