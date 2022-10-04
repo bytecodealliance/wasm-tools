@@ -13,9 +13,13 @@ pub struct Opts {
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
 
-    /// Strip all custom sections, including the `name` section
+    /// Remove all custom sections, regardless of name.
     #[clap(long, short)]
     all: bool,
+
+    /// Remove custom sections matching the specified regex.
+    #[clap(long, short, value_name = "REGEX")]
+    delete: Vec<String>,
 
     /// Output the text format of WebAssembly instead of the binary format.
     #[clap(short = 't', long)]
@@ -25,6 +29,22 @@ pub struct Opts {
 impl Opts {
     pub fn run(&self) -> Result<()> {
         let input = self.io.parse_input_wasm()?;
+        let to_delete = regex::RegexSet::new(self.delete.iter())?;
+
+        let strip_custom_section = |name: &str| {
+            // If explicitly specified, strip everything.
+            if self.all {
+                return true;
+            }
+
+            // If any section was called out by name only delete those sections.
+            if !to_delete.is_empty() {
+                return to_delete.is_match(name);
+            }
+
+            // Finally default strip everything but the `name` section.
+            name != "name"
+        };
 
         let mut module = wasm_encoder::Module::new();
 
@@ -75,14 +95,14 @@ impl Opts {
                 | ComponentImportSection(_)
                 | ComponentExportSection(_) => unimplemented!("component model"),
 
-                CustomSection(c) if c.name() == "name" && !self.all => {
-                    module.section(&RawSection {
-                        id: SectionId::Custom as u8,
-                        data: &input[c.range()],
-                    });
+                CustomSection(c) => {
+                    if !strip_custom_section(c.name()) {
+                        module.section(&RawSection {
+                            id: SectionId::Custom as u8,
+                            data: &input[c.range()],
+                        });
+                    }
                 }
-
-                CustomSection(_) => {}
 
                 UnknownSection {
                     id,
