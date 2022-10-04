@@ -26,7 +26,7 @@ edition = '2021'
 [workspace.dependencies]
 anyhow = "1.0.58"
 arbitrary = "1.1.0"
-clap = { version = "3.2.7", features = ["derive"] }
+clap = { version = "4.0.0", features = ["derive"] }
 criterion = "0.3.3"
 env_logger = "0.9"
 indexmap = "1.9.1"

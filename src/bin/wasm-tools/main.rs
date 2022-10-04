@@ -74,3 +74,9 @@ fn main() -> ExitCode {
     eprintln!("Error: {:?}", err);
     ExitCode::FAILURE
 }
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    WasmTools::command().debug_assert()
+}

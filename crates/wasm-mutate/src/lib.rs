@@ -174,7 +174,6 @@ pub struct WasmMutate<'wasm> {
             short,
             long,
             default_value = "18446744073709551615", // u64::MAX
-            parse(try_from_str = parse_fuel),
         )
     )]
     fuel: u64,
@@ -194,11 +193,6 @@ pub struct WasmMutate<'wasm> {
 
     #[cfg_attr(feature = "clap", clap(skip = None))]
     info: Option<ModuleInfo<'wasm>>,
-}
-
-#[cfg(feature = "clap")]
-fn parse_fuel(s: &str) -> Result<u64, String> {
-    s.parse::<u64>().map_err(|s| s.to_string())
 }
 
 impl Default for WasmMutate<'_> {

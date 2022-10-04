@@ -5,12 +5,12 @@ use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
-/// Implements the verbosity flag for the CLI commands.
+// Implements the verbosity flag for the CLI commands.
 #[derive(clap::Parser)]
 pub struct Verbosity {
     /// Use verbose output (-vv very verbose output).
-    #[clap(long = "verbose", short = 'v', parse(from_occurrences))]
-    verbose: usize,
+    #[clap(long = "verbose", short = 'v', action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
 impl Verbosity {
