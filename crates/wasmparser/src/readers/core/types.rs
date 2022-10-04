@@ -47,7 +47,7 @@ impl ValType {
 }
 
 /// Represents a type in a WebAssembly module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum Type {
     /// The type is for a function.
     Func(FuncType),
