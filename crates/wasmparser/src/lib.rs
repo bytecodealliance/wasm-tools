@@ -308,6 +308,7 @@ macro_rules! for_each_operator {
 
             // 0xFC operators
             // Non-trapping Float-to-int Conversions
+            // https://github.com/WebAssembly/nontrapping-float-to-int-conversions
             @non_trapping_f2i_conversions I32TruncSatF32S => visit_i32_trunc_sat_f32_s
             @non_trapping_f2i_conversions I32TruncSatF32U => visit_i32_trunc_sat_f32_u
             @non_trapping_f2i_conversions I32TruncSatF64S => visit_i32_trunc_sat_f64_s
@@ -317,8 +318,9 @@ macro_rules! for_each_operator {
             @non_trapping_f2i_conversions I64TruncSatF64S => visit_i64_trunc_sat_f64_s
             @non_trapping_f2i_conversions I64TruncSatF64U => visit_i64_trunc_sat_f64_u
 
-            // 0xFC operators
-            // bulk memory https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md
+            // 0xFC prefixed operators
+            // bulk memory operations
+            // https://github.com/WebAssembly/bulk-memory-operations
             @bulk_memory MemoryInit { data_index: u32, mem: u32 } => visit_memory_init
             @bulk_memory DataDrop { data_index: u32 } => visit_data_drop
             @bulk_memory MemoryCopy { dst_mem: u32, src_mem: u32 } => visit_memory_copy
@@ -326,14 +328,19 @@ macro_rules! for_each_operator {
             @bulk_memory TableInit { elem_index: u32, table: u32 } => visit_table_init
             @bulk_memory ElemDrop { elem_index: u32 } => visit_elem_drop
             @bulk_memory TableCopy { dst_table: u32, src_table: u32 } => visit_table_copy
-            @bulk_memory TableFill { table: u32 } => visit_table_fill
-            @bulk_memory TableGet { table: u32 } => visit_table_get
-            @bulk_memory TableSet { table: u32 } => visit_table_set
-            @bulk_memory TableGrow { table: u32 } => visit_table_grow
-            @bulk_memory TableSize { table: u32 } => visit_table_size
 
-            // 0xFE operators
-            // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
+            // 0xFC prefixed operators
+            // reference-types
+            // https://github.com/WebAssembly/reference-types
+            @reference_types TableFill { table: u32 } => visit_table_fill
+            @reference_types TableGet { table: u32 } => visit_table_get
+            @reference_types TableSet { table: u32 } => visit_table_set
+            @reference_types TableGrow { table: u32 } => visit_table_grow
+            @reference_types TableSize { table: u32 } => visit_table_size
+
+            // 0xFE prefixed operators
+            // threads
+            // https://github.com/WebAssembly/threads
             @threads MemoryAtomicNotify { memarg: $crate::MemArg } => visit_memory_atomic_notify
             @threads MemoryAtomicWait32 { memarg: $crate::MemArg } => visit_memory_atomic_wait32
             @threads MemoryAtomicWait64 { memarg: $crate::MemArg } => visit_memory_atomic_wait64
@@ -403,7 +410,9 @@ macro_rules! for_each_operator {
             @threads I64AtomicRmw32CmpxchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_cmpxchg_u
 
             // 0xFD operators
-            // SIMD https://webassembly.github.io/simd/core/binary/instructions.html
+            // 128-bit SIMD
+            // - https://github.com/webassembly/simd
+            // - https://webassembly.github.io/simd/core/binary/instructions.html
             @simd V128Load { memarg: $crate::MemArg } => visit_v128_load
             @simd V128Load8x8S { memarg: $crate::MemArg } => visit_v128_load8x8_s
             @simd V128Load8x8U { memarg: $crate::MemArg } => visit_v128_load8x8_u
@@ -642,6 +651,7 @@ macro_rules! for_each_operator {
             @simd F64x2PromoteLowF32x4 => visit_f64x2_promote_low_f32x4
 
             // Relaxed SIMD operators
+            // https://github.com/WebAssembly/relaxed-simd
             @relaxed_simd I8x16RelaxedSwizzle => visit_i8x16_relaxed_swizzle
             @relaxed_simd I32x4RelaxedTruncSatF32x4S => visit_i32x4_relaxed_trunc_sat_f32x4_s
             @relaxed_simd I32x4RelaxedTruncSatF32x4U => visit_i32x4_relaxed_trunc_sat_f32x4_u
