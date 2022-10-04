@@ -36,7 +36,7 @@ use self::{
 use super::{Mutator, OperatorAndByteOffset};
 use crate::{
     module::{map_type, PrimitiveTypeInfo},
-    Error, ModuleInfo, Result, WasmMutate,
+    Error, ErrorKind, ModuleInfo, Result, WasmMutate,
 };
 use egg::{Rewrite, Runner};
 use rand::{prelude::SmallRng, Rng};
@@ -229,8 +229,6 @@ impl PeepholeMutator {
                 // In theory this will return the Id of the operator eterm
                 let root = egraph.add_expr(&start);
                 let startcmp = start.clone();
-                // Since this construction is expensive then more fuel is consumed
-                let config4fuel = config.clone();
 
                 // If the number of nodes in the egraph is not large, then
                 // continue the search
@@ -273,6 +271,8 @@ impl PeepholeMutator {
                     .filter(move |expr| !expr.to_string().eq(&startcmp.to_string()))
                     .map(move |expr| {
                         log::trace!("Yielding expression:\n{}", expr.pretty(60));
+
+                        config.consume_fuel(1)?;
 
                         let mut newfunc = self.copy_locals(reader)?;
                         let needed_resources = Encoder::build_function(
@@ -407,10 +407,14 @@ impl PeepholeMutator {
                                 false
                             },
                         );
+
                         Ok(module)
                     })
-                    // Consume fuel for each returned expression and it is expensive
-                    .take_while(move |_| config4fuel.consume_fuel(1).is_ok());
+                    .map_while(|module: Result<Module>| match module {
+                        Ok(module) => Some(Ok(module)),
+                        Err(e) if matches!(e.kind(), ErrorKind::OutOfFuel) => None,
+                        Err(e) => Some(Err(e)),
+                    });
 
                 return Ok(Box::new(iterator));
             }
@@ -633,8 +637,8 @@ mod tests {
                 (type (;0;) (func (result i32)))
                 (func (;0;) (type 0) (result i32)
                   (local i32 i32)
-                  i32.const -1985698784
-                  i32.const 1985698840
+                  i32.const 1697131274
+                  i32.const -1697131218
                   i32.add)
                 (export "exported_func" (func 0)))
             "#,
