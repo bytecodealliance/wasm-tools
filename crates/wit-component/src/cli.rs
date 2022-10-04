@@ -43,11 +43,11 @@ fn parse_interface(name: Option<String>, path: &Path) -> Result<Interface> {
 #[clap(name = "component-encoder", version = env!("CARGO_PKG_VERSION"))]
 pub struct WitComponentApp {
     /// The path to an interface definition file the component imports.
-    #[clap(long = "import", value_name = "NAME=INTERFACE", parse(try_from_str = parse_named_interface))]
+    #[clap(long = "import", value_name = "NAME=INTERFACE", value_parser = parse_named_interface)]
     pub imports: Vec<Interface>,
 
     /// The path to an interface definition file the component exports.
-    #[clap(long = "export", value_name = "NAME=INTERFACE", parse(try_from_str = parse_named_interface))]
+    #[clap(long = "export", value_name = "NAME=INTERFACE", value_parser = parse_named_interface)]
     pub exports: Vec<Interface>,
 
     /// The path of the output WebAssembly component.
@@ -55,7 +55,7 @@ pub struct WitComponentApp {
     pub output: Option<PathBuf>,
 
     /// The default interface the component exports.
-    #[clap(long, short = 'i', value_name = "INTERFACE", parse(try_from_str = parse_unnamed_interface))]
+    #[clap(long, short = 'i', value_name = "INTERFACE", value_parser = parse_unnamed_interface)]
     pub interface: Option<Interface>,
 
     /// Skip validation of the output component.
