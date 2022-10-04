@@ -467,6 +467,7 @@ impl TestState {
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 "relaxed-simd" => features.relaxed_simd = true,
+                "reference-types" => features.reference_types = true,
                 _ => {}
             }
         }
