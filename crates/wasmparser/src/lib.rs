@@ -326,14 +326,16 @@ macro_rules! for_each_operator {
             @bulk_memory TableInit { elem_index: u32, table: u32 } => visit_table_init
             @bulk_memory ElemDrop { elem_index: u32 } => visit_elem_drop
             @bulk_memory TableCopy { dst_table: u32, src_table: u32 } => visit_table_copy
-            @bulk_memory TableFill { table: u32 } => visit_table_fill
-            @bulk_memory TableGet { table: u32 } => visit_table_get
-            @bulk_memory TableSet { table: u32 } => visit_table_set
-            @bulk_memory TableGrow { table: u32 } => visit_table_grow
-            @bulk_memory TableSize { table: u32 } => visit_table_size
 
-            // 0xFE operators
-            // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
+            // 0xFC prefixed operators
+            // reference-types
+            // https://github.com/WebAssembly/reference-types
+            @reference_types TableFill { table: u32 } => visit_table_fill
+            @reference_types TableGet { table: u32 } => visit_table_get
+            @reference_types TableSet { table: u32 } => visit_table_set
+            @reference_types TableGrow { table: u32 } => visit_table_grow
+            @reference_types TableSize { table: u32 } => visit_table_size
+
             @threads MemoryAtomicNotify { memarg: $crate::MemArg } => visit_memory_atomic_notify
             @threads MemoryAtomicWait32 { memarg: $crate::MemArg } => visit_memory_atomic_wait32
             @threads MemoryAtomicWait64 { memarg: $crate::MemArg } => visit_memory_atomic_wait64
