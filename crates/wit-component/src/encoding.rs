@@ -549,6 +549,12 @@ impl<'a> TypeEncoder<'a> {
         required_funcs: &IndexSet<&'a str>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
+        // Don't import empty instances if no functions are actually required
+        // from this interface.
+        if required_funcs.is_empty() {
+            return Ok(());
+        }
+
         let mut instance = InstanceTypeEncoder::default();
 
         for func in &import.functions {
@@ -1197,11 +1203,6 @@ impl<'a> EncodingState<'a> {
         imports: &ImportEncoder<'a>,
         info: &ValidatedModule<'a>,
     ) -> Result<()> {
-        if imports.map.is_empty() {
-            self.instantiate_core_module([], info);
-            return Ok(());
-        }
-
         // Encode a shim instantiation if needed
         let shims = self.encode_shim_instantiation(imports, info);
 
