@@ -86,7 +86,7 @@ pub struct ValidatedModule<'a> {
 /// for this module.
 pub fn validate_module<'a>(
     bytes: &'a [u8],
-    interface: &Option<&Interface>,
+    interface: &Option<Interface>,
     imports: &[Interface],
     exports: &[Interface],
     adapters: &IndexSet<&str>,

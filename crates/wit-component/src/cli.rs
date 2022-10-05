@@ -139,7 +139,7 @@ impl WitComponentApp {
             .with_context(|| format!("failed to parse module `{}`", self.module.display()))?;
 
         let mut encoder = ComponentEncoder::default()
-            .module(&module)
+            .module(&module)?
             .imports(&self.imports)
             .exports(&self.exports)
             .validate(!self.skip_validation);

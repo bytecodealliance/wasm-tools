@@ -53,6 +53,7 @@
 //! component model.
 
 use crate::{
+    decode_interface_component,
     validation::{
         expected_export_name, validate_adapter_module, validate_module, ValidatedAdapter,
         ValidatedModule,
@@ -2097,9 +2098,9 @@ impl<'a> ImportEncoder<'a> {
 pub struct ComponentEncoder<'a> {
     module: &'a [u8],
     encoding: StringEncoding,
-    interface: Option<&'a Interface>,
-    imports: &'a [Interface],
-    exports: &'a [Interface],
+    interface: Option<Interface>,
+    imports: Vec<Interface>,
+    exports: Vec<Interface>,
     validate: bool,
     types_only: bool,
     adapters: IndexMap<&'a str, (&'a [u8], &'a Interface)>,
@@ -2107,9 +2108,43 @@ pub struct ComponentEncoder<'a> {
 
 impl<'a> ComponentEncoder<'a> {
     /// Set the core module to encode as a component.
-    pub fn module(mut self, module: &'a [u8]) -> Self {
+    /// This method will also parse any component type information stored in custom sections
+    /// inside the module, and add them as the interface, imports, and exports.
+    pub fn module(mut self, module: &'a [u8]) -> Result<Self> {
+        for payload in wasmparser::Parser::new(0).parse_all(&module) {
+            match payload.context("decoding item in module")? {
+                wasmparser::Payload::CustomSection(cs) => {
+                    if let Some(export) = cs.name().strip_prefix("component-type:export:") {
+                        let mut i = decode_interface_component(cs.data()).with_context(|| {
+                            format!("decoding component-type in export section {}", export)
+                        })?;
+                        i.name = export.to_owned();
+                        self.interface = Some(i);
+                    } else if let Some(import) = cs.name().strip_prefix("component-type:import:") {
+                        let mut i = decode_interface_component(cs.data()).with_context(|| {
+                            format!("decoding component-type in import section {}", import)
+                        })?;
+                        i.name = import.to_owned();
+                        self.imports.push(i);
+                    } else if let Some(export_instance) =
+                        cs.name().strip_prefix("component-type:export-instance:")
+                    {
+                        let mut i = decode_interface_component(cs.data()).with_context(|| {
+                            format!(
+                                "decoding component-type in export-instance section {}",
+                                export_instance
+                            )
+                        })?;
+                        i.name = export_instance.to_owned();
+                        self.exports.push(i);
+                    }
+                }
+                _ => {}
+            }
+        }
+
         self.module = module;
-        self
+        Ok(self)
     }
 
     /// Set the string encoding expected by the core module.
@@ -2126,19 +2161,23 @@ impl<'a> ComponentEncoder<'a> {
 
     /// Set the default interface exported by the component.
     pub fn interface(mut self, interface: &'a Interface) -> Self {
-        self.interface = Some(interface);
+        self.interface = Some(interface.clone());
         self
     }
 
     /// Set the interfaces the component imports.
     pub fn imports(mut self, imports: &'a [Interface]) -> Self {
-        self.imports = imports;
+        for i in imports {
+            self.imports.push(i.clone())
+        }
         self
     }
 
     /// Set the interfaces the component exports.
     pub fn exports(mut self, exports: &'a [Interface]) -> Self {
-        self.exports = exports;
+        for e in exports {
+            self.exports.push(e.clone())
+        }
         self
     }
 
@@ -2171,8 +2210,8 @@ impl<'a> ComponentEncoder<'a> {
             validate_module(
                 self.module,
                 &self.interface,
-                self.imports,
-                self.exports,
+                &self.imports,
+                &self.exports,
                 &adapters,
             )?
         } else {
@@ -2182,7 +2221,6 @@ impl<'a> ComponentEncoder<'a> {
         let exports = self
             .interface
             .iter()
-            .copied()
             .map(|i| (i, true))
             .chain(self.exports.iter().map(|i| (i, false)));
 
@@ -2190,7 +2228,7 @@ impl<'a> ComponentEncoder<'a> {
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
         types.encode_func_types(exports.clone(), false)?;
-        types.encode_instance_imports(self.imports, &info, &mut imports)?;
+        types.encode_instance_imports(&self.imports, &info, &mut imports)?;
 
         if self.types_only {
             if !self.module.is_empty() {
