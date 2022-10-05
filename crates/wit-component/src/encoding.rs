@@ -52,8 +52,8 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
+use crate::extract::{extract_module_interfaces, ModuleInterfaces};
 use crate::{
-    decode_interface_component,
     validation::{
         expected_export_name, validate_adapter_module, validate_module, ValidatedAdapter,
         ValidatedModule,
@@ -64,6 +64,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::hash::{Hash, Hasher};
 use std::mem;
+use std::path::Path;
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
@@ -2095,55 +2096,32 @@ impl<'a> ImportEncoder<'a> {
 
 /// An encoder of components based on `wit` interface definitions.
 #[derive(Default)]
-pub struct ComponentEncoder<'a> {
-    module: &'a [u8],
+pub struct ComponentEncoder {
+    module: Vec<u8>,
     encoding: StringEncoding,
     interface: Option<Interface>,
     imports: Vec<Interface>,
     exports: Vec<Interface>,
     validate: bool,
     types_only: bool,
-    adapters: IndexMap<&'a str, (&'a [u8], &'a Interface)>,
+    adapters: IndexMap<String, (Vec<u8>, Interface)>,
 }
 
-impl<'a> ComponentEncoder<'a> {
+impl ComponentEncoder {
     /// Set the core module to encode as a component.
     /// This method will also parse any component type information stored in custom sections
     /// inside the module, and add them as the interface, imports, and exports.
-    pub fn module(mut self, module: &'a [u8]) -> Result<Self> {
-        for payload in wasmparser::Parser::new(0).parse_all(&module) {
-            match payload.context("decoding item in module")? {
-                wasmparser::Payload::CustomSection(cs) => {
-                    if let Some(export) = cs.name().strip_prefix("component-type:export:") {
-                        let mut i = decode_interface_component(cs.data()).with_context(|| {
-                            format!("decoding component-type in export section {}", export)
-                        })?;
-                        i.name = export.to_owned();
-                        self.interface = Some(i);
-                    } else if let Some(import) = cs.name().strip_prefix("component-type:import:") {
-                        let mut i = decode_interface_component(cs.data()).with_context(|| {
-                            format!("decoding component-type in import section {}", import)
-                        })?;
-                        i.name = import.to_owned();
-                        self.imports.push(i);
-                    } else if let Some(export_instance) =
-                        cs.name().strip_prefix("component-type:export-instance:")
-                    {
-                        let mut i = decode_interface_component(cs.data()).with_context(|| {
-                            format!(
-                                "decoding component-type in export-instance section {}",
-                                export_instance
-                            )
-                        })?;
-                        i.name = export_instance.to_owned();
-                        self.exports.push(i);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        self.module = module;
+    pub fn module(mut self, module: &[u8]) -> Result<Self> {
+        let ModuleInterfaces {
+            imports,
+            exports,
+            wasm,
+            interface,
+        } = extract_module_interfaces(module)?;
+        self.interface = interface;
+        self.imports.extend(imports);
+        self.exports.extend(exports);
+        self.module = wasm;
         Ok(self)
     }
 
@@ -2160,13 +2138,13 @@ impl<'a> ComponentEncoder<'a> {
     }
 
     /// Set the default interface exported by the component.
-    pub fn interface(mut self, interface: &'a Interface) -> Self {
+    pub fn interface(mut self, interface: &Interface) -> Self {
         self.interface = Some(interface.clone());
         self
     }
 
     /// Set the interfaces the component imports.
-    pub fn imports(mut self, imports: &'a [Interface]) -> Self {
+    pub fn imports(mut self, imports: &[Interface]) -> Self {
         for i in imports {
             self.imports.push(i.clone())
         }
@@ -2174,7 +2152,7 @@ impl<'a> ComponentEncoder<'a> {
     }
 
     /// Set the interfaces the component exports.
-    pub fn exports(mut self, exports: &'a [Interface]) -> Self {
+    pub fn exports(mut self, exports: &[Interface]) -> Self {
         for e in exports {
             self.exports.push(e.clone())
         }
@@ -2198,17 +2176,53 @@ impl<'a> ComponentEncoder<'a> {
     /// wasm module specified by `bytes` imports. The `bytes` will then import
     /// `interface` and export functions to get imported from the module `name`
     /// in the core wasm that's being wrapped.
-    pub fn adapter(mut self, name: &'a str, bytes: &'a [u8], interface: &'a Interface) -> Self {
-        self.adapters.insert(name, (bytes, interface));
+    pub fn adapter(mut self, name: &str, bytes: &[u8], interface: &Interface) -> Self {
+        self.adapters
+            .insert(name.to_string(), (bytes.to_vec(), interface.clone()));
         self
+    }
+
+    /// This is a convenience method for [`ComponentEncoder::adapter`] for
+    /// inferring everything from just one `path` specified.
+    ///
+    /// The wasm binary at `path` is read and parsed and is assumed to have
+    /// embedded information about its imported interfaces. Additionally the
+    /// name of the adapter is inferred from the file name itself as the file
+    /// stem.
+    pub fn adapter_file(mut self, path: &Path) -> Result<Self> {
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow!("input filename was not valid utf-8"))?;
+        let wasm = wat::parse_file(path)?;
+        let ModuleInterfaces {
+            mut imports,
+            exports,
+            wasm,
+            interface,
+        } = extract_module_interfaces(&wasm)?;
+        if exports.len() > 0 || interface.is_some() {
+            bail!("adapter modules cannot have an exported interface");
+        }
+        let import = match imports.len() {
+            0 => Interface::default(),
+            1 => imports.remove(0),
+            _ => bail!("adapter modules can only import one interface at this time"),
+        };
+        self.adapters.insert(name.to_string(), (wasm, import));
+        Ok(self)
     }
 
     /// Encode the component and return the bytes.
     pub fn encode(&self) -> Result<Vec<u8>> {
         let info = if !self.module.is_empty() {
-            let adapters = self.adapters.keys().copied().collect::<IndexSet<_>>();
+            let adapters = self
+                .adapters
+                .keys()
+                .map(|s| s.as_str())
+                .collect::<IndexSet<_>>();
             validate_module(
-                self.module,
+                &self.module,
                 &self.interface,
                 &self.imports,
                 &self.exports,
@@ -2257,7 +2271,7 @@ impl<'a> ComponentEncoder<'a> {
             types.finish(&mut state.component);
 
             state.encode_imports(&imports);
-            state.encode_core_module(self.module);
+            state.encode_core_module(&self.module);
             state.encode_core_instantiation(self.encoding, &imports, &info)?;
             state.encode_exports(self.encoding, exports, &types.func_type_map)?;
         }

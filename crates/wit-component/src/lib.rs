@@ -11,11 +11,13 @@ use wit_parser::Interface;
 pub mod cli;
 mod decoding;
 mod encoding;
+mod extract;
 mod gc;
 mod printing;
 mod validation;
 
 pub use encoding::*;
+pub use extract::*;
 pub use printing::*;
 
 /// Supported string encoding formats.
