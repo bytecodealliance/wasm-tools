@@ -2,6 +2,7 @@
 
 #![deny(missing_docs)]
 
+use crate::extract::{extract_module_interfaces, ModuleInterfaces};
 use crate::{
     decode_interface_component, ComponentEncoder, InterfaceEncoder, InterfacePrinter,
     StringEncoding,
@@ -61,10 +62,21 @@ fn parse_adapter(s: &str) -> Result<(String, Vec<u8>, Interface)> {
             Ok((name.to_string(), wasm, interface))
         }
         None => {
-            // TODO: implement inferring the `interface` from the `wasm`
-            // specified
-            drop((name, wasm));
-            bail!("inferring from the core wasm module is not supported at this time")
+            let ModuleInterfaces {
+                mut imports,
+                exports,
+                wasm,
+                interface,
+            } = extract_module_interfaces(&wasm)?;
+            if exports.len() > 0 || interface.is_some() {
+                bail!("adapter modules cannot have an exported interface");
+            }
+            let import = match imports.len() {
+                0 => Interface::default(),
+                1 => imports.remove(0),
+                _ => bail!("adapter modules can only import one interface at this time"),
+            };
+            Ok((name.to_string(), wasm, import))
         }
     }
 }
