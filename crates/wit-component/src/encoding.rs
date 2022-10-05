@@ -548,8 +548,6 @@ impl<'a> TypeEncoder<'a> {
         required_funcs: &IndexSet<&'a str>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
-        Self::validate_interface(import)?;
-
         let mut instance = InstanceTypeEncoder::default();
 
         for func in &import.functions {
@@ -574,8 +572,6 @@ impl<'a> TypeEncoder<'a> {
         export_func_types: bool,
     ) -> Result<()> {
         for (export, is_default) in interfaces {
-            Self::validate_interface(export)?;
-
             // TODO: stick interface documentation in a custom section?
 
             for func in &export.functions {
@@ -744,9 +740,6 @@ impl<'a> TypeEncoder<'a> {
 
                 encoded
             }
-            Type::Handle(_) => {
-                bail!("the use of handle types in interfaces is not currently supported")
-            }
         })
     }
 
@@ -910,14 +903,6 @@ impl<'a> TypeEncoder<'a> {
 
                 self.exports.export(name, ComponentExportKind::Type, index);
             }
-        }
-
-        Ok(())
-    }
-
-    fn validate_interface(interface: &Interface) -> Result<()> {
-        if interface.resources.len() != 0 {
-            bail!("the use of resources in interfaces is not currently not supported");
         }
 
         Ok(())

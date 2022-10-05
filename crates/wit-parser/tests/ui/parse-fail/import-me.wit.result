@@ -1,18 +1,9 @@
 {
-  "resources": [
-    {
-      "name": "bar"
-    }
-  ],
   "types": [
     {
       "idx": 0,
       "name": "foo",
       "primitive": "u32"
-    },
-    {
-      "idx": 1,
-      "primitive": "handle-0"
     }
   ]
 }

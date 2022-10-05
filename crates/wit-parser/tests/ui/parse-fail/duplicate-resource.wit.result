@@ -1,5 +1,0 @@
-resource "a" defined twice
-     --> tests/ui/parse-fail/duplicate-resource.wit:4:10
-      |
-    4 | resource a
-      |          ^

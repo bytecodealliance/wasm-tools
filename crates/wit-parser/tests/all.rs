@@ -169,8 +169,6 @@ fn to_json(i: &Interface) -> String {
     #[derive(Serialize)]
     struct Interface {
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        resources: Vec<Resource>,
-        #[serde(skip_serializing_if = "Vec::is_empty")]
         types: Vec<TypeDef>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         functions: Vec<Function>,
@@ -246,16 +244,6 @@ fn to_json(i: &Interface) -> String {
         ty: String,
     }
 
-    let resources = i
-        .resources
-        .iter()
-        .map(|(_, r)| Resource {
-            name: r.name.clone(),
-            supertype: r.supertype.as_ref().map(|supertype| supertype.clone()),
-            foreign_module: r.foreign_module.clone(),
-        })
-        .collect::<Vec<_>>();
-
     let types = i
         .types
         .iter()
@@ -289,7 +277,6 @@ fn to_json(i: &Interface) -> String {
         .collect::<Vec<_>>();
 
     let iface = Interface {
-        resources,
         types,
         functions,
         globals,
@@ -355,7 +342,6 @@ fn to_json(i: &Interface) -> String {
             Type::Float64 => format!("float64"),
             Type::Char => format!("char"),
             Type::String => format!("string"),
-            Type::Handle(resource) => format!("handle-{}", resource.index()),
             Type::Id(id) => format!("type-{}", id.index()),
         }
     }

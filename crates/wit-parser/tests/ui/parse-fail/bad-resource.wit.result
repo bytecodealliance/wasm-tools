@@ -1,5 +1,0 @@
-globals not allowed in resources
-     --> tests/ui/parse-fail/bad-resource.wit:4:3
-      |
-    4 |   x: s32
-      |   ^

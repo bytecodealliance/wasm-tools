@@ -9,17 +9,6 @@ code blocks.
 type foo = u32
 ```
 
-## `x`
-```wit
-/// This is x.
-resource x
-```
-
-## `handle`
-```wit
-/// This is handle.
-type handle = x
-```
 
 ## `some-record`
 ```wit

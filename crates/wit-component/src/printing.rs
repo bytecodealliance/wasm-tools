@@ -122,8 +122,6 @@ impl InterfacePrinter {
                     }
                 }
             }
-
-            Type::Handle(_) => bail!("interface has unsupported type"),
         }
 
         Ok(())
@@ -245,8 +243,6 @@ impl InterfacePrinter {
                     TypeDefKind::Stream(_) => todo!("declare stream"),
                 }
             }
-
-            Type::Handle(_) => bail!("interface has unsupported type"),
         }
         Ok(())
     }

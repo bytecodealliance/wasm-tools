@@ -1,5 +1,0 @@
-"x" defined twice in this resource
-     --> tests/ui/parse-fail/bad-resource2.wit:5:3
-      |
-    5 |   x: func()
-      |   ^

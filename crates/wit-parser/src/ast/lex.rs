@@ -48,7 +48,6 @@ pub enum Token {
 
     Use,
     Type,
-    Resource,
     Func,
     U8,
     U16,
@@ -236,7 +235,6 @@ impl<'a> Tokenizer<'a> {
                 match &self.input[start..end] {
                     "use" => Use,
                     "type" => Type,
-                    "resource" => Resource,
                     "func" => Func,
                     "u8" => U8,
                     "u16" => U16,
@@ -498,7 +496,6 @@ impl Token {
             GreaterThan => "'>'",
             Use => "keyword `use`",
             Type => "keyword `type`",
-            Resource => "keyword `resource`",
             Func => "keyword `func`",
             U8 => "keyword `u8`",
             U16 => "keyword `u16`",

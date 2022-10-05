@@ -5,6 +5,7 @@
 /* this too */ /* is a comment */
 /* this /* is /* a */ nested */ comment */
 
+type x = u32
 
 type /* foo */ bar /* baz */ = //
 stream < //
@@ -18,4 +19,3 @@ x
 
 >
 
-resource /* x */ x // ...

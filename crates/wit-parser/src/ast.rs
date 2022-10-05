@@ -16,7 +16,6 @@ pub struct Ast<'a> {
 
 pub enum Item<'a> {
     Use(Use<'a>),
-    Resource(Resource<'a>),
     TypeDef(TypeDef<'a>),
     Value(Value<'a>),
     Interface(Interface<'a>),
@@ -53,13 +52,6 @@ pub struct Use<'a> {
 struct UseName<'a> {
     name: Id<'a>,
     as_: Option<Id<'a>>,
-}
-
-pub struct Resource<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    supertype: Option<Id<'a>>,
-    values: Vec<(bool, Value<'a>)>,
 }
 
 #[derive(Default)]
@@ -223,12 +215,11 @@ impl<'a> Item<'a> {
             }
             Some((_span, Token::Record)) => TypeDef::parse_record(tokens, docs).map(Item::TypeDef),
             Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(Item::TypeDef),
-            Some((_span, Token::Resource)) => Resource::parse(tokens, docs).map(Item::Resource),
             Some((_span, Token::Interface)) => Interface::parse(tokens, docs).map(Item::Interface),
             Some((_span, Token::Id)) | Some((_span, Token::ExplicitId)) => {
                 Value::parse(tokens, docs).map(Item::Value)
             }
-            other => Err(err_expected(tokens, "`type`, `resource`, or `func`", other).into()),
+            other => Err(err_expected(tokens, "`type` or `func`", other).into()),
         }
     }
 }
@@ -375,35 +366,6 @@ impl<'a> TypeDef<'a> {
             )?,
         });
         Ok(TypeDef { docs, name, ty })
-    }
-}
-
-impl<'a> Resource<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
-        tokens.expect(Token::Resource)?;
-        let name = parse_id(tokens)?;
-        let supertype = if tokens.eat(Token::Implements)? {
-            Some(parse_id(tokens)?)
-        } else {
-            None
-        };
-        let mut values = Vec::new();
-        if tokens.eat(Token::LeftBrace)? {
-            loop {
-                let docs = parse_docs(tokens)?;
-                if tokens.eat(Token::RightBrace)? {
-                    break;
-                }
-                let statik = tokens.eat(Token::Static)?;
-                values.push((statik, Value::parse(tokens, docs)?));
-            }
-        }
-        Ok(Resource {
-            docs,
-            name,
-            supertype,
-            values,
-        })
     }
 }
 

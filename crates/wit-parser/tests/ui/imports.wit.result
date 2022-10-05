@@ -1,13 +1,4 @@
 {
-  "resources": [
-    {
-      "name": "x",
-      "foreign_module": "import-me"
-    },
-    {
-      "name": "xyz"
-    }
-  ],
   "types": [
     {
       "idx": 0,
@@ -17,17 +8,6 @@
     },
     {
       "idx": 1,
-      "primitive": "handle-0",
-      "foreign_module": "import-me"
-    },
-    {
-      "idx": 2,
-      "name": "handle",
-      "primitive": "handle-0",
-      "foreign_module": "import-me"
-    },
-    {
-      "idx": 3,
       "name": "some-record",
       "tuple": {
         "types": [
@@ -39,28 +19,14 @@
       "foreign_module": "import-me"
     },
     {
-      "idx": 4,
+      "idx": 2,
       "name": "x",
       "primitive": "type-0"
     },
     {
-      "idx": 5,
+      "idx": 3,
       "name": "y",
       "primitive": "type-0"
-    },
-    {
-      "idx": 6,
-      "name": "z1",
-      "primitive": "handle-0"
-    },
-    {
-      "idx": 7,
-      "primitive": "handle-1"
-    },
-    {
-      "idx": 8,
-      "name": "my-handle",
-      "primitive": "handle-1"
     }
   ]
 }

@@ -8,10 +8,7 @@ use std::mem;
 pub struct Resolver {
     type_lookup: HashMap<String, TypeId>,
     types: Arena<TypeDef>,
-    resource_lookup: HashMap<String, ResourceId>,
-    resources_copied: HashMap<(String, ResourceId), ResourceId>,
     types_copied: HashMap<(String, TypeId), TypeId>,
-    resources: Arena<Resource>,
     anon_types: HashMap<Key, TypeId>,
     functions: Vec<Function>,
     globals: Vec<Global>,
@@ -63,7 +60,6 @@ impl Resolver {
         for field in fields {
             match field {
                 Item::Value(v) => self.resolve_value(v)?,
-                Item::Resource(r) => self.resolve_resource(r)?,
                 Item::TypeDef(t) => {
                     self.validate_type_not_recursive(
                         t.name.span,
@@ -81,8 +77,6 @@ impl Resolver {
             module: None,
             types: mem::take(&mut self.types),
             type_lookup: mem::take(&mut self.type_lookup),
-            resources: mem::take(&mut self.resources),
-            resource_lookup: mem::take(&mut self.resource_lookup),
             interface_lookup: Default::default(),
             interfaces: Default::default(),
             functions: mem::take(&mut self.functions),
@@ -127,12 +121,6 @@ impl Resolver {
                         };
                         let mut found = false;
 
-                        if let Some(id) = dep.resource_lookup.get(&*name.name.name) {
-                            let resource = self.copy_resource(&mod_name.name, dep, *id);
-                            self.define_resource(my_name, span, resource)?;
-                            found = true;
-                        }
-
                         if let Some(id) = dep.type_lookup.get(&*name.name.name) {
                             let ty = self.copy_type_def(&mod_name.name, dep, *id);
                             self.define_type(my_name, span, ty)?;
@@ -149,10 +137,6 @@ impl Resolver {
                     }
                 }
                 None => {
-                    for (id, resource) in dep.resources.iter() {
-                        let id = self.copy_resource(&mod_name.name, dep, id);
-                        self.define_resource(&resource.name, mod_name.span, id)?;
-                    }
                     let mut names = dep.type_lookup.iter().collect::<Vec<_>>();
                     names.sort(); // produce a stable order by which to add names
                     for (name, id) in names {
@@ -163,27 +147,6 @@ impl Resolver {
             }
         }
         Ok(())
-    }
-
-    fn copy_resource(&mut self, dep_name: &str, dep: &Interface, r: ResourceId) -> ResourceId {
-        let resources = &mut self.resources;
-        *self
-            .resources_copied
-            .entry((dep_name.to_string(), r))
-            .or_insert_with(|| {
-                let r = &dep.resources[r];
-                let resource = Resource {
-                    docs: r.docs.clone(),
-                    name: r.name.clone(),
-                    supertype: r.supertype.clone(),
-                    foreign_module: Some(
-                        r.foreign_module
-                            .clone()
-                            .unwrap_or_else(|| dep_name.to_string()),
-                    ),
-                };
-                resources.alloc(resource)
-            })
     }
 
     fn copy_type_def(&mut self, dep_name: &str, dep: &Interface, dep_id: TypeId) -> TypeId {
@@ -268,7 +231,6 @@ impl Resolver {
     fn copy_type(&mut self, dep_name: &str, dep: &Interface, ty: Type) -> Type {
         match ty {
             Type::Id(id) => Type::Id(self.copy_type_def(dep_name, dep, id)),
-            Type::Handle(id) => Type::Handle(self.copy_resource(dep_name, dep, id)),
             other => other,
         }
     }
@@ -281,7 +243,6 @@ impl Resolver {
     ) -> Option<Type> {
         match ty {
             Some(Type::Id(id)) => Some(Type::Id(self.copy_type_def(dep_name, dep, id))),
-            Some(Type::Handle(id)) => Some(Type::Handle(self.copy_resource(dep_name, dep, id))),
             other => other,
         }
     }
@@ -290,26 +251,6 @@ impl Resolver {
         let mut values = HashSet::new();
         for field in fields {
             match field {
-                Item::Resource(r) => {
-                    let docs = self.docs(&r.docs);
-                    let id = self.resources.alloc(Resource {
-                        docs,
-                        name: r.name.name.to_string(),
-                        supertype: r
-                            .supertype
-                            .as_ref()
-                            .map(|supertype| supertype.name.to_string()),
-                        foreign_module: None,
-                    });
-                    self.define_resource(&r.name.name, r.name.span, id)?;
-                    let type_id = self.types.alloc(TypeDef {
-                        docs: Docs::default(),
-                        kind: TypeDefKind::Type(Type::Handle(id)),
-                        name: None,
-                        foreign_module: None,
-                    });
-                    self.define_type(&r.name.name, r.name.span, type_id)?;
-                }
                 Item::TypeDef(t) => {
                     let docs = self.docs(&t.docs);
                     let id = self.types.alloc(TypeDef {
@@ -340,18 +281,6 @@ impl Resolver {
         Ok(())
     }
 
-    fn define_resource(&mut self, name: &str, span: Span, id: ResourceId) -> Result<()> {
-        if self.resource_lookup.insert(name.to_string(), id).is_some() {
-            Err(Error {
-                span,
-                msg: format!("resource {:?} defined twice", name),
-            }
-            .into())
-        } else {
-            Ok(())
-        }
-    }
-
     fn define_type(&mut self, name: &str, span: Span, id: TypeId) -> Result<()> {
         if self.type_lookup.insert(name.to_string(), id).is_some() {
             Err(Error {
@@ -380,24 +309,17 @@ impl Resolver {
             super::Type::Char => TypeDefKind::Type(Type::Char),
             super::Type::String => TypeDefKind::Type(Type::String),
             super::Type::Name(name) => {
-                // Because resources are referred to directly by name,
-                // first check to see if we can look up this name as a
-                // resource.
-                if let Some(id) = self.resource_lookup.get(&*name.name) {
-                    TypeDefKind::Type(Type::Handle(*id))
-                } else {
-                    let id = match self.type_lookup.get(&*name.name) {
-                        Some(id) => *id,
-                        None => {
-                            return Err(Error {
-                                span: name.span,
-                                msg: format!("no type named `{}`", name.name),
-                            }
-                            .into())
+                let id = match self.type_lookup.get(&*name.name) {
+                    Some(id) => *id,
+                    None => {
+                        return Err(Error {
+                            span: name.span,
+                            msg: format!("no type named `{}`", name.name),
                         }
-                    };
-                    TypeDefKind::Type(Type::Id(id))
-                }
+                        .into())
+                    }
+                };
+                TypeDefKind::Type(Type::Id(id))
             }
             super::Type::List(list) => {
                 let ty = self.resolve_type(list)?;
@@ -636,53 +558,6 @@ impl Resolver {
             ResultList::Named(rs) => Ok(Results::Named(self.resolve_params(rs)?)),
             ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
         }
-    }
-
-    fn resolve_resource(&mut self, resource: &super::Resource<'_>) -> Result<()> {
-        let mut names = HashSet::new();
-        let id = self.resource_lookup[&*resource.name.name];
-        for (statik, value) in resource.values.iter() {
-            let (params, results) = match &value.kind {
-                ValueKind::Function { params, results } => (params, results),
-                ValueKind::Global(_) => {
-                    return Err(Error {
-                        span: value.name.span,
-                        msg: "globals not allowed in resources".to_string(),
-                    }
-                    .into());
-                }
-            };
-            if !names.insert(&value.name.name) {
-                return Err(Error {
-                    span: value.name.span,
-                    msg: format!("{:?} defined twice in this resource", value.name.name),
-                }
-                .into());
-            }
-            let docs = self.docs(&value.docs);
-            let mut params = self.resolve_params(params)?;
-            let results = self.resolve_results(results)?;
-            let kind = if *statik {
-                FunctionKind::Static {
-                    resource: id,
-                    name: value.name.name.to_string(),
-                }
-            } else {
-                params.insert(0, ("self".to_string(), Type::Handle(id)));
-                FunctionKind::Method {
-                    resource: id,
-                    name: value.name.name.to_string(),
-                }
-            };
-            self.functions.push(Function {
-                docs,
-                name: format!("{}::{}", resource.name.name, value.name.name),
-                kind,
-                params,
-                results,
-            });
-        }
-        Ok(())
     }
 
     fn validate_type_not_recursive(

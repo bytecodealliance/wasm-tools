@@ -1,3 +1,3 @@
 // parse-fail
-use { bar } from import-me
-use { bar } from import-me
+use { foo } from import-me
+use { foo } from import-me

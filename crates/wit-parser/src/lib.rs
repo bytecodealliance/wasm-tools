@@ -29,8 +29,6 @@ pub struct Interface {
     pub module: Option<String>,
     pub types: Arena<TypeDef>,
     pub type_lookup: HashMap<String, TypeId>,
-    pub resources: Arena<Resource>,
-    pub resource_lookup: HashMap<String, ResourceId>,
     pub interfaces: Arena<Interface>,
     pub interface_lookup: HashMap<String, InterfaceId>,
     pub functions: Vec<Function>,
@@ -38,7 +36,6 @@ pub struct Interface {
 }
 
 pub type TypeId = Id<TypeDef>;
-pub type ResourceId = Id<Resource>;
 pub type InterfaceId = Id<Interface>;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,7 +79,6 @@ pub enum Type {
     Float64,
     Char,
     String,
-    Handle(ResourceId),
     Id(TypeId),
 }
 
@@ -234,16 +230,6 @@ pub struct Docs {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Resource {
-    pub docs: Docs,
-    pub name: String,
-    pub supertype: Option<String>,
-    /// `None` if this resource is defined within the containing instance,
-    /// otherwise `Some` if it's defined in an instance named here.
-    pub foreign_module: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct Global {
     pub docs: Docs,
     pub name: String,
@@ -316,16 +302,12 @@ pub struct Function {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionKind {
     Freestanding,
-    Static { resource: ResourceId, name: String },
-    Method { resource: ResourceId, name: String },
 }
 
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
             FunctionKind::Freestanding => &self.name,
-            FunctionKind::Static { name, .. } => name,
-            FunctionKind::Method { name, .. } => name,
         }
     }
 }
@@ -536,7 +518,7 @@ impl Interface {
             | Type::Float32
             | Type::Float64 => true,
 
-            Type::Bool | Type::Char | Type::Handle(_) | Type::String => false,
+            Type::Bool | Type::Char | Type::String => false,
 
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::List(_)

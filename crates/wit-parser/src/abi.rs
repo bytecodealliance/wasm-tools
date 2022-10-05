@@ -1,7 +1,7 @@
 use crate::sizealign::align_to;
 use crate::{
-    Enum, Flags, FlagsRepr, Function, Int, Interface, Record, ResourceId, Result_, Results, Tuple,
-    Type, TypeDefKind, TypeId, Union, Variant,
+    Enum, Flags, FlagsRepr, Function, Int, Interface, Record, Result_, Results, Tuple, Type,
+    TypeDefKind, TypeId, Union, Variant,
 };
 
 /// A raw WebAssembly signature with params and results.
@@ -266,113 +266,6 @@ def_instruction! {
         BoolFromI32 : [1] => [1],
         /// Creates an `i32` from a `bool` input, must return 0 or 1.
         I32FromBool : [1] => [1],
-
-        // Handles
-
-        /// Converts a "borrowed" handle into a wasm `i32` value.
-        ///
-        /// > **Note**: this documentation is outdated and does not reflect the
-        /// > current implementation of the canonical ABI. This needs to be
-        /// > updated.
-        ///
-        /// A "borrowed" handle in this case means one where ownership is not
-        /// being relinquished. This is only used for lowering interface types
-        /// parameters.
-        ///
-        /// Situations that this is used are:
-        ///
-        /// * A wasm exported function receives, as a parameter, handles defined
-        ///   by the wasm module itself. This is effectively proof of ownership
-        ///   by an external caller (be it host or wasm module) and the
-        ///   ownership of the handle still lies with the caller. The wasm
-        ///   module is only receiving a reference to the resource.
-        ///
-        /// * A wasm module is calling an import with a handle defined by the
-        ///   import's module. Sort of the converse of the previous case this
-        ///   means that the wasm module is handing out a reference to a
-        ///   resource that it owns. The type in the wasm module, for example,
-        ///   needs to reflect this.
-        ///
-        /// This instruction is not used for return values in either
-        /// export/import positions.
-        I32FromBorrowedHandle { ty: ResourceId } : [1] => [1],
-
-        /// Converts an "owned" handle into a wasm `i32` value.
-        ///
-        /// > **Note**: this documentation is outdated and does not reflect the
-        /// > current implementation of the canonical ABI. This needs to be
-        /// > updated.
-        ///
-        /// This conversion is used for handle values which are crossing a
-        /// module boundary for perhaps the first time. Some example cases of
-        /// when this conversion is used are:
-        ///
-        /// * When a host defines a function to be imported, returned handles
-        ///   use this instruction. Handles being returned to wasm a granting a
-        ///   capability, which means that this new capability is typically
-        ///   wrapped up in a new integer descriptor.
-        ///
-        /// * When a wasm module calls an imported function with a type defined
-        ///   by itself, then it's granting a capability to the callee. This
-        ///   means that the wasm module's type is being granted for the first
-        ///   time, possibly, so it needs to be an owned value that's consumed.
-        ///   Note that this doesn't actually happen with `*.witx` today due to
-        ///   the lack of handle type imports.
-        ///
-        /// * When a wasm module export returns a handle defined within the
-        ///   module, then it's similar to calling an imported function with
-        ///   that handle. The capability is being granted to the caller of the
-        ///   export, so the owned value is wrapped up in an `i32`.
-        ///
-        /// * When a host is calling a wasm module with a capability defined by
-        ///   the host, its' similar to the host import returning a capability.
-        ///   This would be granting the wasm module with the capability so an
-        ///   owned version with a fresh handle is passed to the wasm module.
-        ///   Note that this doesn't happen today with `*.witx` due to the lack
-        ///   of handle type imports.
-        ///
-        /// Basically this instruction is used for handle->wasm conversions
-        /// depending on the calling context and where the handle type in
-        /// question was defined.
-        I32FromOwnedHandle { ty: ResourceId } : [1] => [1],
-
-        /// Converts a native wasm `i32` into an owned handle value.
-        ///
-        /// > **Note**: this documentation is outdated and does not reflect the
-        /// > current implementation of the canonical ABI. This needs to be
-        /// > updated.
-        ///
-        /// This is the converse of `I32FromOwnedHandle` and is used in similar
-        /// situations:
-        ///
-        /// * A host definition of an import receives a handle defined in the
-        ///   module itself.
-        /// * A wasm module calling an import receives a handle defined by the
-        ///   import.
-        /// * A wasm module's export receives a handle defined by an external
-        ///   module.
-        /// * A host calling a wasm export receives a handle defined in the
-        ///   module.
-        ///
-        /// Note that like `I32FromOwnedHandle` the first and third bullets
-        /// above don't happen today because witx can't express type imports
-        /// just yet.
-        HandleOwnedFromI32 { ty: ResourceId } : [1] => [1],
-
-        /// Converts a native wasm `i32` into a borrowedhandle value.
-        ///
-        /// > **Note**: this documentation is outdated and does not reflect the
-        /// > current implementation of the canonical ABI. This needs to be
-        /// > updated.
-        ///
-        /// This is the converse of `I32FromBorrowedHandle` and is used in similar
-        /// situations:
-        ///
-        /// * An exported wasm function receives, as a parameter, a handle that
-        ///   is defined by the wasm module.
-        /// * An host-defined imported function is receiving a handle, as a
-        ///   parameter, that is defined by the host itself.
-        HandleBorrowedFromI32 { ty: ResourceId } : [1] => [1],
 
         // lists
 
@@ -868,8 +761,7 @@ impl Interface {
             | Type::U16
             | Type::S32
             | Type::U32
-            | Type::Char
-            | Type::Handle(_) => result.push(WasmType::I32),
+            | Type::Char => result.push(WasmType::I32),
 
             Type::U64 | Type::S64 => result.push(WasmType::I64),
             Type::Float32 => result.push(WasmType::F32),
@@ -1023,10 +915,6 @@ impl Interface {
                 TypeDefKind::Flags(_) | TypeDefKind::Enum(_) => false,
                 TypeDefKind::Future(_) | TypeDefKind::Stream(_) => unimplemented!(),
             },
-
-            // TODO: this is probably not correct, unsure though as handles are
-            // in flux at the moment
-            Type::Handle(_) => false,
 
             Type::Bool
             | Type::U8
@@ -1382,40 +1270,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::Char => self.emit(&I32FromChar),
             Type::Float32 => self.emit(&F32FromFloat32),
             Type::Float64 => self.emit(&F64FromFloat64),
-            Type::Handle(ty) => {
-                let borrowed = match self.lift_lower {
-                    // This means that a return value is being lowered, which is
-                    // never borrowed.
-                    LiftLower::LiftArgsLowerResults => false,
-                    // There's one of three possible situations we're in:
-                    //
-                    // * The handle is defined by the wasm module itself. This
-                    //   is the only actual possible scenario today due to how
-                    //   witx is defined. In this situation the handle is owned
-                    //   by the host and "proof of ownership" is being offered
-                    //   and there's no need to relinquish ownership.
-                    //
-                    // * The handle is defined by the host, and it's passing it
-                    //   to a wasm module. This should use an owned conversion.
-                    //   This isn't expressible in today's `*.witx` format.
-                    //
-                    // * The handle is defined by neither the host or the wasm
-                    //   mdoule. This means that the host is passing a
-                    //   capability from another wasm module into this one,
-                    //   meaning it's doing so by reference since the host is
-                    //   retaining access to its own
-                    //
-                    // Note, again, only the first bullet here is possible
-                    // today, hence the hardcoded `true` value. We'll need to
-                    // refactor `witx` to expose the other possibilities.
-                    LiftLower::LowerArgsLiftResults => true,
-                };
-                if borrowed {
-                    self.emit(&I32FromBorrowedHandle { ty });
-                } else {
-                    self.emit(&I32FromOwnedHandle { ty });
-                }
-            }
             Type::String => {
                 let realloc = self.list_realloc();
                 self.emit(&StringLower { realloc });
@@ -1603,19 +1457,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::Char => self.emit(&CharFromI32),
             Type::Float32 => self.emit(&Float32FromF32),
             Type::Float64 => self.emit(&Float64FromF64),
-            Type::Handle(ty) => {
-                // For more information on these values see the comments in
-                // `lower` above.
-                let borrowed = match self.lift_lower {
-                    LiftLower::LiftArgsLowerResults => true,
-                    LiftLower::LowerArgsLiftResults => false,
-                };
-                if borrowed {
-                    self.emit(&HandleBorrowedFromI32 { ty });
-                } else {
-                    self.emit(&HandleOwnedFromI32 { ty });
-                }
-            }
             Type::String => self.emit(&StringLift),
             Type::Id(id) => match &self.iface.types[id].kind {
                 TypeDefKind::Type(t) => self.lift(t),
@@ -1766,7 +1607,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 self.lower_and_emit(ty, addr, &I32Store8 { offset })
             }
             Type::U16 | Type::S16 => self.lower_and_emit(ty, addr, &I32Store16 { offset }),
-            Type::U32 | Type::S32 | Type::Handle(_) | Type::Char => {
+            Type::U32 | Type::S32 | Type::Char => {
                 self.lower_and_emit(ty, addr, &I32Store { offset })
             }
             Type::U64 | Type::S64 => self.lower_and_emit(ty, addr, &I64Store { offset }),
@@ -1965,9 +1806,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::S8 => self.emit_and_lift(ty, addr, &I32Load8S { offset }),
             Type::U16 => self.emit_and_lift(ty, addr, &I32Load16U { offset }),
             Type::S16 => self.emit_and_lift(ty, addr, &I32Load16S { offset }),
-            Type::U32 | Type::S32 | Type::Char | Type::Handle(_) => {
-                self.emit_and_lift(ty, addr, &I32Load { offset })
-            }
+            Type::U32 | Type::S32 | Type::Char => self.emit_and_lift(ty, addr, &I32Load { offset }),
             Type::U64 | Type::S64 => self.emit_and_lift(ty, addr, &I64Load { offset }),
             Type::Float32 => self.emit_and_lift(ty, addr, &F32Load { offset }),
             Type::Float64 => self.emit_and_lift(ty, addr, &F64Load { offset }),
@@ -2165,8 +2004,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         }
 
         match *ty {
-            Type::Handle(_) => unimplemented!(),
-
             Type::String => {
                 self.stack.push(addr.clone());
                 self.emit(&Instruction::I32Load { offset });

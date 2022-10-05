@@ -1,5 +1,5 @@
-resource "bar" defined twice
+type "foo" defined twice
      --> tests/ui/parse-fail/import-bad4.wit:2:12
       |
-    2 | use { bar, bar } from import-me
+    2 | use { foo, foo } from import-me
       |            ^--
