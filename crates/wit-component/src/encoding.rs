@@ -273,6 +273,7 @@ impl Hash for TypeDefKey<'_> {
         match &def.kind {
             TypeDefKind::Record(r) => {
                 state.write_u8(0);
+                r.fields.len().hash(state);
                 for f in &r.fields {
                     f.name.hash(state);
                     TypeKey {
@@ -284,6 +285,7 @@ impl Hash for TypeDefKey<'_> {
             }
             TypeDefKind::Tuple(t) => {
                 state.write_u8(1);
+                t.types.len().hash(state);
                 for ty in &t.types {
                     TypeKey {
                         interface: self.interface,
@@ -294,25 +296,26 @@ impl Hash for TypeDefKey<'_> {
             }
             TypeDefKind::Flags(r) => {
                 state.write_u8(2);
+                r.flags.len().hash(state);
                 for f in &r.flags {
                     f.name.hash(state);
                 }
             }
             TypeDefKind::Variant(v) => {
                 state.write_u8(3);
+                v.cases.len().hash(state);
                 for c in &v.cases {
                     c.name.hash(state);
-                    if let Some(ty) = c.ty {
-                        TypeKey {
-                            interface: self.interface,
-                            ty,
-                        }
-                        .hash(state);
-                    }
+                    c.ty.map(|ty| TypeKey {
+                        interface: self.interface,
+                        ty,
+                    })
+                    .hash(state);
                 }
             }
             TypeDefKind::Enum(e) => {
                 state.write_u8(4);
+                e.cases.len().hash(state);
                 for c in &e.cases {
                     c.name.hash(state);
                 }
@@ -343,20 +346,17 @@ impl Hash for TypeDefKey<'_> {
             }
             TypeDefKind::Result(r) => {
                 state.write_u8(8);
-                if let Some(ok) = r.ok {
-                    TypeKey {
+                r.ok.map(|ty| TypeKey {
+                    interface: self.interface,
+                    ty,
+                })
+                .hash(state);
+                r.err
+                    .map(|ty| TypeKey {
                         interface: self.interface,
-                        ty: ok,
-                    }
+                        ty,
+                    })
                     .hash(state);
-                }
-                if let Some(err) = r.err {
-                    TypeKey {
-                        interface: self.interface,
-                        ty: err,
-                    }
-                    .hash(state);
-                }
             }
             TypeDefKind::Union(u) => {
                 state.write_u8(9);
@@ -399,9 +399,11 @@ impl PartialEq for FunctionKey<'_> {
         };
 
         let params_equal = |ps: &Params, ops: &Params| {
-            ps.iter()
-                .zip(ops.iter())
-                .all(|((n1, t1), (n2, t2))| n1 == n2 && key_equal(*t1, *t2))
+            ps.len() == ops.len()
+                && ps
+                    .iter()
+                    .zip(ops.iter())
+                    .all(|((n1, t1), (n2, t2))| n1 == n2 && key_equal(*t1, *t2))
         };
 
         let results_equal = |rs: &Results, ors: &Results| match (rs, ors) {
@@ -430,6 +432,8 @@ impl Hash for FunctionKey<'_> {
         }
         match &self.func.results {
             Results::Named(rs) => {
+                state.write_u8(0);
+                rs.len().hash(state);
                 for (name, ty) in rs.iter() {
                     name.hash(state);
                     TypeKey {
@@ -440,6 +444,7 @@ impl Hash for FunctionKey<'_> {
                 }
             }
             Results::Anon(ty) => {
+                state.write_u8(1);
                 TypeKey {
                     interface: self.interface,
                     ty: *ty,
