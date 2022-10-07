@@ -135,6 +135,8 @@ impl<'a> Tokenizer<'a> {
         Ok(ret)
     }
 
+    // This is going to be used shortly for a new feature.
+    #[allow(dead_code)]
     pub fn parse_str(&self, span: Span) -> Result<String> {
         let mut ret = String::new();
         let s = self.get_span(span);
@@ -367,11 +369,11 @@ impl<'a> Tokenizer<'a> {
             Some((_, '"')) => return Ok(None),
             Some((_, '\\')) => match self.chars.next() {
                 Some((_, '"')) => '"',
-                Some((_, '\'')) => ('\''),
-                Some((_, 't')) => ('\t'),
-                Some((_, 'n')) => ('\n'),
-                Some((_, 'r')) => ('\r'),
-                Some((_, '\\')) => ('\\'),
+                Some((_, '\'')) => '\'',
+                Some((_, 't')) => '\t',
+                Some((_, 'n')) => '\n',
+                Some((_, 'r')) => '\r',
+                Some((_, '\\')) => '\\',
                 Some((i, c)) => return Err(Error::InvalidEscape(i, c)),
                 None => return Err(Error::UnterminatedString(start)),
             },
