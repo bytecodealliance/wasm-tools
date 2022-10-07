@@ -12,4 +12,4 @@ enum error {
     bad-request,
 }
 
-execute: func(req: request) -> expected<response, error>
+execute: func(req: request) -> result<response, error>
