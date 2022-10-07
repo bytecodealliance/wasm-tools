@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 flate2 = "1.0.24"
-wit-bindgen-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
+wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
 
 [lib]
 crate-type = ["cdylib"]
