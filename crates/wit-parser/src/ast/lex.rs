@@ -82,6 +82,7 @@ pub enum Token {
 
     Id,
     ExplicitId,
+    StrLit,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -131,6 +132,17 @@ impl<'a> Tokenizer<'a> {
     pub fn parse_id(&self, span: Span) -> Result<String> {
         let ret = self.get_span(span).to_owned();
         validate_id(span.start as usize, &ret)?;
+        Ok(ret)
+    }
+
+    pub fn parse_str(&self, span: Span) -> Result<String> {
+        let mut ret = String::new();
+        let s = self.get_span(span);
+        let mut l = Tokenizer::new(s)?;
+        assert!(matches!(l.chars.next(), Some((_, '"'))));
+        while let Some(c) = l.eat_str_char(0).unwrap() {
+            ret.push(c);
+        }
         Ok(ret)
     }
 
@@ -206,6 +218,10 @@ impl<'a> Tokenizer<'a> {
                 } else {
                     return Err(Error::Unexpected(start, '-'));
                 }
+            }
+            '"' => {
+                while let Some(_ch) = self.eat_str_char(start)? {}
+                StrLit
             }
             '%' => {
                 let mut iter = self.chars.clone();
@@ -344,6 +360,32 @@ impl<'a> Tokenizer<'a> {
             }
             _ => false,
         }
+    }
+
+    fn eat_str_char(&mut self, start: usize) -> Result<Option<char>, Error> {
+        let ch = match self.chars.next() {
+            Some((_, '"')) => return Ok(None),
+            Some((_, '\\')) => match self.chars.next() {
+                Some((_, '"')) => '"',
+                Some((_, '\'')) => ('\''),
+                Some((_, 't')) => ('\t'),
+                Some((_, 'n')) => ('\n'),
+                Some((_, 'r')) => ('\r'),
+                Some((_, '\\')) => ('\\'),
+                Some((i, c)) => return Err(Error::InvalidEscape(i, c)),
+                None => return Err(Error::UnterminatedString(start)),
+            },
+            Some((_, ch))
+                if ch == '\u{09}'
+                    || (('\u{20}'..='\u{10ffff}').contains(&ch) && ch != '\u{7f}') =>
+            {
+                ch
+            }
+            Some((i, '\n')) => return Err(Error::NewlineInString(i)),
+            Some((i, ch)) => return Err(Error::InvalidCharInString(i, ch)),
+            None => return Err(Error::UnterminatedString(start)),
+        };
+        Ok(Some(ch))
     }
 }
 
@@ -523,6 +565,7 @@ impl Token {
             Underscore => "keyword `_`",
             Id => "an identifier",
             ExplicitId => "an '%' identifier",
+            StrLit => "a string",
             RArrow => "`->`",
             Star => "`*`",
             As => "keyword `as`",
@@ -683,6 +726,10 @@ fn test_tokenizer() {
             Token::RightParen
         ]
     );
+
+    assert_eq!(collect("\"a\"").unwrap(), vec![Token::StrLit]);
+    assert_eq!(collect("\"a-a\"").unwrap(), vec![Token::StrLit]);
+    assert_eq!(collect("\"bool\"").unwrap(), vec![Token::StrLit]);
 
     assert!(collect("\u{149}").is_err(), "strongly discouraged");
     assert!(collect("\u{673}").is_err(), "strongly discouraged");
