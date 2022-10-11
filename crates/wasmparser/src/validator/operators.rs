@@ -1331,13 +1331,13 @@ where
         if !is_num(ty1) || !is_num(ty2) {
             bail!(offset, "type mismatch: select only takes integral types")
         }
-        if ty1 != ty2 && ty1 != Some(ValType::Bot) && ty2 != Some(ValType::Bot) {
+        if ty1 != ty2 && ty1 != None && ty2 != None {
             bail!(
                 offset,
                 "type mismatch: select operands have different types"
             );
         }
-        self.push_operand(if ty1 == Some(ValType::Bot) { ty2 } else { ty1 })?;
+        self.push_operand(ty1.or(ty2))?;
         Ok(())
     }
     fn visit_typed_select(&mut self, offset: usize, ty: ValType) -> Self::Output {

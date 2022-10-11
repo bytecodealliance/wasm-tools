@@ -99,30 +99,30 @@
  0x108 | 01 48       | [core module 2] inline size
    0x10a | 00 61 73 6d | version 1 (Module)
          | 01 00 00 00
-   0x114 | 01 04       | type section
-   0x116 | 01          | 1 count
-   0x117 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
-   0x11a | 03 02       | func section
-   0x11c | 01          | 1 count
-   0x11d | 00          | [func 0] type 0
-   0x11e | 04 04       | table section
-   0x120 | 01          | 1 count
-   0x121 | 70 00 01    | [table 0] TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }
-   0x124 | 05 03       | memory section
-   0x126 | 01          | 1 count
-   0x127 | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
-   0x129 | 06 04       | global section
-   0x12b | 01          | 1 count
-   0x12c | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
-   0x12e | 0b          | end
-   0x12f | 07 11       | export section
-   0x131 | 04          | 4 count
-   0x132 | 01 31 00 00 | export Export { name: "1", kind: Func, index: 0 }
-   0x136 | 01 32 02 00 | export Export { name: "2", kind: Memory, index: 0 }
-   0x13a | 01 33 03 00 | export Export { name: "3", kind: Global, index: 0 }
-   0x13e | 01 34 01 00 | export Export { name: "4", kind: Table, index: 0 }
-   0x142 | 0a 04       | code section
-   0x144 | 01          | 1 count
+   0x112 | 01 04       | type section
+   0x114 | 01          | 1 count
+   0x115 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x118 | 03 02       | func section
+   0x11a | 01          | 1 count
+   0x11b | 00          | [func 0] type 0
+   0x11c | 04 04       | table section
+   0x11e | 01          | 1 count
+   0x11f | 70 00 01    | [table 0] TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }
+   0x122 | 05 03       | memory section
+   0x124 | 01          | 1 count
+   0x125 | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
+   0x127 | 06 04       | global section
+   0x129 | 01          | 1 count
+   0x12a | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
+   0x12c | 0b          | end
+   0x12d | 07 11       | export section
+   0x12f | 04          | 4 count
+   0x130 | 01 31 00 00 | export Export { name: "1", kind: Func, index: 0 }
+   0x134 | 01 32 02 00 | export Export { name: "2", kind: Memory, index: 0 }
+   0x138 | 01 33 03 00 | export Export { name: "3", kind: Global, index: 0 }
+   0x13c | 01 34 01 00 | export Export { name: "4", kind: Table, index: 0 }
+   0x140 | 0a 04       | code section
+   0x142 | 01          | 1 count
 ============== func 0 ====================
    0x143 | 02          | size of function
    0x144 | 00          | 0 local blocks
@@ -146,7 +146,7 @@
          | 00 01      
    0x170 | 00 01 33 03 | import [global 0] Import { module: "", name: "3", ty: Global(GlobalType { content_type: I32, mutable: false }) }
          | 7f 00      
-   0x178 | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }) }
+   0x176 | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }) }
          | 70 00 01   
    0x17d | 00 0a       | custom section
    0x17f | 04 6e 61 6d | name: "name"
