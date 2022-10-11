@@ -968,11 +968,11 @@ fn ty_to_str(ty: ValType) -> &'static str {
         }) => "(ref extern)",
         ValType::Ref(RefType {
             nullable: false,
-            heap_type: HeapType::Index(_),
+            heap_type: HeapType::TypedFunc(_),
         }) => "(ref $type)",
         ValType::Ref(RefType {
             nullable: true,
-            heap_type: HeapType::Index(_),
+            heap_type: HeapType::TypedFunc(_),
         }) => "(ref null $type)",
         ValType::Ref(RefType {
             nullable: true,
@@ -1270,7 +1270,7 @@ where
             );
         }
         match hty {
-            HeapType::Index(type_index) => self.check_call_ty(offset, type_index)?,
+            HeapType::TypedFunc(type_index) => self.check_call_ty(offset, type_index)?,
             HeapType::Bot => (),
             _ => bail!(
                 offset,
@@ -2174,7 +2174,7 @@ where
     fn visit_ref_null(&mut self, offset: usize, heap_type: HeapType) -> Self::Output {
         match heap_type {
             HeapType::Extern | HeapType::Func | HeapType::Bot => {}
-            HeapType::Index(_) => self.check_function_references_enabled(offset)?,
+            HeapType::TypedFunc(_) => self.check_function_references_enabled(offset)?,
         }
         self.push_operand(ValType::Ref(RefType {
             nullable: true,
@@ -2266,7 +2266,7 @@ where
         }
         self.push_operand(ValType::Ref(RefType {
             nullable: false,
-            heap_type: HeapType::Index(type_index),
+            heap_type: HeapType::TypedFunc(type_index),
         }))?;
         Ok(())
     }

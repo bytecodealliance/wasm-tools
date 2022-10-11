@@ -170,7 +170,7 @@ impl ModuleState {
             self.module
                 .check_value_type(ValType::Ref(e.ty), features, types, offset)?;
         }
-        if let HeapType::Index(_) = e.ty.heap_type {
+        if let HeapType::TypedFunc(_) = e.ty.heap_type {
             // nullable: "as long as the index is ok"
             if !e.ty.nullable && e.items.get_items_reader()?.get_count() <= 0 {
                 return Err(BinaryReaderError::new(
@@ -794,7 +794,7 @@ impl Module {
         // Check that the heap type is valid
         match ty.heap_type {
             HeapType::Func | HeapType::Extern => (),
-            HeapType::Index(type_index) => {
+            HeapType::TypedFunc(type_index) => {
                 // Just check that the index is valid
                 self.func_type_at(type_index, types, offset)?;
             }
@@ -810,7 +810,7 @@ impl Module {
                     && match (rt1.heap_type, rt2.heap_type) {
                         (HeapType::Func, HeapType::Func) => true,
                         (HeapType::Extern, HeapType::Extern) => true,
-                        (HeapType::Index(n1), HeapType::Index(n2)) => {
+                        (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
                             let n1 = self.func_type_at(n1, types, 0).unwrap();
                             let n2 = self.func_type_at(n2, types, 0).unwrap();
                             self.eq_fns(n1, n2, types)
@@ -841,13 +841,13 @@ impl Module {
 
         let matches_heap = |ty1: HeapType, ty2: HeapType, types: &TypeList| -> bool {
             match (ty1, ty2) {
-                (HeapType::Index(n1), HeapType::Index(n2)) => {
+                (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
                     // Check whether the defined types are (structurally) equivalent.
                     let n1 = self.func_type_at(n1, types, 0).unwrap();
                     let n2 = self.func_type_at(n2, types, 0).unwrap();
                     self.eq_fns(n1, n2, types)
                 }
-                (HeapType::Index(_), HeapType::Func) => true,
+                (HeapType::TypedFunc(_), HeapType::Func) => true,
                 (HeapType::Bot, _) => true,
                 (_, _) => ty1 == ty2,
             }

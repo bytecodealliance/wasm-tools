@@ -250,7 +250,7 @@ impl WasmFeatures {
                             (_, false) => {
                                 Err("function references required for non-nullable types")
                             }
-                            (HeapType::Index(_), _) => {
+                            (HeapType::TypedFunc(_), _) => {
                                 Err("function references required for index reference types")
                             }
                             _ => Ok(()),

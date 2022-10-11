@@ -52,9 +52,8 @@ pub struct RefType {
 /// is an invalid type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HeapType {
-    /// It seems by example that u32s are directly used for arbitrary indexes,
-    /// but maybe a higher-level structure like TypeRef is relevant here?
-    Index(u32),
+    /// Function type index
+    TypedFunc(u32),
     /// From reference types
     Func,
     /// From reference types
