@@ -540,10 +540,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     /// Validates a `memarg for alignment and such (also the memory it
     /// references), and returns the type of index used to address the memory.
-    fn check_memarg(&self, memarg: MemArg, max_align: u8, offset: usize) -> Result<ValType> {
+    fn check_memarg(&self, memarg: MemArg, offset: usize) -> Result<ValType> {
         let index_ty = self.check_memory_index(offset, memarg.memory)?;
-        let align = memarg.align;
-        if align > max_align {
+        if memarg.align > memarg.max_align {
             bail!(offset, "alignment must not be larger than natural");
         }
         if index_ty == ValType::I32 && memarg.offset > u64::from(u32::MAX) {
@@ -560,7 +559,13 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         Ok(())
     }
 
-    fn check_shared_memarg_wo_align(&self, offset: usize, memarg: MemArg) -> Result<ValType> {
+    fn check_shared_memarg(&self, offset: usize, memarg: MemArg) -> Result<ValType> {
+        if memarg.align != memarg.max_align {
+            bail!(
+                offset,
+                "atomic instructions must always specify maximum alignment"
+            );
+        }
         self.check_memory_index(offset, memarg.memory)
     }
 
@@ -711,7 +716,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     /// Checks the validity of an atomic load operator.
     fn check_atomic_load(&mut self, offset: usize, memarg: MemArg, load_ty: ValType) -> Result<()> {
-        let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
+        let ty = self.check_shared_memarg(offset, memarg)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(load_ty)?;
         Ok(())
@@ -724,7 +729,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         memarg: MemArg,
         store_ty: ValType,
     ) -> Result<()> {
-        let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
+        let ty = self.check_shared_memarg(offset, memarg)?;
         self.pop_operand(offset, Some(store_ty))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
@@ -737,7 +742,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         memarg: MemArg,
         op_ty: ValType,
     ) -> Result<()> {
-        let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
+        let ty = self.check_shared_memarg(offset, memarg)?;
         self.pop_operand(offset, Some(op_ty))?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(op_ty)?;
@@ -751,7 +756,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         memarg: MemArg,
         op_ty: ValType,
     ) -> Result<()> {
-        let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
+        let ty = self.check_shared_memarg(offset, memarg)?;
         self.pop_operand(offset, Some(op_ty))?;
         self.pop_operand(offset, Some(op_ty))?;
         self.pop_operand(offset, Some(ty))?;
@@ -834,7 +839,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     /// Checks a [`V128`] common load operator.
     fn check_v128_load_op(&mut self, offset: usize, memarg: MemArg) -> Result<()> {
-        let idx = self.check_memarg(memarg, 3, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(idx))?;
         self.push_operand(ValType::V128)?;
         Ok(())
@@ -1269,33 +1274,33 @@ where
         Ok(())
     }
     fn visit_i32_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i64_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 3, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_f32_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::F32)?;
         Ok(())
     }
     fn visit_f64_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
-        let ty = self.check_memarg(memarg, 3, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::F64)?;
         Ok(())
     }
     fn visit_i32_load8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 0, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
@@ -1304,7 +1309,7 @@ where
         self.visit_i32_load8_s(input, memarg)
     }
     fn visit_i32_load16_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 1, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
@@ -1313,7 +1318,7 @@ where
         self.visit_i32_load16_s(input, memarg)
     }
     fn visit_i64_load8_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 0, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
@@ -1322,7 +1327,7 @@ where
         self.visit_i64_load8_s(input, memarg)
     }
     fn visit_i64_load16_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 1, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
@@ -1331,7 +1336,7 @@ where
         self.visit_i64_load16_s(input, memarg)
     }
     fn visit_i64_load32_s(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::I64)?;
         Ok(())
@@ -1340,57 +1345,57 @@ where
         self.visit_i64_load32_s(input, memarg)
     }
     fn visit_i32_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_i64_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 3, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_f32_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::F32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_f64_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
         self.check_non_deterministic_enabled(offset)?;
-        let ty = self.check_memarg(memarg, 3, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::F64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_i32_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 0, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_i32_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 1, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_i64_store8(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 0, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_i64_store16(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 1, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
     }
     fn visit_i64_store32(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
@@ -2035,7 +2040,7 @@ where
         self.check_atomic_binary_op(offset, memarg, ValType::I32)
     }
     fn visit_memory_atomic_wait32(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
+        let ty = self.check_shared_memarg(offset, memarg)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ValType::I32))?;
         self.pop_operand(offset, Some(ty))?;
@@ -2043,7 +2048,7 @@ where
         Ok(())
     }
     fn visit_memory_atomic_wait64(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_shared_memarg_wo_align(offset, memarg)?;
+        let ty = self.check_shared_memarg(offset, memarg)?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ValType::I64))?;
         self.pop_operand(offset, Some(ty))?;
@@ -2093,13 +2098,13 @@ where
         Ok(())
     }
     fn visit_v128_load(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 4, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_store(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 4, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(ty))?;
         Ok(())
@@ -2875,19 +2880,19 @@ where
         Ok(())
     }
     fn visit_v128_load8_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 0, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load16_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 1, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load32_splat(&mut self, offset: usize, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg, 2, offset)?;
+        let ty = self.check_memarg(memarg, offset)?;
         self.pop_operand(offset, Some(ty))?;
         self.push_operand(ValType::V128)?;
         Ok(())
@@ -2920,7 +2925,7 @@ where
         self.check_v128_load_op(offset, memarg)
     }
     fn visit_v128_load8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 0, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
@@ -2928,7 +2933,7 @@ where
         Ok(())
     }
     fn visit_v128_load16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 1, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
@@ -2936,7 +2941,7 @@ where
         Ok(())
     }
     fn visit_v128_load32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 2, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
@@ -2944,7 +2949,7 @@ where
         Ok(())
     }
     fn visit_v128_load64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 3, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
@@ -2952,28 +2957,28 @@ where
         Ok(())
     }
     fn visit_v128_store8_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 0, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 16)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
     fn visit_v128_store16_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 1, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 8)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
     fn visit_v128_store32_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 2, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 4)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;
         Ok(())
     }
     fn visit_v128_store64_lane(&mut self, offset: usize, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg, 3, offset)?;
+        let idx = self.check_memarg(memarg, offset)?;
         self.check_simd_lane_index(offset, lane, 2)?;
         self.pop_operand(offset, Some(ValType::V128))?;
         self.pop_operand(offset, Some(idx))?;

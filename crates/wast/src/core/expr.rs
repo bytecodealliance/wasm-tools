@@ -1140,10 +1140,10 @@ instructions! {
 
         // Relaxed SIMD proposal
         I8x16RelaxedSwizzle : [0xfd, 0x100]: "i8x16.relaxed_swizzle",
-        I32x4RelaxedTruncF32x4S : [0xfd, 0x101]: "i32x4.relaxed_trunc_f32x4_s",
-        I32x4RelaxedTruncF32x4U : [0xfd, 0x102]: "i32x4.relaxed_trunc_f32x4_u",
-        I32x4RelaxedTruncF64x2SZero : [0xfd, 0x103]: "i32x4.relaxed_trunc_f64x2_s_zero",
-        I32x4RelaxedTruncF64x2UZero : [0xfd, 0x104]: "i32x4.relaxed_trunc_f64x2_u_zero",
+        I32x4RelaxedTruncSatF32x4S : [0xfd, 0x101]: "i32x4.relaxed_trunc_sat_f32x4_s" | "i32x4.relaxed_trunc_f32x4_s",
+        I32x4RelaxedTruncSatF32x4U : [0xfd, 0x102]: "i32x4.relaxed_trunc_sat_f32x4_u" | "i32x4.relaxed_trunc_f32x4_u",
+        I32x4RelaxedTruncSatF64x2SZero : [0xfd, 0x103]: "i32x4.relaxed_trunc_sat_f64x2_s_zero" | "i32x4.relaxed_trunc_f64x2_s_zero",
+        I32x4RelaxedTruncSatF64x2UZero : [0xfd, 0x104]: "i32x4.relaxed_trunc_sat_f64x2_u_zero" | "i32x4.relaxed_trunc_f64x2_u_zero",
         F32x4RelaxedFma : [0xfd, 0x105]: "f32x4.relaxed_fma",
         F32x4RelaxedFnma : [0xfd, 0x106]: "f32x4.relaxed_fnma",
         F64x2RelaxedFma : [0xfd, 0x107]: "f64x2.relaxed_fma",

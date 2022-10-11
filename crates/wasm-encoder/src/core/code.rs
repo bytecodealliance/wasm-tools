@@ -647,7 +647,7 @@ pub enum Instruction<'a> {
     I8x16MinU,
     I8x16MaxS,
     I8x16MaxU,
-    I8x16RoundingAverageU,
+    I8x16AvgrU,
     I16x8ExtAddPairwiseI8x16S,
     I16x8ExtAddPairwiseI8x16U,
     I16x8Abs,
@@ -675,7 +675,7 @@ pub enum Instruction<'a> {
     I16x8MinU,
     I16x8MaxS,
     I16x8MaxU,
-    I16x8RoundingAverageU,
+    I16x8AvgrU,
     I16x8ExtMulLowI8x16S,
     I16x8ExtMulHighI8x16S,
     I16x8ExtMulLowI8x16U,
@@ -1783,7 +1783,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFD);
                 0x79u32.encode(sink);
             }
-            Instruction::I8x16RoundingAverageU => {
+            Instruction::I8x16AvgrU => {
                 sink.push(0xFD);
                 0x7Bu32.encode(sink);
             }
@@ -1903,7 +1903,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFD);
                 0x99u32.encode(sink);
             }
-            Instruction::I16x8RoundingAverageU => {
+            Instruction::I16x8AvgrU => {
                 sink.push(0xFD);
                 0x9Bu32.encode(sink);
             }
