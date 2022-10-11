@@ -1347,8 +1347,14 @@ impl<'a> BinaryReader<'a> {
                 Ok(HeapType::Extern)
             }
             x if 0x80 & x == 0 => {
-                self.position += 1;
-                Ok(HeapType::Index(x as u32))
+                let idx = self.read_var_s33()?;
+                if idx < 0 || idx > (std::u32::MAX as i64) {
+                    return Err(BinaryReaderError::new(
+                        "invalid function heap type",
+                        self.original_position(),
+                    ));
+                }
+                Ok(HeapType::TypedFunc(idx as u32))
             }
             x => Err(BinaryReaderError::new(
                 format!("unknown heap type subopcode: 0x{:x}", x),
