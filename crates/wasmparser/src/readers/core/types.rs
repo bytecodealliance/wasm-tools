@@ -41,6 +41,7 @@ pub enum ValType {
 /// only represents funcref and externref, using the following format:
 /// RefType { nullable: true, heap_type: Func | Extern })
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(packed)]
 pub struct RefType {
     /// Whether it's nullable
     pub nullable: bool,
@@ -48,12 +49,33 @@ pub struct RefType {
     pub heap_type: HeapType,
 }
 
+/// Used as a performance optimization in HeapType. Call `.into()` to get the u32
+// A u16 forces 2-byte alignment, which forces HeapType to be 4 bytes,
+// which forces ValType to 5 bytes. This newtype is annotated as unaligned to
+// store the necessary bits compactly
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(packed)]
+pub struct PackedIndex(u16);
+
+impl From<PackedIndex> for u32 {
+    fn from(x: PackedIndex) -> u32 {
+        x.0 as u32
+    }
+}
+impl TryFrom<u32> for HeapType {
+    type Error = <u16 as TryFrom<u32>>::Error;
+    fn try_from(x: u32) -> Result<HeapType, Self::Error> {
+        Ok(HeapType::TypedFunc(PackedIndex(x.try_into()?)))
+    }
+}
+
 /// A heap type from function references. When the proposal is disabled, Index
 /// is an invalid type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HeapType {
     /// Function type index
-    TypedFunc(u32),
+    /// Note: [PackedIndex] may need to be unpacked
+    TypedFunc(PackedIndex),
     /// From reference types
     Func,
     /// From reference types

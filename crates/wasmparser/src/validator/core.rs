@@ -8,8 +8,9 @@ use super::{
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType, TagType, TypeRef,
-    ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources, FUNC_REF,
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType,
+    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources,
+    FUNC_REF,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -796,7 +797,7 @@ impl Module {
             HeapType::Func | HeapType::Extern => (),
             HeapType::TypedFunc(type_index) => {
                 // Just check that the index is valid
-                self.func_type_at(type_index, types, offset)?;
+                self.func_type_at(type_index.into(), types, offset)?;
             }
             HeapType::Bot => (),
         }
@@ -811,8 +812,8 @@ impl Module {
                         (HeapType::Func, HeapType::Func) => true,
                         (HeapType::Extern, HeapType::Extern) => true,
                         (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
-                            let n1 = self.func_type_at(n1, types, 0).unwrap();
-                            let n2 = self.func_type_at(n2, types, 0).unwrap();
+                            let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
+                            let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
                             self.eq_fns(n1, n2, types)
                         }
                         (_, _) => false,
@@ -843,8 +844,8 @@ impl Module {
             match (ty1, ty2) {
                 (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
                     // Check whether the defined types are (structurally) equivalent.
-                    let n1 = self.func_type_at(n1, types, 0).unwrap();
-                    let n2 = self.func_type_at(n2, types, 0).unwrap();
+                    let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
+                    let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
                     self.eq_fns(n1, n2, types)
                 }
                 (HeapType::TypedFunc(_), HeapType::Func) => true,

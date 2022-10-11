@@ -354,7 +354,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Otherwise the push operation always succeeds.
     fn push_operand<T>(&mut self, ty: T) -> Result<()>
     where
-        T: Into<Option<ValType>>
+        T: Into<Option<ValType>>,
     {
         let maybe_ty = ty.into();
         self.operands.push(maybe_ty);
@@ -439,12 +439,12 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         };
         if let (Some(actual_ty), Some(expected_ty)) = (actual, expected) {
             if !self.resources.matches(actual_ty, expected_ty) {
-                    bail!(
-                        offset,
-                        "type mismatch: expected {}, found {}",
-                        ty_to_str(expected_ty),
-                        ty_to_str(actual_ty)
-                    );
+                bail!(
+                    offset,
+                    "type mismatch: expected {}, found {}",
+                    ty_to_str(expected_ty),
+                    ty_to_str(actual_ty)
+                );
             }
         }
         Ok(actual)
@@ -461,7 +461,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 offset,
                 "type mismatch: expected ref but found {}",
                 ty_to_str(ty)
-            )
+            ),
         }
     }
 
@@ -1270,7 +1270,7 @@ where
             );
         }
         match hty {
-            HeapType::TypedFunc(type_index) => self.check_call_ty(offset, type_index)?,
+            HeapType::TypedFunc(type_index) => self.check_call_ty(offset, type_index.into())?,
             HeapType::Bot => (),
             _ => bail!(
                 offset,
@@ -2266,7 +2266,7 @@ where
         }
         self.push_operand(ValType::Ref(RefType {
             nullable: false,
-            heap_type: HeapType::TypedFunc(type_index),
+            heap_type: type_index.try_into().expect("ref.func on function > 2^16"),
         }))?;
         Ok(())
     }

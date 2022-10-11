@@ -1489,4 +1489,9 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn valtype_is_small() {
+        assert_eq!(std::mem::size_of::<ValType>(), 4);
+    }
 }
