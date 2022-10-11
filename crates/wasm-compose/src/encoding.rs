@@ -201,7 +201,6 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
             wasmparser::ValType::Ref(ty) => Self::ref_type(ty),
-            wasmparser::ValType::Bot => unimplemented!(),
         }
     }
 

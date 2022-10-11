@@ -35,7 +35,6 @@ impl From<wasmparser::ValType> for PrimitiveTypeInfo {
             wasmparser::ValType::F64 => PrimitiveTypeInfo::F64,
             wasmparser::ValType::V128 => PrimitiveTypeInfo::V128,
             wasmparser::ValType::Ref(t) => t.into(),
-            wasmparser::ValType::Bot => unreachable!(),
         }
     }
 }
@@ -79,7 +78,6 @@ pub fn map_type(tpe: wasmparser::ValType) -> Result<ValType> {
         wasmparser::ValType::F64 => Ok(ValType::F64),
         wasmparser::ValType::V128 => Ok(ValType::V128),
         wasmparser::ValType::Ref(t) => map_ref_type(t),
-        wasmparser::ValType::Bot => unimplemented!(),
     }
 }
 

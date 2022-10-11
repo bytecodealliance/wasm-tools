@@ -35,8 +35,6 @@ pub enum ValType {
     /// which now provides FuncRef and ExternRef as sugar for the generic ref
     /// construct.
     Ref(RefType),
-    /// Special bottom type.
-    Bot,
 }
 
 /// A reference type. When the function references feature is disabled, this
