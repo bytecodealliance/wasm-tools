@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use std::io;
 use std::process::ExitCode;
+use wasm_tools::Verbosity;
 
 macro_rules! subcommands {
     ($(($name:ident, $string:tt))*) => {
@@ -19,6 +20,9 @@ macro_rules! subcommands {
                 $name {
                     #[clap(flatten)]
                     opts: $name::Opts,
+
+                    #[clap(flatten)]
+                    verbosity: Verbosity,
                 },
             )*
         }
@@ -28,7 +32,10 @@ macro_rules! subcommands {
                 match self {
                     $(
                         #[cfg(feature = $string)]
-                        WasmTools::$name { opts } => opts.run(),
+                        Self::$name { opts, verbosity } => {
+                            verbosity.init_logger();
+                            opts.run()
+                        }
                     )*
                 }
             }
@@ -50,10 +57,6 @@ subcommands! {
 }
 
 fn main() -> ExitCode {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
-        .format_target(false)
-        .init();
-
     let err = match <WasmTools as Parser>::parse().run() {
         Ok(()) => return ExitCode::SUCCESS,
         Err(e) => e,
@@ -70,4 +73,10 @@ fn main() -> ExitCode {
     }
     eprintln!("Error: {:?}", err);
     ExitCode::FAILURE
+}
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    WasmTools::command().debug_assert()
 }

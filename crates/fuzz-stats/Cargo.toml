@@ -1,16 +1,16 @@
 [package]
 name = "fuzz-stats"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 publish = false
 
 [dependencies]
-anyhow = "1.0"
-arbitrary = "1.0"
-num_cpus = "1.13"
-rand = "0.8"
-wasm-smith = { path = '../wasm-smith' }
-wasmtime = "0.38.1"
+anyhow = { workspace = true }
+arbitrary = { workspace = true }
+num_cpus = { workspace = true }
+rand = { workspace = true }
+wasm-smith = { workspace = true }
+wasmtime = { workspace = true }
 
 [lib]
 doctest = false

@@ -16,11 +16,10 @@
 
 ## Usage
 
-This crate is published on `crates.io`, so you can depend on it with:
+Add `wasmprinter` to your `Cargo.toml`
 
-```toml
-[dependencies]
-wasmprinter = "0.2.0"
+```sh
+$ cargo add wasmprinter
 ```
 
 You can then convert wasm binaries to strings like so:

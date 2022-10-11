@@ -2,17 +2,17 @@
 //!
 use super::{
     check_max, combine_type_sizes,
-    operators::OperatorValidator,
+    operators::{OperatorValidator, OperatorValidatorAllocations},
     types::{EntityType, Type, TypeId, TypeList},
 };
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    limits::*, BinaryReaderError, BlockType, BrTable, ConstExpr, Data, DataKind, Element,
-    ElementItem, ElementKind, ExternalKind, FuncType, Global, GlobalType, HeapType, Ieee32, Ieee64,
-    MemArg, MemoryType, RefType, Result, TableType, TagType, TypeRef, ValType, VisitOperator,
-    WasmFeatures, WasmFuncType, WasmModuleResources, FUNC_REF, V128,
+    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType, TagType, TypeRef,
+    ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources, FUNC_REF,
 };
 use indexmap::IndexMap;
+use std::mem;
 use std::{collections::HashSet, sync::Arc};
 
 // Section order for WebAssembly modules.
@@ -64,6 +64,8 @@ pub(crate) struct ModuleState {
     /// entry in the code section (used to figure out what type is next for the
     /// function being validated).
     pub expected_code_bodies: Option<u32>,
+
+    const_expr_allocs: OperatorValidatorAllocations,
 
     /// When parsing the code section, represents the current index in the section.
     code_section_index: Option<usize>,
@@ -247,7 +249,11 @@ impl ModuleState {
         let mut validator = VisitConstOperator {
             order: self.order,
             uninserted_funcref: false,
-            ops: OperatorValidator::new_const_expr(features, expected_ty),
+            ops: OperatorValidator::new_const_expr(
+                features,
+                expected_ty,
+                mem::take(&mut self.const_expr_allocs),
+            ),
             resources: OperatorValidatorResources {
                 types,
                 module: &mut self.module,
@@ -262,6 +268,8 @@ impl ModuleState {
 
         // See comment in `RefFunc` below for why this is an assert.
         assert!(!validator.uninserted_funcref);
+
+        self.const_expr_allocs = validator.ops.into_allocations();
 
         return Ok(());
 
@@ -479,6 +487,8 @@ impl Module {
         self.types.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: Some(self.types.len()),
+            is_core: true,
         });
         types.push(ty);
         Ok(())

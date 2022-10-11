@@ -1648,10 +1648,8 @@ impl Printer {
         for (name, ty) in ty.params.iter() {
             self.result.push(' ');
             self.start_group("param ");
-            if let Some(name) = name {
-                self.print_str(name)?;
-                self.result.push(' ');
-            }
+            self.print_str(name)?;
+            self.result.push(' ');
             self.print_component_val_type(state, ty)?;
             self.end_group()
         }

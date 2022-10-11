@@ -646,9 +646,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut a.src_array, Ns::Type)?;
             }
 
-            RefNull(ty) | CallRef(ty) | ReturnCallRef(ty) => {
-                self.resolver.resolve_heaptype(ty)?
-            }
+            RefNull(ty) | CallRef(ty) | ReturnCallRef(ty) => self.resolver.resolve_heaptype(ty)?,
 
             _ => {}
         }

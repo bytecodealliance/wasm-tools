@@ -698,8 +698,8 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
 /// A parameter of a [`ComponentFunctionType`].
 #[derive(Debug)]
 pub struct ComponentFunctionParam<'a> {
-    /// An optionally-specified name of this parameter
-    pub name: Option<&'a str>,
+    /// The name of the parameter
+    pub name: &'a str,
     /// The type of the parameter.
     pub ty: ComponentValType<'a>,
 }

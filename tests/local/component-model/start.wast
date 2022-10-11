@@ -1,14 +1,14 @@
 
 (assert_invalid
   (component
-    (import "" (func $f (param string)))
+    (import "" (func $f (param "1" string)))
     (start $f)
   )
   "start function requires 1 arguments")
 
 (assert_invalid
   (component
-    (import "" (func $f (param string)))
+    (import "" (func $f (param "p" string)))
     (import "v" (value $v string))
     (start $f (value $v) (value $v))
   )
@@ -76,10 +76,10 @@
   (component binary
     "\00asm" "\0a\00\01\00"   ;; component header
 
-    "\07\06"          ;; type section, 6 bytes large
+    "\07\05"          ;; type section, 5 bytes large
     "\01"             ;; 1 count
     "\40"             ;; function
-    "\01\00"          ;; parameters, named, 0 count
+    "\00"             ;; parameters, 0 count
     "\01\00"          ;; results, named, 0 count
 
     "\0a\04"          ;; import section, 4 bytes large
@@ -98,10 +98,10 @@
   (component binary
     "\00asm" "\0a\00\01\00"   ;; component header
 
-    "\07\06"          ;; type section, 6 bytes large
+    "\07\05"          ;; type section, 5 bytes large
     "\01"             ;; 1 count
     "\40"             ;; function
-    "\01\00"          ;; parameters, named, 0 count
+    "\00"             ;; parameters, 0 count
     "\01\00"          ;; results, named, 0 count
 
     "\0a\04"          ;; import section, 4 bytes large

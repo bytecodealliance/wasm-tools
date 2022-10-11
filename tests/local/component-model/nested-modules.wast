@@ -12,7 +12,7 @@
 
   (component
     (core module $m)
-    (import "" (func (param string)))
+    (import "" (func (param "p" string)))
     (export "a" (core module $m))
   )
 )

@@ -41,10 +41,10 @@
 ///
 /// - `@mvp`: Denoting a Wasm operator from the initial Wasm MVP version.
 /// - `@exceptions`: [Wasm `expection-handling` proposal]
-/// - `@tail_calls`: [Wasm `tail-calls` proposal]
+/// - `@tail_call`: [Wasm `tail-calls` proposal]
 /// - `@reference_types`: [Wasm `reference-types` proposal]
-/// - `@sign_ext_ops`: [Wasm `sign-extension-ops` proposal]
-/// - `@non_trapping_f2i_conversions`: [Wasm `non_trapping_float-to-int-conversions` proposal]
+/// - `@sign_extension`: [Wasm `sign-extension-ops` proposal]
+/// - `@saturating_float_to_int`: [Wasm `non_trapping_float-to-int-conversions` proposal]
 /// - `@bulk_memory `:[Wasm `bulk-memory` proposal]
 /// - `@threads`: [Wasm `threads` proposal]
 /// - `@simd`: [Wasm `simd` proposal]
@@ -78,10 +78,6 @@
 /// https://github.com/WebAssembly/relaxed-simd
 ///
 /// ```
-/// // These names are referred to by the types of each payload and must
-/// // be imported into the module using the `for_each_operator!` macro.
-/// use wasmparser::{HeapType, V128, MemArg, BlockType, ValType, BrTable, Ieee32, Ieee64};
-///
 /// macro_rules! define_visit_operator {
 ///     // The outer layer of repetition represents how all operators are
 ///     // provided to the macro at the same time.
@@ -122,63 +118,63 @@ macro_rules! for_each_operator {
         $mac! {
             @mvp Unreachable => visit_unreachable
             @mvp Nop => visit_nop
-            @mvp Block { ty: BlockType } => visit_block
-            @mvp Loop { ty: BlockType } => visit_loop
-            @mvp If { ty: BlockType } => visit_if
+            @mvp Block { blockty: $crate::BlockType } => visit_block
+            @mvp Loop { blockty: $crate::BlockType } => visit_loop
+            @mvp If { blockty: $crate::BlockType } => visit_if
             @mvp Else => visit_else
-            @expections Try { ty: BlockType } => visit_try
-            @expections Catch { index: u32 } => visit_catch
-            @expections Throw { index: u32 } => visit_throw
-            @expections Rethrow { relative_depth: u32 } => visit_rethrow
+            @exceptions Try { blockty: $crate::BlockType } => visit_try
+            @exceptions Catch { tag_index: u32 } => visit_catch
+            @exceptions Throw { tag_index: u32 } => visit_throw
+            @exceptions Rethrow { relative_depth: u32 } => visit_rethrow
             @mvp End => visit_end
             @mvp Br { relative_depth: u32 } => visit_br
             @mvp BrIf { relative_depth: u32 } => visit_br_if
-            @mvp BrTable { table: BrTable<'a> } => visit_br_table
+            @mvp BrTable { targets: $crate::BrTable<'a> } => visit_br_table
             @mvp Return => visit_return
             @mvp Call { function_index: u32 } => visit_call
-            @mvp CallIndirect { index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
-            @tail_calls ReturnCall { function_index: u32 } => visit_return_call
-            @tail_calls ReturnCallIndirect { index: u32, table_index: u32 } => visit_return_call_indirect
-            @expections Delegate { relative_depth: u32 } => visit_delegate
-            @expections CatchAll => visit_catch_all
+            @mvp CallIndirect { type_index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
+            @tail_call ReturnCall { function_index: u32 } => visit_return_call
+            @tail_call ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect
+            @exceptions Delegate { relative_depth: u32 } => visit_delegate
+            @exceptions CatchAll => visit_catch_all
             @mvp Drop => visit_drop
             @mvp Select => visit_select
-            @reference_types TypedSelect { ty: ValType } => visit_typed_select
+            @reference_types TypedSelect { ty: $crate::ValType } => visit_typed_select
             @mvp LocalGet { local_index: u32 } => visit_local_get
             @mvp LocalSet { local_index: u32 } => visit_local_set
             @mvp LocalTee { local_index: u32 } => visit_local_tee
             @mvp GlobalGet { global_index: u32 } => visit_global_get
             @mvp GlobalSet { global_index: u32 } => visit_global_set
-            @mvp I32Load { memarg: MemArg } => visit_i32_load
-            @mvp I64Load { memarg: MemArg } => visit_i64_load
-            @mvp F32Load { memarg: MemArg } => visit_f32_load
-            @mvp F64Load { memarg: MemArg } => visit_f64_load
-            @mvp I32Load8S { memarg: MemArg } => visit_i32_load8_s
-            @mvp I32Load8U { memarg: MemArg } => visit_i32_load8_u
-            @mvp I32Load16S { memarg: MemArg } => visit_i32_load16_s
-            @mvp I32Load16U { memarg: MemArg } => visit_i32_load16_u
-            @mvp I64Load8S { memarg: MemArg } => visit_i64_load8_s
-            @mvp I64Load8U { memarg: MemArg } => visit_i64_load8_u
-            @mvp I64Load16S { memarg: MemArg } => visit_i64_load16_s
-            @mvp I64Load16U { memarg: MemArg } => visit_i64_load16_u
-            @mvp I64Load32S { memarg: MemArg } => visit_i64_load32_s
-            @mvp I64Load32U { memarg: MemArg } => visit_i64_load32_u
-            @mvp I32Store { memarg: MemArg } => visit_i32_store
-            @mvp I64Store { memarg: MemArg } => visit_i64_store
-            @mvp F32Store { memarg: MemArg } => visit_f32_store
-            @mvp F64Store { memarg: MemArg } => visit_f64_store
-            @mvp I32Store8 { memarg: MemArg } => visit_i32_store8
-            @mvp I32Store16 { memarg: MemArg } => visit_i32_store16
-            @mvp I64Store8 { memarg: MemArg } => visit_i64_store8
-            @mvp I64Store16 { memarg: MemArg } => visit_i64_store16
-            @mvp I64Store32 { memarg: MemArg } => visit_i64_store32
+            @mvp I32Load { memarg: $crate::MemArg } => visit_i32_load
+            @mvp I64Load { memarg: $crate::MemArg } => visit_i64_load
+            @mvp F32Load { memarg: $crate::MemArg } => visit_f32_load
+            @mvp F64Load { memarg: $crate::MemArg } => visit_f64_load
+            @mvp I32Load8S { memarg: $crate::MemArg } => visit_i32_load8_s
+            @mvp I32Load8U { memarg: $crate::MemArg } => visit_i32_load8_u
+            @mvp I32Load16S { memarg: $crate::MemArg } => visit_i32_load16_s
+            @mvp I32Load16U { memarg: $crate::MemArg } => visit_i32_load16_u
+            @mvp I64Load8S { memarg: $crate::MemArg } => visit_i64_load8_s
+            @mvp I64Load8U { memarg: $crate::MemArg } => visit_i64_load8_u
+            @mvp I64Load16S { memarg: $crate::MemArg } => visit_i64_load16_s
+            @mvp I64Load16U { memarg: $crate::MemArg } => visit_i64_load16_u
+            @mvp I64Load32S { memarg: $crate::MemArg } => visit_i64_load32_s
+            @mvp I64Load32U { memarg: $crate::MemArg } => visit_i64_load32_u
+            @mvp I32Store { memarg: $crate::MemArg } => visit_i32_store
+            @mvp I64Store { memarg: $crate::MemArg } => visit_i64_store
+            @mvp F32Store { memarg: $crate::MemArg } => visit_f32_store
+            @mvp F64Store { memarg: $crate::MemArg } => visit_f64_store
+            @mvp I32Store8 { memarg: $crate::MemArg } => visit_i32_store8
+            @mvp I32Store16 { memarg: $crate::MemArg } => visit_i32_store16
+            @mvp I64Store8 { memarg: $crate::MemArg } => visit_i64_store8
+            @mvp I64Store16 { memarg: $crate::MemArg } => visit_i64_store16
+            @mvp I64Store32 { memarg: $crate::MemArg } => visit_i64_store32
             @mvp MemorySize { mem: u32, mem_byte: u8 } => visit_memory_size
             @mvp MemoryGrow { mem: u32, mem_byte: u8 } => visit_memory_grow
             @mvp I32Const { value: i32 } => visit_i32_const
             @mvp I64Const { value: i64 } => visit_i64_const
-            @mvp F32Const { value: Ieee32 } => visit_f32_const
-            @mvp F64Const { value: Ieee64 } => visit_f64_const
-            @reference_types RefNull { ty: HeapType } => visit_ref_null
+            @mvp F32Const { value: $crate::Ieee32 } => visit_f32_const
+            @mvp F64Const { value: $crate::Ieee64 } => visit_f64_const
+            @reference_types RefNull { hty: $crate::HeapType } => visit_ref_null
             @reference_types RefIsNull => visit_ref_is_null
             @reference_types RefFunc { function_index: u32 } => visit_ref_func
             @mvp I32Eqz => visit_i32_eqz
@@ -304,133 +300,142 @@ macro_rules! for_each_operator {
             @mvp I64ReinterpretF64 => visit_i64_reinterpret_f64
             @mvp F32ReinterpretI32 => visit_f32_reinterpret_i32
             @mvp F64ReinterpretI64 => visit_f64_reinterpret_i64
-            @sign_ext_ops I32Extend8S => visit_i32_extend8_s
-            @sign_ext_ops I32Extend16S => visit_i32_extend16_s
-            @sign_ext_ops I64Extend8S => visit_i64_extend8_s
-            @sign_ext_ops I64Extend16S => visit_i64_extend16_s
-            @sign_ext_ops I64Extend32S => visit_i64_extend32_s
+            @sign_extension I32Extend8S => visit_i32_extend8_s
+            @sign_extension I32Extend16S => visit_i32_extend16_s
+            @sign_extension I64Extend8S => visit_i64_extend8_s
+            @sign_extension I64Extend16S => visit_i64_extend16_s
+            @sign_extension I64Extend32S => visit_i64_extend32_s
 
             // 0xFC operators
             // Non-trapping Float-to-int Conversions
-            @non_trapping_f2i_conversions I32TruncSatF32S => visit_i32_trunc_sat_f32_s
-            @non_trapping_f2i_conversions I32TruncSatF32U => visit_i32_trunc_sat_f32_u
-            @non_trapping_f2i_conversions I32TruncSatF64S => visit_i32_trunc_sat_f64_s
-            @non_trapping_f2i_conversions I32TruncSatF64U => visit_i32_trunc_sat_f64_u
-            @non_trapping_f2i_conversions I64TruncSatF32S => visit_i64_trunc_sat_f32_s
-            @non_trapping_f2i_conversions I64TruncSatF32U => visit_i64_trunc_sat_f32_u
-            @non_trapping_f2i_conversions I64TruncSatF64S => visit_i64_trunc_sat_f64_s
-            @non_trapping_f2i_conversions I64TruncSatF64U => visit_i64_trunc_sat_f64_u
+            // https://github.com/WebAssembly/nontrapping-float-to-int-conversions
+            @saturating_float_to_int I32TruncSatF32S => visit_i32_trunc_sat_f32_s
+            @saturating_float_to_int I32TruncSatF32U => visit_i32_trunc_sat_f32_u
+            @saturating_float_to_int I32TruncSatF64S => visit_i32_trunc_sat_f64_s
+            @saturating_float_to_int I32TruncSatF64U => visit_i32_trunc_sat_f64_u
+            @saturating_float_to_int I64TruncSatF32S => visit_i64_trunc_sat_f32_s
+            @saturating_float_to_int I64TruncSatF32U => visit_i64_trunc_sat_f32_u
+            @saturating_float_to_int I64TruncSatF64S => visit_i64_trunc_sat_f64_s
+            @saturating_float_to_int I64TruncSatF64U => visit_i64_trunc_sat_f64_u
 
-            // 0xFC operators
-            // bulk memory https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md
-            @bulk_memory MemoryInit { segment: u32, mem: u32 } => visit_memory_init
-            @bulk_memory DataDrop { segment: u32 } => visit_data_drop
-            @bulk_memory MemoryCopy { dst: u32, src: u32 } => visit_memory_copy
+            // 0xFC prefixed operators
+            // bulk memory operations
+            // https://github.com/WebAssembly/bulk-memory-operations
+            @bulk_memory MemoryInit { data_index: u32, mem: u32 } => visit_memory_init
+            @bulk_memory DataDrop { data_index: u32 } => visit_data_drop
+            @bulk_memory MemoryCopy { dst_mem: u32, src_mem: u32 } => visit_memory_copy
             @bulk_memory MemoryFill { mem: u32 } => visit_memory_fill
-            @bulk_memory TableInit { segment: u32, table: u32 } => visit_table_init
-            @bulk_memory ElemDrop { segment: u32 } => visit_elem_drop
+            @bulk_memory TableInit { elem_index: u32, table: u32 } => visit_table_init
+            @bulk_memory ElemDrop { elem_index: u32 } => visit_elem_drop
             @bulk_memory TableCopy { dst_table: u32, src_table: u32 } => visit_table_copy
-            @bulk_memory TableFill { table: u32 } => visit_table_fill
-            @bulk_memory TableGet { table: u32 } => visit_table_get
-            @bulk_memory TableSet { table: u32 } => visit_table_set
-            @bulk_memory TableGrow { table: u32 } => visit_table_grow
-            @bulk_memory TableSize { table: u32 } => visit_table_size
 
-            // 0xFE operators
-            // https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
-            @threads MemoryAtomicNotify { memarg: MemArg } => visit_memory_atomic_notify
-            @threads MemoryAtomicWait32 { memarg: MemArg } => visit_memory_atomic_wait32
-            @threads MemoryAtomicWait64 { memarg: MemArg } => visit_memory_atomic_wait64
-            @threads AtomicFence { flags: u8 } => visit_atomic_fence
-            @threads I32AtomicLoad { memarg: MemArg } => visit_i32_atomic_load
-            @threads I64AtomicLoad { memarg: MemArg } => visit_i64_atomic_load
-            @threads I32AtomicLoad8U { memarg: MemArg } => visit_i32_atomic_load8_u
-            @threads I32AtomicLoad16U { memarg: MemArg } => visit_i32_atomic_load16_u
-            @threads I64AtomicLoad8U { memarg: MemArg } => visit_i64_atomic_load8_u
-            @threads I64AtomicLoad16U { memarg: MemArg } => visit_i64_atomic_load16_u
-            @threads I64AtomicLoad32U { memarg: MemArg } => visit_i64_atomic_load32_u
-            @threads I32AtomicStore { memarg: MemArg } => visit_i32_atomic_store
-            @threads I64AtomicStore { memarg: MemArg } => visit_i64_atomic_store
-            @threads I32AtomicStore8 { memarg: MemArg } => visit_i32_atomic_store8
-            @threads I32AtomicStore16 { memarg: MemArg } => visit_i32_atomic_store16
-            @threads I64AtomicStore8 { memarg: MemArg } => visit_i64_atomic_store8
-            @threads I64AtomicStore16 { memarg: MemArg } => visit_i64_atomic_store16
-            @threads I64AtomicStore32 { memarg: MemArg } => visit_i64_atomic_store32
-            @threads I32AtomicRmwAdd { memarg: MemArg } => visit_i32_atomic_rmw_add
-            @threads I64AtomicRmwAdd { memarg: MemArg } => visit_i64_atomic_rmw_add
-            @threads I32AtomicRmw8AddU { memarg: MemArg } => visit_i32_atomic_rmw8_add_u
-            @threads I32AtomicRmw16AddU { memarg: MemArg } => visit_i32_atomic_rmw16_add_u
-            @threads I64AtomicRmw8AddU { memarg: MemArg } => visit_i64_atomic_rmw8_add_u
-            @threads I64AtomicRmw16AddU { memarg: MemArg } => visit_i64_atomic_rmw16_add_u
-            @threads I64AtomicRmw32AddU { memarg: MemArg } => visit_i64_atomic_rmw32_add_u
-            @threads I32AtomicRmwSub { memarg: MemArg } => visit_i32_atomic_rmw_sub
-            @threads I64AtomicRmwSub { memarg: MemArg } => visit_i64_atomic_rmw_sub
-            @threads I32AtomicRmw8SubU { memarg: MemArg } => visit_i32_atomic_rmw8_sub_u
-            @threads I32AtomicRmw16SubU { memarg: MemArg } => visit_i32_atomic_rmw16_sub_u
-            @threads I64AtomicRmw8SubU { memarg: MemArg } => visit_i64_atomic_rmw8_sub_u
-            @threads I64AtomicRmw16SubU { memarg: MemArg } => visit_i64_atomic_rmw16_sub_u
-            @threads I64AtomicRmw32SubU { memarg: MemArg } => visit_i64_atomic_rmw32_sub_u
-            @threads I32AtomicRmwAnd { memarg: MemArg } => visit_i32_atomic_rmw_and
-            @threads I64AtomicRmwAnd { memarg: MemArg } => visit_i64_atomic_rmw_and
-            @threads I32AtomicRmw8AndU { memarg: MemArg } => visit_i32_atomic_rmw8_and_u
-            @threads I32AtomicRmw16AndU { memarg: MemArg } => visit_i32_atomic_rmw16_and_u
-            @threads I64AtomicRmw8AndU { memarg: MemArg } => visit_i64_atomic_rmw8_and_u
-            @threads I64AtomicRmw16AndU { memarg: MemArg } => visit_i64_atomic_rmw16_and_u
-            @threads I64AtomicRmw32AndU { memarg: MemArg } => visit_i64_atomic_rmw32_and_u
-            @threads I32AtomicRmwOr { memarg: MemArg } => visit_i32_atomic_rmw_or
-            @threads I64AtomicRmwOr { memarg: MemArg } => visit_i64_atomic_rmw_or
-            @threads I32AtomicRmw8OrU { memarg: MemArg } => visit_i32_atomic_rmw8_or_u
-            @threads I32AtomicRmw16OrU { memarg: MemArg } => visit_i32_atomic_rmw16_or_u
-            @threads I64AtomicRmw8OrU { memarg: MemArg } => visit_i64_atomic_rmw8_or_u
-            @threads I64AtomicRmw16OrU { memarg: MemArg } => visit_i64_atomic_rmw16_or_u
-            @threads I64AtomicRmw32OrU { memarg: MemArg } => visit_i64_atomic_rmw32_or_u
-            @threads I32AtomicRmwXor { memarg: MemArg } => visit_i32_atomic_rmw_xor
-            @threads I64AtomicRmwXor { memarg: MemArg } => visit_i64_atomic_rmw_xor
-            @threads I32AtomicRmw8XorU { memarg: MemArg } => visit_i32_atomic_rmw8_xor_u
-            @threads I32AtomicRmw16XorU { memarg: MemArg } => visit_i32_atomic_rmw16_xor_u
-            @threads I64AtomicRmw8XorU { memarg: MemArg } => visit_i64_atomic_rmw8_xor_u
-            @threads I64AtomicRmw16XorU { memarg: MemArg } => visit_i64_atomic_rmw16_xor_u
-            @threads I64AtomicRmw32XorU { memarg: MemArg } => visit_i64_atomic_rmw32_xor_u
-            @threads I32AtomicRmwXchg { memarg: MemArg } => visit_i32_atomic_rmw_xchg
-            @threads I64AtomicRmwXchg { memarg: MemArg } => visit_i64_atomic_rmw_xchg
-            @threads I32AtomicRmw8XchgU { memarg: MemArg } => visit_i32_atomic_rmw8_xchg_u
-            @threads I32AtomicRmw16XchgU { memarg: MemArg } => visit_i32_atomic_rmw16_xchg_u
-            @threads I64AtomicRmw8XchgU { memarg: MemArg } => visit_i64_atomic_rmw8_xchg_u
-            @threads I64AtomicRmw16XchgU { memarg: MemArg } => visit_i64_atomic_rmw16_xchg_u
-            @threads I64AtomicRmw32XchgU { memarg: MemArg } => visit_i64_atomic_rmw32_xchg_u
-            @threads I32AtomicRmwCmpxchg { memarg: MemArg } => visit_i32_atomic_rmw_cmpxchg
-            @threads I64AtomicRmwCmpxchg { memarg: MemArg } => visit_i64_atomic_rmw_cmpxchg
-            @threads I32AtomicRmw8CmpxchgU { memarg: MemArg } => visit_i32_atomic_rmw8_cmpxchg_u
-            @threads I32AtomicRmw16CmpxchgU { memarg: MemArg } => visit_i32_atomic_rmw16_cmpxchg_u
-            @threads I64AtomicRmw8CmpxchgU { memarg: MemArg } => visit_i64_atomic_rmw8_cmpxchg_u
-            @threads I64AtomicRmw16CmpxchgU { memarg: MemArg } => visit_i64_atomic_rmw16_cmpxchg_u
-            @threads I64AtomicRmw32CmpxchgU { memarg: MemArg } => visit_i64_atomic_rmw32_cmpxchg_u
+            // 0xFC prefixed operators
+            // reference-types
+            // https://github.com/WebAssembly/reference-types
+            @reference_types TableFill { table: u32 } => visit_table_fill
+            @reference_types TableGet { table: u32 } => visit_table_get
+            @reference_types TableSet { table: u32 } => visit_table_set
+            @reference_types TableGrow { table: u32 } => visit_table_grow
+            @reference_types TableSize { table: u32 } => visit_table_size
+
+            // 0xFE prefixed operators
+            // threads
+            // https://github.com/WebAssembly/threads
+            @threads MemoryAtomicNotify { memarg: $crate::MemArg } => visit_memory_atomic_notify
+            @threads MemoryAtomicWait32 { memarg: $crate::MemArg } => visit_memory_atomic_wait32
+            @threads MemoryAtomicWait64 { memarg: $crate::MemArg } => visit_memory_atomic_wait64
+            @threads AtomicFence => visit_atomic_fence
+            @threads I32AtomicLoad { memarg: $crate::MemArg } => visit_i32_atomic_load
+            @threads I64AtomicLoad { memarg: $crate::MemArg } => visit_i64_atomic_load
+            @threads I32AtomicLoad8U { memarg: $crate::MemArg } => visit_i32_atomic_load8_u
+            @threads I32AtomicLoad16U { memarg: $crate::MemArg } => visit_i32_atomic_load16_u
+            @threads I64AtomicLoad8U { memarg: $crate::MemArg } => visit_i64_atomic_load8_u
+            @threads I64AtomicLoad16U { memarg: $crate::MemArg } => visit_i64_atomic_load16_u
+            @threads I64AtomicLoad32U { memarg: $crate::MemArg } => visit_i64_atomic_load32_u
+            @threads I32AtomicStore { memarg: $crate::MemArg } => visit_i32_atomic_store
+            @threads I64AtomicStore { memarg: $crate::MemArg } => visit_i64_atomic_store
+            @threads I32AtomicStore8 { memarg: $crate::MemArg } => visit_i32_atomic_store8
+            @threads I32AtomicStore16 { memarg: $crate::MemArg } => visit_i32_atomic_store16
+            @threads I64AtomicStore8 { memarg: $crate::MemArg } => visit_i64_atomic_store8
+            @threads I64AtomicStore16 { memarg: $crate::MemArg } => visit_i64_atomic_store16
+            @threads I64AtomicStore32 { memarg: $crate::MemArg } => visit_i64_atomic_store32
+            @threads I32AtomicRmwAdd { memarg: $crate::MemArg } => visit_i32_atomic_rmw_add
+            @threads I64AtomicRmwAdd { memarg: $crate::MemArg } => visit_i64_atomic_rmw_add
+            @threads I32AtomicRmw8AddU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_add_u
+            @threads I32AtomicRmw16AddU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_add_u
+            @threads I64AtomicRmw8AddU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_add_u
+            @threads I64AtomicRmw16AddU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_add_u
+            @threads I64AtomicRmw32AddU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_add_u
+            @threads I32AtomicRmwSub { memarg: $crate::MemArg } => visit_i32_atomic_rmw_sub
+            @threads I64AtomicRmwSub { memarg: $crate::MemArg } => visit_i64_atomic_rmw_sub
+            @threads I32AtomicRmw8SubU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_sub_u
+            @threads I32AtomicRmw16SubU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_sub_u
+            @threads I64AtomicRmw8SubU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_sub_u
+            @threads I64AtomicRmw16SubU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_sub_u
+            @threads I64AtomicRmw32SubU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_sub_u
+            @threads I32AtomicRmwAnd { memarg: $crate::MemArg } => visit_i32_atomic_rmw_and
+            @threads I64AtomicRmwAnd { memarg: $crate::MemArg } => visit_i64_atomic_rmw_and
+            @threads I32AtomicRmw8AndU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_and_u
+            @threads I32AtomicRmw16AndU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_and_u
+            @threads I64AtomicRmw8AndU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_and_u
+            @threads I64AtomicRmw16AndU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_and_u
+            @threads I64AtomicRmw32AndU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_and_u
+            @threads I32AtomicRmwOr { memarg: $crate::MemArg } => visit_i32_atomic_rmw_or
+            @threads I64AtomicRmwOr { memarg: $crate::MemArg } => visit_i64_atomic_rmw_or
+            @threads I32AtomicRmw8OrU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_or_u
+            @threads I32AtomicRmw16OrU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_or_u
+            @threads I64AtomicRmw8OrU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_or_u
+            @threads I64AtomicRmw16OrU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_or_u
+            @threads I64AtomicRmw32OrU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_or_u
+            @threads I32AtomicRmwXor { memarg: $crate::MemArg } => visit_i32_atomic_rmw_xor
+            @threads I64AtomicRmwXor { memarg: $crate::MemArg } => visit_i64_atomic_rmw_xor
+            @threads I32AtomicRmw8XorU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_xor_u
+            @threads I32AtomicRmw16XorU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_xor_u
+            @threads I64AtomicRmw8XorU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_xor_u
+            @threads I64AtomicRmw16XorU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_xor_u
+            @threads I64AtomicRmw32XorU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_xor_u
+            @threads I32AtomicRmwXchg { memarg: $crate::MemArg } => visit_i32_atomic_rmw_xchg
+            @threads I64AtomicRmwXchg { memarg: $crate::MemArg } => visit_i64_atomic_rmw_xchg
+            @threads I32AtomicRmw8XchgU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_xchg_u
+            @threads I32AtomicRmw16XchgU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_xchg_u
+            @threads I64AtomicRmw8XchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_xchg_u
+            @threads I64AtomicRmw16XchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_xchg_u
+            @threads I64AtomicRmw32XchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_xchg_u
+            @threads I32AtomicRmwCmpxchg { memarg: $crate::MemArg } => visit_i32_atomic_rmw_cmpxchg
+            @threads I64AtomicRmwCmpxchg { memarg: $crate::MemArg } => visit_i64_atomic_rmw_cmpxchg
+            @threads I32AtomicRmw8CmpxchgU { memarg: $crate::MemArg } => visit_i32_atomic_rmw8_cmpxchg_u
+            @threads I32AtomicRmw16CmpxchgU { memarg: $crate::MemArg } => visit_i32_atomic_rmw16_cmpxchg_u
+            @threads I64AtomicRmw8CmpxchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw8_cmpxchg_u
+            @threads I64AtomicRmw16CmpxchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_cmpxchg_u
+            @threads I64AtomicRmw32CmpxchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_cmpxchg_u
 
             // 0xFD operators
-            // SIMD https://webassembly.github.io/simd/core/binary/instructions.html
-            @simd V128Load { memarg: MemArg } => visit_v128_load
-            @simd V128Load8x8S { memarg: MemArg } => visit_v128_load8x8_s
-            @simd V128Load8x8U { memarg: MemArg } => visit_v128_load8x8_u
-            @simd V128Load16x4S { memarg: MemArg } => visit_v128_load16x4_s
-            @simd V128Load16x4U { memarg: MemArg } => visit_v128_load16x4_u
-            @simd V128Load32x2S { memarg: MemArg } => visit_v128_load32x2_s
-            @simd V128Load32x2U { memarg: MemArg } => visit_v128_load32x2_u
-            @simd V128Load8Splat { memarg: MemArg } => visit_v128_load8_splat
-            @simd V128Load16Splat { memarg: MemArg } => visit_v128_load16_splat
-            @simd V128Load32Splat { memarg: MemArg } => visit_v128_load32_splat
-            @simd V128Load64Splat { memarg: MemArg } => visit_v128_load64_splat
-            @simd V128Load32Zero { memarg: MemArg } => visit_v128_load32_zero
-            @simd V128Load64Zero { memarg: MemArg } => visit_v128_load64_zero
-            @simd V128Store { memarg: MemArg } => visit_v128_store
-            @simd V128Load8Lane { memarg: MemArg, lane: u8 } => visit_v128_load8_lane
-            @simd V128Load16Lane { memarg: MemArg, lane: u8 } => visit_v128_load16_lane
-            @simd V128Load32Lane { memarg: MemArg, lane: u8 } => visit_v128_load32_lane
-            @simd V128Load64Lane { memarg: MemArg, lane: u8 } => visit_v128_load64_lane
-            @simd V128Store8Lane { memarg: MemArg, lane: u8 } => visit_v128_store8_lane
-            @simd V128Store16Lane { memarg: MemArg, lane: u8 } => visit_v128_store16_lane
-            @simd V128Store32Lane { memarg: MemArg, lane: u8 } => visit_v128_store32_lane
-            @simd V128Store64Lane { memarg: MemArg, lane: u8 } => visit_v128_store64_lane
-            @simd V128Const { value: V128 } => visit_v128_const
+            // 128-bit SIMD
+            // - https://github.com/webassembly/simd
+            // - https://webassembly.github.io/simd/core/binary/instructions.html
+            @simd V128Load { memarg: $crate::MemArg } => visit_v128_load
+            @simd V128Load8x8S { memarg: $crate::MemArg } => visit_v128_load8x8_s
+            @simd V128Load8x8U { memarg: $crate::MemArg } => visit_v128_load8x8_u
+            @simd V128Load16x4S { memarg: $crate::MemArg } => visit_v128_load16x4_s
+            @simd V128Load16x4U { memarg: $crate::MemArg } => visit_v128_load16x4_u
+            @simd V128Load32x2S { memarg: $crate::MemArg } => visit_v128_load32x2_s
+            @simd V128Load32x2U { memarg: $crate::MemArg } => visit_v128_load32x2_u
+            @simd V128Load8Splat { memarg: $crate::MemArg } => visit_v128_load8_splat
+            @simd V128Load16Splat { memarg: $crate::MemArg } => visit_v128_load16_splat
+            @simd V128Load32Splat { memarg: $crate::MemArg } => visit_v128_load32_splat
+            @simd V128Load64Splat { memarg: $crate::MemArg } => visit_v128_load64_splat
+            @simd V128Load32Zero { memarg: $crate::MemArg } => visit_v128_load32_zero
+            @simd V128Load64Zero { memarg: $crate::MemArg } => visit_v128_load64_zero
+            @simd V128Store { memarg: $crate::MemArg } => visit_v128_store
+            @simd V128Load8Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_load8_lane
+            @simd V128Load16Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_load16_lane
+            @simd V128Load32Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_load32_lane
+            @simd V128Load64Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_load64_lane
+            @simd V128Store8Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_store8_lane
+            @simd V128Store16Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_store16_lane
+            @simd V128Store32Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_store32_lane
+            @simd V128Store64Lane { memarg: $crate::MemArg, lane: u8 } => visit_v128_store64_lane
+            @simd V128Const { value: $crate::V128 } => visit_v128_const
             @simd I8x16Shuffle { lanes: [u8; 16] } => visit_i8x16_shuffle
             @simd I8x16ExtractLaneS { lane: u8 } => visit_i8x16_extract_lane_s
             @simd I8x16ExtractLaneU { lane: u8 } => visit_i8x16_extract_lane_u
@@ -646,31 +651,35 @@ macro_rules! for_each_operator {
             @simd F64x2PromoteLowF32x4 => visit_f64x2_promote_low_f32x4
 
             // Relaxed SIMD operators
+            // https://github.com/WebAssembly/relaxed-simd
             @relaxed_simd I8x16RelaxedSwizzle => visit_i8x16_relaxed_swizzle
             @relaxed_simd I32x4RelaxedTruncSatF32x4S => visit_i32x4_relaxed_trunc_sat_f32x4_s
             @relaxed_simd I32x4RelaxedTruncSatF32x4U => visit_i32x4_relaxed_trunc_sat_f32x4_u
             @relaxed_simd I32x4RelaxedTruncSatF64x2SZero => visit_i32x4_relaxed_trunc_sat_f64x2_s_zero
             @relaxed_simd I32x4RelaxedTruncSatF64x2UZero => visit_i32x4_relaxed_trunc_sat_f64x2_u_zero
-            @relaxed_simd F32x4Fma => visit_f32x4_fma
-            @relaxed_simd F32x4Fms => visit_f32x4_fms
-            @relaxed_simd F64x2Fma => visit_f64x2_fma
-            @relaxed_simd F64x2Fms => visit_f64x2_fms
-            @relaxed_simd I8x16LaneSelect => visit_i8x16_laneselect
-            @relaxed_simd I16x8LaneSelect => visit_i16x8_laneselect
-            @relaxed_simd I32x4LaneSelect => visit_i32x4_laneselect
-            @relaxed_simd I64x2LaneSelect => visit_i64x2_laneselect
+            @relaxed_simd F32x4RelaxedFma => visit_f32x4_relaxed_fma
+            @relaxed_simd F32x4RelaxedFnma => visit_f32x4_relaxed_fnma
+            @relaxed_simd F64x2RelaxedFma => visit_f64x2_relaxed_fma
+            @relaxed_simd F64x2RelaxedFnma => visit_f64x2_relaxed_fnma
+            @relaxed_simd I8x16RelaxedLaneselect => visit_i8x16_relaxed_laneselect
+            @relaxed_simd I16x8RelaxedLaneselect => visit_i16x8_relaxed_laneselect
+            @relaxed_simd I32x4RelaxedLaneselect => visit_i32x4_relaxed_laneselect
+            @relaxed_simd I64x2RelaxedLaneselect => visit_i64x2_relaxed_laneselect
             @relaxed_simd F32x4RelaxedMin => visit_f32x4_relaxed_min
             @relaxed_simd F32x4RelaxedMax => visit_f32x4_relaxed_max
             @relaxed_simd F64x2RelaxedMin => visit_f64x2_relaxed_min
             @relaxed_simd F64x2RelaxedMax => visit_f64x2_relaxed_max
+            @relaxed_simd I16x8RelaxedQ15mulrS => visit_i16x8_relaxed_q15mulr_s
+            @relaxed_simd I16x8DotI8x16I7x16S => visit_i16x8_dot_i8x16_i7x16_s
+            @relaxed_simd I32x4DotI8x16I7x16AddS => visit_i32x4_dot_i8x16_i7x16_add_s
+            @relaxed_simd F32x4RelaxedDotBf16x8AddF32x4 => visit_f32x4_relaxed_dot_bf16x8_add_f32x4
 
             // Typed Function references
-            @function_references CallRef { ty: HeapType } => visit_call_ref
-            @function_references ReturnCallRef { ty: HeapType } => visit_return_call_ref
+            @function_references CallRef { hty: $crate::HeapType } => visit_call_ref
+            @function_references ReturnCallRef { hty: $crate::HeapType } => visit_return_call_ref
             @function_references RefAsNonNull => visit_ref_as_non_null
             @function_references BrOnNull { relative_depth: u32 } => visit_br_on_null
             @function_references BrOnNonNull { relative_depth: u32 } => visit_br_on_non_null
-
         }
     };
 }

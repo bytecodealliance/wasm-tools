@@ -729,6 +729,7 @@ impl ComponentBuilder {
                 "memory".into(),
                 crate::core::EntityType::Memory(self.arbitrary_core_memory_type(u)?),
             ));
+            exports.insert("memory".into());
             counts.memories += 1;
             has_memory = true;
         }
@@ -1079,20 +1080,20 @@ impl ComponentBuilder {
         u: &mut Unstructured,
         exports: &mut HashSet<String>,
         type_fuel: &mut u32,
-    ) -> Result<InstanceTypeDef> {
+    ) -> Result<InstanceTypeDecl> {
         let mut choices: Vec<
             fn(
                 &mut ComponentBuilder,
                 &mut HashSet<String>,
                 &mut Unstructured,
                 &mut u32,
-            ) -> Result<InstanceTypeDef>,
+            ) -> Result<InstanceTypeDecl>,
         > = Vec::with_capacity(3);
 
         // Export.
         if self.current_type_scope().can_ref_type() {
             choices.push(|me, exports, u, _type_fuel| {
-                Ok(InstanceTypeDef::Export {
+                Ok(InstanceTypeDecl::Export {
                     name: crate::unique_string(100, exports, u)?,
                     ty: me.arbitrary_type_ref(u, false, true)?.unwrap(),
                 })
@@ -1118,7 +1119,7 @@ impl ComponentBuilder {
                     } => me.current_type_scope_mut().push_core(ty.clone()),
                     _ => unreachable!(),
                 };
-                Ok(InstanceTypeDef::Alias(alias))
+                Ok(InstanceTypeDecl::Alias(alias))
             });
         }
 
@@ -1126,15 +1127,17 @@ impl ComponentBuilder {
         choices.push(|me, _exports, u, type_fuel| {
             let ty = me.arbitrary_core_type(u, type_fuel)?;
             me.current_type_scope_mut().push_core(ty.clone());
-            Ok(InstanceTypeDef::CoreType(ty))
+            Ok(InstanceTypeDecl::CoreType(ty))
         });
 
         // Type definition.
-        choices.push(|me, _exports, u, type_fuel| {
-            let ty = me.arbitrary_type(u, type_fuel)?;
-            me.current_type_scope_mut().push(ty.clone());
-            Ok(InstanceTypeDef::Type(ty))
-        });
+        if self.types.len() < self.config.max_nesting_depth() {
+            choices.push(|me, _exports, u, type_fuel| {
+                let ty = me.arbitrary_type(u, type_fuel)?;
+                me.current_type_scope_mut().push(ty.clone());
+                Ok(InstanceTypeDecl::Type(ty))
+            });
+        }
 
         let f = u.choose(&choices)?;
         f(self, exports, u, type_fuel)
@@ -1218,41 +1221,6 @@ impl ComponentBuilder {
         let mut results = Vec::new();
         let mut names = HashSet::new();
 
-        fn push(
-            b: &ComponentBuilder,
-            u: &mut Unstructured,
-            type_fuel: &mut u32,
-            names: &mut HashSet<String>,
-            items: &mut Vec<(Option<String>, ComponentValType)>,
-        ) -> Result<bool> {
-            *type_fuel = type_fuel.saturating_sub(1);
-            if *type_fuel == 0 {
-                return Ok(false);
-            }
-
-            // If the collection is empty (i.e. first push), then arbitrarily give it a name.
-            // Otherwise, all of the items must be named.
-            let name = if items.is_empty() {
-                // Most of the time we should have named parameters/results.
-                u.ratio::<u8>(99, 100)?
-                    .then(|| crate::unique_non_empty_string(100, names, u))
-                    .transpose()?
-            } else {
-                Some(crate::unique_non_empty_string(100, names, u)?)
-            };
-
-            let ty = b.arbitrary_component_val_type(u)?;
-
-            items.push((name, ty));
-
-            // There can be only one unnamed parameter/result.
-            if items.len() == 1 && items[0].0.is_none() {
-                return Ok(false);
-            }
-
-            Ok(true)
-        }
-
         // Note: parameters are currently limited to a maximum of 16
         // because any additional parameters will require indirect access
         // via a pointer argument; when this occurs, validation of any
@@ -1263,7 +1231,17 @@ impl ComponentBuilder {
         // we should increase this maximum to test indirect parameter
         // passing.
         arbitrary_loop(u, 0, 16, |u| {
-            push(self, u, type_fuel, &mut names, &mut params)
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
+            let name = crate::unique_non_empty_string(100, &mut names, u)?;
+            let ty = self.arbitrary_component_val_type(u)?;
+
+            params.push((name, ty));
+
+            Ok(true)
         })?;
 
         names.clear();
@@ -1272,7 +1250,32 @@ impl ComponentBuilder {
         // required. When the memory option is implemented, this restriction
         // should be relaxed.
         arbitrary_loop(u, 0, 1, |u| {
-            push(self, u, type_fuel, &mut names, &mut results)
+            *type_fuel = type_fuel.saturating_sub(1);
+            if *type_fuel == 0 {
+                return Ok(false);
+            }
+
+            // If the result list is empty (i.e. first push), then arbitrarily give
+            // the result a name. Otherwise, all of the subsequent items must be named.
+            let name = if results.is_empty() {
+                // Most of the time we should have a single, unnamed result.
+                u.ratio::<u8>(10, 100)?
+                    .then(|| crate::unique_non_empty_string(100, &mut names, u))
+                    .transpose()?
+            } else {
+                Some(crate::unique_non_empty_string(100, &mut names, u)?)
+            };
+
+            let ty = self.arbitrary_component_val_type(u)?;
+
+            results.push((name, ty));
+
+            // There can be only one unnamed result.
+            if results.len() == 1 && results[0].0.is_none() {
+                return Ok(false);
+            }
+
+            Ok(true)
         })?;
 
         Ok(Rc::new(FuncType { params, results }))
@@ -1835,11 +1838,7 @@ fn inverse_scalar_canonical_abi_for(
 
     for core_ty in &core_func_ty.params {
         params.push((
-            if core_func_ty.params.len() > 1 || u.arbitrary()? {
-                Some(crate::unique_non_empty_string(100, &mut names, u)?)
-            } else {
-                None
-            },
+            crate::unique_non_empty_string(100, &mut names, u)?,
             from_core_ty(u, *core_ty)?,
         ));
     }
@@ -1998,24 +1997,24 @@ enum ComponentTypeDef {
     Export { name: String, ty: ComponentTypeRef },
 }
 
-impl From<InstanceTypeDef> for ComponentTypeDef {
-    fn from(def: InstanceTypeDef) -> Self {
+impl From<InstanceTypeDecl> for ComponentTypeDef {
+    fn from(def: InstanceTypeDecl) -> Self {
         match def {
-            InstanceTypeDef::CoreType(t) => Self::CoreType(t),
-            InstanceTypeDef::Type(t) => Self::Type(t),
-            InstanceTypeDef::Export { name, ty } => Self::Export { name, ty },
-            InstanceTypeDef::Alias(a) => Self::Alias(a),
+            InstanceTypeDecl::CoreType(t) => Self::CoreType(t),
+            InstanceTypeDecl::Type(t) => Self::Type(t),
+            InstanceTypeDecl::Export { name, ty } => Self::Export { name, ty },
+            InstanceTypeDecl::Alias(a) => Self::Alias(a),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct InstanceType {
-    defs: Vec<InstanceTypeDef>,
+    defs: Vec<InstanceTypeDecl>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-enum InstanceTypeDef {
+enum InstanceTypeDecl {
     CoreType(Rc<CoreType>),
     Type(Rc<Type>),
     Alias(Alias),
@@ -2024,21 +2023,11 @@ enum InstanceTypeDef {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct FuncType {
-    params: Vec<(Option<String>, ComponentValType)>,
+    params: Vec<(String, ComponentValType)>,
     results: Vec<(Option<String>, ComponentValType)>,
 }
 
 impl FuncType {
-    fn unnamed_param_ty(&self) -> Option<ComponentValType> {
-        if self.params.len() == 1 {
-            let (name, ty) = &self.params[0];
-            if name.is_none() {
-                return Some(*ty);
-            }
-        }
-        None
-    }
-
     fn unnamed_result_ty(&self) -> Option<ComponentValType> {
         if self.results.len() == 1 {
             let (name, ty) = &self.results[0];

@@ -96,6 +96,13 @@ pub struct Config {
     #[serde(default)]
     pub skip_validation: bool,
 
+    /// Whether or not to disallow instance imports in the output component.
+    ///
+    /// Enabling this option will cause an error if a dependency cannot be
+    /// located.
+    #[serde(default)]
+    pub disallow_imports: bool,
+
     /// The explicit, transitive dependencies of the root component.
     #[serde(default, deserialize_with = "de::index_map")]
     pub dependencies: IndexMap<String, Dependency>,
@@ -110,7 +117,7 @@ impl Config {
     pub fn from_file(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
 
-        log::debug!("reading configuration file `{}`", path.display());
+        log::info!("reading configuration file `{}`", path.display());
 
         let config = fs::read_to_string(&path)
             .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;

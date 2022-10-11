@@ -11,7 +11,7 @@
   (component quote
     "(export \"\" (func $foo))"
   )
-  "failed to find func named")
+  "unknown func")
 
 (assert_malformed
   (component quote

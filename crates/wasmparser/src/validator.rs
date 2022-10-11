@@ -55,7 +55,7 @@ use self::component::*;
 pub use self::core::ValidatorResources;
 use self::core::*;
 use self::types::{TypeList, Types, TypesRef};
-pub use func::FuncValidator;
+pub use func::{FuncToValidate, FuncValidator, FuncValidatorAllocations};
 pub use operators::{Frame, FrameKind};
 
 fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usize) -> Result<()> {
@@ -311,7 +311,7 @@ pub enum ValidPayload<'a> {
     /// of the currently-used parser until this returned one ends.
     Parser(Parser),
     /// A function was found to be validate.
-    Func(FuncValidator<ValidatorResources>, FunctionBody<'a>),
+    Func(FuncToValidate<ValidatorResources>, FunctionBody<'a>),
     /// The end payload was validated and the types known to the validator
     /// are provided.
     End(Types),
@@ -370,8 +370,11 @@ impl Validator {
             }
         }
 
-        for (mut validator, body) in functions_to_validate {
+        let mut allocs = FuncValidatorAllocations::default();
+        for (func, body) in functions_to_validate {
+            let mut validator = func.into_validator(allocs);
             validator.validate(&body)?;
+            allocs = validator.into_allocations();
         }
 
         Ok(last_types.unwrap())
@@ -844,37 +847,33 @@ impl Validator {
 
     /// Validates [`Payload::CodeSectionEntry`](crate::Payload).
     ///
-    /// This function will prepare a [`FuncValidator`] which can be used to
-    /// validate the function. The function body provided will be parsed only
-    /// enough to create the function validation context. After this the
-    /// [`OperatorsReader`](crate::readers::OperatorsReader) returned can be used to read the
-    /// opcodes of the function as well as feed information into the validator.
+    /// This function will prepare a [`FuncToValidate`] which can be used to
+    /// create a [`FuncValidator`] to validate the function. The function body
+    /// provided will not be parsed or validated by this function.
     ///
-    /// Note that the returned [`FuncValidator`] is "connected" to this
+    /// Note that the returned [`FuncToValidate`] is "connected" to this
     /// [`Validator`] in that it uses the internal context of this validator for
-    /// validating the function. The [`FuncValidator`] can be sent to
-    /// another thread, for example, to offload actual processing of functions
+    /// validating the function. The [`FuncToValidate`] can be sent to another
+    /// thread, for example, to offload actual processing of functions
     /// elsewhere.
     ///
     /// This method should only be called when parsing a module.
     pub fn code_section_entry(
         &mut self,
         body: &crate::FunctionBody,
-    ) -> Result<FuncValidator<ValidatorResources>> {
+    ) -> Result<FuncToValidate<ValidatorResources>> {
         let offset = body.range().start;
         self.state.ensure_module("code", offset)?;
 
         let state = self.module.as_mut().unwrap();
 
         let (index, ty) = state.next_code_index_and_type(offset)?;
-        Ok(FuncValidator::new(
+        Ok(FuncToValidate::new(
             index,
             ty,
-            0,
             ValidatorResources(state.module.arc().clone()),
             &self.features,
-        )
-        .unwrap())
+        ))
     }
 
     /// Validates [`Payload::DataSection`](crate::Payload).
@@ -887,13 +886,7 @@ impl Validator {
             "data",
             |state, _, _, count, offset| {
                 state.data_segment_count = count;
-                check_max(
-                    state.module.data_count.unwrap_or(0) as usize,
-                    count,
-                    MAX_WASM_DATA_SEGMENTS,
-                    "data segments",
-                    offset,
-                )
+                check_max(0, count, MAX_WASM_DATA_SEGMENTS, "data segments", offset)
             },
             |state, features, types, d, offset| state.add_data_segment(d, features, types, offset),
         )
@@ -1452,6 +1445,47 @@ mod tests {
         }
 
         assert_eq!(types.element_at(0), Some(FUNC_REF));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_type_id_aliasing() -> Result<()> {
+        let bytes = wat::parse_str(
+            r#"
+            (component
+              (type $T (list string))
+              (alias outer 0 $T (type $A1))
+              (alias outer 0 $T (type $A2))
+            )
+        "#,
+        )?;
+
+        let mut validator = Validator::new_with_features(WasmFeatures {
+            component_model: true,
+            ..Default::default()
+        });
+
+        let types = validator.validate_all(&bytes)?;
+
+        let t_id = types.id_from_type_index(0, false).unwrap();
+        let a1_id = types.id_from_type_index(1, false).unwrap();
+        let a2_id = types.id_from_type_index(2, false).unwrap();
+
+        // The ids should all be different
+        assert!(t_id != a1_id);
+        assert!(t_id != a2_id);
+        assert!(a1_id != a2_id);
+
+        // However, they should all point to the same type
+        assert!(std::ptr::eq(
+            types.type_from_id(t_id).unwrap(),
+            types.type_from_id(a1_id).unwrap()
+        ));
+        assert!(std::ptr::eq(
+            types.type_from_id(t_id).unwrap(),
+            types.type_from_id(a2_id).unwrap()
+        ));
 
         Ok(())
     }

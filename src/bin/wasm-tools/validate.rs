@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use rayon::prelude::*;
+use std::mem;
 use std::time::Instant;
-use wasmparser::{Parser, ValidPayload, Validator, WasmFeatures};
+use wasmparser::{FuncValidatorAllocations, Parser, ValidPayload, Validator, WasmFeatures};
 
 /// Validate a WebAssembly binary
 ///
@@ -29,7 +30,7 @@ pub struct Opts {
     /// The placeholder "all" can be used to enable all wasm features. If a "-"
     /// character is present in front of a feature it will disable that feature.
     /// For example "all,-simd" would enable everything but simd.
-    #[clap(long, short = 'f', parse(try_from_str = parse_features))]
+    #[clap(long, short = 'f', value_parser = parse_features)]
     features: Option<WasmFeatures>,
 
     #[clap(flatten)]
@@ -67,13 +68,17 @@ impl Opts {
         // over all functions in parallel and perform parallel validation of the
         // input wasm module.
         let start = Instant::now();
-        functions_to_validate
-            .into_par_iter()
-            .try_for_each(|(mut validator, body)| {
+        functions_to_validate.into_par_iter().try_for_each_init(
+            FuncValidatorAllocations::default,
+            |allocs, (to_validate, body)| -> Result<_> {
+                let mut validator = to_validate.into_validator(mem::take(allocs));
                 validator
                     .validate(&body)
-                    .with_context(|| format!("func {} failed to validate", validator.index()))
-            })?;
+                    .with_context(|| format!("func {} failed to validate", validator.index()))?;
+                *allocs = validator.into_allocations();
+                Ok(())
+            },
+        )?;
         log::info!("functions validated in {:?}", start.elapsed());
         Ok(())
     }

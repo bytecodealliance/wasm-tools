@@ -3,9 +3,9 @@
     (instance
       (type (;0;) (func))
       (export "b" (func (type 0)))
-      (type (;1;) (func (param u64)))
+      (type (;1;) (func (param "y" u64)))
       (export "c" (func (type 1)))
-      (type (;2;) (func (param string)))
+      (type (;2;) (func (param "x" string)))
       (export "a" (func (type 2)))
     )
   )
@@ -13,9 +13,9 @@
   (component (;0;)
     (type (;0;) 
       (instance
-        (type (;0;) (func (param string)))
+        (type (;0;) (func (param "x" string)))
         (export "a" (func (type 0)))
-        (type (;1;) (func (param u64)))
+        (type (;1;) (func (param "y" u64)))
         (export "c" (func (type 1)))
       )
     )
@@ -30,7 +30,7 @@
       (instance
         (type (;0;) (func))
         (export "b" (func (type 0)))
-        (type (;1;) (func (param u32)))
+        (type (;1;) (func (param "y" u32)))
         (export "c" (func (type 1)))
       )
     )
