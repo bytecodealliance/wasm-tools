@@ -124,14 +124,10 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/try_delegate.wast",
         "exception-handling/try_catch.wast",
         "exception-handling/throw.wast",
-        // TODO: The call_ref instructions formats changed: the testsuite needs
-        // to be updated. Remove local/function-references/call_ref/ as well.
-        "function-references/br_on_non_null.wast",
-        "function-references/br_on_null.wast",
-        "function-references/call_ref.wast",
-        "function-references/func_bind.wast",
-        "function-references/ref_as_non_null.wast",
-        "function-references/return_call_ref.wast",
+        // TODO: Initialization checking
+        "function-references/func.wast",
+        // TODO: Initialization checking
+        "function-references/local_get.wast",
         // TODO: new syntax for table types has been added with an optional
         // initializer which needs parsing in the text format.
         "function-references/table.wast",
@@ -635,7 +631,6 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("invalid u32 number: constant out of range");
     }
 
-
     // The test suite includes "bad opcodes" that later became valid opcodes
     // (0xd3, function references proposal). However, they are still not constant
     // expressions, so we can sidestep by checking for that error instead
@@ -644,6 +639,10 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
     if message == "unknown global" {
         return error.contains("global.get of locally defined global");
+    }
+
+    if message == "immutable global" {
+        return error.contains("global is immutable");
     }
 
     return false;
