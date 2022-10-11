@@ -452,7 +452,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
 
     fn pop_ref(&mut self, offset: usize) -> Result<RefType> {
         match self.pop_operand(offset, None)? {
-            None | Some(ValType::Bot) => Ok(RefType {
+            None => Ok(RefType {
                 nullable: false,
                 heap_type: HeapType::Bot,
             }),
@@ -982,7 +982,6 @@ fn ty_to_str(ty: ValType) -> &'static str {
             nullable: false,
             heap_type: HeapType::Bot,
         }) => "(ref bot)",
-        ValType::Bot => "bot",
     }
 }
 

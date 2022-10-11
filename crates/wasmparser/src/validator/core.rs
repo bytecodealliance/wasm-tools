@@ -860,7 +860,6 @@ impl Module {
 
         match (ty1, ty2) {
             (ValType::Ref(rt1), ValType::Ref(rt2)) => matches_ref(rt1, rt2, types),
-            (ValType::Bot, _) => true,
             (_, _) => ty1 == ty2,
         }
     }

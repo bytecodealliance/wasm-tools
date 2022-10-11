@@ -1572,7 +1572,6 @@ fn convert_type(parsed_type: wasmparser::ValType) -> ValType {
         F64 => ValType::F64,
         V128 => ValType::V128,
         Ref(ty) => convert_reftype(ty),
-        Bot => unreachable!(),
     }
 }
 

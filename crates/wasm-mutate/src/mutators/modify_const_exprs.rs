@@ -127,7 +127,6 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
                 T::Ref(wasmparser::FUNC_REF) => CE::ref_null(wasm_encoder::ValType::FuncRef),
                 T::Ref(wasmparser::EXTERN_REF) => CE::ref_null(wasm_encoder::ValType::ExternRef),
                 T::Ref(_) => unimplemented!(),
-                T::Bot => unreachable!(),
             }
         } else {
             // FIXME: implement non-reducing mutations for constant expressions.
