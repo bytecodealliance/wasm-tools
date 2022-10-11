@@ -663,15 +663,15 @@ impl<'a> DFGBuilder {
                     self.push_node(Lang::TableSize(*table), idx);
                 }
 
-                Operator::DataDrop { segment } => {
-                    self.empty_node(Lang::DataDrop(*segment), idx);
+                Operator::DataDrop { data_index } => {
+                    self.empty_node(Lang::DataDrop(*data_index), idx);
                 }
 
-                Operator::ElemDrop { segment } => {
-                    self.empty_node(Lang::ElemDrop(*segment), idx);
+                Operator::ElemDrop { elem_index } => {
+                    self.empty_node(Lang::ElemDrop(*elem_index), idx);
                 }
 
-                Operator::MemoryInit { mem, segment } => {
+                Operator::MemoryInit { mem, data_index } => {
                     let a = Id::from(self.pop_operand(idx, false));
                     let b = Id::from(self.pop_operand(idx, false));
                     let c = Id::from(self.pop_operand(idx, false));
@@ -679,22 +679,22 @@ impl<'a> DFGBuilder {
                         Lang::MemoryInit(
                             MemoryInit {
                                 memory: *mem,
-                                segment: *segment,
+                                segment: *data_index,
                             },
                             [c, b, a],
                         ),
                         idx,
                     );
                 }
-                Operator::MemoryCopy { src, dst } => {
+                Operator::MemoryCopy { src_mem, dst_mem } => {
                     let a = Id::from(self.pop_operand(idx, false));
                     let b = Id::from(self.pop_operand(idx, false));
                     let c = Id::from(self.pop_operand(idx, false));
                     self.empty_node(
                         Lang::MemoryCopy(
                             MemoryCopy {
-                                src: *src,
-                                dst: *dst,
+                                src: *src_mem,
+                                dst: *dst_mem,
                             },
                             [c, b, a],
                         ),
@@ -709,7 +709,7 @@ impl<'a> DFGBuilder {
                     self.empty_node(Lang::MemoryFill(*mem, [c, b, a]), idx);
                 }
 
-                Operator::TableInit { table, segment } => {
+                Operator::TableInit { table, elem_index } => {
                     let a = Id::from(self.pop_operand(idx, false));
                     let b = Id::from(self.pop_operand(idx, false));
                     let c = Id::from(self.pop_operand(idx, false));
@@ -717,7 +717,7 @@ impl<'a> DFGBuilder {
                         Lang::TableInit(
                             TableInit {
                                 table: *table,
-                                segment: *segment,
+                                segment: *elem_index,
                             },
                             [c, b, a],
                         ),
@@ -762,12 +762,12 @@ impl<'a> DFGBuilder {
                 }
 
                 Operator::RefNull {
-                    ty: wasmparser::HeapType::Extern,
+                    hty: wasmparser::HeapType::Extern,
                 } => {
                     self.push_node(Lang::RefNull(RefType::Extern), idx);
                 }
                 Operator::RefNull {
-                    ty: wasmparser::HeapType::Func,
+                    hty: wasmparser::HeapType::Func,
                 } => {
                     self.push_node(Lang::RefNull(RefType::Func), idx);
                 }

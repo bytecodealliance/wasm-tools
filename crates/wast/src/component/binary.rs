@@ -78,11 +78,7 @@ fn encode_type(encoder: ComponentTypeEncoder, ty: &TypeDef) {
         }
         TypeDef::Func(f) => {
             let mut encoder = encoder.function();
-            if f.params.len() == 1 && f.params[0].name.is_none() {
-                encoder.param(&f.params[0].ty);
-            } else {
-                encoder.params(f.params.iter().map(|p| (p.name.unwrap_or(""), &p.ty)));
-            }
+            encoder.params(f.params.iter().map(|p| (p.name, &p.ty)));
 
             if f.results.len() == 1 && f.results[0].name.is_none() {
                 encoder.result(&f.results[0].ty);

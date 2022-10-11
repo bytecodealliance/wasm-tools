@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser"
-version = "0.90.0"
+version = "0.92.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
@@ -9,19 +9,18 @@ keywords = ["parser", "WebAssembly", "wasm"]
 description = """
 A simple event-driven library for parsing WebAssembly binary files.
 """
-edition = "2021"
+edition.workspace = true
 exclude = ["benches/*.wasm"]
 
 [dependencies]
-indexmap = "1.8.0"
+indexmap = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1.0"
-criterion = "0.3"
-getopts = "0.2"
+anyhow = { workspace = true }
+criterion = { workspace = true }
 wat = { path = "../wat" }
 wast = { path = "../wast" }
-rayon = "1.3"
+rayon = { workspace = true }
 wasmparser-dump = { path = "../dump" }
 once_cell = "1.13.0"
 

@@ -216,7 +216,7 @@
   (module quote
     "(func i32.load $a)"
   )
-  "failed to find memory")
+  "unknown memory")
 
 (module
   (memory 1)

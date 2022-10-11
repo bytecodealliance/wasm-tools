@@ -1,44 +1,90 @@
-use super::operators::{Frame, OperatorValidator};
-use crate::{BinaryReader, HeapType, Result, ValType};
+use super::operators::{Frame, OperatorValidator, OperatorValidatorAllocations};
+use crate::{BinaryReader, Result, ValType, VisitOperator};
 use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
+
+/// Resources necessary to perform validation of a function.
+///
+/// This structure is created by
+/// [`Validator::code_section_entry`](crate::Validator::code_section_entry) and
+/// is created per-function in a WebAssembly module. This structure is suitable
+/// for sending to other threads while the original
+/// [`Validator`](crate::Validator) continues processing other functions.
+pub struct FuncToValidate<T> {
+    resources: T,
+    index: u32,
+    ty: u32,
+    features: WasmFeatures,
+}
+
+impl<T: WasmModuleResources> FuncToValidate<T> {
+    /// Creates a new function to validate which will have the specified
+    /// configuration parameters:
+    ///
+    /// * `index` - the core wasm function index being validated
+    /// * `ty` - the core wasm type index of the function being validated,
+    ///   defining the results and parameters to the function.
+    /// * `resources` - metadata and type information about the module that
+    ///   this function is validated within.
+    /// * `features` - enabled WebAssembly features.
+    pub fn new(index: u32, ty: u32, resources: T, features: &WasmFeatures) -> FuncToValidate<T> {
+        FuncToValidate {
+            resources,
+            index,
+            ty,
+            features: *features,
+        }
+    }
+
+    /// Converts this [`FuncToValidate`] into a [`FuncValidator`] using the
+    /// `allocs` provided.
+    ///
+    /// This method, in conjunction with [`FuncValidator::into_allocations`],
+    /// provides a means to reuse allocations across validation of each
+    /// individual function. Note that it is also sufficient to call this
+    /// method with `Default::default()` if no prior allocations are
+    /// available.
+    ///
+    /// # Panics
+    ///
+    /// If a `FuncToValidate` was created with an invalid `ty` index then this
+    /// function will panic.
+    pub fn into_validator(self, allocs: FuncValidatorAllocations) -> FuncValidator<T> {
+        let FuncToValidate {
+            resources,
+            index,
+            ty,
+            features,
+        } = self;
+        let validator =
+            OperatorValidator::new_func(ty, 0, &features, &resources, allocs.0).unwrap();
+        FuncValidator {
+            validator,
+            resources,
+            index,
+        }
+    }
+}
 
 /// Validation context for a WebAssembly function.
 ///
-/// This structure is created by
-/// [`Validator::code_section_entry`](crate::Validator::code_section_entry)
-/// and is created per-function in a WebAssembly module. This structure is
-/// suitable for sending to other threads while the original
-/// [`Validator`](crate::Validator) continues processing other functions.
+/// This is a finalized validator which is ready to process a [`FunctionBody`].
+/// This is created from the [`FuncToValidate::into_validator`] method.
 pub struct FuncValidator<T> {
     validator: OperatorValidator,
     resources: T,
     index: u32,
 }
 
-impl<T: WasmModuleResources> FuncValidator<T> {
-    /// Creates a new `FuncValidator`.
-    ///
-    /// The returned `FuncValidator` can be used to validate a function with
-    /// the type `ty` specified. The `resources` indicate what the containing
-    /// module has for the function to use, and the `features` configure what
-    /// WebAssembly proposals are enabled for this function.
-    ///
-    /// The returned validator can be used to then parse a [`FunctionBody`], for
-    /// example, to read locals and validate operators.
-    pub fn new(
-        index: u32,
-        ty: u32,
-        offset: usize,
-        resources: T,
-        features: &WasmFeatures,
-    ) -> Result<FuncValidator<T>> {
-        Ok(FuncValidator {
-            validator: OperatorValidator::new_func(ty, offset, features, &resources)?,
-            resources,
-            index,
-        })
-    }
+/// External handle to the internal allocations used during function validation.
+///
+/// This is created with either the `Default` implementation or with
+/// [`FuncValidator::into_allocations`]. It is then passed as an argument to
+/// [`FuncToValidate::into_validator`] to provide a means of reusing allocations
+/// between each function.
+#[derive(Default)]
+pub struct FuncValidatorAllocations(OperatorValidatorAllocations);
 
+impl<T: WasmModuleResources> FuncValidator<T> {
     /// Convenience function to validate an entire function's body.
     ///
     /// You may not end up using this in final implementations because you'll
@@ -53,7 +99,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.finish(reader.original_position())
     }
 
-    /// Reads the local defintions from the given `BinaryReader`, often sourced
+    /// Reads the local definitions from the given `BinaryReader`, often sourced
     /// from a `FunctionBody`.
     ///
     /// This function will automatically advance the `BinaryReader` forward,
@@ -140,7 +186,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// # Note
     ///
     /// A `depth` of 0 will refer to the last operand on the stack.
-    pub fn get_operand_type(&self, depth: usize) -> Option<ValType> {
+    pub fn get_operand_type(&self, depth: usize) -> Option<Option<ValType>> {
         self.validator.peek_operand_at(depth)
     }
 
@@ -162,6 +208,16 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// A `depth` of 0 will refer to the last frame on the stack.
     pub fn get_control_frame(&self, depth: usize) -> Option<&Frame> {
         self.validator.get_frame(depth)
+    }
+
+    /// Consumes this validator and returns the underlying allocations that
+    /// were used during the validation process.
+    ///
+    /// The returned value here can be paired with
+    /// [`FuncToValidate::into_validator`] to reuse the allocations already
+    /// created by this validator.
+    pub fn into_allocations(self) -> FuncValidatorAllocations {
+        FuncValidatorAllocations(self.validator.into_allocations())
     }
 }
 
@@ -240,7 +296,8 @@ mod tests {
 
     #[test]
     fn operand_stack_height() {
-        let mut v = FuncValidator::new(0, 0, 0, &EmptyResources, &Default::default()).unwrap();
+        let mut v = FuncToValidate::new(0, 0, EmptyResources, &Default::default())
+            .into_validator(Default::default());
 
         // Initially zero values on the stack.
         assert_eq!(v.operand_stack_height(), 0);
@@ -254,7 +311,7 @@ mod tests {
             .op(
                 1,
                 &Operator::Block {
-                    ty: crate::BlockType::Empty
+                    blockty: crate::BlockType::Empty
                 }
             )
             .is_ok());
@@ -265,8 +322,6 @@ mod tests {
         assert_eq!(v.operand_stack_height(), 2);
     }
 }
-
-use crate::{BlockType, BrTable, Ieee32, Ieee64, MemArg, VisitOperator, V128};
 
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {

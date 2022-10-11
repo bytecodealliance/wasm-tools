@@ -380,20 +380,7 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
         Self(sink)
     }
 
-    /// Defines a single unnamed parameter.
-    ///
-    /// This method cannot be used with `params`.
-    ///
-    /// Parameters must be defined before defining results.
-    pub fn param(&mut self, ty: impl Into<ComponentValType>) -> &mut Self {
-        self.0.push(0x00);
-        ty.into().encode(self.0);
-        self
-    }
-
     /// Defines named parameters.
-    ///
-    /// This method cannot be used with `param`.
     ///
     /// Parameters must be defined before defining results.
     pub fn params<'b, P, T>(&mut self, params: P) -> &mut Self
@@ -402,7 +389,6 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
         P::IntoIter: ExactSizeIterator,
         T: Into<ComponentValType>,
     {
-        self.0.push(0x01);
         let params = params.into_iter();
         params.len().encode(self.0);
         for (name, ty) in params {

@@ -17,8 +17,5 @@
   (module (global v128 v128.const i64x2 0 0))
   "SIMD support is not enabled")
 (assert_invalid
-  (module (func select (result v128)))
-  "SIMD support is not enabled")
-(assert_invalid
   (module (func block (result v128) end))
   "SIMD support is not enabled")

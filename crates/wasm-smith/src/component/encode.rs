@@ -159,16 +159,7 @@ impl Type {
             Self::Func(func_ty) => {
                 let mut f = enc.function();
 
-                if let Some(ty) = func_ty.unnamed_param_ty() {
-                    f.param(ty);
-                } else {
-                    f.params(
-                        func_ty
-                            .params
-                            .iter()
-                            .map(|(name, ty)| (name.as_deref().unwrap(), *ty)),
-                    );
-                }
+                f.params(func_ty.params.iter().map(|(name, ty)| (name.as_str(), *ty)));
 
                 if let Some(ty) = func_ty.unnamed_result_ty() {
                     f.result(ty);
@@ -220,30 +211,30 @@ impl Type {
                 let mut enc_inst_ty = wasm_encoder::InstanceType::new();
                 for def in &inst_ty.defs {
                     match def {
-                        InstanceTypeDef::CoreType(ty) => {
+                        InstanceTypeDecl::CoreType(ty) => {
                             ty.encode(enc_inst_ty.core_type());
                         }
-                        InstanceTypeDef::Type(ty) => {
+                        InstanceTypeDecl::Type(ty) => {
                             ty.encode(enc_inst_ty.ty());
                         }
-                        InstanceTypeDef::Export { name, ty } => {
+                        InstanceTypeDecl::Export { name, ty } => {
                             enc_inst_ty.export(name, *ty);
                         }
-                        InstanceTypeDef::Alias(Alias::Outer {
+                        InstanceTypeDecl::Alias(Alias::Outer {
                             count,
                             i,
                             kind: OuterAliasKind::Type(_),
                         }) => {
                             enc_inst_ty.alias_outer_type(*count, *i);
                         }
-                        InstanceTypeDef::Alias(Alias::Outer {
+                        InstanceTypeDecl::Alias(Alias::Outer {
                             count,
                             i,
                             kind: OuterAliasKind::CoreType(_),
                         }) => {
                             enc_inst_ty.alias_outer_core_type(*count, *i);
                         }
-                        InstanceTypeDef::Alias(_) => unreachable!(),
+                        InstanceTypeDecl::Alias(_) => unreachable!(),
                     }
                 }
                 enc.instance(&enc_inst_ty);

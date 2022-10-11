@@ -87,6 +87,8 @@ impl ComponentState {
         current.core_types.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: Some(current.core_types.len()),
+            is_core: true,
         });
         types.push(ty);
 
@@ -113,6 +115,8 @@ impl ComponentState {
         self.core_modules.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: true,
         });
 
         types.push(ty);
@@ -182,6 +186,8 @@ impl ComponentState {
         current.types.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: Some(current.types.len()),
+            is_core: false,
         });
         types.push(ty);
 
@@ -327,6 +333,8 @@ impl ComponentState {
         self.core_funcs.push(TypeId {
             type_size: lowered_ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: true,
         });
 
         types.push(lowered_ty);
@@ -344,6 +352,8 @@ impl ComponentState {
         self.components.push(TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: false,
         });
 
         types.push(ty);
@@ -863,21 +873,20 @@ impl ComponentState {
     ) -> Result<ComponentFuncType> {
         let mut type_size = 1;
 
-        let mut set = HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.len()));
+        let mut set =
+            HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.type_count()));
 
         let params = ty
             .params
             .iter()
             .map(|(name, ty)| {
-                if let Some(name) = name {
-                    Self::check_name(name, "function parameter", offset)?;
-                    if !set.insert(name) {
-                        return Err(BinaryReaderError::new("duplicate parameter name", offset));
-                    }
+                Self::check_name(name, "function parameter", offset)?;
+                if !set.insert(*name) {
+                    return Err(BinaryReaderError::new("duplicate parameter name", offset));
                 }
                 let ty = self.create_component_val_type(*ty, types, offset)?;
                 type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
-                Ok((name.map(ToOwned::to_owned), ty))
+                Ok((name.to_string(), ty))
             })
             .collect::<Result<_>>()?;
 
@@ -1010,6 +1019,8 @@ impl ComponentState {
         let id = TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: true,
         };
 
         types.push(ty);
@@ -1145,6 +1156,8 @@ impl ComponentState {
         let id = TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: false,
         };
 
         types.push(ty);
@@ -1246,6 +1259,8 @@ impl ComponentState {
         let id = TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: false,
         };
 
         types.push(ty);
@@ -1332,6 +1347,8 @@ impl ComponentState {
         let id = TypeId {
             type_size: ty.type_size(),
             index: types.len(),
+            type_index: None,
+            is_core: true,
         };
 
         types.push(ty);
@@ -1545,7 +1562,13 @@ impl ComponentState {
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-        current.core_types.push(ty);
+        current.core_types.push(TypeId {
+            type_size: ty.type_size,
+            index: ty.index,
+            type_index: Some(current.core_types.len()),
+            is_core: true,
+        });
+
         Ok(())
     }
 
@@ -1556,7 +1579,13 @@ impl ComponentState {
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-        current.types.push(ty);
+        current.types.push(TypeId {
+            type_size: ty.type_size,
+            index: ty.index,
+            type_index: Some(current.types.len()),
+            is_core: false,
+        });
+
         Ok(())
     }
 

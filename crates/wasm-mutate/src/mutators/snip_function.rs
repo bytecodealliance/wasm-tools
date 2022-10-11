@@ -24,7 +24,8 @@ impl Mutator for SnipMutator {
         let function_to_mutate = config.rng().gen_range(0..count);
         let ftype = config
             .info()
-            .get_functype_idx(function_to_mutate + config.info().num_imported_functions());
+            .get_functype_idx(function_to_mutate + config.info().num_imported_functions())
+            .clone();
 
         for i in 0..count {
             config.consume_fuel(1)?;
@@ -40,7 +41,7 @@ impl Mutator for SnipMutator {
             let locals = vec![];
             let mut f = Function::new(locals);
 
-            match ftype {
+            match &ftype {
                 TypeInfo::Func(t) => {
                     for primitive in t.returns.iter() {
                         match primitive {

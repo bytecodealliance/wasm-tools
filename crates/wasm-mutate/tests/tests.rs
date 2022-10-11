@@ -45,6 +45,7 @@ fn integration_test() {
             Ok(it) => it,
             Err(e) => match e.kind() {
                 ErrorKind::NoMutationsApplicable => continue,
+                ErrorKind::OutOfFuel => break,
                 _ => panic!("{}", e),
             },
         };

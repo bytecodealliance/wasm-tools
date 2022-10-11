@@ -24,7 +24,7 @@ compiler).
 ### Install
 
 ```
-$ cargo install --git https://github.com/bytecodealliance/wasm-tools.git
+$ cargo install wasm-tools
 ```
 
 ### Writing a Predicate Script
@@ -65,10 +65,10 @@ and non-zero if there is *not* any match. This is useful for predicate scripts.
 
 ### Run
 
-To run `wasm-shrink` pass it the predicate and the initial test case:
+To run `wasm-tools shrink` pass it the predicate and the initial test case:
 
 ```bash
-$ wasm-shrink predicate.sh test-case.wasm -o shrunken.wasm
+$ wasm-tools shrink predicate.sh test-case.wasm -o shrunken.wasm
 ```
 
 The shrunken Wasm file will be written to `shrunken.wasm` in this case, but if
@@ -78,7 +78,7 @@ case's name.
 You can see all options by passing `--help`:
 
 ```bash
-$ wasm-shrink --help
+$ wasm-tools shrink --help
 ```
 
 ## Embed as a Library
@@ -88,9 +88,8 @@ allow programmatic usage.
 
 First, add a dependency to your `Cargo.toml`:
 
-```toml
-[dependencies]
-wasm-shrink = "0.1.0"
+```sh
+$ cargo add wasm-shrink
 ```
 
 Then use the `wasm_shrink::WasmShrink` builder to configure and run a shrinking

@@ -28,6 +28,10 @@ pub struct WasmComposeCommand {
     #[clap(long)]
     pub skip_validation: bool,
 
+    /// Do not allow instance imports in the composed output component.
+    #[clap(long = "no-imports")]
+    pub disallow_imports: bool,
+
     /// The path to the root component to compose.
     #[clap(value_name = "COMPONENT")]
     pub component: PathBuf,
@@ -91,6 +95,7 @@ impl WasmComposeCommand {
 
         config.search_paths.extend(self.paths.iter().cloned());
         config.skip_validation |= self.skip_validation;
+        config.disallow_imports |= self.disallow_imports;
         Ok(config)
     }
 }

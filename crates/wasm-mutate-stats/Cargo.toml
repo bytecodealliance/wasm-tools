@@ -1,22 +1,22 @@
 [package]
 name = "wasm-mutate-stats"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 publish = false
 
 [dependencies]
-anyhow = "1.0"
-arbitrary = "1.0"
-num_cpus = "1.13"
-rand = { version = "0.8.0", features = ["small_rng"] }
-wasm-mutate = { path = '../wasm-mutate' }
-wasmprinter = { path = '../wasmprinter' }
-wasmparser = { path = "../wasmparser" }
-wasmtime = "0.38.1"
-env_logger = "0.9"
+anyhow = { workspace = true }
+arbitrary = { workspace = true }
+num_cpus = { workspace = true }
+rand = { workspace = true }
+wasm-mutate = { workspace = true }
+wasmprinter = { workspace = true }
+wasmparser = { workspace = true }
+wasmtime = { workspace = true }
+env_logger = { workspace = true }
 itertools = "0.10.0"
-clap = { version = "3.0", features = ['derive'] }
-log = "0.4"
+clap = { workspace = true }
+log = { workspace = true }
 
 [lib]
 doctest = false

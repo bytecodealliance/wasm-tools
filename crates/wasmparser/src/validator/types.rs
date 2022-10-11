@@ -141,6 +141,14 @@ pub struct TypeId {
     pub(crate) type_size: usize,
     /// The index into the global list of types.
     pub(crate) index: usize,
+    /// The original type index.
+    ///
+    /// This will be `None` for implicitly defined types, e.g. types for
+    /// modules definitions, component definitions, instantiations, and function
+    /// lowerings.
+    pub(crate) type_index: Option<usize>,
+    /// Whether or not the type is a core type.
+    pub(crate) is_core: bool,
 }
 
 /// A unified type definition for validating WebAssembly modules and components.
@@ -706,7 +714,7 @@ pub struct ComponentFuncType {
     /// The effective type size for the component function type.
     pub(crate) type_size: usize,
     /// The function parameters.
-    pub params: Box<[(Option<String>, ComponentValType)]>,
+    pub params: Box<[(String, ComponentValType)]>,
     /// The function's results.
     pub results: Box<[(Option<String>, ComponentValType)]>,
 }

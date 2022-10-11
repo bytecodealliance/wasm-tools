@@ -38,7 +38,6 @@ pub struct Opts {
     /// The arbitrary input seed.
     ///
     /// `stdin` is used if this argument is not supplied.
-    #[clap(parse(from_os_str))]
     input: Option<PathBuf>,
 
     #[clap(flatten)]
@@ -70,7 +69,7 @@ pub struct Opts {
     fuel: Option<u32>,
 
     /// JSON configuration file with settings to control the wasm output.
-    #[clap(short = 'c', long = "config", parse(from_os_str))]
+    #[clap(short = 'c', long = "config")]
     config: Option<PathBuf>,
 
     #[clap(flatten)]
