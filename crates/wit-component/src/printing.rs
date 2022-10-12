@@ -16,15 +16,8 @@ pub struct InterfacePrinter {
 impl InterfacePrinter {
     /// Print the given WebAssembly interface to a string.
     pub fn print(&mut self, interface: &Interface) -> Result<String> {
-        for func in &interface.functions {
-            for ty in func
-                .params
-                .iter()
-                .map(|(_, ty)| ty)
-                .chain(func.results.iter_types())
-            {
-                self.declare_type(interface, ty)?;
-            }
+        for (id, _) in &interface.types {
+            self.declare_type(interface, &Type::Id(id))?;
         }
 
         for func in &interface.functions {

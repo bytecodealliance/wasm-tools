@@ -5,7 +5,6 @@
 use anyhow::{bail, Result};
 use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
-use wit_parser::Interface;
 
 #[cfg(feature = "cli")]
 pub mod cli;
@@ -16,6 +15,7 @@ mod gc;
 mod printing;
 mod validation;
 
+pub use decoding::{decode_interface_component, ComponentInterfaces};
 pub use encoding::*;
 pub use extract::*;
 pub use printing::*;
@@ -58,9 +58,4 @@ impl From<StringEncoding> for wasm_encoder::CanonicalOption {
             StringEncoding::CompactUTF16 => CanonicalOption::CompactUTF16,
         }
     }
-}
-
-/// Decode an "interface-only" component to a wit `Interface`.
-pub fn decode_interface_component(bytes: &[u8]) -> Result<Interface> {
-    decoding::InterfaceDecoder::new(&decoding::ComponentInfo::new(bytes)?).decode()
 }

@@ -1,190 +1,196 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
+use std::hash::{Hash, Hasher};
 use wasmparser::{
-    types, Chunk, ComponentExternalKind, Encoding, Parser, Payload, PrimitiveValType, Validator,
-    WasmFeatures,
+    types, ComponentExport, ComponentTypeRef, Parser, Payload, PrimitiveValType, ValidPayload,
+    Validator, WasmFeatures,
 };
 use wit_parser::*;
 
 /// Represents information about a decoded WebAssembly component.
-pub struct ComponentInfo<'a> {
-    /// The types defined in the component.
-    pub types: types::Types,
-    /// The exported types in the component.
-    pub exported_types: Vec<(&'a str, u32)>,
-    /// The exported functions in the component.
-    pub exported_functions: Vec<(&'a str, u32)>,
+struct ComponentInfo<'a> {
+    /// Wasmparser-defined type information learned after a component is fully
+    /// validated.
+    types: types::Types,
+    /// Map of imports and what type they're importing.
+    imports: IndexMap<&'a str, ComponentTypeRef>,
+    /// Map of exports and what they're exporting.
+    exports: IndexMap<&'a str, ComponentExport<'a>>,
 }
 
 impl<'a> ComponentInfo<'a> {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
-    pub fn new(mut bytes: &'a [u8]) -> Result<Self> {
-        let mut parser = Parser::new(0);
-        let mut parsers = Vec::new();
+    fn new(bytes: &'a [u8]) -> Result<Self> {
         let mut validator = Validator::new_with_features(WasmFeatures {
             component_model: true,
             ..Default::default()
         });
-        let mut exported_types = Vec::new();
-        let mut exported_functions = Vec::new();
+        let mut exports = IndexMap::new();
+        let mut imports = IndexMap::new();
+        let mut depth = 1;
+        let mut types = None;
 
-        loop {
-            match parser.parse(bytes, true)? {
-                Chunk::Parsed { payload, consumed } => {
-                    bytes = &bytes[consumed..];
-                    match payload {
-                        Payload::Version {
-                            num,
-                            encoding,
-                            range,
-                        } => {
-                            if parsers.is_empty() && encoding != Encoding::Component {
-                                bail!("file is not a WebAssembly component");
-                            }
-
-                            validator.version(num, encoding, &range)?;
-                        }
-
-                        Payload::TypeSection(s) => {
-                            validator.type_section(&s)?;
-                        }
-                        Payload::ImportSection(s) => {
-                            validator.import_section(&s)?;
-                        }
-                        Payload::FunctionSection(s) => {
-                            validator.function_section(&s)?;
-                        }
-                        Payload::TableSection(s) => {
-                            validator.table_section(&s)?;
-                        }
-                        Payload::MemorySection(s) => {
-                            validator.memory_section(&s)?;
-                        }
-                        Payload::TagSection(s) => {
-                            validator.tag_section(&s)?;
-                        }
-                        Payload::GlobalSection(s) => {
-                            validator.global_section(&s)?;
-                        }
-                        Payload::ExportSection(s) => {
-                            validator.export_section(&s)?;
-                        }
-                        Payload::StartSection { func, range } => {
-                            validator.start_section(func, &range)?;
-                        }
-                        Payload::ElementSection(s) => {
-                            validator.element_section(&s)?;
-                        }
-                        Payload::DataCountSection { count, range } => {
-                            validator.data_count_section(count, &range)?;
-                        }
-                        Payload::DataSection(s) => {
-                            validator.data_section(&s)?;
-                        }
-                        Payload::CodeSectionStart { count, range, .. } => {
-                            validator.code_section_start(count, &range)?;
-                        }
-                        Payload::CodeSectionEntry(f) => {
-                            validator.code_section_entry(&f)?;
-                        }
-
-                        Payload::ModuleSection {
-                            parser: inner,
-                            range,
-                        } => {
-                            validator.module_section(&range)?;
-                            parsers.push(parser);
-                            parser = inner;
-                        }
-                        Payload::InstanceSection(s) => {
-                            validator.instance_section(&s)?;
-                        }
-                        Payload::CoreTypeSection(s) => {
-                            validator.core_type_section(&s)?;
-                        }
-                        Payload::ComponentSection {
-                            parser: inner,
-                            range,
-                        } => {
-                            validator.component_section(&range)?;
-                            parsers.push(parser);
-                            parser = inner;
-                        }
-                        Payload::ComponentInstanceSection(s) => {
-                            validator.component_instance_section(&s)?;
-                        }
-                        Payload::ComponentAliasSection(s) => {
-                            validator.component_alias_section(&s)?;
-                        }
-                        Payload::ComponentTypeSection(s) => {
-                            validator.component_type_section(&s)?;
-                        }
-                        Payload::ComponentCanonicalSection(s) => {
-                            validator.component_canonical_section(&s)?;
-                        }
-                        Payload::ComponentStartSection(s) => {
-                            validator.component_start_section(&s)?;
-                        }
-                        Payload::ComponentImportSection(s) => {
-                            validator.component_import_section(&s)?;
-                        }
-                        Payload::ComponentExportSection(s) => {
-                            validator.component_export_section(&s)?;
-
-                            if parsers.is_empty() {
-                                for export in s {
-                                    let export = export?;
-                                    match export.kind {
-                                        ComponentExternalKind::Func => {
-                                            exported_functions.push((export.name, export.index));
-                                        }
-                                        ComponentExternalKind::Type => {
-                                            exported_types.push((export.name, export.index));
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                        Payload::CustomSection { .. } => {
-                            // Skip custom sections
-                        }
-                        Payload::UnknownSection { id, range, .. } => {
-                            validator.unknown_section(id, &range)?;
-                        }
-                        Payload::End(offset) => {
-                            let types = validator.end(offset)?;
-
-                            match parsers.pop() {
-                                Some(parent) => parser = parent,
-                                None => {
-                                    return Ok(Self {
-                                        types,
-                                        exported_types,
-                                        exported_functions,
-                                    });
-                                }
-                            }
-                        }
+        for payload in Parser::new(0).parse_all(bytes) {
+            let payload = payload?;
+            match validator.payload(&payload)? {
+                ValidPayload::Ok => {}
+                ValidPayload::Parser(_) => depth += 1,
+                ValidPayload::End(t) => {
+                    depth -= 1;
+                    if depth == 0 {
+                        types = Some(t);
                     }
                 }
-                Chunk::NeedMoreData(_) => unreachable!(),
+                ValidPayload::Func(..) => {}
+            }
+
+            match payload {
+                Payload::ComponentImportSection(s) if depth == 1 => {
+                    for import in s {
+                        let import = import?;
+                        let prev = imports.insert(import.name, import.ty);
+                        assert!(prev.is_none());
+                    }
+                }
+                Payload::ComponentExportSection(s) if depth == 1 => {
+                    for export in s {
+                        let export = export?;
+                        let prev = exports.insert(export.name, export);
+                        assert!(prev.is_none());
+                    }
+                }
+                _ => {}
             }
         }
+        Ok(Self {
+            types: types.unwrap(),
+            imports,
+            exports,
+        })
     }
 }
 
 /// Represents an interface decoder for WebAssembly components.
-pub struct InterfaceDecoder<'a> {
+struct InterfaceDecoder<'a> {
     info: &'a ComponentInfo<'a>,
     interface: Interface,
-    type_map: IndexMap<types::TypeId, Type>,
-    name_map: IndexMap<types::TypeId, &'a str>,
+
+    // Note that the hash keys in these maps are `&types::Type` where we're
+    // hashing the memory address of the pointer itself. The purpose here is to
+    // ensure that two `TypeId` entries which come from two different index
+    // spaces which point to the same type can name the same type, so the hash
+    // key is the result after `TypeId` lookup.
+    type_map: IndexMap<PtrHash<'a, types::Type>, Type>,
+    name_map: IndexMap<PtrHash<'a, types::Type>, &'a str>,
+}
+
+/// Parsed representation of interfaces found within a component.
+///
+/// This is more-or-less a "world" and will likely be replaced one day with a
+/// `wit-parser` representation of a world.
+#[derive(Default)]
+pub struct ComponentInterfaces<'a> {
+    /// The "default export" which is the interface directly exported from the
+    /// component at the first level.
+    pub default: Option<Interface>,
+    /// Imported interfaces, keyed by name, to the component.
+    pub imports: IndexMap<&'a str, Interface>,
+    /// Exported interfaces, keyed by name, to the component.
+    pub exports: IndexMap<&'a str, Interface>,
+}
+
+/// Decode the interfaces imported and exported by a component.
+///
+/// This function takes a binary component as input and will infer the
+/// `Interface` representation of its imports and exports. More-or-less this
+/// will infer the "world" from a binary component. The binary component at this
+/// time is either a "types only" component produced by `wit-component` or an
+/// actual output of `wit-component`.
+///
+/// The returned interfaces represent the description of imports and exports
+/// from the component.
+///
+/// This can fail if the input component is invalid or otherwise isn't of the
+/// expected shape. At this time not all component shapes are supported here.
+pub fn decode_interface_component(bytes: &[u8]) -> Result<ComponentInterfaces<'_>> {
+    let info = ComponentInfo::new(bytes)?;
+    let mut imports = IndexMap::new();
+    let mut exports = IndexMap::new();
+
+    for (name, ty) in info.imports.iter() {
+        // Imports right now are only supported if they're an import of an
+        // instance. The instance is expected to export only functions and types
+        // where types are named types used in functions.
+        let ty = match *ty {
+            ComponentTypeRef::Instance(i) => match info.types.type_at(i, false).unwrap() {
+                types::Type::ComponentInstance(i) => i,
+                _ => unreachable!(),
+            },
+            _ => unimplemented!(),
+        };
+        let mut iface = InterfaceDecoder::new(&info).decode(ty.exports(info.types.as_ref()))?;
+        iface.name = name.to_string();
+        imports.insert(*name, iface);
+    }
+
+    let mut default = IndexMap::new();
+    for (name, export) in info.exports.iter() {
+        // Get a `ComponentEntityType` which describes the type of the item
+        // being exported here. If a type itself is being exported then "peel"
+        // it to feign an actual entity being exported here to handle both
+        // type-only and normal components produced by `wit-component`.
+        let mut ty = info
+            .types
+            .component_entity_type_from_export(export)
+            .unwrap();
+        if let types::ComponentEntityType::Type(id) = ty {
+            match info.types.type_from_id(id).unwrap() {
+                types::Type::ComponentInstance(_) => ty = types::ComponentEntityType::Instance(id),
+                types::Type::ComponentFunc(_) => ty = types::ComponentEntityType::Func(id),
+                _ => {}
+            }
+        }
+
+        match ty {
+            // If an instance is being exported then that means this is an
+            // interface being exported, so decode the interface here and
+            // register an export.
+            types::ComponentEntityType::Instance(ty) => {
+                let ty = info
+                    .types
+                    .type_from_id(ty)
+                    .unwrap()
+                    .as_component_instance_type()
+                    .unwrap();
+                let mut iface =
+                    InterfaceDecoder::new(&info).decode(ty.exports(info.types.as_ref()))?;
+                iface.name = name.to_string();
+                exports.insert(*name, iface);
+            }
+
+            // Otherwise assume everything else is part of the "default" export.
+            ty => {
+                default.insert(name.to_string(), ty);
+            }
+        }
+    }
+
+    let default = if default.is_empty() {
+        None
+    } else {
+        Some(InterfaceDecoder::new(&info).decode(&default)?)
+    };
+
+    Ok(ComponentInterfaces {
+        imports,
+        exports,
+        default,
+    })
 }
 
 impl<'a> InterfaceDecoder<'a> {
     /// Creates a new interface decoder for the given component information.
-    pub fn new(info: &'a ComponentInfo<'a>) -> Self {
+    fn new(info: &'a ComponentInfo<'a>) -> InterfaceDecoder<'a> {
         Self {
             info,
             interface: Interface::default(),
@@ -193,30 +199,61 @@ impl<'a> InterfaceDecoder<'a> {
         }
     }
 
-    /// Consumes the decoder and returns the interface representation.
-    pub fn decode(mut self) -> Result<Interface> {
+    /// Consumes the decoder and returns the interface representation assuming
+    /// that the interface is made of the specified exports.
+    pub fn decode(
+        mut self,
+        map: &'a IndexMap<String, types::ComponentEntityType>,
+    ) -> Result<Interface> {
+        let mut aliases = Vec::new();
         // Populate names in the name map first
-        for (name, index) in &self.info.exported_types {
-            if let types::Type::Defined(_) = self.info.types.type_at(*index, false).unwrap() {
-                self.name_map.insert(
-                    self.info.types.id_from_type_index(*index, false).unwrap(),
-                    name,
-                );
-            }
-        }
-
-        for (name, index) in &self.info.exported_types {
-            let ty = match self.info.types.type_at(*index, false).unwrap() {
-                types::Type::ComponentFunc(ty) => ty,
+        for (name, ty) in map {
+            let id = match ty {
+                types::ComponentEntityType::Type(id) => *id,
                 _ => continue,
             };
 
-            self.add_function(name, ty)?;
+            let ty = self.info.types.type_from_id(id).unwrap();
+            let key = PtrHash(ty);
+            if self.name_map.contains_key(&key) {
+                aliases.push((name, key));
+            } else {
+                let prev = self.name_map.insert(PtrHash(ty), name);
+                assert!(prev.is_none());
+            }
         }
 
-        for (name, index) in &self.info.exported_functions {
-            let ty = self.info.types.component_function_at(*index).unwrap();
-            self.add_function(name, ty)?;
+        // Iterate over all exports an interpret them as defined items within
+        // the interface, either functiosn or types at this time.
+        for (name, ty) in map {
+            match ty {
+                types::ComponentEntityType::Func(ty) => {
+                    match self.info.types.type_from_id(*ty).unwrap() {
+                        types::Type::ComponentFunc(ty) => {
+                            self.add_function(name, ty)?;
+                        }
+                        _ => unimplemented!(),
+                    }
+                }
+                types::ComponentEntityType::Type(id) => {
+                    assert!(matches!(
+                        self.info.types.type_from_id(*id).unwrap(),
+                        types::Type::Defined(_)
+                    ));
+                    self.decode_type(&types::ComponentValType::Type(*id))?;
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        for (name, key) in aliases {
+            let ty = self.type_map[&key];
+            self.interface.types.alloc(TypeDef {
+                docs: Default::default(),
+                kind: TypeDefKind::Type(ty),
+                name: Some(name.to_string()),
+                foreign_module: None,
+            });
         }
 
         Ok(self.interface)
@@ -319,11 +356,13 @@ impl<'a> InterfaceDecoder<'a> {
         Ok(match ty {
             types::ComponentValType::Primitive(ty) => self.decode_primitive(*ty)?,
             types::ComponentValType::Type(id) => {
-                if let Some(ty) = self.type_map.get(id) {
+                let ty = self.info.types.type_from_id(*id).unwrap();
+                let key = PtrHash(ty);
+                if let Some(ty) = self.type_map.get(&key) {
                     return Ok(*ty);
                 }
 
-                let name = self.name_map.get(id).map(ToString::to_string);
+                let name = self.name_map.get(&key).map(ToString::to_string);
 
                 if let Some(name) = name.as_deref() {
                     validate_id(name).with_context(|| {
@@ -331,7 +370,7 @@ impl<'a> InterfaceDecoder<'a> {
                     })?;
                 }
 
-                let ty = match &self.info.types.type_from_id(*id).unwrap() {
+                let ty = match ty {
                     types::Type::Defined(ty) => match ty {
                         types::ComponentDefinedType::Primitive(ty) => {
                             self.decode_named_primitive(name, ty)?
@@ -366,7 +405,8 @@ impl<'a> InterfaceDecoder<'a> {
                     _ => unreachable!(),
                 };
 
-                self.type_map.insert(*id, ty);
+                let prev = self.type_map.insert(key, ty);
+                assert!(prev.is_none());
                 ty
             }
         })
@@ -609,5 +649,21 @@ impl<'a> InterfaceDecoder<'a> {
             name,
             foreign_module: None,
         })
+    }
+}
+
+struct PtrHash<'a, T>(&'a T);
+
+impl<T> PartialEq for PtrHash<'_, T> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+impl<T> Eq for PtrHash<'_, T> {}
+
+impl<T> Hash for PtrHash<'_, T> {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        std::ptr::hash(self.0, hasher)
     }
 }

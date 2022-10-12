@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
-use wit_component::{ComponentEncoder, InterfaceEncoder};
+use wit_component::ComponentEncoder;
 use wit_parser::Interface;
 
 fn read_interface(path: &Path) -> Result<Interface> {
@@ -102,55 +102,19 @@ fn component_encoding_via_flags() -> Result<()> {
             .transpose()?;
         let imports = read_interfaces(&path, "import-*.wit")?;
         let exports = read_interfaces(&path, "export-*.wit")?;
-        let adapters = read_adapters(&path)?;
 
         let mut encoder = ComponentEncoder::default()
             .module(&module)?
-            .imports(&imports)
-            .exports(&exports)
+            .imports(imports)?
+            .exports(exports)?
             .validate(true);
+        encoder = add_adapters(encoder, &path)?;
 
-        for (name, wasm, interface) in adapters.iter() {
-            encoder = encoder.adapter(name, wasm, interface);
+        if let Some(interface) = interface {
+            encoder = encoder.interface(interface)?;
         }
 
-        if let Some(interface) = &interface {
-            encoder = encoder.interface(interface);
-        }
-
-        let r = encoder.encode();
-
-        let (output, baseline_path) = if error_path.is_file() {
-            match r {
-                Ok(_) => bail!("encoding should fail for test case `{}`", test_case),
-                Err(e) => (e.to_string(), &error_path),
-            }
-        } else {
-            (
-                wasmprinter::print_bytes(
-                    &r.with_context(|| format!("failed to encode for test case `{}`", test_case))?,
-                )
-                .with_context(|| {
-                    format!(
-                        "failed to print component bytes for test case `{}`",
-                        test_case
-                    )
-                })?,
-                &component_path,
-            )
-        };
-
-        if std::env::var_os("BLESS").is_some() {
-            fs::write(&baseline_path, output)?;
-        } else {
-            assert_eq!(
-                fs::read_to_string(&baseline_path)?.replace("\r\n", "\n"),
-                output,
-                "failed baseline comparison for test case `{}` ({})",
-                test_case,
-                baseline_path.display(),
-            );
-        }
+        assert_output(test_case, &encoder, &component_path, &error_path)?;
     }
 
     Ok(())
@@ -190,73 +154,81 @@ fn component_encoding_via_custom_sections() -> Result<()> {
         let mut module = wat::parse_file(&module_path)
             .with_context(|| format!("expected file `{}`", module_path.display()))?;
 
-        fn encode_interface(i: &Interface, module: &mut Vec<u8>, kind: &str) -> Result<()> {
-            let name = &format!("component-type:{}:{}", kind, i.name);
-            let contents = InterfaceEncoder::new(&i).validate(true).encode()?;
-            let section = wasm_encoder::CustomSection {
-                name,
-                data: &contents,
-            };
-            module.push(section.id());
-            section.encode(module);
-            Ok(())
-        }
-
-        // Encode the interface, exports, and imports into the module, instead of
-        // passing them to the ComponentEncoder explicitly.
+        // Use a first `encoder` to encode all the `*.wit` interface information
+        // into a "types only" component which is then placed into a custom
+        // section.
+        // of passing them to the ComponentEncoder explicitly.
+        let mut encoder = ComponentEncoder::default().types_only(true).validate(true);
+        encoder = encoder.imports(read_interfaces(&path, "import-*.wit")?)?;
+        encoder = encoder.exports(read_interfaces(&path, "export-*.wit")?)?;
         if interface_path.is_file() {
-            let i = read_interface(&interface_path)?;
-            encode_interface(&i, &mut module, "export")?;
+            encoder = encoder.interface(read_interface(&interface_path)?)?;
         }
-        for i in read_interfaces(&path, "import-*.wit")? {
-            encode_interface(&i, &mut module, "import")?;
-        }
-        for i in read_interfaces(&path, "export-*.wit")? {
-            encode_interface(&i, &mut module, "export-instance")?;
-        }
-        //
-        let adapters = read_adapters(&path)?;
-
-        let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
-
-        for (name, wasm, interface) in adapters.iter() {
-            encoder = encoder.adapter(name, wasm, interface);
-        }
-
-        let r = encoder.encode();
-
-        let (output, baseline_path) = if error_path.is_file() {
-            match r {
-                Ok(_) => bail!("encoding should fail for test case `{}`", test_case),
-                Err(e) => (e.to_string(), &error_path),
-            }
-        } else {
-            (
-                wasmprinter::print_bytes(
-                    &r.with_context(|| format!("failed to encode for test case `{}`", test_case))?,
-                )
-                .with_context(|| {
-                    format!(
-                        "failed to print component bytes for test case `{}`",
-                        test_case
-                    )
-                })?,
-                &component_path,
-            )
+        let contents = encoder.encode()?;
+        let section = wasm_encoder::CustomSection {
+            name: "component-type",
+            data: &contents,
         };
+        module.push(section.id());
+        section.encode(&mut module);
 
-        if std::env::var_os("BLESS").is_some() {
-            fs::write(&baseline_path, output)?;
-        } else {
-            assert_eq!(
-                fs::read_to_string(&baseline_path)?.replace("\r\n", "\n"),
-                output,
-                "failed baseline comparison for test case `{}` ({})",
-                test_case,
-                baseline_path.display(),
-            );
-        }
+        // Now parse run the `module` alone through the encoder without extra
+        // information about interfaces to ensure it still works as before.
+        let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
+        encoder = add_adapters(encoder, &path)?;
+
+        assert_output(test_case, &encoder, &component_path, &error_path)?;
     }
 
+    Ok(())
+}
+
+fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {
+    let adapters = read_adapters(path)?;
+    for (name, wasm, interface) in adapters.iter() {
+        encoder = encoder.adapter(name, wasm, interface);
+    }
+    Ok(encoder)
+}
+
+fn assert_output(
+    test_case: &str,
+    encoder: &ComponentEncoder,
+    component_path: &Path,
+    error_path: &Path,
+) -> Result<()> {
+    let r = encoder.encode();
+
+    let (output, baseline_path) = if error_path.is_file() {
+        match r {
+            Ok(_) => bail!("encoding should fail for test case `{}`", test_case),
+            Err(e) => (e.to_string(), &error_path),
+        }
+    } else {
+        (
+            wasmprinter::print_bytes(
+                &r.with_context(|| format!("failed to encode for test case `{}`", test_case))?,
+            )
+            .with_context(|| {
+                format!(
+                    "failed to print component bytes for test case `{}`",
+                    test_case
+                )
+            })?,
+            &component_path,
+        )
+    };
+
+    if std::env::var_os("BLESS").is_some() {
+        fs::write(&baseline_path, output)?;
+    } else {
+        assert_eq!(
+            fs::read_to_string(&baseline_path)?.replace("\r\n", "\n"),
+            output,
+            "failed baseline comparison for test case `{}` ({})",
+            test_case,
+            baseline_path.display(),
+        );
+    }
     Ok(())
 }

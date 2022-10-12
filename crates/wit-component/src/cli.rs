@@ -4,10 +4,10 @@
 
 use crate::extract::{extract_module_interfaces, ModuleInterfaces};
 use crate::{
-    decode_interface_component, ComponentEncoder, InterfaceEncoder, InterfacePrinter,
+    decode_interface_component, ComponentEncoder, ComponentInterfaces, InterfacePrinter,
     StringEncoding,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use wit_parser::Interface;
@@ -63,17 +63,20 @@ fn parse_adapter(s: &str) -> Result<(String, Vec<u8>, Interface)> {
         }
         None => {
             let ModuleInterfaces {
-                mut imports,
-                exports,
                 wasm,
-                interface,
+                interfaces:
+                    ComponentInterfaces {
+                        imports,
+                        exports,
+                        default,
+                    },
             } = extract_module_interfaces(&wasm)?;
-            if exports.len() > 0 || interface.is_some() {
+            if exports.len() > 0 || default.is_some() {
                 bail!("adapter modules cannot have an exported interface");
             }
             let import = match imports.len() {
                 0 => Interface::default(),
-                1 => imports.remove(0),
+                1 => imports.into_iter().next().unwrap().1,
                 _ => bail!("adapter modules can only import one interface at this time"),
             };
             Ok((name.to_string(), wasm, import))
@@ -152,16 +155,16 @@ impl WitComponentApp {
 
         let mut encoder = ComponentEncoder::default()
             .module(&module)?
-            .imports(&self.imports)
-            .exports(&self.exports)
+            .imports(self.imports)?
+            .exports(self.exports)?
             .validate(!self.skip_validation);
 
         for (name, wasm, interface) in self.adapters.iter() {
             encoder = encoder.adapter(name, wasm, interface);
         }
 
-        if let Some(interface) = &self.interface {
-            encoder = encoder.interface(interface);
+        if let Some(interface) = self.interface {
+            encoder = encoder.interface(interface)?;
         }
 
         if let Some(encoding) = &self.encoding {
@@ -184,50 +187,6 @@ impl WitComponentApp {
     }
 }
 
-/// WebAssembly interface encoder.
-///
-/// Encodes a WebAssembly interface as a WebAssembly component.
-#[derive(Debug, Parser)]
-#[clap(name = "wit2wasm", version = env!("CARGO_PKG_VERSION"))]
-pub struct WitToWasmApp {
-    /// The path of the output WebAssembly component.
-    #[clap(long, short = 'o', value_name = "OUTPUT")]
-    pub output: Option<PathBuf>,
-
-    /// The path to the WebAssembly interface file to encode.
-    #[clap(index = 1, value_name = "INTERFACE")]
-    pub interface: PathBuf,
-}
-
-impl WitToWasmApp {
-    /// Executes the application.
-    pub fn execute(self) -> Result<()> {
-        let output = self.output.unwrap_or_else(|| {
-            let mut stem: PathBuf = self.interface.file_stem().unwrap().into();
-            stem.set_extension("wasm");
-            stem
-        });
-
-        let interface = parse_interface(None, &self.interface)?;
-
-        let encoder = InterfaceEncoder::new(&interface).validate(true);
-
-        let bytes = encoder.encode().with_context(|| {
-            format!(
-                "failed to encode a component from interface `{}`",
-                self.interface.display()
-            )
-        })?;
-
-        std::fs::write(&output, bytes)
-            .with_context(|| format!("failed to write output file `{}`", output.display()))?;
-
-        println!("encoded interface as component `{}`", output.display());
-
-        Ok(())
-    }
-}
-
 /// WebAssembly interface decoder.
 ///
 /// Decodes a WebAssembly interface from a WebAssembly component.
@@ -237,6 +196,18 @@ pub struct WasmToWitApp {
     /// The path of the output WebAssembly interface file.
     #[clap(long, short = 'o', value_name = "OUTPUT")]
     pub output: Option<PathBuf>,
+
+    /// Print the "default" interface for a component.
+    #[clap(long, short)]
+    pub interface: bool,
+
+    /// Print the interface of the specified import.
+    #[clap(long)]
+    pub import: Option<String>,
+
+    /// Print the interface of the specified export.
+    #[clap(long)]
+    pub export: Option<String>,
 
     /// The path to the WebAssembly component to decode.
     #[clap(index = 1, value_name = "COMPONENT")]
@@ -262,13 +233,35 @@ impl WasmToWitApp {
         let bytes = wat::parse_file(&self.component)
             .with_context(|| format!("failed to parse component `{}`", self.component.display()))?;
 
-        let interface = decode_interface_component(&bytes).with_context(|| {
+        let interfaces = decode_interface_component(&bytes).with_context(|| {
             format!("failed to decode component `{}`", self.component.display())
         })?;
+        let which = match &self.import {
+            Some(s) => interfaces
+                .imports
+                .get(s.as_str())
+                .ok_or_else(|| anyhow!("no import interface named `{s}`"))?,
+            None => match &self.export {
+                Some(s) => interfaces
+                    .exports
+                    .get(s.as_str())
+                    .ok_or_else(|| anyhow!("no export interface named `{s}`"))?,
+                None => {
+                    if self.interface {
+                        interfaces
+                            .default
+                            .as_ref()
+                            .ok_or_else(|| anyhow!("no default interface"))?
+                    } else {
+                        bail!("must specify `-i`, `--import`, or `--export`")
+                    }
+                }
+            },
+        };
 
         let mut printer = InterfacePrinter::default();
 
-        std::fs::write(&output, printer.print(&interface)?)
+        std::fs::write(&output, printer.print(which)?)
             .with_context(|| format!("failed to write output file `{}`", output.display()))?;
 
         println!("decoded interface to `{}`", output.display());

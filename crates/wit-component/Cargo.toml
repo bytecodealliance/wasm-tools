@@ -10,11 +10,6 @@ path = "src/bin/wit-component.rs"
 required-features = ["cli"]
 
 [[bin]]
-name = "wit2wasm"
-path = "src/bin/wit2wasm.rs"
-required-features = ["cli"]
-
-[[bin]]
 name = "wasm2wit"
 path = "src/bin/wasm2wit.rs"
 required-features = ["cli"]

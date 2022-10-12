@@ -58,7 +58,7 @@ use crate::{
         expected_export_name, validate_adapter_module, validate_module, ValidatedAdapter,
         ValidatedModule,
     },
-    StringEncoding,
+    ComponentInterfaces, StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
@@ -514,9 +514,9 @@ impl<'a> InstanceTypeEncoder<'a> {
 struct TypeEncoder<'a> {
     types: ComponentTypeSection,
     type_map: IndexMap<TypeDefKey<'a>, u32>,
+    primitive_map: IndexMap<PrimitiveValType, u32>,
     func_type_map: IndexMap<FunctionKey<'a>, u32>,
     exports: ComponentExportSection,
-    exported_types: IndexMap<&'a str, ComponentTypeRef>,
 }
 
 impl<'a> TypeEncoder<'a> {
@@ -534,14 +534,17 @@ impl<'a> TypeEncoder<'a> {
 
     fn encode_instance_imports(
         &mut self,
-        interfaces: &'a [Interface],
-        info: &ValidatedModule<'a>,
+        interfaces: &'a IndexMap<String, Interface>,
+        info: Option<&ValidatedModule<'a>>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
-        for import in interfaces {
-            let required_funcs = match info.required_imports.get(import.name.as_str()) {
-                Some(required) => required,
-                None => continue,
+        for (_, import) in interfaces {
+            let required_funcs = match info {
+                Some(info) => match info.required_imports.get(import.name.as_str()) {
+                    Some(required) => Some(required),
+                    None => continue,
+                },
+                None => None,
             };
             self.encode_instance_import(import, required_funcs, imports)?;
         }
@@ -549,52 +552,95 @@ impl<'a> TypeEncoder<'a> {
         Ok(())
     }
 
+    /// Encodes an import of the `import` interface specified which will be
+    /// slimmed down to the `required_funcs` set, if specified.
+    ///
+    /// The imported instance, if any, is placed within `imports`.
     fn encode_instance_import(
         &mut self,
         import: &'a Interface,
-        required_funcs: &IndexSet<&'a str>,
+        required_funcs: Option<&IndexSet<&'a str>>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
-        // Don't import empty instances if no functions are actually required
-        // from this interface.
-        if required_funcs.is_empty() {
-            return Ok(());
+        if let Some(index) = self.encode_interface_as_instance_type(import, required_funcs)? {
+            imports.import(import, ComponentTypeRef::Instance(index), required_funcs)?;
         }
-
-        let mut instance = InstanceTypeEncoder::default();
-
-        for func in &import.functions {
-            if !required_funcs.contains(func.name.as_str()) {
-                continue;
-            }
-            Self::validate_function(func)?;
-
-            let index = self.encode_func_type(import, func, false)?;
-            instance.export(&func.name, ComponentTypeRef::Func(index))?;
-        }
-
-        let index = self.encode_instance_type(&instance.ty);
-        imports.import(import, ComponentTypeRef::Instance(index), required_funcs)?;
 
         Ok(())
     }
 
-    fn encode_func_types(
+    /// Generates an instance type index representing `import` slimmed down to
+    /// `required_funcs`, if specified.
+    fn encode_interface_as_instance_type(
         &mut self,
-        interfaces: impl Iterator<Item = (&'a Interface, bool)>,
-        export_func_types: bool,
-    ) -> Result<()> {
-        for (export, is_default) in interfaces {
+        import: &'a Interface,
+        required_funcs: Option<&IndexSet<&'a str>>,
+    ) -> Result<Option<u32>> {
+        let exports =
+            match self.encode_interface_as_instance_type_exports(import, required_funcs)? {
+                Some(exports) => exports,
+                None => return Ok(None),
+            };
+        let mut instance = InstanceTypeEncoder::default();
+        for (name, ty) in exports {
+            instance.export(name, ty)?;
+        }
+
+        Ok(Some(self.encode_instance_type(&instance.ty)))
+    }
+
+    /// Generates a list of items that make up `import`.
+    fn encode_interface_as_instance_type_exports(
+        &mut self,
+        import: &'a Interface,
+        required_funcs: Option<&IndexSet<&'a str>>,
+    ) -> Result<Option<Vec<(&'a str, ComponentTypeRef)>>> {
+        // Don't import empty instances if no functions are actually required
+        // from this interface.
+        match required_funcs {
+            Some(funcs) if funcs.is_empty() => return Ok(None),
+            _ => {}
+        }
+
+        let mut exports = Vec::new();
+
+        for (id, def) in &import.types {
+            let name = match &def.name {
+                Some(name) => name,
+                None => continue,
+            };
+            let idx = match self.encode_valtype(import, &Type::Id(id))? {
+                // Named primitive types need entries in the type section, so
+                // convert this to a type reference
+                ComponentValType::Primitive(prim) => self.index_primitive(prim),
+                ComponentValType::Type(idx) => idx,
+            };
+            exports.push((name.as_str(), ComponentTypeRef::Type(TypeBounds::Eq, idx)));
+        }
+
+        for func in &import.functions {
+            if let Some(required_funcs) = required_funcs {
+                if !required_funcs.contains(func.name.as_str()) {
+                    continue;
+                }
+            }
+            Self::validate_function(func)?;
+
+            let index = self.encode_func_type(import, func)?;
+            exports.push((func.name.as_str(), ComponentTypeRef::Func(index)));
+        }
+
+        Ok(Some(exports))
+    }
+
+    fn encode_func_types(&mut self, interfaces: impl Iterator<Item = &'a Interface>) -> Result<()> {
+        for export in interfaces {
             // TODO: stick interface documentation in a custom section?
 
             for func in &export.functions {
                 Self::validate_function(func)?;
 
-                let index = self.encode_func_type(export, func, is_default)?;
-
-                if export_func_types {
-                    self.export_type(&func.name, ComponentTypeRef::Func(index))?;
-                }
+                self.encode_func_type(export, func)?;
             }
         }
 
@@ -611,32 +657,21 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         params: &'a Params,
-        export_named_types: bool,
     ) -> Result<Vec<(&'a str, ComponentValType)>> {
         params
             .iter()
-            .map(|(name, ty)| {
-                Ok((
-                    name.as_str(),
-                    self.encode_valtype(interface, ty, export_named_types)?,
-                ))
-            })
+            .map(|(name, ty)| Ok((name.as_str(), self.encode_valtype(interface, ty)?)))
             .collect::<Result<_>>()
     }
 
-    fn encode_func_type(
-        &mut self,
-        interface: &'a Interface,
-        func: &'a Function,
-        export_named_types: bool,
-    ) -> Result<u32> {
+    fn encode_func_type(&mut self, interface: &'a Interface, func: &'a Function) -> Result<u32> {
         let key = FunctionKey { interface, func };
         if let Some(index) = self.func_type_map.get(&key) {
             return Ok(*index);
         }
 
         // Encode all referenced parameter types from this function.
-        let params: Vec<_> = self.encode_params(interface, &func.params, export_named_types)?;
+        let params: Vec<_> = self.encode_params(interface, &func.params)?;
 
         enum EncodedResults<'a> {
             Named(Vec<(&'a str, ComponentValType)>),
@@ -644,12 +679,8 @@ impl<'a> TypeEncoder<'a> {
         }
 
         let results = match &func.results {
-            Results::Named(rs) => {
-                EncodedResults::Named(self.encode_params(interface, rs, export_named_types)?)
-            }
-            Results::Anon(ty) => {
-                EncodedResults::Anon(self.encode_valtype(interface, ty, export_named_types)?)
-            }
+            Results::Named(rs) => EncodedResults::Named(self.encode_params(interface, rs)?),
+            Results::Anon(ty) => EncodedResults::Anon(self.encode_valtype(interface, ty)?),
         };
 
         // Encode the function type
@@ -664,12 +695,7 @@ impl<'a> TypeEncoder<'a> {
         Ok(index)
     }
 
-    fn encode_valtype(
-        &mut self,
-        interface: &'a Interface,
-        ty: &Type,
-        export_named_types: bool,
-    ) -> Result<ComponentValType> {
+    fn encode_valtype(&mut self, interface: &'a Interface, ty: &Type) -> Result<ComponentValType> {
         Ok(match ty {
             Type::Bool => ComponentValType::Primitive(PrimitiveValType::Bool),
             Type::U8 => ComponentValType::Primitive(PrimitiveValType::U8),
@@ -691,44 +717,30 @@ impl<'a> TypeEncoder<'a> {
                     ComponentValType::Type(*index)
                 } else {
                     let mut encoded = match &ty.kind {
-                        TypeDefKind::Record(r) => {
-                            self.encode_record(interface, r, export_named_types)?
-                        }
-                        TypeDefKind::Tuple(t) => {
-                            self.encode_tuple(interface, t, export_named_types)?
-                        }
+                        TypeDefKind::Record(r) => self.encode_record(interface, r)?,
+                        TypeDefKind::Tuple(t) => self.encode_tuple(interface, t)?,
                         TypeDefKind::Flags(r) => self.encode_flags(r)?,
-                        TypeDefKind::Variant(v) => {
-                            self.encode_variant(interface, v, export_named_types)?
-                        }
-                        TypeDefKind::Union(u) => {
-                            self.encode_union(interface, u, export_named_types)?
-                        }
-                        TypeDefKind::Option(t) => {
-                            self.encode_option(interface, t, export_named_types)?
-                        }
-                        TypeDefKind::Result(r) => {
-                            self.encode_result(interface, r, export_named_types)?
-                        }
+                        TypeDefKind::Variant(v) => self.encode_variant(interface, v)?,
+                        TypeDefKind::Union(u) => self.encode_union(interface, u)?,
+                        TypeDefKind::Option(t) => self.encode_option(interface, t)?,
+                        TypeDefKind::Result(r) => self.encode_result(interface, r)?,
                         TypeDefKind::Enum(e) => self.encode_enum(e)?,
                         TypeDefKind::List(ty) => {
-                            let ty = self.encode_valtype(interface, ty, export_named_types)?;
+                            let ty = self.encode_valtype(interface, ty)?;
                             let index = self.types.len();
                             let encoder = self.types.defined_type();
                             encoder.list(ty);
                             ComponentValType::Type(index)
                         }
-                        TypeDefKind::Type(ty) => {
-                            self.encode_valtype(interface, ty, export_named_types)?
-                        }
+                        TypeDefKind::Type(ty) => self.encode_valtype(interface, ty)?,
                         TypeDefKind::Future(_) => todo!("encoding for future type"),
                         TypeDefKind::Stream(_) => todo!("encoding for stream type"),
                     };
 
                     if ty.name.is_some() {
                         if let ComponentValType::Primitive(ty) = encoded {
-                            // Named primitive types need entries in the type section, so
-                            // convert this to a type reference
+                            // Named primitive types need entries in the type
+                            // section, so convert this to a type reference
                             let index = self.types.len();
                             self.types.defined_type().primitive(ty);
                             encoded = ComponentValType::Type(index);
@@ -742,15 +754,6 @@ impl<'a> TypeEncoder<'a> {
                     encoded
                 };
 
-                if export_named_types {
-                    // Named types need to be exported
-                    if let Some(name) = ty.name.as_deref() {
-                        if let ComponentValType::Type(index) = encoded {
-                            self.export_type(name, ComponentTypeRef::Type(TypeBounds::Eq, index))?;
-                        }
-                    }
-                }
-
                 encoded
             }
         })
@@ -760,12 +763,9 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         ty: Option<&Type>,
-        export_named_types: bool,
     ) -> Result<Option<ComponentValType>> {
         match ty {
-            Some(ty) => self
-                .encode_valtype(interface, ty, export_named_types)
-                .map(Some),
+            Some(ty) => self.encode_valtype(interface, ty).map(Some),
             None => Ok(None),
         }
     }
@@ -774,17 +774,11 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         record: &Record,
-        export_named_types: bool,
     ) -> Result<ComponentValType> {
         let fields = record
             .fields
             .iter()
-            .map(|f| {
-                Ok((
-                    f.name.as_str(),
-                    self.encode_valtype(interface, &f.ty, export_named_types)?,
-                ))
-            })
+            .map(|f| Ok((f.name.as_str(), self.encode_valtype(interface, &f.ty)?)))
             .collect::<Result<Vec<_>>>()?;
 
         let index = self.types.len();
@@ -797,12 +791,11 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         tuple: &Tuple,
-        export_named_types: bool,
     ) -> Result<ComponentValType> {
         let tys = tuple
             .types
             .iter()
-            .map(|ty| self.encode_valtype(interface, ty, export_named_types))
+            .map(|ty| self.encode_valtype(interface, ty))
             .collect::<Result<Vec<_>>>()?;
         let index = self.types.len();
         let encoder = self.types.defined_type();
@@ -821,7 +814,6 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         variant: &Variant,
-        export_named_types: bool,
     ) -> Result<ComponentValType> {
         let cases = variant
             .cases
@@ -829,7 +821,7 @@ impl<'a> TypeEncoder<'a> {
             .map(|c| {
                 Ok((
                     c.name.as_str(),
-                    self.encode_optional_valtype(interface, c.ty.as_ref(), export_named_types)?,
+                    self.encode_optional_valtype(interface, c.ty.as_ref())?,
                     None, // TODO: support defaulting case values in the future
                 ))
             })
@@ -845,12 +837,11 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         union: &Union,
-        export_named_types: bool,
     ) -> Result<ComponentValType> {
         let tys = union
             .cases
             .iter()
-            .map(|c| self.encode_valtype(interface, &c.ty, export_named_types))
+            .map(|c| self.encode_valtype(interface, &c.ty))
             .collect::<Result<Vec<_>>>()?;
 
         let index = self.types.len();
@@ -863,9 +854,8 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         payload: &Type,
-        export_named_types: bool,
     ) -> Result<ComponentValType> {
-        let ty = self.encode_valtype(interface, payload, export_named_types)?;
+        let ty = self.encode_valtype(interface, payload)?;
         let index = self.types.len();
         let encoder = self.types.defined_type();
         encoder.option(ty);
@@ -876,11 +866,9 @@ impl<'a> TypeEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         result: &Result_,
-        export_named_types: bool,
     ) -> Result<ComponentValType> {
-        let ok = self.encode_optional_valtype(interface, result.ok.as_ref(), export_named_types)?;
-        let error =
-            self.encode_optional_valtype(interface, result.err.as_ref(), export_named_types)?;
+        let ok = self.encode_optional_valtype(interface, result.ok.as_ref())?;
+        let error = self.encode_optional_valtype(interface, result.err.as_ref())?;
         let index = self.types.len();
         let encoder = self.types.defined_type();
         encoder.result(ok, error);
@@ -894,31 +882,12 @@ impl<'a> TypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn export_type(&mut self, name: &'a str, type_ref: ComponentTypeRef) -> Result<()> {
-        match self.exported_types.entry(name) {
-            Entry::Occupied(e) => {
-                if *e.get() != type_ref {
-                    bail!("duplicate export `{}`", name)
-                }
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(type_ref);
-
-                let index = match type_ref {
-                    ComponentTypeRef::Module(index) => index,
-                    ComponentTypeRef::Func(index) => index,
-                    ComponentTypeRef::Value(ComponentValType::Primitive(_)) => unreachable!(),
-                    ComponentTypeRef::Value(ComponentValType::Type(index)) => index,
-                    ComponentTypeRef::Type(_, index) => index,
-                    ComponentTypeRef::Instance(index) => index,
-                    ComponentTypeRef::Component(index) => index,
-                };
-
-                self.exports.export(name, ComponentExportKind::Type, index);
-            }
-        }
-
-        Ok(())
+    fn index_primitive(&mut self, ty: PrimitiveValType) -> u32 {
+        *self.primitive_map.entry(ty).or_insert_with(|| {
+            let index = self.types.len();
+            self.types.defined_type().primitive(ty);
+            index
+        })
     }
 
     fn validate_function(function: &Function) -> Result<()> {
@@ -1317,13 +1286,30 @@ impl<'a> EncodingState<'a> {
         &mut self,
         encoding: StringEncoding,
         exports: impl Iterator<Item = (&'b Interface, bool)>,
-        func_types: &IndexMap<FunctionKey<'b>, u32>,
+        types: &TypeEncoder<'b>,
     ) -> Result<()> {
         let core_instance_index = self.instance_index.expect("must be instantiated");
 
         for (export, is_default) in exports {
-            // Alias the exports from the core module
             let mut interface_exports = Vec::new();
+
+            // Make sure all named types are present in the exported instance
+            for (_id, def) in export.types.iter() {
+                let name = match &def.name {
+                    Some(name) => name,
+                    None => continue,
+                };
+                let ty = *types
+                    .type_map
+                    .get(&TypeDefKey {
+                        interface: export,
+                        def,
+                    })
+                    .expect("the type should be encoded");
+                interface_exports.push((name.as_str(), ComponentExportKind::Type, ty));
+            }
+
+            // Alias the exports from the core module
             for func in &export.functions {
                 let name =
                     expected_export_name((!is_default).then(|| export.name.as_str()), &func.name);
@@ -1334,7 +1320,8 @@ impl<'a> EncodingState<'a> {
                     name.as_ref(),
                 );
 
-                let ty = *func_types
+                let ty = *types
+                    .func_type_map
                     .get(&FunctionKey {
                         interface: export,
                         func,
@@ -1356,21 +1343,21 @@ impl<'a> EncodingState<'a> {
                 }
                 let func_index = self.component.lift_func(core_func_index, ty, options);
 
-                if is_default {
-                    // Directly export the lifted function
-                    self.component
-                        .export(&func.name, ComponentExportKind::Func, func_index);
-                } else {
-                    // Otherwise, add it to the list for later instantiation
-                    interface_exports.push((
-                        func.name.as_str(),
-                        ComponentExportKind::Func,
-                        func_index,
-                    ));
-                }
+                interface_exports.push((func.name.as_str(), ComponentExportKind::Func, func_index));
             }
 
-            if !interface_exports.is_empty() {
+            if interface_exports.is_empty() {
+                continue;
+            }
+
+            // The default exported interface has all of its items exported
+            // directly but otherwise an instance type is created and then
+            // exported.
+            if is_default {
+                for (name, kind, idx) in interface_exports {
+                    self.component.export(name, kind, idx);
+                }
+            } else {
                 if export.name.is_empty() {
                     bail!("cannot export an unnamed interface");
                 }
@@ -2057,7 +2044,7 @@ impl<'a> ImportEncoder<'a> {
         &mut self,
         interface: &'a Interface,
         ty: ComponentTypeRef,
-        funcs: &IndexSet<&'a str>,
+        funcs: Option<&IndexSet<&'a str>>,
     ) -> Result<()> {
         match self.map.entry(&interface.name) {
             indexmap::map::Entry::Occupied(e) => {
@@ -2069,8 +2056,10 @@ impl<'a> ImportEncoder<'a> {
                 let mut direct = Vec::new();
                 let mut indirect = Vec::new();
                 for f in &interface.functions {
-                    if !funcs.contains(f.name.as_str()) {
-                        continue;
+                    if let Some(funcs) = funcs {
+                        if !funcs.contains(f.name.as_str()) {
+                            continue;
+                        }
                     }
                     let options = RequiredOptions::for_import(interface, f);
 
@@ -2106,8 +2095,8 @@ pub struct ComponentEncoder {
     module: Vec<u8>,
     encoding: StringEncoding,
     interface: Option<Interface>,
-    imports: Vec<Interface>,
-    exports: Vec<Interface>,
+    imports: IndexMap<String, Interface>,
+    exports: IndexMap<String, Interface>,
     validate: bool,
     types_only: bool,
     adapters: IndexMap<String, (Vec<u8>, Interface)>,
@@ -2119,16 +2108,22 @@ impl ComponentEncoder {
     /// inside the module, and add them as the interface, imports, and exports.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
         let ModuleInterfaces {
-            imports,
-            exports,
             wasm,
-            interface,
+            interfaces:
+                ComponentInterfaces {
+                    imports,
+                    exports,
+                    default,
+                },
         } = extract_module_interfaces(module)?;
-        self.interface = interface;
-        self.imports.extend(imports);
-        self.exports.extend(exports);
         self.module = wasm;
-        Ok(self)
+        let mut me = self;
+        me = me.imports(imports.into_iter().map(|p| p.1))?;
+        me = me.exports(exports.into_iter().map(|p| p.1))?;
+        if let Some(default) = default {
+            me = me.interface(default)?;
+        }
+        Ok(me)
     }
 
     /// Set the string encoding expected by the core module.
@@ -2144,25 +2139,34 @@ impl ComponentEncoder {
     }
 
     /// Set the default interface exported by the component.
-    pub fn interface(mut self, interface: &Interface) -> Self {
+    pub fn interface(mut self, interface: Interface) -> Result<Self> {
+        if self.interface.is_some() {
+            bail!("default interface cannot be specified twice");
+        }
         self.interface = Some(interface.clone());
-        self
+        Ok(self)
     }
 
     /// Set the interfaces the component imports.
-    pub fn imports(mut self, imports: &[Interface]) -> Self {
+    pub fn imports(mut self, imports: impl IntoIterator<Item = Interface>) -> Result<Self> {
         for i in imports {
-            self.imports.push(i.clone())
+            if self.imports.contains_key(&i.name) {
+                bail!("cannot specifiy import interface for `{}` twice", i.name);
+            }
+            self.imports.insert(i.name.clone(), i);
         }
-        self
+        Ok(self)
     }
 
     /// Set the interfaces the component exports.
-    pub fn exports(mut self, exports: &[Interface]) -> Self {
-        for e in exports {
-            self.exports.push(e.clone())
+    pub fn exports(mut self, exports: impl IntoIterator<Item = Interface>) -> Result<Self> {
+        for i in exports {
+            if self.exports.contains_key(&i.name) {
+                bail!("cannot specifiy export interface for `{}` twice", i.name);
+            }
+            self.exports.insert(i.name.clone(), i);
         }
-        self
+        Ok(self)
     }
 
     /// Specifies a new adapter which is used to translate from a historical
@@ -2202,21 +2206,31 @@ impl ComponentEncoder {
             .ok_or_else(|| anyhow!("input filename was not valid utf-8"))?;
         let wasm = wat::parse_file(path)?;
         let ModuleInterfaces {
-            mut imports,
-            exports,
             wasm,
-            interface,
+            interfaces:
+                ComponentInterfaces {
+                    imports,
+                    exports,
+                    default,
+                },
         } = extract_module_interfaces(&wasm)?;
-        if exports.len() > 0 || interface.is_some() {
+        if exports.len() > 0 || default.is_some() {
             bail!("adapter modules cannot have an exported interface");
         }
         let import = match imports.len() {
             0 => Interface::default(),
-            1 => imports.remove(0),
+            1 => imports.into_iter().next().unwrap().1,
             _ => bail!("adapter modules can only import one interface at this time"),
         };
         self.adapters.insert(name.to_string(), (wasm, import));
         Ok(self)
+    }
+
+    /// Indicates whether this encoder is only encoding types and does not
+    /// require a `module` as input.
+    pub fn types_only(mut self, only: bool) -> Self {
+        self.types_only = only;
+        self
     }
 
     /// Encode the component and return the bytes.
@@ -2227,38 +2241,73 @@ impl ComponentEncoder {
                 .keys()
                 .map(|s| s.as_str())
                 .collect::<IndexSet<_>>();
-            validate_module(
+            Some(validate_module(
                 &self.module,
                 &self.interface,
                 &self.imports,
                 &self.exports,
                 &adapters,
-            )?
+            )?)
         } else {
-            Default::default()
+            None
         };
 
         let exports = self
             .interface
             .iter()
             .map(|i| (i, true))
-            .chain(self.exports.iter().map(|i| (i, false)));
+            .chain(self.exports.iter().map(|(_, i)| (i, false)));
 
         let mut state = EncodingState::default();
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
-        types.encode_func_types(exports.clone(), false)?;
-        types.encode_instance_imports(&self.imports, &info, &mut imports)?;
+        types.encode_func_types(exports.clone().map(|(i, _)| i))?;
+        types.encode_instance_imports(&self.imports, info.as_ref(), &mut imports)?;
 
         if self.types_only {
             if !self.module.is_empty() {
                 bail!("a module cannot be specified for a types-only encoding");
             }
+
+            // In "types only" mode the main difference is how exports are
+            // encoded, imports are the same as usual. Exported interfaces are
+            // represented with an exported instance type, and exported default
+            // interfaces are represented as direct exports from the component
+            // itself.
+            let mut raw_exports = Vec::new();
+            let mut default_exports = Vec::new();
+            for (interface, is_default) in exports {
+                if is_default {
+                    default_exports = types
+                        .encode_interface_as_instance_type_exports(interface, None)?
+                        .unwrap();
+                } else {
+                    let index = types
+                        .encode_interface_as_instance_type(interface, None)?
+                        .unwrap();
+                    raw_exports.push((&interface.name, ComponentExportKind::Type, index));
+                }
+            }
             types.finish(&mut state.component);
+            state.encode_imports(&imports);
+            for (name, ty, index) in raw_exports {
+                state.component.export(name, ty, index);
+            }
+            for (name, ty) in default_exports {
+                let index = match ty {
+                    ComponentTypeRef::Type(_, idx) => idx,
+                    ComponentTypeRef::Func(idx) => idx,
+                    _ => unimplemented!(),
+                };
+                state
+                    .component
+                    .export(name, ComponentExportKind::Type, index);
+            }
         } else {
             if self.module.is_empty() {
                 bail!("a module is required when encoding a component");
             }
+            let info = info.as_ref().unwrap();
 
             // For all required adapters lookup the corresponding adapter
             // provided to this encoder, gc it to an appropriate size, and then
@@ -2270,7 +2319,11 @@ impl ComponentEncoder {
                 let info = validate_adapter_module(&wasm, interface, required)
                     .context("failed to validate the imports of the minimized adapter module")?;
                 state.encode_core_adapter_module(name, &wasm);
-                types.encode_instance_import(interface, &info.required_funcs, &mut imports)?;
+                types.encode_instance_import(
+                    interface,
+                    Some(&info.required_funcs),
+                    &mut imports,
+                )?;
                 imports.adapters.insert(name, info);
             }
 
@@ -2279,59 +2332,10 @@ impl ComponentEncoder {
             state.encode_imports(&imports);
             state.encode_core_module(&self.module);
             state.encode_core_instantiation(self.encoding, &imports, &info)?;
-            state.encode_exports(self.encoding, exports, &types.func_type_map)?;
+            state.encode_exports(self.encoding, exports, &types)?;
         }
 
         let bytes = state.component.finish();
-
-        if self.validate {
-            let mut validator = Validator::new_with_features(WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            });
-
-            validator
-                .validate_all(&bytes)
-                .context("failed to validate component output")?;
-        }
-
-        Ok(bytes)
-    }
-}
-
-/// An encoder for a single interface definition.
-///
-/// The resulting component will only encode the type information
-/// of the interface.
-pub struct InterfaceEncoder<'a> {
-    interface: &'a Interface,
-    validate: bool,
-}
-
-impl<'a> InterfaceEncoder<'a> {
-    /// Create a new encoder for the given interface.
-    pub fn new(interface: &'a Interface) -> Self {
-        Self {
-            interface,
-            validate: false,
-        }
-    }
-
-    /// Sets whether or not the encoder will validate its output.
-    pub fn validate(mut self, validate: bool) -> Self {
-        self.validate = validate;
-        self
-    }
-
-    /// Encode the interface as a component and return the bytes.
-    pub fn encode(&self) -> Result<Vec<u8>> {
-        let mut component = ComponentEncoding::default();
-
-        let mut types = TypeEncoder::default();
-        types.encode_func_types([(self.interface, true)].into_iter(), true)?;
-        types.finish(&mut component);
-
-        let bytes = component.finish();
 
         if self.validate {
             let mut validator = Validator::new_with_features(WasmFeatures {

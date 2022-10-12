@@ -87,15 +87,10 @@ pub struct ValidatedModule<'a> {
 pub fn validate_module<'a>(
     bytes: &'a [u8],
     interface: &Option<Interface>,
-    imports: &[Interface],
-    exports: &[Interface],
+    imports: &IndexMap<String, Interface>,
+    exports: &IndexMap<String, Interface>,
     adapters: &IndexSet<&str>,
 ) -> Result<ValidatedModule<'a>> {
-    let imports: IndexMap<&str, &Interface> =
-        imports.iter().map(|i| (i.name.as_str(), i)).collect();
-    let exports: IndexMap<&str, &Interface> =
-        exports.iter().map(|i| (i.name.as_str(), i)).collect();
-
     let mut validator = Validator::new();
     let mut types = None;
     let mut import_funcs = IndexMap::new();
@@ -165,7 +160,7 @@ pub fn validate_module<'a>(
             bail!("module imports from an empty module name");
         }
 
-        match imports.get(name) {
+        match imports.get(*name) {
             Some(interface) => {
                 validate_imported_interface(interface, name, funcs, &types)?;
                 let funcs = funcs.into_iter().map(|(f, _ty)| *f).collect();
