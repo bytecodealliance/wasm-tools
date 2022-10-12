@@ -105,6 +105,17 @@ impl ValType {
     pub fn is_reference_type(&self) -> bool {
         matches!(self, ValType::Ref(_))
     }
+    /// Whether the type is defaultable according to function references
+    /// spec. This amounts to whether it's a non-nullable ref
+    pub fn is_defaultable(&self) -> bool {
+        !matches!(
+            self,
+            ValType::Ref(RefType {
+                nullable: false,
+                ..
+            })
+        )
+    }
 }
 
 /// Represents a type in a WebAssembly module.

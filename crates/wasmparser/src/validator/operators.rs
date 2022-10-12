@@ -31,6 +31,7 @@ use std::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
     pub(super) locals: Locals,
+    pub(super) local_inits: Vec<bool>,
 
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
@@ -43,6 +44,9 @@ pub(crate) struct OperatorValidator {
     control: Vec<Frame>,
     /// The `operands` is the current type stack.
     operands: Vec<Option<ValType>>,
+    /// When local_inits is modified, the relevant index is recorded here to be
+    /// undone when control pops
+    inits: Vec<u32>,
 
     /// Offset of the `end` instruction which emptied the `control` stack, which
     /// must be the end of the function.
@@ -93,6 +97,8 @@ pub struct Frame {
     pub height: usize,
     /// Whether this frame is unreachable so far.
     pub unreachable: bool,
+    /// The number of initializations in the stack at the time of its creation
+    pub init_height: usize,
 }
 
 /// The kind of a control flow [`Frame`].
@@ -136,6 +142,8 @@ pub struct OperatorValidatorAllocations {
     br_table_tmp: Vec<Option<ValType>>,
     control: Vec<Frame>,
     operands: Vec<Option<ValType>>,
+    local_inits: Vec<bool>,
+    inits: Vec<u32>,
     locals_first: Vec<ValType>,
     locals_all: Vec<(u32, ValType)>,
 }
@@ -146,12 +154,16 @@ impl OperatorValidator {
             br_table_tmp,
             control,
             operands,
+            local_inits,
+            inits,
             locals_first,
             locals_all,
         } = allocs;
         debug_assert!(br_table_tmp.is_empty());
         debug_assert!(control.is_empty());
         debug_assert!(operands.is_empty());
+        debug_assert!(local_inits.is_empty());
+        debug_assert!(inits.is_empty());
         debug_assert!(locals_first.is_empty());
         debug_assert!(locals_all.is_empty());
         OperatorValidator {
@@ -160,6 +172,8 @@ impl OperatorValidator {
                 first: locals_first,
                 all: locals_all,
             },
+            local_inits,
+            inits,
             features: *features,
             br_table_tmp,
             operands,
@@ -189,6 +203,7 @@ impl OperatorValidator {
             block_type: BlockType::FuncType(ty),
             height: 0,
             unreachable: false,
+            init_height: 0,
         });
         let params = OperatorValidatorTemp {
             inner: &mut ret,
@@ -198,6 +213,7 @@ impl OperatorValidator {
         .inputs();
         for ty in params {
             ret.locals.define(1, ty);
+            ret.local_inits.push(true);
         }
         Ok(ret)
     }
@@ -216,6 +232,7 @@ impl OperatorValidator {
             block_type: BlockType::Type(ty),
             height: 0,
             unreachable: false,
+            init_height: 0,
         });
         ret
     }
@@ -228,19 +245,6 @@ impl OperatorValidator {
         resources: &impl WasmModuleResources,
     ) -> Result<()> {
         resources.check_value_type(ty, &self.features, offset)?;
-        // As far as i can tell, this isn't specified in the spec for function
-        // references, it's only tested and mentioned in the overview
-        match ty {
-            ValType::Ref(RefType {
-                nullable: false, ..
-            }) => {
-                return Err(BinaryReaderError::new(
-                    format!("non-defaultable local type: {}", ty_to_str(ty)),
-                    offset,
-                ))
-            }
-            _ => (),
-        }
         if count == 0 {
             return Ok(());
         }
@@ -250,6 +254,8 @@ impl OperatorValidator {
                 offset,
             ));
         }
+        self.local_inits
+            .resize(self.local_inits.len() + count as usize, ty.is_defaultable());
         Ok(())
     }
 
@@ -327,6 +333,8 @@ impl OperatorValidator {
             br_table_tmp: truncate(self.br_table_tmp),
             control: truncate(self.control),
             operands: truncate(self.operands),
+            local_inits: truncate(self.local_inits),
+            inits: truncate(self.inits),
             locals_first: truncate(self.locals.first),
             locals_all: truncate(self.locals.all),
         }
@@ -497,11 +505,13 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         // Push a new frame which has a snapshot of the height of the current
         // operand stack.
         let height = self.operands.len();
+        let init_height = self.inits.len();
         self.control.push(Frame {
             kind,
             block_type: ty,
             height,
             unreachable: false,
+            init_height,
         });
         // All of the parameters are now also available in this control frame,
         // so we push them here in order.
@@ -524,6 +534,12 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         };
         let ty = frame.block_type;
         let height = frame.height;
+        let init_height = frame.init_height;
+
+        // reset_locals in the spec
+        for init in self.inits.split_off(init_height) {
+            self.local_inits[init as usize] = false;
+        }
 
         // Pop all the result types, in reverse order, from the operand stack.
         // These types will, possibly, be transferred to the next frame.
@@ -1103,11 +1119,13 @@ where
         }
         // Start a new frame and push `exnref` value.
         let height = self.operands.len();
+        let init_height = self.inits.len();
         self.control.push(Frame {
             kind: FrameKind::Catch,
             block_type: frame.block_type,
             height,
             unreachable: false,
+            init_height,
         });
         // Push exception argument types.
         let ty = self.tag_at(index, offset)?;
@@ -1162,11 +1180,13 @@ where
             bail!(offset, "catch_all found outside of a `try` block");
         }
         let height = self.operands.len();
+        let init_height = self.inits.len();
         self.control.push(Frame {
             kind: FrameKind::CatchAll,
             block_type: frame.block_type,
             height,
             unreachable: false,
+            init_height,
         });
         Ok(())
     }
@@ -1350,17 +1370,28 @@ where
     }
     fn visit_local_get(&mut self, offset: usize, local_index: u32) -> Self::Output {
         let ty = self.local(offset, local_index)?;
+        if !self.local_inits[local_index as usize] {
+            bail!(offset, "uninitialized local: {}", local_index);
+        }
         self.push_operand(ty)?;
         Ok(())
     }
     fn visit_local_set(&mut self, offset: usize, local_index: u32) -> Self::Output {
         let ty = self.local(offset, local_index)?;
         self.pop_operand(offset, Some(ty))?;
+        if !self.local_inits[local_index as usize] {
+            self.local_inits[local_index as usize] = true;
+            self.inits.push(local_index);
+        }
         Ok(())
     }
     fn visit_local_tee(&mut self, offset: usize, local_index: u32) -> Self::Output {
         let ty = self.local(offset, local_index)?;
         self.pop_operand(offset, Some(ty))?;
+        if !self.local_inits[local_index as usize] {
+            self.local_inits[local_index as usize] = true;
+            self.inits.push(local_index);
+        }
         self.push_operand(ty)?;
         Ok(())
     }
