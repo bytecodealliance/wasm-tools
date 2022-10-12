@@ -1,5 +1,5 @@
 (component
-  (type (;0;) 
+  (type (;0;)
     (instance
       (type (;0;) (func))
       (export "b" (func (type 0)))
@@ -11,7 +11,7 @@
   )
   (import "a" (instance (;0;) (type 0)))
   (component (;0;)
-    (type (;0;) 
+    (type (;0;)
       (instance
         (type (;0;) (func (param "x" string)))
         (export "a" (func (type 0)))
@@ -26,7 +26,7 @@
     )
   )
   (component (;1;)
-    (type (;0;) 
+    (type (;0;)
       (instance
         (type (;0;) (func))
         (export "b" (func (type 0)))
@@ -35,7 +35,7 @@
       )
     )
     (import "a" (instance (;0;) (type 0)))
-    (type (;1;) 
+    (type (;1;)
       (instance)
     )
     (import "b" (instance (;1;) (type 1)))

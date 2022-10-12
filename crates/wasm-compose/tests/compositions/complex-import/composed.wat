@@ -1,5 +1,5 @@
 (component
-  (type (;0;) 
+  (type (;0;)
     (component
       (type (;0;) (record (field "a" s8) (field "b" u8) (field "c" s16) (field "d" u16) (field "e" s32) (field "f" u32) (field "g" s64) (field "h" u64) (field "i" float32) (field "j" float64) (field "k" bool) (field "l" string)))
       (export "record1"  (type (eq 0)))
@@ -61,9 +61,9 @@
   )
   (import "a" (component (;0;) (type 0)))
   (instance (;0;) (instantiate 0))
-  (type (;1;) 
+  (type (;1;)
     (component
-      (type (;0;) 
+      (type (;0;)
         (instance
           (type (;0;) (func))
           (export "a" (func (type 0)))
@@ -124,7 +124,7 @@
         )
       )
       (import "a" (instance (type 0)))
-      (type (;1;) 
+      (type (;1;)
         (instance
           (type (;0;) (func (param "x" string) (result string)))
           (export "m" (func (type 0)))
@@ -143,7 +143,7 @@
     )
   )
   (component (;2;)
-    (type (;0;) 
+    (type (;0;)
       (instance
         (type (;0;) (func (param "x" string) (result string)))
         (export "m" (func (type 0)))

@@ -1660,12 +1660,13 @@ impl Printer {
             let state = states.last_mut().unwrap();
             self.print_name(&state.component.type_names, state.component.types)?;
         }
-        self.result.push(' ');
         match ty {
             ComponentType::Defined(ty) => {
+                self.result.push(' ');
                 self.print_defined_type(states.last_mut().unwrap(), &ty)?;
             }
             ComponentType::Func(ty) => {
+                self.result.push(' ');
                 self.print_component_func_type(states.last_mut().unwrap(), &ty)?;
             }
             ComponentType::Component(decls) => {
@@ -1961,9 +1962,9 @@ impl Printer {
             self.newline(offset);
             self.start_group("core instance ");
             self.print_name(&state.core.instance_names, state.core.instances)?;
-            self.result.push(' ');
             match instance {
                 Instance::Instantiate { module_index, args } => {
+                    self.result.push(' ');
                     self.start_group("instantiate ");
                     self.print_idx(&state.core.module_names, module_index)?;
                     for arg in args.iter() {

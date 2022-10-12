@@ -29,7 +29,7 @@
   (type (func (param "x" 26)))
   (type (result 13 (error string)))
   (type (func (result 28)))
-  (type 
+  (type
     (instance
       (alias outer 1 0 (type))
       (export "a" (func (type 0)))
@@ -256,7 +256,7 @@
   (core func (canon lower (func 11)))
   (core func (canon lower (func 12)))
   (core func (canon lower (func 13)))
-  (core instance 
+  (core instance
     (export "m" (func 0))
     (export "n" (func 1))
     (export "o" (func 2))
@@ -300,7 +300,7 @@
   (core func (canon lower (func 18) (memory 0) (realloc 21) string-encoding=utf8))
   (core func (canon lower (func 19) (memory 0) (realloc 21) string-encoding=utf8))
   (core func (canon lower (func 20) (memory 0) (realloc 21) string-encoding=utf8))
-  (core instance 
+  (core instance
     (export "$imports" (table 0))
     (export "0" (func 22))
     (export "1" (func 23))
