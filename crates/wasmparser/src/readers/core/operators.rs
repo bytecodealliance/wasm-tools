@@ -33,6 +33,12 @@ pub enum BlockType {
 pub struct MemArg {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
+    /// Maximum alignment, stored as `n` where the actual alignment is `2^n`.
+    ///
+    /// Note that this field is not actually read from the binary format, it
+    /// will be a constant depending on which instruction this `MemArg` is a
+    /// payload for.
+    pub max_align: u8,
     /// A fixed byte-offset that this memory immediate specifies.
     ///
     /// Note that the memory64 proposal can specify a full 64-bit byte offset

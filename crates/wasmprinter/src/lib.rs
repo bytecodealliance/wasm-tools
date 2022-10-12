@@ -965,56 +965,6 @@ impl Printer {
         }
     }
 
-    fn mem_instr(
-        &mut self,
-        state: &State,
-        name: &str,
-        memarg: &MemArg,
-        default_align: u32,
-    ) -> Result<()> {
-        self.result.push_str(name);
-        if memarg.memory != 0 {
-            self.result.push(' ');
-            self.print_idx(&state.core.memory_names, memarg.memory)?;
-        }
-        if memarg.offset != 0 {
-            write!(self.result, " offset={}", memarg.offset)?;
-        }
-        if memarg.align >= 32 {
-            bail!("alignment in memarg too large");
-        }
-        let align = 1 << memarg.align;
-        if default_align != align {
-            write!(self.result, " align={}", align)?;
-        }
-        Ok(())
-    }
-
-    fn print_blockty(&mut self, state: &mut State, ty: &BlockType, cur_depth: u32) -> Result<()> {
-        if let Some(name) = state
-            .core
-            .label_names
-            .get(&(state.core.funcs, state.core.labels))
-        {
-            self.result.push(' ');
-            name.write(&mut self.result);
-        }
-        match ty {
-            BlockType::Empty => {}
-            BlockType::Type(t) => {
-                self.result.push_str(" (result ");
-                self.print_valtype(*t)?;
-                self.result.push(')');
-            }
-            BlockType::FuncType(idx) => {
-                self.print_core_functype_idx(state, *idx, false, None)?;
-            }
-        }
-        write!(self.result, "  ;; label = @{}", cur_depth)?;
-        state.core.labels += 1;
-        Ok(())
-    }
-
     fn print_exports(&mut self, state: &State, data: ExportSectionReader) -> Result<()> {
         for export in data.into_iter_with_offsets() {
             let (offset, export) = export?;

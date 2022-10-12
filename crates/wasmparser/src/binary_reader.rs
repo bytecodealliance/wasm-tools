@@ -867,7 +867,7 @@ impl<'a> BinaryReader<'a> {
         Ok((self.buffer[pos], val))
     }
 
-    fn read_memarg(&mut self) -> Result<MemArg> {
+    fn read_memarg(&mut self, max_align: u8) -> Result<MemArg> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
         let memory = if flags & (1 << 6) != 0 {
@@ -888,6 +888,7 @@ impl<'a> BinaryReader<'a> {
         };
         Ok(MemArg {
             align,
+            max_align,
             offset,
             memory,
         })
@@ -1299,18 +1300,6 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    fn read_memarg_of_align(&mut self, max_align: u8) -> Result<MemArg> {
-        let align_pos = self.original_position();
-        let imm = self.read_memarg()?;
-        if imm.align > max_align {
-            return Err(BinaryReaderError::new(
-                "alignment must not be larger than natural",
-                align_pos,
-            ));
-        }
-        Ok(imm)
-    }
-
     #[cold]
     fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
         Err(Self::invalid_leading_byte_error(
@@ -1430,29 +1419,29 @@ impl<'a> BinaryReader<'a> {
             0x25 => visitor.visit_table_get(pos, self.read_var_u32()?),
             0x26 => visitor.visit_table_set(pos, self.read_var_u32()?),
 
-            0x28 => visitor.visit_i32_load(pos, self.read_memarg()?),
-            0x29 => visitor.visit_i64_load(pos, self.read_memarg()?),
-            0x2a => visitor.visit_f32_load(pos, self.read_memarg()?),
-            0x2b => visitor.visit_f64_load(pos, self.read_memarg()?),
-            0x2c => visitor.visit_i32_load8_s(pos, self.read_memarg()?),
-            0x2d => visitor.visit_i32_load8_u(pos, self.read_memarg()?),
-            0x2e => visitor.visit_i32_load16_s(pos, self.read_memarg()?),
-            0x2f => visitor.visit_i32_load16_u(pos, self.read_memarg()?),
-            0x30 => visitor.visit_i64_load8_s(pos, self.read_memarg()?),
-            0x31 => visitor.visit_i64_load8_u(pos, self.read_memarg()?),
-            0x32 => visitor.visit_i64_load16_s(pos, self.read_memarg()?),
-            0x33 => visitor.visit_i64_load16_u(pos, self.read_memarg()?),
-            0x34 => visitor.visit_i64_load32_s(pos, self.read_memarg()?),
-            0x35 => visitor.visit_i64_load32_u(pos, self.read_memarg()?),
-            0x36 => visitor.visit_i32_store(pos, self.read_memarg()?),
-            0x37 => visitor.visit_i64_store(pos, self.read_memarg()?),
-            0x38 => visitor.visit_f32_store(pos, self.read_memarg()?),
-            0x39 => visitor.visit_f64_store(pos, self.read_memarg()?),
-            0x3a => visitor.visit_i32_store8(pos, self.read_memarg()?),
-            0x3b => visitor.visit_i32_store16(pos, self.read_memarg()?),
-            0x3c => visitor.visit_i64_store8(pos, self.read_memarg()?),
-            0x3d => visitor.visit_i64_store16(pos, self.read_memarg()?),
-            0x3e => visitor.visit_i64_store32(pos, self.read_memarg()?),
+            0x28 => visitor.visit_i32_load(pos, self.read_memarg(2)?),
+            0x29 => visitor.visit_i64_load(pos, self.read_memarg(3)?),
+            0x2a => visitor.visit_f32_load(pos, self.read_memarg(2)?),
+            0x2b => visitor.visit_f64_load(pos, self.read_memarg(3)?),
+            0x2c => visitor.visit_i32_load8_s(pos, self.read_memarg(0)?),
+            0x2d => visitor.visit_i32_load8_u(pos, self.read_memarg(0)?),
+            0x2e => visitor.visit_i32_load16_s(pos, self.read_memarg(1)?),
+            0x2f => visitor.visit_i32_load16_u(pos, self.read_memarg(1)?),
+            0x30 => visitor.visit_i64_load8_s(pos, self.read_memarg(0)?),
+            0x31 => visitor.visit_i64_load8_u(pos, self.read_memarg(0)?),
+            0x32 => visitor.visit_i64_load16_s(pos, self.read_memarg(1)?),
+            0x33 => visitor.visit_i64_load16_u(pos, self.read_memarg(1)?),
+            0x34 => visitor.visit_i64_load32_s(pos, self.read_memarg(2)?),
+            0x35 => visitor.visit_i64_load32_u(pos, self.read_memarg(2)?),
+            0x36 => visitor.visit_i32_store(pos, self.read_memarg(2)?),
+            0x37 => visitor.visit_i64_store(pos, self.read_memarg(3)?),
+            0x38 => visitor.visit_f32_store(pos, self.read_memarg(2)?),
+            0x39 => visitor.visit_f64_store(pos, self.read_memarg(3)?),
+            0x3a => visitor.visit_i32_store8(pos, self.read_memarg(0)?),
+            0x3b => visitor.visit_i32_store16(pos, self.read_memarg(1)?),
+            0x3c => visitor.visit_i64_store8(pos, self.read_memarg(0)?),
+            0x3d => visitor.visit_i64_store16(pos, self.read_memarg(1)?),
+            0x3e => visitor.visit_i64_store32(pos, self.read_memarg(2)?),
             0x3f => {
                 let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
                 visitor.visit_memory_size(pos, mem, mem_byte)
@@ -1689,19 +1678,19 @@ impl<'a> BinaryReader<'a> {
     {
         let code = self.read_var_u32()?;
         Ok(match code {
-            0x00 => visitor.visit_v128_load(pos, self.read_memarg()?),
-            0x01 => visitor.visit_v128_load8x8_s(pos, self.read_memarg_of_align(3)?),
-            0x02 => visitor.visit_v128_load8x8_u(pos, self.read_memarg_of_align(3)?),
-            0x03 => visitor.visit_v128_load16x4_s(pos, self.read_memarg_of_align(3)?),
-            0x04 => visitor.visit_v128_load16x4_u(pos, self.read_memarg_of_align(3)?),
-            0x05 => visitor.visit_v128_load32x2_s(pos, self.read_memarg_of_align(3)?),
-            0x06 => visitor.visit_v128_load32x2_u(pos, self.read_memarg_of_align(3)?),
-            0x07 => visitor.visit_v128_load8_splat(pos, self.read_memarg_of_align(0)?),
-            0x08 => visitor.visit_v128_load16_splat(pos, self.read_memarg_of_align(1)?),
-            0x09 => visitor.visit_v128_load32_splat(pos, self.read_memarg_of_align(2)?),
-            0x0a => visitor.visit_v128_load64_splat(pos, self.read_memarg_of_align(3)?),
+            0x00 => visitor.visit_v128_load(pos, self.read_memarg(4)?),
+            0x01 => visitor.visit_v128_load8x8_s(pos, self.read_memarg(3)?),
+            0x02 => visitor.visit_v128_load8x8_u(pos, self.read_memarg(3)?),
+            0x03 => visitor.visit_v128_load16x4_s(pos, self.read_memarg(3)?),
+            0x04 => visitor.visit_v128_load16x4_u(pos, self.read_memarg(3)?),
+            0x05 => visitor.visit_v128_load32x2_s(pos, self.read_memarg(3)?),
+            0x06 => visitor.visit_v128_load32x2_u(pos, self.read_memarg(3)?),
+            0x07 => visitor.visit_v128_load8_splat(pos, self.read_memarg(0)?),
+            0x08 => visitor.visit_v128_load16_splat(pos, self.read_memarg(1)?),
+            0x09 => visitor.visit_v128_load32_splat(pos, self.read_memarg(2)?),
+            0x0a => visitor.visit_v128_load64_splat(pos, self.read_memarg(3)?),
 
-            0x0b => visitor.visit_v128_store(pos, self.read_memarg()?),
+            0x0b => visitor.visit_v128_store(pos, self.read_memarg(4)?),
             0x0c => visitor.visit_v128_const(pos, self.read_v128()?),
             0x0d => {
                 let mut lanes: [u8; 16] = [0; 16];
@@ -1786,48 +1775,48 @@ impl<'a> BinaryReader<'a> {
             0x53 => visitor.visit_v128_any_true(pos),
 
             0x54 => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(0)?;
                 let lane = self.read_lane_index(16)?;
                 visitor.visit_v128_load8_lane(pos, memarg, lane)
             }
             0x55 => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(1)?;
                 let lane = self.read_lane_index(8)?;
                 visitor.visit_v128_load16_lane(pos, memarg, lane)
             }
             0x56 => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(2)?;
                 let lane = self.read_lane_index(4)?;
                 visitor.visit_v128_load32_lane(pos, memarg, lane)
             }
             0x57 => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(3)?;
                 let lane = self.read_lane_index(2)?;
                 visitor.visit_v128_load64_lane(pos, memarg, lane)
             }
             0x58 => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(0)?;
                 let lane = self.read_lane_index(16)?;
                 visitor.visit_v128_store8_lane(pos, memarg, lane)
             }
             0x59 => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(1)?;
                 let lane = self.read_lane_index(8)?;
                 visitor.visit_v128_store16_lane(pos, memarg, lane)
             }
             0x5a => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(2)?;
                 let lane = self.read_lane_index(4)?;
                 visitor.visit_v128_store32_lane(pos, memarg, lane)
             }
             0x5b => {
-                let memarg = self.read_memarg()?;
+                let memarg = self.read_memarg(3)?;
                 let lane = self.read_lane_index(2)?;
                 visitor.visit_v128_store64_lane(pos, memarg, lane)
             }
 
-            0x5c => visitor.visit_v128_load32_zero(pos, self.read_memarg_of_align(2)?),
-            0x5d => visitor.visit_v128_load64_zero(pos, self.read_memarg_of_align(3)?),
+            0x5c => visitor.visit_v128_load32_zero(pos, self.read_memarg(2)?),
+            0x5d => visitor.visit_v128_load64_zero(pos, self.read_memarg(3)?),
             0x5e => visitor.visit_f32x4_demote_f64x2_zero(pos),
             0x5f => visitor.visit_f64x2_promote_low_f32x4(pos),
             0x60 => visitor.visit_i8x16_abs(pos),
@@ -2006,78 +1995,78 @@ impl<'a> BinaryReader<'a> {
     {
         let code = self.read_var_u32()?;
         Ok(match code {
-            0x00 => visitor.visit_memory_atomic_notify(pos, self.read_memarg_of_align(2)?),
-            0x01 => visitor.visit_memory_atomic_wait32(pos, self.read_memarg_of_align(2)?),
-            0x02 => visitor.visit_memory_atomic_wait64(pos, self.read_memarg_of_align(3)?),
+            0x00 => visitor.visit_memory_atomic_notify(pos, self.read_memarg(2)?),
+            0x01 => visitor.visit_memory_atomic_wait32(pos, self.read_memarg(2)?),
+            0x02 => visitor.visit_memory_atomic_wait64(pos, self.read_memarg(3)?),
             0x03 => {
                 if self.read_u8()? != 0 {
                     bail!(pos, "nonzero byte after `atomic.fence`");
                 }
                 visitor.visit_atomic_fence(pos)
             }
-            0x10 => visitor.visit_i32_atomic_load(pos, self.read_memarg_of_align(2)?),
-            0x11 => visitor.visit_i64_atomic_load(pos, self.read_memarg_of_align(3)?),
-            0x12 => visitor.visit_i32_atomic_load8_u(pos, self.read_memarg_of_align(0)?),
-            0x13 => visitor.visit_i32_atomic_load16_u(pos, self.read_memarg_of_align(1)?),
-            0x14 => visitor.visit_i64_atomic_load8_u(pos, self.read_memarg_of_align(0)?),
-            0x15 => visitor.visit_i64_atomic_load16_u(pos, self.read_memarg_of_align(1)?),
-            0x16 => visitor.visit_i64_atomic_load32_u(pos, self.read_memarg_of_align(2)?),
-            0x17 => visitor.visit_i32_atomic_store(pos, self.read_memarg_of_align(2)?),
-            0x18 => visitor.visit_i64_atomic_store(pos, self.read_memarg_of_align(3)?),
-            0x19 => visitor.visit_i32_atomic_store8(pos, self.read_memarg_of_align(0)?),
-            0x1a => visitor.visit_i32_atomic_store16(pos, self.read_memarg_of_align(1)?),
-            0x1b => visitor.visit_i64_atomic_store8(pos, self.read_memarg_of_align(0)?),
-            0x1c => visitor.visit_i64_atomic_store16(pos, self.read_memarg_of_align(1)?),
-            0x1d => visitor.visit_i64_atomic_store32(pos, self.read_memarg_of_align(2)?),
-            0x1e => visitor.visit_i32_atomic_rmw_add(pos, self.read_memarg_of_align(2)?),
-            0x1f => visitor.visit_i64_atomic_rmw_add(pos, self.read_memarg_of_align(3)?),
-            0x20 => visitor.visit_i32_atomic_rmw8_add_u(pos, self.read_memarg_of_align(0)?),
-            0x21 => visitor.visit_i32_atomic_rmw16_add_u(pos, self.read_memarg_of_align(1)?),
-            0x22 => visitor.visit_i64_atomic_rmw8_add_u(pos, self.read_memarg_of_align(0)?),
-            0x23 => visitor.visit_i64_atomic_rmw16_add_u(pos, self.read_memarg_of_align(1)?),
-            0x24 => visitor.visit_i64_atomic_rmw32_add_u(pos, self.read_memarg_of_align(2)?),
-            0x25 => visitor.visit_i32_atomic_rmw_sub(pos, self.read_memarg_of_align(2)?),
-            0x26 => visitor.visit_i64_atomic_rmw_sub(pos, self.read_memarg_of_align(3)?),
-            0x27 => visitor.visit_i32_atomic_rmw8_sub_u(pos, self.read_memarg_of_align(0)?),
-            0x28 => visitor.visit_i32_atomic_rmw16_sub_u(pos, self.read_memarg_of_align(1)?),
-            0x29 => visitor.visit_i64_atomic_rmw8_sub_u(pos, self.read_memarg_of_align(0)?),
-            0x2a => visitor.visit_i64_atomic_rmw16_sub_u(pos, self.read_memarg_of_align(1)?),
-            0x2b => visitor.visit_i64_atomic_rmw32_sub_u(pos, self.read_memarg_of_align(2)?),
-            0x2c => visitor.visit_i32_atomic_rmw_and(pos, self.read_memarg_of_align(2)?),
-            0x2d => visitor.visit_i64_atomic_rmw_and(pos, self.read_memarg_of_align(3)?),
-            0x2e => visitor.visit_i32_atomic_rmw8_and_u(pos, self.read_memarg_of_align(0)?),
-            0x2f => visitor.visit_i32_atomic_rmw16_and_u(pos, self.read_memarg_of_align(1)?),
-            0x30 => visitor.visit_i64_atomic_rmw8_and_u(pos, self.read_memarg_of_align(0)?),
-            0x31 => visitor.visit_i64_atomic_rmw16_and_u(pos, self.read_memarg_of_align(1)?),
-            0x32 => visitor.visit_i64_atomic_rmw32_and_u(pos, self.read_memarg_of_align(2)?),
-            0x33 => visitor.visit_i32_atomic_rmw_or(pos, self.read_memarg_of_align(2)?),
-            0x34 => visitor.visit_i64_atomic_rmw_or(pos, self.read_memarg_of_align(3)?),
-            0x35 => visitor.visit_i32_atomic_rmw8_or_u(pos, self.read_memarg_of_align(0)?),
-            0x36 => visitor.visit_i32_atomic_rmw16_or_u(pos, self.read_memarg_of_align(1)?),
-            0x37 => visitor.visit_i64_atomic_rmw8_or_u(pos, self.read_memarg_of_align(0)?),
-            0x38 => visitor.visit_i64_atomic_rmw16_or_u(pos, self.read_memarg_of_align(1)?),
-            0x39 => visitor.visit_i64_atomic_rmw32_or_u(pos, self.read_memarg_of_align(2)?),
-            0x3a => visitor.visit_i32_atomic_rmw_xor(pos, self.read_memarg_of_align(2)?),
-            0x3b => visitor.visit_i64_atomic_rmw_xor(pos, self.read_memarg_of_align(3)?),
-            0x3c => visitor.visit_i32_atomic_rmw8_xor_u(pos, self.read_memarg_of_align(0)?),
-            0x3d => visitor.visit_i32_atomic_rmw16_xor_u(pos, self.read_memarg_of_align(1)?),
-            0x3e => visitor.visit_i64_atomic_rmw8_xor_u(pos, self.read_memarg_of_align(0)?),
-            0x3f => visitor.visit_i64_atomic_rmw16_xor_u(pos, self.read_memarg_of_align(1)?),
-            0x40 => visitor.visit_i64_atomic_rmw32_xor_u(pos, self.read_memarg_of_align(2)?),
-            0x41 => visitor.visit_i32_atomic_rmw_xchg(pos, self.read_memarg_of_align(2)?),
-            0x42 => visitor.visit_i64_atomic_rmw_xchg(pos, self.read_memarg_of_align(3)?),
-            0x43 => visitor.visit_i32_atomic_rmw8_xchg_u(pos, self.read_memarg_of_align(0)?),
-            0x44 => visitor.visit_i32_atomic_rmw16_xchg_u(pos, self.read_memarg_of_align(1)?),
-            0x45 => visitor.visit_i64_atomic_rmw8_xchg_u(pos, self.read_memarg_of_align(0)?),
-            0x46 => visitor.visit_i64_atomic_rmw16_xchg_u(pos, self.read_memarg_of_align(1)?),
-            0x47 => visitor.visit_i64_atomic_rmw32_xchg_u(pos, self.read_memarg_of_align(2)?),
-            0x48 => visitor.visit_i32_atomic_rmw_cmpxchg(pos, self.read_memarg_of_align(2)?),
-            0x49 => visitor.visit_i64_atomic_rmw_cmpxchg(pos, self.read_memarg_of_align(3)?),
-            0x4a => visitor.visit_i32_atomic_rmw8_cmpxchg_u(pos, self.read_memarg_of_align(0)?),
-            0x4b => visitor.visit_i32_atomic_rmw16_cmpxchg_u(pos, self.read_memarg_of_align(1)?),
-            0x4c => visitor.visit_i64_atomic_rmw8_cmpxchg_u(pos, self.read_memarg_of_align(0)?),
-            0x4d => visitor.visit_i64_atomic_rmw16_cmpxchg_u(pos, self.read_memarg_of_align(1)?),
-            0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(pos, self.read_memarg_of_align(2)?),
+            0x10 => visitor.visit_i32_atomic_load(pos, self.read_memarg(2)?),
+            0x11 => visitor.visit_i64_atomic_load(pos, self.read_memarg(3)?),
+            0x12 => visitor.visit_i32_atomic_load8_u(pos, self.read_memarg(0)?),
+            0x13 => visitor.visit_i32_atomic_load16_u(pos, self.read_memarg(1)?),
+            0x14 => visitor.visit_i64_atomic_load8_u(pos, self.read_memarg(0)?),
+            0x15 => visitor.visit_i64_atomic_load16_u(pos, self.read_memarg(1)?),
+            0x16 => visitor.visit_i64_atomic_load32_u(pos, self.read_memarg(2)?),
+            0x17 => visitor.visit_i32_atomic_store(pos, self.read_memarg(2)?),
+            0x18 => visitor.visit_i64_atomic_store(pos, self.read_memarg(3)?),
+            0x19 => visitor.visit_i32_atomic_store8(pos, self.read_memarg(0)?),
+            0x1a => visitor.visit_i32_atomic_store16(pos, self.read_memarg(1)?),
+            0x1b => visitor.visit_i64_atomic_store8(pos, self.read_memarg(0)?),
+            0x1c => visitor.visit_i64_atomic_store16(pos, self.read_memarg(1)?),
+            0x1d => visitor.visit_i64_atomic_store32(pos, self.read_memarg(2)?),
+            0x1e => visitor.visit_i32_atomic_rmw_add(pos, self.read_memarg(2)?),
+            0x1f => visitor.visit_i64_atomic_rmw_add(pos, self.read_memarg(3)?),
+            0x20 => visitor.visit_i32_atomic_rmw8_add_u(pos, self.read_memarg(0)?),
+            0x21 => visitor.visit_i32_atomic_rmw16_add_u(pos, self.read_memarg(1)?),
+            0x22 => visitor.visit_i64_atomic_rmw8_add_u(pos, self.read_memarg(0)?),
+            0x23 => visitor.visit_i64_atomic_rmw16_add_u(pos, self.read_memarg(1)?),
+            0x24 => visitor.visit_i64_atomic_rmw32_add_u(pos, self.read_memarg(2)?),
+            0x25 => visitor.visit_i32_atomic_rmw_sub(pos, self.read_memarg(2)?),
+            0x26 => visitor.visit_i64_atomic_rmw_sub(pos, self.read_memarg(3)?),
+            0x27 => visitor.visit_i32_atomic_rmw8_sub_u(pos, self.read_memarg(0)?),
+            0x28 => visitor.visit_i32_atomic_rmw16_sub_u(pos, self.read_memarg(1)?),
+            0x29 => visitor.visit_i64_atomic_rmw8_sub_u(pos, self.read_memarg(0)?),
+            0x2a => visitor.visit_i64_atomic_rmw16_sub_u(pos, self.read_memarg(1)?),
+            0x2b => visitor.visit_i64_atomic_rmw32_sub_u(pos, self.read_memarg(2)?),
+            0x2c => visitor.visit_i32_atomic_rmw_and(pos, self.read_memarg(2)?),
+            0x2d => visitor.visit_i64_atomic_rmw_and(pos, self.read_memarg(3)?),
+            0x2e => visitor.visit_i32_atomic_rmw8_and_u(pos, self.read_memarg(0)?),
+            0x2f => visitor.visit_i32_atomic_rmw16_and_u(pos, self.read_memarg(1)?),
+            0x30 => visitor.visit_i64_atomic_rmw8_and_u(pos, self.read_memarg(0)?),
+            0x31 => visitor.visit_i64_atomic_rmw16_and_u(pos, self.read_memarg(1)?),
+            0x32 => visitor.visit_i64_atomic_rmw32_and_u(pos, self.read_memarg(2)?),
+            0x33 => visitor.visit_i32_atomic_rmw_or(pos, self.read_memarg(2)?),
+            0x34 => visitor.visit_i64_atomic_rmw_or(pos, self.read_memarg(3)?),
+            0x35 => visitor.visit_i32_atomic_rmw8_or_u(pos, self.read_memarg(0)?),
+            0x36 => visitor.visit_i32_atomic_rmw16_or_u(pos, self.read_memarg(1)?),
+            0x37 => visitor.visit_i64_atomic_rmw8_or_u(pos, self.read_memarg(0)?),
+            0x38 => visitor.visit_i64_atomic_rmw16_or_u(pos, self.read_memarg(1)?),
+            0x39 => visitor.visit_i64_atomic_rmw32_or_u(pos, self.read_memarg(2)?),
+            0x3a => visitor.visit_i32_atomic_rmw_xor(pos, self.read_memarg(2)?),
+            0x3b => visitor.visit_i64_atomic_rmw_xor(pos, self.read_memarg(3)?),
+            0x3c => visitor.visit_i32_atomic_rmw8_xor_u(pos, self.read_memarg(0)?),
+            0x3d => visitor.visit_i32_atomic_rmw16_xor_u(pos, self.read_memarg(1)?),
+            0x3e => visitor.visit_i64_atomic_rmw8_xor_u(pos, self.read_memarg(0)?),
+            0x3f => visitor.visit_i64_atomic_rmw16_xor_u(pos, self.read_memarg(1)?),
+            0x40 => visitor.visit_i64_atomic_rmw32_xor_u(pos, self.read_memarg(2)?),
+            0x41 => visitor.visit_i32_atomic_rmw_xchg(pos, self.read_memarg(2)?),
+            0x42 => visitor.visit_i64_atomic_rmw_xchg(pos, self.read_memarg(3)?),
+            0x43 => visitor.visit_i32_atomic_rmw8_xchg_u(pos, self.read_memarg(0)?),
+            0x44 => visitor.visit_i32_atomic_rmw16_xchg_u(pos, self.read_memarg(1)?),
+            0x45 => visitor.visit_i64_atomic_rmw8_xchg_u(pos, self.read_memarg(0)?),
+            0x46 => visitor.visit_i64_atomic_rmw16_xchg_u(pos, self.read_memarg(1)?),
+            0x47 => visitor.visit_i64_atomic_rmw32_xchg_u(pos, self.read_memarg(2)?),
+            0x48 => visitor.visit_i32_atomic_rmw_cmpxchg(pos, self.read_memarg(2)?),
+            0x49 => visitor.visit_i64_atomic_rmw_cmpxchg(pos, self.read_memarg(3)?),
+            0x4a => visitor.visit_i32_atomic_rmw8_cmpxchg_u(pos, self.read_memarg(0)?),
+            0x4b => visitor.visit_i32_atomic_rmw16_cmpxchg_u(pos, self.read_memarg(1)?),
+            0x4c => visitor.visit_i64_atomic_rmw8_cmpxchg_u(pos, self.read_memarg(0)?),
+            0x4d => visitor.visit_i64_atomic_rmw16_cmpxchg_u(pos, self.read_memarg(1)?),
+            0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(pos, self.read_memarg(2)?),
 
             _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })

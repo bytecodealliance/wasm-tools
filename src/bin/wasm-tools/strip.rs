@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use wasm_encoder::RawSection;
-use wasmparser::{Encoding, Parser, Payload::*};
+use wasmparser::{Parser, Payload::*};
 
 /// Removes custom sections from an input WebAssembly file.
 ///

@@ -601,7 +601,7 @@ pub fn expr2wasm(
                     Lang::I8x16MinU(_) => insn(Instruction::I8x16MinU),
                     Lang::I8x16MaxS(_) => insn(Instruction::I8x16MaxS),
                     Lang::I8x16MaxU(_) => insn(Instruction::I8x16MaxU),
-                    Lang::I8x16AvgrU(_) => insn(Instruction::I8x16RoundingAverageU),
+                    Lang::I8x16AvgrU(_) => insn(Instruction::I8x16AvgrU),
 
                     Lang::I16x8ExtAddPairwiseI8x16S(_) => {
                         insn(Instruction::I16x8ExtAddPairwiseI8x16S)
@@ -634,7 +634,7 @@ pub fn expr2wasm(
                     Lang::I16x8MinU(_) => insn(Instruction::I16x8MinU),
                     Lang::I16x8MaxS(_) => insn(Instruction::I16x8MaxS),
                     Lang::I16x8MaxU(_) => insn(Instruction::I16x8MaxU),
-                    Lang::I16x8AvgrU(_) => insn(Instruction::I16x8RoundingAverageU),
+                    Lang::I16x8AvgrU(_) => insn(Instruction::I16x8AvgrU),
                     Lang::I16x8ExtMulLowI8x16S(_) => insn(Instruction::I16x8ExtMulLowI8x16S),
                     Lang::I16x8ExtMulHighI8x16S(_) => insn(Instruction::I16x8ExtMulHighI8x16S),
                     Lang::I16x8ExtMulLowI8x16U(_) => insn(Instruction::I16x8ExtMulLowI8x16U),
