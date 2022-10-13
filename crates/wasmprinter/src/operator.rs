@@ -116,6 +116,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn type_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_type_ref(self.state, idx, true, None)
     }
 
