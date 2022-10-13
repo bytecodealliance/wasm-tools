@@ -206,6 +206,32 @@ impl TestState {
                 .context("failed to compare original `wat` with roundtrip `wat`")?;
         }
 
+        // Test that the `wasmprinter`-printed bytes have "pretty" whitespace
+        // which means that all whitespace is either categorized as leading
+        // whitespace or a single space. Examples of "bad whitespace" are:
+        //
+        // * trailing whitespace at the end of a line
+        // * two spaces in a row
+        //
+        // Both of these cases indicate possible bugs in `wasmprinter` itself
+        // which while they don't actually affect the meaning they do "affect"
+        // humans reading the output.
+        for token in wast::lexer::Lexer::new(&string).allow_confusing_unicode(true) {
+            let ws = match token? {
+                wast::lexer::Token::Whitespace(ws) => ws,
+                _ => continue,
+            };
+            if ws.starts_with("\n") || ws == " " {
+                continue;
+            }
+            let offset = ws.as_ptr() as usize - string.as_ptr() as usize;
+            let span = wast::token::Span::from_offset(offset);
+            let msg = format!("found non-one-length whitespace in `wasmprinter` output: {ws:?}");
+            let mut err = wast::Error::new(span, msg);
+            err.set_text(&string);
+            return Err(err.into());
+        }
+
         Ok(())
     }
 
