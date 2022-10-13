@@ -514,7 +514,6 @@ impl<'a> InstanceTypeEncoder<'a> {
 struct TypeEncoder<'a> {
     types: ComponentTypeSection,
     type_map: IndexMap<TypeDefKey<'a>, u32>,
-    primitive_map: IndexMap<PrimitiveValType, u32>,
     func_type_map: IndexMap<FunctionKey<'a>, u32>,
     exports: ComponentExportSection,
 }
@@ -602,21 +601,7 @@ impl<'a> TypeEncoder<'a> {
             _ => {}
         }
 
-        let mut exports = Vec::new();
-
-        for (id, def) in &import.types {
-            let name = match &def.name {
-                Some(name) => name,
-                None => continue,
-            };
-            let idx = match self.encode_valtype(import, &Type::Id(id))? {
-                // Named primitive types need entries in the type section, so
-                // convert this to a type reference
-                ComponentValType::Primitive(prim) => self.index_primitive(prim),
-                ComponentValType::Type(idx) => idx,
-            };
-            exports.push((name.as_str(), ComponentTypeRef::Type(TypeBounds::Eq, idx)));
-        }
+        let mut exports = self.encode_interface_named_types(import)?;
 
         for func in &import.functions {
             if let Some(required_funcs) = required_funcs {
@@ -631,6 +616,29 @@ impl<'a> TypeEncoder<'a> {
         }
 
         Ok(Some(exports))
+    }
+
+    fn encode_interface_named_types(
+        &mut self,
+        interface: &'a Interface,
+    ) -> Result<Vec<(&'a str, ComponentTypeRef)>> {
+        let mut exports = Vec::new();
+
+        for (id, def) in &interface.types {
+            let name = match &def.name {
+                Some(name) => name,
+                None => continue,
+            };
+            let idx = match self.encode_valtype(interface, &Type::Id(id))? {
+                ComponentValType::Type(idx) => idx,
+                // With a name this type should be converted to an indexed type
+                // automatically and this shouldn't be possible.
+                ComponentValType::Primitive(_) => unreachable!(),
+            };
+            exports.push((name.as_str(), ComponentTypeRef::Type(TypeBounds::Eq, idx)));
+        }
+
+        Ok(exports)
     }
 
     fn encode_func_types(&mut self, interfaces: impl Iterator<Item = &'a Interface>) -> Result<()> {
@@ -880,14 +888,6 @@ impl<'a> TypeEncoder<'a> {
         let encoder = self.types.defined_type();
         encoder.enum_type(enum_.cases.iter().map(|c| c.name.as_str()));
         Ok(ComponentValType::Type(index))
-    }
-
-    fn index_primitive(&mut self, ty: PrimitiveValType) -> u32 {
-        *self.primitive_map.entry(ty).or_insert_with(|| {
-            let index = self.types.len();
-            self.types.defined_type().primitive(ty);
-            index
-        })
     }
 
     fn validate_function(function: &Function) -> Result<()> {
@@ -2325,6 +2325,10 @@ impl ComponentEncoder {
                     &mut imports,
                 )?;
                 imports.adapters.insert(name, info);
+            }
+
+            for (interface, _default) in exports.clone() {
+                types.encode_interface_named_types(interface)?;
             }
 
             types.finish(&mut state.component);
