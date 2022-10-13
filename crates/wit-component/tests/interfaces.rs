@@ -3,8 +3,7 @@ use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::{Path, PathBuf};
 use wit_component::ComponentEncoder;
-use wit_parser::abi::{AbiVariant, WasmType};
-use wit_parser::{Function, Interface};
+use wit_parser::Interface;
 
 /// Tests the encoding of the "types only" mode of `wit-component`.
 ///
@@ -115,7 +114,8 @@ fn run_test(path: &Path) -> Result<()> {
     // recover the original `*.wit` interfaces from the component output.
 
     println!("test dummy module");
-    let module = dummy_module(&import_interfaces, &export_interfaces, default.as_ref());
+    let module =
+        test_helpers::dummy_module(&import_interfaces, &export_interfaces, default.as_ref());
     let mut encoder = ComponentEncoder::default()
         .module(&module)?
         .validate(true)
@@ -172,79 +172,4 @@ fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<(PathBuf, Interface)
             Ok((p, i))
         })
         .collect::<Result<_>>()
-}
-
-fn dummy_module(
-    imports: &[Interface],
-    exports: &[Interface],
-    default: Option<&Interface>,
-) -> Vec<u8> {
-    let mut wat = String::new();
-    wat.push_str("(module\n");
-    for import in imports {
-        for func in import.functions.iter() {
-            let sig = import.wasm_signature(AbiVariant::GuestImport, func);
-
-            wat.push_str(&format!(
-                "(import \"{}\" \"{}\" (func",
-                import.name, func.name
-            ));
-            push_tys(&mut wat, "param", &sig.params);
-            push_tys(&mut wat, "result", &sig.results);
-            wat.push_str("))\n");
-        }
-    }
-
-    for export in exports {
-        for func in export.functions.iter() {
-            let name = format!("{}#{}", export.name, func.name);
-            push_func(&mut wat, &name, export, func);
-        }
-    }
-
-    if let Some(default) = default {
-        for func in default.functions.iter() {
-            push_func(&mut wat, &func.name, default, func);
-        }
-    }
-
-    wat.push_str("(memory (export \"memory\") 0)\n");
-    wat.push_str(
-        "(func (export \"cabi_realloc\") (param i32 i32 i32 i32) (result i32) unreachable)\n",
-    );
-    wat.push_str(")\n");
-
-    return wat::parse_str(&wat).unwrap();
-
-    fn push_func(wat: &mut String, name: &str, iface: &Interface, func: &Function) {
-        let sig = iface.wasm_signature(AbiVariant::GuestExport, func);
-        wat.push_str(&format!("(func (export \"{name}\")"));
-        push_tys(wat, "param", &sig.params);
-        push_tys(wat, "result", &sig.results);
-        wat.push_str(" unreachable)\n");
-
-        if iface.guest_export_needs_post_return(func) {
-            wat.push_str(&format!("(func (export \"cabi_post_{name}\")"));
-            push_tys(wat, "param", &sig.results);
-            wat.push_str(")\n");
-        }
-    }
-
-    fn push_tys(dst: &mut String, desc: &str, params: &[WasmType]) {
-        if params.is_empty() {
-            return;
-        }
-        dst.push_str(" (");
-        dst.push_str(desc);
-        for ty in params {
-            dst.push_str(" ");
-            match ty {
-                WasmType::I32 => dst.push_str("i32"),
-                WasmType::I64 => dst.push_str("i64"),
-                WasmType::F32 => dst.push_str("f32"),
-                WasmType::F64 => dst.push_str("f64"),
-            }
-        }
-        dst.push_str(")");
-    }
 }
