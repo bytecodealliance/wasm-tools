@@ -33,26 +33,27 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             .label_names
             .get(&(self.state.core.funcs, self.state.core.labels))
         {
-            self.printer.result.push(' ');
             name.write(&mut self.printer.result);
+            self.printer.result.push(' ');
         }
         match ty {
             BlockType::Empty => {}
             BlockType::Type(t) => {
                 self.push_str("(result ");
                 self.printer.print_valtype(t)?;
-                self.push_str(")");
+                self.push_str(") ");
             }
             BlockType::FuncType(idx) => {
                 self.printer
-                    .print_core_functype_idx(self.state, idx, false, None)?;
+                    .print_core_functype_idx(self.state, idx, None)?;
+                self.printer.result.push(' ');
             }
         }
         // Note that 1 is added to the current depth here since if a block type
         // is being printed then a block is being created which will increase
         // the label depth of the block itself.
         let depth = self.cur_depth();
-        write!(self.result(), "  ;; label = @{}", depth + 1)?;
+        write!(self.result(), ";; label = @{}", depth + 1)?;
         self.state.core.labels += 1;
         Ok(())
     }
@@ -115,6 +116,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn type_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_type_ref(self.state, idx, true, None)
     }
 
@@ -142,6 +144,12 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn memarg(&mut self, memarg: MemArg) -> Result<()> {
+        // Remove the leading ' ' inserted by the macro below since memarg may
+        // not actually print anything if all of its parameters are defaulted.
+        // Ideally we wouldn't rely on the ability to pop here but this ends up
+        // being the easiest.
+        assert_eq!(self.printer.result.pop(), Some(' '));
+
         if memarg.memory != 0 {
             self.result().push(' ');
             self.memory_index(memarg.memory)?;

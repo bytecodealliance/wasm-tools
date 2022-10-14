@@ -527,9 +527,9 @@ impl Printer {
             &states.last().unwrap().core.type_names,
             states.last().unwrap().core.types.len() as u32,
         )?;
-        self.result.push(' ');
         let ty = match ty {
             wasmparser::CoreType::Func(ty) => {
+                self.result.push(' ');
                 self.start_group("func");
                 self.print_func_type(states.last().unwrap(), &ty, None)?;
                 self.end_group();
@@ -591,21 +591,13 @@ impl Printer {
         &mut self,
         state: &State,
         idx: u32,
-        always_print_type: bool,
         names_for: Option<u32>,
     ) -> Result<Option<u32>> {
-        if always_print_type {
-            self.print_type_ref(state, idx, true, None)?;
-        }
+        self.print_type_ref(state, idx, true, None)?;
 
         match state.core.types.get(idx as usize) {
             Some(Some(ty)) => self.print_func_type(state, ty, names_for).map(Some),
-            Some(None) | None => {
-                if !always_print_type {
-                    self.print_type_ref(state, idx, true, None)?;
-                }
-                Ok(None)
-            }
+            Some(None) | None => Ok(None),
         }
     }
 
@@ -695,10 +687,10 @@ impl Printer {
     fn print_import_ty(&mut self, state: &State, ty: &TypeRef, index: bool) -> Result<()> {
         match ty {
             TypeRef::Func(f) => {
-                self.start_group("func");
+                self.start_group("func ");
                 if index {
-                    self.result.push(' ');
                     self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.result.push(' ');
                 }
                 self.print_type_ref(state, *f, true, None)?;
             }
@@ -742,9 +734,9 @@ impl Printer {
     fn print_tag_type(&mut self, state: &State, ty: &TagType, index: bool) -> Result<()> {
         self.start_group("tag ");
         if index {
-            write!(self.result, "(;{};)", state.core.tags)?;
+            write!(self.result, "(;{};) ", state.core.tags)?;
         }
-        self.print_core_functype_idx(state, ty.func_type_idx, true, None)?;
+        self.print_core_functype_idx(state, ty.func_type_idx, None)?;
         Ok(())
     }
 
@@ -838,8 +830,9 @@ impl Printer {
             self.start_group("func ");
             let func_idx = state.core.funcs;
             self.print_name(&state.core.func_names, func_idx)?;
+            self.result.push(' ');
             let params = self
-                .print_core_functype_idx(state, ty, true, Some(func_idx))?
+                .print_core_functype_idx(state, ty, Some(func_idx))?
                 .unwrap_or(0);
 
             let mut first = true;
@@ -1015,7 +1008,7 @@ impl Printer {
         core: bool,
         bounds: Option<TypeBounds>,
     ) -> Result<()> {
-        self.result.push_str(" (type ");
+        self.result.push_str("(type ");
         let closing = match bounds {
             Some(TypeBounds::Eq) => {
                 self.result.push_str("(eq ");
@@ -1703,19 +1696,19 @@ impl Printer {
     ) -> Result<()> {
         match ty {
             ComponentTypeRef::Module(idx) => {
-                self.start_group("core module");
+                self.start_group("core module ");
                 if index {
-                    self.result.push(' ');
                     self.print_name(&state.core.module_names, state.core.modules as u32)?;
+                    self.result.push(' ');
                 }
                 self.print_type_ref(state, *idx, true, None)?;
                 self.end_group();
             }
             ComponentTypeRef::Func(idx) => {
-                self.start_group("func");
+                self.start_group("func ");
                 if index {
-                    self.result.push(' ');
                     self.print_name(&state.component.func_names, state.component.funcs)?;
+                    self.result.push(' ');
                 }
                 self.print_type_ref(state, *idx, false, None)?;
                 self.end_group();
@@ -1738,19 +1731,19 @@ impl Printer {
                 self.print_type_ref(state, *idx, false, Some(*bounds))?;
             }
             ComponentTypeRef::Instance(idx) => {
-                self.start_group("instance");
+                self.start_group("instance ");
                 if index {
-                    self.result.push(' ');
                     self.print_name(&state.component.instance_names, state.component.instances)?;
+                    self.result.push(' ');
                 }
                 self.print_type_ref(state, *idx, false, None)?;
                 self.end_group();
             }
             ComponentTypeRef::Component(idx) => {
-                self.start_group("component");
+                self.start_group("component ");
                 if index {
-                    self.result.push(' ');
                     self.print_name(&state.component.component_names, state.component.components)?;
+                    self.result.push(' ');
                 }
                 self.print_type_ref(state, *idx, false, None)?;
                 self.end_group();
