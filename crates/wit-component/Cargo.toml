@@ -23,7 +23,7 @@ anyhow = { workspace = true }
 indexmap = "1.9.1"
 clap = { workspace = true, optional = true }
 env_logger = { workspace = true, optional = true }
-log = { version = "0.4.17", optional = true }
+log = "0.4.17"
 bitflags = { workspace = true }
 
 [dev-dependencies]
@@ -35,4 +35,4 @@ test-helpers = { path = '../test-helpers', default-features = false }
 
 [features]
 default = ["cli"]
-cli = ["clap", "env_logger", "log"]
+cli = ["dep:clap", "dep:env_logger"]

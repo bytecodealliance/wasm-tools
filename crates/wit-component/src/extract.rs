@@ -5,12 +5,12 @@ use anyhow::{bail, Context, Result};
 ///
 /// This structure is reated by the [`extract_module_interfaces`] function.
 #[derive(Default)]
-pub struct ModuleInterfaces<'a> {
+pub struct ModuleInterfaces {
     /// The core wasm binary with custom sections removed.
     pub wasm: Vec<u8>,
 
     /// The interfaces found within the original component.
-    pub interfaces: ComponentInterfaces<'a>,
+    pub interfaces: ComponentInterfaces,
 }
 
 /// This function will parse the `wasm` binary given as input and return a
@@ -21,7 +21,7 @@ pub struct ModuleInterfaces<'a> {
 /// one of the earliest phases in transitioning such a module to a component.
 /// The extraction here provides the metadata necessary to continue the process
 /// later on.
-pub fn extract_module_interfaces(wasm: &[u8]) -> Result<ModuleInterfaces<'_>> {
+pub fn extract_module_interfaces(wasm: &[u8]) -> Result<ModuleInterfaces> {
     let mut ret = ModuleInterfaces::default();
 
     for payload in wasmparser::Parser::new(0).parse_all(wasm) {
@@ -45,8 +45,8 @@ pub fn extract_module_interfaces(wasm: &[u8]) -> Result<ModuleInterfaces<'_>> {
     Ok(ret)
 }
 
-impl<'a> ModuleInterfaces<'a> {
-    fn decode(&mut self, component: &'a [u8]) -> Result<()> {
+impl ModuleInterfaces {
+    fn decode(&mut self, component: &[u8]) -> Result<()> {
         let ComponentInterfaces {
             default,
             imports,

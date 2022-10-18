@@ -89,14 +89,14 @@ struct InterfaceDecoder<'a> {
 /// This is more-or-less a "world" and will likely be replaced one day with a
 /// `wit-parser` representation of a world.
 #[derive(Default)]
-pub struct ComponentInterfaces<'a> {
+pub struct ComponentInterfaces {
     /// The "default export" which is the interface directly exported from the
     /// component at the first level.
     pub default: Option<Interface>,
     /// Imported interfaces, keyed by name, to the component.
-    pub imports: IndexMap<&'a str, Interface>,
+    pub imports: IndexMap<String, Interface>,
     /// Exported interfaces, keyed by name, to the component.
-    pub exports: IndexMap<&'a str, Interface>,
+    pub exports: IndexMap<String, Interface>,
 }
 
 /// Decode the interfaces imported and exported by a component.
@@ -112,7 +112,7 @@ pub struct ComponentInterfaces<'a> {
 ///
 /// This can fail if the input component is invalid or otherwise isn't of the
 /// expected shape. At this time not all component shapes are supported here.
-pub fn decode_interface_component(bytes: &[u8]) -> Result<ComponentInterfaces<'_>> {
+pub fn decode_interface_component(bytes: &[u8]) -> Result<ComponentInterfaces> {
     let info = ComponentInfo::new(bytes)?;
     let mut imports = IndexMap::new();
     let mut exports = IndexMap::new();
@@ -130,7 +130,7 @@ pub fn decode_interface_component(bytes: &[u8]) -> Result<ComponentInterfaces<'_
         };
         let mut iface = InterfaceDecoder::new(&info).decode(ty.exports(info.types.as_ref()))?;
         iface.name = name.to_string();
-        imports.insert(*name, iface);
+        imports.insert(iface.name.clone(), iface);
     }
 
     let mut default = IndexMap::new();
@@ -165,7 +165,7 @@ pub fn decode_interface_component(bytes: &[u8]) -> Result<ComponentInterfaces<'_
                 let mut iface =
                     InterfaceDecoder::new(&info).decode(ty.exports(info.types.as_ref()))?;
                 iface.name = name.to_string();
-                exports.insert(*name, iface);
+                exports.insert(iface.name.clone(), iface);
             }
 
             // Otherwise assume everything else is part of the "default" export.
