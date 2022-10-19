@@ -9,7 +9,6 @@ id-arena = "2"
 anyhow = { workspace = true }
 pulldown-cmark = { workspace = true }
 unicode-xid = "0.2.2"
-unicode-normalization = "0.1.19"
 
 [dev-dependencies]
 rayon = "1"

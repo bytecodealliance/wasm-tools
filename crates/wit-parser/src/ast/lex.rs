@@ -3,7 +3,6 @@ use std::char;
 use std::convert::TryFrom;
 use std::fmt;
 use std::str;
-use unicode_normalization::char::canonical_combining_class;
 use unicode_xid::UnicodeXID;
 
 use self::Token::*;
@@ -90,7 +89,6 @@ pub enum Token {
 pub enum Error {
     InvalidCharInString(usize, char),
     InvalidCharInId(usize, char),
-    IdNotSSNFC(usize),
     IdPartEmpty(usize),
     InvalidEscape(usize, char),
     // InvalidHexEscape(usize, char),
@@ -472,11 +470,6 @@ fn is_keylike_continue(ch: char) -> bool {
 }
 
 pub fn validate_id(start: usize, id: &str) -> Result<(), Error> {
-    // Ids must be in stream-safe NFC.
-    if !unicode_normalization::is_nfc_stream_safe(&id) {
-        return Err(Error::IdNotSSNFC(start));
-    }
-
     // IDs must have at least one part.
     if id.is_empty() {
         return Err(Error::IdPartEmpty(start));
@@ -484,38 +477,32 @@ pub fn validate_id(start: usize, id: &str) -> Result<(), Error> {
 
     // Ids consist of parts separated by '-'s.
     for part in id.split("-") {
-        // Parts must be non-empty and start with a non-combining XID start.
-        match part.chars().next() {
+        // Parts must be non-empty and contain either all ASCII lowercase or
+        // all ASCII uppercase.
+        let upper = match part.chars().next() {
             None => return Err(Error::IdPartEmpty(start)),
             Some(first) => {
-                // Require the first character of each part to be non-combining,
-                // so that if a source langauge uses `CamelCase`, they won't
-                // combine with the last character of the previous part.
-                if canonical_combining_class(first) != 0 {
+                if first.is_ascii_lowercase() {
+                    false
+                } else if first.is_ascii_uppercase() {
+                    true
+                } else {
                     return Err(Error::InvalidCharInId(start, first));
                 }
-
-                // Require the first character to be a XID start.
-                if !UnicodeXID::is_xid_start(first) {
-                    return Err(Error::InvalidCharInId(start, first));
-                }
-
-                // TODO: Disallow values with 'Grapheme_Extend = Yes', to
-                // prevent them from combining with previous parts?
-
-                // TODO: Disallow values with 'Grapheme_Cluster_Break = SpacingMark'?
             }
         };
 
-        // Some XID values are not valid ID part values.
         for ch in part.chars() {
-            // Disallow uppercase and underscore, so that identifiers
-            // consistently use `kebab-case`, and source languages can map
-            // identifiers according to their own conventions (which might use
-            // `CamelCase` or `snake_case` or something else) without worrying
-            // about collisions.
-            if ch.is_uppercase() || ch == '_' || !UnicodeXID::is_xid_continue(ch) {
-                return Err(Error::InvalidCharInId(start, ch));
+            if ch.is_ascii_digit() {
+                // Digits are accepted in both uppercase and lowercase segments.
+            } else if upper {
+                if !ch.is_ascii_uppercase() {
+                    return Err(Error::InvalidCharInId(start, ch));
+                }
+            } else {
+                if !ch.is_ascii_lowercase() {
+                    return Err(Error::InvalidCharInId(start, ch));
+                }
             }
         }
     }
@@ -595,7 +582,6 @@ impl fmt::Display for Error {
             Error::InvalidCharInString(_, ch) => write!(f, "invalid character in string {:?}", ch),
             Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {:?}", ch),
             Error::IdPartEmpty(_) => write!(f, "identifiers must have characters between '-'s"),
-            Error::IdNotSSNFC(_) => write!(f, "identifiers must be in stream-safe NFC"),
             Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {:?}", ch),
         }
     }
@@ -614,7 +600,6 @@ pub fn rewrite_error(err: &mut anyhow::Error, file: &str, contents: &str) {
         | Error::NewlineInString(at)
         | Error::InvalidCharInString(at, _)
         | Error::InvalidCharInId(at, _)
-        | Error::IdNotSSNFC(at)
         | Error::IdPartEmpty(at)
         | Error::InvalidEscape(at, _) => *at,
     };
@@ -627,17 +612,17 @@ fn test_validate_id() {
     validate_id(0, "apple").unwrap();
     validate_id(0, "apple-pear").unwrap();
     validate_id(0, "apple-pear-grape").unwrap();
-    validate_id(0, "garçon").unwrap();
-    validate_id(0, "hühnervögel").unwrap();
-    validate_id(0, "москва").unwrap();
-    validate_id(0, "東京").unwrap();
-    validate_id(0, "東-京").unwrap();
-    validate_id(0, "garçon-hühnervögel-москва-東京").unwrap();
-    validate_id(0, "garçon-hühnervögel-москва-東-京").unwrap();
     validate_id(0, "a0").unwrap();
     validate_id(0, "a").unwrap();
     validate_id(0, "a-a").unwrap();
     validate_id(0, "bool").unwrap();
+    validate_id(0, "APPLE").unwrap();
+    validate_id(0, "APPLE-PEAR").unwrap();
+    validate_id(0, "APPLE-PEAR-GRAPE").unwrap();
+    validate_id(0, "apple-PEAR-grape").unwrap();
+    validate_id(0, "APPLE-pear-GRAPE").unwrap();
+    validate_id(0, "ENOENT").unwrap();
+    validate_id(0, "is-XML").unwrap();
 
     assert!(validate_id(0, "").is_err());
     assert!(validate_id(0, "0").is_err());
@@ -652,7 +637,6 @@ fn test_validate_id() {
     assert!(validate_id(0, "a-").is_err());
     assert!(validate_id(0, "-a").is_err());
     assert!(validate_id(0, "Apple").is_err());
-    assert!(validate_id(0, "APPLE").is_err());
     assert!(validate_id(0, "applE").is_err());
     assert!(validate_id(0, "-apple-pear").is_err());
     assert!(validate_id(0, "apple-pear-").is_err());
@@ -675,11 +659,10 @@ fn test_validate_id() {
     assert!(validate_id(0, "_Znwj").is_err());
     assert!(validate_id(0, "__i386").is_err());
     assert!(validate_id(0, "__i386__").is_err());
-    assert!(validate_id(0, "ENOENT").is_err());
     assert!(validate_id(0, "Москва").is_err());
     assert!(validate_id(0, "garçon-hühnervögel-Москва-東京").is_err());
     assert!(validate_id(0, "😼").is_err(), "non-identifier");
-    assert!(validate_id(0, "\u{212b}").is_err(), "not NFC");
+    assert!(validate_id(0, "\u{212b}").is_err(), "non-ascii");
 }
 
 #[test]
@@ -716,6 +699,13 @@ fn test_tokenizer() {
     assert_eq!(collect("%a-a").unwrap(), vec![Token::ExplicitId]);
     assert_eq!(collect("%bool").unwrap(), vec![Token::ExplicitId]);
     assert_eq!(collect("%").unwrap(), vec![Token::ExplicitId]);
+    assert_eq!(collect("APPLE").unwrap(), vec![Token::Id]);
+    assert_eq!(collect("APPLE-PEAR").unwrap(), vec![Token::Id]);
+    assert_eq!(collect("APPLE-PEAR-GRAPE").unwrap(), vec![Token::Id]);
+    assert_eq!(collect("apple-PEAR-grape").unwrap(), vec![Token::Id]);
+    assert_eq!(collect("APPLE-pear-GRAPE").unwrap(), vec![Token::Id]);
+    assert_eq!(collect("ENOENT").unwrap(), vec![Token::Id]);
+    assert_eq!(collect("is-XML").unwrap(), vec![Token::Id]);
 
     assert_eq!(collect("func").unwrap(), vec![Token::Func]);
     assert_eq!(
