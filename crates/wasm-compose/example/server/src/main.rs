@@ -154,12 +154,13 @@ impl ServerApp {
         // Instantiate the service component and get its `execute` export
         let instance = linker.instantiate(&mut store, &state.component)?;
         let execute = instance
-            .get_typed_func::<(ServiceRequest,), (ServiceResult,), _ >(&mut store, "execute")?;
+            .get_typed_func::<(ServiceRequest,), (ServiceResult,), _>(&mut store, "execute")?;
 
         // Call the `execute` export with the request and translate the response
         execute
             .call(&mut store, (ServiceRequest::new(req).await?,))?
-            .0.map_err(Into::into)
+            .0
+            .map_err(Into::into)
             .and_then(TryInto::try_into)
     }
 }

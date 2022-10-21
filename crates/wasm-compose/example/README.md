@@ -5,21 +5,18 @@ to compose a component from other components.
 
 ## Directory layout
 
-There are four subdirectories in this example:
+There are three subdirectories in this example:
 
-* `backend` - a simple HTTP backend component that responds with the original
-  request body.
-* `middleware` - a middleware component that gzip compresses response bodies.
-* `service` - a service component that is configured with a backend component
-  to send requests to.
-* `server` - a custom HTTP server that instantiates a composed `service`
-  component for each HTTP request.
+* `service` - a service component that responds with the original request body.
+* `middleware` - a middleware component that compresses response bodies.
+* `server` - a custom HTTP server that instantiates a service component for
+  each HTTP request.
 
 ## Overview
 
 The server will listen for `POST` requests at `http://localhost:8080`. 
 
-When it receives a request, the server will instantiate  the `service` component
+When it receives a request, the server will instantiate a service component
 and forward it the request.
 
 Each component implements a `service` interface defined in `service.wit` as:
@@ -50,18 +47,15 @@ HTTP request processing.
 
 ### Execution flow
 
-The example will compose a `service` component that initially executes like
+The example implements a `service` component that initially executes like
 this:
 
 ```mermaid
 sequenceDiagram
     participant server (native)
     participant service (wasm)
-    participant backend (wasm)
     server (native)->>service (wasm): execute(<request>)
-    service (wasm)->>backend (wasm): execute(<request>)
-    Note right of backend (wasm): echo request body
-    backend (wasm)->>service (wasm): uncompressed response
+    Note right of service (wasm): echo request body
     service (wasm)->>server (native): uncompressed response
 ```
 
@@ -72,16 +66,13 @@ altering the execution flow to this:
 ```mermaid
 sequenceDiagram
     participant server (native)
-    participant service (wasm)
     participant middleware (wasm)
-    participant backend (wasm)
-    server (native)->>service (wasm): execute(<request>)
-    service (wasm)->>middleware (wasm): execute(<request>)
-    middleware (wasm)->>backend (wasm): execute(<request>)
-    Note right of backend (wasm): echo request body
-    backend (wasm)->>middleware (wasm): uncompressed response
-    middleware (wasm)->>service (wasm): compressed response
-    service (wasm)->>server (native): compressed response
+    participant service (wasm)
+    server (native)->>middleware (wasm): execute(<request>)
+    middleware (wasm)->>service (wasm): execute(<request>)
+    Note right of service (wasm): echo request body
+    service (wasm)->>middleware (wasm): uncompressed response
+    middleware (wasm)->>server (native): compressed response
 ```
 
 All this without having to rebuild any of the original components!
@@ -98,10 +89,10 @@ root of this repository.
 
 ## Building the components
 
-To build the `backend` component, use `cargo component build`:
+To build the `service` component, use `cargo component build`:
 
 ```sh
-cd backend
+cd service
 cargo component build --release
 ```
 
@@ -112,41 +103,16 @@ cd middleware
 cargo component build --release
 ```
 
-Finally, to build the `service` component, use `cargo component build`:
-
-```sh
-cd service
-cargo component build --release
-```
-
-## Composing the `service` component
-
-Initially, we will compose a service component that directly sends requests
-to the backend service.
-
-The `server/config.yml` configuration file instructs `wasm-compose` to
-search for dependencies from the expected output paths of the components we
-built previously.
-
-Based on this, `wasm-compose` will automatically satisfy the `backend`
-dependency of the `service` component with the `backend` component.
-
-To compose the `service` component, run `wasm-tools compose`:
-
-```sh
-cd server
-wasm-tools compose -c config.yml -o service.wasm ../service/target/wasm32-unknown-unknown/release/svc.wasm
-```
-
-There should now be a `service.wasm` in the `server` directory.
-
 ## Running the server
+
+Initially, we will run the server with the `service` component that responds
+with an uncompressed response body.
 
 The server can be run with `cargo run`:
 
 ```sh
 cd server
-cargo run --release -- service.wasm
+cargo run --release -- ../service/target/wasm32-unknown-unknown/release/svc.wasm
 ```
 
 This will start a HTTP server that listens at `http://localhost:8080`.
@@ -186,34 +152,20 @@ The request body was: Hello, world!
 Note that the response body matches the request body, but it was not
 compressed.
 
-## Changing the composition
+## Composing with a middleware
 
 If we want to instead compress the response bodies for the service, we can easily
-change the composition to send requests through the `middleware` component
+compose a new component that sends requests through the `middleware` component
 without rebuilding any of the previously built components.
 
-To change how the `service` component is composed, edit `server/config.yml`
-and uncomment the specified lines:
+The `server/config.yml` file contains the configuration needed to compose a new
+component from the `service` and `middleware` components.
 
-```yml
-instantiations:
-  $component:
-    arguments:
-      backend: middleware
-```
-
-This provides an explicit dependency of `middleware` for the `backend` argument
-of the composed component.
-
-`wasm-compose` will therefore use the `middleware` component to satisfy the
-dependency; the `backend` dependency of the `middleware` component will automatically
-be satisfied by the `backend` component.
-
-And run `wasm-compose` again:
+Run `wasm-compose` to compose the new component:
 
 ```sh
 cd server
-wasm-tools compose -c config.yml -o service.wasm ../service/target/wasm32-unknown-unknown/release/svc.wasm
+wasm-tools compose -c config.yml -o service.wasm ../middleware/target/wasm32-unknown-unknown/release/middleware.wasm
 ```
 
 This results in a new `service.wasm` in the `server` directory where the
@@ -223,7 +175,7 @@ This results in a new `service.wasm` in the `server` directory where the
 
 If you haven't already, stop the currently running server by pressing `ctrl-c`.
 
-Start the server again with `cargo run`:
+Start the server again with `cargo run` with the newly composed component:
 
 ```sh
 cd server
