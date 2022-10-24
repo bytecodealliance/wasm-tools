@@ -54,10 +54,7 @@
 
 use crate::extract::{extract_module_interfaces, ModuleInterfaces};
 use crate::{
-    validation::{
-        expected_export_name, validate_adapter_module, validate_module, ValidatedAdapter,
-        ValidatedModule,
-    },
+    validation::{validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule},
     ComponentInterfaces, StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
@@ -1311,9 +1308,7 @@ impl<'a> EncodingState<'a> {
 
             // Alias the exports from the core module
             for func in &export.functions {
-                let name =
-                    expected_export_name((!is_default).then(|| export.name.as_str()), &func.name);
-
+                let name = export.core_export_name(is_default, func);
                 let core_func_index = self.component.alias_core_item(
                     core_instance_index,
                     ExportKind::Func,
@@ -1424,7 +1419,7 @@ impl<'a> EncodingState<'a> {
         }
 
         for shim in ret.list.iter() {
-            ret.shim_names.insert(shim.kind.clone(), shim.name.clone());
+            ret.shim_names.insert(shim.kind, shim.name.clone());
         }
 
         assert!(self.shim_instance_index.is_none());
@@ -1572,7 +1567,7 @@ impl<'a> EncodingState<'a> {
                     let (instance_index, _, interface) = imports.map.get_full(interface).unwrap();
                     let func_index = self.component.alias_func(
                         instance_index as u32,
-                        &interface.indirect[*indirect_index].name,
+                        interface.indirect[*indirect_index].name,
                     );
 
                     let realloc = match realloc {
@@ -2143,7 +2138,7 @@ impl ComponentEncoder {
         if self.interface.is_some() {
             bail!("default interface cannot be specified twice");
         }
-        self.interface = Some(interface.clone());
+        self.interface = Some(interface);
         Ok(self)
     }
 
@@ -2151,7 +2146,7 @@ impl ComponentEncoder {
     pub fn imports(mut self, imports: impl IntoIterator<Item = Interface>) -> Result<Self> {
         for i in imports {
             if self.imports.contains_key(&i.name) {
-                bail!("cannot specifiy import interface for `{}` twice", i.name);
+                bail!("cannot specify import interface for `{}` twice", i.name);
             }
             self.imports.insert(i.name.clone(), i);
         }
@@ -2162,7 +2157,7 @@ impl ComponentEncoder {
     pub fn exports(mut self, exports: impl IntoIterator<Item = Interface>) -> Result<Self> {
         for i in exports {
             if self.exports.contains_key(&i.name) {
-                bail!("cannot specifiy export interface for `{}` twice", i.name);
+                bail!("cannot specify export interface for `{}` twice", i.name);
             }
             self.exports.insert(i.name.clone(), i);
         }
@@ -2214,7 +2209,7 @@ impl ComponentEncoder {
                     default,
                 },
         } = extract_module_interfaces(&wasm)?;
-        if exports.len() > 0 || default.is_some() {
+        if !exports.is_empty() || default.is_some() {
             bail!("adapter modules cannot have an exported interface");
         }
         let import = match imports.len() {
@@ -2335,7 +2330,7 @@ impl ComponentEncoder {
 
             state.encode_imports(&imports);
             state.encode_core_module(&self.module);
-            state.encode_core_instantiation(self.encoding, &imports, &info)?;
+            state.encode_core_instantiation(self.encoding, &imports, info)?;
             state.encode_exports(self.encoding, exports, &types)?;
         }
 

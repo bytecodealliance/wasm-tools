@@ -91,11 +91,11 @@ struct InterfaceDecoder<'a> {
 #[derive(Default)]
 pub struct ComponentInterfaces {
     /// The "default export" which is the interface directly exported from the
-    /// component at the first level.
+    /// component at the top level.
     pub default: Option<Interface>,
-    /// Imported interfaces, keyed by name, to the component.
+    /// Imported interfaces, keyed by name, of the component.
     pub imports: IndexMap<String, Interface>,
-    /// Exported interfaces, keyed by name, to the component.
+    /// Exported interfaces, keyed by name, of the component.
     pub exports: IndexMap<String, Interface>,
 }
 
@@ -112,7 +112,7 @@ pub struct ComponentInterfaces {
 ///
 /// This can fail if the input component is invalid or otherwise isn't of the
 /// expected shape. At this time not all component shapes are supported here.
-pub fn decode_interface_component(bytes: &[u8]) -> Result<ComponentInterfaces> {
+pub fn decode_component_interfaces(bytes: &[u8]) -> Result<ComponentInterfaces> {
     let info = ComponentInfo::new(bytes)?;
     let mut imports = IndexMap::new();
     let mut exports = IndexMap::new();
@@ -224,7 +224,7 @@ impl<'a> InterfaceDecoder<'a> {
         }
 
         // Iterate over all exports an interpret them as defined items within
-        // the interface, either functiosn or types at this time.
+        // the interface, either functions or types at this time.
         for (name, ty) in map {
             match ty {
                 types::ComponentEntityType::Func(ty) => {

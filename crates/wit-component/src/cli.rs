@@ -1,10 +1,8 @@
 //! The WebAssembly component tool command line interface.
 
-#![deny(missing_docs)]
-
 use crate::extract::{extract_module_interfaces, ModuleInterfaces};
 use crate::{
-    decode_interface_component, ComponentEncoder, ComponentInterfaces, InterfacePrinter,
+    decode_component_interfaces, ComponentEncoder, ComponentInterfaces, InterfacePrinter,
     StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
@@ -71,7 +69,7 @@ fn parse_adapter(s: &str) -> Result<(String, Vec<u8>, Interface)> {
                         default,
                     },
             } = extract_module_interfaces(&wasm)?;
-            if exports.len() > 0 || default.is_some() {
+            if !exports.is_empty() || default.is_some() {
                 bail!("adapter modules cannot have an exported interface");
             }
             let import = match imports.len() {
@@ -233,7 +231,7 @@ impl WasmToWitApp {
         let bytes = wat::parse_file(&self.component)
             .with_context(|| format!("failed to parse component `{}`", self.component.display()))?;
 
-        let interfaces = decode_interface_component(&bytes).with_context(|| {
+        let interfaces = decode_component_interfaces(&bytes).with_context(|| {
             format!("failed to decode component `{}`", self.component.display())
         })?;
         let which = match &self.import {

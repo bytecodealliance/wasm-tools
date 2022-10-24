@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,14 +20,6 @@ pub fn validate_id(s: &str) -> Result<()> {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Interface {
     pub name: String,
-    /// The module name to use for bindings generation.
-    ///
-    /// If `None`, then the interface name will be used.
-    ///
-    /// If `Some`, then this value is used to format an export
-    /// name of `<module>#<name>` for exports or an import module
-    /// name of `<module>` for imports.
-    pub module: Option<String>,
     pub types: Arena<TypeDef>,
     pub type_lookup: HashMap<String, TypeId>,
     pub interfaces: Arena<Interface>,
@@ -432,6 +425,15 @@ impl Interface {
                 ast::rewrite_error(&mut e, &file, contents);
                 Err(e)
             }
+        }
+    }
+
+    /// Gets the core export name for the given function.
+    pub fn core_export_name<'a>(&self, default_export: bool, func: &'a Function) -> Cow<'a, str> {
+        if default_export || self.name.is_empty() {
+            Cow::Borrowed(&func.name)
+        } else {
+            Cow::Owned(format!("{}#{}", self.name, func.name))
         }
     }
 

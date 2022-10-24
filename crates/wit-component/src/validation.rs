@@ -1,6 +1,5 @@
 use anyhow::{anyhow, bail, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
-use std::borrow::Cow;
 use wasmparser::{
     types::Types, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType,
     ValidPayload, Validator,
@@ -12,15 +11,6 @@ use wit_parser::{
 
 fn is_canonical_function(name: &str) -> bool {
     name.starts_with("cabi_")
-}
-
-pub fn expected_export_name<'a>(interface: Option<&str>, func: &'a str) -> Cow<'a, str> {
-    // TODO: wit-bindgen currently doesn't mangle its export names, so this
-    // only works with the default (i.e. `None`) interface.
-    match interface {
-        Some(interface) => format!("{}#{}", interface, func).into(),
-        None => func.into(),
-    }
 }
 
 fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
@@ -179,7 +169,7 @@ pub fn validate_module<'a>(
     }
 
     if let Some(interface) = interface {
-        validate_exported_interface(interface, None, &export_funcs, &types)?;
+        validate_exported_interface(interface, true, &export_funcs, &types)?;
     }
 
     for (name, interface) in exports {
@@ -187,7 +177,7 @@ pub fn validate_module<'a>(
             bail!("cannot export an interface with an empty name");
         }
 
-        validate_exported_interface(interface, Some(name), &export_funcs, &types)?;
+        validate_exported_interface(interface, false, &export_funcs, &types)?;
     }
 
     Ok(ret)
@@ -214,7 +204,7 @@ pub struct ValidatedAdapter<'a> {
     /// This is the module and field name of the memory import, if one is
     /// specified.
     ///
-    /// Due to LLVM codegen this is typically `env::memory` as a totally separte
+    /// Due to LLVM codegen this is typically `env::memory` as a totally separate
     /// import from the `required_import` above.
     pub needs_memory: Option<(String, String)>,
 
@@ -401,42 +391,43 @@ fn validate_imported_interface<'a>(
 
 fn validate_exported_interface(
     interface: &Interface,
-    name: Option<&str>,
+    default_export: bool,
     exports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
     for f in &interface.functions {
-        let expected_export = expected_export_name(name, &f.name);
-        match exports.get(expected_export.as_ref()) {
+        let expected_export_name = interface.core_export_name(default_export, f);
+        match exports.get(expected_export_name.as_ref()) {
             Some(func_index) => {
                 let expected_ty =
                     wasm_sig_to_func_type(interface.wasm_signature(AbiVariant::GuestExport, f));
                 let ty = types.function_at(*func_index).unwrap();
                 if ty != &expected_ty {
-                    match name {
-                        Some(name) => bail!(
-                            "type mismatch for function `{}` from exported interface `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
-                            f.name,
-                            name,
-                            expected_ty.params(),
-                            expected_ty.results(),
-                            ty.params(),
-                            ty.results()
-                        ),
-                        None => bail!(
+                    if default_export {
+                        bail!(
                             "type mismatch for default interface function `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
                             f.name,
                             expected_ty.params(),
                             expected_ty.results(),
                             ty.params(),
                             ty.results()
-                        )
+                        );
+                    } else {
+                        bail!(
+                            "type mismatch for function `{}` from exported interface `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
+                            f.name,
+                            interface.name,
+                            expected_ty.params(),
+                            expected_ty.results(),
+                            ty.params(),
+                            ty.results()
+                        );
                     }
                 }
             }
             None => bail!(
                 "module does not export required function `{}`",
-                expected_export
+                expected_export_name
             ),
         }
     }

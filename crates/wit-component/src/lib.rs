@@ -15,7 +15,7 @@ mod gc;
 mod printing;
 mod validation;
 
-pub use decoding::{decode_interface_component, ComponentInterfaces};
+pub use decoding::{decode_component_interfaces, ComponentInterfaces};
 pub use encoding::*;
 pub use extract::*;
 pub use printing::*;

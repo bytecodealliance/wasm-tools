@@ -40,6 +40,9 @@ pub fn run(wasm: &[u8], required: &IndexMap<&str, FuncType>) -> Result<Vec<u8>> 
     module.encode()
 }
 
+// Represents a function called while processing a module work list.
+type WorklistFunc<'a> = fn(&mut Module<'a>, u32) -> Result<()>;
+
 // Representation of a wasm module which is used to GC a module to its minimal
 // set of required items necessary to implement the `exports`
 //
@@ -69,9 +72,9 @@ struct Module<'a> {
     // Helper data structure used during the `liveness` path to avoid recursion.
     // When calculating the liveness of an item this `worklist` is pushed to and
     // then processed until it's empty. An item pushed onto this list represents
-    // a new index that has been discovered to be live and the function is wehat
+    // a new index that has been discovered to be live and the function is what
     // walks the item's definition to find other items that it references.
-    worklist: Vec<(u32, fn(&mut Module<'a>, u32) -> Result<()>)>,
+    worklist: Vec<(u32, WorklistFunc<'a>)>,
 }
 
 struct Table<'a> {
@@ -384,7 +387,7 @@ impl<'a> Module<'a> {
                     // Keep track of the "empty type" to see if we can reuse an
                     // existing one or one needs to be injected if a `start`
                     // function is calculated at the end.
-                    if ty.params().len() == 0 && ty.results().len() == 0 {
+                    if ty.params().is_empty() && ty.results().is_empty() {
                         empty_type = Some(map.types.remap(i));
                     }
                 }
@@ -678,7 +681,7 @@ impl<'a> Module<'a> {
         let stack_pointers = mutable_i32_globals
             .iter()
             .filter_map(|(i, _)| {
-                let name = *self.global_names.get(&i)?;
+                let name = *self.global_names.get(i)?;
                 if name == "__stack_pointer" {
                     Some(*i)
                 } else {
@@ -699,7 +702,7 @@ impl<'a> Module<'a> {
 // special handling for all payloads of instructions to mark any referenced
 // items live.
 //
-// Currently item identification happesn through the field name of the payload.
+// Currently item identification happens through the field name of the payload.
 // While not exactly the most robust solution this should work well enough for
 // now.
 macro_rules! define_visit {
@@ -811,6 +814,7 @@ impl Encoder {
 macro_rules! define_encode {
     ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
+            #[allow(clippy::drop_copy)]
             fn $visit(&mut self, _offset: usize $(, $($arg: $argty),*)?)  {
                 #[allow(unused_imports)]
                 use wasm_encoder::Instruction::*;
@@ -993,6 +997,6 @@ impl Remap {
     fn remap(&self, old: u32) -> u32 {
         let ret = self.map[old as usize];
         assert!(ret != u32::MAX);
-        return ret;
+        ret
     }
 }

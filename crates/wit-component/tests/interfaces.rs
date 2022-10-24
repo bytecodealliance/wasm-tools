@@ -73,7 +73,7 @@ fn run_test(path: &Path) -> Result<()> {
             );
         }
 
-        let interfaces = wit_component::decode_interface_component(wasm)
+        let interfaces = wit_component::decode_component_interfaces(wasm)
             .context(format!("failed to decode bytes for test `{test_case}`"))?;
 
         if test_case == "empty" {

@@ -1,9 +1,9 @@
-use crate::{decode_interface_component, ComponentInterfaces};
+use crate::{decode_component_interfaces, ComponentInterfaces};
 use anyhow::{bail, Context, Result};
 
 /// Result of extracting interfaces embedded within a core wasm file.
 ///
-/// This structure is reated by the [`extract_module_interfaces`] function.
+/// This structure is returned by the [`extract_module_interfaces`] function.
 #[derive(Default)]
 pub struct ModuleInterfaces {
     /// The core wasm binary with custom sections removed.
@@ -25,19 +25,18 @@ pub fn extract_module_interfaces(wasm: &[u8]) -> Result<ModuleInterfaces> {
     let mut ret = ModuleInterfaces::default();
 
     for payload in wasmparser::Parser::new(0).parse_all(wasm) {
-        match payload.context("decoding item in module")? {
-            wasmparser::Payload::CustomSection(cs) => {
-                if !cs.name().starts_with("component-type") {
-                    continue;
-                }
-                ret.decode(cs.data())
-                    .with_context(|| format!("decoding custom section {}", cs.name()))?;
+        if let wasmparser::Payload::CustomSection(cs) =
+            payload.context("decoding item in module")?
+        {
+            if !cs.name().starts_with("component-type") {
+                continue;
             }
-            _ => {}
+            ret.decode(cs.data())
+                .with_context(|| format!("decoding custom section {}", cs.name()))?;
         }
     }
 
-    // TODO: should remove the custom setions decoded above from the wasm binary
+    // TODO: should remove the custom sections decoded above from the wasm binary
     // created here, and bytecodealliance/wasmparser#792 should help with that
     // to make the loop above pretty small.
     ret.wasm = wasm.to_vec();
@@ -51,7 +50,7 @@ impl ModuleInterfaces {
             default,
             imports,
             exports,
-        } = decode_interface_component(component)?;
+        } = decode_component_interfaces(component)?;
 
         if let Some(iface) = default {
             if self.interfaces.default.is_some() {
