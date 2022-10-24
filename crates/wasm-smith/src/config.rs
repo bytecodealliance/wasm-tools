@@ -807,4 +807,8 @@ impl Config for SwarmConfig {
     fn table_max_size_required(&self) -> bool {
         self.table_max_size_required
     }
+
+    fn disallow_traps(&self) -> bool {
+        self.disallow_traps
+    }
 }
