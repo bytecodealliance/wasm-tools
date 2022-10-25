@@ -47,9 +47,14 @@ fuzz_target!(|data: &[u8]| {
     let module = Module::from_binary(&engine, &wasm_bytes).unwrap();
     let mut store = Store::new(&engine, ());
     set_fuel(&mut store, 1_000);
-    let instance = dummy::dummy_imports(&mut store, &module)
-        .and_then(|imports| Instance::new(&mut store, &module, &imports))
-        .unwrap();
+    let inst_result = dummy::dummy_imports(&mut store, &module)
+        .and_then(|imports| Instance::new(&mut store, &module, &imports));
+    let instance = match inst_result {
+        Ok(r) => r,
+        Err(err) if err.to_string().contains("all fuel consumed") => return,
+        Err(_) => panic!("generated wasm trapped in non-trapping mode"),
+    };
+
     for export in module.exports() {
         match export.ty() {
             ExternType::Func(func_ty) => {
