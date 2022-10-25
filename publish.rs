@@ -242,7 +242,7 @@ fn bump_version(krate: &mut Crate, crates: &mut [Crate], bumps: &[(String, bool)
             if !is_deps || !line.starts_with(&format!("{} ", other.name)) {
                 continue;
             }
-            if !line.contains(&other.version) {
+            if !line.contains(&other.version) && !line.contains("workspace = true") {
                 if !line.contains("version =") || !krate.publish {
                     continue;
                 }
