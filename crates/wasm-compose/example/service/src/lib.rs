@@ -1,4 +1,4 @@
-use service::{Error, Request, Response, Service};
+use bindings::service::{Error, Request, Response, Service};
 use std::str;
 
 struct Component;
@@ -27,4 +27,4 @@ impl Service for Component {
     }
 }
 
-service::export!(Component);
+bindings::export!(Component);
