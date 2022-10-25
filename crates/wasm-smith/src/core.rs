@@ -1296,7 +1296,10 @@ impl Module {
                     if self.config.disallow_traps() {
                         match &mut offset {
                             Offset::Const32(x) => {
-                                *x = (*x).min(mem.minimum as i32 * 64 * 1024);
+                                let m = mem.minimum * 64 * 1024;
+                                if m < i32::MAX as u64 {
+                                    *x = (*x).min(m as i32);
+                                }
                             }
                             Offset::Const64(x) => {
                                 *x = (*x).min(mem.minimum as i64 * 64 * 1024);
