@@ -176,15 +176,16 @@ pub(crate) fn trunc<'a>(
     builder: &mut CodeBuilder,
     insts: &mut Vec<Instruction<'a>>,
 ) {
-    // If NaN or ±inf, replace with dummy value
+    // If NaN or ±inf, replace with dummy value. Our method of checking for NaN
+    // is to use `ne` because NaN is the only value that is not equal to itself
     let conv_type = type_of_float_conversion(&inst);
     let temp_float = builder.alloc_local(conv_type);
     // [input:conv_type]
     insts.push(Instruction::LocalTee(temp_float));
     // [input:conv_type]
-    insts.push(flt_nan_const_inst(conv_type));
-    // [input:conv_type NaN:conv_type]
-    insts.push(eq_inst(conv_type));
+    insts.push(Instruction::LocalGet(temp_float));
+    // [input:conv_type input:conv_type]
+    insts.push(ne_inst(conv_type));
     // [is_nan:i32]
     insts.push(Instruction::LocalGet(temp_float));
     // [is_nan:i32 input:conv_type]
@@ -263,7 +264,7 @@ pub(crate) fn signed_div_rem<'a>(
             // [dividend:op_type]
             insts.push(int_min_const_inst(op_type));
             // [dividend:op_type int_min:op_type]
-            insts.push(int_ne_inst(op_type));
+            insts.push(ne_inst(op_type));
             // [not_int_min:i32]
             insts.push(Instruction::BrIf(0));
             // []
@@ -271,7 +272,7 @@ pub(crate) fn signed_div_rem<'a>(
             // [divisor:op_type]
             insts.push(int_const_inst(op_type, -1));
             // [divisor:op_type -1:op_type]
-            insts.push(int_ne_inst(op_type));
+            insts.push(ne_inst(op_type));
             // [not_neg_one:i32]
             insts.push(Instruction::BrIf(0));
             // []
@@ -480,11 +481,13 @@ fn int_le_u_inst<'a>(ty: ValType) -> Instruction<'a> {
     }
 }
 
-fn int_ne_inst<'a>(ty: ValType) -> Instruction<'a> {
+fn ne_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
         ValType::I32 => Instruction::I32Ne,
         ValType::I64 => Instruction::I64Ne,
-        _ => panic!("not an int type"),
+        ValType::F32 => Instruction::F32Ne,
+        ValType::F64 => Instruction::F64Ne,
+        _ => panic!("not a numeric type"),
     }
 }
 
@@ -500,14 +503,6 @@ fn flt_neg_inf_const_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
         ValType::F32 => Instruction::F32Const(f32::NEG_INFINITY),
         ValType::F64 => Instruction::F64Const(f64::NEG_INFINITY),
-        _ => panic!("not a float type"),
-    }
-}
-
-fn flt_nan_const_inst<'a>(ty: ValType) -> Instruction<'a> {
-    match ty {
-        ValType::F32 => Instruction::F32Const(f32::NAN),
-        ValType::F64 => Instruction::F64Const(f64::NAN),
         _ => panic!("not a float type"),
     }
 }
