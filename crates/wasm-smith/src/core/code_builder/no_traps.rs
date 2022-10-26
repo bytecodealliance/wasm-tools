@@ -437,7 +437,7 @@ fn min_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
         Instruction::I64TruncF32U => Instruction::F32Const(0.0),
         Instruction::I32TruncF64S => Instruction::F64Const(i32::MIN as f64),
         Instruction::I32TruncF64U => Instruction::F64Const(0.0),
-        Instruction::I64TruncF64S => Instruction::F64Const(i64::MIN as f64),
+        Instruction::I64TruncF64S => Instruction::F64Const(-9_223_372_036_854_775_000.0 as f64),
         Instruction::I64TruncF64U => Instruction::F64Const(0.0),
         _ => panic!("not a trunc instruction"),
     }
@@ -455,7 +455,7 @@ fn max_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
             Instruction::F64Const(i32::MAX as f64)
         }
         Instruction::I64TruncF64S | Instruction::I64TruncF64U => {
-            Instruction::F64Const(i64::MAX as f64)
+            Instruction::F64Const(9_223_372_036_854_775_000.0 as f64)
         }
         _ => panic!("not a trunc instruction"),
     }
