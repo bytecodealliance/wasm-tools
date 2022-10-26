@@ -215,6 +215,40 @@ pub(crate) fn trunc<'a>(
     // []
     insts.push(Instruction::LocalGet(temp_float));
     // [input_or_0:conv_type]
+
+    // first ensure that it is >= the min value of our target type
+    insts.push(min_input_const_for_trunc(&inst));
+    // [input_or_0:conv_type min_value_of_target_type:conv_type]
+    insts.push(flt_lt_inst(conv_type));
+    // [input_lt_min:i32]
+    insts.push(Instruction::If(BlockType::Empty));
+    {
+        // []
+        insts.push(min_input_const_for_trunc(&inst));
+        // [min_value_of_target_type:conv_type]
+        insts.push(Instruction::LocalSet(temp_float));
+    }
+    insts.push(Instruction::End);
+    // []
+    insts.push(Instruction::LocalGet(temp_float));
+    // [coerced_input:conv_type]
+
+    // next ensure that it is  <= the max value of our target type
+    insts.push(max_input_const_for_trunc(&inst));
+    // [input_or_0:conv_type max_value_of_target_type:conv_type]
+    insts.push(flt_gt_inst(conv_type));
+    // [input_gt_min:i32]
+    insts.push(Instruction::If(BlockType::Empty));
+    {
+        // []
+        insts.push(max_input_const_for_trunc(&inst));
+        // [max_value_of_target_type:conv_type]
+        insts.push(Instruction::LocalSet(temp_float));
+    }
+    insts.push(Instruction::End);
+    // []
+    insts.push(Instruction::LocalGet(temp_float));
+    // [coerced_input:conv_type]
     insts.push(inst);
 }
 
@@ -395,6 +429,38 @@ fn type_of_float_conversion(inst: &Instruction) -> ValType {
     }
 }
 
+fn min_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
+    match inst {
+        Instruction::I32TruncF32S => Instruction::F32Const(i32::MIN as f32),
+        Instruction::I32TruncF32U => Instruction::F32Const(0.0),
+        Instruction::I64TruncF32S => Instruction::F32Const(i64::MIN as f32),
+        Instruction::I64TruncF32U => Instruction::F32Const(0.0),
+        Instruction::I32TruncF64S => Instruction::F64Const(i32::MIN as f64),
+        Instruction::I32TruncF64U => Instruction::F64Const(0.0),
+        Instruction::I64TruncF64S => Instruction::F64Const(i64::MIN as f64),
+        Instruction::I64TruncF64U => Instruction::F64Const(0.0),
+        _ => panic!("not a trunc instruction"),
+    }
+}
+
+fn max_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
+    match inst {
+        Instruction::I32TruncF32S | Instruction::I32TruncF32U => {
+            Instruction::F32Const(i32::MAX as f32)
+        }
+        Instruction::I64TruncF32S | Instruction::I64TruncF32U => {
+            Instruction::F32Const(i64::MAX as f32)
+        }
+        Instruction::I32TruncF64S | Instruction::I32TruncF64U => {
+            Instruction::F64Const(i32::MAX as f64)
+        }
+        Instruction::I64TruncF64S | Instruction::I64TruncF64U => {
+            Instruction::F64Const(i64::MAX as f64)
+        }
+        _ => panic!("not a trunc instruction"),
+    }
+}
+
 fn type_of_memory_access(inst: &Instruction) -> ValType {
     match inst {
         Instruction::I32Load(_)
@@ -488,6 +554,22 @@ fn ne_inst<'a>(ty: ValType) -> Instruction<'a> {
         ValType::F32 => Instruction::F32Ne,
         ValType::F64 => Instruction::F64Ne,
         _ => panic!("not a numeric type"),
+    }
+}
+
+fn flt_lt_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::F32 => Instruction::F32Lt,
+        ValType::F64 => Instruction::F64Lt,
+        _ => panic!("not a float type"),
+    }
+}
+
+fn flt_gt_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::F32 => Instruction::F32Gt,
+        ValType::F64 => Instruction::F64Gt,
+        _ => panic!("not a float type"),
     }
 }
 
