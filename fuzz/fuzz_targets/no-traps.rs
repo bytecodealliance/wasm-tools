@@ -78,7 +78,7 @@ fn set_fuel<T>(store: &mut Store<T>, fuel: u64) {
     // fuel in the store. Since we are just using that call to get the current
     // amount of fuel AND we are immediately adjusting the fuel to the value we
     // can safely add 1 fuel here as a hacky work-around for the time being.
-    store.add_fuel(1).unwrap();
+    store.add_fuel(100).unwrap();
     // Determine the amount of fuel already within the store, if any, and
     // add/consume as appropriate to set the remaining amount to` fuel`.
     let remaining = store.consume_fuel(0).unwrap();
