@@ -183,7 +183,7 @@ macro_rules! define_visit {
     // * Print any payload, as necessary
     // * Return the `OpKind`, as defined by this macro
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
-        fn $visit(&mut self, _pos: usize $( , $($arg: $argty),* )?) -> Self::Output {
+        fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
             self.push_str(define_visit!(name $op));
             $(
                 define_visit!(payload self $op $($arg)*);

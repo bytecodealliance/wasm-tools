@@ -541,7 +541,7 @@ impl<'a> Dump<'a> {
 
     fn print_ops(&mut self, mut i: OperatorsReader) -> Result<()> {
         while !i.eof() {
-            match i.visit_with_offset(self) {
+            match i.visit_operator(self) {
                 Ok(()) => {}
                 Err(_) => write!(self.state, "??")?,
             }
@@ -610,7 +610,7 @@ fn inc(spot: &mut u32) -> u32 {
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+            fn $visit(&mut self $($(,$arg: $argty)*)?) {
                 write!(
                     self.state,
                     concat!(

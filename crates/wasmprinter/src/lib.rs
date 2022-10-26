@@ -1141,7 +1141,7 @@ impl Printer {
             if reader.eof() {
                 break;
             }
-            match reader.visit_with_offset(&mut op_printer)?? {
+            match reader.visit_operator(&mut op_printer)?? {
                 operator::OpKind::End if reader.eof() => {}
 
                 _ if i == 0 => first_op = Some(mem::take(&mut op_printer.printer.result)),
@@ -1184,7 +1184,7 @@ impl Printer {
             } else {
                 op_printer.printer.result.push(' ');
             }
-            match reader.visit_with_offset(&mut op_printer)?? {
+            match reader.visit_operator(&mut op_printer)?? {
                 operator::OpKind::End if reader.eof() => {}
                 _ => {
                     result.push_str(&op_printer.printer.result);

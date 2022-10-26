@@ -58,6 +58,7 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
         let validator =
             OperatorValidator::new_func(ty, 0, &features, &resources, allocs.0).unwrap();
         FuncValidator {
+            op_offset: 0,
             validator,
             resources,
             index,
@@ -70,6 +71,7 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
 /// This is a finalized validator which is ready to process a [`FunctionBody`].
 /// This is created from the [`FuncToValidate::into_validator`] method.
 pub struct FuncValidator<T> {
+    op_offset: usize,
     validator: OperatorValidator,
     resources: T,
     index: u32,
@@ -94,6 +96,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.read_locals(&mut reader)?;
         reader.allow_memarg64(self.validator.features.memory64);
         while !reader.eof() {
+            self.op_offset = reader.original_position();
             reader.visit_operator(self)??;
         }
         self.finish(reader.original_position())
@@ -129,9 +132,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        self.validator
-            .with_resources(&self.resources)
-            .visit_operator(offset, operator)
+        self.op_offset = offset;
+        self.visit_operator(operator)
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -311,9 +313,10 @@ mod tests {
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, offset: usize $($(,$arg: $argty)*)?) -> Result<()> {
-                self.validator.with_resources(&self.resources)
-                    .$visit(offset $($(,$arg)*)?)
+            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Result<()> {
+                // TODO: whatever happens if the caller does not set `op_offset` ahead of time?
+                self.validator.with_resources(&self.resources, self.op_offset)
+                    .$visit($($($arg),*)?)
             }
         )*
     }
