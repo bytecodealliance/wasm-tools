@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
+use wasm_encoder::{Encode, Section};
 use wit_component::ComponentEncoder;
 use wit_parser::Interface;
 
@@ -27,7 +28,7 @@ fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<Interface>> {
         .collect::<Result<_>>()
 }
 
-fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, Interface)>> {
+fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, Vec<Interface>)>> {
     glob::glob(dir.join("adapt-*.wat").to_str().unwrap())?
         .map(|p| {
             let p = p?;
@@ -35,20 +36,26 @@ fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, Interface)>> {
                 wat::parse_file(&p).with_context(|| format!("expected file `{}`", p.display()))?;
             let stem = p.file_stem().unwrap().to_str().unwrap();
             let glob = format!("{stem}-import-*.wit");
-            let wit = match glob::glob(dir.join(&glob).to_str().unwrap())?.next() {
-                Some(path) => path?,
-                None => bail!("failed to find `{glob}` match"),
-            };
-            let mut i = read_interface(&wit)?;
-            i.name = wit
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .trim_start_matches(stem)
-                .trim_start_matches("-import-")
-                .to_string();
-            Ok((stem.trim_start_matches("adapt-").to_string(), adapter, i))
+            let imports = glob::glob(dir.join(&glob).to_str().unwrap())?
+                .map(|path| {
+                    let path = path?;
+                    let mut i = read_interface(&path)?;
+                    i.name = path
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .trim_start_matches(stem)
+                        .trim_start_matches("-import-")
+                        .to_string();
+                    Ok(i)
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok((
+                stem.trim_start_matches("adapt-").to_string(),
+                adapter,
+                imports,
+            ))
         })
         .collect::<Result<_>>()
 }
@@ -136,8 +143,6 @@ fn component_encoding_via_flags() -> Result<()> {
 /// needing the wit files passed in as well.
 #[test]
 fn component_encoding_via_custom_sections() -> Result<()> {
-    use wasm_encoder::{Encode, Section};
-
     for entry in fs::read_dir("tests/components")? {
         let path = entry?.path();
         if !path.is_dir() {
@@ -184,9 +189,22 @@ fn component_encoding_via_custom_sections() -> Result<()> {
 }
 
 fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {
-    let adapters = read_adapters(path)?;
-    for (name, wasm, interface) in adapters.iter() {
-        encoder = encoder.adapter(name, wasm, interface);
+    for (name, mut wasm, imports) in read_adapters(path)? {
+        // Create a `component-type` custom section by slurping up `imports` as
+        // a "world" and encoding it.
+        let mut types_encoder = ComponentEncoder::default().types_only(true).validate(true);
+        types_encoder = types_encoder.imports(imports)?;
+        let contents = types_encoder.encode()?;
+        let section = wasm_encoder::CustomSection {
+            name: "component-type",
+            data: &contents,
+        };
+        wasm.push(section.id());
+        section.encode(&mut wasm);
+
+        // Then register our new wasm blob which has the necessary custom
+        // section.
+        encoder = encoder.adapter(&name, &wasm)?;
     }
     Ok(encoder)
 }

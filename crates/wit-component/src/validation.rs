@@ -189,17 +189,10 @@ pub fn validate_module<'a>(
 /// This is created by the `validate_adapter_module` function.
 #[derive(Default, Debug)]
 pub struct ValidatedAdapter<'a> {
-    /// If specified then this is the name of the required interface imported
-    /// into the adapter module.
-    ///
-    /// At this time only one interface import is supported. If this is `None`
-    /// then the adapter module didn't import any component model functions to
-    /// implement the required functionality.
-    pub required_import: Option<&'a str>,
-
-    /// This is the set of required functions imported from `required_import`,
-    /// if `required_import` is specified.
-    pub required_funcs: IndexSet<&'a str>,
+    /// If specified this is the list of required imports from the original set
+    /// of possible imports along with the set of functions required from each
+    /// imported interface.
+    pub required_imports: IndexMap<&'a str, IndexSet<&'a str>>,
 
     /// This is the module and field name of the memory import, if one is
     /// specified.
@@ -227,7 +220,7 @@ pub struct ValidatedAdapter<'a> {
 /// didn't accidentally break the wasm module.
 pub fn validate_adapter_module<'a>(
     bytes: &[u8],
-    interface: &'a Interface,
+    imports: &'a IndexMap<String, Interface>,
     required: &IndexMap<&str, FuncType>,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
@@ -308,21 +301,14 @@ pub fn validate_adapter_module<'a>(
     }
 
     let types = types.unwrap();
-    let mut import_funcs = import_funcs.iter();
-    if let Some((name, funcs)) = import_funcs.next() {
-        if *name != interface.name {
-            bail!(
-                "adapter module imports from `{name}` which does not match \
-                 its interface `{}`",
-                interface.name
-            );
-        }
-        ret.required_funcs = validate_imported_interface(interface, name, funcs, &types)?;
-        ret.required_import = Some(interface.name.as_str());
-
-        if let Some((name, _)) = import_funcs.next() {
-            bail!("adapter module cannot import from a second interface `{name}`")
-        }
+    for (name, funcs) in import_funcs {
+        let interface = imports
+            .get(name)
+            .ok_or_else(|| anyhow!("adapter module imports unknown module `{name}`"))?;
+        let required_funcs = validate_imported_interface(interface, name, &funcs, &types)?;
+        assert_eq!(interface.name, name);
+        ret.required_imports
+            .insert(interface.name.as_str(), required_funcs);
     }
 
     for (name, ty) in required {

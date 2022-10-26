@@ -1,10 +1,6 @@
 //! The WebAssembly component tool command line interface.
 
-use crate::extract::{extract_module_interfaces, ModuleInterfaces};
-use crate::{
-    decode_component_interfaces, ComponentEncoder, ComponentInterfaces, InterfacePrinter,
-    StringEncoding,
-};
+use crate::{decode_component_interfaces, ComponentEncoder, InterfacePrinter, StringEncoding};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
@@ -48,38 +44,10 @@ fn parse_interface(name: Option<String>, path: &Path) -> Result<Interface> {
     Ok(interface)
 }
 
-fn parse_adapter(s: &str) -> Result<(String, Vec<u8>, Interface)> {
-    let mut parts = s.splitn(2, ':');
-    let maybe_named_module = parts.next().unwrap();
-    let (name, path) = parse_optionally_name_file(maybe_named_module);
+fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
+    let (name, path) = parse_optionally_name_file(s);
     let wasm = wat::parse_file(path)?;
-
-    match parts.next() {
-        Some(maybe_named_interface) => {
-            let interface = parse_named_interface(maybe_named_interface)?;
-            Ok((name.to_string(), wasm, interface))
-        }
-        None => {
-            let ModuleInterfaces {
-                wasm,
-                interfaces:
-                    ComponentInterfaces {
-                        imports,
-                        exports,
-                        default,
-                    },
-            } = extract_module_interfaces(&wasm)?;
-            if !exports.is_empty() || default.is_some() {
-                bail!("adapter modules cannot have an exported interface");
-            }
-            let import = match imports.len() {
-                0 => Interface::default(),
-                1 => imports.into_iter().next().unwrap().1,
-                _ => bail!("adapter modules can only import one interface at this time"),
-            };
-            Ok((name.to_string(), wasm, import))
-        }
-    }
+    Ok((name.to_string(), wasm))
 }
 
 /// WebAssembly component encoder.
@@ -107,8 +75,8 @@ pub struct WitComponentApp {
     /// The second part of this argument, optionally specified, is the interface
     /// that this adapter module imports. If not specified then the interface
     /// imported is inferred from the adapter module itself.
-    #[clap(long = "adapt", value_name = "[NAME=]MODULE[:[NAME=]INTERFACE]", value_parser = parse_adapter)]
-    pub adapters: Vec<(String, Vec<u8>, Interface)>,
+    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
+    pub adapters: Vec<(String, Vec<u8>)>,
 
     /// The path of the output WebAssembly component.
     #[clap(long, short = 'o', value_name = "OUTPUT")]
@@ -157,8 +125,8 @@ impl WitComponentApp {
             .exports(self.exports)?
             .validate(!self.skip_validation);
 
-        for (name, wasm, interface) in self.adapters.iter() {
-            encoder = encoder.adapter(name, wasm, interface);
+        for (name, wasm) in self.adapters.iter() {
+            encoder = encoder.adapter(name, wasm)?;
         }
 
         if let Some(interface) = self.interface {

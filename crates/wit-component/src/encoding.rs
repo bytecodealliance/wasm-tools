@@ -1386,7 +1386,7 @@ impl<'a> EncodingState<'a> {
         // interface imported into the shim module itself.
         for (adapter, funcs) in info.adapters_required.iter() {
             let info = &imports.adapters[adapter];
-            if let Some(name) = info.required_import {
+            for (name, _) in info.required_imports.iter() {
                 let import = &imports.map[name];
                 ret.append_indirect(
                     name,
@@ -1654,7 +1654,7 @@ impl<'a> EncodingState<'a> {
             // different from the imported interface. That's true enough for now
             // since it's `env::memory`.
             if let Some((module, name)) = &info.needs_memory {
-                if let Some(import_name) = info.required_import {
+                for (import_name, _) in info.required_imports.iter() {
                     assert!(module != import_name);
                 }
                 assert!(module != name);
@@ -1666,7 +1666,7 @@ impl<'a> EncodingState<'a> {
                 )]);
                 args.push((module.as_str(), ModuleArg::Instance(instance)));
             }
-            if let Some(import_name) = info.required_import {
+            for (import_name, _) in info.required_imports.iter() {
                 let instance = self.import_instance_to_lowered_core_instance(
                     CustomModule::Adapter(name),
                     import_name,
@@ -2094,7 +2094,13 @@ pub struct ComponentEncoder {
     exports: IndexMap<String, Interface>,
     validate: bool,
     types_only: bool,
-    adapters: IndexMap<String, (Vec<u8>, Interface)>,
+
+    // This is a map from the name of the adapter to a pair of:
+    //
+    // * the wasm of the adapter itself, with `component-type` sections stripped
+    // * the map of imported interfaces into the adapter, keyed by name of the
+    //   interface
+    adapters: IndexMap<String, (Vec<u8>, IndexMap<String, Interface>)>,
 }
 
 impl ComponentEncoder {
@@ -2181,10 +2187,21 @@ impl ComponentEncoder {
     /// wasm module specified by `bytes` imports. The `bytes` will then import
     /// `interface` and export functions to get imported from the module `name`
     /// in the core wasm that's being wrapped.
-    pub fn adapter(mut self, name: &str, bytes: &[u8], interface: &Interface) -> Self {
-        self.adapters
-            .insert(name.to_string(), (bytes.to_vec(), interface.clone()));
-        self
+    pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
+        let ModuleInterfaces {
+            wasm,
+            interfaces:
+                ComponentInterfaces {
+                    imports,
+                    exports,
+                    default,
+                },
+        } = extract_module_interfaces(bytes)?;
+        if !exports.is_empty() || default.is_some() {
+            bail!("adapters cannot have any exported interfaces");
+        }
+        self.adapters.insert(name.to_string(), (wasm, imports));
+        Ok(self)
     }
 
     /// This is a convenience method for [`ComponentEncoder::adapter`] for
@@ -2194,31 +2211,13 @@ impl ComponentEncoder {
     /// embedded information about its imported interfaces. Additionally the
     /// name of the adapter is inferred from the file name itself as the file
     /// stem.
-    pub fn adapter_file(mut self, path: &Path) -> Result<Self> {
+    pub fn adapter_file(self, path: &Path) -> Result<Self> {
         let name = path
             .file_stem()
             .and_then(|s| s.to_str())
             .ok_or_else(|| anyhow!("input filename was not valid utf-8"))?;
         let wasm = wat::parse_file(path)?;
-        let ModuleInterfaces {
-            wasm,
-            interfaces:
-                ComponentInterfaces {
-                    imports,
-                    exports,
-                    default,
-                },
-        } = extract_module_interfaces(&wasm)?;
-        if !exports.is_empty() || default.is_some() {
-            bail!("adapter modules cannot have an exported interface");
-        }
-        let import = match imports.len() {
-            0 => Interface::default(),
-            1 => imports.into_iter().next().unwrap().1,
-            _ => bail!("adapter modules can only import one interface at this time"),
-        };
-        self.adapters.insert(name.to_string(), (wasm, import));
-        Ok(self)
+        self.adapter(name, &wasm)
     }
 
     /// Indicates whether this encoder is only encoding types and does not
@@ -2308,17 +2307,16 @@ impl ComponentEncoder {
             // provided to this encoder, gc it to an appropriate size, and then
             // register its metadata in our data structures.
             for (name, required) in info.adapters_required.iter() {
-                let (wasm, interface) = &self.adapters[*name];
+                let (wasm, adapter_imports) = &self.adapters[*name];
                 let wasm = crate::gc::run(wasm, required)
                     .context("failed to reduce input adapter module to its minimal size")?;
-                let info = validate_adapter_module(&wasm, interface, required)
+                let info = validate_adapter_module(&wasm, adapter_imports, required)
                     .context("failed to validate the imports of the minimized adapter module")?;
                 state.encode_core_adapter_module(name, &wasm);
-                types.encode_instance_import(
-                    interface,
-                    Some(&info.required_funcs),
-                    &mut imports,
-                )?;
+                for (name, required) in info.required_imports.iter() {
+                    let interface = &adapter_imports[*name];
+                    types.encode_instance_import(interface, Some(required), &mut imports)?;
+                }
                 imports.adapters.insert(name, info);
             }
 
