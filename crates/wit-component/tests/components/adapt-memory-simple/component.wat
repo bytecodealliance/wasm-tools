@@ -5,7 +5,7 @@
     (export "log" (func $log))
   )
   (type (;0;) (func (param "s" string)))
-  (type (;1;) 
+  (type (;1;)
     (instance
       (alias outer 1 0 (type (;0;)))
       (export "log" (func (type 0)))
@@ -46,7 +46,7 @@
   )
   (core instance (;0;) (instantiate 2))
   (alias core export 0 "1" (core func (;0;)))
-  (core instance (;1;) 
+  (core instance (;1;)
     (export "log" (func 0))
   )
   (core instance (;2;) (instantiate 1
@@ -55,7 +55,7 @@
   )
   (alias core export 2 "memory" (core memory (;0;)))
   (alias core export 0 "0" (core func (;1;)))
-  (core instance (;3;) 
+  (core instance (;3;)
     (export "log" (func 1))
   )
   (core instance (;4;) (instantiate 0
@@ -66,7 +66,7 @@
   (alias export 0 "log" (func (;0;)))
   (core func (;2;) (canon lower (func 0) (memory 0) string-encoding=utf8))
   (alias core export 4 "log" (core func (;3;)))
-  (core instance (;5;) 
+  (core instance (;5;)
     (export "$imports" (table 0))
     (export "0" (func 2))
     (export "1" (func 3))

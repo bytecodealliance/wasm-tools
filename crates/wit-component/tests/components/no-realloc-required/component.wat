@@ -1,6 +1,6 @@
 (component
   (type (;0;) (func (param "s" string)))
-  (type (;1;) 
+  (type (;1;)
     (instance
       (alias outer 1 0 (type (;0;)))
       (export "log" (func (type 0)))
@@ -33,7 +33,7 @@
   )
   (core instance (;0;) (instantiate 1))
   (alias core export 0 "0" (core func (;0;)))
-  (core instance (;1;) 
+  (core instance (;1;)
     (export "log" (func 0))
   )
   (core instance (;2;) (instantiate 0
@@ -44,7 +44,7 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias export 0 "log" (func (;0;)))
   (core func (;1;) (canon lower (func 0) (memory 0) string-encoding=utf8))
-  (core instance (;3;) 
+  (core instance (;3;)
     (export "$imports" (table 0))
     (export "0" (func 1))
   )

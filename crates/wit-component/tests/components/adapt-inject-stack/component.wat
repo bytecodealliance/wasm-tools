@@ -32,7 +32,7 @@
       local.tee 0
       i32.const -1
       i32.eq
-      if  ;; label = @1
+      if ;; label = @1
         unreachable
       end
       local.get 0
@@ -48,7 +48,7 @@
     (start $initialize_stack_pointer)
   )
   (type (;0;) (func (result "a" u32) (result "b" u32)))
-  (type (;1;) 
+  (type (;1;)
     (instance
       (alias outer 1 0 (type (;0;)))
       (export "get-two" (func (type 0)))
@@ -88,7 +88,7 @@
   )
   (core instance (;0;) (instantiate 2))
   (alias core export 0 "1" (core func (;0;)))
-  (core instance (;1;) 
+  (core instance (;1;)
     (export "get_sum" (func 0))
   )
   (core instance (;2;) (instantiate 1
@@ -96,11 +96,11 @@
     )
   )
   (alias core export 2 "memory" (core memory (;0;)))
-  (core instance (;3;) 
+  (core instance (;3;)
     (export "memory" (memory 0))
   )
   (alias core export 0 "0" (core func (;1;)))
-  (core instance (;4;) 
+  (core instance (;4;)
     (export "get-two" (func 1))
   )
   (core instance (;5;) (instantiate 0
@@ -112,7 +112,7 @@
   (alias export 0 "get-two" (func (;0;)))
   (core func (;2;) (canon lower (func 0) (memory 0)))
   (alias core export 5 "get_sum" (core func (;3;)))
-  (core instance (;6;) 
+  (core instance (;6;)
     (export "$imports" (table 0))
     (export "0" (func 2))
     (export "1" (func 3))

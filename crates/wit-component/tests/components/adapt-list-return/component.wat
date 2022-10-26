@@ -17,7 +17,7 @@
   )
   (type (;0;) (list u8))
   (type (;1;) (func (result 0)))
-  (type (;2;) 
+  (type (;2;)
     (instance
       (alias outer 1 1 (type (;0;)))
       (export "read" (func (type 0)))
@@ -59,7 +59,7 @@
   )
   (core instance (;0;) (instantiate 2))
   (alias core export 0 "1" (core func (;0;)))
-  (core instance (;1;) 
+  (core instance (;1;)
     (export "read" (func 0))
   )
   (core instance (;2;) (instantiate 1
@@ -68,7 +68,7 @@
   )
   (alias core export 2 "memory" (core memory (;0;)))
   (alias core export 0 "0" (core func (;1;)))
-  (core instance (;3;) 
+  (core instance (;3;)
     (export "read" (func 1))
   )
   (core instance (;4;) (instantiate 0
@@ -80,7 +80,7 @@
   (alias export 0 "read" (func (;0;)))
   (core func (;3;) (canon lower (func 0) (memory 0) (realloc 2)))
   (alias core export 4 "read" (core func (;4;)))
-  (core instance (;5;) 
+  (core instance (;5;)
     (export "$imports" (table 0))
     (export "0" (func 3))
     (export "1" (func 4))

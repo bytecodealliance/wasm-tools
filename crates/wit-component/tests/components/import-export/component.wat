@@ -3,7 +3,7 @@
   (type (;1;) (func (param "x" string) (result 0)))
   (type (;2;) (func))
   (type (;3;) (func (result string)))
-  (type (;4;) 
+  (type (;4;)
     (instance
       (alias outer 1 3 (type (;0;)))
       (export "a" (func (type 0)))
@@ -63,7 +63,7 @@
   )
   (core instance (;0;) (instantiate 1))
   (alias core export 0 "0" (core func (;0;)))
-  (core instance (;1;) 
+  (core instance (;1;)
     (export "a" (func 0))
   )
   (core instance (;2;) (instantiate 0
@@ -75,7 +75,7 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias export 0 "a" (func (;0;)))
   (core func (;2;) (canon lower (func 0) (memory 0) (realloc 1) string-encoding=utf8))
-  (core instance (;3;) 
+  (core instance (;3;)
     (export "$imports" (table 0))
     (export "0" (func 2))
   )

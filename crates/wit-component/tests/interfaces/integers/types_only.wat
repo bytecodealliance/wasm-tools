@@ -19,7 +19,7 @@
   (type (;17;) (tuple s64 u8))
   (type (;18;) (func (result 17)))
   (type (;19;) (func (result "a" s64) (result "b" u8)))
-  (type (;20;) 
+  (type (;20;)
     (instance
       (alias outer 1 0 (type (;0;)))
       (export "a1" (func (type 0)))

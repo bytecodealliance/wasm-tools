@@ -23,23 +23,27 @@ pub struct ModuleInterfaces {
 /// later on.
 pub fn extract_module_interfaces(wasm: &[u8]) -> Result<ModuleInterfaces> {
     let mut ret = ModuleInterfaces::default();
+    let mut new_module = wasm_encoder::Module::new();
 
     for payload in wasmparser::Parser::new(0).parse_all(wasm) {
-        if let wasmparser::Payload::CustomSection(cs) =
-            payload.context("decoding item in module")?
-        {
-            if !cs.name().starts_with("component-type") {
-                continue;
+        let payload = payload.context("decoding item in module")?;
+        match payload {
+            wasmparser::Payload::CustomSection(cs) if cs.name().starts_with("component-type") => {
+                ret.decode(cs.data())
+                    .with_context(|| format!("decoding custom section {}", cs.name()))?;
             }
-            ret.decode(cs.data())
-                .with_context(|| format!("decoding custom section {}", cs.name()))?;
+            _ => {
+                if let Some((id, range)) = payload.as_section() {
+                    new_module.section(&wasm_encoder::RawSection {
+                        id,
+                        data: &wasm[range],
+                    });
+                }
+            }
         }
     }
 
-    // TODO: should remove the custom sections decoded above from the wasm binary
-    // created here, and bytecodealliance/wasmparser#792 should help with that
-    // to make the loop above pretty small.
-    ret.wasm = wasm.to_vec();
+    ret.wasm = new_module.finish();
 
     Ok(ret)
 }

@@ -1,8 +1,8 @@
 (component
-  (type (;0;) 
+  (type (;0;)
     (instance)
   )
-  (type (;1;) 
+  (type (;1;)
     (instance)
   )
   (import "empty" (instance (;0;) (type 0)))

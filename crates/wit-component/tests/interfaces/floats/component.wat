@@ -3,7 +3,7 @@
   (type (;1;) (func (param "x" float64)))
   (type (;2;) (func (result float32)))
   (type (;3;) (func (result float64)))
-  (type (;4;) 
+  (type (;4;)
     (instance
       (alias outer 1 0 (type (;0;)))
       (export "float32-param" (func (type 0)))
@@ -41,7 +41,7 @@
   (core func (;2;) (canon lower (func 2)))
   (alias export 0 "float64-result" (func (;3;)))
   (core func (;3;) (canon lower (func 3)))
-  (core instance (;0;) 
+  (core instance (;0;)
     (export "float32-param" (func 0))
     (export "float64-param" (func 1))
     (export "float32-result" (func 2))

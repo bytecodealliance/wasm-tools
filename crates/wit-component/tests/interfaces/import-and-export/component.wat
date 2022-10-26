@@ -1,6 +1,6 @@
 (component
   (type (;0;) (func))
-  (type (;1;) 
+  (type (;1;)
     (instance
       (alias outer 1 0 (type (;0;)))
       (export "foo" (func (type 0)))
@@ -24,7 +24,7 @@
   )
   (alias export 0 "foo" (func (;0;)))
   (core func (;0;) (canon lower (func 0)))
-  (core instance (;0;) 
+  (core instance (;0;)
     (export "foo" (func 0))
   )
   (core instance (;1;) (instantiate 0

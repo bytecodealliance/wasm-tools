@@ -26,7 +26,7 @@
   )
   (core instance (;0;) (instantiate 2))
   (alias core export 0 "0" (core func (;0;)))
-  (core instance (;1;) 
+  (core instance (;1;)
     (export "thunk" (func 0))
   )
   (core instance (;2;) (instantiate 1
@@ -36,7 +36,7 @@
   (core instance (;3;) (instantiate 0))
   (alias core export 0 "$imports" (core table (;0;)))
   (alias core export 3 "thunk" (core func (;1;)))
-  (core instance (;4;) 
+  (core instance (;4;)
     (export "$imports" (table 0))
     (export "0" (func 1))
   )
