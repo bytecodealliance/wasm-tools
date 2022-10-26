@@ -52,7 +52,7 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
-use crate::extract::{extract_module_interfaces, ModuleInterfaces};
+use crate::metadata::{self, BindgenMetadata};
 use crate::{
     validation::{validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule},
     ComponentInterfaces, StringEncoding,
@@ -1171,7 +1171,6 @@ impl<'a> EncodingState<'a> {
 
     fn encode_core_instantiation(
         &mut self,
-        encoding: StringEncoding,
         imports: &ImportEncoder<'a>,
         info: &ValidatedModule<'a>,
     ) -> Result<()> {
@@ -1187,6 +1186,7 @@ impl<'a> EncodingState<'a> {
                 name,
                 imports,
                 &shims,
+                info.metadata,
             );
             args.push((*name, ModuleArg::Instance(index)));
         }
@@ -1223,7 +1223,7 @@ impl<'a> EncodingState<'a> {
 
         // With all the core wasm instances in play now the original shim
         // module, if present, can be filled in with lowerings/adapters/etc.
-        self.encode_indirect_lowerings(encoding, imports, shims)
+        self.encode_indirect_lowerings(imports, shims)
     }
 
     /// Lowers a named imported interface a core wasm instances suitable to
@@ -1240,6 +1240,7 @@ impl<'a> EncodingState<'a> {
         name: &str,
         imports: &ImportEncoder<'_>,
         shims: &Shims<'_>,
+        metadata: &BindgenMetadata,
     ) -> u32 {
         let (instance_index, _, import) = imports.map.get_full(name).unwrap();
         let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
@@ -1247,6 +1248,8 @@ impl<'a> EncodingState<'a> {
         // Add an entry for all indirect lowerings which come as an export of
         // the shim module.
         for (i, lowering) in import.indirect.iter().enumerate() {
+            let encoding =
+                metadata.import_encodings[&(name.to_string(), lowering.name.to_string())];
             let index = self.component.alias_core_item(
                 self.shim_instance_index
                     .expect("shim should be instantiated"),
@@ -1255,6 +1258,7 @@ impl<'a> EncodingState<'a> {
                     interface: name,
                     indirect_index: i,
                     realloc: for_module,
+                    encoding,
                 }],
             );
             exports.push((lowering.name, ExportKind::Func, index));
@@ -1281,9 +1285,9 @@ impl<'a> EncodingState<'a> {
 
     fn encode_exports<'b>(
         &mut self,
-        encoding: StringEncoding,
         exports: impl Iterator<Item = (&'b Interface, bool)>,
         types: &TypeEncoder<'b>,
+        metadata: &BindgenMetadata,
     ) -> Result<()> {
         let core_instance_index = self.instance_index.expect("must be instantiated");
 
@@ -1325,6 +1329,7 @@ impl<'a> EncodingState<'a> {
 
                 let options = RequiredOptions::for_export(export, func);
 
+                let encoding = metadata.export_encodings[&name[..]];
                 let mut options = options
                     .into_iter(encoding, self.memory_index, self.realloc_index)?
                     .collect::<Vec<_>>();
@@ -1378,7 +1383,13 @@ impl<'a> EncodingState<'a> {
         // indirect lowerings into `Shims`.
         for name in info.required_imports.keys() {
             let import = &imports.map[name];
-            ret.append_indirect(name, CustomModule::Main, import, &mut signatures);
+            ret.append_indirect(
+                name,
+                CustomModule::Main,
+                import,
+                info.metadata,
+                &mut signatures,
+            );
         }
 
         // For all required adapter modules a shim is created for each required
@@ -1392,6 +1403,7 @@ impl<'a> EncodingState<'a> {
                     name,
                     CustomModule::Adapter(adapter),
                     import,
+                    info.metadata,
                     &mut signatures,
                 );
             }
@@ -1530,7 +1542,6 @@ impl<'a> EncodingState<'a> {
 
     fn encode_indirect_lowerings(
         &mut self,
-        encoding: StringEncoding,
         imports: &ImportEncoder,
         shims: Shims<'_>,
     ) -> Result<()> {
@@ -1563,6 +1574,7 @@ impl<'a> EncodingState<'a> {
                     interface,
                     indirect_index,
                     realloc,
+                    encoding,
                 } => {
                     let (instance_index, _, interface) = imports.map.get_full(interface).unwrap();
                     let func_index = self.component.alias_func(
@@ -1578,7 +1590,7 @@ impl<'a> EncodingState<'a> {
                     self.component.lower_func(
                         func_index,
                         shim.options
-                            .into_iter(encoding, self.memory_index, realloc)?,
+                            .into_iter(*encoding, self.memory_index, realloc)?,
                     )
                 }
 
@@ -1672,6 +1684,7 @@ impl<'a> EncodingState<'a> {
                     import_name,
                     imports,
                     shims,
+                    info.metadata,
                 );
                 args.push((import_name, ModuleArg::Instance(instance)));
             }
@@ -1742,6 +1755,8 @@ enum ShimKind<'a> {
         indirect_index: usize,
         /// Which instance to pull the `realloc` function from, if necessary.
         realloc: CustomModule<'a>,
+        /// The string encoding that this lowering is going to use.
+        encoding: StringEncoding,
     },
     /// This shim is a core wasm function defined in an adapter module but isn't
     /// available until the adapter module is itself instantiated.
@@ -1780,6 +1795,7 @@ impl<'a> Shims<'a> {
         name: &'a str,
         for_module: CustomModule<'a>,
         import: &ImportedInterface<'a>,
+        metadata: &BindgenMetadata,
         sigs: &mut Vec<WasmSignature>,
     ) {
         for (indirect_index, lowering) in import.indirect.iter().enumerate() {
@@ -1789,6 +1805,8 @@ impl<'a> Shims<'a> {
                 lowering.name
             );
             sigs.push(lowering.sig.clone());
+            let encoding =
+                metadata.import_encodings[&(name.to_string(), lowering.name.to_string())];
             self.list.push(Shim {
                 name: shim_name,
                 options: lowering.options,
@@ -1796,6 +1814,7 @@ impl<'a> Shims<'a> {
                     interface: name,
                     indirect_index,
                     realloc: for_module,
+                    encoding,
                 },
             });
         }
@@ -2026,7 +2045,7 @@ fn inc(idx: &mut u32) -> u32 {
 ///
 /// If a lowering does not require canonical options, the import is lowered before
 /// the core module is instantiated and passed directly as an instantiation argument.
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct ImportEncoder<'a> {
     map: IndexMap<&'a str, ImportedInterface<'a>>,
     adapters: IndexMap<&'a str, ValidatedAdapter<'a>>,
@@ -2088,19 +2107,17 @@ impl<'a> ImportEncoder<'a> {
 #[derive(Default)]
 pub struct ComponentEncoder {
     module: Vec<u8>,
-    encoding: StringEncoding,
-    interface: Option<Interface>,
-    imports: IndexMap<String, Interface>,
-    exports: IndexMap<String, Interface>,
+    metadata: BindgenMetadata,
     validate: bool,
     types_only: bool,
 
     // This is a map from the name of the adapter to a pair of:
     //
-    // * the wasm of the adapter itself, with `component-type` sections stripped
-    // * the map of imported interfaces into the adapter, keyed by name of the
-    //   interface
-    adapters: IndexMap<String, (Vec<u8>, IndexMap<String, Interface>)>,
+    // * The wasm of the adapter itself, with `component-type` sections
+    //   stripped.
+    // * the metadata for the adapter, verified to have no exports and only
+    //   imports.
+    adapters: IndexMap<String, (Vec<u8>, BindgenMetadata)>,
 }
 
 impl ComponentEncoder {
@@ -2108,29 +2125,10 @@ impl ComponentEncoder {
     /// This method will also parse any component type information stored in custom sections
     /// inside the module, and add them as the interface, imports, and exports.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
-        let ModuleInterfaces {
-            wasm,
-            interfaces:
-                ComponentInterfaces {
-                    imports,
-                    exports,
-                    default,
-                },
-        } = extract_module_interfaces(module)?;
+        let (wasm, metadata) = metadata::decode(module)?;
         self.module = wasm;
-        let mut me = self;
-        me = me.imports(imports.into_iter().map(|p| p.1))?;
-        me = me.exports(exports.into_iter().map(|p| p.1))?;
-        if let Some(default) = default {
-            me = me.interface(default)?;
-        }
-        Ok(me)
-    }
-
-    /// Set the string encoding expected by the core module.
-    pub fn encoding(mut self, encoding: StringEncoding) -> Self {
-        self.encoding = encoding;
-        self
+        self.metadata.merge(metadata)?;
+        Ok(self)
     }
 
     /// Sets whether or not the encoder will validate its output.
@@ -2139,34 +2137,18 @@ impl ComponentEncoder {
         self
     }
 
-    /// Set the default interface exported by the component.
-    pub fn interface(mut self, interface: Interface) -> Result<Self> {
-        if self.interface.is_some() {
-            bail!("default interface cannot be specified twice");
-        }
-        self.interface = Some(interface);
-        Ok(self)
-    }
-
-    /// Set the interfaces the component imports.
-    pub fn imports(mut self, imports: impl IntoIterator<Item = Interface>) -> Result<Self> {
-        for i in imports {
-            if self.imports.contains_key(&i.name) {
-                bail!("cannot specify import interface for `{}` twice", i.name);
-            }
-            self.imports.insert(i.name.clone(), i);
-        }
-        Ok(self)
-    }
-
-    /// Set the interfaces the component exports.
-    pub fn exports(mut self, exports: impl IntoIterator<Item = Interface>) -> Result<Self> {
-        for i in exports {
-            if self.exports.contains_key(&i.name) {
-                bail!("cannot specify export interface for `{}` twice", i.name);
-            }
-            self.exports.insert(i.name.clone(), i);
-        }
+    /// Add a "world" of interfaces (exports/imports/default) to this encoder
+    /// to configure what's being imported/exported.
+    ///
+    /// The string encoding of the specified interface set is supplied here as
+    /// well.
+    pub fn interfaces(
+        mut self,
+        interfaces: ComponentInterfaces,
+        encoding: StringEncoding,
+    ) -> Result<Self> {
+        self.metadata
+            .merge(BindgenMetadata::new(interfaces, encoding))?;
         Ok(self)
     }
 
@@ -2188,19 +2170,11 @@ impl ComponentEncoder {
     /// `interface` and export functions to get imported from the module `name`
     /// in the core wasm that's being wrapped.
     pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
-        let ModuleInterfaces {
-            wasm,
-            interfaces:
-                ComponentInterfaces {
-                    imports,
-                    exports,
-                    default,
-                },
-        } = extract_module_interfaces(bytes)?;
-        if !exports.is_empty() || default.is_some() {
+        let (wasm, metadata) = metadata::decode(bytes)?;
+        if !metadata.interfaces.exports.is_empty() || metadata.interfaces.default.is_some() {
             bail!("adapters cannot have any exported interfaces");
         }
-        self.adapters.insert(name.to_string(), (wasm, imports));
+        self.adapters.insert(name.to_string(), (wasm, metadata));
         Ok(self)
     }
 
@@ -2235,28 +2209,34 @@ impl ComponentEncoder {
                 .keys()
                 .map(|s| s.as_str())
                 .collect::<IndexSet<_>>();
-            Some(validate_module(
-                &self.module,
-                &self.interface,
-                &self.imports,
-                &self.exports,
-                &adapters,
-            )?)
+            Some(validate_module(&self.module, &self.metadata, &adapters)?)
         } else {
             None
         };
 
         let exports = self
-            .interface
+            .metadata
+            .interfaces
+            .default
             .iter()
             .map(|i| (i, true))
-            .chain(self.exports.iter().map(|(_, i)| (i, false)));
+            .chain(
+                self.metadata
+                    .interfaces
+                    .exports
+                    .iter()
+                    .map(|(_, i)| (i, false)),
+            );
 
         let mut state = EncodingState::default();
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
         types.encode_func_types(exports.clone().map(|(i, _)| i))?;
-        types.encode_instance_imports(&self.imports, info.as_ref(), &mut imports)?;
+        types.encode_instance_imports(
+            &self.metadata.interfaces.imports,
+            info.as_ref(),
+            &mut imports,
+        )?;
 
         if self.types_only {
             if !self.module.is_empty() {
@@ -2307,14 +2287,14 @@ impl ComponentEncoder {
             // provided to this encoder, gc it to an appropriate size, and then
             // register its metadata in our data structures.
             for (name, required) in info.adapters_required.iter() {
-                let (wasm, adapter_imports) = &self.adapters[*name];
+                let (wasm, metadata) = &self.adapters[*name];
                 let wasm = crate::gc::run(wasm, required)
                     .context("failed to reduce input adapter module to its minimal size")?;
-                let info = validate_adapter_module(&wasm, adapter_imports, required)
+                let info = validate_adapter_module(&wasm, metadata, required)
                     .context("failed to validate the imports of the minimized adapter module")?;
                 state.encode_core_adapter_module(name, &wasm);
                 for (name, required) in info.required_imports.iter() {
-                    let interface = &adapter_imports[*name];
+                    let interface = &metadata.interfaces.imports[*name];
                     types.encode_instance_import(interface, Some(required), &mut imports)?;
                 }
                 imports.adapters.insert(name, info);
@@ -2328,8 +2308,8 @@ impl ComponentEncoder {
 
             state.encode_imports(&imports);
             state.encode_core_module(&self.module);
-            state.encode_core_instantiation(self.encoding, &imports, info)?;
-            state.encode_exports(self.encoding, exports, &types)?;
+            state.encode_core_instantiation(&imports, info)?;
+            state.encode_exports(exports, &types, &self.metadata)?;
         }
 
         let bytes = state.component.finish();

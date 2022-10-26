@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
 use wasm_encoder::{Encode, Section};
-use wit_component::ComponentEncoder;
+use wit_component::{ComponentEncoder, ComponentInterfaces, StringEncoding};
 use wit_parser::Interface;
 
 fn read_interface(path: &Path) -> Result<Interface> {
@@ -95,31 +95,20 @@ fn component_encoding_via_flags() -> Result<()> {
         }
 
         let test_case = path.file_stem().unwrap().to_str().unwrap();
+        println!("testing {test_case}");
 
         let module_path = path.join("module.wat");
-        let interface_path = path.join("default.wit");
         let component_path = path.join("component.wat");
         let error_path = path.join("error.txt");
 
         let module = wat::parse_file(&module_path)
             .with_context(|| format!("expected file `{}`", module_path.display()))?;
-        let interface = interface_path
-            .is_file()
-            .then(|| read_interface(&interface_path))
-            .transpose()?;
-        let imports = read_interfaces(&path, "import-*.wit")?;
-        let exports = read_interfaces(&path, "export-*.wit")?;
 
         let mut encoder = ComponentEncoder::default()
             .module(&module)?
-            .imports(imports)?
-            .exports(exports)?
-            .validate(true);
+            .validate(true)
+            .interfaces(read_component_interfaces(&path)?, StringEncoding::UTF8)?;
         encoder = add_adapters(encoder, &path)?;
-
-        if let Some(interface) = interface {
-            encoder = encoder.interface(interface)?;
-        }
 
         assert_output(test_case, &encoder, &component_path, &error_path)?;
     }
@@ -150,26 +139,19 @@ fn component_encoding_via_custom_sections() -> Result<()> {
         }
 
         let test_case = path.file_stem().unwrap().to_str().unwrap();
+        println!("testing {test_case}");
 
         let module_path = path.join("module.wat");
-        let interface_path = path.join("default.wit");
         let component_path = path.join("component.wat");
         let error_path = path.join("error.txt");
 
         let mut module = wat::parse_file(&module_path)
             .with_context(|| format!("expected file `{}`", module_path.display()))?;
 
-        // Use a first `encoder` to encode all the `*.wit` interface information
-        // into a "types only" component which is then placed into a custom
-        // section.
-        // of passing them to the ComponentEncoder explicitly.
-        let mut encoder = ComponentEncoder::default().types_only(true).validate(true);
-        encoder = encoder.imports(read_interfaces(&path, "import-*.wit")?)?;
-        encoder = encoder.exports(read_interfaces(&path, "export-*.wit")?)?;
-        if interface_path.is_file() {
-            encoder = encoder.interface(read_interface(&interface_path)?)?;
-        }
-        let contents = encoder.encode()?;
+        // Create the `component-type` custom section which will encode all of
+        // the type information about imported/exported functions.
+        let interfaces = read_component_interfaces(&path)?;
+        let contents = wit_component::metadata::encode(&interfaces, StringEncoding::UTF8);
         let section = wasm_encoder::CustomSection {
             name: "component-type",
             data: &contents,
@@ -181,20 +163,40 @@ fn component_encoding_via_custom_sections() -> Result<()> {
         // information about interfaces to ensure it still works as before.
         let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
         encoder = add_adapters(encoder, &path)?;
-
         assert_output(test_case, &encoder, &component_path, &error_path)?;
     }
 
     Ok(())
 }
 
+fn read_component_interfaces(path: &Path) -> Result<ComponentInterfaces> {
+    let interface_path = path.join("default.wit");
+    let interface = interface_path
+        .is_file()
+        .then(|| read_interface(&interface_path))
+        .transpose()?;
+    let imports = read_interfaces(&path, "import-*.wit")?;
+    let exports = read_interfaces(&path, "export-*.wit")?;
+
+    Ok(ComponentInterfaces {
+        imports: imports.into_iter().map(|i| (i.name.clone(), i)).collect(),
+        exports: exports.into_iter().map(|i| (i.name.clone(), i)).collect(),
+        default: interface,
+    })
+}
+
 fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {
     for (name, mut wasm, imports) in read_adapters(path)? {
         // Create a `component-type` custom section by slurping up `imports` as
         // a "world" and encoding it.
-        let mut types_encoder = ComponentEncoder::default().types_only(true).validate(true);
-        types_encoder = types_encoder.imports(imports)?;
-        let contents = types_encoder.encode()?;
+        let contents = wit_component::metadata::encode(
+            &ComponentInterfaces {
+                imports: imports.into_iter().map(|i| (i.name.clone(), i)).collect(),
+                exports: Default::default(),
+                default: None,
+            },
+            StringEncoding::UTF8,
+        );
         let section = wasm_encoder::CustomSection {
             name: "component-type",
             data: &contents,

@@ -1,6 +1,9 @@
 //! The WebAssembly component tool command line interface.
 
-use crate::{decode_component_interfaces, ComponentEncoder, InterfacePrinter, StringEncoding};
+use crate::{
+    decode_component_interfaces, ComponentEncoder, ComponentInterfaces, InterfacePrinter,
+    StringEncoding,
+};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
@@ -119,22 +122,32 @@ impl WitComponentApp {
         let module = wat::parse_file(&self.module)
             .with_context(|| format!("failed to parse module `{}`", self.module.display()))?;
 
+        let mut interfaces = ComponentInterfaces::default();
+        for import in self.imports {
+            let name = import.name.clone();
+            let prev = interfaces.imports.insert(name.clone(), import);
+            if prev.is_some() {
+                bail!("duplicate import interface specified for `{name}`");
+            }
+        }
+        for export in self.exports {
+            let name = export.name.clone();
+            let prev = interfaces.exports.insert(name.clone(), export);
+            if prev.is_some() {
+                bail!("duplicate export interface specified for `{name}`");
+            }
+        }
+        interfaces.default = self.interface;
+
+        let encoding = self.encoding.unwrap_or(StringEncoding::UTF8);
+
         let mut encoder = ComponentEncoder::default()
             .module(&module)?
-            .imports(self.imports)?
-            .exports(self.exports)?
+            .interfaces(interfaces, encoding)?
             .validate(!self.skip_validation);
 
         for (name, wasm) in self.adapters.iter() {
             encoder = encoder.adapter(name, wasm)?;
-        }
-
-        if let Some(interface) = self.interface {
-            encoder = encoder.interface(interface)?;
-        }
-
-        if let Some(encoding) = &self.encoding {
-            encoder = encoder.encoding(*encoding);
         }
 
         let bytes = encoder.encode().with_context(|| {

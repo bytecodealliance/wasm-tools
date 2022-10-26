@@ -88,7 +88,7 @@ struct InterfaceDecoder<'a> {
 ///
 /// This is more-or-less a "world" and will likely be replaced one day with a
 /// `wit-parser` representation of a world.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ComponentInterfaces {
     /// The "default export" which is the interface directly exported from the
     /// component at the top level.

@@ -3,3 +3,4 @@ record my-struct {
 }
 
 my-function: func(a: my-struct) -> string
+

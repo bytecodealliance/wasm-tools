@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::{Path, PathBuf};
-use wit_component::ComponentEncoder;
+use wit_component::{ComponentEncoder, ComponentInterfaces, StringEncoding};
 use wit_parser::Interface;
 
 /// Tests the encoding of the "types only" mode of `wit-component`.
@@ -41,22 +41,19 @@ fn run_test(path: &Path) -> Result<()> {
     println!("test {test_case}");
     let interface_path = path.join("default.wit");
 
-    let mut default = None;
-    if interface_path.is_file() {
-        default = Some(read_interface(&interface_path)?);
-    }
-
-    let mut import_interfaces = Vec::new();
+    let mut interfaces = ComponentInterfaces::default();
     let mut import_wits = Vec::new();
-    let mut export_interfaces = Vec::new();
     let mut export_wits = Vec::new();
     for (path, import) in read_interfaces(&path, "import-*.wit")? {
         import_wits.push((import.name.clone(), path));
-        import_interfaces.push(import);
+        interfaces.imports.insert(import.name.clone(), import);
     }
     for (path, export) in read_interfaces(&path, "export-*.wit")? {
         export_wits.push((export.name.clone(), path));
-        export_interfaces.push(export);
+        interfaces.exports.insert(export.name.clone(), export);
+    }
+    if interface_path.is_file() {
+        interfaces.default = Some(read_interface(&interface_path)?);
     }
 
     let assert_output = |wasm: &[u8], wat: &Path| -> Result<()> {
@@ -73,20 +70,27 @@ fn run_test(path: &Path) -> Result<()> {
             );
         }
 
-        let interfaces = wit_component::decode_component_interfaces(wasm)
+        let decoded = wit_component::decode_component_interfaces(wasm)
             .context(format!("failed to decode bytes for test `{test_case}`"))?;
 
         if test_case == "empty" {
             return Ok(());
         }
 
-        assert_eq!(interfaces.imports.len(), import_wits.len());
-        assert_eq!(interfaces.exports.len(), export_wits.len());
-        assert_eq!(interfaces.default.is_some(), default.is_some());
+        assert_eq!(decoded.imports.len(), interfaces.imports.len());
+        assert_eq!(decoded.exports.len(), interfaces.exports.len());
+        assert_eq!(decoded.default.is_some(), interfaces.default.is_some());
 
         for (name, path) in import_wits.iter() {
-            assert_wit(path, &interfaces.imports[name.as_str()])
+            assert_wit(path, &decoded.imports[name.as_str()])
                 .context(format!("failed to assert wit import `{name}`"))?;
+        }
+        for (name, path) in export_wits.iter() {
+            assert_wit(path, &decoded.exports[name.as_str()])
+                .context(format!("failed to assert wit import `{name}`"))?;
+        }
+        if let Some(iface) = &decoded.default {
+            assert_wit(&interface_path, &iface).context("failed to assert default interface")?;
         }
         Ok(())
     };
@@ -96,17 +100,14 @@ fn run_test(path: &Path) -> Result<()> {
     // artifact.
 
     println!("testing types only");
-    let mut encoder = ComponentEncoder::default()
+    let bytes = ComponentEncoder::default()
         .types_only(true)
         .validate(true)
-        .imports(import_interfaces.clone())?
-        .exports(export_interfaces.clone())?;
-    if let Some(default) = &default {
-        encoder = encoder.interface(default.clone())?;
-    }
-    let bytes = encoder.encode().with_context(|| {
-        format!("failed to encode a types-only component for test case `{test_case}`")
-    })?;
+        .interfaces(interfaces.clone(), StringEncoding::UTF8)?
+        .encode()
+        .with_context(|| {
+            format!("failed to encode a types-only component for test case `{test_case}`")
+        })?;
     assert_output(&bytes, &path.join("types_only.wat"))?;
 
     // Test a full component with a dummy module as the implementation. This
@@ -114,17 +115,11 @@ fn run_test(path: &Path) -> Result<()> {
     // recover the original `*.wit` interfaces from the component output.
 
     println!("test dummy module");
-    let module =
-        test_helpers::dummy_module(&import_interfaces, &export_interfaces, default.as_ref());
-    let mut encoder = ComponentEncoder::default()
+    let module = test_helpers::dummy_module(&interfaces);
+    let bytes = ComponentEncoder::default()
         .module(&module)?
         .validate(true)
-        .imports(import_interfaces.clone())?
-        .exports(export_interfaces.clone())?;
-    if let Some(default) = &default {
-        encoder = encoder.interface(default.clone())?;
-    }
-    let bytes = encoder
+        .interfaces(interfaces.clone(), StringEncoding::UTF8)?
         .encode()
         .with_context(|| format!("failed to encode a component for test case `{test_case}`"))?;
     assert_output(&bytes, &path.join("component.wat"))?;

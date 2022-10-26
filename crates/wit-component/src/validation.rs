@@ -1,3 +1,4 @@
+use crate::metadata::BindgenMetadata;
 use anyhow::{anyhow, bail, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use wasmparser::{
@@ -35,7 +36,6 @@ fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
 /// and `adapters_required`.
 ///
 /// This structure is created by the `validate_module` function.
-#[derive(Default)]
 pub struct ValidatedModule<'a> {
     /// The required imports into this module which are to be satisfied by
     /// imported component model instances.
@@ -61,6 +61,9 @@ pub struct ValidatedModule<'a> {
 
     /// Whether or not this module exported a `cabi_realloc` function.
     pub has_realloc: bool,
+
+    /// The original metadata specified for this module.
+    pub metadata: &'a BindgenMetadata,
 }
 
 /// This function validates the following:
@@ -76,16 +79,20 @@ pub struct ValidatedModule<'a> {
 /// for this module.
 pub fn validate_module<'a>(
     bytes: &'a [u8],
-    interface: &Option<Interface>,
-    imports: &IndexMap<String, Interface>,
-    exports: &IndexMap<String, Interface>,
+    metadata: &'a BindgenMetadata,
     adapters: &IndexSet<&str>,
 ) -> Result<ValidatedModule<'a>> {
     let mut validator = Validator::new();
     let mut types = None;
     let mut import_funcs = IndexMap::new();
     let mut export_funcs = IndexMap::new();
-    let mut ret = ValidatedModule::default();
+    let mut ret = ValidatedModule {
+        required_imports: Default::default(),
+        adapters_required: Default::default(),
+        has_memory: false,
+        has_realloc: false,
+        metadata,
+    };
 
     for payload in Parser::new(0).parse_all(bytes) {
         let payload = payload?;
@@ -150,7 +157,7 @@ pub fn validate_module<'a>(
             bail!("module imports from an empty module name");
         }
 
-        match imports.get(*name) {
+        match metadata.interfaces.imports.get(*name) {
             Some(interface) => {
                 validate_imported_interface(interface, name, funcs, &types)?;
                 let funcs = funcs.into_iter().map(|(f, _ty)| *f).collect();
@@ -168,11 +175,11 @@ pub fn validate_module<'a>(
         }
     }
 
-    if let Some(interface) = interface {
+    if let Some(interface) = &metadata.interfaces.default {
         validate_exported_interface(interface, true, &export_funcs, &types)?;
     }
 
-    for (name, interface) in exports {
+    for (name, interface) in metadata.interfaces.exports.iter() {
         if name.is_empty() {
             bail!("cannot export an interface with an empty name");
         }
@@ -187,7 +194,6 @@ pub fn validate_module<'a>(
 /// "main module" validated above.
 ///
 /// This is created by the `validate_adapter_module` function.
-#[derive(Default, Debug)]
 pub struct ValidatedAdapter<'a> {
     /// If specified this is the list of required imports from the original set
     /// of possible imports along with the set of functions required from each
@@ -203,6 +209,9 @@ pub struct ValidatedAdapter<'a> {
 
     /// Flag for whether a `cabi_realloc` function was found within this module.
     pub has_realloc: bool,
+
+    /// Metadata about the original adapter module.
+    pub metadata: &'a BindgenMetadata,
 }
 
 /// This function will validate the `bytes` provided as a wasm adapter module.
@@ -220,7 +229,7 @@ pub struct ValidatedAdapter<'a> {
 /// didn't accidentally break the wasm module.
 pub fn validate_adapter_module<'a>(
     bytes: &[u8],
-    imports: &'a IndexMap<String, Interface>,
+    metadata: &'a BindgenMetadata,
     required: &IndexMap<&str, FuncType>,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
@@ -228,7 +237,12 @@ pub fn validate_adapter_module<'a>(
     let mut export_funcs = IndexMap::new();
     let mut types = None;
     let mut funcs = Vec::new();
-    let mut ret = ValidatedAdapter::default();
+    let mut ret = ValidatedAdapter {
+        required_imports: Default::default(),
+        needs_memory: None,
+        has_realloc: false,
+        metadata,
+    };
 
     for payload in Parser::new(0).parse_all(bytes) {
         let payload = payload?;
@@ -302,7 +316,9 @@ pub fn validate_adapter_module<'a>(
 
     let types = types.unwrap();
     for (name, funcs) in import_funcs {
-        let interface = imports
+        let interface = metadata
+            .interfaces
+            .imports
             .get(name)
             .ok_or_else(|| anyhow!("adapter module imports unknown module `{name}`"))?;
         let required_funcs = validate_imported_interface(interface, name, &funcs, &types)?;
