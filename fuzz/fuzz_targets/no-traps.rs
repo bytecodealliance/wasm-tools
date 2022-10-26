@@ -52,7 +52,7 @@ fuzz_target!(|data: &[u8]| {
     let instance = match inst_result {
         Ok(r) => r,
         Err(err) if err.to_string().contains("all fuel consumed") => return,
-        Err(_) => panic!("generated wasm trapped in non-trapping mode"),
+        Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
     };
 
     for export in module.exports() {
@@ -61,7 +61,6 @@ fuzz_target!(|data: &[u8]| {
                 let args = dummy::dummy_values(func_ty.params());
                 let mut results = dummy::dummy_values(func_ty.results());
                 let func = instance.get_func(&mut store, export.name()).unwrap();
-                func_ty.results();
                 set_fuel(&mut store, 1_000);
                 match func.call(&mut store, &args, &mut results) {
                     Ok(_) => continue,

@@ -4643,84 +4643,114 @@ fn lane_index(u: &mut Unstructured, number_of_lanes: u8) -> Result<u8> {
 
 #[inline]
 fn simd_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128])
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128])
 }
 
 #[inline]
 fn simd_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.relaxed_simd_enabled() && builder.types_on_stack(&[ValType::V128])
+    !module.config.disallow_traps()
+        && module.config.relaxed_simd_enabled()
+        && builder.types_on_stack(&[ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::V128])
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.relaxed_simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::V128])
+    !module.config.disallow_traps()
+        && module.config.relaxed_simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled()
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
         && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.relaxed_simd_enabled()
+    !module.config.disallow_traps()
+        && module.config.relaxed_simd_enabled()
         && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::I32])
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::I32])
 }
 
 #[inline]
 fn simd_v128_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::I64])
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::I64])
 }
 
 #[inline]
 fn simd_v128_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::F32])
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::F32])
 }
 
 #[inline]
 fn simd_v128_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.types_on_stack(&[ValType::V128, ValType::F64])
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.types_on_stack(&[ValType::V128, ValType::F64])
 }
 
 #[inline]
 fn simd_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.type_on_stack(ValType::I32)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.type_on_stack(ValType::I32)
 }
 
 #[inline]
 fn simd_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.type_on_stack(ValType::I64)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.type_on_stack(ValType::I64)
 }
 
 #[inline]
 fn simd_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.type_on_stack(ValType::F32)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.type_on_stack(ValType::F32)
 }
 
 #[inline]
 fn simd_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && builder.type_on_stack(ValType::F64)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && builder.type_on_stack(ValType::F64)
 }
 
 #[inline]
 fn simd_have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && have_memory_and_offset(module, builder)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && have_memory_and_offset(module, builder)
 }
 
 #[inline]
 fn simd_have_memory_and_offset_and_v128(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && store_valid(module, builder, || ValType::V128)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && store_valid(module, builder, || ValType::V128)
 }
 
 #[inline]
@@ -4731,7 +4761,9 @@ fn simd_load_lane_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 
 #[inline]
 fn simd_v128_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.simd_enabled() && store_valid(module, builder, || ValType::V128)
+    !module.config.disallow_traps()
+        && module.config.simd_enabled()
+        && store_valid(module, builder, || ValType::V128)
 }
 
 #[inline]
