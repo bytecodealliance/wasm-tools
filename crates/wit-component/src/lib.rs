@@ -3,6 +3,7 @@
 #![deny(missing_docs)]
 
 use anyhow::{bail, Result};
+use std::fmt::Display;
 use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
 
@@ -34,6 +35,16 @@ pub enum StringEncoding {
 impl Default for StringEncoding {
     fn default() -> Self {
         StringEncoding::UTF8
+    }
+}
+
+impl Display for StringEncoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StringEncoding::UTF8 => write!(f, "utf8"),
+            StringEncoding::UTF16 => write!(f, "utf16"),
+            StringEncoding::CompactUTF16 => write!(f, "compact-utf16"),
+        }
     }
 }
 
