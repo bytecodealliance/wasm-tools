@@ -198,11 +198,10 @@ impl<'a> OperatorsReader<'a> {
         Ok((self.read()?, pos))
     }
 
-    /// Visits an operator with its offset.
-    pub fn visit_operator<T>(
-        &mut self,
-        visitor: &mut T,
-    ) -> Result<<T as VisitOperator<'a>>::Output>
+    /// Visit a single operator with the specified [`VisitOperator`] instance.
+    ///
+    /// See [`BinaryReader::visit_operator`] for more information.
+    pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {

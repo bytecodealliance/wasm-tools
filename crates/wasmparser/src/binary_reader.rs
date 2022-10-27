@@ -1358,12 +1358,51 @@ impl<'a> BinaryReader<'a> {
         Ok(BlockType::FuncType(idx as u32))
     }
 
-    /// Reads the next available `Operator` and calls the respective visit method.
+    /// Visit the next available operator with the specified [`VisitOperator`] instance.
+    ///
+    /// Note that this does not implicitly propagate any additional information such as instruction
+    /// offsets. In order to do so, consider storing such data within the visitor before visiting.
     ///
     /// # Errors
     ///
-    /// If `BinaryReader` has less bytes remaining than required to parse
-    /// the `Operator`.
+    /// If `BinaryReader` has less bytes remaining than required to parse the `Operator`.
+    ///
+    /// # Examples
+    ///
+    /// Store an offset for use in diagnostics or any other purposes:
+    ///
+    /// ```
+    /// # use wasmparser::{BinaryReader, VisitOperator, Result, for_each_operator};
+    ///
+    /// pub fn dump(mut reader: BinaryReader) -> Result<()> {
+    ///     let mut visitor = Dumper { offset: 0 };
+    ///     while !reader.eof() {
+    ///         visitor.offset = reader.original_position();
+    ///         reader.visit_operator(&mut visitor)?;
+    ///     }
+    ///     Ok(())
+    /// }
+    ///
+    /// struct Dumper {
+    ///     offset: usize
+    /// }
+    ///
+    /// macro_rules! define_visit_operator {
+    ///     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ///         $(
+    ///             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
+    ///                 println!("{}: {}", self.offset, stringify!($visit));
+    ///             }
+    ///         )*
+    ///     }
+    /// }
+    ///
+    /// impl<'a> VisitOperator<'a> for Dumper {
+    ///     type Output = ();
+    ///     for_each_operator!(define_visit_operator);
+    /// }
+    ///
+    /// ```
     pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
