@@ -198,11 +198,10 @@ impl<'a> OperatorsReader<'a> {
         Ok((self.read()?, pos))
     }
 
-    /// Visits an operator with its offset.
-    pub fn visit_with_offset<T>(
-        &mut self,
-        visitor: &mut T,
-    ) -> Result<<T as VisitOperator<'a>>::Output>
+    /// Visit a single operator with the specified [`VisitOperator`] instance.
+    ///
+    /// See [`BinaryReader::visit_operator`] for more information.
+    pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
     {
@@ -306,7 +305,7 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, offset: usize $($(,$arg: $argty)*)?) -> Self::Output;
+            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output;
         )*
     }
 }
@@ -325,12 +324,12 @@ pub trait VisitOperator<'a> {
     /// critical use cases. For performance critical implementations users
     /// are recommended to directly use the respective `visit` methods or
     /// implement [`VisitOperator`] on their own.
-    fn visit_operator(&mut self, offset: usize, op: &Operator<'a>) -> Self::Output {
+    fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         macro_rules! visit_operator {
             ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
                 match op {
                     $(
-                        Operator::$op $({ $($arg),* })? => self.$visit(offset, $($($arg.clone()),*)?),
+                        Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
                     )*
                 }
             }

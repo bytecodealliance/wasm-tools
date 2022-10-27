@@ -314,7 +314,7 @@ struct NopVisit;
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+            fn $visit(&mut self $($(,$arg: $argty)*)?) {
                 define_visit_operator!(@visit $op $( $($arg)* )?);
             }
         )*

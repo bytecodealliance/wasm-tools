@@ -97,7 +97,7 @@
 ///     // `VisitOperator` trait that this corresponds to.
 ///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
 ///         $(
-///             fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+///             fn $visit(&mut self $($(,$arg: $argty)*)?) {
 ///                 // do nothing for this example
 ///             }
 ///         )*
