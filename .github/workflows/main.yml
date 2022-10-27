@@ -86,6 +86,7 @@ jobs:
       - run: cargo check --no-default-features --features objdump
       - run: cargo check --no-default-features --features strip
       - run: cargo check --no-default-features --features compose
+      - run: cargo check --no-default-features --features demangle
 
   doc:
     runs-on: ubuntu-latest

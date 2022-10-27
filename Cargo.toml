@@ -89,6 +89,10 @@ regex = { version = "1.6.0", optional = true }
 # Dependencies of `compose`
 wasm-compose = { workspace = true, optional = true, features = ['cli'] }
 
+# Dependencies of `demangle`
+rustc-demangle = { version = "0.1.21", optional = true }
+cpp_demangle = { version = "0.4.0", optional = true }
+
 [dev-dependencies]
 serde_json = "1.0"
 tempfile = "3.1"
@@ -106,7 +110,19 @@ harness = false
 
 [features]
 # By default, all subcommands are built
-default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump', 'strip', 'compose']
+default = [
+  'shrink',
+  'smith',
+  'mutate',
+  'validate',
+  'print',
+  'parse',
+  'dump',
+  'objdump',
+  'strip',
+  'compose',
+  'demangle',
+]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = ['wasmparser', 'rayon']
@@ -119,3 +135,4 @@ dump = ['wasmparser-dump']
 objdump = ['wasmparser']
 strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
+demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']

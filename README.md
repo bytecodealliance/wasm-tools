@@ -37,7 +37,7 @@ programmatically as well:
 | Tool | Crate | Description |
 |------|------|------------|
 | `wasm-tools validate` | [wasmparser] | Validate a WebAssembly file |
-| `wasm-tools parser` | [wat] and [wast] | Translate the WebAssembly text format to binary |
+| `wasm-tools parse` | [wat] and [wast] | Translate the WebAssembly text format to binary |
 | `wasm-tools print` | [wasmprinter] | Translate the WebAssembly binary format to text |
 | `wasm-tools smith` | [wasm-smith] | Generate a "random" valid WebAssembly module |
 | `wasm-tools mutate` | [wasm-mutate] | Mutate an input wasm file into a new valid wasm file |
@@ -45,6 +45,8 @@ programmatically as well:
 | `wasm-tools dump` |   | Print debugging information about the binary format |
 | `wasm-tools objdump` |   | Print debugging information about section headers |
 | `wasm-tools strip` |   | Remove custom sections from a WebAssembly file |
+| `wasm-tools demangle` |   | Demangle Rust and C++ symbol names in the `name` section |
+| `wasm-tools compose` |   | Compose wasm components together |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat

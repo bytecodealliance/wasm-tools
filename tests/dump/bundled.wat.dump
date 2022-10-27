@@ -90,7 +90,7 @@
     0xd8 | 00 06       | module name
     0xda | 05 43 48 49 | "CHILD"
          | 4c 44      
-    0xe0 | 01 12       | function names
+    0xe0 | 01 12       | function section
     0xe2 | 02          | 2 count
     0xe3 | 00 09 77 61 | Naming { index: 0, name: "wasi-file" }
          | 73 69 2d 66
