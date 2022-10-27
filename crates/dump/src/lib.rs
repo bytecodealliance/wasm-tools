@@ -437,16 +437,10 @@ impl<'a> Dump<'a> {
     }
 
     fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
-        write!(self.state, "{} names", thing)?;
-        self.print(n.original_position())?;
-        let mut map = n.get_map()?;
-        write!(self.state, "{} count", map.get_count())?;
-        self.print(map.original_position())?;
-        for _ in 0..map.get_count() {
-            write!(self.state, "{:?}", map.read()?)?;
-            self.print(map.original_position())?;
-        }
-        Ok(())
+        self.section(n, thing, |me, end, naming| {
+            write!(me.state, "{:?}", naming)?;
+            me.print(end)
+        })
     }
 
     fn print_indirect_name_map(
@@ -455,37 +449,19 @@ impl<'a> Dump<'a> {
         thing_b: &str,
         n: IndirectNameMap<'_>,
     ) -> Result<()> {
-        write!(self.state, "{} names", thing_b)?;
-        self.print(n.original_position())?;
-        let mut outer_map = n.get_indirect_map()?;
-        write!(self.state, "{} count", outer_map.get_indirect_count())?;
-        self.print(outer_map.original_position())?;
-        for _ in 0..outer_map.get_indirect_count() {
-            let inner = outer_map.read()?;
-            write!(
-                self.state,
-                "{} {} {}s",
-                thing_a, inner.indirect_index, thing_b,
-            )?;
-            self.print(inner.original_position())?;
-            let mut map = inner.get_map()?;
-            write!(self.state, "{} count", map.get_count())?;
-            self.print(map.original_position())?;
-            for _ in 0..map.get_count() {
-                write!(self.state, "{:?}", map.read()?)?;
-                self.print(map.original_position())?;
-            }
-        }
-        Ok(())
+        self.section(n, thing_b, |me, _end, naming| {
+            write!(me.state, "{} {} ", thing_a, naming.index)?;
+            me.print_name_map(thing_b, naming.names)
+        })
     }
 
     fn print_custom_name_section(&mut self, name: Name<'_>, end: usize) -> Result<()> {
         match name {
-            Name::Module(n) => {
+            Name::Module { name, name_range } => {
                 write!(self.state, "module name")?;
-                self.print(n.original_position())?;
-                write!(self.state, "{:?}", n.get_name()?)?;
-                self.print(end)?;
+                self.print(name_range.start)?;
+                write!(self.state, "{:?}", name)?;
+                self.print(name_range.end)?;
             }
             Name::Function(n) => self.print_name_map("function", n)?,
             Name::Local(n) => self.print_indirect_name_map("function", "local", n)?,

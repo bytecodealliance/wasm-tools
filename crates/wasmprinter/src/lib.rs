@@ -468,9 +468,8 @@ impl Printer {
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
         fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>, name: &str) -> Result<()> {
             let mut used = HashSet::new();
-            let mut map = names.get_map()?;
-            for _ in 0..map.get_count() {
-                let naming = map.read()?;
+            for naming in names {
+                let naming = naming?;
                 into.insert(
                     naming.index,
                     Naming::new(naming.name, naming.index, name, &mut used),
@@ -484,16 +483,14 @@ impl Printer {
             names: IndirectNameMap<'_>,
             name: &str,
         ) -> Result<()> {
-            let mut outer_map = names.get_indirect_map()?;
-            for _ in 0..outer_map.get_indirect_count() {
+            for indirect in names {
+                let indirect = indirect?;
                 let mut used = HashSet::new();
-                let outer = outer_map.read()?;
-                let mut inner_map = outer.get_map()?;
-                for _ in 0..inner_map.get_count() {
-                    let inner = inner_map.read()?;
+                for naming in indirect.names {
+                    let naming = naming?;
                     into.insert(
-                        (outer.indirect_index, inner.index),
-                        Naming::new(inner.name, inner.index, name, &mut used),
+                        (indirect.index, naming.index),
+                        Naming::new(naming.name, naming.index, name, &mut used),
                     );
                 }
             }
@@ -502,8 +499,8 @@ impl Printer {
 
         for section in names {
             match section? {
-                Name::Module(n) => {
-                    let name = Naming::new(n.get_name()?, 0, "module", &mut HashSet::new());
+                Name::Module { name, .. } => {
+                    let name = Naming::new(name, 0, "module", &mut HashSet::new());
                     state.name = Some(name);
                 }
                 Name::Function(n) => name_map(&mut state.core.func_names, n, "func")?,
