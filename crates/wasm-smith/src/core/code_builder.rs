@@ -844,7 +844,11 @@ impl CodeBuilder<'_> {
             let keep_going = instructions.len() < max_instructions
                 && u.arbitrary().map_or(false, |b: u8| b != 0);
             if !keep_going {
-                self.end_active_control_frames(u, &mut instructions);
+                self.end_active_control_frames(
+                    u,
+                    &mut instructions,
+                    module.config.disallow_traps(),
+                );
                 break;
             }
 
@@ -857,7 +861,11 @@ impl CodeBuilder<'_> {
                 // instructions. In this case we swallow that error and instead
                 // just terminate our wasm function's frames.
                 None => {
-                    self.end_active_control_frames(u, &mut instructions);
+                    self.end_active_control_frames(
+                        u,
+                        &mut instructions,
+                        module.config.disallow_traps(),
+                    );
                     break;
                 }
             }
@@ -1000,11 +1008,12 @@ impl CodeBuilder<'_> {
         &mut self,
         u: &mut Unstructured<'_>,
         instructions: &mut Vec<Instruction>,
+        disallow_traps: bool,
     ) {
         while !self.allocs.controls.is_empty() {
             // Ensure that this label is valid by placing the right types onto
             // the operand stack for the end of the label.
-            self.guarantee_label_results(u, instructions);
+            self.guarantee_label_results(u, instructions, disallow_traps);
 
             // Remove the label and clear the operand stack since the label has
             // been removed.
@@ -1020,7 +1029,7 @@ impl CodeBuilder<'_> {
                 self.allocs
                     .operands
                     .extend(label.params.into_iter().map(Some));
-                self.guarantee_label_results(u, instructions);
+                self.guarantee_label_results(u, instructions, disallow_traps);
                 self.allocs.controls.pop();
                 self.allocs.operands.truncate(label.height);
             }
@@ -1045,6 +1054,7 @@ impl CodeBuilder<'_> {
         &mut self,
         u: &mut Unstructured<'_>,
         instructions: &mut Vec<Instruction>,
+        disallow_traps: bool,
     ) {
         let mut operands = self.operands();
         let label = self.allocs.controls.last().unwrap();
@@ -1057,7 +1067,7 @@ impl CodeBuilder<'_> {
         // Generating an unreachable instruction is always a valid way to
         // generate any types for a label, but it's not too interesting, so
         // don't favor it.
-        if u.arbitrary::<u16>().unwrap_or(0) == 1 {
+        if u.arbitrary::<u16>().unwrap_or(0) == 1 && !disallow_traps {
             instructions.push(Instruction::Unreachable);
             return;
         }
