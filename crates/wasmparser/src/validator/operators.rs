@@ -267,11 +267,11 @@ impl OperatorValidator {
     }
 
     /// Create a temporary [`OperatorValidatorTemp`] for validation.
-    pub fn with_resources<'validator, 'resources, T>(
+    pub fn with_resources<'a, 'validator, 'resources, T>(
         &'validator mut self,
         resources: &'resources T,
         offset: usize,
-    ) -> impl VisitOperator<Output = Result<()>> + 'validator
+    ) -> impl VisitOperator<'a, Output = Result<()>> + 'validator
     where
         T: WasmModuleResources,
         'resources: 'validator,

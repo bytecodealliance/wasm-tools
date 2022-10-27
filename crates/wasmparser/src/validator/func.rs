@@ -58,7 +58,6 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
         let validator =
             OperatorValidator::new_func(ty, 0, &features, &resources, allocs.0).unwrap();
         FuncValidator {
-            op_offset: 0,
             validator,
             resources,
             index,
@@ -71,7 +70,6 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
 /// This is a finalized validator which is ready to process a [`FunctionBody`].
 /// This is created from the [`FuncToValidate::into_validator`] method.
 pub struct FuncValidator<T> {
-    op_offset: usize,
     validator: OperatorValidator,
     resources: T,
     index: u32,
@@ -96,8 +94,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.read_locals(&mut reader)?;
         reader.allow_memarg64(self.validator.features.memory64);
         while !reader.eof() {
-            self.op_offset = reader.original_position();
-            reader.visit_operator(self)??;
+            reader.visit_operator(&mut self.visitor(reader.original_position()))??;
         }
         self.finish(reader.original_position())
     }
@@ -132,8 +129,33 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// the operator itself are passed to this function to provide more useful
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        self.op_offset = offset;
-        self.visit_operator(operator)
+        self.visitor(offset).visit_operator(operator)
+    }
+
+    /// Get the operator visitor for the next operator in the function.
+    ///
+    /// The returned visitor is intended to visit just one instruction at the `offset`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use wasmparser::{WasmModuleResources, FuncValidator, FunctionBody, Result};
+    /// pub fn validate<R>(validator: &mut FuncValidator<R>, body: &FunctionBody<'_>) -> Result<()>
+    /// where R: WasmModuleResources
+    /// {
+    ///     let mut operator_reader = body.get_binary_reader();
+    ///     while !operator_reader.eof() {
+    ///         let mut visitor = validator.visitor(operator_reader.original_position());
+    ///         operator_reader.visit_operator(&mut visitor)??;
+    ///     }
+    ///     validator.finish(operator_reader.original_position())
+    /// }
+    /// ```
+    pub fn visitor<'this, 'a: 'this>(
+        &'this mut self,
+        offset: usize,
+    ) -> impl VisitOperator<'a, Output = Result<()>> + 'this {
+        self.validator.with_resources(&self.resources, offset)
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -308,26 +330,4 @@ mod tests {
         assert!(v.op(2, &Operator::I32Const { value: 99 }).is_ok());
         assert_eq!(v.operand_stack_height(), 2);
     }
-}
-
-macro_rules! define_visit_operator {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
-        $(
-            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Result<()> {
-                // TODO: whatever happens if the caller does not set `op_offset` ahead of time?
-                self.validator.with_resources(&self.resources, self.op_offset)
-                    .$visit($($($arg),*)?)
-            }
-        )*
-    }
-}
-
-#[allow(unused_variables)]
-impl<'a, T> VisitOperator<'a> for FuncValidator<T>
-where
-    T: WasmModuleResources,
-{
-    type Output = Result<()>;
-
-    for_each_operator!(define_visit_operator);
 }
