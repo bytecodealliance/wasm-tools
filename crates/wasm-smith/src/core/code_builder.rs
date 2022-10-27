@@ -1877,9 +1877,10 @@ fn i64_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(Instruction::I64Load(memarg), module, builder, instructions);
     } else {
         instructions.push(Instruction::I64Load(memarg));
@@ -1893,9 +1894,10 @@ fn f32_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::F32));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 4);
         no_traps::load(Instruction::F32Load(memarg), module, builder, instructions);
     } else {
         instructions.push(Instruction::F32Load(memarg));
@@ -1909,9 +1911,10 @@ fn f64_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     builder.allocs.operands.push(Some(ValType::F64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(Instruction::F64Load(memarg), module, builder, instructions);
     } else {
         instructions.push(Instruction::F64Load(memarg));
@@ -1925,9 +1928,10 @@ fn i32_load_8_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let mut memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 4);
         no_traps::load(
             Instruction::I32Load8S(memarg),
             module,
@@ -1946,9 +1950,10 @@ fn i32_load_8_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let mut memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 4);
         no_traps::load(
             Instruction::I32Load8U(memarg),
             module,
@@ -1967,9 +1972,10 @@ fn i32_load_16_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 4);
         no_traps::load(
             Instruction::I32Load16S(memarg),
             module,
@@ -1988,9 +1994,10 @@ fn i32_load_16_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 4);
         no_traps::load(
             Instruction::I32Load16U(memarg),
             module,
@@ -2009,9 +2016,10 @@ fn i64_load_8_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let mut memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(
             Instruction::I64Load8S(memarg),
             module,
@@ -2030,9 +2038,10 @@ fn i64_load_16_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(
             Instruction::I64Load16S(memarg),
             module,
@@ -2051,9 +2060,10 @@ fn i64_load_32_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(
             Instruction::I64Load32S(memarg),
             module,
@@ -2072,9 +2082,10 @@ fn i64_load_8_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let mut memarg = mem_arg(u, module, builder, &[0])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(
             Instruction::I64Load8U(memarg),
             module,
@@ -2093,9 +2104,10 @@ fn i64_load_16_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(
             Instruction::I64Load16U(memarg),
             module,
@@ -2114,9 +2126,10 @@ fn i64_load_32_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let mut memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps() {
+        memarg.offset = memarg.offset.min(u64::MAX - 8);
         no_traps::load(
             Instruction::I64Load32U(memarg),
             module,
@@ -4786,9 +4799,10 @@ macro_rules! simd_load {
 
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            let memarg = mem_arg(u, module, builder, $alignments)?;
+            let mut memarg = mem_arg(u, module, builder, $alignments)?;
             builder.push_operands(&[ValType::V128]);
             if module.config.disallow_traps() {
+                memarg.offset = memarg.offset.min(u64::MAX - 16);
                 no_traps::load(
                     Instruction::$instruction(memarg),
                     module,

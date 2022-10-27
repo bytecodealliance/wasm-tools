@@ -65,7 +65,7 @@ fuzz_target!(|data: &[u8]| {
                 match func.call(&mut store, &args, &mut results) {
                     Ok(_) => continue,
                     Err(err) if err.to_string().contains("all fuel consumed") => continue,
-                    Err(_) => panic!("generated wasm trapped in non-trapping mode"),
+                    Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
                 }
             }
             _ => continue,
