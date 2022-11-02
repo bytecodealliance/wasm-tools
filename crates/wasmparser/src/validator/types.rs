@@ -1386,6 +1386,26 @@ impl<'a> TypesRef<'a> {
         }
     }
 
+    /// Gets the imports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn imports(&self) -> Option<&'a IndexMap<(String, String), Vec<EntityType>>> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(&module.imports),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
+    /// Gets the exports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn exports(&self) -> Option<&'a IndexMap<String, EntityType>> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(&module.exports),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
     /// Gets the entity type for the given import.
     pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
         match &self.kind {
@@ -1733,6 +1753,20 @@ impl Types {
             TypesKind::Module(_) => 0,
             TypesKind::Component(component) => component.values.len(),
         }
+    }
+
+    /// Gets the imports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn imports(&self) -> Option<&IndexMap<(String, String), Vec<EntityType>>> {
+        self.as_ref().imports()
+    }
+
+    /// Gets the exports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn exports(&self) -> Option<&IndexMap<String, EntityType>> {
+        self.as_ref().exports()
     }
 
     /// Gets the entity type from the given import.
