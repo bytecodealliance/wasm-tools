@@ -433,8 +433,11 @@ fn min_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
     // This is the minimum float value that is representable as an i64
     let min_f64 = -9_223_372_036_854_775_000f64;
     let min_f32 = -9_223_372_000_000_000_000f32;
+
+    // This is the minimum float value that is representable as as i32
+    let min_f32_as_i32 = -2_147_483_500f32;
     match inst {
-        Instruction::I32TruncF32S => Instruction::F32Const(i32::MIN as f32),
+        Instruction::I32TruncF32S => Instruction::F32Const(min_f32_as_i32),
         Instruction::I32TruncF32U => Instruction::F32Const(0.0),
         Instruction::I64TruncF32S => Instruction::F32Const(min_f32),
         Instruction::I64TruncF32U => Instruction::F32Const(0.0),
@@ -448,18 +451,24 @@ fn min_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
 
 fn max_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
     // This is the maximum float value that is representable as as i64
-    let max_f64 = 9_223_372_036_854_775_000f64;
-    let max_f32 = 9_223_371_500_000_000_000f32;
+    let max_f64_as_i64 = 9_223_372_036_854_775_000f64;
+    let max_f32_as_i64 = 9_223_371_500_000_000_000f32;
 
+    // This is the maximum float value that is representable as as i32
+    let max_f32_as_i32 = 2_147_483_500f32;
     match inst {
         Instruction::I32TruncF32S | Instruction::I32TruncF32U => {
-            Instruction::F32Const(i32::MAX as f32)
+            Instruction::F32Const(max_f32_as_i32)
         }
-        Instruction::I64TruncF32S | Instruction::I64TruncF32U => Instruction::F32Const(max_f32),
+        Instruction::I64TruncF32S | Instruction::I64TruncF32U => {
+            Instruction::F32Const(max_f32_as_i64)
+        }
         Instruction::I32TruncF64S | Instruction::I32TruncF64U => {
             Instruction::F64Const(i32::MAX as f64)
         }
-        Instruction::I64TruncF64S | Instruction::I64TruncF64U => Instruction::F64Const(max_f64),
+        Instruction::I64TruncF64S | Instruction::I64TruncF64U => {
+            Instruction::F64Const(max_f64_as_i64)
+        }
         _ => panic!("not a trunc instruction"),
     }
 }
