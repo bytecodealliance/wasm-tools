@@ -56,6 +56,14 @@ pub(crate) fn load<'a>(
             // []
             insts.push(Instruction::LocalGet(address_local));
             // [address:address_type]
+            insts.push(int_const_inst(address_type, 0));
+            // [address:address_type 0:address_type]
+            insts.push(int_le_s_inst(address_type));
+            // [load_will_trap:i32]
+            insts.push(Instruction::BrIf(0));
+            // []
+            insts.push(Instruction::LocalGet(address_local));
+            // [address:address_type]
             insts.push(inst);
             // [result:load_type]
             insts.push(Instruction::LocalSet(result_local));
@@ -129,10 +137,22 @@ pub(crate) fn store<'a>(
         // []
         insts.push(Instruction::LocalGet(address_local));
         // [address:address_type]
-        insts.push(Instruction::LocalGet(value_local));
-        // [address:address_type value:store_type]
-        insts.push(inst);
-        // []
+        insts.push(int_const_inst(address_type, 0));
+        // [address:address_type 0:address_type]
+        insts.push(int_le_s_inst(address_type));
+        // [load_will_trap:i32]
+        insts.push(Instruction::If(BlockType::Empty));
+        insts.push(Instruction::Else);
+        {
+            // []
+            insts.push(Instruction::LocalGet(address_local));
+            // [address:address_type]
+            insts.push(Instruction::LocalGet(value_local));
+            // [address:address_type value:store_type]
+            insts.push(inst);
+            // []
+        }
+        insts.push(Instruction::End);
     }
     // []
     insts.push(Instruction::End);
@@ -555,6 +575,14 @@ fn int_le_u_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
         ValType::I32 => Instruction::I32LeU,
         ValType::I64 => Instruction::I64LeU,
+        _ => panic!("not an int type"),
+    }
+}
+
+fn int_le_s_inst<'a>(ty: ValType) -> Instruction<'a> {
+    match ty {
+        ValType::I32 => Instruction::I32LeS,
+        ValType::I64 => Instruction::I64LeS,
         _ => panic!("not an int type"),
     }
 }
