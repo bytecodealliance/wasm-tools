@@ -5,8 +5,8 @@ use libfuzzer_sys::fuzz_target;
 use wasmtime::*;
 
 #[cfg(feature = "wasmtime")]
-#[path = "../../crates/fuzz-stats/src/dummy.rs"]
-pub mod dummy;
+#[path = "../../crates/fuzz-stats/src/lib.rs"]
+pub mod fuzz_stats;
 
 // Define a fuzz target that accepts arbitrary
 // `Module`s as input.
@@ -45,9 +45,16 @@ fuzz_target!(|data: &[u8]| {
     eng_conf.consume_fuel(true);
     let engine = Engine::new(&eng_conf).unwrap();
     let module = Module::from_binary(&engine, &wasm_bytes).unwrap();
-    let mut store = Store::new(&engine, ());
+    let mut store = Store::new(
+        &engine,
+        fuzz_stats::limits::StoreLimits {
+            remaining_memory: 1 << 30,
+            oom: false,
+        },
+    );
+    store.limiter(|s| s as &mut dyn ResourceLimiter);
     set_fuel(&mut store, 1_000);
-    let inst_result = dummy::dummy_imports(&mut store, &module)
+    let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)
         .and_then(|imports| Instance::new(&mut store, &module, &imports));
     let instance = match inst_result {
         Ok(r) => r,
@@ -58,8 +65,8 @@ fuzz_target!(|data: &[u8]| {
     for export in module.exports() {
         match export.ty() {
             ExternType::Func(func_ty) => {
-                let args = dummy::dummy_values(func_ty.params());
-                let mut results = dummy::dummy_values(func_ty.results());
+                let args = fuzz_stats::dummy::dummy_values(func_ty.params());
+                let mut results = fuzz_stats::dummy::dummy_values(func_ty.results());
                 let func = instance.get_func(&mut store, export.name()).unwrap();
                 set_fuel(&mut store, 1_000);
                 match func.call(&mut store, &args, &mut results) {
