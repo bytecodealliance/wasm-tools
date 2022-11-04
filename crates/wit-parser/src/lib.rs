@@ -275,6 +275,19 @@ impl Results {
         }
     }
 
+    pub fn throws<'a>(&self, iface: &'a Interface) -> Option<(Option<&'a Type>, Option<&'a Type>)> {
+        if self.len() != 1 {
+            return None;
+        }
+        match self.iter_types().next().unwrap() {
+            Type::Id(id) => match &iface.types[*id].kind {
+                TypeDefKind::Result(r) => Some((r.ok.as_ref(), r.err.as_ref())),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     pub fn iter_types(&self) -> ResultsTypeIter {
         match self {
             Results::Named(ps) => ResultsTypeIter::Named(ps.iter()),
