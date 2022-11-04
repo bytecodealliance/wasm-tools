@@ -14,6 +14,8 @@ use std::{
     sync::Arc,
 };
 
+pub use super::importmap::{ImportMap, ImportMapIter};
+
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
 /// Functions that exceed this limit will instead pass parameters indirectly from
@@ -1389,7 +1391,7 @@ impl<'a> TypesRef<'a> {
     /// Gets the imports of this module.
     ///
     /// Returns `None` if this is a component.
-    pub fn imports(&self) -> Option<&'a IndexMap<(String, String), Vec<EntityType>>> {
+    pub fn imports(&self) -> Option<&'a ImportMap> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(&module.imports),
             TypesRefKind::Component(_) => None,
@@ -1758,7 +1760,7 @@ impl Types {
     /// Gets the imports of this module.
     ///
     /// Returns `None` if this is a component.
-    pub fn imports(&self) -> Option<&IndexMap<(String, String), Vec<EntityType>>> {
+    pub fn imports(&self) -> Option<&ImportMap> {
         self.as_ref().imports()
     }
 
