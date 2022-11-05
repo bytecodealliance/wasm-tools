@@ -20,8 +20,38 @@ use std::hash::{BuildHasher, Hash, Hasher};
 ///
 /// [WebAssembly text format]: https://webassembly.github.io/spec/core/text/index.html
 pub struct ImportMap {
+    /// Just a Vec of the import entries in the order they were declared
     entries: Vec<(Key, EntityType)>,
+    /// A hashtable, where the values stored in the buckets are indices into the entries Vec,
+    /// and the hash values are that of the Key stored at entries[index].
+    ///
+    /// Only the index of the first entry to have a given Key will be stored here.
+    /// e.g., the imports section:
+    /// ```text
+    /// (module
+    ///   (import "a" "a" (func $0))
+    ///   (import "a" "b" (func $1))
+    ///   (import "a" "a" (func $2)) ; same import key as $0!
+    ///   (import "b" "c" (func $3)))
+    /// ```
+    /// will be represented as:
+    /// ```ignore
+    /// ImportMap {
+    ///     entries: [
+    ///         (("a", "a"), func_0),
+    ///         (("a", "b"), func_1),
+    ///         (("a", "a"), func_2),
+    ///         (("b", "c"), func_3),
+    ///     ],
+    ///     table: {
+    ///         hash("a", "a") => 0,
+    ///         hash("a", "b") => 1,
+    ///         hash("b", "c") => 3,
+    ///     },
+    /// }
+    /// ```
     table: RawTable<usize>,
+    /// BuildHasher for the hashtable. Can this be a faster hash function?
     builder: RandomState,
 }
 
@@ -37,6 +67,7 @@ impl ImportMap {
         }
     }
 
+    /// Hash a Key with this map's hasher.
     fn hash(builder: &RandomState, key: (&str, &str)) -> u64 {
         // BuildHasher::hash_one once stabilized?
         let mut hasher = builder.build_hasher();
@@ -44,12 +75,15 @@ impl ImportMap {
         hasher.finish()
     }
 
+    /// Add an import entry to the map.
     pub(super) fn add(&mut self, module: String, name: String, entity: EntityType) {
+        // add the entry to the entries vec
         let index = self.entries.len();
         self.entries.push(((module, name), entity));
         let ((module, name), _) = &self.entries[index];
 
         if let (hash, None) = self.get_index(module, name) {
+            // if the index for the entry wasn't in the hashtable already, add it
             self.table.insert(hash, index, |&index| {
                 let ((module, name), _) = &self.entries[index];
                 Self::hash(&self.builder, (&**module, &**name))
@@ -57,6 +91,7 @@ impl ImportMap {
         }
     }
 
+    /// Lookup the index of the import entry, and also return the hash of the key.
     fn get_index(&self, module: &str, name: &str) -> (u64, Option<usize>) {
         let key = (module, name);
         let hash = Self::hash(&self.builder, key);
@@ -72,7 +107,11 @@ impl ImportMap {
     /// Note that if there were multiple imports with the given module and name, only the first in
     /// order of its declaration in the imports section will be returned.
     pub fn get(&self, module: &str, name: &str) -> Option<EntityType> {
-        self.get_index(module, name).1.map(|i| self.entries[i].1)
+        let (_, index) = self.get_index(module, name);
+        index.map(|index| {
+            let (_, entity) = &self.entries[index];
+            *entity
+        })
     }
 
     /// Iterate over all the entries in this `ImportMap`.
