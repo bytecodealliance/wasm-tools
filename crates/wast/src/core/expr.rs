@@ -606,8 +606,8 @@ instructions! {
         ArrayGetS(Index<'a>) : [0xfb, 0x14] : "array.get_s",
         ArrayGetU(Index<'a>) : [0xfb, 0x15] : "array.get_u",
         ArraySet(Index<'a>) : [0xfb, 0x16] : "array.set",
-        ArrayLen(Index<'a>) : [0xfb, 0x17] : "array.len",
         ArrayCopy(ArrayCopy<'a>) : [0xfb, 0x18] : "array.copy",
+        ArrayLen : [0xfb, 0x19] : "array.len",
 
         // gc proposal, i31
         I31New : [0xfb, 0x20] : "i31.new",
@@ -640,6 +640,10 @@ instructions! {
         BrOnNonData(Index<'a>) : [0xfb, 0x64] : "br_on_non_data",
         BrOnNonI31(Index<'a>) : [0xfb, 0x65] : "br_on_non_i31",
         BrOnNonArray(Index<'a>) : [0xfb, 0x67] : "br_on_non_array",
+
+        // gc proposal extern/any coercion operations
+        ExternInternalize : [0xfb, 0x70] : "extern.internalize",
+        ExternExternalize : [0xfb, 0x71] : "extern.externalize",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
