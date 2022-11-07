@@ -2,6 +2,6 @@ search-paths:
   - ../service/target/wasm32-unknown-unknown/release
 
 instantiations:
-  $component:
+  $input:
     arguments:
       backend: svc

@@ -1,10 +1,7 @@
+import-components: true
 dependencies:
-  a:
-    path: ../complex/a.wat
-    import: a
-  b:
-    path: ../complex/b.wat
-    import: b
+  a: ../complex/a.wat
+  b: ../complex/b.wat
 
 instantiations:
   b1:

@@ -1,1 +1,4 @@
-file `tests/compositions/module/root.wat` is not a WebAssembly component
+failed to parse component `tests/compositions/module/root.wat`
+
+Caused by:
+    the file is not a WebAssembly component

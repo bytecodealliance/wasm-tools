@@ -1,5 +1,5 @@
 instantiations:
-  $component:
+  $input:
     arguments:
       a: a1
   a1:

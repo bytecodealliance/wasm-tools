@@ -15,22 +15,13 @@ use std::{
 pub struct Dependency {
     /// The path to the dependency's component file.
     pub path: PathBuf,
-
-    /// The name to import the component with.
-    ///
-    /// By default, components are defined (embedded) in the composed component.
-    /// By specifying an import name, the component will be imported instead.
-    pub import: Option<String>,
 }
 
 impl FromStr for Dependency {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            path: s.into(),
-            import: None,
-        })
+        Ok(Self { path: s.into() })
     }
 }
 
@@ -95,6 +86,13 @@ pub struct Config {
     /// Whether or not to skip validation of the output component.
     #[serde(default)]
     pub skip_validation: bool,
+
+    /// Whether or not to import components in the composed component.
+    ///
+    /// By default, components are defined rather than imported in
+    /// the composed component.
+    #[serde(default)]
+    pub import_components: bool,
 
     /// Whether or not to disallow instance imports in the output component.
     ///

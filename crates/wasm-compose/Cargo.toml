@@ -21,6 +21,7 @@ petgraph = "0.6.2"
 log = { workspace = true }
 serde_yaml = "0.8.26"
 clap = { workspace = true, optional = true }
+smallvec = "1.10.0"
 
 [features]
 default = []
