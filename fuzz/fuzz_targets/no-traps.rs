@@ -2,6 +2,7 @@
 
 use arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
+use wasm_smith::SwarmConfig;
 use wasmtime::*;
 
 #[cfg(feature = "wasmtime")]
@@ -11,6 +12,7 @@ pub mod fuzz_stats;
 // Define a fuzz target that accepts arbitrary
 // `Module`s as input.
 fuzz_target!(|data: &[u8]| {
+    // Use data to generate a random wasm module
     let mut u = Unstructured::new(data);
     let (wasm_bytes, config) = match wasm_tools_fuzz::generate_valid_module(&mut u, |config, _| {
         config.disallow_traps = true;
@@ -22,23 +24,9 @@ fuzz_target!(|data: &[u8]| {
         Ok(m) => m,
         Err(_) => return,
     };
-    // Validate the module or component and assert that it passes validation.
-    let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-        component_model: false,
-        multi_value: config.multi_value_enabled,
-        multi_memory: config.max_memories > 1,
-        bulk_memory: true,
-        reference_types: true,
-        simd: config.simd_enabled,
-        relaxed_simd: config.relaxed_simd_enabled,
-        memory64: config.memory64_enabled,
-        threads: config.threads_enabled,
-        exceptions: config.exceptions_enabled,
-        ..wasmparser::WasmFeatures::default()
-    });
-    if let Err(e) = validator.validate_all(&wasm_bytes) {
-        panic!("Invalid module: {}", e);
-    }
+    validate_module(config, &wasm_bytes);
+
+    // Configure the engine, module, and store
     let mut eng_conf = Config::new();
     eng_conf.wasm_memory64(true);
     eng_conf.wasm_multi_memory(true);
@@ -54,6 +42,8 @@ fuzz_target!(|data: &[u8]| {
     );
     store.limiter(|s| s as &mut dyn ResourceLimiter);
     set_fuel(&mut store, 1_000);
+
+    // Instantiate the module
     let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)
         .and_then(|imports| Instance::new(&mut store, &module, &imports));
     let instance = match inst_result {
@@ -62,6 +52,7 @@ fuzz_target!(|data: &[u8]| {
         Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
     };
 
+    // Call all exported functions
     for export in module.exports() {
         match export.ty() {
             ExternType::Func(func_ty) => {
@@ -79,6 +70,26 @@ fuzz_target!(|data: &[u8]| {
         }
     }
 });
+
+fn validate_module(config: SwarmConfig, wasm_bytes: &Vec<u8>) {
+    // Validate the module or component and assert that it passes validation.
+    let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
+        component_model: false,
+        multi_value: config.multi_value_enabled,
+        multi_memory: config.max_memories > 1,
+        bulk_memory: true,
+        reference_types: true,
+        simd: config.simd_enabled,
+        relaxed_simd: config.relaxed_simd_enabled,
+        memory64: config.memory64_enabled,
+        threads: config.threads_enabled,
+        exceptions: config.exceptions_enabled,
+        ..wasmparser::WasmFeatures::default()
+    });
+    if let Err(e) = validator.validate_all(wasm_bytes) {
+        panic!("Invalid module: {}", e);
+    }
+}
 
 fn set_fuel<T>(store: &mut Store<T>, fuel: u64) {
     // This is necessary because consume_fuel below will err if there is <=0
