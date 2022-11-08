@@ -2331,7 +2331,7 @@ impl Encode for Instruction<'_> {
             }
             Instruction::I64x2LeS => {
                 sink.push(0xFD);
-                0xDDu32.encode(sink);
+                0xDAu32.encode(sink);
             }
             Instruction::I64x2GeS => {
                 sink.push(0xFD);
