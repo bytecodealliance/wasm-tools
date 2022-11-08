@@ -11,3 +11,11 @@
  0x1c | 05 04       | component instance section
  0x1e | 01          | 1 count
  0x1f | 00 00 00    | [instance 0] Instantiate { component_index: 0, args: [] }
+ 0x22 | 00 16       | custom section
+ 0x24 | 0e 63 6f 6d | name: "component-name"
+      | 70 6f 6e 65
+      | 6e 74 2d 6e
+      | 61 6d 65   
+ 0x33 | 01 05 04    | component section
+ 0x36 | 01          | 1 count
+ 0x37 | 00 01 63    | Naming { index: 0, name: "c" }

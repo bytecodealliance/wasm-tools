@@ -11,3 +11,12 @@
       | 00 04 01 31
       | 01 01 04 02
       | 63 35 04 01
+ 0x2f | 00 1a       | custom section
+ 0x31 | 0e 63 6f 6d | name: "component-name"
+      | 70 6f 6e 65
+      | 6e 74 2d 6e
+      | 61 6d 65   
+ 0x40 | 01 09 03    | type section
+ 0x43 | 01          | 1 count
+ 0x44 | 00 05 6f 75 | Naming { index: 0, name: "outer" }
+      | 74 65 72   

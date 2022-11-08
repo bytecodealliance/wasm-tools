@@ -36,3 +36,16 @@
  0x4e | 00 01 00    | [core instance 0] Instantiate { module_index: 1, args: [] }
  0x51 | 00 00 01 00 | [core instance 1] Instantiate { module_index: 0, args: [InstantiationArg { name: "", kind: Instance, index: 0 }] }
       | 12 00      
+ 0x57 | 00 29       | custom section
+ 0x59 | 0e 63 6f 6d | name: "component-name"
+      | 70 6f 6e 65
+      | 6e 74 2d 6e
+      | 61 6d 65   
+ 0x68 | 01 0b 00 11 | core module section
+ 0x6c | 02          | 2 count
+ 0x6d | 00 02 6d 31 | Naming { index: 0, name: "m1" }
+ 0x71 | 01 02 6d 32 | Naming { index: 1, name: "m2" }
+ 0x75 | 01 0b 00 12 | core instance section
+ 0x79 | 02          | 2 count
+ 0x7a | 00 02 69 31 | Naming { index: 0, name: "i1" }
+ 0x7e | 01 02 69 32 | Naming { index: 1, name: "i2" }

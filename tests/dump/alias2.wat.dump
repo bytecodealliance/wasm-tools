@@ -16,7 +16,7 @@
   0x35 | 0a 04       | component import section
   0x37 | 01          | 1 count
   0x38 | 00 05 00    | [instance 0] ComponentImport { name: "", ty: Instance(0) }
-  0x3b | 04 3f       | [component 0] inline size
+  0x3b | 04 54       | [component 0] inline size
     0x3d | 00 61 73 6d | version 65546 (Component)
          | 0a 00 01 00
     0x45 | 03 03       | core type section
@@ -45,135 +45,195 @@
     0x75 | 0a 05       | component import section
     0x77 | 01          | 1 count
     0x78 | 01 35 04 02 | [component 0] ComponentImport { name: "5", ty: Component(2) }
-  0x7c | 06 1b       | component alias section
-  0x7e | 05          | 5 count
-  0x7f | 00 11 00 00 | alias [module 0] InstanceExport { kind: Module, instance_index: 0, name: "1" }
+    0x7c | 00 13       | custom section
+    0x7e | 0e 63 6f 6d | name: "component-name"
+         | 70 6f 6e 65
+         | 6e 74 2d 6e
+         | 61 6d 65   
+    0x8d | 00 02       | component name
+    0x8f | 01 63       | "c"
+  0x91 | 06 1b       | component alias section
+  0x93 | 05          | 5 count
+  0x94 | 00 11 00 00 | alias [module 0] InstanceExport { kind: Module, instance_index: 0, name: "1" }
        | 01 31      
-  0x85 | 01 00 00 01 | alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "2" }
+  0x9a | 01 00 00 01 | alias [func 0] InstanceExport { kind: Func, instance_index: 0, name: "2" }
        | 32         
-  0x8a | 02 00 00 01 | alias [value 0] InstanceExport { kind: Value, instance_index: 0, name: "4" }
+  0x9f | 02 00 00 01 | alias [value 0] InstanceExport { kind: Value, instance_index: 0, name: "4" }
        | 34         
-  0x8f | 05 00 00 01 | alias [instance 1] InstanceExport { kind: Instance, instance_index: 0, name: "3" }
+  0xa4 | 05 00 00 01 | alias [instance 1] InstanceExport { kind: Instance, instance_index: 0, name: "3" }
        | 33         
-  0x94 | 04 00 00 01 | alias [component 1] InstanceExport { kind: Component, instance_index: 0, name: "5" }
+  0xa9 | 04 00 00 01 | alias [component 1] InstanceExport { kind: Component, instance_index: 0, name: "5" }
        | 35         
-  0x99 | 05 19       | component instance section
-  0x9b | 01          | 1 count
-  0x9c | 00 00 05 01 | [instance 2] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "1", kind: Module, index: 0 }, ComponentInstantiationArg { name: "2", kind: Func, index: 0 }, ComponentInstantiationArg { name: "3", kind: Value, index: 0 }, ComponentInstantiationArg { name: "4", kind: Instance, index: 1 }, ComponentInstantiationArg { name: "5", kind: Component, index: 1 }] }
+  0xae | 05 19       | component instance section
+  0xb0 | 01          | 1 count
+  0xb1 | 00 00 05 01 | [instance 2] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "1", kind: Module, index: 0 }, ComponentInstantiationArg { name: "2", kind: Func, index: 0 }, ComponentInstantiationArg { name: "3", kind: Value, index: 0 }, ComponentInstantiationArg { name: "4", kind: Instance, index: 1 }, ComponentInstantiationArg { name: "5", kind: Component, index: 1 }] }
        | 31 00 11 00
        | 01 32 01 00
        | 01 33 02 00
        | 01 34 05 01
        | 01 35 04 01
-  0xb4 | 04 15       | [component 2] inline size
-    0xb6 | 00 61 73 6d | version 65546 (Component)
+  0xc9 | 04 32       | [component 2] inline size
+    0xcb | 00 61 73 6d | version 65546 (Component)
          | 0a 00 01 00
-    0xbe | 06 05       | component alias section
-    0xc0 | 01          | 1 count
-    0xc1 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
-    0xc5 | 0a 04       | component import section
-    0xc7 | 01          | 1 count
-    0xc8 | 00 05 00    | [instance 0] ComponentImport { name: "", ty: Instance(0) }
-  0xcb | 06 1b       | component alias section
-  0xcd | 05          | 5 count
-  0xce | 00 11 00 00 | alias [module 1] InstanceExport { kind: Module, instance_index: 0, name: "1" }
+    0xd3 | 06 05       | component alias section
+    0xd5 | 01          | 1 count
+    0xd6 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
+    0xda | 0a 04       | component import section
+    0xdc | 01          | 1 count
+    0xdd | 00 05 00    | [instance 0] ComponentImport { name: "", ty: Instance(0) }
+    0xe0 | 00 1b       | custom section
+    0xe2 | 0e 63 6f 6d | name: "component-name"
+         | 70 6f 6e 65
+         | 6e 74 2d 6e
+         | 61 6d 65   
+    0xf1 | 00 03       | component name
+    0xf3 | 02 63 32    | "c2"
+    0xf6 | 01 05 03    | type section
+    0xf9 | 01          | 1 count
+    0xfa | 00 01 74    | Naming { index: 0, name: "t" }
+  0xfd | 06 1b       | component alias section
+  0xff | 05          | 5 count
+ 0x100 | 00 11 00 00 | alias [module 1] InstanceExport { kind: Module, instance_index: 0, name: "1" }
        | 01 31      
-  0xd4 | 01 00 00 01 | alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "2" }
+ 0x106 | 01 00 00 01 | alias [func 1] InstanceExport { kind: Func, instance_index: 0, name: "2" }
        | 32         
-  0xd9 | 02 00 00 01 | alias [value 1] InstanceExport { kind: Value, instance_index: 0, name: "3" }
+ 0x10b | 02 00 00 01 | alias [value 1] InstanceExport { kind: Value, instance_index: 0, name: "3" }
        | 33         
-  0xde | 05 00 00 01 | alias [instance 3] InstanceExport { kind: Instance, instance_index: 0, name: "4" }
+ 0x110 | 05 00 00 01 | alias [instance 3] InstanceExport { kind: Instance, instance_index: 0, name: "4" }
        | 34         
-  0xe3 | 04 00 00 01 | alias [component 3] InstanceExport { kind: Component, instance_index: 0, name: "5" }
+ 0x115 | 04 00 00 01 | alias [component 3] InstanceExport { kind: Component, instance_index: 0, name: "5" }
        | 35         
-  0xe8 | 05 1e       | component instance section
-  0xea | 02          | 2 count
-  0xeb | 01 05 01 31 | [instance 4] FromExports([ComponentExport { name: "1", kind: Module, index: 1 }, ComponentExport { name: "2", kind: Func, index: 1 }, ComponentExport { name: "3", kind: Value, index: 1 }, ComponentExport { name: "4", kind: Instance, index: 3 }, ComponentExport { name: "5", kind: Component, index: 3 }])
+ 0x11a | 05 1e       | component instance section
+ 0x11c | 02          | 2 count
+ 0x11d | 01 05 01 31 | [instance 4] FromExports([ComponentExport { name: "1", kind: Module, index: 1 }, ComponentExport { name: "2", kind: Func, index: 1 }, ComponentExport { name: "3", kind: Value, index: 1 }, ComponentExport { name: "4", kind: Instance, index: 3 }, ComponentExport { name: "5", kind: Component, index: 3 }])
        | 00 11 01 01
        | 32 01 01 01
        | 33 02 01 01
        | 34 05 03 01
        | 35 04 03   
- 0x102 | 00 02 01 00 | [instance 5] Instantiate { component_index: 2, args: [ComponentInstantiationArg { name: "", kind: Instance, index: 4 }] }
+ 0x134 | 00 02 01 00 | [instance 5] Instantiate { component_index: 2, args: [ComponentInstantiationArg { name: "", kind: Instance, index: 4 }] }
        | 05 04      
- 0x108 | 01 48       | [core module 2] inline size
-   0x10a | 00 61 73 6d | version 1 (Module)
+ 0x13a | 01 48       | [core module 2] inline size
+   0x13c | 00 61 73 6d | version 1 (Module)
          | 01 00 00 00
-   0x112 | 01 04       | type section
-   0x114 | 01          | 1 count
-   0x115 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
-   0x118 | 03 02       | func section
-   0x11a | 01          | 1 count
-   0x11b | 00          | [func 0] type 0
-   0x11c | 04 04       | table section
-   0x11e | 01          | 1 count
-   0x11f | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
-   0x122 | 05 03       | memory section
-   0x124 | 01          | 1 count
-   0x125 | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
-   0x127 | 06 04       | global section
-   0x129 | 01          | 1 count
-   0x12a | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
-   0x12c | 0b          | end
-   0x12d | 07 11       | export section
-   0x12f | 04          | 4 count
-   0x130 | 01 31 00 00 | export Export { name: "1", kind: Func, index: 0 }
-   0x134 | 01 32 02 00 | export Export { name: "2", kind: Memory, index: 0 }
-   0x138 | 01 33 03 00 | export Export { name: "3", kind: Global, index: 0 }
-   0x13c | 01 34 01 00 | export Export { name: "4", kind: Table, index: 0 }
-   0x140 | 0a 04       | code section
-   0x142 | 01          | 1 count
+   0x144 | 01 04       | type section
+   0x146 | 01          | 1 count
+   0x147 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x14a | 03 02       | func section
+   0x14c | 01          | 1 count
+   0x14d | 00          | [func 0] type 0
+   0x14e | 04 04       | table section
+   0x150 | 01          | 1 count
+   0x151 | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
+   0x154 | 05 03       | memory section
+   0x156 | 01          | 1 count
+   0x157 | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
+   0x159 | 06 04       | global section
+   0x15b | 01          | 1 count
+   0x15c | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
+   0x15e | 0b          | end
+   0x15f | 07 11       | export section
+   0x161 | 04          | 4 count
+   0x162 | 01 31 00 00 | export Export { name: "1", kind: Func, index: 0 }
+   0x166 | 01 32 02 00 | export Export { name: "2", kind: Memory, index: 0 }
+   0x16a | 01 33 03 00 | export Export { name: "3", kind: Global, index: 0 }
+   0x16e | 01 34 01 00 | export Export { name: "4", kind: Table, index: 0 }
+   0x172 | 0a 04       | code section
+   0x174 | 01          | 1 count
 ============== func 0 ====================
-   0x143 | 02          | size of function
-   0x144 | 00          | 0 local blocks
-   0x145 | 0b          | end
-   0x146 | 00 0a       | custom section
-   0x148 | 04 6e 61 6d | name: "name"
+   0x175 | 02          | size of function
+   0x176 | 00          | 0 local blocks
+   0x177 | 0b          | end
+   0x178 | 00 0a       | custom section
+   0x17a | 04 6e 61 6d | name: "name"
          | 65         
-   0x14d | 00 03       | module name
-   0x14f | 02 6d 31    | "m1"
- 0x152 | 01 35       | [core module 3] inline size
-   0x154 | 00 61 73 6d | version 1 (Module)
+   0x17f | 00 03       | module name
+   0x181 | 02 6d 31    | "m1"
+ 0x184 | 01 35       | [core module 3] inline size
+   0x186 | 00 61 73 6d | version 1 (Module)
          | 01 00 00 00
-   0x15c | 01 04       | type section
-   0x15e | 01          | 1 count
-   0x15f | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
-   0x162 | 02 19       | import section
-   0x164 | 04          | 4 count
-   0x165 | 00 01 31 00 | import [func 0] Import { module: "", name: "1", ty: Func(0) }
+   0x18e | 01 04       | type section
+   0x190 | 01          | 1 count
+   0x191 | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+   0x194 | 02 19       | import section
+   0x196 | 04          | 4 count
+   0x197 | 00 01 31 00 | import [func 0] Import { module: "", name: "1", ty: Func(0) }
          | 00         
-   0x16a | 00 01 32 02 | import [memory 0] Import { module: "", name: "2", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) }
+   0x19c | 00 01 32 02 | import [memory 0] Import { module: "", name: "2", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) }
          | 00 01      
-   0x170 | 00 01 33 03 | import [global 0] Import { module: "", name: "3", ty: Global(GlobalType { content_type: I32, mutable: false }) }
+   0x1a2 | 00 01 33 03 | import [global 0] Import { module: "", name: "3", ty: Global(GlobalType { content_type: I32, mutable: false }) }
          | 7f 00      
-   0x176 | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }
+   0x1a8 | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: FuncRef, initial: 1, maximum: None }) }
          | 70 00 01   
-   0x17d | 00 0a       | custom section
-   0x17f | 04 6e 61 6d | name: "name"
+   0x1af | 00 0a       | custom section
+   0x1b1 | 04 6e 61 6d | name: "name"
          | 65         
-   0x184 | 00 03       | module name
-   0x186 | 02 6d 32    | "m2"
- 0x189 | 02 0a       | core instance section
- 0x18b | 02          | 2 count
- 0x18c | 00 02 00    | [core instance 0] Instantiate { module_index: 2, args: [] }
- 0x18f | 00 03 01 00 | [core instance 1] Instantiate { module_index: 3, args: [InstantiationArg { name: "", kind: Instance, index: 0 }] }
+   0x1b6 | 00 03       | module name
+   0x1b8 | 02 6d 32    | "m2"
+ 0x1bb | 02 0a       | core instance section
+ 0x1bd | 02          | 2 count
+ 0x1be | 00 02 00    | [core instance 0] Instantiate { module_index: 2, args: [] }
+ 0x1c1 | 00 03 01 00 | [core instance 1] Instantiate { module_index: 3, args: [InstantiationArg { name: "", kind: Instance, index: 0 }] }
        | 12 00      
- 0x195 | 06 19       | component alias section
- 0x197 | 04          | 4 count
- 0x198 | 00 00 01 00 | alias [core func 0] CoreInstanceExport { kind: Func, instance_index: 0, name: "1" }
+ 0x1c7 | 06 19       | component alias section
+ 0x1c9 | 04          | 4 count
+ 0x1ca | 00 00 01 00 | alias [core func 0] CoreInstanceExport { kind: Func, instance_index: 0, name: "1" }
        | 01 31      
- 0x19e | 00 02 01 00 | alias [core memory 0] CoreInstanceExport { kind: Memory, instance_index: 0, name: "2" }
+ 0x1d0 | 00 02 01 00 | alias [core memory 0] CoreInstanceExport { kind: Memory, instance_index: 0, name: "2" }
        | 01 32      
- 0x1a4 | 00 03 01 00 | alias [core global 0] CoreInstanceExport { kind: Global, instance_index: 0, name: "3" }
+ 0x1d6 | 00 03 01 00 | alias [core global 0] CoreInstanceExport { kind: Global, instance_index: 0, name: "3" }
        | 01 33      
- 0x1aa | 00 01 01 00 | alias [core table 0] CoreInstanceExport { kind: Table, instance_index: 0, name: "4" }
+ 0x1dc | 00 01 01 00 | alias [core table 0] CoreInstanceExport { kind: Table, instance_index: 0, name: "4" }
        | 01 34      
- 0x1b0 | 02 19       | core instance section
- 0x1b2 | 02          | 2 count
- 0x1b3 | 01 04 01 31 | [core instance 2] FromExports([Export { name: "1", kind: Func, index: 0 }, Export { name: "2", kind: Memory, index: 0 }, Export { name: "3", kind: Global, index: 0 }, Export { name: "4", kind: Table, index: 0 }])
+ 0x1e2 | 02 19       | core instance section
+ 0x1e4 | 02          | 2 count
+ 0x1e5 | 01 04 01 31 | [core instance 2] FromExports([Export { name: "1", kind: Func, index: 0 }, Export { name: "2", kind: Memory, index: 0 }, Export { name: "3", kind: Global, index: 0 }, Export { name: "4", kind: Table, index: 0 }])
        | 00 00 01 32
        | 02 00 01 33
        | 03 00 01 34
        | 01 00      
- 0x1c5 | 00 03 01 00 | [core instance 3] Instantiate { module_index: 3, args: [InstantiationArg { name: "", kind: Instance, index: 2 }] }
+ 0x1f7 | 00 03 01 00 | [core instance 3] Instantiate { module_index: 3, args: [InstantiationArg { name: "", kind: Instance, index: 2 }] }
        | 12 02      
+ 0x1fd | 00 76       | custom section
+ 0x1ff | 0e 63 6f 6d | name: "component-name"
+       | 70 6f 6e 65
+       | 6e 74 2d 6e
+       | 61 6d 65   
+ 0x20e | 01 06 00 00 | core func section
+ 0x212 | 01          | 1 count
+ 0x213 | 00 01 66    | Naming { index: 0, name: "f" }
+ 0x216 | 01 06 00 01 | core table section
+ 0x21a | 01          | 1 count
+ 0x21b | 00 01 74    | Naming { index: 0, name: "t" }
+ 0x21e | 01 06 00 02 | core memory section
+ 0x222 | 01          | 1 count
+ 0x223 | 00 01 6d    | Naming { index: 0, name: "m" }
+ 0x226 | 01 06 00 03 | core global section
+ 0x22a | 01          | 1 count
+ 0x22b | 00 01 67    | Naming { index: 0, name: "g" }
+ 0x22e | 01 0e 00 11 | core module section
+ 0x232 | 03          | 3 count
+ 0x233 | 01 01 6d    | Naming { index: 1, name: "m" }
+ 0x236 | 02 02 6d 31 | Naming { index: 2, name: "m1" }
+ 0x23a | 03 02 6d 32 | Naming { index: 3, name: "m2" }
+ 0x23e | 01 06 00 12 | core instance section
+ 0x242 | 01          | 1 count
+ 0x243 | 00 01 69    | Naming { index: 0, name: "i" }
+ 0x246 | 01 05 01    | func section
+ 0x249 | 01          | 1 count
+ 0x24a | 01 01 66    | Naming { index: 1, name: "f" }
+ 0x24d | 01 05 02    | value section
+ 0x250 | 01          | 1 count
+ 0x251 | 01 01 76    | Naming { index: 1, name: "v" }
+ 0x254 | 01 05 03    | type section
+ 0x257 | 01          | 1 count
+ 0x258 | 00 01 74    | Naming { index: 0, name: "t" }
+ 0x25b | 01 0d 04    | component section
+ 0x25e | 03          | 3 count
+ 0x25f | 00 01 63    | Naming { index: 0, name: "c" }
+ 0x262 | 02 02 63 32 | Naming { index: 2, name: "c2" }
+ 0x266 | 03 02 63 33 | Naming { index: 3, name: "c3" }
+ 0x26a | 01 09 05    | instance section
+ 0x26d | 02          | 2 count
+ 0x26e | 00 01 69    | Naming { index: 0, name: "i" }
+ 0x271 | 03 02 69 32 | Naming { index: 3, name: "i2" }

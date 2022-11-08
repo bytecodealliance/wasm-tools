@@ -56,3 +56,17 @@
       | 02 66 33   
  0x87 | 00 00 01 00 | alias [core func 2] CoreInstanceExport { kind: Func, instance_index: 0, name: "f3" }
       | 02 66 33   
+ 0x8e | 00 26       | custom section
+ 0x90 | 0e 63 6f 6d | name: "component-name"
+      | 70 6f 6e 65
+      | 6e 74 2d 6e
+      | 61 6d 65   
+ 0x9f | 01 06 00 11 | core module section
+ 0xa3 | 01          | 1 count
+ 0xa4 | 00 01 6d    | Naming { index: 0, name: "m" }
+ 0xa7 | 01 06 00 12 | core instance section
+ 0xab | 01          | 1 count
+ 0xac | 00 01 6d    | Naming { index: 0, name: "m" }
+ 0xaf | 01 05 05    | instance section
+ 0xb2 | 01          | 1 count
+ 0xb3 | 00 01 69    | Naming { index: 0, name: "i" }

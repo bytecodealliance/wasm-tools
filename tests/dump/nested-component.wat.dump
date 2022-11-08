@@ -21,7 +21,7 @@
    0x3b | 04 08       | [component 0] inline size
      0x3d | 00 61 73 6d | version 65546 (Component)
           | 0a 00 01 00
- 0x45 | 04 51       | [component 5] inline size
+ 0x45 | 04 6a       | [component 5] inline size
    0x47 | 00 61 73 6d | version 65546 (Component)
         | 0a 00 01 00
    0x4f | 01 13       | [core module 0] inline size
@@ -54,6 +54,14 @@
    0x91 | 0b 05       | component export section
    0x93 | 01          | 1 count
    0x94 | 01 62 05 00 | export ComponentExport { name: "b", kind: Instance, index: 0 }
- 0x98 | 0b 05       | component export section
- 0x9a | 01          | 1 count
- 0x9b | 01 78 04 03 | export ComponentExport { name: "x", kind: Component, index: 3 }
+   0x98 | 00 17       | custom section
+   0x9a | 0e 63 6f 6d | name: "component-name"
+        | 70 6f 6e 65
+        | 6e 74 2d 6e
+        | 61 6d 65   
+   0xa9 | 01 06 00 11 | core module section
+   0xad | 01          | 1 count
+   0xae | 00 01 6d    | Naming { index: 0, name: "m" }
+ 0xb1 | 0b 05       | component export section
+ 0xb3 | 01          | 1 count
+ 0xb4 | 01 78 04 03 | export ComponentExport { name: "x", kind: Component, index: 3 }
