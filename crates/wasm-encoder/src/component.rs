@@ -5,6 +5,7 @@ mod exports;
 mod imports;
 mod instances;
 mod modules;
+mod names;
 mod start;
 mod types;
 
@@ -15,6 +16,7 @@ pub use self::exports::*;
 pub use self::imports::*;
 pub use self::instances::*;
 pub use self::modules::*;
+pub use self::names::*;
 pub use self::start::*;
 pub use self::types::*;
 
