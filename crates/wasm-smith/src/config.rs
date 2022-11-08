@@ -452,8 +452,17 @@ pub trait Config: 'static + std::fmt::Debug {
 
     /// Returns whether we should avoid generating code that will possibly trap.
     ///
-    /// For some trapping instructions, this will emit extra instructions to ensure
-    /// they don't trap, while some instructions will simply be excluded.
+    /// For some trapping instructions, this will emit extra instructions to
+    /// ensure they don't trap, while some instructions will simply be excluded.
+    /// In cases where we would run into a trap, we instead choose some
+    /// arbitrary non-trapping behavior. For example, if we detect that a Load
+    /// instruction would attempt to access out-of-bounds memory, we instead
+    /// pretend the load succeeded and push 0 onto the stack.
+    ///
+    /// One type of trap that we can't currently avoid is StackOverflow. Even
+    /// when `disallow_traps` is set to true, wasm-smith will eventually
+    /// generate a program that infinitely recurses, causing the call stack to
+    /// be exhausted.
     ///
     /// Defaults to `false`.
     fn disallow_traps(&self) -> bool {
