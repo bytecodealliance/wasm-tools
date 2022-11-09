@@ -13,7 +13,7 @@
       unreachable
     )
     (export "read" (func 1))
-    (export "cabi_realloc" (func 2))
+    (export "cabi_import_realloc" (func 2))
   )
   (type (;0;) (list u8))
   (type (;1;) (func (result 0)))
@@ -75,7 +75,7 @@
       (with "new" (instance 3))
     )
   )
-  (alias core export 4 "cabi_realloc" (core func (;2;)))
+  (alias core export 4 "cabi_import_realloc" (core func (;2;)))
   (alias core export 0 "$imports" (core table (;0;)))
   (alias export 0 "read" (func (;0;)))
   (core func (;3;) (canon lower (func 0) (memory 0) (realloc 2)))

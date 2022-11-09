@@ -99,6 +99,18 @@ pub struct ComponentInterfaces {
     pub exports: IndexMap<String, Interface>,
 }
 
+impl ComponentInterfaces {
+    /// Returns an iterator which visits all the exported interfaces, both named
+    /// and default. The second entry in each pair is whether the interface is
+    /// the default interface.
+    pub fn exports(&self) -> impl Iterator<Item = (&Interface, bool)> + '_ {
+        self.exports
+            .values()
+            .map(|i| (i, false))
+            .chain(self.default.iter().map(|i| (i, true)))
+    }
+}
+
 /// Decode the interfaces imported and exported by a component.
 ///
 /// This function takes a binary component as input and will infer the

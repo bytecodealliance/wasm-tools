@@ -1,0 +1,1 @@
+entrypoint: func(nargs: u32)

@@ -11,7 +11,7 @@ use wasmparser::*;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
-pub fn run(wasm: &[u8], required: &IndexMap<&str, FuncType>) -> Result<Vec<u8>> {
+pub fn run(wasm: &[u8], required: &IndexMap<String, FuncType>) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
     let mut module = Module::default();
@@ -20,15 +20,13 @@ pub fn run(wasm: &[u8], required: &IndexMap<&str, FuncType>) -> Result<Vec<u8>> 
     // Make sure that all required names are present in the module, and then
     // remove all names that are not required.
     for (name, _ty) in required {
-        if !module.exports.contains_key(name) {
+        if !module.exports.contains_key(name.as_str()) {
             bail!("adapter module does not have export `{name}`")
         }
     }
     let mut not_required = IndexSet::new();
     for name in module.exports.keys().copied() {
-        // Explicitly keep `cabi_realloc` if it's there in case an interface
-        // needs it for a lowering.
-        if !required.contains_key(name) && name != "cabi_realloc" {
+        if !required.contains_key(name) && !always_keep(name) {
             not_required.insert(name);
         }
     }
@@ -38,6 +36,15 @@ pub fn run(wasm: &[u8], required: &IndexMap<&str, FuncType>) -> Result<Vec<u8>> 
     assert!(!module.exports.is_empty());
     module.liveness()?;
     module.encode()
+}
+
+fn always_keep(name: &str) -> bool {
+    match name {
+        // Explicitly keep `cabi_realloc` if it's there in case an interface
+        // needs it for a lowering.
+        "cabi_realloc" | "cabi_import_realloc" | "cabi_export_realloc" => true,
+        _ => false,
+    }
 }
 
 // Represents a function called while processing a module work list.

@@ -1,0 +1,1 @@
+entrypoint: func(args: list<string>)

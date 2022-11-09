@@ -54,7 +54,10 @@
 
 use crate::metadata::{self, BindgenMetadata};
 use crate::{
-    validation::{validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule},
+    validation::{
+        validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule,
+        MAIN_MODULE_IMPORT_NAME,
+    },
     ComponentInterfaces, StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
@@ -63,7 +66,7 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::path::Path;
 use wasm_encoder::*;
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::{FuncType, Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
     Enum, Flags, Function, FunctionKind, Interface, Params, Record, Result_, Results, Tuple, Type,
@@ -1151,8 +1154,10 @@ struct EncodingState<'a> {
     /// A map of adapter module instances and the index of their instance.
     adapter_instances: IndexMap<&'a str, u32>,
     /// A map of the index of the aliased realloc function for each adapter
-    /// module.
-    adapter_reallocs: IndexMap<&'a str, Option<u32>>,
+    /// module. Note that adapters have two realloc functions, one for imports
+    /// and one for exports.
+    adapter_import_reallocs: IndexMap<&'a str, Option<u32>>,
+    adapter_export_reallocs: IndexMap<&'a str, Option<u32>>,
 }
 
 impl<'a> EncodingState<'a> {
@@ -1219,7 +1224,7 @@ impl<'a> EncodingState<'a> {
         // liftings/lowerings later on as well as the adapter modules, if any,
         // instantiated after the core wasm module.
         self.instantiate_core_module(args, info);
-        self.instantiate_adapter_modules(imports, info, &shims);
+        self.instantiate_adapter_modules(imports, &shims);
 
         // With all the core wasm instances in play now the original shim
         // module, if present, can be filled in with lowerings/adapters/etc.
@@ -1285,13 +1290,12 @@ impl<'a> EncodingState<'a> {
 
     fn encode_exports<'b>(
         &mut self,
-        exports: impl Iterator<Item = (&'b Interface, bool)>,
         types: &TypeEncoder<'b>,
         metadata: &BindgenMetadata,
+        instance_index: u32,
+        realloc_index: Option<u32>,
     ) -> Result<()> {
-        let core_instance_index = self.instance_index.expect("must be instantiated");
-
-        for (export, is_default) in exports {
+        for (export, is_default) in metadata.interfaces.exports() {
             let mut interface_exports = Vec::new();
 
             // Make sure all named types are present in the exported instance
@@ -1313,11 +1317,9 @@ impl<'a> EncodingState<'a> {
             // Alias the exports from the core module
             for func in &export.functions {
                 let name = export.core_export_name(is_default, func);
-                let core_func_index = self.component.alias_core_item(
-                    core_instance_index,
-                    ExportKind::Func,
-                    name.as_ref(),
-                );
+                let core_func_index =
+                    self.component
+                        .alias_core_item(instance_index, ExportKind::Func, name.as_ref());
 
                 let ty = *types
                     .func_type_map
@@ -1331,11 +1333,11 @@ impl<'a> EncodingState<'a> {
 
                 let encoding = metadata.export_encodings[&name[..]];
                 let mut options = options
-                    .into_iter(encoding, self.memory_index, self.realloc_index)?
+                    .into_iter(encoding, self.memory_index, realloc_index)?
                     .collect::<Vec<_>>();
                 if export.guest_export_needs_post_return(func) {
                     let post_return = self.component.alias_core_item(
-                        core_instance_index,
+                        instance_index,
                         ExportKind::Func,
                         &format!("cabi_post_{name}"),
                     );
@@ -1584,7 +1586,7 @@ impl<'a> EncodingState<'a> {
 
                     let realloc = match realloc {
                         CustomModule::Main => self.realloc_index,
-                        CustomModule::Adapter(name) => self.adapter_reallocs[name],
+                        CustomModule::Adapter(name) => self.adapter_import_reallocs[name],
                     };
 
                     self.component.lower_func(
@@ -1635,11 +1637,11 @@ impl<'a> EncodingState<'a> {
             ));
         }
 
-        if info.has_realloc {
+        if let Some(name) = &info.realloc {
             self.realloc_index = Some(self.component.alias_core_item(
                 instance_index,
                 ExportKind::Func,
-                "cabi_realloc",
+                name,
             ));
         }
 
@@ -1651,16 +1653,24 @@ impl<'a> EncodingState<'a> {
     ///
     /// Each adapter here is instantiated with its required imported interface,
     /// if any.
-    fn instantiate_adapter_modules(
-        &mut self,
-        imports: &ImportEncoder<'a>,
-        info: &ValidatedModule<'a>,
-        shims: &Shims<'_>,
-    ) {
-        for name in info.adapters_required.keys() {
-            let info = &imports.adapters[name];
+    fn instantiate_adapter_modules(&mut self, imports: &ImportEncoder<'a>, shims: &Shims<'_>) {
+        for (name, info) in imports.adapters.iter() {
             let mut args = Vec::new();
 
+            let mut core_exports = Vec::new();
+            for export_name in info.needs_core_exports.iter() {
+                let index = self.component.alias_core_item(
+                    self.instance_index
+                        .expect("adaptee index set at this point"),
+                    ExportKind::Func,
+                    export_name,
+                );
+                core_exports.push((export_name.as_str(), ExportKind::Func, index));
+            }
+            if !core_exports.is_empty() {
+                let instance = self.component.instantiate_core_exports(core_exports);
+                args.push((MAIN_MODULE_IMPORT_NAME, ModuleArg::Instance(instance)));
+            }
             // If the adapter module requires a `memory` import then specify
             // that here. For now assume that the module name of the memory is
             // different from the imported interface. That's true enough for now
@@ -1690,15 +1700,17 @@ impl<'a> EncodingState<'a> {
             }
             let instance = self.component.instantiate(self.adapter_modules[name], args);
             self.adapter_instances.insert(name, instance);
-            let realloc = if info.has_realloc {
-                Some(
-                    self.component
-                        .alias_core_item(instance, ExportKind::Func, "cabi_realloc"),
-                )
-            } else {
-                None
-            };
-            self.adapter_reallocs.insert(name, realloc);
+
+            let realloc = info.export_realloc.as_ref().map(|name| {
+                self.component
+                    .alias_core_item(instance, ExportKind::Func, name)
+            });
+            self.adapter_export_reallocs.insert(name, realloc);
+            let realloc = info.import_realloc.as_ref().map(|name| {
+                self.component
+                    .alias_core_item(instance, ExportKind::Func, name)
+            });
+            self.adapter_import_reallocs.insert(name, realloc);
         }
     }
 }
@@ -2171,9 +2183,6 @@ impl ComponentEncoder {
     /// in the core wasm that's being wrapped.
     pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
-        if !metadata.interfaces.exports.is_empty() || metadata.interfaces.default.is_some() {
-            bail!("adapters cannot have any exported interfaces");
-        }
         self.adapters.insert(name.to_string(), (wasm, metadata));
         Ok(self)
     }
@@ -2214,29 +2223,19 @@ impl ComponentEncoder {
             None
         };
 
-        let exports = self
-            .metadata
-            .interfaces
-            .default
-            .iter()
-            .map(|i| (i, true))
-            .chain(
-                self.metadata
-                    .interfaces
-                    .exports
-                    .iter()
-                    .map(|(_, i)| (i, false)),
-            );
-
         let mut state = EncodingState::default();
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
-        types.encode_func_types(exports.clone().map(|(i, _)| i))?;
+        types.encode_func_types(self.metadata.interfaces.exports().map(|p| p.0))?;
         types.encode_instance_imports(
             &self.metadata.interfaces.imports,
             info.as_ref(),
             &mut imports,
         )?;
+
+        for (_name, (_, metadata)) in self.adapters.iter() {
+            types.encode_func_types(metadata.interfaces.exports().map(|p| p.0))?;
+        }
 
         if self.types_only {
             if !self.module.is_empty() {
@@ -2250,7 +2249,7 @@ impl ComponentEncoder {
             // itself.
             let mut raw_exports = Vec::new();
             let mut default_exports = Vec::new();
-            for (interface, is_default) in exports {
+            for (interface, is_default) in self.metadata.interfaces.exports() {
                 if is_default {
                     default_exports = types
                         .encode_interface_as_instance_type_exports(interface, None)?
@@ -2283,14 +2282,19 @@ impl ComponentEncoder {
             }
             let info = info.as_ref().unwrap();
 
-            // For all required adapters lookup the corresponding adapter
-            // provided to this encoder, gc it to an appropriate size, and then
-            // register its metadata in our data structures.
-            for (name, required) in info.adapters_required.iter() {
-                let (wasm, metadata) = &self.adapters[*name];
-                let wasm = crate::gc::run(wasm, required)
+            // Process adapters which are required here. Iterate over all
+            // adapters and figure out what functions are required from the
+            // adapter itself, either because the functions are imported by the
+            // main module or they're part of the adapter's exports.
+            for (name, (wasm, metadata)) in self.adapters.iter() {
+                let required =
+                    required_adapter_exports(info.adapters_required.get(name.as_str()), metadata);
+                if required.is_empty() {
+                    continue;
+                }
+                let wasm = crate::gc::run(wasm, &required)
                     .context("failed to reduce input adapter module to its minimal size")?;
-                let info = validate_adapter_module(&wasm, metadata, required)
+                let info = validate_adapter_module(&wasm, metadata, &required)
                     .context("failed to validate the imports of the minimized adapter module")?;
                 state.encode_core_adapter_module(name, &wasm);
                 for (name, required) in info.required_imports.iter() {
@@ -2300,7 +2304,7 @@ impl ComponentEncoder {
                 imports.adapters.insert(name, info);
             }
 
-            for (interface, _default) in exports.clone() {
+            for (interface, _default) in self.metadata.interfaces.exports() {
                 types.encode_interface_named_types(interface)?;
             }
 
@@ -2309,7 +2313,23 @@ impl ComponentEncoder {
             state.encode_imports(&imports);
             state.encode_core_module(&self.module);
             state.encode_core_instantiation(&imports, info)?;
-            state.encode_exports(exports, &types, &self.metadata)?;
+            state.encode_exports(
+                &types,
+                &self.metadata,
+                state.instance_index.expect("instantiated by now"),
+                state.realloc_index,
+            )?;
+            for (name, (_, metadata)) in self.adapters.iter() {
+                if metadata.interfaces.exports().count() == 0 {
+                    continue;
+                }
+                state.encode_exports(
+                    &types,
+                    &metadata,
+                    state.adapter_instances[name.as_str()],
+                    state.adapter_export_reallocs[name.as_str()],
+                )?;
+            }
         }
 
         let bytes = state.component.finish();
@@ -2326,5 +2346,43 @@ impl ComponentEncoder {
         }
 
         Ok(bytes)
+    }
+}
+
+fn required_adapter_exports(
+    required_by_import: Option<&IndexMap<&str, FuncType>>,
+    metadata: &BindgenMetadata,
+) -> IndexMap<String, FuncType> {
+    use wasmparser::ValType;
+
+    let mut required = IndexMap::new();
+    if let Some(imports) = required_by_import {
+        for (name, ty) in imports {
+            required.insert(name.to_string(), ty.clone());
+        }
+    }
+    for (interface, is_default) in metadata.interfaces.exports() {
+        for func in interface.functions.iter() {
+            let name = interface.core_export_name(is_default, func);
+            let ty = interface.wasm_signature(AbiVariant::GuestExport, func);
+            let prev = required.insert(
+                name.into_owned(),
+                wasmparser::FuncType::new(
+                    ty.params.iter().map(to_valty),
+                    ty.results.iter().map(to_valty),
+                ),
+            );
+            assert!(prev.is_none());
+        }
+    }
+    return required;
+
+    fn to_valty(ty: &WasmType) -> ValType {
+        match ty {
+            WasmType::I32 => ValType::I32,
+            WasmType::I64 => ValType::I64,
+            WasmType::F32 => ValType::F32,
+            WasmType::F64 => ValType::F64,
+        }
     }
 }

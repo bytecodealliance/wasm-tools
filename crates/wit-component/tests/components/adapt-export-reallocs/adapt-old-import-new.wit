@@ -1,0 +1,1 @@
+read: func(amt: u32) -> list<u8>

@@ -10,8 +10,8 @@ fn read_interface(path: &Path) -> Result<Interface> {
         .with_context(|| format!("failed to parse interface file `{}`", path.display()))
 }
 
-fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<Interface>> {
-    glob::glob(dir.join(pattern).to_str().unwrap())?
+fn read_interfaces(dir: &Path, prefix: &str) -> Result<Vec<Interface>> {
+    glob::glob(dir.join(format!("{prefix}*.wit")).to_str().unwrap())?
         .map(|p| {
             let p = p?;
             let mut i = read_interface(&p)?;
@@ -20,41 +20,25 @@ fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<Interface>> {
                 .unwrap()
                 .to_str()
                 .unwrap()
-                .trim_start_matches("import-")
-                .trim_start_matches("export-")
+                .trim_start_matches(prefix)
                 .to_string();
             Ok(i)
         })
         .collect::<Result<_>>()
 }
 
-fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, Vec<Interface>)>> {
+fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, ComponentInterfaces)>> {
     glob::glob(dir.join("adapt-*.wat").to_str().unwrap())?
         .map(|p| {
             let p = p?;
             let adapter =
                 wat::parse_file(&p).with_context(|| format!("expected file `{}`", p.display()))?;
             let stem = p.file_stem().unwrap().to_str().unwrap();
-            let glob = format!("{stem}-import-*.wit");
-            let imports = glob::glob(dir.join(&glob).to_str().unwrap())?
-                .map(|path| {
-                    let path = path?;
-                    let mut i = read_interface(&path)?;
-                    i.name = path
-                        .file_stem()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .trim_start_matches(stem)
-                        .trim_start_matches("-import-")
-                        .to_string();
-                    Ok(i)
-                })
-                .collect::<Result<Vec<_>>>()?;
+            let interfaces = read_component_interfaces(dir, &format!("{stem}-"))?;
             Ok((
                 stem.trim_start_matches("adapt-").to_string(),
                 adapter,
-                imports,
+                interfaces,
             ))
         })
         .collect::<Result<_>>()
@@ -107,7 +91,7 @@ fn component_encoding_via_flags() -> Result<()> {
         let mut encoder = ComponentEncoder::default()
             .module(&module)?
             .validate(true)
-            .interfaces(read_component_interfaces(&path)?, StringEncoding::UTF8)?;
+            .interfaces(read_component_interfaces(&path, "")?, StringEncoding::UTF8)?;
         encoder = add_adapters(encoder, &path)?;
 
         assert_output(test_case, &encoder, &component_path, &error_path)?;
@@ -150,7 +134,7 @@ fn component_encoding_via_custom_sections() -> Result<()> {
 
         // Create the `component-type` custom section which will encode all of
         // the type information about imported/exported functions.
-        let interfaces = read_component_interfaces(&path)?;
+        let interfaces = read_component_interfaces(&path, "")?;
         let contents = wit_component::metadata::encode(&interfaces, StringEncoding::UTF8);
         let section = wasm_encoder::CustomSection {
             name: "component-type",
@@ -169,14 +153,14 @@ fn component_encoding_via_custom_sections() -> Result<()> {
     Ok(())
 }
 
-fn read_component_interfaces(path: &Path) -> Result<ComponentInterfaces> {
-    let interface_path = path.join("default.wit");
+fn read_component_interfaces(path: &Path, prefix: &str) -> Result<ComponentInterfaces> {
+    let interface_path = path.join(&format!("{prefix}default.wit"));
     let interface = interface_path
         .is_file()
         .then(|| read_interface(&interface_path))
         .transpose()?;
-    let imports = read_interfaces(&path, "import-*.wit")?;
-    let exports = read_interfaces(&path, "export-*.wit")?;
+    let imports = read_interfaces(&path, &format!("{prefix}import-"))?;
+    let exports = read_interfaces(&path, &format!("{prefix}export-"))?;
 
     Ok(ComponentInterfaces {
         imports: imports.into_iter().map(|i| (i.name.clone(), i)).collect(),
@@ -186,17 +170,10 @@ fn read_component_interfaces(path: &Path) -> Result<ComponentInterfaces> {
 }
 
 fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {
-    for (name, mut wasm, imports) in read_adapters(path)? {
+    for (name, mut wasm, interfaces) in read_adapters(path)? {
         // Create a `component-type` custom section by slurping up `imports` as
         // a "world" and encoding it.
-        let contents = wit_component::metadata::encode(
-            &ComponentInterfaces {
-                imports: imports.into_iter().map(|i| (i.name.clone(), i)).collect(),
-                exports: Default::default(),
-                default: None,
-            },
-            StringEncoding::UTF8,
-        );
+        let contents = wit_component::metadata::encode(&interfaces, StringEncoding::UTF8);
         let section = wasm_encoder::CustomSection {
             name: "component-type",
             data: &contents,
