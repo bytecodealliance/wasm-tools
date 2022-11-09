@@ -52,7 +52,7 @@ impl IfComplementWriter {
             }
         } else {
             // Write an unreachable instruction
-            newfunc.instruction(&Instruction::Unreachable);
+            newfunc.instruction(&Instruction::Nop);
         }
         newfunc.instruction(&Instruction::Else);
         for ch in then {
