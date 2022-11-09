@@ -250,16 +250,14 @@ impl<'a> Module<'a> {
         for s in section {
             match s? {
                 Name::Function(map) => {
-                    let mut map = map.get_map()?;
-                    for _ in 0..map.get_count() {
-                        let naming = map.read()?;
+                    for naming in map {
+                        let naming = naming?;
                         self.func_names.insert(naming.index, naming.name);
                     }
                 }
                 Name::Global(map) => {
-                    let mut map = map.get_map()?;
-                    for _ in 0..map.get_count() {
-                        let naming = map.read()?;
+                    for naming in map {
+                        let naming = naming?;
                         self.global_names.insert(naming.index, naming.name);
                     }
                 }
@@ -715,7 +713,7 @@ impl<'a> Module<'a> {
 macro_rules! define_visit {
     ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, _offset: usize $(, $($arg: $argty),*)?)  {
+            fn $visit(&mut self $(, $($arg: $argty),*)?)  {
                 $(
                     $(
                         define_visit!(mark_live self $arg $arg);
@@ -822,7 +820,7 @@ macro_rules! define_encode {
     ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
             #[allow(clippy::drop_copy)]
-            fn $visit(&mut self, _offset: usize $(, $($arg: $argty),*)?)  {
+            fn $visit(&mut self $(, $($arg: $argty),*)?)  {
                 #[allow(unused_imports)]
                 use wasm_encoder::Instruction::*;
                 $(
