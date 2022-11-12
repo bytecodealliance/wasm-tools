@@ -119,6 +119,7 @@ mod eval {
     use super::dummy;
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
+    use wasmtime::Val;
 
     /// Compile, instantiate, and evaluate both the original and mutated Wasm.
     ///
@@ -222,20 +223,22 @@ mod eval {
                         .get_func(&mut *store, export.name())
                         .unwrap();
                     let args = dummy::dummy_values(func_ty.params());
+                    let mut orig_results = vec![Val::I32(0); func_ty.results().len()];
+                    let mut mutated_results = orig_results.clone();
                     match (
                         {
                             store.add_fuel(1_000).unwrap();
-                            orig_func.call(&mut *store, &args)
+                            orig_func.call(&mut *store, &args, &mut orig_results)
                         },
                         {
                             let consumed = store.fuel_consumed().unwrap();
                             store.add_fuel(consumed).unwrap();
-                            mutated_func.call(&mut *store, &args)
+                            mutated_func.call(&mut *store, &args, &mut mutated_results)
                         },
                     ) {
-                        (Ok(orig_vals), Ok(mutated_vals)) => {
-                            assert_eq!(orig_vals.len(), mutated_vals.len());
-                            for (orig_val, mutated_val) in orig_vals.iter().zip(mutated_vals.iter())
+                        (Ok(()), Ok(())) => {
+                            for (orig_val, mutated_val) in
+                                orig_results.iter().zip(mutated_results.iter())
                             {
                                 assert_val_eq(orig_val, mutated_val);
                             }

@@ -68,7 +68,8 @@ jobs:
     - name: Install Rust
       run: rustup update nightly && rustup default nightly
     - run: cargo install cargo-fuzz
-    - run: cargo fuzz build
+    - run: cargo fuzz build --dev -s none
+    - run: cargo fuzz build --dev --features wasmtime -s none
 
   check:
     runs-on: ubuntu-latest
