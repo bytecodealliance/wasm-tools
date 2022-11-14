@@ -75,4 +75,3 @@ name = "no-traps"
 path = "fuzz_targets/no-traps.rs"
 test = false
 doc = false
-required-features = ["wasmtime"]
