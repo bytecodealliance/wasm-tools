@@ -401,6 +401,14 @@ impl<'a> Dump<'a> {
                         while !iter.eof() {
                             self.print_custom_name_section(iter.read()?, iter.original_position())?;
                         }
+                    } else if c.name() == "component-name" {
+                        let mut iter = ComponentNameSectionReader::new(c.data(), c.data_offset())?;
+                        while !iter.eof() {
+                            self.print_custom_component_name_section(
+                                iter.read()?,
+                                iter.original_position(),
+                            )?;
+                        }
                     } else {
                         self.print_byte_header()?;
                         for _ in 0..NBYTES {
@@ -473,6 +481,39 @@ impl<'a> Dump<'a> {
             Name::Element(n) => self.print_name_map("element", n)?,
             Name::Data(n) => self.print_name_map("data", n)?,
             Name::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown names: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn print_custom_component_name_section(
+        &mut self,
+        name: ComponentName<'_>,
+        end: usize,
+    ) -> Result<()> {
+        match name {
+            ComponentName::Component { name, name_range } => {
+                write!(self.state, "component name")?;
+                self.print(name_range.start)?;
+                write!(self.state, "{:?}", name)?;
+                self.print(name_range.end)?;
+            }
+            ComponentName::CoreFuncs(n) => self.print_name_map("core func", n)?,
+            ComponentName::CoreTables(n) => self.print_name_map("core table", n)?,
+            ComponentName::CoreGlobals(n) => self.print_name_map("core global", n)?,
+            ComponentName::CoreMemories(n) => self.print_name_map("core memory", n)?,
+            ComponentName::CoreInstances(n) => self.print_name_map("core instance", n)?,
+            ComponentName::CoreModules(n) => self.print_name_map("core module", n)?,
+            ComponentName::CoreTypes(n) => self.print_name_map("core type", n)?,
+            ComponentName::Types(n) => self.print_name_map("type", n)?,
+            ComponentName::Instances(n) => self.print_name_map("instance", n)?,
+            ComponentName::Components(n) => self.print_name_map("component", n)?,
+            ComponentName::Funcs(n) => self.print_name_map("func", n)?,
+            ComponentName::Values(n) => self.print_name_map("value", n)?,
+            ComponentName::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown names: {}", ty)?;
                 self.print(range.start)?;
                 self.print(end)?;

@@ -190,3 +190,42 @@
  0x1df | 01          | 1 count
  0x1e0 | 04 77 6f 72 | export ComponentExport { name: "work", kind: Func, index: 1 }
        | 6b 01 01   
+ 0x1e7 | 00 7c       | custom section
+ 0x1e9 | 0e 63 6f 6d | name: "component-name"
+       | 70 6f 6e 65
+       | 6e 74 2d 6e
+       | 61 6d 65   
+ 0x1f8 | 01 13 00 00 | core func section
+ 0x1fc | 01          | 1 count
+ 0x1fd | 01 0e 72 65 | Naming { index: 1, name: "real-wasi-read" }
+       | 61 6c 2d 77
+       | 61 73 69 2d
+       | 72 65 61 64
+ 0x20d | 01 1c 00 11 | core module section
+ 0x211 | 03          | 3 count
+ 0x212 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
+       | 62 63      
+ 0x218 | 01 05 43 48 | Naming { index: 1, name: "CHILD" }
+       | 49 4c 44   
+ 0x21f | 02 0a 56 49 | Naming { index: 2, name: "VIRTUALIZE" }
+       | 52 54 55 41
+       | 4c 49 5a 45
+ 0x22b | 01 1b 00 12 | core instance section
+ 0x22f | 03          | 3 count
+ 0x230 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
+       | 62 63      
+ 0x236 | 02 09 76 69 | Naming { index: 2, name: "virt-wasi" }
+       | 72 74 2d 77
+       | 61 73 69   
+ 0x241 | 03 05 63 68 | Naming { index: 3, name: "child" }
+       | 69 6c 64   
+ 0x248 | 01 0c 03    | type section
+ 0x24b | 01          | 1 count
+ 0x24c | 00 08 57 61 | Naming { index: 0, name: "WasiFile" }
+       | 73 69 46 69
+       | 6c 65      
+ 0x256 | 01 0d 05    | instance section
+ 0x259 | 01          | 1 count
+ 0x25a | 00 09 72 65 | Naming { index: 0, name: "real-wasi" }
+       | 61 6c 2d 77
+       | 61 73 69   

@@ -199,8 +199,13 @@ impl NameMap {
         self.count += 1;
     }
 
-    fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         encoding_size(self.count) + self.bytes.len()
+    }
+
+    /// Returns whether no names have been added to this map.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
     }
 }
 

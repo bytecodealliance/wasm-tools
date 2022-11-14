@@ -16,3 +16,17 @@
  0x24 | 01          | 1 count
  0x25 | 00 00 01 01 | [instance 0] Instantiate { component_index: 0, args: [ComponentInstantiationArg { name: "a", kind: Func, index: 0 }] }
       | 61 01 00   
+ 0x2c | 00 24       | custom section
+ 0x2e | 0e 63 6f 6d | name: "component-name"
+      | 70 6f 6e 65
+      | 6e 74 2d 6e
+      | 61 6d 65   
+ 0x3d | 01 05 01    | func section
+ 0x40 | 01          | 1 count
+ 0x41 | 00 01 66    | Naming { index: 0, name: "f" }
+ 0x44 | 01 05 04    | component section
+ 0x47 | 01          | 1 count
+ 0x48 | 00 01 63    | Naming { index: 0, name: "c" }
+ 0x4b | 01 05 05    | instance section
+ 0x4e | 01          | 1 count
+ 0x4f | 00 01 61    | Naming { index: 0, name: "a" }

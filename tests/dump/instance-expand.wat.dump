@@ -8,3 +8,11 @@
  0x16 | 0a 04       | component import section
  0x18 | 01          | 1 count
  0x19 | 00 05 00    | [instance 0] ComponentImport { name: "", ty: Instance(0) }
+ 0x1c | 00 16       | custom section
+ 0x1e | 0e 63 6f 6d | name: "component-name"
+      | 70 6f 6e 65
+      | 6e 74 2d 6e
+      | 61 6d 65   
+ 0x2d | 01 05 03    | type section
+ 0x30 | 01          | 1 count
+ 0x31 | 00 01 69    | Naming { index: 0, name: "i" }

@@ -197,12 +197,17 @@ impl Printer {
                     }
                     bytes = &bytes[offset..];
                 }
+
+                // Ignore any error associated with the name sections.
                 Payload::CustomSection(c) if c.name() == "name" => {
                     let reader = NameSectionReader::new(c.data(), c.data_offset())?;
-
-                    // Ignore any error associated with the name section.
                     drop(self.register_names(state, reader));
                 }
+                Payload::CustomSection(c) if c.name() == "component-name" => {
+                    let reader = ComponentNameSectionReader::new(c.data(), c.data_offset())?;
+                    drop(self.register_component_names(state, reader));
+                }
+
                 Payload::End(_) => break,
                 _ => {}
             }
@@ -284,6 +289,7 @@ impl Printer {
                         }
                     }
 
+                    let len = states.len();
                     let state = states.last_mut().unwrap();
 
                     // First up try to find the `name` subsection which we'll use to print
@@ -293,9 +299,11 @@ impl Printer {
                     code_printed = false;
                     self.read_names_and_code(bytes, parser.clone(), state, &mut code)?;
 
-                    if let Some(name) = state.name.as_ref() {
-                        self.result.push(' ');
-                        name.write(&mut self.result);
+                    if len == 1 {
+                        if let Some(name) = state.name.as_ref() {
+                            self.result.push(' ');
+                            name.write(&mut self.result);
+                        }
                     }
                 }
                 Payload::CustomSection(c) => {
@@ -466,18 +474,6 @@ impl Printer {
     }
 
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
-        fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>, name: &str) -> Result<()> {
-            let mut used = HashSet::new();
-            for naming in names {
-                let naming = naming?;
-                into.insert(
-                    naming.index,
-                    Naming::new(naming.name, naming.index, name, &mut used),
-                );
-            }
-            Ok(())
-        }
-
         fn indirect_name_map(
             into: &mut HashMap<(u32, u32), Naming>,
             names: IndirectNameMap<'_>,
@@ -513,6 +509,53 @@ impl Printer {
                 Name::Element(n) => name_map(&mut state.core.element_names, n, "elem")?,
                 Name::Data(n) => name_map(&mut state.core.data_names, n, "data")?,
                 Name::Unknown { .. } => (),
+            }
+        }
+        Ok(())
+    }
+
+    fn register_component_names(
+        &mut self,
+        state: &mut State,
+        names: ComponentNameSectionReader<'_>,
+    ) -> Result<()> {
+        for section in names {
+            match section? {
+                ComponentName::Component { name, .. } => {
+                    let name = Naming::new(name, 0, "component", &mut HashSet::new());
+                    state.name = Some(name);
+                }
+                ComponentName::CoreFuncs(n) => {
+                    name_map(&mut state.core.func_names, n, "core-func")?
+                }
+                ComponentName::CoreTypes(n) => {
+                    name_map(&mut state.core.type_names, n, "core-type")?
+                }
+                ComponentName::CoreTables(n) => {
+                    name_map(&mut state.core.table_names, n, "core-table")?
+                }
+                ComponentName::CoreMemories(n) => {
+                    name_map(&mut state.core.memory_names, n, "core-memory")?
+                }
+                ComponentName::CoreGlobals(n) => {
+                    name_map(&mut state.core.global_names, n, "core-global")?
+                }
+                ComponentName::CoreModules(n) => {
+                    name_map(&mut state.core.module_names, n, "core-module")?
+                }
+                ComponentName::CoreInstances(n) => {
+                    name_map(&mut state.core.instance_names, n, "core-instance")?
+                }
+                ComponentName::Types(n) => name_map(&mut state.component.type_names, n, "type")?,
+                ComponentName::Instances(n) => {
+                    name_map(&mut state.component.instance_names, n, "instance")?
+                }
+                ComponentName::Components(n) => {
+                    name_map(&mut state.component.component_names, n, "component")?
+                }
+                ComponentName::Funcs(n) => name_map(&mut state.component.func_names, n, "func")?,
+                ComponentName::Values(n) => name_map(&mut state.component.value_names, n, "value")?,
+                ComponentName::Unknown { .. } => (),
             }
         }
         Ok(())
@@ -2455,4 +2498,16 @@ impl Naming {
             }
         }
     }
+}
+
+fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>, name: &str) -> Result<()> {
+    let mut used = HashSet::new();
+    for naming in names {
+        let naming = naming?;
+        into.insert(
+            naming.index,
+            Naming::new(naming.name, naming.index, name, &mut used),
+        );
+    }
+    Ok(())
 }
