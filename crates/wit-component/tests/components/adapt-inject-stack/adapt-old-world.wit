@@ -1,0 +1,5 @@
+world brave-new-world {
+  import new: interface {
+    get-two: func() -> (a: u32, b: u32)
+  }
+}

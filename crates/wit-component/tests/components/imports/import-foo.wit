@@ -1,4 +1,0 @@
-foo1: func()
-foo2: func(x: u8)
-foo3: func(x: float32)
-unused: func()

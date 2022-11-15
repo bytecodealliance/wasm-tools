@@ -3,29 +3,7 @@ use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wit_component::{ComponentEncoder, ComponentInterfaces, StringEncoding};
-use wit_parser::Interface;
-
-fn read_interface(path: &Path) -> Result<Interface> {
-    wit_parser::Interface::parse_file(&path)
-        .with_context(|| format!("failed to parse interface file `{}`", path.display()))
-}
-
-fn read_interfaces(dir: &Path, prefix: &str) -> Result<Vec<Interface>> {
-    glob::glob(dir.join(format!("{prefix}*.wit")).to_str().unwrap())?
-        .map(|p| {
-            let p = p?;
-            let mut i = read_interface(&p)?;
-            i.name = p
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .trim_start_matches(prefix)
-                .to_string();
-            Ok(i)
-        })
-        .collect::<Result<_>>()
-}
+use wit_parser::World;
 
 fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, ComponentInterfaces)>> {
     glob::glob(dir.join("adapt-*.wat").to_str().unwrap())?
@@ -154,19 +132,8 @@ fn component_encoding_via_custom_sections() -> Result<()> {
 }
 
 fn read_component_interfaces(path: &Path, prefix: &str) -> Result<ComponentInterfaces> {
-    let interface_path = path.join(&format!("{prefix}default.wit"));
-    let interface = interface_path
-        .is_file()
-        .then(|| read_interface(&interface_path))
-        .transpose()?;
-    let imports = read_interfaces(&path, &format!("{prefix}import-"))?;
-    let exports = read_interfaces(&path, &format!("{prefix}export-"))?;
-
-    Ok(ComponentInterfaces {
-        imports: imports.into_iter().map(|i| (i.name.clone(), i)).collect(),
-        exports: exports.into_iter().map(|i| (i.name.clone(), i)).collect(),
-        default: interface,
-    })
+    let world_path = path.join(&format!("{prefix}world.wit"));
+    Ok(World::parse_file(&world_path)?.into())
 }
 
 fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {

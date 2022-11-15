@@ -1,6 +1,0 @@
-record x {
-    a: u8
-}
-
-bar1: func(x: string)
-bar2: func(x: x)

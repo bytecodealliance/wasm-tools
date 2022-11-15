@@ -1,3 +1,0 @@
-a: func()
-b: func(a: s8, b: s16, c: s32, d: s64) -> string
-c: func() -> tuple<s8, s16, s32, s64>

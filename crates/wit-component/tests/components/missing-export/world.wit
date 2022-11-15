@@ -1,0 +1,5 @@
+world my-world {
+  export foo: interface {
+    a: func()
+  }
+}

@@ -101,13 +101,34 @@ pub struct ComponentInterfaces {
 
 impl ComponentInterfaces {
     /// Returns an iterator which visits all the exported interfaces, both named
-    /// and default. The second entry in each pair is whether the interface is
-    /// the default interface.
-    pub fn exports(&self) -> impl Iterator<Item = (&Interface, bool)> + '_ {
+    /// and default. The second entry in each pair the export name of the
+    /// interface, or `None` if it's the default export interface.
+    pub fn exports(&self) -> impl Iterator<Item = (&Interface, Option<&str>)> + '_ {
         self.exports
-            .values()
-            .map(|i| (i, false))
-            .chain(self.default.iter().map(|i| (i, true)))
+            .iter()
+            .map(|(name, i)| (i, Some(name.as_str())))
+            .chain(self.default.iter().map(|i| (i, None)))
+    }
+
+    /// Converts back into a `wit_parser::World`
+    pub fn into_world(self, name: &str) -> wit_parser::World {
+        wit_parser::World {
+            imports: self.imports,
+            exports: self.exports,
+            default: self.default,
+            name: name.to_string(),
+            docs: Default::default(),
+        }
+    }
+}
+
+impl From<wit_parser::World> for ComponentInterfaces {
+    fn from(world: wit_parser::World) -> ComponentInterfaces {
+        ComponentInterfaces {
+            exports: world.exports,
+            imports: world.imports,
+            default: world.default,
+        }
     }
 }
 

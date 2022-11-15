@@ -364,6 +364,14 @@ impl Function {
             FunctionKind::Freestanding => &self.name,
         }
     }
+
+    /// Gets the core export name for this function.
+    pub fn core_export_name<'a>(&'a self, interface: Option<&str>) -> Cow<'a, str> {
+        match interface {
+            Some(interface) => Cow::Owned(format!("{interface}#{}", self.name)),
+            None => Cow::Borrowed(&self.name),
+        }
+    }
 }
 
 fn unwrap_md(contents: &str) -> String {
@@ -450,15 +458,6 @@ impl Interface {
                 ast::rewrite_error(&mut e, &file, contents);
                 Err(e)
             }
-        }
-    }
-
-    /// Gets the core export name for the given function.
-    pub fn core_export_name<'a>(&self, default_export: bool, func: &'a Function) -> Cow<'a, str> {
-        if default_export || self.name.is_empty() {
-            Cow::Borrowed(&func.name)
-        } else {
-            Cow::Owned(format!("{}#{}", self.name, func.name))
         }
     }
 

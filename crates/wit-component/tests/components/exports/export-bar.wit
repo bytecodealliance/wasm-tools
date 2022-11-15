@@ -1,7 +1,0 @@
-flags x {
-    a,
-    b,
-    c
-}
-
-a: func(x: x)

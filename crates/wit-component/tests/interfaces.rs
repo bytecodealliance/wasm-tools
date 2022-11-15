@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use wit_component::{ComponentEncoder, ComponentInterfaces, StringEncoding};
-use wit_parser::Interface;
+use wit_parser::World;
 
 /// Tests the encoding of the "types only" mode of `wit-component`.
 ///
@@ -39,22 +39,10 @@ fn interface_encoding() -> Result<()> {
 fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
     println!("test {test_case}");
-    let interface_path = path.join("default.wit");
-
-    let mut interfaces = ComponentInterfaces::default();
-    let mut import_wits = Vec::new();
-    let mut export_wits = Vec::new();
-    for (path, import) in read_interfaces(&path, "import-*.wit")? {
-        import_wits.push((import.name.clone(), path));
-        interfaces.imports.insert(import.name.clone(), import);
-    }
-    for (path, export) in read_interfaces(&path, "export-*.wit")? {
-        export_wits.push((export.name.clone(), path));
-        interfaces.exports.insert(export.name.clone(), export);
-    }
-    if interface_path.is_file() {
-        interfaces.default = Some(read_interface(&interface_path)?);
-    }
+    let world_path = path.join("world.wit");
+    let world = World::parse_file(&world_path)?;
+    let world_name = world.name.clone();
+    let interfaces = ComponentInterfaces::from(world);
 
     let assert_output = |wasm: &[u8], wat: &Path| -> Result<()> {
         let output = wasmprinter::print_bytes(wasm)?;
@@ -81,17 +69,8 @@ fn run_test(path: &Path) -> Result<()> {
         assert_eq!(decoded.exports.len(), interfaces.exports.len());
         assert_eq!(decoded.default.is_some(), interfaces.default.is_some());
 
-        for (name, path) in import_wits.iter() {
-            assert_wit(path, &decoded.imports[name.as_str()])
-                .context(format!("failed to assert wit import `{name}`"))?;
-        }
-        for (name, path) in export_wits.iter() {
-            assert_wit(path, &decoded.exports[name.as_str()])
-                .context(format!("failed to assert wit import `{name}`"))?;
-        }
-        if let Some(iface) = &decoded.default {
-            assert_wit(&interface_path, &iface).context("failed to assert default interface")?;
-        }
+        let world = decoded.into_world(&world_name);
+        assert_wit(&world_path, &world)?;
         Ok(())
     };
 
@@ -127,11 +106,9 @@ fn run_test(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn assert_wit(wit_path: &Path, interface: &Interface) -> Result<()> {
-    let mut printer = wit_component::InterfacePrinter::default();
-    let output = printer
-        .print(&interface)
-        .context("failed to print interface")?;
+fn assert_wit(wit_path: &Path, world: &World) -> Result<()> {
+    let mut printer = wit_component::WorldPrinter::default();
+    let output = printer.print(world).context("failed to print interface")?;
 
     if std::env::var_os("BLESS").is_some() {
         fs::write(&wit_path, output)?;
@@ -144,27 +121,4 @@ fn assert_wit(wit_path: &Path, interface: &Interface) -> Result<()> {
         );
     }
     Ok(())
-}
-
-fn read_interface(path: &Path) -> Result<Interface> {
-    Interface::parse_file(&path)
-        .with_context(|| format!("failed to parse interface file `{}`", path.display()))
-}
-
-fn read_interfaces(dir: &Path, pattern: &str) -> Result<Vec<(PathBuf, Interface)>> {
-    glob::glob(dir.join(pattern).to_str().unwrap())?
-        .map(|p| {
-            let p = p?;
-            let mut i = read_interface(&p)?;
-            i.name = p
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .trim_start_matches("import-")
-                .trim_start_matches("export-")
-                .to_string();
-            Ok((p, i))
-        })
-        .collect::<Result<_>>()
 }

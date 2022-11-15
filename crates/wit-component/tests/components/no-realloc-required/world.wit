@@ -1,0 +1,5 @@
+world foo {
+  import foo: interface {
+    log: func(s: string)
+  }
+}

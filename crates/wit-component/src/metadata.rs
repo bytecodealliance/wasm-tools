@@ -152,7 +152,7 @@ impl BindgenMetadata {
 
         if let Some(iface) = &ret.interfaces.default {
             for func in iface.functions.iter() {
-                let name = iface.core_export_name(true, func);
+                let name = func.core_export_name(None);
                 let prev = ret.export_encodings.insert(name.to_string(), encoding);
                 assert!(prev.is_none());
             }
@@ -165,9 +165,9 @@ impl BindgenMetadata {
                 assert!(prev.is_none());
             }
         }
-        for (_name, export) in ret.interfaces.exports.iter() {
+        for (name, export) in ret.interfaces.exports.iter() {
             for func in export.functions.iter() {
-                let name = export.core_export_name(false, func);
+                let name = func.core_export_name(Some(name));
                 let prev = ret.export_encodings.insert(name.to_string(), encoding);
                 assert!(prev.is_none());
             }

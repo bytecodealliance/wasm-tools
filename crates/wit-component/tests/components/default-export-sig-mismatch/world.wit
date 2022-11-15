@@ -1,0 +1,5 @@
+world my-world {
+  default export interface {
+    a: func(x: string) -> string
+  }
+}

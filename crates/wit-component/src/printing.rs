@@ -1,21 +1,61 @@
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use wit_parser::{
     Enum, Flags, Interface, Record, Result_, Results, Tuple, Type, TypeDefKind, TypeId, Union,
-    Variant,
+    Variant, World,
 };
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
-pub struct InterfacePrinter {
-    output: String,
+pub struct WorldPrinter {
+    output: Output,
     declared: IndexSet<TypeId>,
 }
 
-impl InterfacePrinter {
+impl WorldPrinter {
     /// Print the given WebAssembly interface to a string.
-    pub fn print(&mut self, interface: &Interface) -> Result<String> {
+    pub fn print(&mut self, world: &World) -> Result<String> {
+        for (name, import) in world.imports.iter() {
+            writeln!(&mut self.output, "interface {name} {{")?;
+            self.print_interface(import)?;
+            writeln!(&mut self.output, "}}\n")?;
+        }
+
+        for (name, export) in world.exports.iter() {
+            if world.imports.contains_key(name) {
+                writeln!(&mut self.output, "interface {name}-exports {{")?;
+            } else {
+                writeln!(&mut self.output, "interface {name} {{")?;
+            }
+            self.print_interface(export)?;
+            writeln!(&mut self.output, "}}\n")?;
+        }
+
+        write!(&mut self.output, "world {} {{\n", world.name)?;
+        for (name, _import) in world.imports.iter() {
+            writeln!(&mut self.output, "import {name}: {name}")?;
+        }
+        for (name, _export) in world.exports.iter() {
+            if world.imports.contains_key(name) {
+                writeln!(&mut self.output, "export {name}: {name}-exports")?;
+            } else {
+                writeln!(&mut self.output, "export {name}: {name}")?;
+            }
+        }
+        if let Some(default) = &world.default {
+            writeln!(&mut self.output, "default export interface {{")?;
+            self.print_interface(default)?;
+            write!(&mut self.output, "}}\n")?;
+        }
+        write!(&mut self.output, "}}\n")?;
+
+        self.declared.clear();
+        Ok(std::mem::take(&mut self.output).into())
+    }
+
+    /// Print the given WebAssembly interface to a string.
+    fn print_interface(&mut self, interface: &Interface) -> Result<()> {
         for (id, _) in &interface.types {
             self.declare_type(interface, &Type::Id(id))?;
         }
@@ -29,7 +69,7 @@ impl InterfacePrinter {
                 write!(&mut self.output, "{}: ", name)?;
                 self.print_type_name(interface, ty)?;
             }
-            self.output.push(')');
+            self.output.push_str(")");
 
             match &func.results {
                 Results::Named(rs) => match rs.len() {
@@ -47,7 +87,7 @@ impl InterfacePrinter {
                             write!(&mut self.output, "{name}: ")?;
                             self.print_type_name(interface, ty)?;
                         }
-                        self.output.push(')');
+                        self.output.push_str(")");
                     }
                 },
                 Results::Anon(ty) => {
@@ -59,8 +99,7 @@ impl InterfacePrinter {
             self.output.push_str("\n\n");
         }
 
-        self.declared.clear();
-        Ok(std::mem::take(&mut self.output))
+        Ok(())
     }
 
     fn print_type_name(&mut self, interface: &Interface, ty: &Type) -> Result<()> {
@@ -114,7 +153,7 @@ impl InterfacePrinter {
                     TypeDefKind::List(ty) => {
                         self.output.push_str("list<");
                         self.print_type_name(interface, ty)?;
-                        self.output.push('>');
+                        self.output.push_str(">");
                     }
                     TypeDefKind::Type(ty) => self.print_type_name(interface, ty)?,
                     TypeDefKind::Future(_) => {
@@ -138,7 +177,7 @@ impl InterfacePrinter {
             }
             self.print_type_name(interface, ty)?;
         }
-        self.output.push('>');
+        self.output.push_str(">");
 
         Ok(())
     }
@@ -146,7 +185,7 @@ impl InterfacePrinter {
     fn print_option_type(&mut self, interface: &Interface, payload: &Type) -> Result<()> {
         self.output.push_str("option<");
         self.print_type_name(interface, payload)?;
-        self.output.push('>');
+        self.output.push_str(">");
         Ok(())
     }
 
@@ -160,7 +199,7 @@ impl InterfacePrinter {
                 self.print_type_name(interface, ok)?;
                 self.output.push_str(", ");
                 self.print_type_name(interface, err)?;
-                self.output.push('>');
+                self.output.push_str(">");
             }
             Result_ {
                 ok: None,
@@ -168,7 +207,7 @@ impl InterfacePrinter {
             } => {
                 self.output.push_str("result<_, ");
                 self.print_type_name(interface, err)?;
-                self.output.push('>');
+                self.output.push_str(">");
             }
             Result_ {
                 ok: Some(ok),
@@ -176,7 +215,7 @@ impl InterfacePrinter {
             } => {
                 self.output.push_str("result<");
                 self.print_type_name(interface, ok)?;
-                self.output.push('>');
+                self.output.push_str(">");
             }
             Result_ {
                 ok: None,
@@ -264,7 +303,7 @@ impl InterfacePrinter {
             Some(name) => {
                 writeln!(&mut self.output, "record {} {{", name)?;
                 for field in &record.fields {
-                    write!(&mut self.output, "  {}: ", field.name)?;
+                    write!(&mut self.output, "{}: ", field.name)?;
                     self.declare_type(interface, &field.ty)?;
                     self.print_type_name(interface, &field.ty)?;
                     self.output.push_str(",\n");
@@ -299,7 +338,7 @@ impl InterfacePrinter {
             Some(name) => {
                 writeln!(&mut self.output, "flags {} {{", name)?;
                 for flag in &flags.flags {
-                    writeln!(&mut self.output, "  {},", flag.name)?;
+                    writeln!(&mut self.output, "{},", flag.name)?;
                 }
                 self.output.push_str("}\n\n");
             }
@@ -326,11 +365,11 @@ impl InterfacePrinter {
         };
         writeln!(&mut self.output, "variant {} {{", name)?;
         for case in &variant.cases {
-            write!(&mut self.output, "  {}", case.name)?;
+            write!(&mut self.output, "{}", case.name)?;
             if let Some(ty) = case.ty {
-                self.output.push('(');
+                self.output.push_str("(");
                 self.print_type_name(interface, &ty)?;
-                self.output.push(')');
+                self.output.push_str(")");
             }
             self.output.push_str(",\n");
         }
@@ -354,7 +393,7 @@ impl InterfacePrinter {
         };
         writeln!(&mut self.output, "union {} {{", name)?;
         for case in &union.cases {
-            self.output.push_str("  ");
+            self.output.push_str("");
             self.print_type_name(interface, &case.ty)?;
             self.output.push_str(",\n");
         }
@@ -406,7 +445,7 @@ impl InterfacePrinter {
         };
         writeln!(&mut self.output, "enum {} {{", name)?;
         for case in &enum_.cases {
-            writeln!(&mut self.output, "  {},", case.name)?;
+            writeln!(&mut self.output, "{},", case.name)?;
         }
         self.output.push_str("}\n\n");
         Ok(())
@@ -423,5 +462,69 @@ impl InterfacePrinter {
         }
 
         Ok(())
+    }
+}
+
+/// Helper structure to help maintain an indentation level when printing source,
+/// modeled after the support in `wit-bindgen-core`.
+#[derive(Default)]
+struct Output {
+    indent: usize,
+    output: String,
+}
+
+impl Output {
+    fn push_str(&mut self, src: &str) {
+        let lines = src.lines().collect::<Vec<_>>();
+        for (i, line) in lines.iter().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('}') && self.output.ends_with("  ") {
+                self.output.pop();
+                self.output.pop();
+            }
+            self.output.push_str(if lines.len() == 1 {
+                line
+            } else {
+                line.trim_start()
+            });
+            if trimmed.ends_with('{') {
+                self.indent += 1;
+            }
+            if trimmed.starts_with('}') {
+                // Note that a `saturating_sub` is used here to prevent a panic
+                // here in the case of invalid code being generated in debug
+                // mode. It's typically easier to debug those issues through
+                // looking at the source code rather than getting a panic.
+                self.indent = self.indent.saturating_sub(1);
+            }
+            if i != lines.len() - 1 || src.ends_with('\n') {
+                // Trim trailing whitespace, if any, then push an indented
+                // newline
+                while let Some(c) = self.output.chars().next_back() {
+                    if c.is_whitespace() && c != '\n' {
+                        self.output.pop();
+                    } else {
+                        break;
+                    }
+                }
+                self.output.push('\n');
+                for _ in 0..self.indent {
+                    self.output.push_str("  ");
+                }
+            }
+        }
+    }
+}
+
+impl Write for Output {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.push_str(s);
+        Ok(())
+    }
+}
+
+impl From<Output> for String {
+    fn from(output: Output) -> String {
+        output.output
     }
 }

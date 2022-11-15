@@ -1,6 +1,0 @@
-record my-struct {
-  a: u32,
-}
-
-my-function: func(a: my-struct) -> string
-

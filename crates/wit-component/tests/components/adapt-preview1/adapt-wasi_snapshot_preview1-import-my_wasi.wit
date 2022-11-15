@@ -1,6 +1,0 @@
-// This is the interface imported by the `adapt-*.wat` file which is used
-// to implement the `wasi_snapshot_preview1` interface.
-
-random-get: func(size: u32) -> list<u8>
-proc-exit: func(code: u32)
-something-not-used: func()

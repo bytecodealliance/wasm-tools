@@ -45,5 +45,5 @@
       (export "roundtrip-flag64" (func (type 13)))
     )
   )
-  (import "flags" (instance (;0;) (type 14)))
+  (import "imports" (instance (;0;) (type 14)))
 )

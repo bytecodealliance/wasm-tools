@@ -25,6 +25,8 @@ env_logger = { workspace = true, optional = true }
 log = "0.4.17"
 bitflags = { workspace = true }
 indexmap = { workspace = true }
+atty = { version = "0.2.14", optional = true }
+wasmprinter = { workspace = true, optional = true }
 
 [dev-dependencies]
 wasmprinter = { workspace = true }
@@ -35,4 +37,4 @@ test-helpers = { path = '../test-helpers', default-features = false }
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:env_logger"]
+cli = ["dep:clap", "dep:env_logger", "dep:atty", "dep:wasmprinter"]

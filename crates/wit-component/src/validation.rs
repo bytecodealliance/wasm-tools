@@ -179,7 +179,7 @@ pub fn validate_module<'a>(
     }
 
     if let Some(interface) = &metadata.interfaces.default {
-        validate_exported_interface(interface, true, &export_funcs, &types)?;
+        validate_exported_interface(interface, None, &export_funcs, &types)?;
     }
 
     for (name, interface) in metadata.interfaces.exports.iter() {
@@ -187,7 +187,7 @@ pub fn validate_module<'a>(
             bail!("cannot export an interface with an empty name");
         }
 
-        validate_exported_interface(interface, false, &export_funcs, &types)?;
+        validate_exported_interface(interface, Some(name), &export_funcs, &types)?;
     }
 
     Ok(ret)
@@ -413,32 +413,37 @@ fn validate_imported_interface<'a>(
 
 fn validate_exported_interface(
     interface: &Interface,
-    default_export: bool,
+    export_name: Option<&str>,
     exports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
     for f in &interface.functions {
-        let expected_export_name = interface.core_export_name(default_export, f);
+        let expected_export_name = f.core_export_name(export_name);
         match exports.get(expected_export_name.as_ref()) {
             Some(func_index) => {
                 let expected_ty =
                     wasm_sig_to_func_type(interface.wasm_signature(AbiVariant::GuestExport, f));
                 let ty = types.function_at(*func_index).unwrap();
-                if ty != &expected_ty {
-                    if default_export {
+                if ty == &expected_ty {
+                    return Ok(());
+                }
+                match export_name {
+                    Some(name) => {
                         bail!(
-                            "type mismatch for default interface function `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
+                            "type mismatch for function `{}` from exported interface `{name}`: \
+                                 expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
                             f.name,
                             expected_ty.params(),
                             expected_ty.results(),
                             ty.params(),
                             ty.results()
                         );
-                    } else {
+                    }
+                    None => {
                         bail!(
-                            "type mismatch for function `{}` from exported interface `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
+                            "type mismatch for default interface function `{}`: \
+                             expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
                             f.name,
-                            interface.name,
                             expected_ty.params(),
                             expected_ty.results(),
                             ty.params(),

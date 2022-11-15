@@ -35,6 +35,7 @@ impl Resolver {
         for interface in document.interfaces() {
             let name = &interface.name.name;
             let instance = self.resolve(name, &interface.items, &interface.docs)?;
+            *self = Resolver::default();
 
             if interface_map.insert(name.to_string(), instance).is_some() {
                 return Err(Error {

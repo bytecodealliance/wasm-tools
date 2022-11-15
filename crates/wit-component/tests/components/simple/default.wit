@@ -1,6 +1,0 @@
-type x = list<string>
-
-a: func()
-b: func() -> string
-c: func(x: string) -> string
-d: func(x: x)

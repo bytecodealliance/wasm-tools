@@ -1,7 +1,0 @@
-record foo {
-}
-
-type bar = foo
-
-baz: func(a: foo) -> foo
-

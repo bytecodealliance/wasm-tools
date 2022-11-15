@@ -1,7 +1,0 @@
-type foo = u8
-
-record bar {
-    x: foo
-}
-
-a: func(b: bar)

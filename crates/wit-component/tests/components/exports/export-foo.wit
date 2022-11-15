@@ -1,9 +1,0 @@
-variant x {
-    a,
-    b(string),
-    c(s64)
-}
-
-a: func()
-b: func(x: string) -> x
-c: func(x: x) -> string

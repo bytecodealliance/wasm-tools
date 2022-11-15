@@ -1,0 +1,12 @@
+interface foo {
+  record my-struct {
+    a: u32,
+  }
+
+  my-function: func(a: my-struct) -> string
+
+}
+
+world export-foo {
+  export foo: foo
+}

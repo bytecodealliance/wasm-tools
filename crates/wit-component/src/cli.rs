@@ -1,13 +1,11 @@
 //! The WebAssembly component tool command line interface.
 
-use crate::{
-    decode_component_interfaces, ComponentEncoder, ComponentInterfaces, InterfacePrinter,
-    StringEncoding,
-};
-use anyhow::{anyhow, bail, Context, Result};
+use crate::{decode_component_interfaces, ComponentEncoder, StringEncoding, WorldPrinter};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use wit_parser::Interface;
+use wit_parser::World;
 
 fn parse_optionally_name_file(s: &str) -> (&str, &str) {
     let mut parts = s.splitn(2, '=');
@@ -25,28 +23,6 @@ fn parse_optionally_name_file(s: &str) -> (&str, &str) {
     }
 }
 
-fn parse_named_interface(s: &str) -> Result<Interface> {
-    let (name, path) = parse_optionally_name_file(s);
-    parse_interface(Some(name.to_string()), Path::new(path))
-}
-
-fn parse_unnamed_interface(s: &str) -> Result<Interface> {
-    parse_interface(None, Path::new(s))
-}
-
-fn parse_interface(name: Option<String>, path: &Path) -> Result<Interface> {
-    if !path.is_file() {
-        bail!("interface file `{}` does not exist", path.display(),);
-    }
-
-    let mut interface = Interface::parse_file(&path)
-        .with_context(|| format!("failed to parse interface file `{}`", path.display()))?;
-
-    interface.name = name.unwrap_or_else(|| "".to_string());
-
-    Ok(interface)
-}
-
 fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
     let (name, path) = parse_optionally_name_file(s);
     let wasm = wat::parse_file(path)?;
@@ -59,14 +35,6 @@ fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
 #[derive(Debug, Parser)]
 #[clap(name = "component-encoder", version = env!("CARGO_PKG_VERSION"))]
 pub struct WitComponentApp {
-    /// The path to an interface definition file the component imports.
-    #[clap(long = "import", value_name = "[NAME=]INTERFACE", value_parser = parse_named_interface)]
-    pub imports: Vec<Interface>,
-
-    /// The path to an interface definition file the component exports.
-    #[clap(long = "export", value_name = "[NAME=]INTERFACE", value_parser = parse_named_interface)]
-    pub exports: Vec<Interface>,
-
     /// The path to an adapter module to satisfy imports.
     ///
     /// An adapter module can be used to translate the `wasi_snapshot_preview1`
@@ -82,12 +50,12 @@ pub struct WitComponentApp {
     pub adapters: Vec<(String, Vec<u8>)>,
 
     /// The path of the output WebAssembly component.
-    #[clap(long, short = 'o', value_name = "OUTPUT")]
+    #[clap(long, short, value_name = "OUTPUT")]
     pub output: Option<PathBuf>,
 
     /// The default interface the component exports.
-    #[clap(long, short = 'i', value_name = "INTERFACE", value_parser = parse_unnamed_interface)]
-    pub interface: Option<Interface>,
+    #[clap(long, value_name = "PATH")]
+    pub world: Option<PathBuf>,
 
     /// Skip validation of the output component.
     #[clap(long)]
@@ -100,67 +68,66 @@ pub struct WitComponentApp {
 
     /// Path to the WebAssembly module to encode.
     #[clap(index = 1, value_name = "MODULE")]
-    pub module: PathBuf,
+    pub module: Option<PathBuf>,
+
+    /// Print the output in the WebAssembly text format instead of binary.
+    #[clap(long, short)]
+    pub text: bool,
 }
 
 impl WitComponentApp {
     /// Executes the application.
     pub fn execute(self) -> Result<()> {
-        if !self.module.is_file() {
-            bail!(
-                "module `{}` does not exist as a file",
-                self.module.display()
-            );
-        }
+        let mut encoder = ComponentEncoder::default().validate(!self.skip_validation);
 
-        let output = self.output.unwrap_or_else(|| {
-            let mut stem: PathBuf = self.module.file_stem().unwrap().into();
-            stem.set_extension("wasm");
-            stem
-        });
-
-        let module = wat::parse_file(&self.module)
-            .with_context(|| format!("failed to parse module `{}`", self.module.display()))?;
-
-        let mut interfaces = ComponentInterfaces::default();
-        for import in self.imports {
-            let name = import.name.clone();
-            let prev = interfaces.imports.insert(name.clone(), import);
-            if prev.is_some() {
-                bail!("duplicate import interface specified for `{name}`");
+        match &self.module {
+            Some(module) => {
+                let module = wat::parse_file(module)
+                    .with_context(|| format!("failed to parse module `{}`", module.display()))?;
+                encoder = encoder.module(&module)?;
+            }
+            None => {
+                encoder = encoder.types_only(true);
             }
         }
-        for export in self.exports {
-            let name = export.name.clone();
-            let prev = interfaces.exports.insert(name.clone(), export);
-            if prev.is_some() {
-                bail!("duplicate export interface specified for `{name}`");
-            }
+
+        if let Some(world) = &self.world {
+            let encoding = self.encoding.unwrap_or(StringEncoding::UTF8);
+            let world = World::parse_file(world)?;
+            encoder = encoder.interfaces(world.into(), encoding)?;
         }
-        interfaces.default = self.interface;
-
-        let encoding = self.encoding.unwrap_or(StringEncoding::UTF8);
-
-        let mut encoder = ComponentEncoder::default()
-            .module(&module)?
-            .interfaces(interfaces, encoding)?
-            .validate(!self.skip_validation);
 
         for (name, wasm) in self.adapters.iter() {
             encoder = encoder.adapter(name, wasm)?;
         }
 
-        let bytes = encoder.encode().with_context(|| {
-            format!(
-                "failed to encode a component from module `{}`",
-                self.module.display()
-            )
-        })?;
+        let bytes = encoder
+            .encode()
+            .with_context(|| format!("failed to encode a component from module ",))?;
 
-        std::fs::write(&output, bytes)
-            .with_context(|| format!("failed to write output file `{}`", output.display()))?;
+        let bytes = if self.text {
+            wasmprinter::print_bytes(&bytes)?.into_bytes()
+        } else {
+            bytes
+        };
 
-        println!("encoded component `{}`", output.display());
+        match &self.output {
+            Some(path) => {
+                std::fs::write(path, bytes)
+                    .with_context(|| format!("failed to write output file `{}`", path.display()))?;
+
+                println!("encoded component `{}`", path.display());
+            }
+
+            None => {
+                if !self.text && atty::is(atty::Stream::Stdout) {
+                    bail!("cannot print binary wasm output to a terminal, pass the `-t` flag to print the text format");
+                }
+                std::io::stdout()
+                    .write_all(&bytes)
+                    .context("failed to write to stdout")?;
+            }
+        }
 
         Ok(())
     }
@@ -176,17 +143,9 @@ pub struct WasmToWitApp {
     #[clap(long, short = 'o', value_name = "OUTPUT")]
     pub output: Option<PathBuf>,
 
-    /// Print the "default" interface for a component.
-    #[clap(long, short)]
-    pub interface: bool,
-
-    /// Print the interface of the specified import.
+    /// The name of the world to generate.
     #[clap(long)]
-    pub import: Option<String>,
-
-    /// Print the interface of the specified export.
-    #[clap(long)]
-    pub export: Option<String>,
+    pub name: Option<String>,
 
     /// The path to the WebAssembly component to decode.
     #[clap(index = 1, value_name = "COMPONENT")]
@@ -196,11 +155,12 @@ pub struct WasmToWitApp {
 impl WasmToWitApp {
     /// Executes the application.
     pub fn execute(self) -> Result<()> {
-        let output = self.output.unwrap_or_else(|| {
-            let mut stem: PathBuf = self.component.file_stem().unwrap().into();
-            stem.set_extension("wit");
-            stem
-        });
+        let stem = self.component.file_stem().unwrap().to_str().unwrap();
+        let name = match &self.name {
+            Some(name) => name.as_str(),
+            None => stem,
+        };
+        let output = self.output.unwrap_or_else(|| format!("{name}.wit").into());
 
         if !self.component.is_file() {
             bail!(
@@ -215,32 +175,11 @@ impl WasmToWitApp {
         let interfaces = decode_component_interfaces(&bytes).with_context(|| {
             format!("failed to decode component `{}`", self.component.display())
         })?;
-        let which = match &self.import {
-            Some(s) => interfaces
-                .imports
-                .get(s.as_str())
-                .ok_or_else(|| anyhow!("no import interface named `{s}`"))?,
-            None => match &self.export {
-                Some(s) => interfaces
-                    .exports
-                    .get(s.as_str())
-                    .ok_or_else(|| anyhow!("no export interface named `{s}`"))?,
-                None => {
-                    if self.interface {
-                        interfaces
-                            .default
-                            .as_ref()
-                            .ok_or_else(|| anyhow!("no default interface"))?
-                    } else {
-                        bail!("must specify `-i`, `--import`, or `--export`")
-                    }
-                }
-            },
-        };
+        let world = interfaces.into_world(name);
 
-        let mut printer = InterfacePrinter::default();
+        let mut printer = WorldPrinter::default();
 
-        std::fs::write(&output, printer.print(which)?)
+        std::fs::write(&output, printer.print(&world)?)
             .with_context(|| format!("failed to write output file `{}`", output.display()))?;
 
         println!("decoded interface to `{}`", output.display());
