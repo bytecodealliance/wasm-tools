@@ -3,6 +3,7 @@
 use arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
 use wasm_smith::SwarmConfig;
+#[cfg(feature = "wasmtime")]
 use wasmtime::*;
 
 #[cfg(feature = "wasmtime")]
@@ -26,47 +27,50 @@ fuzz_target!(|data: &[u8]| {
     };
     validate_module(config, &wasm_bytes);
 
-    // Configure the engine, module, and store
-    let mut eng_conf = Config::new();
-    eng_conf.wasm_memory64(true);
-    eng_conf.wasm_multi_memory(true);
-    eng_conf.consume_fuel(true);
-    let engine = Engine::new(&eng_conf).unwrap();
-    let module = Module::from_binary(&engine, &wasm_bytes).unwrap();
-    let mut store = Store::new(
-        &engine,
-        fuzz_stats::limits::StoreLimits {
-            remaining_memory: 1 << 30,
-            oom: false,
-        },
-    );
-    store.limiter(|s| s as &mut dyn ResourceLimiter);
-    set_fuel(&mut store, 1_000);
+    #[cfg(feature = "wasmtime")]
+    {
+        // Configure the engine, module, and store
+        let mut eng_conf = Config::new();
+        eng_conf.wasm_memory64(true);
+        eng_conf.wasm_multi_memory(true);
+        eng_conf.consume_fuel(true);
+        let engine = Engine::new(&eng_conf).unwrap();
+        let module = Module::from_binary(&engine, &wasm_bytes).unwrap();
+        let mut store = Store::new(
+            &engine,
+            fuzz_stats::limits::StoreLimits {
+                remaining_memory: 1 << 30,
+                oom: false,
+            },
+        );
+        store.limiter(|s| s as &mut dyn ResourceLimiter);
+        set_fuel(&mut store, 1_000);
 
-    // Instantiate the module
-    let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)
-        .and_then(|imports| Instance::new(&mut store, &module, &imports));
-    let instance = match inst_result {
-        Ok(r) => r,
-        Err(err) if err.to_string().contains("all fuel consumed") => return,
-        Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
-    };
+        // Instantiate the module
+        let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)
+            .and_then(|imports| Instance::new(&mut store, &module, &imports));
+        let instance = match inst_result {
+            Ok(r) => r,
+            Err(err) if err.to_string().contains("all fuel consumed") => return,
+            Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
+        };
 
-    // Call all exported functions
-    for export in module.exports() {
-        match export.ty() {
-            ExternType::Func(func_ty) => {
-                let args = fuzz_stats::dummy::dummy_values(func_ty.params());
-                let mut results = fuzz_stats::dummy::dummy_values(func_ty.results());
-                let func = instance.get_func(&mut store, export.name()).unwrap();
-                set_fuel(&mut store, 1_000);
-                match func.call(&mut store, &args, &mut results) {
-                    Ok(_) => continue,
-                    Err(err) if err.to_string().contains("all fuel consumed") => continue,
-                    Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
+        // Call all exported functions
+        for export in module.exports() {
+            match export.ty() {
+                ExternType::Func(func_ty) => {
+                    let args = fuzz_stats::dummy::dummy_values(func_ty.params());
+                    let mut results = fuzz_stats::dummy::dummy_values(func_ty.results());
+                    let func = instance.get_func(&mut store, export.name()).unwrap();
+                    set_fuel(&mut store, 1_000);
+                    match func.call(&mut store, &args, &mut results) {
+                        Ok(_) => continue,
+                        Err(err) if err.to_string().contains("all fuel consumed") => continue,
+                        Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
+                    }
                 }
+                _ => continue,
             }
-            _ => continue,
         }
     }
 });
@@ -91,6 +95,7 @@ fn validate_module(config: SwarmConfig, wasm_bytes: &Vec<u8>) {
     }
 }
 
+#[cfg(feature = "wasmtime")]
 fn set_fuel<T>(store: &mut Store<T>, fuel: u64) {
     // This is necessary because consume_fuel below will err if there is <=0
     // fuel in the store. Since we are just using that call to get the current
