@@ -1,3 +1,5 @@
 // parse-fail
 
-type option = u32
+interface kw {
+  type option = u32
+}

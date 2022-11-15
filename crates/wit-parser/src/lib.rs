@@ -1,10 +1,12 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result};
+use ast::lex::Tokenizer;
 use id_arena::{Arena, Id};
+use indexmap::IndexMap;
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub mod abi;
 mod ast;
@@ -18,12 +20,58 @@ pub fn validate_id(s: &str) -> Result<()> {
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
+pub struct World {
+    pub name: String,
+    pub docs: Docs,
+    pub default: Option<Interface>,
+    pub imports: IndexMap<String, Interface>,
+    pub exports: IndexMap<String, Interface>,
+}
+
+impl World {
+    pub fn parse_file(path: impl AsRef<Path>) -> Result<World> {
+        let path = path.as_ref();
+        let text = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read: {}", path.display()))?;
+
+        let mut contents = &*text;
+        // If we have a ".md" file, it's a wit file wrapped in a markdown file;
+        // parse the markdown to extract the `wit` code blocks.
+        let md_contents;
+        if path.extension().and_then(|s| s.to_str()) == Some("md") {
+            md_contents = unwrap_md(contents);
+            contents = &md_contents[..];
+        }
+
+        let mut lexer = Tokenizer::new(&contents)?;
+
+        // Parse the `contents` into an AST
+        let ast = match ast::Document::parse(&mut lexer) {
+            Ok(ast) => ast,
+            Err(mut e) => {
+                let file = path.display().to_string();
+                ast::rewrite_error(&mut e, &file, &contents);
+                return Err(e);
+            }
+        };
+
+        match ast.resolve() {
+            Ok(component) => Ok(component),
+            Err(mut e) => {
+                let file = path.display().to_string();
+                ast::rewrite_error(&mut e, &file, &contents);
+                return Err(e);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Interface {
     pub name: String,
+    pub docs: Docs,
     pub types: Arena<TypeDef>,
     pub type_lookup: HashMap<String, TypeId>,
-    pub interfaces: Arena<Interface>,
-    pub interface_lookup: HashMap<String, InterfaceId>,
     pub functions: Vec<Function>,
     pub globals: Vec<Global>,
 }
@@ -347,40 +395,21 @@ fn unwrap_md(contents: &str) -> String {
 
 impl Interface {
     pub fn parse(name: &str, input: &str) -> Result<Interface> {
-        Interface::parse_with(name, input, |f| {
-            Err(anyhow!("cannot load submodule `{}`", f))
-        })
+        Interface::parse_with(name, input)
     }
 
     pub fn parse_file(path: impl AsRef<Path>) -> Result<Interface> {
         let path = path.as_ref();
-        let parent = path.parent().unwrap();
         let contents = std::fs::read_to_string(&path)
             .with_context(|| format!("failed to read: {}", path.display()))?;
-        Interface::parse_with(path, &contents, |path| load_fs(parent, path))
+        Interface::parse_with(path, &contents)
     }
 
-    pub fn parse_with(
-        filename: impl AsRef<Path>,
-        contents: &str,
-        mut load: impl FnMut(&str) -> Result<(PathBuf, String)>,
-    ) -> Result<Interface> {
-        Interface::_parse_with(
-            filename.as_ref(),
-            contents,
-            &mut load,
-            &mut HashSet::new(),
-            &mut HashMap::new(),
-        )
+    pub fn parse_with(filename: impl AsRef<Path>, contents: &str) -> Result<Interface> {
+        Interface::_parse_with(filename.as_ref(), contents)
     }
 
-    fn _parse_with(
-        filename: &Path,
-        contents: &str,
-        load: &mut dyn FnMut(&str) -> Result<(PathBuf, String)>,
-        visiting: &mut HashSet<PathBuf>,
-        map: &mut HashMap<String, Interface>,
-    ) -> Result<Interface> {
+    fn _parse_with(filename: &Path, contents: &str) -> Result<Interface> {
         let name = filename
             .file_name()
             .context("wit path must end in a file name")?
@@ -400,8 +429,10 @@ impl Interface {
             contents = &md_contents[..];
         }
 
+        let mut lexer = Tokenizer::new(&contents)?;
+
         // Parse the `contents `into an AST
-        let ast = match ast::Ast::parse(contents) {
+        let items = match ast::Interface::parse_legacy_items(&mut lexer) {
             Ok(ast) => ast,
             Err(mut e) => {
                 let file = filename.display().to_string();
@@ -410,28 +441,9 @@ impl Interface {
             }
         };
 
-        // Load up any modules into our `map` that have not yet been parsed.
-        if !visiting.insert(filename.to_path_buf()) {
-            bail!("file `{}` recursively imports itself", filename.display())
-        }
-        for item in ast.items.iter() {
-            let u = match item {
-                ast::Item::Use(u) => u,
-                _ => continue,
-            };
-            if map.contains_key(&*u.from[0].name) {
-                continue;
-            }
-            let (filename, contents) = load(&u.from[0].name)
-                // TODO: insert context here about `u.name.span` and `filename`
-                ?;
-            let instance = Interface::_parse_with(&filename, &contents, load, visiting, map)?;
-            map.insert(u.from[0].name.to_string(), instance);
-        }
-        visiting.remove(filename);
-
         // and finally resolve everything into our final instance
-        match ast.resolve(name, map) {
+        let mut resolver = ast::Resolver::default();
+        match resolver.resolve(name, &items, &Default::default()) {
             Ok(i) => Ok(i),
             Err(mut e) => {
                 let file = filename.display().to_string();
@@ -565,25 +577,5 @@ impl Interface {
         } else {
             None
         }
-    }
-}
-
-fn load_fs(root: &Path, name: &str) -> Result<(PathBuf, String)> {
-    let wit = root.join(name).with_extension("wit");
-
-    // Attempt to read a ".wit" file.
-    match fs::read_to_string(&wit) {
-        Ok(contents) => Ok((wit, contents)),
-
-        // If no such file was found, attempt to read a ".wit.md" file.
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            let wit_md = wit.with_extension("wit.md");
-            match fs::read_to_string(&wit_md) {
-                Ok(contents) => Ok((wit_md, contents)),
-                Err(_err) => Err(err.into()),
-            }
-        }
-
-        Err(err) => return Err(err.into()),
     }
 }

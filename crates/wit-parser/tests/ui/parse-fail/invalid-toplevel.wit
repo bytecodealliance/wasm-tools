@@ -1,2 +1,5 @@
 // parse-fail
-abcd
+
+interface foo {
+  abcd
+}

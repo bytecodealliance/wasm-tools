@@ -1,5 +1,5 @@
 type can recursively refer to itself
-     --> tests/ui/parse-fail/cycle2.wit:2:6
+     --> tests/ui/parse-fail/cycle2.wit:4:8
       |
-    2 | type foo = bar
-      |      ^--
+    4 |   type foo = bar
+      |        ^--

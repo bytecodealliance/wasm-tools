@@ -1,2 +1,5 @@
 // parse-fail
-variant t {}
+
+interface foo {
+  variant t {}
+}

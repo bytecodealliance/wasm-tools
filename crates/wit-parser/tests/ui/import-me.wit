@@ -1,2 +1,0 @@
-type foo = u32
-type some-record = tuple<u32, u64, float32>

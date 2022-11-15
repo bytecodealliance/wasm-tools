@@ -1,0 +1,9 @@
+// parse-fail
+
+interface foo {}
+interface bar {}
+
+world a {
+  import foo: foo
+  import foo: bar
+}

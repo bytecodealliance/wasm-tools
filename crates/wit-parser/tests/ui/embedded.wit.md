@@ -3,6 +3,10 @@
 containing stuff, and also some code blocks, wit and other.
 
 ```wit
+interface foo {
+```
+
+```wit
 x: func()
 ```
 
@@ -21,4 +25,9 @@ In which, another wit code block!
 
 ```wit
 z: func()
+```
+
+```wit
+}
+world dummy {} // TODO: should not be necessary
 ```

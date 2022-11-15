@@ -1,3 +1,0 @@
-// parse-fail
-
-use { foo } from import-me::bar

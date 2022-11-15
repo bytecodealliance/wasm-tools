@@ -1,5 +1,5 @@
 expected an identifier or string, found eof
-     --> tests/ui/parse-fail/dangling-type.wit:4:1
+     --> tests/ui/parse-fail/dangling-type.wit:6:1
       |
-    4 | 
+    6 | 
       | ^

@@ -1,3 +1,5 @@
 // parse-fail
 
-type
+interface foo {
+  type
+

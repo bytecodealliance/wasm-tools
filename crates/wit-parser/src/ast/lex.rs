@@ -78,6 +78,10 @@ pub enum Token {
     Interface,
     Tuple,
     Implements,
+    Import,
+    Export,
+    World,
+    Default,
 
     Id,
     ExplicitId,
@@ -282,6 +286,10 @@ impl<'a> Tokenizer<'a> {
                     "interface" => Interface,
                     "tuple" => Tuple,
                     "implements" => Implements,
+                    "world" => World,
+                    "import" => Import,
+                    "export" => Export,
+                    "default" => Default,
                     _ => Id,
                 }
             }
@@ -330,6 +338,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    #[allow(dead_code)] // TODO
     pub fn expect_raw(&mut self, expected: Token) -> Result<Span, Error> {
         match self.next_raw()? {
             Some((span, found)) => {
@@ -563,6 +572,10 @@ impl Token {
             Interface => "keyword `interface`",
             Tuple => "keyword `tuple`",
             Implements => "keyword `implements`",
+            Import => "keyword `import`",
+            Export => "keyword `export`",
+            World => "keyword `world`",
+            Default => "keyword `default`",
         }
     }
 }

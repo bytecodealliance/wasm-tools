@@ -99,7 +99,7 @@ impl Runner<'_> {
     fn run(&mut self, test: &Path, contents: &[u8]) -> Result<()> {
         let contents = str::from_utf8(contents)?;
 
-        let result = Interface::parse_file(test);
+        let result = World::parse_file(test);
 
         let result = if contents.contains("// parse-fail") {
             match result {
@@ -165,7 +165,18 @@ impl Runner<'_> {
     }
 }
 
-fn to_json(i: &Interface) -> String {
+fn to_json(world: &World) -> String {
+    #[derive(Serialize)]
+    struct World {
+        name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        default: Option<Interface>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        imports: Vec<(String, Interface)>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        exports: Vec<(String, Interface)>,
+    }
+
     #[derive(Serialize)]
     struct Interface {
         #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -244,44 +255,62 @@ fn to_json(i: &Interface) -> String {
         ty: String,
     }
 
-    let types = i
-        .types
-        .iter()
-        .map(|(i, r)| TypeDef {
-            idx: i.index(),
-            name: r.name.clone(),
-            ty: translate_typedef(r),
-            foreign_module: r.foreign_module.clone(),
-        })
-        .collect::<Vec<_>>();
-    let functions = i
-        .functions
-        .iter()
-        .map(|f| Function {
-            name: f.name.clone(),
-            params: f.params.iter().map(|(_, ty)| translate_type(ty)).collect(),
-            results: f
-                .results
-                .iter_types()
-                .map(|ty| translate_type(ty))
-                .collect(),
-        })
-        .collect::<Vec<_>>();
-    let globals = i
-        .globals
-        .iter()
-        .map(|g| Global {
-            name: g.name.clone(),
-            ty: translate_type(&g.ty),
-        })
-        .collect::<Vec<_>>();
-
-    let iface = Interface {
-        types,
-        functions,
-        globals,
+    let world = World {
+        name: world.name.clone(),
+        default: world.default.as_ref().map(translate_interface),
+        imports: world
+            .imports
+            .iter()
+            .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+            .collect(),
+        exports: world
+            .exports
+            .iter()
+            .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+            .collect(),
     };
-    return serde_json::to_string_pretty(&iface).unwrap();
+
+    return serde_json::to_string_pretty(&world).unwrap();
+
+    fn translate_interface(i: &wit_parser::Interface) -> Interface {
+        let types = i
+            .types
+            .iter()
+            .map(|(i, r)| TypeDef {
+                idx: i.index(),
+                name: r.name.clone(),
+                ty: translate_typedef(r),
+                foreign_module: r.foreign_module.clone(),
+            })
+            .collect::<Vec<_>>();
+        let functions = i
+            .functions
+            .iter()
+            .map(|f| Function {
+                name: f.name.clone(),
+                params: f.params.iter().map(|(_, ty)| translate_type(ty)).collect(),
+                results: f
+                    .results
+                    .iter_types()
+                    .map(|ty| translate_type(ty))
+                    .collect(),
+            })
+            .collect::<Vec<_>>();
+        let globals = i
+            .globals
+            .iter()
+            .map(|g| Global {
+                name: g.name.clone(),
+                ty: translate_type(&g.ty),
+            })
+            .collect::<Vec<_>>();
+
+        Interface {
+            types,
+            functions,
+            globals,
+        }
+    }
 
     fn translate_typedef(ty: &wit_parser::TypeDef) -> Type {
         match &ty.kind {

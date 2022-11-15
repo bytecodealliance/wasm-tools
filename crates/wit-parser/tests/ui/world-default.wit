@@ -1,0 +1,7 @@
+interface foo {
+    a: func()
+  }
+
+world bar {
+  default export foo
+}

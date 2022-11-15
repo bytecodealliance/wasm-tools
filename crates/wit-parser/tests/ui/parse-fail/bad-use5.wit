@@ -1,2 +1,0 @@
-// parse-fail
-use { foo } from bar:baz

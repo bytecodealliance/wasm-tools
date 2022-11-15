@@ -1,5 +1,0 @@
-expected '{', found keyword `from`
-     --> tests/ui/parse-fail/bad-use7.wit:3:5
-      |
-    3 | use from import-me
-      |     ^

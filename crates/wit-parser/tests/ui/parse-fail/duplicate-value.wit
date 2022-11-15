@@ -1,3 +1,6 @@
 // parse-fail
-a: s32
-a: u32
+
+interface foo {
+  a: s32
+  a: u32
+}

@@ -1,4 +1,8 @@
-a: s32
-b: tuple<>
-record a {}
-c: tuple<u32, a>
+interface values {
+  a: s32
+  b: tuple<>
+  record a {}
+  c: tuple<u32, a>
+}
+
+world dummy {} // TODO: should not be necessary

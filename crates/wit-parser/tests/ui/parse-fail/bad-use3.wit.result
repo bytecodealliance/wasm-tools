@@ -1,5 +1,0 @@
-expected an identifier or string, found keyword `type`
-     --> tests/ui/parse-fail/bad-use3.wit:2:12
-      |
-    2 | use * from type
-      |            ^---

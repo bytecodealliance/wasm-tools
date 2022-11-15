@@ -1,3 +1,0 @@
-use * from import-me
-
-type my-handle = some-record

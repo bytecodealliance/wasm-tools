@@ -1,9 +1,0 @@
-{
-  "types": [
-    {
-      "idx": 0,
-      "name": "foo",
-      "primitive": "u32"
-    }
-  ]
-}

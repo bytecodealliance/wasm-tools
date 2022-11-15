@@ -1,2 +1,5 @@
 // parse-fail
-enum t {}
+
+interface foo {
+  enum t {}
+}

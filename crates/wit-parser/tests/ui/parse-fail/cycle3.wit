@@ -1,3 +1,6 @@
 // parse-fail
-type foo = bar
-type bar = option<foo>
+
+interface foo {
+  type foo = bar
+  type bar = option<foo>
+}

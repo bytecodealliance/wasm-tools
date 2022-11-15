@@ -5,17 +5,21 @@
 /* this too */ /* is a comment */
 /* this /* is /* a */ nested */ comment */
 
-type x = u32
+interface foo {
+  type x = u32
 
-type /* foo */ bar /* baz */ = //
-stream < //
-//
-//
+  type /* foo */ bar /* baz */ = //
+  stream < //
+  //
+  //
 
 
 
 
-x
+  x
 
->
+  >
 
+}
+
+world dummy {} // TODO: should not be necessary

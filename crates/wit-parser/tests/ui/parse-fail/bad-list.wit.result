@@ -1,5 +1,5 @@
 expected '>', found keyword `type`
-     --> tests/ui/parse-fail/bad-list.wit:5:1
+     --> tests/ui/parse-fail/bad-list.wit:6:3
       |
-    5 | type y = u32
-      | ^
+    6 |   type y = u32
+      |   ^

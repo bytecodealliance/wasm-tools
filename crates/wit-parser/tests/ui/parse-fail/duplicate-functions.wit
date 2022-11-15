@@ -1,4 +1,6 @@
 // parse-fail
 
-foo: func()
-foo: func()
+interface foo {
+  foo: func()
+  foo: func()
+}

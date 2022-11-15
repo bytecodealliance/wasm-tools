@@ -20,11 +20,11 @@ wasm-encoder = { workspace = true }
 wat = { workspace = true }
 wit-parser = { workspace = true }
 anyhow = { workspace = true }
-indexmap = "1.9.1"
 clap = { workspace = true, optional = true }
 env_logger = { workspace = true, optional = true }
 log = "0.4.17"
 bitflags = { workspace = true }
+indexmap = { workspace = true }
 
 [dev-dependencies]
 wasmprinter = { workspace = true }
