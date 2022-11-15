@@ -507,7 +507,6 @@ def_instruction! {
         /// Represents a call to a raw WebAssembly API. The module/name are
         /// provided inline as well as the types if necessary.
         CallWasm {
-            iface: &'a Interface,
             name: &'a str,
             sig: &'a WasmSignature,
         } : [sig.params.len()] => [sig.results.len()],
@@ -517,7 +516,6 @@ def_instruction! {
         ///
         /// Note that this will be used for async functions.
         CallInterface {
-            module: &'a str,
             func: &'a Function,
         } : [func.params.len()] => [func.results.len()],
 
@@ -1040,7 +1038,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // actual wasm function.
                 assert_eq!(self.stack.len(), sig.params.len());
                 self.emit(&Instruction::CallWasm {
-                    iface: self.iface,
                     name: &func.name,
                     sig: &sig,
                 });
@@ -1109,10 +1106,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 }
 
                 // ... and that allows us to call the interface types function
-                self.emit(&Instruction::CallInterface {
-                    module: &self.iface.name,
-                    func,
-                });
+                self.emit(&Instruction::CallInterface { func });
 
                 // This was dynamically allocated by the caller so after
                 // it's been read by the guest we need to deallocate it.

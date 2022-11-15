@@ -33,6 +33,11 @@ impl World {
         let path = path.as_ref();
         let text = fs::read_to_string(&path)
             .with_context(|| format!("failed to read: {}", path.display()))?;
+        World::parse(path, &text)
+    }
+
+    pub fn parse(path: impl AsRef<Path>, text: &str) -> Result<World> {
+        let path = path.as_ref();
 
         let mut contents = &*text;
         // If we have a ".md" file, it's a wit file wrapped in a markdown file;
