@@ -1,0 +1,5 @@
+bar not defined
+     --> tests/ui/parse-fail/unknown-interface.wit:4:15
+      |
+    4 |   import bar: bar
+      |               ^--

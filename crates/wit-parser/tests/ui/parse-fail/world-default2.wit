@@ -1,0 +1,6 @@
+// parse-fail
+
+world foo {
+  default export interface {}
+  default export interface {}
+}

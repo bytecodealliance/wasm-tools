@@ -1,0 +1,8 @@
+world brave-new-world {
+  import new: interface {
+    read: func(amt: u32) -> list<u8>
+  }
+  default export interface {
+    entrypoint: func(args: list<string>)
+  }
+}

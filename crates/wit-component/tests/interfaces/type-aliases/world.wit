@@ -1,0 +1,13 @@
+interface foo {
+  record foo {
+  }
+
+  type bar = foo
+
+  baz: func(a: foo) -> foo
+
+}
+
+world foo-world {
+  import foo: foo
+}

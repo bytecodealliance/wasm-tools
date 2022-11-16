@@ -1,0 +1,4 @@
+// parse-fail
+
+world a {}
+world b {}

@@ -1,0 +1,12 @@
+{
+  "name": "bar",
+  "default": {
+    "functions": [
+      {
+        "name": "a",
+        "params": [],
+        "results": []
+      }
+    ]
+  }
+}

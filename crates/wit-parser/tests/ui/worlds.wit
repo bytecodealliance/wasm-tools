@@ -1,0 +1,18 @@
+interface foo {}
+interface bar {}
+
+world the-world {
+  import foo: foo
+  import bar: bar
+  import baz: interface {
+    foo: func()
+  }
+  export foo: foo
+  export bar: bar
+  export baz: interface {
+    foo: func()
+  }
+
+  default export interface {
+  }
+}

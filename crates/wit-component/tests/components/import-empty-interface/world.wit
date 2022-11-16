@@ -1,0 +1,3 @@
+world foo {
+  import foo: interface {}
+}

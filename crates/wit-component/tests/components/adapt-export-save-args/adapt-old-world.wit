@@ -1,0 +1,5 @@
+world brave-new-world {
+  default export interface {
+    entrypoint: func(nargs: u32)
+  }
+}
