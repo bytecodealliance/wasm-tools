@@ -458,21 +458,21 @@ impl Hash for FunctionKey<'_> {
 struct InstanceTypeEncoder<'a> {
     ty: InstanceType,
     aliased_types: IndexMap<ComponentTypeRef, ComponentTypeRef>,
-    exported_types: IndexMap<&'a str, ComponentTypeRef>,
+    exported_types: IndexMap<&'a str, (&'a str, ComponentTypeRef)>,
 }
 
 impl<'a> InstanceTypeEncoder<'a> {
-    fn export(&mut self, name: &'a str, type_ref: ComponentTypeRef) -> Result<()> {
+    fn export(&mut self, name: &'a str, url: &'a str, type_ref: ComponentTypeRef) -> Result<()> {
         match self.exported_types.entry(name) {
             Entry::Occupied(e) => {
-                if *e.get() != type_ref {
+                if e.get().1 != type_ref {
                     bail!("duplicate export `{}`", name)
                 }
             }
             Entry::Vacant(entry) => {
-                entry.insert(type_ref);
+                entry.insert((url, type_ref));
                 let alias = self.alias_type(type_ref);
-                self.ty.export(name, alias);
+                self.ty.export(name, url, alias);
             }
         }
 
@@ -587,7 +587,7 @@ impl<'a> TypeEncoder<'a> {
             };
         let mut instance = InstanceTypeEncoder::default();
         for (name, ty) in exports {
-            instance.export(name, ty)?;
+            instance.export(name, "", ty)?;
         }
 
         Ok(Some(self.encode_instance_type(&instance.ty)))
@@ -1005,7 +1005,7 @@ impl RequiredOptions {
         encoding: StringEncoding,
         memory_index: Option<u32>,
         realloc_index: Option<u32>,
-    ) -> Result<impl Iterator<Item = CanonicalOption> + ExactSizeIterator> {
+    ) -> Result<impl ExactSizeIterator<Item = CanonicalOption>> {
         #[derive(Default)]
         struct Iter {
             options: [Option<CanonicalOption>; 3],
@@ -1289,7 +1289,7 @@ impl<'a> EncodingState<'a> {
 
     fn encode_imports(&mut self, imports: &ImportEncoder) {
         for (name, import) in &imports.map {
-            self.component.import(name, import.ty);
+            self.component.import(name, import.url, import.ty);
         }
     }
 
@@ -1369,13 +1369,14 @@ impl<'a> EncodingState<'a> {
                     let instance_index = self.component.instantiate_exports(interface_exports);
                     self.component.export(
                         export_name,
+                        export.url.as_deref().unwrap_or(""),
                         ComponentExportKind::Instance,
                         instance_index,
                     );
                 }
                 None => {
                     for (name, kind, idx) in interface_exports {
-                        self.component.export(name, kind, idx);
+                        self.component.export(name, "", kind, idx);
                     }
                 }
             }
@@ -1859,6 +1860,7 @@ struct IndirectLowering<'a> {
 #[derive(Debug)]
 struct ImportedInterface<'a> {
     ty: ComponentTypeRef,
+    url: &'a str,
     direct: Vec<DirectLowering<'a>>,
     indirect: Vec<IndirectLowering<'a>>,
 }
@@ -1974,17 +1976,17 @@ impl ComponentEncoding {
         }
     }
 
-    fn export(&mut self, name: &str, kind: ComponentExportKind, idx: u32) {
-        self.exports().export(name, kind, idx);
+    fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) {
+        self.exports().export(name, url, kind, idx);
     }
 
-    fn import(&mut self, name: &str, ty: ComponentTypeRef) -> u32 {
+    fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> u32 {
         let ret = match &ty {
             ComponentTypeRef::Instance(_) => inc(&mut self.instances),
             ComponentTypeRef::Func(_) => inc(&mut self.funcs),
             _ => unimplemented!(),
         };
-        self.imports().import(name, ty);
+        self.imports().import(name, url, ty);
         ret
     }
 }
@@ -2117,6 +2119,7 @@ impl<'a> ImportEncoder<'a> {
 
                 e.insert(ImportedInterface {
                     ty,
+                    url: interface.url.as_deref().unwrap_or(""),
                     direct,
                     indirect,
                 });
@@ -2251,7 +2254,12 @@ impl ComponentEncoder {
                         let index = types
                             .encode_interface_as_instance_type(interface, None)?
                             .unwrap();
-                        raw_exports.push((name, ComponentExportKind::Type, index));
+                        raw_exports.push((
+                            name,
+                            interface.url.as_deref().unwrap_or(""),
+                            ComponentExportKind::Type,
+                            index,
+                        ));
                     }
                     None => {
                         default_exports = types
@@ -2260,11 +2268,16 @@ impl ComponentEncoder {
                     }
                 }
             }
+
             types.finish(&mut state.component);
             state.encode_imports(&imports);
-            for (name, ty, index) in raw_exports {
-                state.component.export(name, ty, index);
+
+            for (name, url, ty, index) in raw_exports {
+                state.component.export(name, url, ty, index);
             }
+
+            // Default exports are encoded without a URL since all of the
+            // items being exported come from the same interface
             for (name, ty) in default_exports {
                 let index = match ty {
                     ComponentTypeRef::Type(_, idx) => idx,
@@ -2273,7 +2286,7 @@ impl ComponentEncoder {
                 };
                 state
                     .component
-                    .export(name, ComponentExportKind::Type, index);
+                    .export(name, "", ComponentExportKind::Type, index);
             }
         } else {
             if self.module.is_empty() {
@@ -2324,7 +2337,7 @@ impl ComponentEncoder {
                 }
                 state.encode_exports(
                     &types,
-                    &metadata,
+                    metadata,
                     state.adapter_instances[name.as_str()],
                     state.adapter_export_reallocs[name.as_str()],
                 )?;

@@ -23,6 +23,8 @@ pub enum ComponentExternalKind {
 pub struct ComponentExport<'a> {
     /// The name of the exported item.
     pub name: &'a str,
+    /// The optional URL of the exported item.
+    pub url: &'a str,
     /// The kind of the export.
     pub kind: ComponentExternalKind,
     /// The index of the exported item.
@@ -60,7 +62,7 @@ impl<'a> ComponentExportSectionReader<'a> {
     /// ```
     /// use wasmparser::ComponentExportSectionReader;
     ///
-    /// # let data: &[u8] = &[0x01, 0x03, b'f', b'o', b'o', 0x01, 0x00];
+    /// # let data: &[u8] = &[0x01, 0x03, b'f', b'o', b'o', 0x00, 0x01, 0x00];
     /// let mut reader = ComponentExportSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let export = reader.read().expect("export");

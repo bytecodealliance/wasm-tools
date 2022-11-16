@@ -245,18 +245,20 @@ impl ComponentType {
     }
 
     /// Defines an import in this component type.
-    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> &mut Self {
         self.bytes.push(0x03);
         name.encode(&mut self.bytes);
+        url.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 
     /// Defines an export in this component type.
-    pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn export(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> &mut Self {
         self.bytes.push(0x04);
         name.encode(&mut self.bytes);
+        url.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -343,9 +345,10 @@ impl InstanceType {
     }
 
     /// Defines an export in this instance type.
-    pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn export(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> &mut Self {
         self.bytes.push(0x04);
         name.encode(&mut self.bytes);
+        url.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self

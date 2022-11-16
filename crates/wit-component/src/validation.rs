@@ -168,7 +168,7 @@ pub fn validate_module<'a>(
                 assert!(prev.is_none());
             }
             None if adapters.contains(name) => {
-                let map = ret.adapters_required.entry(name).or_insert(IndexMap::new());
+                let map = ret.adapters_required.entry(name).or_default();
                 for (func, ty) in funcs {
                     let ty = types.func_type_at(*ty).unwrap();
                     map.insert(func, ty.clone());
@@ -425,7 +425,7 @@ fn validate_exported_interface(
                     wasm_sig_to_func_type(interface.wasm_signature(AbiVariant::GuestExport, f));
                 let ty = types.function_at(*func_index).unwrap();
                 if ty == &expected_ty {
-                    return Ok(());
+                    continue;
                 }
                 match export_name {
                     Some(name) => {

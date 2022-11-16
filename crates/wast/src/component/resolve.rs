@@ -425,7 +425,7 @@ impl<'a> Resolver<'a> {
                 }
             }
             ComponentDefinedType::List(l) => {
-                self.component_val_type(&mut *l.element)?;
+                self.component_val_type(&mut l.element)?;
             }
             ComponentDefinedType::Tuple(t) => {
                 for field in t.fields.iter_mut() {
@@ -438,7 +438,7 @@ impl<'a> Resolver<'a> {
                 }
             }
             ComponentDefinedType::Option(o) => {
-                self.component_val_type(&mut *o.element)?;
+                self.component_val_type(&mut o.element)?;
             }
             ComponentDefinedType::Result(r) => {
                 if let Some(ty) = &mut r.ok {

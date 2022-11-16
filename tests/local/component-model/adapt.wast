@@ -73,35 +73,35 @@
 
 (assert_invalid
   (component
-    (import "" (func $f))
+    (import "i" (func $f))
     (core func (canon lower (func $f) string-encoding=utf8 string-encoding=utf16))
   )
   "canonical encoding option `utf8` conflicts with option `utf16`")
 
 (assert_invalid
   (component
-    (import "" (func $f))
+    (import "i" (func $f))
     (core func (canon lower (func $f) string-encoding=utf8 string-encoding=latin1+utf16))
   )
   "canonical encoding option `utf8` conflicts with option `latin1-utf16`")
 
 (assert_invalid
   (component
-    (import "" (func $f))
+    (import "i" (func $f))
     (core func (canon lower (func $f) string-encoding=utf16 string-encoding=latin1+utf16))
   )
   "canonical encoding option `utf16` conflicts with option `latin1-utf16`")
 
 (assert_invalid
   (component
-    (import "" (func $f))
+    (import "i" (func $f))
     (core func (canon lower (func $f) (memory 0)))
   )
   "memory index out of bounds")
 
 (assert_invalid
   (component
-    (import "" (func $f))
+    (import "i" (func $f))
     (core module $m (memory (export "memory") 1))
     (core instance $i (instantiate $m))
     (core func (canon lower (func $f) (memory $i "memory") (memory $i "memory")))
@@ -209,7 +209,7 @@
 
 (assert_invalid
   (component
-    (import "" (func $f (param "p1" string)))
+    (import "i" (func $f (param "p1" string)))
     (core module $m
       (memory (export "m") 1)
       (func (export "f") (result i32))
@@ -281,7 +281,7 @@
 
 (assert_invalid
   (component
-    (import "" (func $f))
+    (import "a" (func $f))
     (func (export "foo") (canon lift (core func $f)))
   )
   "unknown core func: failed to find name `$f`")

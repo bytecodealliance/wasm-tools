@@ -1,6 +1,6 @@
 (component
-  (import "" (component))
-  (import "" (core module))
-  (import "" (instance))
-  (import "" (func))
+  (import "a" (component))
+  (import "b" (core module))
+  (import "c" (instance))
+  (import "d" (func))
 )

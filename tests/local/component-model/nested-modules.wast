@@ -1,5 +1,5 @@
 (component
-  (import "" (core module))
+  (import "i1" (core module))
 
   (core module)
   (core module)
@@ -12,14 +12,14 @@
 
   (component
     (core module $m)
-    (import "" (func (param "p" string)))
+    (import "a" (func (param "p" string)))
     (export "a" (core module $m))
   )
 )
 
 ;; does the `import` use the type annotation specified later?
 (component
-  (import "" (core module))
+  (import "a" (core module))
   (core type (module))
 )
 
@@ -37,11 +37,12 @@
 ;; typecheck the module code section correctly
 (component
   (core module
-    (func (export "")))
-  (import "" (core module))
+    (func (export ""))
+  )
+  (import "a" (core module))
   (core module
-    (func (export "") (result i32)
-      i32.const 5))
-  (import "b" (instance (export "" (core module))))
-  (alias export 0 "" (core module))
+    (func (export "") (result i32) i32.const 5)
+  )
+  (import "b" (instance (export "a" (core module))))
+  (alias export 0 "a" (core module))
 )

@@ -43,6 +43,8 @@ pub enum ComponentTypeRef {
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
     pub name: &'a str,
+    /// The optional URL of the imported item.
+    pub url: &'a str,
     /// The type reference for the import.
     pub ty: ComponentTypeRef,
 }
@@ -77,7 +79,7 @@ impl<'a> ComponentImportSectionReader<'a> {
     /// # Examples
     /// ```
     /// use wasmparser::ComponentImportSectionReader;
-    /// let data: &[u8] = &[0x01, 0x01, 0x41, 0x01, 0x66, 0x00, 0x00];
+    /// let data: &[u8] = &[0x01, 0x01, 0x41, 0x00, 0x01, 0x66, 0x00, 0x00];
     /// let mut reader = ComponentImportSectionReader::new(data, 0).unwrap();
     /// for _ in 0..reader.get_count() {
     ///     let import = reader.read().expect("import");

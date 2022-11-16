@@ -11,6 +11,8 @@ pub struct ComponentImport<'a> {
     pub span: Span,
     /// The name of the item to import.
     pub name: &'a str,
+    /// The optional URL of the import.
+    pub url: Option<&'a str>,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
 }
@@ -19,8 +21,14 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let name = parser.parse()?;
+        let url = parser.parse()?;
         let item = parser.parens(|p| p.parse())?;
-        Ok(ComponentImport { span, name, item })
+        Ok(ComponentImport {
+            span,
+            name,
+            url,
+            item,
+        })
     }
 }
 
@@ -112,17 +120,22 @@ impl<'a> Parse<'a> for TypeBounds<'a> {
 ///
 /// This is the same as `core::InlineImport` except only one string import is
 /// required.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct InlineImport<'a> {
     /// The name of the item being imported.
     pub name: &'a str,
+    /// The optional URL of the item being imported.
+    pub url: Option<&'a str>,
 }
 
 impl<'a> Parse<'a> for InlineImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|p| {
             p.parse::<kw::import>()?;
-            Ok(InlineImport { name: p.parse()? })
+            Ok(InlineImport {
+                name: p.parse()?,
+                url: p.parse()?,
+            })
         })
     }
 }

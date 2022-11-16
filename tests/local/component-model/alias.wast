@@ -28,7 +28,7 @@
 )
 
 (component
-  (import "" (core module $libc
+  (import "a" (core module $libc
     (export "memory" (memory 1))
     (export "table" (table 0 funcref))
     (export "func" (func))
@@ -60,18 +60,18 @@
 )
 
 (component
-  (import "" (instance $i
-    (export "1" (func))
-    (export "2" (core module))
-    (export "3" (instance))
+  (import "a" (instance $i
+    (export "a" (func))
+    (export "b" (core module))
+    (export "c" (instance))
   ))
-  (export "1" (func $i "1"))
-  (export "2" (core module $i "2"))
-  (export "3" (instance $i "3"))
+  (export "a" (func $i "a"))
+  (export "b" (core module $i "b"))
+  (export "c" (instance $i "c"))
 )
 
 (component
-  (import "" (core module $libc
+  (import "a" (core module $libc
     (export "memory" (memory 1))
     (export "table" (table 0 funcref))
     (export "func" (func))
@@ -79,7 +79,7 @@
     (export "global mut" (global (mut i64)))
   ))
 
-  (import "x" (core module $needs_libc
+  (import "b" (core module $needs_libc
     (import "" "memory" (memory 1))
     (import "" "table" (table 0 funcref))
     (import "" "func" (func))
@@ -99,44 +99,44 @@
 
 (assert_invalid
   (component
-    (import "" (instance (export "" (func))))
-    (export "" (core module 0 ""))
+    (import "a" (instance (export "a" (func))))
+    (export "a" (core module 0 "a"))
   )
-  "export `` for instance 0 is not a module")
+  "export `a` for instance 0 is not a module")
 
 (assert_invalid
   (component
     (component
-      (component (export ""))
+      (component (export "a"))
     )
     (instance (instantiate 0))
-    (export "" (core module 0 ""))
+    (export "a" (core module 0 "a"))
   )
-  "export `` for instance 0 is not a module")
+  "export `a` for instance 0 is not a module")
 
 (assert_invalid
   (component
-    (import "" (core module))
+    (import "a" (core module))
     (core instance (instantiate 0))
-    (alias core export 0 "" (core func))
+    (alias core export 0 "a" (core func))
   )
-  "core instance 0 has no export named ``")
+  "core instance 0 has no export named `a`")
 
 (assert_invalid
   (component
     (core module)
     (core instance (instantiate 0))
-    (alias core export 0 "" (core func))
+    (alias core export 0 "a" (core func))
   )
-  "core instance 0 has no export named ``")
+  "core instance 0 has no export named `a`")
 
 (assert_invalid
   (component
-    (import "" (component))
+    (import "a" (component))
     (instance (instantiate 0))
-    (alias export 0 "" (func))
+    (alias export 0 "a" (func))
   )
-  "instance 0 has no export named ``")
+  "instance 0 has no export named `a`")
 
 (assert_invalid
   (component
@@ -153,12 +153,12 @@
 (component $PARENT
   (type $t (func (result string)))
   (component
-    (import "" (func (type $t)))
+    (import "a" (func (type $t)))
   )
   (component
     (alias outer $PARENT $t (type $my_type))
     (alias outer 0 $my_type (type $my_type_again))
-    (import "" (func (type $my_type_again)))
+    (import "a" (func (type $my_type_again)))
   )
 )
 
@@ -174,7 +174,7 @@
         (import "b" (func $b (type $b)))
         (import "c" (func $c (type $c)))
 
-        (import "" (component $C
+        (import "d" (component $C
           (import "a" (func (result string)))
           (import "b" (func (result u32)))
           (import "c" (func (result s32)))
@@ -192,36 +192,36 @@
 
 ;; multiple projections in alias sugar
 (component $a
-  (import "" (instance $a
-    (export "b" (instance
-      (export "c" (instance
-        (export "d" (instance
-          (export "f" (func))
+  (import "a" (instance $a
+    (export "a" (instance
+      (export "a" (instance
+        (export "a" (instance
+          (export "a" (func))
         ))
       ))
     ))
   ))
 
-  (import "b" (component $b (import "" (func))))
+  (import "b" (component $b (import "a" (func))))
 
   (instance (instantiate $b
-    (with "" (func $a "b" "c" "d" "f"))
+    (with "a" (func $a "a" "a" "a" "a"))
   ))
 )
 
 ;; alias some constructs
 (component
-  (import "" (instance $foo (export "v" (value s32))))
+  (import "a" (instance $foo (export "v" (value s32))))
   (export "v" (value $foo "v"))
 )
 
 (component
-  (import "" (instance $foo (export "v" (component))))
+  (import "a" (instance $foo (export "v" (component))))
   (export "v" (component $foo "v"))
 )
 
 (component
-  (import "" (instance $foo (export "v" (core module))))
+  (import "a" (instance $foo (export "v" (core module))))
   (export "v" (core module $foo "v"))
 )
 
@@ -273,7 +273,7 @@
   "index out of bounds")
 
 (component
-  (import "" (instance $i
+  (import "a" (instance $i
      (export "x" (core module))
   ))
   ;; inline alias injection sugar works for module references
@@ -281,7 +281,7 @@
 )
 
 (component
-  (import "" (instance $i
+  (import "a" (instance $i
      (export "x" (component))
   ))
   ;; inline alias injection sugar works for component references

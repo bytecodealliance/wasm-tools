@@ -1451,9 +1451,13 @@ impl Printer {
                         self.print_component_outer_alias(states, kind, count, index)?
                     }
                 },
-                ComponentTypeDeclaration::Export { name, ty } => {
+                ComponentTypeDeclaration::Export { name, url, ty } => {
                     self.start_group("export ");
                     self.print_str(name)?;
+                    if !url.is_empty() {
+                        self.result.push(' ');
+                        self.print_str(url)?;
+                    }
                     self.result.push(' ');
                     self.print_component_import_ty(states.last().unwrap(), &ty, false)?;
                     self.end_group();
@@ -1492,9 +1496,13 @@ impl Printer {
                         self.print_component_outer_alias(states, kind, count, index)?
                     }
                 },
-                InstanceTypeDeclaration::Export { name, ty } => {
+                InstanceTypeDeclaration::Export { name, url, ty } => {
                     self.start_group("export ");
                     self.print_str(name)?;
+                    if !url.is_empty() {
+                        self.result.push(' ');
+                        self.print_str(url)?;
+                    }
                     self.result.push(' ');
                     self.print_component_import_ty(states.last().unwrap(), &ty, false)?;
                     self.end_group();
@@ -1722,6 +1730,10 @@ impl Printer {
     ) -> Result<()> {
         self.start_group("import ");
         self.print_str(import.name)?;
+        if !import.url.is_empty() {
+            self.result.push(' ');
+            self.print_str(import.url)?;
+        }
         self.result.push(' ');
         self.print_component_import_ty(state, &import.ty, index)?;
         self.end_group();
@@ -1812,6 +1824,10 @@ impl Printer {
     ) -> Result<()> {
         self.start_group("export ");
         self.print_str(export.name)?;
+        if !export.url.is_empty() {
+            self.result.push(' ');
+            self.print_str(export.url)?;
+        }
         self.result.push(' ');
         self.print_component_external_kind(state, export.kind, export.index)?;
         self.end_group();

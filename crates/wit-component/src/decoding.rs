@@ -1,9 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
 use std::hash::{Hash, Hasher};
 use wasmparser::{
-    types, ComponentExport, ComponentTypeRef, Parser, Payload, PrimitiveValType, ValidPayload,
-    Validator, WasmFeatures,
+    types::{self, KebabString},
+    ComponentExport, ComponentImport, ComponentTypeRef, Parser, Payload, PrimitiveValType,
+    ValidPayload, Validator, WasmFeatures,
 };
 use wit_parser::*;
 
@@ -13,7 +14,7 @@ struct ComponentInfo<'a> {
     /// validated.
     types: types::Types,
     /// Map of imports and what type they're importing.
-    imports: IndexMap<&'a str, ComponentTypeRef>,
+    imports: IndexMap<&'a str, ComponentImport<'a>>,
     /// Map of exports and what they're exporting.
     exports: IndexMap<&'a str, ComponentExport<'a>>,
 }
@@ -48,7 +49,7 @@ impl<'a> ComponentInfo<'a> {
                 Payload::ComponentImportSection(s) if depth == 1 => {
                     for import in s {
                         let import = import?;
-                        let prev = imports.insert(import.name, import.ty);
+                        let prev = imports.insert(import.name, import);
                         assert!(prev.is_none());
                     }
                 }
@@ -150,19 +151,24 @@ pub fn decode_component_interfaces(bytes: &[u8]) -> Result<ComponentInterfaces> 
     let mut imports = IndexMap::new();
     let mut exports = IndexMap::new();
 
-    for (name, ty) in info.imports.iter() {
+    for (name, import) in info.imports.iter() {
         // Imports right now are only supported if they're an import of an
         // instance. The instance is expected to export only functions and types
         // where types are named types used in functions.
-        let ty = match *ty {
+        let ty = match import.ty {
             ComponentTypeRef::Instance(i) => match info.types.type_at(i, false).unwrap() {
                 types::Type::ComponentInstance(i) => i,
                 _ => unreachable!(),
             },
             _ => unimplemented!(),
         };
-        let mut iface = InterfaceDecoder::new(&info).decode(ty.exports(info.types.as_ref()))?;
-        iface.name = name.to_string();
+        let iface = InterfaceDecoder::new(&info)
+            .name(*name)
+            .url(import.url)
+            .decode(
+                ty.exports(info.types.as_ref())
+                    .map(|(n, _, ty)| (n.as_str(), ty)),
+            )?;
         imports.insert(iface.name.clone(), iface);
     }
 
@@ -195,15 +201,19 @@ pub fn decode_component_interfaces(bytes: &[u8]) -> Result<ComponentInterfaces> 
                     .unwrap()
                     .as_component_instance_type()
                     .unwrap();
-                let mut iface =
-                    InterfaceDecoder::new(&info).decode(ty.exports(info.types.as_ref()))?;
-                iface.name = name.to_string();
+                let iface = InterfaceDecoder::new(&info)
+                    .name(*name)
+                    .url(export.url)
+                    .decode(
+                        ty.exports(info.types.as_ref())
+                            .map(|(n, _, t)| (n.as_str(), t)),
+                    )?;
                 exports.insert(iface.name.clone(), iface);
             }
 
             // Otherwise assume everything else is part of the "default" export.
             ty => {
-                default.insert(name.to_string(), ty);
+                default.insert(*name, ty);
             }
         }
     }
@@ -211,7 +221,7 @@ pub fn decode_component_interfaces(bytes: &[u8]) -> Result<ComponentInterfaces> 
     let default = if default.is_empty() {
         None
     } else {
-        Some(InterfaceDecoder::new(&info).decode(&default)?)
+        Some(InterfaceDecoder::new(&info).decode(default.iter().map(|(n, t)| (*n, *t)))?)
     };
 
     Ok(ComponentInterfaces {
@@ -232,17 +242,29 @@ impl<'a> InterfaceDecoder<'a> {
         }
     }
 
+    /// Sets the name of the interface being decoded.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.interface.name = name.into();
+        self
+    }
+
+    /// Sets the URL of the interface being decoded.
+    pub fn url(mut self, url: impl Into<String>) -> Self {
+        self.interface.url = Some(url.into());
+        self
+    }
+
     /// Consumes the decoder and returns the interface representation assuming
     /// that the interface is made of the specified exports.
     pub fn decode(
         mut self,
-        map: &'a IndexMap<String, types::ComponentEntityType>,
+        exports: impl ExactSizeIterator<Item = (&'a str, types::ComponentEntityType)> + Clone,
     ) -> Result<Interface> {
         let mut aliases = Vec::new();
         // Populate names in the name map first
-        for (name, ty) in map {
+        for (name, ty) in exports.clone() {
             let id = match ty {
-                types::ComponentEntityType::Type(id) => *id,
+                types::ComponentEntityType::Type(id) => id,
                 _ => continue,
             };
 
@@ -258,10 +280,10 @@ impl<'a> InterfaceDecoder<'a> {
 
         // Iterate over all exports an interpret them as defined items within
         // the interface, either functions or types at this time.
-        for (name, ty) in map {
+        for (name, ty) in exports {
             match ty {
                 types::ComponentEntityType::Func(ty) => {
-                    match self.info.types.type_from_id(*ty).unwrap() {
+                    match self.info.types.type_from_id(ty).unwrap() {
                         types::Type::ComponentFunc(ty) => {
                             self.add_function(name, ty)?;
                         }
@@ -270,10 +292,10 @@ impl<'a> InterfaceDecoder<'a> {
                 }
                 types::ComponentEntityType::Type(id) => {
                     assert!(matches!(
-                        self.info.types.type_from_id(*id).unwrap(),
+                        self.info.types.type_from_id(id).unwrap(),
                         types::Type::Defined(_)
                     ));
-                    self.decode_type(&types::ComponentValType::Type(*id))?;
+                    self.decode_type(&types::ComponentValType::Type(id))?;
                 }
                 _ => unimplemented!(),
             }
@@ -292,48 +314,20 @@ impl<'a> InterfaceDecoder<'a> {
         Ok(self.interface)
     }
 
-    fn decode_params(
-        &mut self,
-        func_name: &str,
-        ps: &[(String, types::ComponentValType)],
-    ) -> Result<Params> {
-        let mut params = Vec::new();
-        for (name, ty) in ps.iter() {
-            validate_id(name).with_context(|| {
-                format!(
-                    "function `{}` has a parameter `{}` that is not a valid identifier",
-                    func_name, name
-                )
-            })?;
-
-            params.push((name.clone(), self.decode_type(ty)?));
-        }
-        Ok(params)
+    fn decode_params(&mut self, ps: &[(KebabString, types::ComponentValType)]) -> Result<Params> {
+        ps.iter()
+            .map(|(n, t)| Ok((n.to_string(), self.decode_type(t)?)))
+            .collect::<Result<_>>()
     }
 
     fn decode_results(
         &mut self,
-        func_name: &str,
-        ps: &[(Option<String>, types::ComponentValType)],
+        ps: &[(Option<KebabString>, types::ComponentValType)],
     ) -> Result<Results> {
-        let mut results = Vec::new();
-        for (name, ty) in ps.iter() {
-            let name = match name {
-                Some(name) => {
-                    let name = name.to_string();
-                    validate_id(&name).with_context(|| {
-                        format!(
-                            "function `{}` has a result type `{}` that is not a valid identifier",
-                            func_name, name
-                        )
-                    })?;
-                    Some(name)
-                }
-                None => None,
-            };
-
-            results.push((name, self.decode_type(ty)?));
-        }
+        let results: Vec<(Option<String>, Type)> = ps
+            .iter()
+            .map(|(n, t)| Ok((n.as_ref().map(KebabString::to_string), self.decode_type(t)?)))
+            .collect::<Result<_>>()?;
 
         // Results must be either
         // - A single anonymous type
@@ -349,30 +343,17 @@ impl<'a> InterfaceDecoder<'a> {
                 }
             }
             _ => {
-                // Otherwise, all types must be named.
-                let mut rs = Vec::new();
-                for (name, ty) in results.into_iter() {
-                    match name {
-                        Some(name) => rs.push((name, ty)),
-                        None => {
-                            return Err(anyhow!(
-                                "function `{}` is missing a result type name",
-                                func_name
-                            ))
-                        }
-                    }
-                }
-                Ok(Results::Named(rs))
+                // Otherwise, all types must be named; unwrap the names.
+                Ok(Results::Named(
+                    results.into_iter().map(|(n, t)| (n.unwrap(), t)).collect(),
+                ))
             }
         }
     }
 
     fn add_function(&mut self, func_name: &str, ty: &types::ComponentFuncType) -> Result<()> {
-        validate_id(func_name)
-            .with_context(|| format!("function name `{}` is not a valid identifier", func_name))?;
-
-        let params = self.decode_params(func_name, &ty.params)?;
-        let results = self.decode_results(func_name, &ty.results)?;
+        let params = self.decode_params(&ty.params)?;
+        let results = self.decode_results(&ty.results)?;
 
         self.interface.functions.push(Function {
             docs: Docs::default(),
@@ -396,12 +377,6 @@ impl<'a> InterfaceDecoder<'a> {
                 }
 
                 let name = self.name_map.get(&key).map(ToString::to_string);
-
-                if let Some(name) = name.as_deref() {
-                    validate_id(name).with_context(|| {
-                        format!("type name `{}` is not a valid identifier", name)
-                    })?;
-                }
 
                 let ty = match ty {
                     types::Type::Defined(ty) => match ty {
@@ -462,9 +437,6 @@ impl<'a> InterfaceDecoder<'a> {
     ) -> Result<Type> {
         let mut ty = self.decode_primitive(*ty)?;
         if let Some(name) = name {
-            validate_id(&name)
-                .with_context(|| format!("type name `{}` is not a valid identifier", name))?;
-
             ty = Type::Id(self.alloc_type(Some(name), TypeDefKind::Type(ty)));
         }
 
@@ -492,7 +464,7 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_record(
         &mut self,
         record_name: Option<String>,
-        fields: impl ExactSizeIterator<Item = (&'a String, &'a types::ComponentValType)>,
+        fields: impl ExactSizeIterator<Item = (&'a KebabString, &'a types::ComponentValType)>,
     ) -> Result<Type> {
         let record_name =
             record_name.ok_or_else(|| anyhow!("interface has an unnamed record type"))?;
@@ -500,13 +472,6 @@ impl<'a> InterfaceDecoder<'a> {
         let record = Record {
             fields: fields
                 .map(|(name, ty)| {
-                    validate_id(name).with_context(|| {
-                        format!(
-                            "record `{}` has a field `{}` that is not a valid identifier",
-                            record_name, name
-                        )
-                    })?;
-
                     Ok(Field {
                         docs: Docs::default(),
                         name: name.to_string(),
@@ -525,7 +490,7 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_variant(
         &mut self,
         variant_name: Option<String>,
-        cases: impl ExactSizeIterator<Item = (&'a String, &'a types::VariantCase)>,
+        cases: impl ExactSizeIterator<Item = (&'a KebabString, &'a types::VariantCase)>,
     ) -> Result<Type> {
         let variant_name =
             variant_name.ok_or_else(|| anyhow!("interface has an unnamed variant type"))?;
@@ -533,13 +498,6 @@ impl<'a> InterfaceDecoder<'a> {
         let variant = Variant {
             cases: cases
                 .map(|(name, case)| {
-                    validate_id(name).with_context(|| {
-                        format!(
-                            "variant `{}` has a case `{}` that is not a valid identifier",
-                            variant_name, name
-                        )
-                    })?;
-
                     Ok(Case {
                         docs: Docs::default(),
                         name: name.to_string(),
@@ -573,7 +531,7 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_flags(
         &mut self,
         flags_name: Option<String>,
-        names: impl ExactSizeIterator<Item = &'a String>,
+        names: impl ExactSizeIterator<Item = &'a KebabString>,
     ) -> Result<Type> {
         let flags_name =
             flags_name.ok_or_else(|| anyhow!("interface has an unnamed flags type"))?;
@@ -581,16 +539,9 @@ impl<'a> InterfaceDecoder<'a> {
         let flags = Flags {
             flags: names
                 .map(|name| {
-                    validate_id(name).with_context(|| {
-                        format!(
-                            "flags `{}` has a flag named `{}` that is not a valid identifier",
-                            flags_name, name
-                        )
-                    })?;
-
                     Ok(Flag {
                         docs: Docs::default(),
-                        name: name.clone(),
+                        name: name.to_string(),
                     })
                 })
                 .collect::<Result<_>>()?,
@@ -604,19 +555,12 @@ impl<'a> InterfaceDecoder<'a> {
     fn decode_enum(
         &mut self,
         enum_name: Option<String>,
-        names: impl ExactSizeIterator<Item = &'a String>,
+        names: impl ExactSizeIterator<Item = &'a KebabString>,
     ) -> Result<Type> {
         let enum_name = enum_name.ok_or_else(|| anyhow!("interface has an unnamed enum type"))?;
         let enum_ = Enum {
             cases: names
                 .map(|name| {
-                    validate_id(name).with_context(|| {
-                        format!(
-                            "enum `{}` has a value `{}` that is not a valid identifier",
-                            enum_name, name
-                        )
-                    })?;
-
                     Ok(EnumCase {
                         docs: Docs::default(),
                         name: name.to_string(),

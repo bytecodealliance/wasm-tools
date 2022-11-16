@@ -1,48 +1,48 @@
 (component
   (type $t (instance
-    (export "1" (core module))
-    (export "2" (func))
-    (export "3" (value string))
-    (export "4" (instance))
-    (export "5" (component))
+    (export "a" (core module))
+    (export "b" (func))
+    (export "c" (value string))
+    (export "d" (instance))
+    (export "e" (component))
   ))
 
-  (import "" (instance $i (type $t)))
+  (import "a" (instance $i (type $t)))
 
   (component $c
-    (import "1" (core module))
-    (import "2" (func))
-    (import "3" (value string))
-    (import "4" (instance))
-    (import "5" (component))
+    (import "a" (core module))
+    (import "b" (func))
+    (import "c" (value string))
+    (import "d" (instance))
+    (import "e" (component))
   )
 
   (instance (instantiate $c
-    (with "1" (core module $i "1"))
-    (with "2" (func $i "2"))
-    (with "3" (value $i "4"))
-    (with "4" (instance $i "3"))
-    (with "5" (component $i "5"))
+    (with "a" (core module $i "a"))
+    (with "b" (func $i "b"))
+    (with "c" (value $i "c"))
+    (with "d" (instance $i "d"))
+    (with "e" (component $i "e"))
   ))
 
   (component $c2
-    (import "" (instance (type $t)))
+    (import "a" (instance (type $t)))
   )
 
-  (alias export $i "1" (core module $m))
-  (alias export $i "2" (func $f))
-  (alias export $i "3" (value $v))
-  (alias export $i "4" (instance $i2))
-  (alias export $i "5" (component $c3))
+  (alias export $i "a" (core module $m))
+  (alias export $i "b" (func $f))
+  (alias export $i "c" (value $v))
+  (alias export $i "d" (instance $i2))
+  (alias export $i "e" (component $c3))
 
   (instance
     (instantiate $c2
-      (with "" (instance
-        (export "1" (core module $m))
-        (export "2" (func $f))
-        (export "3" (value $v))
-        (export "4" (instance $i2))
-        (export "5" (component $c3))
+      (with "a" (instance
+        (export "a" (core module $m))
+        (export "b" (func $f))
+        (export "c" (value $v))
+        (export "d" (instance $i2))
+        (export "e" (component $c3))
       ))
     )
   )

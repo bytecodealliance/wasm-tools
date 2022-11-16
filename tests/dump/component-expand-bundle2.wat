@@ -1,11 +1,11 @@
 (component
   (component $c
-    (core module (export ""))
+    (core module (export "e"))
   )
-  (component $c2 (import "" (component (import "" (core module)))))
+  (component $c2 (import "i" (component (import "i" (core module)))))
   (instance $C (instantiate $c))
-  (alias export $C "" (core module $m))
-  (instance (instantiate $c2 (with "" (instance
-    (export "" (core module $m))
+  (alias export $C "e" (core module $m))
+  (instance (instantiate $c2 (with "i" (instance
+    (export "e" (core module $m))
   ))))
 )

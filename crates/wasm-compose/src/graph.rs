@@ -37,9 +37,9 @@ pub struct Component<'a> {
     /// The type information of the component.
     pub(crate) types: Types,
     /// The import map of the component.
-    pub(crate) imports: IndexMap<String, ComponentTypeRef>,
+    pub(crate) imports: IndexMap<String, (String, ComponentTypeRef)>,
     /// The export map of the component.
-    pub(crate) exports: IndexMap<String, (ComponentExternalKind, u32)>,
+    pub(crate) exports: IndexMap<String, (String, ComponentExternalKind, u32)>,
 }
 
 impl<'a> Component<'a> {
@@ -51,7 +51,7 @@ impl<'a> Component<'a> {
         let component = Self::parse(
             name.into(),
             Some(path.to_owned()),
-            wat::parse_file(&path)
+            wat::parse_file(path)
                 .with_context(|| {
                     format!("failed to parse component `{path}`", path = path.display())
                 })?
@@ -122,7 +122,10 @@ impl<'a> Component<'a> {
                                 Payload::ComponentImportSection(s) => {
                                     for import in s {
                                         let import = import?;
-                                        imports.insert(import.name.to_string(), import.ty);
+                                        imports.insert(
+                                            import.name.to_string(),
+                                            (import.url.to_string(), import.ty),
+                                        );
                                     }
                                 }
                                 Payload::ComponentExportSection(s) => {
@@ -130,7 +133,7 @@ impl<'a> Component<'a> {
                                         let export = export?;
                                         exports.insert(
                                             export.name.to_string(),
-                                            (export.kind, export.index),
+                                            (export.url.to_string(), export.kind, export.index),
                                         );
                                     }
                                 }
@@ -190,54 +193,58 @@ impl<'a> Component<'a> {
     pub fn export(
         &self,
         index: impl Into<ExportIndex>,
-    ) -> Option<(&str, ComponentExternalKind, u32)> {
+    ) -> Option<(&str, &str, ComponentExternalKind, u32)> {
         let index = index.into();
         self.exports
             .get_index(index.0)
-            .map(|(name, (kind, index))| (name.as_str(), *kind, *index))
+            .map(|(name, (url, kind, index))| (name.as_str(), url.as_str(), *kind, *index))
     }
 
     /// Gets an export from the component for the given export name.
-    pub fn export_by_name(&self, name: &str) -> Option<(ExportIndex, ComponentExternalKind, u32)> {
+    pub fn export_by_name(
+        &self,
+        name: &str,
+    ) -> Option<(ExportIndex, &str, ComponentExternalKind, u32)> {
         self.exports
             .get_full(name)
-            .map(|(i, _, (kind, index))| (ExportIndex(i), *kind, *index))
+            .map(|(i, _, (url, kind, index))| (ExportIndex(i), url.as_str(), *kind, *index))
     }
 
     /// Gets an iterator over the component's exports.
     pub fn exports(
         &self,
-    ) -> impl Iterator<Item = (ExportIndex, &str, ComponentExternalKind, u32)> + ExactSizeIterator
-    {
+    ) -> impl ExactSizeIterator<Item = (ExportIndex, &str, &str, ComponentExternalKind, u32)> {
         self.exports
             .iter()
             .enumerate()
-            .map(|(i, (name, (kind, index)))| (ExportIndex(i), name.as_str(), *kind, *index))
+            .map(|(i, (name, (url, kind, index)))| {
+                (ExportIndex(i), name.as_str(), url.as_str(), *kind, *index)
+            })
     }
 
     /// Gets an import from the component for the given import index.
-    pub fn import(&self, index: impl Into<ImportIndex>) -> Option<(&str, ComponentTypeRef)> {
+    pub fn import(&self, index: impl Into<ImportIndex>) -> Option<(&str, &str, ComponentTypeRef)> {
         let index = index.into();
         self.imports
             .get_index(index.0)
-            .map(|(name, ty)| (name.as_str(), *ty))
+            .map(|(name, (url, ty))| (name.as_str(), url.as_str(), *ty))
     }
 
     /// Gets an import from the component for the given import name.
-    pub fn import_by_name(&self, name: &str) -> Option<(ImportIndex, ComponentTypeRef)> {
+    pub fn import_by_name(&self, name: &str) -> Option<(ImportIndex, &str, ComponentTypeRef)> {
         self.imports
             .get_full(name)
-            .map(|(i, _, ty)| (ImportIndex(i), *ty))
+            .map(|(i, _, (url, ty))| (ImportIndex(i), url.as_str(), *ty))
     }
 
     /// Gets an iterator over the component's imports.
     pub fn imports(
         &self,
-    ) -> impl Iterator<Item = (ImportIndex, &str, ComponentTypeRef)> + ExactSizeIterator {
+    ) -> impl ExactSizeIterator<Item = (ImportIndex, &str, &str, ComponentTypeRef)> {
         self.imports
             .iter()
             .enumerate()
-            .map(|(i, (name, ty))| (ImportIndex(i), name.as_str(), *ty))
+            .map(|(i, (name, (url, ty)))| (ImportIndex(i), name.as_str(), url.as_str(), *ty))
     }
 
     pub(crate) fn ty(&self) -> wasm_encoder::ComponentType {
@@ -254,24 +261,31 @@ impl<'a> Component<'a> {
     pub(crate) fn export_entity_type(
         &self,
         index: ExportIndex,
-    ) -> Option<(&str, ComponentEntityType)> {
-        let (name, kind, index) = self.export(index)?;
+    ) -> Option<(&str, &str, ComponentEntityType)> {
+        let (name, url, kind, index) = self.export(index)?;
         Some((
             name,
+            url,
             self.types
-                .component_entity_type_from_export(&ComponentExport { name, kind, index })?,
+                .component_entity_type_from_export(&ComponentExport {
+                    name,
+                    url,
+                    kind,
+                    index,
+                })?,
         ))
     }
 
     pub(crate) fn import_entity_type(
         &self,
         index: ImportIndex,
-    ) -> Option<(&str, ComponentEntityType)> {
-        let (name, ty) = self.import(index)?;
+    ) -> Option<(&str, &str, ComponentEntityType)> {
+        let (name, url, ty) = self.import(index)?;
         Some((
             name,
+            url,
             self.types
-                .component_entity_type_from_import(&ComponentImport { name, ty })?,
+                .component_entity_type_from_import(&ComponentImport { name, url, ty })?,
         ))
     }
 
@@ -283,7 +297,7 @@ impl<'a> Component<'a> {
     ) -> Option<ExportIndex> {
         self.exports
             .iter()
-            .position(|(_, (kind, index))| {
+            .position(|(_, (_, kind, index))| {
                 if *kind != ComponentExternalKind::Instance {
                     return false;
                 }
@@ -306,11 +320,11 @@ impl<'a> Component<'a> {
     ) -> bool {
         let exports = ty.exports(types);
 
-        for (k, b) in exports {
+        for (k, _, b) in exports {
             match self.exports.get_full(k.as_str()) {
                 Some((ai, _, _)) => {
-                    let (_, a) = self.export_entity_type(ExportIndex(ai)).unwrap();
-                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), b, types) {
+                    let (_, _, a) = self.export_entity_type(ExportIndex(ai)).unwrap();
+                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), &b, types) {
                         return false;
                     }
                 }
@@ -732,7 +746,7 @@ impl<'a> CompositionGraph<'a> {
             .ok_or_else(|| anyhow!("the target instance does not exist in the graph"))?;
 
         let target_component = &self.components[&target_instance.component].component;
-        let (import_name, import_ty) = target_component
+        let (import_name, _, import_ty) = target_component
             .import_entity_type(target_import)
             .ok_or_else(|| anyhow!("the target import index is invalid"))?;
 
@@ -744,7 +758,7 @@ impl<'a> CompositionGraph<'a> {
         }
 
         if let Some(export_index) = source_export {
-            let (export_name, export_ty) = source_component
+            let (export_name, _, export_ty) = source_component
                 .export_entity_type(export_index)
                 .ok_or_else(|| anyhow!("the source export index is invalid"))?;
 
@@ -1009,7 +1023,7 @@ mod test {
         let mut graph = CompositionGraph::new();
         let a = graph.add_component(Component::from_bytes(
             "a",
-            b"(component (import \"i1\" (func)) (import \"i2\" (instance (export \"\" (func)))))"
+            b"(component (import \"i1\" (func)) (import \"i2\" (instance (export \"no\" (func)))))"
                 .as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(

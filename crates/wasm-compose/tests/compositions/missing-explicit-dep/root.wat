@@ -1,3 +1,3 @@
 (component
-  (import "" (instance))
+  (import "a" (instance))
 )

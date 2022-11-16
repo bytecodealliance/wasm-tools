@@ -1,11 +1,11 @@
 
 (component
-  (component (import ""))
+  (component (import "a"))
 
   (component)
   (component)
 
-  (component (export "x"))
+  (component (export "a"))
 
   (component
     (component)
@@ -13,11 +13,11 @@
 
   (component
     (core module $m)
-    (import "" (func (param "p" string)))
+    (import "a" (func (param "p" string)))
     (export "a" (core module $m))
 
-    (instance (export "b") (import "")
-      (export "b" (func))
+    (instance (export "b") (import "b")
+      (export "a" (func))
     )
   )
 )
