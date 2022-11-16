@@ -35,7 +35,6 @@ impl Resolver {
         for interface in document.interfaces() {
             let name = &interface.name.name;
             let instance = self.resolve(name, &interface.items, &interface.docs)?;
-            *self = Resolver::default();
 
             if interface_map.insert(name.to_string(), instance).is_some() {
                 return Err(Error {
@@ -173,6 +172,8 @@ impl Resolver {
                 }
             }
         }
+
+        self.anon_types.clear();
 
         Ok(Interface {
             name: name.to_string(),
