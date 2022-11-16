@@ -116,6 +116,7 @@ impl Runner<'_> {
             }
         } else {
             let instance = result?;
+            test_world(&instance);
             to_json(&instance)
         };
 
@@ -378,4 +379,21 @@ fn to_json(world: &World) -> String {
     fn translate_optional_type(ty: Option<&wit_parser::Type>) -> Option<String> {
         ty.map(translate_type)
     }
+}
+
+fn test_world(world: &World) {
+    for (_, interface) in world.imports.iter() {
+        test_interface(interface);
+    }
+    for (_, interface) in world.exports.iter() {
+        test_interface(interface);
+    }
+    if let Some(default) = &world.default {
+        test_interface(default);
+    }
+}
+
+fn test_interface(interface: &Interface) {
+    let mut sizes = SizeAlign::default();
+    sizes.fill(interface);
 }

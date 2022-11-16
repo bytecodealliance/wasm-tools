@@ -1,0 +1,8 @@
+world foo {
+  import foo: interface {
+    a: func() -> list<u8>
+  }
+  default export interface {
+    a: func() -> tuple<list<u8>>
+  }
+}
