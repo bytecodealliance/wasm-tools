@@ -261,6 +261,12 @@ mod eval {
             (wasmtime::Val::I64(o), wasmtime::Val::I64(m)) => assert_eq!(o, m),
             (wasmtime::Val::F32(o), wasmtime::Val::F32(m)) => assert_eq!(o, m),
             (wasmtime::Val::F64(o), wasmtime::Val::F64(m)) => assert_eq!(o, m),
+            (wasmtime::Val::ExternRef(o), wasmtime::Val::ExternRef(m)) => {
+                assert_eq!(o.is_none(), m.is_none())
+            }
+            (wasmtime::Val::FuncRef(o), wasmtime::Val::FuncRef(m)) => {
+                assert_eq!(o.is_none(), m.is_none())
+            }
             (o, m) => panic!(
                 "mutated and original Wasm diverged: orig = {:?}; mutated = {:?}",
                 o, m,
