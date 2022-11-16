@@ -201,15 +201,6 @@ impl<'a> Interface<'a> {
         }
         Ok(items)
     }
-
-    pub(super) fn parse_legacy_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<InterfaceItem<'a>>> {
-        let mut items = Vec::new();
-        while tokens.clone().next()?.is_some() {
-            let docs = parse_docs(tokens)?;
-            items.push(InterfaceItem::parse(tokens, docs)?);
-        }
-        Ok(items)
-    }
 }
 
 pub enum InterfaceItem<'a> {

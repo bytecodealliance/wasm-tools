@@ -407,65 +407,6 @@ fn unwrap_md(contents: &str) -> String {
 }
 
 impl Interface {
-    pub fn parse(name: &str, input: &str) -> Result<Interface> {
-        Interface::parse_with(name, input)
-    }
-
-    pub fn parse_file(path: impl AsRef<Path>) -> Result<Interface> {
-        let path = path.as_ref();
-        let contents = std::fs::read_to_string(&path)
-            .with_context(|| format!("failed to read: {}", path.display()))?;
-        Interface::parse_with(path, &contents)
-    }
-
-    pub fn parse_with(filename: impl AsRef<Path>, contents: &str) -> Result<Interface> {
-        Interface::_parse_with(filename.as_ref(), contents)
-    }
-
-    fn _parse_with(filename: &Path, contents: &str) -> Result<Interface> {
-        let name = filename
-            .file_name()
-            .context("wit path must end in a file name")?
-            .to_str()
-            .context("wit filename must be valid unicode")?
-            // TODO: replace with `file_prefix` if/when that gets stabilized.
-            .split(".")
-            .next()
-            .unwrap();
-        let mut contents = contents;
-
-        // If we have a ".md" file, it's a wit file wrapped in a markdown file;
-        // parse the markdown to extract the `wit` code blocks.
-        let md_contents;
-        if filename.extension().and_then(|s| s.to_str()) == Some("md") {
-            md_contents = unwrap_md(contents);
-            contents = &md_contents[..];
-        }
-
-        let mut lexer = Tokenizer::new(&contents)?;
-
-        // Parse the `contents `into an AST
-        let items = match ast::Interface::parse_legacy_items(&mut lexer) {
-            Ok(ast) => ast,
-            Err(mut e) => {
-                let file = filename.display().to_string();
-                ast::rewrite_error(&mut e, &file, contents);
-                return Err(e);
-            }
-        };
-
-        // and finally resolve everything into our final instance
-        let mut resolver = ast::Resolver::default();
-        match resolver.resolve(name, &items, &Default::default()) {
-            Ok(i) => Ok(i),
-            Err(mut e) => {
-                let file = filename.display().to_string();
-                ast::rewrite_error(&mut e, &file, contents);
-                Err(e)
-            }
-        }
-    }
-
     pub fn topological_types(&self) -> Vec<TypeId> {
         let mut ret = Vec::new();
         let mut visited = HashSet::new();
