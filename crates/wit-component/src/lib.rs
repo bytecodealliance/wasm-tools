@@ -7,8 +7,6 @@ use std::fmt::Display;
 use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
 
-#[cfg(feature = "cli")]
-pub mod cli;
 mod decoding;
 mod encoding;
 mod gc;
