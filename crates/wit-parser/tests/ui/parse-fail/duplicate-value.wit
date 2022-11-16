@@ -1,0 +1,6 @@
+// parse-fail
+
+interface foo {
+  a: s32
+  a: u32
+}

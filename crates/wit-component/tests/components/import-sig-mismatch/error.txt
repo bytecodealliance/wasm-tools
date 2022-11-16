@@ -1,0 +1,1 @@
+type mismatch for function `bar` on imported interface `foo`: expected `[I32, I32] -> []` but found `[] -> []`

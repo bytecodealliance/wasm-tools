@@ -1,0 +1,5 @@
+too many worlds defined
+     --> tests/ui/parse-fail/two-worlds.wit:4:7
+      |
+    4 | world b {}
+      |       ^

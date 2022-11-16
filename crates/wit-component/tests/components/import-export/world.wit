@@ -1,0 +1,15 @@
+
+world my-world {
+  import foo: interface {
+    a: func() -> string
+  }
+
+  export bar: interface {
+    a: func()
+    b: func() -> string
+  }
+
+  default export interface {
+    a: func(x: string) -> tuple<string, u32, string>
+  }
+}

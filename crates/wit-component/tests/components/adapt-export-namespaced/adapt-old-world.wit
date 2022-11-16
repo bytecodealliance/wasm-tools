@@ -1,0 +1,7 @@
+interface new {
+  entrypoint: func()
+}
+
+world brave-new-world {
+  export new: new
+}

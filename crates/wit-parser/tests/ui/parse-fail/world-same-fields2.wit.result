@@ -1,0 +1,5 @@
+duplicate import foo
+     --> tests/ui/parse-fail/world-same-fields2.wit:5:10
+      |
+    5 |   import foo: interface {}
+      |          ^--

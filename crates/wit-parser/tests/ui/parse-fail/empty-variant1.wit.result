@@ -1,0 +1,5 @@
+empty variant
+     --> tests/ui/parse-fail/empty-variant1.wit:4:11
+      |
+    4 |   variant t {}
+      |           ^

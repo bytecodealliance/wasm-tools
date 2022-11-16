@@ -45,6 +45,9 @@ pub struct InputOutput {
 
     #[clap(flatten)]
     output: OutputArg,
+
+    #[clap(flatten)]
+    verbosity: Verbosity,
 }
 
 #[derive(clap::Parser)]
@@ -63,6 +66,8 @@ pub enum Output<'a> {
 
 impl InputOutput {
     pub fn parse_input_wasm(&self) -> Result<Vec<u8>> {
+        self.verbosity.init_logger();
+
         if let Some(path) = &self.input {
             if path != Path::new("-") {
                 let bytes = wat::parse_file(path)?;
@@ -86,6 +91,18 @@ impl InputOutput {
 
     pub fn output_writer(&self) -> Result<Box<dyn Write>> {
         self.output.output_writer()
+    }
+
+    pub fn output_path(&self) -> Option<&Path> {
+        self.output.output.as_deref()
+    }
+
+    pub fn input_path(&self) -> Option<&Path> {
+        self.input.as_deref()
+    }
+
+    pub fn init_logger(&self) {
+        self.verbosity.init_logger();
     }
 }
 

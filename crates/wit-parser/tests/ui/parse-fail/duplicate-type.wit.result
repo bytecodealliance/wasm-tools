@@ -1,0 +1,5 @@
+type "foo" defined twice
+     --> tests/ui/parse-fail/duplicate-type.wit:5:8
+      |
+    5 |   type foo = s32
+      |        ^--

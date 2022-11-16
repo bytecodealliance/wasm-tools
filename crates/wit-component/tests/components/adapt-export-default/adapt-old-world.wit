@@ -1,0 +1,5 @@
+world new {
+  default export interface {
+    entrypoint: func()
+  }
+}
