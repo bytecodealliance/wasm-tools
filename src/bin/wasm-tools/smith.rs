@@ -74,6 +74,9 @@ pub struct Opts {
 
     #[clap(flatten)]
     module_config: Config,
+
+    #[clap(flatten)]
+    verbosity: wasm_tools::Verbosity,
 }
 
 #[derive(Default, Debug, Parser, Clone, serde::Deserialize)]
@@ -190,6 +193,7 @@ struct Config {
 
 impl Opts {
     pub fn run(&self) -> Result<()> {
+        self.verbosity.init_logger();
         let seed = match &self.input {
             Some(f) => {
                 std::fs::read(f).with_context(|| format!("failed to read '{}'", f.display()))?

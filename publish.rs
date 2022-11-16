@@ -36,6 +36,8 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wasm-mutate",
     "wasm-shrink",
     "wasm-compose",
+    "wit-parser",
+    "wit-component",
     "wasm-tools",
 ];
 
