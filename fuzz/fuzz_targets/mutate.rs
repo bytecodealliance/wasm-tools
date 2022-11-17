@@ -259,8 +259,16 @@ mod eval {
         match (orig_val, mutated_val) {
             (wasmtime::Val::I32(o), wasmtime::Val::I32(m)) => assert_eq!(o, m),
             (wasmtime::Val::I64(o), wasmtime::Val::I64(m)) => assert_eq!(o, m),
-            (wasmtime::Val::F32(o), wasmtime::Val::F32(m)) => assert_eq!(o, m),
-            (wasmtime::Val::F64(o), wasmtime::Val::F64(m)) => assert_eq!(o, m),
+            (wasmtime::Val::F32(o), wasmtime::Val::F32(m)) => {
+                let o = f32::from_bits(*o);
+                let m = f32::from_bits(*m);
+                assert!(o == m || (o.is_nan() && m.is_nan()));
+            }
+            (wasmtime::Val::F64(o), wasmtime::Val::F64(m)) => {
+                let o = f64::from_bits(*o);
+                let m = f64::from_bits(*m);
+                assert!(o == m || (o.is_nan() && m.is_nan()));
+            }
             (wasmtime::Val::ExternRef(o), wasmtime::Val::ExternRef(m)) => {
                 assert_eq!(o.is_none(), m.is_none())
             }
