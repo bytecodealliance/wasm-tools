@@ -262,8 +262,11 @@ impl<'a> Resolver<'a> {
             }
 
             ModuleField::Table(t) => {
-                if let TableKind::Normal(t) = &mut t.kind {
-                    self.resolve_heaptype(&mut t.elem.heap)?;
+                if let TableKind::Normal { ty, init_expr } = &mut t.kind {
+                    self.resolve_heaptype(&mut ty.elem.heap)?;
+                    if let Some(init_expr) = init_expr {
+                        self.resolve_expr(init_expr)?;
+                    }
                 }
                 Ok(())
             }
