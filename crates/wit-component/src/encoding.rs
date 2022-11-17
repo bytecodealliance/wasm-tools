@@ -64,7 +64,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::hash::{Hash, Hasher};
 use std::mem;
-use std::path::Path;
 use wasm_encoder::*;
 use wasmparser::{FuncType, Validator, WasmFeatures};
 use wit_parser::{
@@ -2198,22 +2197,6 @@ impl ComponentEncoder {
         let (wasm, metadata) = metadata::decode(bytes)?;
         self.adapters.insert(name.to_string(), (wasm, metadata));
         Ok(self)
-    }
-
-    /// This is a convenience method for [`ComponentEncoder::adapter`] for
-    /// inferring everything from just one `path` specified.
-    ///
-    /// The wasm binary at `path` is read and parsed and is assumed to have
-    /// embedded information about its imported interfaces. Additionally the
-    /// name of the adapter is inferred from the file name itself as the file
-    /// stem.
-    pub fn adapter_file(self, path: &Path) -> Result<Self> {
-        let name = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| anyhow!("input filename was not valid utf-8"))?;
-        let wasm = wat::parse_file(path)?;
-        self.adapter(name, &wasm)
     }
 
     /// Indicates whether this encoder is only encoding types and does not
