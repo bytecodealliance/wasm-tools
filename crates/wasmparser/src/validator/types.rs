@@ -14,6 +14,8 @@ use std::{
     sync::Arc,
 };
 
+pub use super::importmap::{ImportMap, ImportMapIter};
+
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
 /// Functions that exceed this limit will instead pass parameters indirectly from
@@ -1386,6 +1388,26 @@ impl<'a> TypesRef<'a> {
         }
     }
 
+    /// Gets the imports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn imports(&self) -> Option<&'a ImportMap> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(&module.imports),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
+    /// Gets the exports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn exports(&self) -> Option<&'a IndexMap<String, EntityType>> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(&module.exports),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
     /// Gets the entity type for the given import.
     pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
         match &self.kind {
@@ -1733,6 +1755,20 @@ impl Types {
             TypesKind::Module(_) => 0,
             TypesKind::Component(component) => component.values.len(),
         }
+    }
+
+    /// Gets the imports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn imports(&self) -> Option<&ImportMap> {
+        self.as_ref().imports()
+    }
+
+    /// Gets the exports of this module.
+    ///
+    /// Returns `None` if this is a component.
+    pub fn exports(&self) -> Option<&IndexMap<String, EntityType>> {
+        self.as_ref().exports()
     }
 
     /// Gets the entity type from the given import.

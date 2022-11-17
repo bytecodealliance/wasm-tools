@@ -3,7 +3,7 @@
 use super::{
     check_max, combine_type_sizes,
     operators::{OperatorValidator, OperatorValidatorAllocations},
-    types::{EntityType, Type, TypeId, TypeList},
+    types::{EntityType, ImportMap, Type, TypeId, TypeList},
 };
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
@@ -446,7 +446,7 @@ pub(crate) struct Module {
     pub functions: Vec<u32>,
     pub tags: Vec<TypeId>,
     pub function_references: HashSet<u32>,
-    pub imports: IndexMap<(String, String), Vec<EntityType>>,
+    pub imports: ImportMap,
     pub exports: IndexMap<String, EntityType>,
     pub type_size: usize,
     num_imported_globals: u32,
@@ -536,9 +536,7 @@ impl Module {
         self.type_size = combine_type_sizes(self.type_size, entity.type_size(), offset)?;
 
         self.imports
-            .entry((import.module.to_string(), import.name.to_string()))
-            .or_default()
-            .push(entity);
+            .add(import.module.to_string(), import.name.to_string(), entity);
 
         Ok(())
     }
@@ -748,19 +746,20 @@ impl Module {
         offset: usize,
     ) -> Result<IndexMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model
-        self.imports
-            .iter()
-            .map(|((module, name), types)| {
-                if types.len() != 1 {
-                    bail!(
-                        offset,
-                        "module has a duplicate import name `{module}:{name}` \
-                         that is not allowed in components",
-                    );
-                }
-                Ok(((module.clone(), name.clone()), types[0]))
-            })
-            .collect::<Result<_>>()
+        let mut ret = IndexMap::with_capacity(self.imports.len());
+        for (module, name, entity) in &self.imports {
+            if ret
+                .insert((module.to_owned(), name.to_owned()), entity)
+                .is_some()
+            {
+                bail!(
+                    offset,
+                    "module has a duplicate import name `{module}:{name}` \
+                     that is not allowed in components",
+                );
+            }
+        }
+        Ok(ret)
     }
 
     fn check_tag_type(
@@ -926,7 +925,7 @@ impl Default for Module {
             functions: Default::default(),
             tags: Default::default(),
             function_references: Default::default(),
-            imports: Default::default(),
+            imports: ImportMap::new(),
             exports: Default::default(),
             type_size: 1,
             num_imported_globals: Default::default(),

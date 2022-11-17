@@ -48,6 +48,7 @@ fn test_validate() {
 mod component;
 mod core;
 mod func;
+mod importmap;
 mod operators;
 pub mod types;
 
