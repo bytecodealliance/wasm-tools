@@ -111,15 +111,15 @@ fuzz_target!(|bytes: &[u8]| {
 });
 
 #[cfg(feature = "wasmtime")]
-#[path = "../../crates/fuzz-stats/src/dummy.rs"]
-pub mod dummy;
+#[path = "../../crates/fuzz-stats/src/lib.rs"]
+pub mod fuzz_stats;
 
 #[cfg(feature = "wasmtime")]
 mod eval {
-    use super::dummy;
+    use super::fuzz_stats::{dummy, limits::StoreLimits};
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-    use wasmtime::Val;
+    use wasmtime::{ResourceLimiter, Val};
 
     /// Compile, instantiate, and evaluate both the original and mutated Wasm.
     ///
@@ -143,7 +143,14 @@ mod eval {
             (_, _) => return,
         };
 
-        let mut store = wasmtime::Store::new(&engine, ());
+        let mut store = wasmtime::Store::new(
+            &engine,
+            StoreLimits {
+                remaining_memory: 1 << 30,
+                oom: false,
+            },
+        );
+        store.limiter(|s| s as &mut dyn ResourceLimiter);
         let (orig_imports, mutated_imports) = match dummy::dummy_imports(&mut store, &orig_module) {
             Ok(imps) => (imps.clone(), imps),
             Err(_) => return,
@@ -163,7 +170,7 @@ mod eval {
     }
 
     fn assert_same_state(
-        store: &mut wasmtime::Store<()>,
+        store: &mut wasmtime::Store<StoreLimits>,
         orig_module: &wasmtime::Module,
         orig_instance: wasmtime::Instance,
         mutated_instance: wasmtime::Instance,
@@ -210,7 +217,7 @@ mod eval {
     }
 
     fn assert_same_calls(
-        store: &mut wasmtime::Store<()>,
+        store: &mut wasmtime::Store<StoreLimits>,
         orig_module: &wasmtime::Module,
         orig_instance: wasmtime::Instance,
         mutated_instance: wasmtime::Instance,
