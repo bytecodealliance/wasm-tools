@@ -1,15 +1,15 @@
 (component
-  (import "" (func (param "foo" string)))
-  (import "a" (func (param "foo" string) (param "bar" s32) (param "baz" u32)))
-  (import "b" (func (result "foo" (tuple))))
-  (import "c" (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
+  (import "a" (func (param "foo" string)))
+  (import "b" (func (param "foo" string) (param "bar" s32) (param "baz" u32)))
+  (import "c" (func (result "foo" (tuple))))
+  (import "d" (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
 )
 
 (component
-  (import "" (func))
-  (import "a" (func (param "p1" string)))
-  (import "b" (func (result u32)))
-  (import "c" (func (param "p1" bool) (result string)))
+  (import "a" (func))
+  (import "b" (func (param "p1" string)))
+  (import "c" (func (result u32)))
+  (import "d" (func (param "p1" bool) (result string)))
 )
 
 (assert_invalid
@@ -21,16 +21,16 @@
 
 (assert_invalid
   (component
-    (type (func (param "foo" string) (param "foo" u32)))
+    (type (func (param "foo" string) (param "FOO" u32)))
   )
-  "duplicate parameter name"
+  "function parameter name `FOO` conflicts with previous parameter name `foo`"
 )
 
 (assert_invalid
   (component
-    (type (func (result "foo" string) (result "foo" u32)))
+    (type (func (result "FOO" string) (result "foo" u32)))
   )
-  "duplicate result name"
+  "function result name `foo` conflicts with previous result name `FOO`"
 )
 
 (assert_invalid
@@ -49,7 +49,7 @@
 )
 
 (component
-  (import "" (func $log (param "msg" string)))
+  (import "a" (func $log (param "msg" string)))
   (core module $libc
     (memory (export "memory") 1)
   )
@@ -71,10 +71,10 @@
 
 (component
   (type $big (func
-    (param "1" u32) (param "2" u32) (param "3" u32) (param "4" u32) (param "5" u32)
-    (param "6" u32) (param "7" u32) (param "8" u32) (param "9" u32) (param "10" u32)
-    (param "11" u32) (param "12" u32) (param "13" u32) (param "14" u32) (param "15" u32)
-    (param "16" u32) (param "17" u32) (param "18" u32) (param "19" u32) (param "20" u32)
+    (param "p1" u32) (param "p2" u32) (param "p3" u32) (param "p4" u32) (param "p5" u32)
+    (param "p6" u32) (param "p7" u32) (param "p8" u32) (param "p9" u32) (param "p10" u32)
+    (param "p11" u32) (param "p12" u32) (param "p13" u32) (param "p14" u32) (param "p15" u32)
+    (param "p16" u32) (param "p17" u32) (param "p18" u32) (param "p19" u32) (param "p20" u32)
   ))
 
   (component $c
@@ -94,10 +94,10 @@
     (core instance $m (instantiate $m))
 
     (type $roundtrip (func
-      (param "1" u32) (param "2" u32) (param "3" u32) (param "4" u32) (param "5" u32)
-      (param "6" u32) (param "7" u32) (param "8" u32) (param "9" u32) (param "10" u32)
-      (param "11" u32) (param "12" u32) (param "13" u32) (param "14" u32) (param "15" u32)
-      (param "16" u32) (param "17" u32) (param "18" u32) (param "19" u32) (param "20" u32)
+      (param "p1" u32) (param "p2" u32) (param "p3" u32) (param "p4" u32) (param "p5" u32)
+      (param "p6" u32) (param "p7" u32) (param "p8" u32) (param "p9" u32) (param "p10" u32)
+      (param "p11" u32) (param "p12" u32) (param "p13" u32) (param "p14" u32) (param "p15" u32)
+      (param "p16" u32) (param "p17" u32) (param "p18" u32) (param "p19" u32) (param "p20" u32)
     ))
 
     (func $roundtrip (type $roundtrip)
@@ -110,7 +110,7 @@
 
 (assert_invalid
   (component
-    (import "" (func $log (result string)))
+    (import "a" (func $log (result string)))
     (core module $libc
       (memory (export "memory") 1)
     )

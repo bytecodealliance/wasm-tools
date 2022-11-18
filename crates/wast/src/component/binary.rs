@@ -336,13 +336,18 @@ impl<'a> Encoder<'a> {
     fn encode_import(&mut self, import: &ComponentImport<'a>) {
         let name = get_name(&import.item.id, &import.item.name);
         self.names_for_item_kind(&import.item.kind).push(name);
-        self.imports.import(import.name, (&import.item.kind).into());
+        self.imports.import(
+            import.name,
+            import.url.unwrap_or(""),
+            (&import.item.kind).into(),
+        );
         self.flush(Some(self.imports.id()));
     }
 
     fn encode_export(&mut self, export: &ComponentExport) {
         let (kind, index) = (&export.kind).into();
-        self.exports.export(export.name, kind, index);
+        self.exports
+            .export(export.name, export.url.unwrap_or(""), kind, index);
         self.flush(Some(self.exports.id()));
     }
 
@@ -496,13 +501,15 @@ impl<'a> Encoder<'a> {
 }
 
 fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
-    name.as_ref().map(|n| n.name).or(id.and_then(|id| {
-        if id.is_gensym() {
-            None
-        } else {
-            Some(id.name())
-        }
-    }))
+    name.as_ref().map(|n| n.name).or_else(|| {
+        id.and_then(|id| {
+            if id.is_gensym() {
+                None
+            } else {
+                Some(id.name())
+            }
+        })
+    })
 }
 
 // This implementation is much like `wasm_encoder::CustomSection`, except
@@ -787,10 +794,10 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                     _ => unreachable!("only outer type aliases are supported"),
                 },
                 ComponentTypeDecl::Import(i) => {
-                    encoded.import(i.name, (&i.item.kind).into());
+                    encoded.import(i.name, i.url.unwrap_or(""), (&i.item.kind).into());
                 }
                 ComponentTypeDecl::Export(e) => {
-                    encoded.export(e.name, (&e.item.kind).into());
+                    encoded.export(e.name, e.url.unwrap_or(""), (&e.item.kind).into());
                 }
             }
         }
@@ -829,7 +836,7 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                     _ => unreachable!("only outer type aliases are supported"),
                 },
                 InstanceTypeDecl::Export(e) => {
-                    encoded.export(e.name, (&e.item.kind).into());
+                    encoded.export(e.name, e.url.unwrap_or(""), (&e.item.kind).into());
                 }
             }
         }

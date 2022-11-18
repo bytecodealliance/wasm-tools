@@ -52,7 +52,7 @@ impl Resolver {
                 if let Some(other) = worlds.next() {
                     return Err(Error {
                         span: other.name.span,
-                        msg: format!("too many worlds defined"),
+                        msg: "too many worlds defined".to_string(),
                     }
                     .into());
                 }
@@ -82,7 +82,7 @@ impl Resolver {
                     if ret.default.is_some() {
                         return Err(Error {
                             span: iface.span(),
-                            msg: format!("more than one default"),
+                            msg: "more than one default".to_string(),
                         }
                         .into());
                     }
@@ -122,7 +122,7 @@ impl Resolver {
     ) -> Result<Interface> {
         match kind {
             ast::ExternKind::Interface(_span, items) => {
-                self.resolve("", &items, &Default::default())
+                self.resolve("", items, &Default::default())
             }
             ast::ExternKind::Id(id) => lookup.get(&*id.name).cloned().ok_or_else(|| {
                 Error {
@@ -177,6 +177,7 @@ impl Resolver {
 
         Ok(Interface {
             name: name.to_string(),
+            url: None,
             docs: self.docs(docs),
             types: mem::take(&mut self.types),
             type_lookup: mem::take(&mut self.type_lookup),

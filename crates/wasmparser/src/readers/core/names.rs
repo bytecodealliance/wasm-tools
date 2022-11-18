@@ -126,7 +126,7 @@ impl<'a> SectionReader for IndirectNameMap<'a> {
 
         let end = self.reader.position;
         Ok(IndirectNaming {
-            index: index,
+            index,
             names: NameMap::new(
                 &self.reader.buffer[start..end],
                 self.reader.original_offset + start,

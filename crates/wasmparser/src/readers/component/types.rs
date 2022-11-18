@@ -234,6 +234,8 @@ pub enum ComponentTypeDeclaration<'a> {
     Export {
         /// The name of the export.
         name: &'a str,
+        /// The optional URL of the export.
+        url: &'a str,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },
@@ -254,6 +256,8 @@ pub enum InstanceTypeDeclaration<'a> {
     Export {
         /// The name of the export.
         name: &'a str,
+        /// The URL for the export.
+        url: &'a str,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },

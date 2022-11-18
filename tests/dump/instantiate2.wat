@@ -1,4 +1,4 @@
 (component
- (import "" (component $c (import "" (func))))
+ (import "a" (component $c (import "a" (func))))
  (instance (instantiate $c))
 )

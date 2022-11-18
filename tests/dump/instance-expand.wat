@@ -3,5 +3,5 @@
     (export "" (func))
   ))
 
-  (import "" (instance (type $i)))
+  (import "a" (instance (type $i)))
 )

@@ -74,6 +74,7 @@ impl World {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Interface {
     pub name: String,
+    pub url: Option<String>,
     pub docs: Docs,
     pub types: Arena<TypeDef>,
     pub type_lookup: HashMap<String, TypeId>,

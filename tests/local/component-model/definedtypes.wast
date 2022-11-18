@@ -137,17 +137,17 @@
   "index out of bounds")
 
 (assert_invalid
-  (component (type (record (field "x" string) (field "x" u8))))
-  "duplicate field named `x` in record type")
+  (component (type (record (field "a-B-c-D" string) (field "A-b-C-d" u8))))
+  "record field name `A-b-C-d` conflicts with previous field name `a-B-c-D`")
 (assert_invalid
   (component (type (variant (case "x" s64) (case "x" s64))))
-  "duplicate case named `x` in variant type")
+  "variant case name `x` conflicts with previous case name `x`")
 (assert_invalid
-  (component (type (flags "x" "y" "x")))
-  "duplicate flag named `x`")
+  (component (type (flags "x" "y" "X")))
+  "flag name `X` conflicts with previous flag name `x`")
 (assert_invalid
-  (component (type (enum "x" "y" "x")))
-  "duplicate enum tag named `x`")
+  (component (type (enum "x" "y" "X")))
+  "enum tag name `X` conflicts with previous tag name `x`")
 
 (assert_invalid
   (component (type (record (field "" s32))))

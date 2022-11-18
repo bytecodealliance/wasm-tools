@@ -207,7 +207,7 @@ macro_rules! define_visit {
     (kind $other:tt) => (OpKind::Normal);
 
     // How to print the payload of an instruction. There are a number of
-    // instrucitons that have special cases such as avoiding printing anything
+    // instructions that have special cases such as avoiding printing anything
     // when an index is 0 or similar. The final case in this list is the
     // catch-all which prints each payload individually based on the name of the
     // payload field.

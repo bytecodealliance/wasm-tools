@@ -11,7 +11,7 @@ use std::mem;
 ///
 /// This expansion is intended to desugar the AST from various parsed constructs
 /// to bits and bobs amenable for name resolution as well as binary encoding.
-/// For example `(import "" (func))` is split into a type definition followed by
+/// For example `(import "i" (func))` is split into a type definition followed by
 /// the import referencing that type definition.
 ///
 /// Most forms of AST expansion happen in this file and afterwards the AST will
@@ -133,12 +133,13 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_core_module(&mut self, module: &mut CoreModule<'a>) -> Option<ComponentField<'a>> {
-        for name in module.exports.names.drain(..) {
+        for (name, url) in module.exports.names.drain(..) {
             let id = gensym::fill(module.span, &mut module.id);
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: module.span,
                     name,
+                    url,
                     kind: ComponentExportKind::module(module.span, id),
                 }));
         }
@@ -150,6 +151,7 @@ impl<'a> Expander<'a> {
                 Some(ComponentField::Import(ComponentImport {
                     span: module.span,
                     name: import.name,
+                    url: import.url,
                     item: ItemSig {
                         span: module.span,
                         id: module.id,
@@ -176,12 +178,13 @@ impl<'a> Expander<'a> {
         &mut self,
         component: &mut NestedComponent<'a>,
     ) -> Option<ComponentField<'a>> {
-        for name in component.exports.names.drain(..) {
+        for (name, url) in component.exports.names.drain(..) {
             let id = gensym::fill(component.span, &mut component.id);
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: component.span,
                     name,
+                    url,
                     kind: ComponentExportKind::component(component.span, id),
                 }));
         }
@@ -195,6 +198,7 @@ impl<'a> Expander<'a> {
                 Some(ComponentField::Import(ComponentImport {
                     span: component.span,
                     name: import.name,
+                    url: import.url,
                     item: ItemSig {
                         span: component.span,
                         id: component.id,
@@ -207,12 +211,13 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_instance(&mut self, instance: &mut Instance<'a>) -> Option<ComponentField<'a>> {
-        for name in instance.exports.names.drain(..) {
+        for (name, url) in instance.exports.names.drain(..) {
             let id = gensym::fill(instance.span, &mut instance.id);
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: instance.span,
                     name,
+                    url,
                     kind: ComponentExportKind::instance(instance.span, id),
                 }));
         }
@@ -222,6 +227,7 @@ impl<'a> Expander<'a> {
                 Some(ComponentField::Import(ComponentImport {
                     span: instance.span,
                     name: import.name,
+                    url: import.url,
                     item: ItemSig {
                         span: instance.span,
                         id: instance.id,
@@ -271,12 +277,13 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_func(&mut self, func: &mut Func<'a>) -> Option<ComponentField<'a>> {
-        for name in func.exports.names.drain(..) {
+        for (name, url) in func.exports.names.drain(..) {
             let id = gensym::fill(func.span, &mut func.id);
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: func.span,
                     name,
+                    url,
                     kind: ComponentExportKind::func(func.span, id),
                 }));
         }
@@ -286,6 +293,7 @@ impl<'a> Expander<'a> {
                 Some(ComponentField::Import(ComponentImport {
                     span: func.span,
                     name: import.name,
+                    url: import.url,
                     item: ItemSig {
                         span: func.span,
                         id: func.id,

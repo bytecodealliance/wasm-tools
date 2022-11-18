@@ -1,4 +1,5 @@
 use super::*;
+use wasmparser::types::KebabStr;
 
 impl Component {
     /// Encode this Wasm component into bytes.
@@ -69,7 +70,7 @@ impl ImportSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
-            sec.import(&imp.name, imp.ty);
+            sec.import(&imp.name, imp.url.as_deref().unwrap_or(""), imp.ty);
         }
         component.section(&sec);
     }
@@ -165,10 +166,9 @@ impl Type {
                     f.result(ty);
                 } else {
                     f.results(
-                        func_ty
-                            .results
-                            .iter()
-                            .map(|(name, ty)| (name.as_deref().unwrap(), *ty)),
+                        func_ty.results.iter().map(|(name, ty)| {
+                            (name.as_deref().map(KebabStr::as_str).unwrap(), *ty)
+                        }),
                     );
                 }
             }
@@ -177,7 +177,7 @@ impl Type {
                 for def in &comp_ty.defs {
                     match def {
                         ComponentTypeDef::Import(imp) => {
-                            enc_comp_ty.import(&imp.name, imp.ty);
+                            enc_comp_ty.import(&imp.name, imp.url.as_deref().unwrap_or(""), imp.ty);
                         }
                         ComponentTypeDef::CoreType(ty) => {
                             ty.encode(enc_comp_ty.core_type());
@@ -185,8 +185,8 @@ impl Type {
                         ComponentTypeDef::Type(ty) => {
                             ty.encode(enc_comp_ty.ty());
                         }
-                        ComponentTypeDef::Export { name, ty } => {
-                            enc_comp_ty.export(name, *ty);
+                        ComponentTypeDef::Export { name, url, ty } => {
+                            enc_comp_ty.export(name, url.as_deref().unwrap_or(""), *ty);
                         }
                         ComponentTypeDef::Alias(Alias::Outer {
                             count,
@@ -217,8 +217,8 @@ impl Type {
                         InstanceTypeDecl::Type(ty) => {
                             ty.encode(enc_inst_ty.ty());
                         }
-                        InstanceTypeDecl::Export { name, ty } => {
-                            enc_inst_ty.export(name, *ty);
+                        InstanceTypeDecl::Export { name, url, ty } => {
+                            enc_inst_ty.export(name, url.as_deref().unwrap_or(""), *ty);
                         }
                         InstanceTypeDecl::Alias(Alias::Outer {
                             count,

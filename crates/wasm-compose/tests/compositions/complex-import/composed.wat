@@ -146,7 +146,7 @@
       (export "u" (func (type 29)))
     )
   )
-  (import "$input" (component (;0;) (type 0)))
+  (import "input" (component (;0;) (type 0)))
   (import "b" (component (;1;) (type 1)))
   (import "a" (component (;2;) (type 2)))
   (instance (;0;) (instantiate 2))

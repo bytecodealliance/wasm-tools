@@ -1207,7 +1207,7 @@ where
                 "type mismatch: select only takes integral types"
             )
         }
-        if ty1 != ty2 && ty1 != None && ty2 != None {
+        if ty1 != ty2 && ty1.is_some() && ty2.is_some() {
             bail!(
                 self.offset,
                 "type mismatch: select operands have different types"

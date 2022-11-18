@@ -210,7 +210,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         let (_, instance_id) = self.instances.get_index(instance).unwrap();
         let (_, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
         match component.export_by_name(export) {
-            Some((export_index, kind, index)) if kind == ComponentExternalKind::Instance => {
+            Some((export_index, _, kind, index)) if kind == ComponentExternalKind::Instance => {
                 let export_ty = component.types.component_instance_at(index).unwrap();
                 if !ComponentInstanceType::is_subtype_of(export_ty, component.types(), ty, types) {
                     bail!("component `{path}` exports an instance named `{export}` but it is not compatible with import `{arg_name}` of component `{dependent_path}`",
@@ -234,7 +234,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         r: InstanceImportRef,
     ) -> (&Component, &str, &ComponentInstanceType) {
         let component = self.graph.get_component(r.component).unwrap();
-        let (name, ty) = component.import(r.import).unwrap();
+        let (name, _, ty) = component.import(r.import).unwrap();
         match ty {
             ComponentTypeRef::Instance(index) => (
                 component,
@@ -310,7 +310,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         let count = queue.len();
 
         // Push a dependency for every instance import
-        for (import, name, ty) in component.imports() {
+        for (import, name, _, ty) in component.imports() {
             match ty {
                 ComponentTypeRef::Instance(_) => {}
                 _ => bail!(

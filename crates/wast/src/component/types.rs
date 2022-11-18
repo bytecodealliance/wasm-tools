@@ -740,6 +740,8 @@ pub struct ComponentExportType<'a> {
     pub span: Span,
     /// The name of this export.
     pub name: &'a str,
+    /// The optional URL of this export.
+    pub url: Option<&'a str>,
     /// The signature of the item.
     pub item: ItemSig<'a>,
 }
@@ -748,8 +750,14 @@ impl<'a> Parse<'a> for ComponentExportType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::export>()?.0;
         let name = parser.parse()?;
+        let url = parser.parse()?;
         let item = parser.parens(|p| p.parse())?;
-        Ok(Self { span, name, item })
+        Ok(Self {
+            span,
+            name,
+            url,
+            item,
+        })
     }
 }
 

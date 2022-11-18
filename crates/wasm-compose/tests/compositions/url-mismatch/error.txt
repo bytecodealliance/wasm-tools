@@ -1,0 +1,1 @@
+cannot import instance with name `a` because import URL `http://example.com/foo` conflicts with `http://example.com/bar`

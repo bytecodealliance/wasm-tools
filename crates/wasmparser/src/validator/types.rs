@@ -9,10 +9,13 @@ use crate::{
 use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Borrow,
+    fmt,
     hash::{Hash, Hasher},
     mem,
+    ops::Deref,
     sync::Arc,
 };
+use url::Url;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -27,6 +30,193 @@ const MAX_FLAT_FUNC_RESULTS: usize = 1;
 
 /// The maximum lowered types, including a possible type for a return pointer parameter.
 const MAX_LOWERED_TYPES: usize = MAX_FLAT_FUNC_PARAMS + 1;
+
+/// Represents a kebab string slice used in validation.
+///
+/// This is a wrapper around `str` that ensures the slice is
+/// a valid kebab case string according to the component model
+/// specification.
+///
+/// It also provides an equality and hashing implementation
+/// that ignores ASCII case.
+#[derive(Debug, Eq)]
+#[repr(transparent)]
+pub struct KebabStr(str);
+
+impl KebabStr {
+    /// Creates a new kebab string slice.
+    ///
+    /// Returns `None` if the given string is not a valid kebab string.
+    pub fn new<'a>(s: impl AsRef<str> + 'a) -> Option<&'a Self> {
+        let s = Self::new_unchecked(s);
+        if s.is_kebab_case() {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn new_unchecked<'a>(s: impl AsRef<str> + 'a) -> &'a Self {
+        // Safety: `KebabStr` is a transparent wrapper around `str`
+        // Therefore transmuting `&str` to `&KebabStr` is safe.
+        unsafe { std::mem::transmute::<_, &Self>(s.as_ref()) }
+    }
+
+    /// Gets the underlying string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Converts the slice to an owned string.
+    pub fn to_kebab_string(&self) -> KebabString {
+        KebabString(self.to_string())
+    }
+
+    fn is_kebab_case(&self) -> bool {
+        let mut lower = false;
+        let mut upper = false;
+        for c in self.chars() {
+            match c {
+                'a'..='z' if !lower && !upper => lower = true,
+                'A'..='Z' if !lower && !upper => upper = true,
+                'a'..='z' if lower => {}
+                'A'..='Z' if upper => {}
+                '0'..='9' if lower || upper => {}
+                '-' if lower || upper => {
+                    lower = false;
+                    upper = false;
+                }
+                _ => return false,
+            }
+        }
+
+        !self.is_empty() && !self.ends_with('-')
+    }
+}
+
+impl Deref for KebabStr {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl PartialEq for KebabStr {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        self.chars()
+            .zip(other.chars())
+            .all(|(a, b)| a.to_ascii_lowercase() == b.to_ascii_lowercase())
+    }
+}
+
+impl PartialEq<KebabString> for KebabStr {
+    fn eq(&self, other: &KebabString) -> bool {
+        self.eq(other.as_kebab_str())
+    }
+}
+
+impl Hash for KebabStr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len().hash(state);
+
+        for b in self.chars() {
+            b.to_ascii_lowercase().hash(state);
+        }
+    }
+}
+
+impl fmt::Display for KebabStr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self as &str).fmt(f)
+    }
+}
+
+impl ToOwned for KebabStr {
+    type Owned = KebabString;
+
+    fn to_owned(&self) -> Self::Owned {
+        self.to_kebab_string()
+    }
+}
+
+/// Represents an owned kebab string for validation.
+///
+/// This is a wrapper around `String` that ensures the string is
+/// a valid kebab case string according to the component model
+/// specification.
+///
+/// It also provides an equality and hashing implementation
+/// that ignores ASCII case.
+#[derive(Debug, Clone, Eq)]
+pub struct KebabString(String);
+
+impl KebabString {
+    /// Creates a new kebab string.
+    ///
+    /// Returns `None` if the given string is not a valid kebab string.
+    pub fn new(s: impl Into<String>) -> Option<Self> {
+        let s = s.into();
+        if KebabStr::new(&s).is_some() {
+            Some(Self(s))
+        } else {
+            None
+        }
+    }
+
+    /// Gets the underlying string.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Converts the kebab string to a kebab string slice.
+    pub fn as_kebab_str(&self) -> &KebabStr {
+        // Safety: internal string is always valid kebab-case
+        KebabStr::new_unchecked(self.as_str())
+    }
+}
+
+impl Deref for KebabString {
+    type Target = KebabStr;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_kebab_str()
+    }
+}
+
+impl Borrow<KebabStr> for KebabString {
+    fn borrow(&self) -> &KebabStr {
+        self.as_kebab_str()
+    }
+}
+
+impl PartialEq for KebabString {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_kebab_str().eq(other.as_kebab_str())
+    }
+}
+
+impl PartialEq<KebabStr> for KebabString {
+    fn eq(&self, other: &KebabStr) -> bool {
+        self.as_kebab_str().eq(other)
+    }
+}
+
+impl Hash for KebabString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_kebab_str().hash(state)
+    }
+}
+
+impl fmt::Display for KebabString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_kebab_str().fmt(f)
+    }
+}
 
 /// A simple alloc-free list of types used for calculating lowered function signatures.
 pub(crate) struct LoweredTypes {
@@ -622,9 +812,9 @@ pub struct ComponentType {
     /// The effective type size for the component type.
     pub(crate) type_size: usize,
     /// The imports of the component type.
-    pub imports: IndexMap<String, ComponentEntityType>,
+    pub imports: IndexMap<KebabString, (Option<Url>, ComponentEntityType)>,
     /// The exports of the component type.
-    pub exports: IndexMap<String, ComponentEntityType>,
+    pub exports: IndexMap<KebabString, (Option<Url>, ComponentEntityType)>,
 }
 
 impl ComponentType {
@@ -639,11 +829,11 @@ impl ComponentType {
         // *more* than what this component type needs).
         // However, for imports, the check is reversed (i.e. it is okay
         // to import *less* than what this component type needs).
-        a.imports.iter().all(|(k, a)| match b.imports.get(k) {
-            Some(b) => ComponentEntityType::internal_is_subtype_of(b, bt, a, at),
+        a.imports.iter().all(|(k, (_, a))| match b.imports.get(k) {
+            Some((_, b)) => ComponentEntityType::internal_is_subtype_of(b, bt, a, at),
             None => false,
-        }) && b.exports.iter().all(|(k, b)| match a.exports.get(k) {
-            Some(a) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
+        }) && b.exports.iter().all(|(k, (_, b))| match a.exports.get(k) {
+            Some((_, a)) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
             None => false,
         })
     }
@@ -653,11 +843,11 @@ impl ComponentType {
 #[derive(Debug, Clone)]
 pub enum ComponentInstanceTypeKind {
     /// The instance type is from a definition.
-    Defined(IndexMap<String, ComponentEntityType>),
+    Defined(IndexMap<KebabString, (Option<Url>, ComponentEntityType)>),
     /// The instance type is the result of instantiating a component type.
     Instantiated(TypeId),
     /// The instance type is the result of instantiating from exported items.
-    Exports(IndexMap<String, ComponentEntityType>),
+    Exports(IndexMap<KebabString, (Option<Url>, ComponentEntityType)>),
 }
 
 /// Represents a type of a component instance.
@@ -671,14 +861,20 @@ pub struct ComponentInstanceType {
 
 impl ComponentInstanceType {
     /// Gets the exports of the instance type.
-    pub fn exports<'a>(&'a self, types: TypesRef<'a>) -> &'a IndexMap<String, ComponentEntityType> {
+    pub fn exports<'a>(
+        &'a self,
+        types: TypesRef<'a>,
+    ) -> impl ExactSizeIterator<Item = (&'a KebabStr, &'a Option<Url>, ComponentEntityType)> + Clone
+    {
         self.internal_exports(types.list)
+            .iter()
+            .map(|(n, (u, t))| (n.as_kebab_str(), u, *t))
     }
 
     pub(crate) fn internal_exports<'a>(
         &'a self,
         types: &'a TypeList,
-    ) -> &'a IndexMap<String, ComponentEntityType> {
+    ) -> &'a IndexMap<KebabString, (Option<Url>, ComponentEntityType)> {
         match &self.kind {
             ComponentInstanceTypeKind::Defined(exports)
             | ComponentInstanceTypeKind::Exports(exports) => exports,
@@ -701,8 +897,8 @@ impl ComponentInstanceType {
         // *more* than what this instance type needs).
         b.internal_exports(bt)
             .iter()
-            .all(|(k, b)| match exports.get(k) {
-                Some(a) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
+            .all(|(k, (_, b))| match exports.get(k) {
+                Some((_, a)) => ComponentEntityType::internal_is_subtype_of(a, at, b, bt),
                 None => false,
             })
     }
@@ -714,9 +910,9 @@ pub struct ComponentFuncType {
     /// The effective type size for the component function type.
     pub(crate) type_size: usize,
     /// The function parameters.
-    pub params: Box<[(String, ComponentValType)]>,
+    pub params: Box<[(KebabString, ComponentValType)]>,
     /// The function's results.
-    pub results: Box<[(Option<String>, ComponentValType)]>,
+    pub results: Box<[(Option<KebabString>, ComponentValType)]>,
 }
 
 impl ComponentFuncType {
@@ -839,7 +1035,7 @@ pub struct VariantCase {
     /// The variant case type.
     pub ty: Option<ComponentValType>,
     /// The name of the variant case refined by this one.
-    pub refines: Option<String>,
+    pub refines: Option<KebabString>,
 }
 
 /// Represents a record type.
@@ -848,7 +1044,7 @@ pub struct RecordType {
     /// The effective type size for the record type.
     pub(crate) type_size: usize,
     /// The map of record fields.
-    pub fields: IndexMap<String, ComponentValType>,
+    pub fields: IndexMap<KebabString, ComponentValType>,
 }
 
 /// Represents a variant type.
@@ -857,7 +1053,7 @@ pub struct VariantType {
     /// The effective type size for the variant type.
     pub(crate) type_size: usize,
     /// The map of variant cases.
-    pub cases: IndexMap<String, VariantCase>,
+    pub cases: IndexMap<KebabString, VariantCase>,
 }
 
 /// Represents a tuple type.
@@ -892,9 +1088,9 @@ pub enum ComponentDefinedType {
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
-    Flags(IndexSet<String>),
+    Flags(IndexSet<KebabString>),
     /// The type is an enumeration.
-    Enum(IndexSet<String>),
+    Enum(IndexSet<KebabString>),
     /// The type is a union.
     Union(UnionType),
     /// The type is an `option`.

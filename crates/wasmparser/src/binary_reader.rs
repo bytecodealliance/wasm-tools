@@ -414,8 +414,8 @@ impl<'a> BinaryReader<'a> {
             InstanceTypeDeclaration::CoreType(t) => ComponentTypeDeclaration::CoreType(t),
             InstanceTypeDeclaration::Type(t) => ComponentTypeDeclaration::Type(t),
             InstanceTypeDeclaration::Alias(a) => ComponentTypeDeclaration::Alias(a),
-            InstanceTypeDeclaration::Export { name, ty } => {
-                ComponentTypeDeclaration::Export { name, ty }
+            InstanceTypeDeclaration::Export { name, url, ty } => {
+                ComponentTypeDeclaration::Export { name, url, ty }
             }
         })
     }
@@ -427,6 +427,7 @@ impl<'a> BinaryReader<'a> {
             0x02 => InstanceTypeDeclaration::Alias(self.read_component_alias()?),
             0x04 => InstanceTypeDeclaration::Export {
                 name: self.read_string()?,
+                url: self.read_string()?,
                 ty: self.read_component_type_ref()?,
             },
             x => return self.invalid_leading_byte(x, "component or instance type declaration"),
@@ -544,6 +545,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
         Ok(ComponentExport {
             name: self.read_string()?,
+            url: self.read_string()?,
             kind: self.read_component_external_kind()?,
             index: self.read_var_u32()?,
         })
@@ -560,6 +562,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_component_import(&mut self) -> Result<ComponentImport<'a>> {
         Ok(ComponentImport {
             name: self.read_string()?,
+            url: self.read_string()?,
             ty: self.read_component_type_ref()?,
         })
     }
@@ -655,7 +658,14 @@ impl<'a> BinaryReader<'a> {
             },
             0x01 => ComponentInstance::FromExports(
                 (0..self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?)
-                    .map(|_| self.read_component_export())
+                    .map(|_| {
+                        Ok(ComponentExport {
+                            name: self.read_string()?,
+                            url: "",
+                            kind: self.read_component_external_kind()?,
+                            index: self.read_var_u32()?,
+                        })
+                    })
                     .collect::<Result<_>>()?,
             ),
             x => return self.invalid_leading_byte(x, "instance"),

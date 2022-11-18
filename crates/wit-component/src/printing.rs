@@ -32,7 +32,7 @@ impl WorldPrinter {
             writeln!(&mut self.output, "}}\n")?;
         }
 
-        write!(&mut self.output, "world {} {{\n", world.name)?;
+        writeln!(&mut self.output, "world {} {{", world.name)?;
         for (name, _import) in world.imports.iter() {
             writeln!(&mut self.output, "import {name}: {name}")?;
         }
@@ -46,9 +46,9 @@ impl WorldPrinter {
         if let Some(default) = &world.default {
             writeln!(&mut self.output, "default export interface {{")?;
             self.print_interface(default)?;
-            write!(&mut self.output, "}}\n")?;
+            writeln!(&mut self.output, "}}")?;
         }
-        write!(&mut self.output, "}}\n")?;
+        writeln!(&mut self.output, "}}")?;
 
         self.declared.clear();
         Ok(std::mem::take(&mut self.output).into())

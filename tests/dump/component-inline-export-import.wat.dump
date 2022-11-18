@@ -3,18 +3,18 @@
   0x8 | 07 03       | component type section
   0xa | 01          | 1 count
   0xb | 41 00       | [type 0] Component([])
-  0xd | 0a 04       | component import section
+  0xd | 0a 05       | component import section
   0xf | 01          | 1 count
- 0x10 | 00 04 00    | [component 0] ComponentImport { name: "", ty: Component(0) }
- 0x13 | 03 03       | core type section
- 0x15 | 01          | 1 count
- 0x16 | 50 00       | [core type 0] Module([])
- 0x18 | 0a 06       | component import section
- 0x1a | 01          | 1 count
- 0x1b | 01 61 00 11 | [module 0] ComponentImport { name: "a", ty: Module(0) }
-      | 00         
- 0x20 | 0b 09       | component export section
- 0x22 | 02          | 2 count
- 0x23 | 00 04 00    | export ComponentExport { name: "", kind: Component, index: 0 }
- 0x26 | 01 61 00 11 | export ComponentExport { name: "a", kind: Module, index: 0 }
-      | 00         
+ 0x10 | 00 00 04 00 | [component 0] ComponentImport { name: "", url: "", ty: Component(0) }
+ 0x14 | 03 03       | core type section
+ 0x16 | 01          | 1 count
+ 0x17 | 50 00       | [core type 0] Module([])
+ 0x19 | 0a 07       | component import section
+ 0x1b | 01          | 1 count
+ 0x1c | 01 61 00 00 | [module 0] ComponentImport { name: "a", url: "", ty: Module(0) }
+      | 11 00      
+ 0x22 | 0b 0b       | component export section
+ 0x24 | 02          | 2 count
+ 0x25 | 00 00 04 00 | export ComponentExport { name: "", url: "", kind: Component, index: 0 }
+ 0x29 | 01 61 00 00 | export ComponentExport { name: "a", url: "", kind: Module, index: 0 }
+      | 11 00      

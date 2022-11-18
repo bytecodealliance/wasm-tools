@@ -3,7 +3,7 @@
       (export "read" (func $read (param "len" u32) (result (list u8))))
       (export "write" (func $write (param "buf" (list u8)) (result u32)))
     ))
-  (import "wasi_file" (instance $real-wasi (type $WasiFile)))
+  (import "wasi-file" (instance $real-wasi (type $WasiFile)))
 
   (core module $libc
     (memory (export "mem") 0)
@@ -15,14 +15,14 @@
   (core instance $libc (instantiate $libc))
 
   (core module $CHILD
-    (import "wasi_file" "read" (func $wasi-file (param i32 i32)))
+    (import "wasi-file" "read" (func $wasi-file (param i32 i32)))
     (func $play (export "play")
       unreachable
     )
   )
 
   (core module $VIRTUALIZE
-    (import "wasi_file" "read" (func (param i32 i32)))
+    (import "wasi-file" "read" (func (param i32 i32)))
     (func (export "read") (param i32 i32)
       unreachable
     )
@@ -38,8 +38,8 @@
     )
   )
 
-  (core instance $virt-wasi (instantiate $VIRTUALIZE (with "wasi_file" (instance (export "read" (func $real-wasi-read))))))
-  (core instance $child (instantiate $CHILD (with "wasi_file" (instance $virt-wasi))))
+  (core instance $virt-wasi (instantiate $VIRTUALIZE (with "wasi-file" (instance (export "read" (func $real-wasi-read))))))
+  (core instance $child (instantiate $CHILD (with "wasi-file" (instance $virt-wasi))))
   (func (export "work")
     (canon lift (core func $child "play")
       (memory $libc "mem")
