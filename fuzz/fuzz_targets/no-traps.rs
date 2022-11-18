@@ -51,8 +51,18 @@ fuzz_target!(|data: &[u8]| {
             .and_then(|imports| Instance::new(&mut store, &module, &imports));
         let instance = match inst_result {
             Ok(r) => r,
-            Err(err) if err.to_string().contains("all fuel consumed") => return,
-            Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
+            Err(err) => {
+                let s = err.to_string();
+                // Allow "nominal" traps such as running out of fuel and the
+                // module trying to allocate more resources than we'd like to
+                // allow it (e.g. lots of memories or lots of tables).
+                if s.contains("all fuel consumed") || s.contains("Insufficient resources") {
+                    return;
+                }
+
+                // Otherwise though this is a bug.
+                panic!("generated wasm trapped in non-trapping mode: {}", err)
+            }
         };
 
         // Call all exported functions
