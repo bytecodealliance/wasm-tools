@@ -51,18 +51,7 @@ fuzz_target!(|data: &[u8]| {
             .and_then(|imports| Instance::new(&mut store, &module, &imports));
         let instance = match inst_result {
             Ok(r) => r,
-            Err(err) => {
-                let s = err.to_string();
-                // Allow "nominal" traps such as running out of fuel and the
-                // module trying to allocate more resources than we'd like to
-                // allow it (e.g. lots of memories or lots of tables).
-                if s.contains("all fuel consumed") || s.contains("Insufficient resources") {
-                    return;
-                }
-
-                // Otherwise though this is a bug.
-                panic!("generated wasm trapped in non-trapping mode: {}", err)
-            }
+            Err(err) => return check_err(err),
         };
 
         // Call all exported functions
@@ -74,13 +63,34 @@ fuzz_target!(|data: &[u8]| {
                     let func = instance.get_func(&mut store, export.name()).unwrap();
                     set_fuel(&mut store, 1_000);
                     match func.call(&mut store, &args, &mut results) {
-                        Ok(_) => continue,
-                        Err(err) if err.to_string().contains("all fuel consumed") => continue,
-                        Err(err) => panic!("generated wasm trapped in non-trapping mode: {}", err),
+                        Ok(_) => {}
+                        Err(err) => check_err(err),
                     }
                 }
                 _ => continue,
             }
+        }
+
+        fn check_err(err: anyhow::Error) {
+            // Allow stack overflow since this generally can't be protected
+            // against as it's an implementation detail of cranelift we could
+            // expose regardless of the limits placed on the function.
+            if let Some(trap) = err.downcast_ref::<wasmtime::Trap>() {
+                if let Some(wasmtime::TrapCode::StackOverflow) = trap.trap_code() {
+                    return;
+                }
+            }
+
+            let s = err.to_string();
+            // Allow "nominal" traps such as running out of fuel and the
+            // module trying to allocate more resources than we'd like to
+            // allow it (e.g. lots of memories or lots of tables).
+            if s.contains("all fuel consumed") || s.contains("Insufficient resources") {
+                return;
+            }
+
+            // Otherwise though this is a bug.
+            panic!("generated wasm trapped in non-trapping mode: {}", err)
         }
     }
 });
