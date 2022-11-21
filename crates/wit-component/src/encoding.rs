@@ -2167,7 +2167,7 @@ impl ComponentEncoder {
     /// Add a "world" of interfaces (exports/imports/default) to this encoder
     /// to configure what's being imported/exported.
     ///
-    /// The string encoding of the specified interface set is supplied here as
+    /// The string encoding of the specified world is supplied here as
     /// well.
     pub fn world(mut self, world: World, encoding: StringEncoding) -> Result<Self> {
         self.metadata.merge(BindgenMetadata::new(world, encoding))?;

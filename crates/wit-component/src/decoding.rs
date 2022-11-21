@@ -85,7 +85,7 @@ struct InterfaceDecoder<'a> {
     name_map: IndexMap<PtrHash<'a, types::Type>, &'a str>,
 }
 
-/// Decode the interfaces imported and exported by a component.
+/// Decode the world described by the given component bytes.
 ///
 /// This function takes a binary component as input and will infer the
 /// `Interface` representation of its imports and exports. More-or-less this
