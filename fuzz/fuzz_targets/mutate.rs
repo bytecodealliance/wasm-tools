@@ -276,6 +276,9 @@ mod eval {
                 let m = f64::from_bits(*m);
                 assert!(o == m || (o.is_nan() && m.is_nan()));
             }
+            (wasmtime::Val::V128(o), wasmtime::Val::V128(m)) => {
+                assert_eq!(o, m)
+            }
             (wasmtime::Val::ExternRef(o), wasmtime::Val::ExternRef(m)) => {
                 assert_eq!(o.is_none(), m.is_none())
             }
