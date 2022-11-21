@@ -88,12 +88,11 @@ struct InterfaceDecoder<'a> {
 /// Decode the world described by the given component bytes.
 ///
 /// This function takes a binary component as input and will infer the
-/// `Interface` representation of its imports and exports. More-or-less this
-/// will infer the "world" from a binary component. The binary component at this
-/// time is either a "types only" component produced by `wit-component` or an
-/// actual output of `wit-component`.
+/// `World` representation of its imports and exports. The binary component at
+/// this time is either a "types only" component produced by `wit-component` or
+/// an actual output of `wit-component`.
 ///
-/// The returned interfaces represent the description of imports and exports
+/// The returned world represents the description of imports and exports
 /// from the component.
 ///
 /// This can fail if the input component is invalid or otherwise isn't of the
