@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use wasm_tools::Output;
-use wit_component::{decode_component_interfaces, ComponentEncoder, StringEncoding, WorldPrinter};
+use wit_component::{decode_world, ComponentEncoder, StringEncoding, WorldPrinter};
 use wit_parser::World;
 
 /// WebAssembly wit-based component tooling.
@@ -122,7 +122,7 @@ impl NewOpts {
         if let Some(wit) = &self.wit {
             let encoding = self.encoding.unwrap_or(StringEncoding::UTF8);
             let world = World::parse_file(wit)?;
-            encoder = encoder.interfaces(world.into(), encoding)?;
+            encoder = encoder.world(world, encoding)?;
         }
 
         for (name, wasm) in self.adapters.iter() {
@@ -168,10 +168,7 @@ impl WitOpts {
             },
         };
 
-        let interfaces =
-            decode_component_interfaces(&bytes).context("failed to decode component")?;
-        let world = interfaces.into_world(name);
-
+        let world = decode_world(name, &bytes).context("failed to decode world")?;
         let mut printer = WorldPrinter::default();
         let output = printer.print(&world)?;
         self.io.output(Output::Wat(&output))?;

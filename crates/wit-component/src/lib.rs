@@ -13,7 +13,7 @@ mod gc;
 mod printing;
 mod validation;
 
-pub use decoding::{decode_component_interfaces, ComponentInterfaces};
+pub use decoding::decode_world;
 pub use encoding::*;
 pub use printing::*;
 

@@ -69,6 +69,16 @@ impl World {
             }
         }
     }
+
+    /// Returns an iterator which visits all the exported interfaces, both named
+    /// and default. The second entry in each pair the export name of the
+    /// interface, or `None` if it's the default export interface.
+    pub fn exports(&self) -> impl Iterator<Item = (&Interface, Option<&str>)> + '_ {
+        self.exports
+            .iter()
+            .map(|(name, i)| (i, Some(name.as_str())))
+            .chain(self.default.iter().map(|i| (i, None)))
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
