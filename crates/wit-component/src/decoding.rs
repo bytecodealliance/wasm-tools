@@ -85,68 +85,19 @@ struct InterfaceDecoder<'a> {
     name_map: IndexMap<PtrHash<'a, types::Type>, &'a str>,
 }
 
-/// Parsed representation of interfaces found within a component.
-///
-/// This is more-or-less a "world" and will likely be replaced one day with a
-/// `wit-parser` representation of a world.
-#[derive(Clone, Default)]
-pub struct ComponentInterfaces {
-    /// The "default export" which is the interface directly exported from the
-    /// component at the top level.
-    pub default: Option<Interface>,
-    /// Imported interfaces, keyed by name, of the component.
-    pub imports: IndexMap<String, Interface>,
-    /// Exported interfaces, keyed by name, of the component.
-    pub exports: IndexMap<String, Interface>,
-}
-
-impl ComponentInterfaces {
-    /// Returns an iterator which visits all the exported interfaces, both named
-    /// and default. The second entry in each pair the export name of the
-    /// interface, or `None` if it's the default export interface.
-    pub fn exports(&self) -> impl Iterator<Item = (&Interface, Option<&str>)> + '_ {
-        self.exports
-            .iter()
-            .map(|(name, i)| (i, Some(name.as_str())))
-            .chain(self.default.iter().map(|i| (i, None)))
-    }
-
-    /// Converts back into a `wit_parser::World`
-    pub fn into_world(self, name: &str) -> wit_parser::World {
-        wit_parser::World {
-            imports: self.imports,
-            exports: self.exports,
-            default: self.default,
-            name: name.to_string(),
-            docs: Default::default(),
-        }
-    }
-}
-
-impl From<wit_parser::World> for ComponentInterfaces {
-    fn from(world: wit_parser::World) -> ComponentInterfaces {
-        ComponentInterfaces {
-            exports: world.exports,
-            imports: world.imports,
-            default: world.default,
-        }
-    }
-}
-
-/// Decode the interfaces imported and exported by a component.
+/// Decode the world described by the given component bytes.
 ///
 /// This function takes a binary component as input and will infer the
-/// `Interface` representation of its imports and exports. More-or-less this
-/// will infer the "world" from a binary component. The binary component at this
-/// time is either a "types only" component produced by `wit-component` or an
-/// actual output of `wit-component`.
+/// `World` representation of its imports and exports. The binary component at
+/// this time is either a "types only" component produced by `wit-component` or
+/// an actual output of `wit-component`.
 ///
-/// The returned interfaces represent the description of imports and exports
+/// The returned world represents the description of imports and exports
 /// from the component.
 ///
 /// This can fail if the input component is invalid or otherwise isn't of the
 /// expected shape. At this time not all component shapes are supported here.
-pub fn decode_component_interfaces(bytes: &[u8]) -> Result<ComponentInterfaces> {
+pub fn decode_world(name: &str, bytes: &[u8]) -> Result<World> {
     let info = ComponentInfo::new(bytes)?;
     let mut imports = IndexMap::new();
     let mut exports = IndexMap::new();
@@ -224,7 +175,9 @@ pub fn decode_component_interfaces(bytes: &[u8]) -> Result<ComponentInterfaces> 
         Some(InterfaceDecoder::new(&info).decode(default.iter().map(|(n, t)| (*n, *t)))?)
     };
 
-    Ok(ComponentInterfaces {
+    Ok(World {
+        name: name.to_string(),
+        docs: Default::default(),
         imports,
         exports,
         default,

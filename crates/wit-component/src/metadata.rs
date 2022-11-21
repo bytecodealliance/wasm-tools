@@ -16,9 +16,9 @@
 //! per-language-binding-generation and consumed by slurping up all the
 //! sections during the component creation process.
 //!
-//! The custom section here contains `ComponentInterfaces`, the interpretation
-//! of a "world" of a component, along with how strings are encoded for all the
-//! specified interfaces. Currently the encoding is:
+//! The custom section here contains `World`, the interpretation of a "world"
+//! of a component, along with how strings are encoded for all the specified
+//! interfaces. Currently the encoding is:
 //!
 //! * First, a version byte (`CURRENT_VERSION`). This is intended to detect
 //!   mismatches between different versions of the binding generator and
@@ -26,12 +26,15 @@
 //!
 //! * Next a string encoding byte.
 //!
-//! * Afterwards a "types only" component encoding of a `ComponentInterfaces`
+//! * Afterwards a "types only" component encoding of a `World`
 //!   package through the `ComponentEncoder::types_only` configuration.
 
-use crate::{decode_component_interfaces, ComponentEncoder, ComponentInterfaces, StringEncoding};
-use anyhow::{anyhow, bail, Context, Result};
+use crate::{decode_world, ComponentEncoder, StringEncoding};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
+use wasm_encoder::Encode;
+use wasmparser::BinaryReader;
+use wit_parser::World;
 
 const CURRENT_VERSION: u8 = 0x01;
 
@@ -40,9 +43,8 @@ const CURRENT_VERSION: u8 = 0x01;
 /// This structure is returned by the [`extract_module_interfaces`] function.
 #[derive(Default)]
 pub struct BindgenMetadata {
-    /// All interfaces found within a module, merged together into one set of
-    /// `ComponentInterfaces`.
-    pub interfaces: ComponentInterfaces,
+    /// All interfaces found within a module, merged together into one `World`.
+    pub world: World,
 
     /// Per-function options imported into the core wasm module, currently only
     /// related to string encoding.
@@ -97,10 +99,10 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, BindgenMetadata)> {
 /// into the final core wasm binary. The core wasm binary is later fed
 /// through `wit-component` to produce the actual component where this returned
 /// section will be decoded.
-pub fn encode(interfaces: &ComponentInterfaces, encoding: StringEncoding) -> Vec<u8> {
+pub fn encode(world: &World, encoding: StringEncoding) -> Vec<u8> {
     let component = ComponentEncoder::default()
         .types_only(true)
-        .interfaces(interfaces.clone(), encoding)
+        .world(world.clone(), encoding)
         .unwrap()
         .encode()
         .unwrap();
@@ -112,45 +114,42 @@ pub fn encode(interfaces: &ComponentInterfaces, encoding: StringEncoding) -> Vec
         StringEncoding::UTF16 => 0x01,
         StringEncoding::CompactUTF16 => 0x02,
     });
+    world.name.encode(&mut ret);
     ret.extend(component);
     ret
 }
 
 impl BindgenMetadata {
     fn decode(data: &[u8]) -> Result<BindgenMetadata> {
-        let mut data = data.iter();
-        let version = *data
-            .next()
-            .ok_or_else(|| anyhow!("component-type metadata section"))?;
+        let mut reader = BinaryReader::new(data);
+        let version = reader.read_u8()?;
         if version != CURRENT_VERSION {
             bail!("component-type version {version} does not match supported version {CURRENT_VERSION}");
         }
-        let encoding = match data
-            .next()
-            .ok_or_else(|| anyhow!("component-type metadata section"))?
-        {
+        let encoding = match reader.read_u8()? {
             0x00 => StringEncoding::UTF8,
             0x01 => StringEncoding::UTF16,
             0x02 => StringEncoding::CompactUTF16,
             byte => bail!("invalid string encoding {byte:#x}"),
         };
+        let name = reader.read_string()?;
 
         Ok(BindgenMetadata::new(
-            decode_component_interfaces(data.as_slice())?,
+            decode_world(name, &data[reader.original_position()..])?,
             encoding,
         ))
     }
 
     /// Creates a new `BindgenMetadata` instance holding the given set of
     /// interfaces which are expected to all use the `encoding` specified.
-    pub fn new(interfaces: ComponentInterfaces, encoding: StringEncoding) -> BindgenMetadata {
+    pub fn new(world: World, encoding: StringEncoding) -> BindgenMetadata {
         let mut ret = BindgenMetadata {
-            interfaces,
+            world,
             import_encodings: Default::default(),
             export_encodings: Default::default(),
         };
 
-        if let Some(iface) = &ret.interfaces.default {
+        if let Some(iface) = &ret.world.default {
             for func in iface.functions.iter() {
                 let name = func.core_export_name(None);
                 let prev = ret.export_encodings.insert(name.to_string(), encoding);
@@ -158,14 +157,14 @@ impl BindgenMetadata {
             }
         }
 
-        for (name, import) in ret.interfaces.imports.iter() {
+        for (name, import) in ret.world.imports.iter() {
             for func in import.functions.iter() {
                 let key = (name.clone(), func.name.clone());
                 let prev = ret.import_encodings.insert(key, encoding);
                 assert!(prev.is_none());
             }
         }
-        for (name, export) in ret.interfaces.exports.iter() {
+        for (name, export) in ret.world.exports.iter() {
             for func in export.functions.iter() {
                 let name = func.core_export_name(Some(name));
                 let prev = ret.export_encodings.insert(name.to_string(), encoding);
@@ -186,12 +185,7 @@ impl BindgenMetadata {
     /// between metadata.
     pub fn merge(&mut self, other: BindgenMetadata) -> Result<()> {
         let BindgenMetadata {
-            interfaces:
-                ComponentInterfaces {
-                    imports,
-                    exports,
-                    default,
-                },
+            world,
             import_encodings,
             export_encodings,
         } = other;
@@ -199,23 +193,23 @@ impl BindgenMetadata {
         // TODO: instead of returning an error here on duplicate interfaces
         // this should merge the two interfaces. This probably requires world
         // files to exist first though.
-        for (name, import) in imports {
-            let prev = self.interfaces.imports.insert(name.clone(), import);
+        for (name, import) in world.imports {
+            let prev = self.world.imports.insert(name.clone(), import);
             if prev.is_some() {
                 bail!("import interface `{name}` specified twice");
             }
         }
-        for (name, export) in exports {
-            let prev = self.interfaces.exports.insert(name.clone(), export);
+        for (name, export) in world.exports {
+            let prev = self.world.exports.insert(name.clone(), export);
             if prev.is_some() {
                 bail!("export interface `{name}` specified twice");
             }
         }
-        if let Some(default) = default {
-            if self.interfaces.default.is_some() {
+        if let Some(default) = world.default {
+            if self.world.default.is_some() {
                 bail!("default export interface specified twice");
             }
-            self.interfaces.default = Some(default);
+            self.world.default = Some(default);
         }
 
         for (name, encoding) in export_encodings {

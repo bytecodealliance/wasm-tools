@@ -58,7 +58,7 @@ use crate::{
         validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule,
         MAIN_MODULE_IMPORT_NAME,
     },
-    ComponentInterfaces, StringEncoding,
+    StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
@@ -69,7 +69,7 @@ use wasmparser::{FuncType, Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
     Enum, Flags, Function, FunctionKind, Interface, Params, Record, Result_, Results, Tuple, Type,
-    TypeDef, TypeDefKind, Union, Variant,
+    TypeDef, TypeDefKind, Union, Variant, World,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -1300,7 +1300,7 @@ impl<'a> EncodingState<'a> {
         instance_index: u32,
         realloc_index: Option<u32>,
     ) -> Result<()> {
-        for (export, export_name) in metadata.interfaces.exports() {
+        for (export, export_name) in metadata.world.exports() {
             let mut interface_exports = Vec::new();
 
             // Make sure all named types are present in the exported instance
@@ -2167,15 +2167,10 @@ impl ComponentEncoder {
     /// Add a "world" of interfaces (exports/imports/default) to this encoder
     /// to configure what's being imported/exported.
     ///
-    /// The string encoding of the specified interface set is supplied here as
+    /// The string encoding of the specified world is supplied here as
     /// well.
-    pub fn interfaces(
-        mut self,
-        interfaces: ComponentInterfaces,
-        encoding: StringEncoding,
-    ) -> Result<Self> {
-        self.metadata
-            .merge(BindgenMetadata::new(interfaces, encoding))?;
+    pub fn world(mut self, world: World, encoding: StringEncoding) -> Result<Self> {
+        self.metadata.merge(BindgenMetadata::new(world, encoding))?;
         Ok(self)
     }
 
@@ -2225,15 +2220,11 @@ impl ComponentEncoder {
         let mut state = EncodingState::default();
         let mut types = TypeEncoder::default();
         let mut imports = ImportEncoder::default();
-        types.encode_func_types(self.metadata.interfaces.exports().map(|p| p.0))?;
-        types.encode_instance_imports(
-            &self.metadata.interfaces.imports,
-            info.as_ref(),
-            &mut imports,
-        )?;
+        types.encode_func_types(self.metadata.world.exports().map(|p| p.0))?;
+        types.encode_instance_imports(&self.metadata.world.imports, info.as_ref(), &mut imports)?;
 
         for (_name, (_, metadata)) in self.adapters.iter() {
-            types.encode_func_types(metadata.interfaces.exports().map(|p| p.0))?;
+            types.encode_func_types(metadata.world.exports().map(|p| p.0))?;
         }
 
         if self.types_only {
@@ -2248,7 +2239,7 @@ impl ComponentEncoder {
             // itself.
             let mut raw_exports = Vec::new();
             let mut default_exports = Vec::new();
-            for (interface, name) in self.metadata.interfaces.exports() {
+            for (interface, name) in self.metadata.world.exports() {
                 match name {
                     Some(name) => {
                         let index = types
@@ -2310,13 +2301,13 @@ impl ComponentEncoder {
                     .context("failed to validate the imports of the minimized adapter module")?;
                 state.encode_core_adapter_module(name, &wasm);
                 for (name, required) in info.required_imports.iter() {
-                    let interface = &metadata.interfaces.imports[*name];
+                    let interface = &metadata.world.imports[*name];
                     types.encode_instance_import(name, interface, Some(required), &mut imports)?;
                 }
                 imports.adapters.insert(name, info);
             }
 
-            for (interface, _default) in self.metadata.interfaces.exports() {
+            for (interface, _default) in self.metadata.world.exports() {
                 types.encode_interface_named_types(interface)?;
             }
 
@@ -2332,7 +2323,7 @@ impl ComponentEncoder {
                 state.realloc_index,
             )?;
             for (name, (_, metadata)) in self.adapters.iter() {
-                if metadata.interfaces.exports().count() == 0 {
+                if metadata.world.exports().count() == 0 {
                     continue;
                 }
                 state.encode_exports(
@@ -2373,7 +2364,7 @@ fn required_adapter_exports(
             required.insert(name.to_string(), ty.clone());
         }
     }
-    for (interface, name) in metadata.interfaces.exports() {
+    for (interface, name) in metadata.world.exports() {
         for func in interface.functions.iter() {
             let name = func.core_export_name(name);
             let ty = interface.wasm_signature(AbiVariant::GuestExport, func);

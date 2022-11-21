@@ -160,7 +160,7 @@ pub fn validate_module<'a>(
             bail!("module imports from an empty module name");
         }
 
-        match metadata.interfaces.imports.get(*name) {
+        match metadata.world.imports.get(*name) {
             Some(interface) => {
                 validate_imported_interface(interface, name, funcs, &types)?;
                 let funcs = funcs.into_iter().map(|(f, _ty)| *f).collect();
@@ -178,11 +178,11 @@ pub fn validate_module<'a>(
         }
     }
 
-    if let Some(interface) = &metadata.interfaces.default {
+    if let Some(interface) = &metadata.world.default {
         validate_exported_interface(interface, None, &export_funcs, &types)?;
     }
 
-    for (name, interface) in metadata.interfaces.exports.iter() {
+    for (name, interface) in metadata.world.exports.iter() {
         if name.is_empty() {
             bail!("cannot export an interface with an empty name");
         }
@@ -336,7 +336,7 @@ pub fn validate_adapter_module<'a>(
                 .extend(funcs.iter().map(|(name, _ty)| name.to_string()));
         } else {
             let interface = metadata
-                .interfaces
+                .world
                 .imports
                 .get(name)
                 .ok_or_else(|| anyhow!("adapter module imports unknown module `{name}`"))?;

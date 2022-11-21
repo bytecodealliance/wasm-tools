@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
-use wit_component::{ComponentEncoder, ComponentInterfaces, StringEncoding};
+use wit_component::{ComponentEncoder, StringEncoding};
 use wit_parser::abi::{AbiVariant, WasmType};
 use wit_parser::{Function, Interface, World};
 
@@ -43,7 +43,6 @@ fn run_test(path: &Path) -> Result<()> {
     let world_path = path.join("world.wit");
     let world = World::parse_file(&world_path)?;
     let world_name = world.name.clone();
-    let interfaces = ComponentInterfaces::from(world);
 
     let assert_output = |wasm: &[u8], wat: &Path| -> Result<()> {
         let output = wasmprinter::print_bytes(wasm)?;
@@ -59,19 +58,18 @@ fn run_test(path: &Path) -> Result<()> {
             );
         }
 
-        let decoded = wit_component::decode_component_interfaces(wasm)
+        let decoded = wit_component::decode_world(&world_name, wasm)
             .context(format!("failed to decode bytes for test `{test_case}`"))?;
 
         if test_case == "empty" {
             return Ok(());
         }
 
-        assert_eq!(decoded.imports.len(), interfaces.imports.len());
-        assert_eq!(decoded.exports.len(), interfaces.exports.len());
-        assert_eq!(decoded.default.is_some(), interfaces.default.is_some());
+        assert_eq!(decoded.imports.len(), world.imports.len());
+        assert_eq!(decoded.exports.len(), world.exports.len());
+        assert_eq!(decoded.default.is_some(), world.default.is_some());
 
-        let world = decoded.into_world(&world_name);
-        assert_wit(&world_path, &world)?;
+        assert_wit(&world_path, &decoded)?;
         Ok(())
     };
 
@@ -83,7 +81,7 @@ fn run_test(path: &Path) -> Result<()> {
     let bytes = ComponentEncoder::default()
         .types_only(true)
         .validate(true)
-        .interfaces(interfaces.clone(), StringEncoding::UTF8)?
+        .world(world.clone(), StringEncoding::UTF8)?
         .encode()
         .with_context(|| {
             format!("failed to encode a types-only component for test case `{test_case}`")
@@ -95,11 +93,11 @@ fn run_test(path: &Path) -> Result<()> {
     // recover the original `*.wit` interfaces from the component output.
 
     println!("test dummy module");
-    let module = dummy_module(&interfaces);
+    let module = dummy_module(&world);
     let bytes = ComponentEncoder::default()
         .module(&module)?
         .validate(true)
-        .interfaces(interfaces.clone(), StringEncoding::UTF8)?
+        .world(world.clone(), StringEncoding::UTF8)?
         .encode()
         .with_context(|| format!("failed to encode a component for test case `{test_case}`"))?;
     assert_output(&bytes, &path.join("component.wat"))?;
@@ -124,10 +122,10 @@ fn assert_wit(wit_path: &Path, world: &World) -> Result<()> {
     Ok(())
 }
 
-fn dummy_module(interfaces: &ComponentInterfaces) -> Vec<u8> {
+fn dummy_module(world: &World) -> Vec<u8> {
     let mut wat = String::new();
     wat.push_str("(module\n");
-    for (name, import) in interfaces.imports.iter() {
+    for (name, import) in world.imports.iter() {
         for func in import.functions.iter() {
             let sig = import.wasm_signature(AbiVariant::GuestImport, func);
 
@@ -138,14 +136,14 @@ fn dummy_module(interfaces: &ComponentInterfaces) -> Vec<u8> {
         }
     }
 
-    for (name, export) in interfaces.exports.iter() {
+    for (name, export) in world.exports.iter() {
         for func in export.functions.iter() {
             let name = func.core_export_name(Some(name));
             push_func(&mut wat, &name, export, func);
         }
     }
 
-    if let Some(default) = &interfaces.default {
+    if let Some(default) = &world.default {
         for func in default.functions.iter() {
             push_func(&mut wat, &func.name, default, func);
         }
