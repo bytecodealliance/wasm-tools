@@ -73,13 +73,12 @@ impl<'a> Document<'a> {
             contents.into()
         };
 
-        let ast = Self::rewrite_error(path, &contents, || {
+        let (ast, worlds, interfaces) = Self::rewrite_error(path, &contents, || {
             let mut lexer = Tokenizer::new(&contents)?;
-            ast::Ast::parse(&mut lexer)
+            let ast = ast::Ast::parse(&mut lexer)?;
+            let (worlds, interfaces) = ast::Resolver::default().resolve(&ast)?;
+            Ok((ast, worlds, interfaces))
         })?;
-
-        let (worlds, interfaces) =
-            Self::rewrite_error(path, &contents, || ast::Resolver::default().resolve(&ast))?;
 
         let first_world_span = ast.worlds().next().map(ast::World::span);
         let next_world_span = ast.worlds().nth(1).map(ast::World::span);
