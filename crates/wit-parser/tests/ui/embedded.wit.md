@@ -29,5 +29,4 @@ z: func()
 
 ```wit
 }
-world dummy {} // TODO: should not be necessary
 ```

@@ -21,5 +21,3 @@ interface foo {
   >
 
 }
-
-world dummy {} // TODO: should not be necessary

@@ -174,5 +174,3 @@ interface wasi {
     notcapable,
   }
 }
-
-world dummy {} // TODO: should not be necessary

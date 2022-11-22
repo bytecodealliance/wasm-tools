@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use ast::lex::Tokenizer;
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
@@ -19,6 +19,137 @@ pub fn validate_id(s: &str) -> Result<()> {
     Ok(())
 }
 
+fn unwrap_md(contents: &str) -> String {
+    let mut wit = String::new();
+    let mut last_pos = 0;
+    let mut in_wit_code_block = false;
+    Parser::new_ext(contents, Options::empty())
+        .into_offset_iter()
+        .for_each(|(event, range)| match (event, range) {
+            (Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))), _) => {
+                in_wit_code_block = true;
+            }
+            (Event::Text(text), range) if in_wit_code_block => {
+                // Ensure that offsets are correct by inserting newlines to
+                // cover the Markdown content outside of wit code blocks.
+                for _ in contents[last_pos..range.start].lines() {
+                    wit.push('\n');
+                }
+                wit.push_str(&text);
+                last_pos = range.end;
+            }
+            (Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))), _) => {
+                in_wit_code_block = false;
+            }
+            _ => {}
+        });
+    wit
+}
+
+/// Represents the result of parsing a wit document.
+pub struct Document<'a> {
+    /// The worlds contained in the document.
+    pub worlds: Vec<World>,
+    /// The top-level interfaces contained in the document.
+    pub interfaces: Vec<Interface>,
+
+    path: &'a Path,
+    contents: Cow<'a, str>,
+    first_world_span: Option<ast::lex::Span>,
+    next_world_span: Option<ast::lex::Span>,
+    next_interface_span: Option<ast::lex::Span>,
+}
+
+impl<'a> Document<'a> {
+    /// Parses the given string as a wit document.
+    ///
+    /// The `path` argument is used for error reporting.
+    pub fn parse(path: &'a Path, contents: &'a str) -> Result<Self> {
+        // If we have a ".md" file, it's a wit file wrapped in a markdown file;
+        // parse the markdown to extract the `wit` code blocks.
+        let contents: Cow<'a, str> = if path.extension().and_then(|s| s.to_str()) == Some("md") {
+            unwrap_md(contents).into()
+        } else {
+            contents.into()
+        };
+
+        let ast = Self::rewrite_error(path, &contents, || {
+            let mut lexer = Tokenizer::new(&contents)?;
+            ast::Ast::parse(&mut lexer)
+        })?;
+
+        let (worlds, interfaces) =
+            Self::rewrite_error(path, &contents, || ast::Resolver::default().resolve(&ast))?;
+
+        let first_world_span = ast.worlds().next().map(ast::World::span);
+        let next_world_span = ast.worlds().nth(1).map(ast::World::span);
+        let next_interface_span = ast.interfaces().nth(1).map(ast::Interface::span);
+
+        Ok(Self {
+            worlds,
+            interfaces,
+            path,
+            contents,
+            first_world_span,
+            next_world_span,
+            next_interface_span,
+        })
+    }
+
+    /// Converts the document into a single world definition.
+    ///
+    /// Returns an error if there were no worlds defined in the document or
+    /// if there were multiple worlds defined.
+    pub fn into_world(self) -> Result<World> {
+        Self::rewrite_error(self.path, &self.contents, || match self.worlds.len() {
+            0 => bail!("no worlds were defined in the document"),
+            1 => Ok(self.worlds.into_iter().next().unwrap()),
+            _ => Err(ast::error(
+                self.next_world_span.unwrap(),
+                "more than one world was defined in the document",
+            )),
+        })
+    }
+
+    /// Converts the document into a single interface definition.
+    ///
+    /// Returns an error if there were no worlds defined in the document or
+    /// if there were multiple worlds defined.
+    pub fn into_interface(self) -> Result<Interface> {
+        Self::rewrite_error(self.path, &self.contents, || {
+            if !self.worlds.is_empty() {
+                return Err(ast::error(
+                    self.first_world_span.unwrap(),
+                    "a world may not be defined in an interface definition",
+                ));
+            }
+
+            match self.interfaces.len() {
+                0 => bail!("no interfaces were defined in the document"),
+                1 => Ok(self.interfaces.into_iter().next().unwrap()),
+                _ => Err(ast::error(
+                    self.next_interface_span.unwrap(),
+                    "more than one interface was defined in the document",
+                )),
+            }
+        })
+    }
+
+    fn rewrite_error<F, T>(path: &Path, contents: &str, f: F) -> Result<T>
+    where
+        F: FnOnce() -> Result<T>,
+    {
+        match f() {
+            Ok(t) => Ok(t),
+            Err(mut e) => {
+                let file = path.display().to_string();
+                ast::rewrite_error(&mut e, &file, contents);
+                Err(e)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct World {
     pub name: String,
@@ -29,45 +160,12 @@ pub struct World {
 }
 
 impl World {
+    /// Parses the given wit document as a single world.
     pub fn parse_file(path: impl AsRef<Path>) -> Result<World> {
         let path = path.as_ref();
-        let text = fs::read_to_string(&path)
+        let text = fs::read_to_string(path)
             .with_context(|| format!("failed to read: {}", path.display()))?;
-        World::parse(path, &text)
-    }
-
-    pub fn parse(path: impl AsRef<Path>, text: &str) -> Result<World> {
-        let path = path.as_ref();
-
-        let mut contents = &*text;
-        // If we have a ".md" file, it's a wit file wrapped in a markdown file;
-        // parse the markdown to extract the `wit` code blocks.
-        let md_contents;
-        if path.extension().and_then(|s| s.to_str()) == Some("md") {
-            md_contents = unwrap_md(contents);
-            contents = &md_contents[..];
-        }
-
-        let mut lexer = Tokenizer::new(&contents)?;
-
-        // Parse the `contents` into an AST
-        let ast = match ast::Document::parse(&mut lexer) {
-            Ok(ast) => ast,
-            Err(mut e) => {
-                let file = path.display().to_string();
-                ast::rewrite_error(&mut e, &file, &contents);
-                return Err(e);
-            }
-        };
-
-        match ast.resolve() {
-            Ok(component) => Ok(component),
-            Err(mut e) => {
-                let file = path.display().to_string();
-                ast::rewrite_error(&mut e, &file, &contents);
-                return Err(e);
-            }
-        }
+        Document::parse(path, &text)?.into_world()
     }
 
     /// Returns an iterator which visits all the exported interfaces, both named
@@ -390,34 +488,15 @@ impl Function {
     }
 }
 
-fn unwrap_md(contents: &str) -> String {
-    let mut wit = String::new();
-    let mut last_pos = 0;
-    let mut in_wit_code_block = false;
-    Parser::new_ext(contents, Options::empty())
-        .into_offset_iter()
-        .for_each(|(event, range)| match (event, range) {
-            (Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))), _) => {
-                in_wit_code_block = true;
-            }
-            (Event::Text(text), range) if in_wit_code_block => {
-                // Ensure that offsets are correct by inserting newlines to
-                // cover the Markdown content outside of wit code blocks.
-                for _ in contents[last_pos..range.start].lines() {
-                    wit.push_str("\n");
-                }
-                wit.push_str(&text);
-                last_pos = range.end;
-            }
-            (Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))), _) => {
-                in_wit_code_block = false;
-            }
-            _ => {}
-        });
-    wit
-}
-
 impl Interface {
+    /// Parses the given wit document as a single interface.
+    pub fn parse_file(path: impl AsRef<Path>) -> Result<Interface> {
+        let path = path.as_ref();
+        let text = fs::read_to_string(path)
+            .with_context(|| format!("failed to read: {}", path.display()))?;
+        Document::parse(path, &text)?.into_interface()
+    }
+
     pub fn topological_types(&self) -> Vec<TypeId> {
         let mut ret = Vec::new();
         let mut visited = HashSet::new();
@@ -533,5 +612,68 @@ impl Interface {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn into_world_without_worlds() -> Result<()> {
+        let doc = Document::parse(Path::new("test"), "")?;
+        match doc.into_world() {
+            Ok(_) => panic!("expected an error"),
+            Err(e) => assert_eq!(e.to_string(), "no worlds were defined in the document"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn into_world_with_multiple_worlds() -> Result<()> {
+        let doc = Document::parse(Path::new("test"), "world one {}\nworld two {}")?;
+        match doc.into_world() {
+            Ok(_) => panic!("expected an error"),
+            Err(e) => assert_eq!(e.to_string(), "more than one world was defined in the document\n     --> test:2:7\n      |\n    2 | world two {}\n      |       ^--"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn into_interface_without_interface() -> Result<()> {
+        let doc = Document::parse(Path::new("test"), "")?;
+        match doc.into_interface() {
+            Ok(_) => panic!("expected an error"),
+            Err(e) => assert_eq!(e.to_string(), "no interfaces were defined in the document"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn into_interface_with_world() -> Result<()> {
+        let doc = Document::parse(Path::new("test"), "interface foo {}\nworld bar {}")?;
+        match doc.into_interface() {
+            Ok(_) => panic!("expected an error"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "a world may not be defined in an interface definition\n     --> test:2:7\n      |\n    2 | world bar {}\n      |       ^--"
+            ),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn into_interface_with_multiple_interfaces() -> Result<()> {
+        let doc = Document::parse(Path::new("test"), "interface foo {}\ninterface bar {}")?;
+        match doc.into_interface() {
+            Ok(_) => panic!("expected an error"),
+            Err(e) => assert_eq!(e.to_string(), "more than one interface was defined in the document\n     --> test:2:11\n      |\n    2 | interface bar {}\n      |           ^--"),
+        }
+
+        Ok(())
     }
 }

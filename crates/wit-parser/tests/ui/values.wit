@@ -4,5 +4,3 @@ interface values {
   record a {}
   c: tuple<u32, a>
 }
-
-world dummy {} // TODO: should not be necessary

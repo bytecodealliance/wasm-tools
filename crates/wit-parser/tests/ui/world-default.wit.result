@@ -1,12 +1,29 @@
 {
-  "name": "bar",
-  "default": {
-    "functions": [
-      {
-        "name": "a",
-        "params": [],
-        "results": []
+  "worlds": [
+    {
+      "name": "bar",
+      "default": {
+        "name": "foo",
+        "functions": [
+          {
+            "name": "a",
+            "params": [],
+            "results": []
+          }
+        ]
       }
-    ]
-  }
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "foo",
+      "functions": [
+        {
+          "name": "a",
+          "params": [],
+          "results": []
+        }
+      ]
+    }
+  ]
 }

@@ -1,6 +1,6 @@
 use super::{Error, Func, InterfaceItem, ParamList, ResultList, Span, Value, ValueKind, WorldItem};
 use crate::*;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
@@ -29,71 +29,73 @@ enum Key {
 }
 
 impl Resolver {
-    pub(crate) fn resolve_world(&mut self, document: &ast::Document<'_>) -> Result<World> {
-        let mut interface_map = HashMap::new();
+    pub(crate) fn resolve(&mut self, ast: &ast::Ast<'_>) -> Result<(Vec<World>, Vec<Interface>)> {
+        let mut worlds = Vec::new();
+        let mut interface_map = IndexMap::new();
 
-        for interface in document.interfaces() {
+        for interface in ast.interfaces() {
             let name = &interface.name.name;
-            let instance = self.resolve(name, &interface.items, &interface.docs)?;
+            let instance = self.resolve_interface(name, &interface.items, &interface.docs)?;
 
             if interface_map.insert(name.to_string(), instance).is_some() {
                 return Err(Error {
                     span: interface.name.span,
-                    msg: format!("interface {name} defined twice"),
+                    msg: format!("interface `{name}` is defined more than once"),
                 }
                 .into());
             }
         }
 
-        let mut worlds = document.worlds().into_iter();
-        let world = match worlds.next() {
-            None => bail!("no worlds defined"),
-            Some(world) => {
-                if let Some(other) = worlds.next() {
-                    return Err(Error {
-                        span: other.name.span,
-                        msg: "too many worlds defined".to_string(),
+        for w in ast.worlds() {
+            let mut world = World {
+                name: w.name.name.to_string(),
+                docs: self.docs(&w.docs),
+                imports: Default::default(),
+                exports: Default::default(),
+                default: None,
+            };
+
+            for item in w.items.iter() {
+                match item {
+                    WorldItem::Import(import) => {
+                        let ast::Import { name, kind } = import;
+                        self.insert_extern(
+                            name,
+                            kind,
+                            "import",
+                            &mut world.imports,
+                            &interface_map,
+                        )?;
                     }
-                    .into());
-                }
-                world
-            }
-        };
-
-        let mut ret = World {
-            name: world.name.name.to_string(),
-            docs: self.docs(&world.docs),
-            imports: Default::default(),
-            exports: Default::default(),
-            default: None,
-        };
-
-        for item in world.items.iter() {
-            match item {
-                WorldItem::Import(import) => {
-                    let ast::Import { name, kind } = import;
-                    self.insert_extern(name, kind, "import", &mut ret.imports, &interface_map)?;
-                }
-                WorldItem::Export(export) => {
-                    let ast::Export { name, kind } = export;
-                    self.insert_extern(name, kind, "export", &mut ret.exports, &interface_map)?;
-                }
-                WorldItem::ExportDefault(iface) => {
-                    if ret.default.is_some() {
-                        return Err(Error {
-                            span: iface.span(),
-                            msg: "more than one default".to_string(),
+                    WorldItem::Export(export) => {
+                        let ast::Export { name, kind } = export;
+                        self.insert_extern(
+                            name,
+                            kind,
+                            "export",
+                            &mut world.exports,
+                            &interface_map,
+                        )?;
+                    }
+                    WorldItem::ExportDefault(iface) => {
+                        if world.default.is_some() {
+                            return Err(Error {
+                                span: iface.span(),
+                                msg: "more than one default interface was defined".to_string(),
+                            }
+                            .into());
                         }
-                        .into());
-                    }
 
-                    let iface = self.resolve_extern(iface, &interface_map)?;
-                    ret.default = Some(iface);
+                        let iface = self.resolve_extern(iface, &interface_map)?;
+                        world.default = Some(iface);
+                    }
                 }
             }
+
+            worlds.push(world);
         }
 
-        Ok(ret)
+        Ok((worlds, interface_map.into_values().collect()))
     }
 
     fn insert_extern(
@@ -102,7 +104,7 @@ impl Resolver {
         kind: &ast::ExternKind<'_>,
         direction: &str,
         resolved: &mut IndexMap<String, Interface>,
-        lookup: &HashMap<String, Interface>,
+        lookup: &IndexMap<String, Interface>,
     ) -> Result<()> {
         let interface = self.resolve_extern(kind, lookup)?;
         if resolved.insert(id.name.to_string(), interface).is_some() {
@@ -118,11 +120,11 @@ impl Resolver {
     fn resolve_extern(
         &mut self,
         kind: &ast::ExternKind<'_>,
-        lookup: &HashMap<String, Interface>,
+        lookup: &IndexMap<String, Interface>,
     ) -> Result<Interface> {
         match kind {
             ast::ExternKind::Interface(_span, items) => {
-                self.resolve("", items, &Default::default())
+                self.resolve_interface("", items, &Default::default())
             }
             ast::ExternKind::Id(id) => lookup.get(&*id.name).cloned().ok_or_else(|| {
                 Error {
@@ -134,7 +136,7 @@ impl Resolver {
         }
     }
 
-    pub(crate) fn resolve(
+    pub(crate) fn resolve_interface(
         &mut self,
         name: &str,
         fields: &[InterfaceItem<'_>],
@@ -206,7 +208,7 @@ impl Resolver {
                     if !values.insert(&f.name.name) {
                         return Err(Error {
                             span: f.name.span,
-                            msg: format!("{:?} defined twice", f.name.name),
+                            msg: format!("`{}` is defined more than once", f.name.name),
                         }
                         .into());
                     }
@@ -221,7 +223,7 @@ impl Resolver {
         if self.type_lookup.insert(name.to_string(), id).is_some() {
             Err(Error {
                 span,
-                msg: format!("type {:?} defined twice", name),
+                msg: format!("type `{}` is defined more than once", name),
             }
             .into())
         } else {
