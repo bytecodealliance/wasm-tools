@@ -28,14 +28,14 @@ impl<'a> Ast<'a> {
     pub fn worlds(&self) -> impl Iterator<Item = &World<'a>> {
         self.items.iter().filter_map(|item| match item {
             AstItem::World(item) => Some(item),
-            _ => None,
+            AstItem::Interface(_) => None,
         })
     }
 
     pub fn interfaces(&self) -> impl Iterator<Item = &Interface<'a>> {
         self.items.iter().filter_map(|item| match item {
             AstItem::Interface(item) => Some(item),
-            _ => None,
+            AstItem::World(_) => None,
         })
     }
 }
