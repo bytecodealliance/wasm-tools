@@ -1,48 +1,72 @@
 {
-  "name": "the-world",
-  "default": {},
-  "imports": [
-    [
-      "foo",
-      {}
-    ],
-    [
-      "bar",
-      {}
-    ],
-    [
-      "baz",
-      {
-        "functions": [
+  "worlds": [
+    {
+      "name": "the-world",
+      "default": {
+        "name": ""
+      },
+      "imports": [
+        [
+          "foo",
           {
-            "name": "foo",
-            "params": [],
-            "results": []
+            "name": "foo"
+          }
+        ],
+        [
+          "bar",
+          {
+            "name": "bar"
+          }
+        ],
+        [
+          "baz",
+          {
+            "name": "",
+            "functions": [
+              {
+                "name": "foo",
+                "params": [],
+                "results": []
+              }
+            ]
           }
         ]
-      }
-    ]
+      ],
+      "exports": [
+        [
+          "foo",
+          {
+            "name": "foo"
+          }
+        ],
+        [
+          "bar",
+          {
+            "name": "bar"
+          }
+        ],
+        [
+          "baz",
+          {
+            "name": "",
+            "functions": [
+              {
+                "name": "foo",
+                "params": [],
+                "results": []
+              }
+            ]
+          }
+        ]
+      ]
+    }
   ],
-  "exports": [
-    [
-      "foo",
-      {}
-    ],
-    [
-      "bar",
-      {}
-    ],
-    [
-      "baz",
-      {
-        "functions": [
-          {
-            "name": "foo",
-            "params": [],
-            "results": []
-          }
-        ]
-      }
-    ]
+  "interfaces": [
+    {
+      "name": "foo"
+    },
+    {
+      "name": "bar"
+    }
   ]
 }

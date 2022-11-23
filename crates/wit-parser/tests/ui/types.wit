@@ -57,5 +57,3 @@ interface types {
   type foo = bar
   type bar = u32
 }
-
-world dummy {} // TODO: should not be necessary

@@ -99,7 +99,7 @@ impl Runner<'_> {
     fn run(&mut self, test: &Path, contents: &[u8]) -> Result<()> {
         let contents = str::from_utf8(contents)?;
 
-        let result = World::parse_file(test);
+        let result = Document::parse(test, contents);
 
         let result = if contents.contains("// parse-fail") {
             match result {
@@ -115,9 +115,9 @@ impl Runner<'_> {
                 }
             }
         } else {
-            let instance = result?;
-            test_world(&instance);
-            to_json(&instance)
+            let document = result?;
+            test_document(&document);
+            to_json(&document)
         };
 
         // "foo.wit" => "foo.wit.result"
@@ -154,7 +154,7 @@ impl Runner<'_> {
         fn normalize(test: &Path, s: &str) -> String {
             s.replace(
                 &test.display().to_string(),
-                &test.display().to_string().replace("\\", "/"),
+                &test.display().to_string().replace('\\', "/"),
             )
             .replace("\\parse-fail\\", "/parse-fail/")
             .replace("\r\n", "\n")
@@ -166,7 +166,15 @@ impl Runner<'_> {
     }
 }
 
-fn to_json(world: &World) -> String {
+fn to_json(document: &Document) -> String {
+    #[derive(Serialize)]
+    struct Document {
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        worlds: Vec<World>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        interfaces: Vec<Interface>,
+    }
+
     #[derive(Serialize)]
     struct World {
         name: String,
@@ -180,6 +188,7 @@ fn to_json(world: &World) -> String {
 
     #[derive(Serialize)]
     struct Interface {
+        name: String,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         types: Vec<TypeDef>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -256,22 +265,33 @@ fn to_json(world: &World) -> String {
         ty: String,
     }
 
-    let world = World {
-        name: world.name.clone(),
-        default: world.default.as_ref().map(translate_interface),
-        imports: world
-            .imports
+    let document = Document {
+        worlds: document.worlds.iter().map(translate_world).collect(),
+        interfaces: document
+            .interfaces
             .iter()
-            .map(|(name, iface)| (name.clone(), translate_interface(iface)))
-            .collect(),
-        exports: world
-            .exports
-            .iter()
-            .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+            .map(translate_interface)
             .collect(),
     };
 
-    return serde_json::to_string_pretty(&world).unwrap();
+    return serde_json::to_string_pretty(&document).unwrap();
+
+    fn translate_world(w: &wit_parser::World) -> World {
+        World {
+            name: w.name.clone(),
+            default: w.default.as_ref().map(translate_interface),
+            imports: w
+                .imports
+                .iter()
+                .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+                .collect(),
+            exports: w
+                .exports
+                .iter()
+                .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+                .collect(),
+        }
+    }
 
     fn translate_interface(i: &wit_parser::Interface) -> Interface {
         let types = i
@@ -290,11 +310,7 @@ fn to_json(world: &World) -> String {
             .map(|f| Function {
                 name: f.name.clone(),
                 params: f.params.iter().map(|(_, ty)| translate_type(ty)).collect(),
-                results: f
-                    .results
-                    .iter_types()
-                    .map(|ty| translate_type(ty))
-                    .collect(),
+                results: f.results.iter_types().map(translate_type).collect(),
             })
             .collect::<Vec<_>>();
         let globals = i
@@ -307,6 +323,7 @@ fn to_json(world: &World) -> String {
             .collect::<Vec<_>>();
 
         Interface {
+            name: i.name.clone(),
             types,
             functions,
             globals,
@@ -324,7 +341,7 @@ fn to_json(world: &World) -> String {
                     .collect(),
             },
             TypeDefKind::Tuple(t) => Type::Tuple {
-                types: t.types.iter().map(|ty| translate_type(ty)).collect(),
+                types: t.types.iter().map(translate_type).collect(),
             },
             TypeDefKind::Flags(r) => Type::Flags {
                 flags: r.flags.iter().map(|f| f.name.clone()).collect(),
@@ -359,25 +376,35 @@ fn to_json(world: &World) -> String {
     fn translate_type(ty: &wit_parser::Type) -> String {
         use wit_parser::Type;
         match ty {
-            Type::Bool => format!("bool"),
-            Type::U8 => format!("u8"),
-            Type::U16 => format!("u16"),
-            Type::U32 => format!("u32"),
-            Type::U64 => format!("u64"),
-            Type::S8 => format!("s8"),
-            Type::S16 => format!("s16"),
-            Type::S32 => format!("s32"),
-            Type::S64 => format!("s64"),
-            Type::Float32 => format!("float32"),
-            Type::Float64 => format!("float64"),
-            Type::Char => format!("char"),
-            Type::String => format!("string"),
+            Type::Bool => "bool".to_string(),
+            Type::U8 => "u8".to_string(),
+            Type::U16 => "u16".to_string(),
+            Type::U32 => "u32".to_string(),
+            Type::U64 => "u64".to_string(),
+            Type::S8 => "s8".to_string(),
+            Type::S16 => "s16".to_string(),
+            Type::S32 => "s32".to_string(),
+            Type::S64 => "s64".to_string(),
+            Type::Float32 => "float32".to_string(),
+            Type::Float64 => "float64".to_string(),
+            Type::Char => "char".to_string(),
+            Type::String => "string".to_string(),
             Type::Id(id) => format!("type-{}", id.index()),
         }
     }
 
     fn translate_optional_type(ty: Option<&wit_parser::Type>) -> Option<String> {
         ty.map(translate_type)
+    }
+}
+
+fn test_document(document: &Document) {
+    for interface in &document.interfaces {
+        test_interface(interface);
+    }
+
+    for world in &document.worlds {
+        test_world(world);
     }
 }
 

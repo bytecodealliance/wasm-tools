@@ -1,4 +1,4 @@
-more than one default
+more than one default interface was defined
      --> tests/ui/parse-fail/world-default2.wit:5:18
       |
     5 |   default export interface {}

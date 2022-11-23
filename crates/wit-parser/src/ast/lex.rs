@@ -485,7 +485,7 @@ pub fn validate_id(start: usize, id: &str) -> Result<(), Error> {
     }
 
     // Ids consist of parts separated by '-'s.
-    for part in id.split("-") {
+    for part in id.split('-') {
         // Parts must be non-empty and contain either all ASCII lowercase or
         // all ASCII uppercase.
         let upper = match part.chars().next() {
@@ -508,10 +508,8 @@ pub fn validate_id(start: usize, id: &str) -> Result<(), Error> {
                 if !ch.is_ascii_uppercase() {
                     return Err(Error::InvalidCharInId(start, ch));
                 }
-            } else {
-                if !ch.is_ascii_lowercase() {
-                    return Err(Error::InvalidCharInId(start, ch));
-                }
+            } else if !ch.is_ascii_lowercase() {
+                return Err(Error::InvalidCharInId(start, ch));
             }
         }
     }

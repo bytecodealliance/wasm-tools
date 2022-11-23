@@ -1,3 +1,16 @@
 {
-  "name": "dummy"
+  "interfaces": [
+    {
+      "name": "foo",
+      "functions": [
+        {
+          "name": "foo",
+          "params": [],
+          "results": [
+            "string"
+          ]
+        }
+      ]
+    }
+  ]
 }

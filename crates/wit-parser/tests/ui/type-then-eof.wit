@@ -1,5 +1,3 @@
 interface foo {
   foo: func() -> string
 }
-
-world dummy {} // TODO: should not be necessary

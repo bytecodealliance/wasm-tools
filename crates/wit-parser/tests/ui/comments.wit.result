@@ -1,3 +1,22 @@
 {
-  "name": "dummy"
+  "interfaces": [
+    {
+      "name": "foo",
+      "types": [
+        {
+          "idx": 0,
+          "name": "x",
+          "primitive": "u32"
+        },
+        {
+          "idx": 1,
+          "name": "bar",
+          "stream": {
+            "element": "type-0",
+            "end": null
+          }
+        }
+      ]
+    }
+  ]
 }

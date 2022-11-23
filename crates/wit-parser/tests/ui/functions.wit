@@ -10,5 +10,3 @@ interface functions {
   f10: func() -> (u: u32)
   f11: func() -> ()
 }
-
-world dummy {} // TODO: should not be necessary

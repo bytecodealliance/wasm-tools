@@ -11,59 +11,45 @@ mod resolve;
 
 pub use lex::validate_id;
 
-pub struct Document<'a> {
-    pub items: Vec<DocumentItem<'a>>,
+pub struct Ast<'a> {
+    pub items: Vec<AstItem<'a>>,
 }
 
-impl<'a> Document<'a> {
-    pub fn parse(lexer: &mut Tokenizer<'a>) -> Result<Document<'a>> {
+impl<'a> Ast<'a> {
+    pub fn parse(lexer: &mut Tokenizer<'a>) -> Result<Self> {
         let mut items = Vec::new();
         while lexer.clone().next()?.is_some() {
             let docs = parse_docs(lexer)?;
-            items.push(DocumentItem::parse(lexer, docs)?);
+            items.push(AstItem::parse(lexer, docs)?);
         }
-        Ok(Document { items })
+        Ok(Self { items })
     }
 
-    pub fn worlds(&self) -> Vec<&World<'a>> {
-        self.items
-            .iter()
-            .filter_map(|item| match item {
-                DocumentItem::World(item) => Some(item),
-                _ => None,
-            })
-            .collect()
+    pub fn worlds(&self) -> impl Iterator<Item = &World<'a>> {
+        self.items.iter().filter_map(|item| match item {
+            AstItem::World(item) => Some(item),
+            AstItem::Interface(_) => None,
+        })
     }
 
-    pub fn interfaces(&self) -> Vec<&Interface<'a>> {
-        self.items
-            .iter()
-            .filter_map(|item| match item {
-                DocumentItem::Interface(item) => Some(item),
-                _ => None,
-            })
-            .collect()
-    }
-
-    pub fn resolve(&self) -> Result<crate::World> {
-        let mut resolver = Resolver::default();
-        let world = resolver.resolve_world(self)?;
-        Ok(world)
+    pub fn interfaces(&self) -> impl Iterator<Item = &Interface<'a>> {
+        self.items.iter().filter_map(|item| match item {
+            AstItem::Interface(item) => Some(item),
+            AstItem::World(_) => None,
+        })
     }
 }
 
-pub enum DocumentItem<'a> {
+pub enum AstItem<'a> {
     Interface(Interface<'a>),
     World(World<'a>),
 }
 
-impl<'a> DocumentItem<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<DocumentItem<'a>> {
+impl<'a> AstItem<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         match tokens.clone().next()? {
-            Some((_span, Token::Interface)) => {
-                Interface::parse(tokens, docs).map(DocumentItem::Interface)
-            }
-            Some((_span, Token::World)) => World::parse(tokens, docs).map(DocumentItem::World),
+            Some((_span, Token::Interface)) => Interface::parse(tokens, docs).map(Self::Interface),
+            Some((_span, Token::World)) => World::parse(tokens, docs).map(Self::World),
             other => Err(err_expected(tokens, "`default`, `world` or `interface`", other).into()),
         }
     }
@@ -76,6 +62,10 @@ pub struct World<'a> {
 }
 
 impl<'a> World<'a> {
+    pub fn span(&self) -> Span {
+        self.name.span
+    }
+
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
@@ -182,6 +172,10 @@ pub struct Interface<'a> {
 }
 
 impl<'a> Interface<'a> {
+    pub fn span(&self) -> Span {
+        self.name.span
+    }
+
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
@@ -760,6 +754,14 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+pub fn error(span: Span, msg: impl Into<String>) -> anyhow::Error {
+    Error {
+        span,
+        msg: msg.into(),
+    }
+    .into()
+}
 
 pub fn rewrite_error(err: &mut anyhow::Error, file: &str, contents: &str) {
     let parse = match err.downcast_mut::<Error>() {
