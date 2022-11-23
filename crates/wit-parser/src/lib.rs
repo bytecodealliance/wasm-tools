@@ -56,8 +56,8 @@ pub struct Document<'a> {
     path: &'a Path,
     contents: Cow<'a, str>,
     first_world_span: Option<ast::lex::Span>,
-    next_world_span: Option<ast::lex::Span>,
-    next_interface_span: Option<ast::lex::Span>,
+    second_world_span: Option<ast::lex::Span>,
+    second_interface_span: Option<ast::lex::Span>,
 }
 
 impl<'a> Document<'a> {
@@ -80,9 +80,14 @@ impl<'a> Document<'a> {
             Ok((ast, worlds, interfaces))
         })?;
 
-        let first_world_span = ast.worlds().next().map(ast::World::span);
-        let next_world_span = ast.worlds().nth(1).map(ast::World::span);
-        let next_interface_span = ast.interfaces().nth(1).map(ast::Interface::span);
+        // Here we get the spans from the first + second worlds and the
+        // second interface. We use these spans to provide better error
+        // messages in the `into_*` methods below.
+        let (first_world_span, second_world_span) = {
+            let mut iter = ast.worlds().map(ast::World::span);
+            (iter.next(), iter.next())
+        };
+        let second_interface_span = ast.interfaces().nth(1).map(ast::Interface::span);
 
         Ok(Self {
             worlds,
@@ -90,8 +95,8 @@ impl<'a> Document<'a> {
             path,
             contents,
             first_world_span,
-            next_world_span,
-            next_interface_span,
+            second_world_span,
+            second_interface_span,
         })
     }
 
@@ -104,7 +109,7 @@ impl<'a> Document<'a> {
             0 => bail!("no worlds were defined in the document"),
             1 => Ok(self.worlds.into_iter().next().unwrap()),
             _ => Err(ast::error(
-                self.next_world_span.unwrap(),
+                self.second_world_span.unwrap(),
                 "more than one world was defined in the document",
             )),
         })
@@ -127,7 +132,7 @@ impl<'a> Document<'a> {
                 0 => bail!("no interfaces were defined in the document"),
                 1 => Ok(self.interfaces.into_iter().next().unwrap()),
                 _ => Err(ast::error(
-                    self.next_interface_span.unwrap(),
+                    self.second_interface_span.unwrap(),
                     "more than one interface was defined in the document",
                 )),
             }
