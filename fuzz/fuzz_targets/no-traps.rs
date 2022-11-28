@@ -75,10 +75,8 @@ fuzz_target!(|data: &[u8]| {
             // Allow stack overflow since this generally can't be protected
             // against as it's an implementation detail of cranelift we could
             // expose regardless of the limits placed on the function.
-            if let Some(trap) = err.downcast_ref::<wasmtime::Trap>() {
-                if let Some(wasmtime::TrapCode::StackOverflow) = trap.trap_code() {
-                    return;
-                }
+            if let Some(wasmtime::Trap::StackOverflow) = err.downcast_ref::<wasmtime::Trap>() {
+                return;
             }
 
             let s = err.to_string();
