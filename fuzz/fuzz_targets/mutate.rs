@@ -223,41 +223,41 @@ mod eval {
         mutated_instance: wasmtime::Instance,
     ) {
         for export in orig_module.exports() {
-            match export.ty() {
-                wasmtime::ExternType::Func(func_ty) => {
-                    let orig_func = orig_instance.get_func(&mut *store, export.name()).unwrap();
-                    let mutated_func = mutated_instance
-                        .get_func(&mut *store, export.name())
-                        .unwrap();
-                    let args = dummy::dummy_values(func_ty.params());
-                    let mut orig_results = vec![Val::I32(0); func_ty.results().len()];
-                    let mut mutated_results = orig_results.clone();
-                    match (
-                        {
-                            store.add_fuel(1_000).unwrap();
-                            orig_func.call(&mut *store, &args, &mut orig_results)
-                        },
-                        {
-                            let consumed = store.fuel_consumed().unwrap();
-                            store.add_fuel(consumed).unwrap();
-                            mutated_func.call(&mut *store, &args, &mut mutated_results)
-                        },
-                    ) {
-                        (Ok(()), Ok(())) => {
-                            for (orig_val, mutated_val) in
-                                orig_results.iter().zip(mutated_results.iter())
-                            {
-                                assert_val_eq(orig_val, mutated_val);
-                            }
-                        }
-                        (Err(_), Err(_)) => continue,
-                        (orig, mutated) => panic!(
-                            "mutated and original Wasm diverged: orig = {:?}; mutated = {:?}",
-                            orig, mutated,
-                        ),
+            let func_ty = match export.ty() {
+                wasmtime::ExternType::Func(func_ty) => func_ty,
+                _ => continue,
+            };
+            let orig_func = orig_instance.get_func(&mut *store, export.name()).unwrap();
+            let mutated_func = mutated_instance
+                .get_func(&mut *store, export.name())
+                .unwrap();
+            let args = dummy::dummy_values(func_ty.params());
+            let mut orig_results = vec![Val::I32(0); func_ty.results().len()];
+            let mut mutated_results = orig_results.clone();
+            log::debug!("invoking `{}`", export.name());
+            let prev_consumed = store.fuel_consumed().unwrap();
+            match (
+                {
+                    store.add_fuel(1_000).unwrap();
+                    orig_func.call(&mut *store, &args, &mut orig_results)
+                },
+                {
+                    let consumed = store.fuel_consumed().unwrap() - prev_consumed;
+                    log::debug!("consumed {consumed} fuel");
+                    store.add_fuel(consumed).unwrap();
+                    mutated_func.call(&mut *store, &args, &mut mutated_results)
+                },
+            ) {
+                (Ok(()), Ok(())) => {
+                    for (orig_val, mutated_val) in orig_results.iter().zip(mutated_results.iter()) {
+                        assert_val_eq(orig_val, mutated_val);
                     }
                 }
-                _ => continue,
+                (Err(_), Err(_)) => continue,
+                (orig, mutated) => panic!(
+                    "mutated and original Wasm diverged: orig = {:?}; mutated = {:?}",
+                    orig, mutated,
+                ),
             }
         }
     }
