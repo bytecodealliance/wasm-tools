@@ -141,14 +141,45 @@ pub struct TypeId {
     pub(crate) type_size: usize,
     /// The index into the global list of types.
     pub(crate) index: usize,
-    /// The original type index.
+    /// Metadata about the type hash, used to avoid two isomorphic types from
+    /// being considered as equal for Eq and Hash.
     ///
-    /// This will be `None` for implicitly defined types, e.g. types for
-    /// modules definitions, component definitions, instantiations, and function
-    /// lowerings.
-    pub(crate) type_index: Option<usize>,
-    /// Whether or not the type is a core type.
-    pub(crate) is_core: bool,
+    /// This contains:
+    /// - Bit (1 << 63): True iff the type is a core type
+    /// - Bit (1 << 62): False iff the type is implicitly defined, eg. types
+    ///   for module definitions, component definitions, instantiations and
+    ///   function lowerings.
+    /// - Other bits: if (1 << 62) is not true, then the type index
+    pub(crate) type_hash: u64,
+}
+
+impl TypeId {
+    pub(crate) fn new(
+        type_size: usize,
+        index: usize,
+        type_index: Option<usize>,
+        is_core: bool,
+    ) -> TypeId {
+        let mut type_hash = 0;
+        if is_core {
+            type_hash |= 1 << 63;
+        }
+        if let Some(type_index) = type_index {
+            type_hash |= 1 << 62;
+            let type_index: u64 = type_index
+                .try_into()
+                .expect("failed converting usize to u64");
+            if type_index & (0b11 << 62) != 0 {
+                panic!("type index bigger than 2**62");
+            }
+            type_hash |= type_index;
+        }
+        TypeId {
+            type_size,
+            index,
+            type_hash,
+        }
+    }
 }
 
 /// A unified type definition for validating WebAssembly modules and components.

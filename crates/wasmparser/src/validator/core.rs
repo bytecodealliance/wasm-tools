@@ -478,12 +478,12 @@ impl Module {
             check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        self.types.push(TypeId {
-            type_size: ty.type_size(),
-            index: types.len(),
-            type_index: Some(self.types.len()),
-            is_core: true,
-        });
+        self.types.push(TypeId::new(
+            ty.type_size(),
+            types.len(),
+            Some(self.types.len()),
+            true,
+        ));
         types.push(ty);
         Ok(())
     }
