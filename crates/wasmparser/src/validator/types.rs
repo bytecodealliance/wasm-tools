@@ -134,23 +134,23 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 /// Represents a unique identifier for a type known to a [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeId {
+    /// The index into the global list of types.
+    pub(crate) index: usize,
     /// The effective type size for the type.
     ///
     /// This is stored as part of the ID to avoid having to recurse through
     /// the global type list when calculating type sizes.
-    pub(crate) type_size: usize,
-    /// The index into the global list of types.
-    pub(crate) index: usize,
+    pub(crate) type_size: u32,
     /// Metadata about the type hash, used to avoid two isomorphic types from
     /// being considered as equal for Eq and Hash.
     ///
     /// This contains:
-    /// - Bit (1 << 63): True iff the type is a core type
-    /// - Bit (1 << 62): False iff the type is implicitly defined, eg. types
+    /// - Bit (1 << 31): True iff the type is a core type
+    /// - Bit (1 << 30): False iff the type is implicitly defined, eg. types
     ///   for module definitions, component definitions, instantiations and
     ///   function lowerings.
     /// - Other bits: if (1 << 62) is not true, then the type index
-    pub(crate) type_hash: u64,
+    pub(crate) type_hash: u32,
 }
 
 impl TypeId {
@@ -162,20 +162,20 @@ impl TypeId {
     ) -> TypeId {
         let mut type_hash = 0;
         if is_core {
-            type_hash |= 1 << 63;
+            type_hash |= 1 << 31;
         }
         if let Some(type_index) = type_index {
-            type_hash |= 1 << 62;
-            let type_index: u64 = type_index
+            type_hash |= 1 << 30;
+            let type_index: u32 = type_index
                 .try_into()
-                .expect("failed converting usize to u64");
-            if type_index & (0b11 << 62) != 0 {
-                panic!("type index bigger than 2**62");
+                .expect("failed converting usize to u32");
+            if type_index & (0b11 << 30) != 0 {
+                panic!("type index bigger than 2**30");
             }
             type_hash |= type_index;
         }
         TypeId {
-            type_size,
+            type_size: type_size.try_into().expect("too big type"),
             index,
             type_hash,
         }
@@ -361,7 +361,7 @@ impl ComponentValType {
     pub(crate) fn type_size(&self) -> usize {
         match self {
             Self::Primitive(_) => 1,
-            Self::Type(id) => id.type_size,
+            Self::Type(id) => id.type_size as usize,
         }
     }
 }
@@ -433,7 +433,7 @@ impl EntityType {
 
     pub(crate) fn type_size(&self) -> usize {
         match self {
-            Self::Func(id) | Self::Tag(id) => id.type_size,
+            Self::Func(id) | Self::Tag(id) => id.type_size as usize,
             Self::Table(_) | Self::Memory(_) | Self::Global(_) => 1,
         }
     }
@@ -641,7 +641,7 @@ impl ComponentEntityType {
             | Self::Func(ty)
             | Self::Type(ty)
             | Self::Instance(ty)
-            | Self::Component(ty) => ty.type_size,
+            | Self::Component(ty) => ty.type_size as usize,
             Self::Value(ty) => ty.type_size(),
         }
     }

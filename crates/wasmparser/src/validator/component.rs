@@ -1531,7 +1531,7 @@ impl ComponentState {
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
         current.core_types.push(TypeId::new(
-            ty.type_size,
+            ty.type_size as usize,
             ty.index,
             Some(current.core_types.len()),
             true,
@@ -1548,7 +1548,7 @@ impl ComponentState {
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
         current.types.push(TypeId::new(
-            ty.type_size,
+            ty.type_size as usize,
             ty.index,
             Some(current.types.len()),
             false,
