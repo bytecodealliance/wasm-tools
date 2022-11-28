@@ -172,6 +172,14 @@ pub struct Interface<'a> {
 }
 
 impl<'a> Interface<'a> {
+    pub fn uses(&self) -> impl Iterator<Item = &Use<'a>> {
+        self.items.iter().filter_map(|item| match item {
+            InterfaceItem::Use(item) => Some(item),
+            InterfaceItem::TypeDef(_) => None,
+            InterfaceItem::Value(_) => None,
+        })
+    }
+
     pub fn span(&self) -> Span {
         self.name.span
     }
@@ -200,6 +208,7 @@ impl<'a> Interface<'a> {
 pub enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
     Value(Value<'a>),
+    Use(Use<'a>),
 }
 
 pub struct Id<'a> {
@@ -222,6 +231,50 @@ impl<'a> From<String> for Id<'a> {
             name: s.into(),
             span: Span { start: 0, end: 0 },
         }
+    }
+}
+
+pub struct Use<'a> {
+    pub from: Id<'a>,
+    pub names: Option<Vec<UseName<'a>>>,
+}
+
+pub struct UseName<'a> {
+    pub name: Id<'a>,
+    pub as_: Option<Id<'a>>,
+}
+
+impl<'a> Use<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>, _docs: Docs<'a>) -> Result<Self> {
+        tokens.expect(Token::Use)?;
+        let mut names = None;
+        loop {
+            if names.is_none() {
+                if tokens.eat(Token::Star)? {
+                    break;
+                }
+                tokens.expect(Token::LeftBrace)?;
+                names = Some(Vec::new());
+            }
+            let names = names.as_mut().unwrap();
+            let mut name = UseName {
+                name: parse_id(tokens)?,
+                as_: None,
+            };
+            if tokens.eat(Token::As)? {
+                name.as_ = Some(parse_id(tokens)?);
+            }
+            names.push(name);
+            if !tokens.eat(Token::Comma)? {
+                break;
+            }
+        }
+        if names.is_some() {
+            tokens.expect(Token::RightBrace)?;
+        }
+        tokens.expect(Token::From_)?;
+        let from = parse_id(tokens)?;
+        Ok(Use { from, names })
     }
 }
 
@@ -392,6 +445,7 @@ impl<'a> ValueKind<'a> {
 impl<'a> InterfaceItem<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<InterfaceItem<'a>> {
         match tokens.clone().next()? {
+            Some((_span, Token::Use)) => Use::parse(tokens, docs).map(InterfaceItem::Use),
             Some((_span, Token::Type)) => TypeDef::parse(tokens, docs).map(InterfaceItem::TypeDef),
             Some((_span, Token::Flags)) => {
                 TypeDef::parse_flags(tokens, docs).map(InterfaceItem::TypeDef)

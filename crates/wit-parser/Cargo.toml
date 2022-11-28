@@ -17,6 +17,7 @@ id-arena = "2"
 anyhow = { workspace = true }
 indexmap = { workspace = true }
 pulldown-cmark = { version = "0.8", default-features = false }
+topo_sort = "0.4"
 unicode-xid = "0.2.2"
 
 [dev-dependencies]
