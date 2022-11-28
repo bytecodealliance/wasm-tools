@@ -15,10 +15,12 @@ fuzz_target!(|bytes: &[u8]| {
     // use with `wasm-mutate`.
 
     let mut seed = 0;
+    let mut preserve_semantics = false;
     let mut u = Unstructured::new(bytes);
     let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(&mut u, |config, u| {
         config.exceptions_enabled = false;
         seed = u.arbitrary()?;
+        preserve_semantics = u.arbitrary()?;
         Ok(())
     }) {
         Ok(m) => m,
@@ -50,7 +52,7 @@ fuzz_target!(|bytes: &[u8]| {
     wasm_mutate.preserve_semantics(
         // If we are going to check that we get the same evaluated results
         // before and after mutation, then we need to preserve semantics.
-        cfg!(feature = "wasmtime"),
+        cfg!(feature = "wasmtime") && preserve_semantics,
     );
 
     let iterator = match wasm_mutate.run(&wasm) {
@@ -106,7 +108,9 @@ fuzz_target!(|bytes: &[u8]| {
         validation_result.expect("`wasm-mutate` should always produce a valid Wasm file");
 
         #[cfg(feature = "wasmtime")]
-        eval::assert_same_evaluation(&wasm, &mutated_wasm);
+        if preserve_semantics {
+            eval::assert_same_evaluation(&wasm, &mutated_wasm);
+        }
     }
 });
 
