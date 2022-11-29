@@ -1,6 +1,9 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::{DataKind, ElementItem, ElementKind, FunctionBody, Global, Operator, Type};
+use wasmparser::{
+    DataKind, ElementKind, FunctionBody, Global, Operator, SectionReader, SectionWithLimitedItems,
+    Type,
+};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -246,31 +249,32 @@ pub fn element(
         ElementKind::Declared => ElementMode::Declared,
     };
     let element_type = t.translate_ty(&element.ty)?;
-    let mut functions = Vec::new();
-    let mut exprs = Vec::new();
-    let mut reader = element.items.get_items_reader()?;
-    for _ in 0..reader.get_count() {
-        match reader.read()? {
-            ElementItem::Func(idx) => {
-                functions.push(t.remap(Item::Function, idx)?);
-            }
-            ElementItem::Expr(expr) => {
-                exprs.push(t.translate_const_expr(
-                    &expr,
-                    &element.ty,
-                    ConstExprKind::ElementFunction,
-                )?);
-            }
+    let functions;
+    let exprs;
+    let elements = match element.items {
+        wasmparser::ElementItems::Functions(mut reader) => {
+            functions = (0..reader.get_count())
+                .map(|_| t.remap(Item::Function, reader.read()?))
+                .collect::<Result<Vec<_>, _>>()?;
+            Elements::Functions(&functions)
         }
-    }
+        wasmparser::ElementItems::Expressions(mut reader) => {
+            exprs = (0..reader.get_count())
+                .map(|_| {
+                    t.translate_const_expr(
+                        &reader.read()?,
+                        &element.ty,
+                        ConstExprKind::ElementFunction,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Elements::Expressions(&exprs)
+        }
+    };
     s.segment(ElementSegment {
         mode,
         element_type,
-        elements: if reader.uses_exprs() {
-            Elements::Expressions(&exprs)
-        } else {
-            Elements::Functions(&functions)
-        },
+        elements,
     });
     Ok(())
 }

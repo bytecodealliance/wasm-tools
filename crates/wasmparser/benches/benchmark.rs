@@ -130,8 +130,17 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                             op?;
                         }
                     }
-                    for op in item.items.get_items_reader()? {
-                        op?;
+                    match item.items {
+                        wasmparser::ElementItems::Functions(r) => {
+                            for op in r {
+                                op?;
+                            }
+                        }
+                        wasmparser::ElementItems::Expressions(r) => {
+                            for op in r {
+                                op?;
+                            }
+                        }
                     }
                 }
             }

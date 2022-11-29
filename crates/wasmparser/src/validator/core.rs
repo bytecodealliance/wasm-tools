@@ -5,11 +5,12 @@ use super::{
     operators::{OperatorValidator, OperatorValidatorAllocations},
     types::{EntityType, Type, TypeId, TypeList},
 };
+use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, MemoryType, Result, TableType, TagType, TypeRef,
-    ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
+    Global, GlobalType, MemoryType, Result, SectionReader, SectionWithLimitedItems, TableType,
+    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -203,20 +204,24 @@ impl ModuleState {
                 }
             }
         }
-        let mut items = e.items.get_items_reader()?;
-        if items.get_count() > MAX_WASM_TABLE_ENTRIES as u32 {
-            return Err(BinaryReaderError::new(
-                "number of elements is out of bounds",
-                offset,
-            ));
-        }
-        for _ in 0..items.get_count() {
-            let offset = items.original_position();
-            match items.read()? {
-                ElementItem::Expr(expr) => {
-                    self.check_const_expr(&expr, e.ty, features, types)?;
-                }
-                ElementItem::Func(f) => {
+
+        let validate_count = |count: u32| -> Result<(), BinaryReaderError> {
+            if count > MAX_WASM_TABLE_ENTRIES as u32 {
+                Err(BinaryReaderError::new(
+                    "number of elements is out of bounds",
+                    offset,
+                ))
+            } else {
+                Ok(())
+            }
+        };
+        match e.items {
+            crate::ElementItems::Functions(mut reader) => {
+                let count = reader.get_count();
+                validate_count(count)?;
+                for _ in 0..count {
+                    let offset = reader.original_position();
+                    let f = reader.read()?;
                     if e.ty != ValType::FuncRef {
                         return Err(BinaryReaderError::new(
                             "type mismatch: segment does not have funcref type",
@@ -227,8 +232,15 @@ impl ModuleState {
                     self.module.assert_mut().function_references.insert(f);
                 }
             }
+            crate::ElementItems::Expressions(mut reader) => {
+                let count = reader.get_count();
+                validate_count(count)?;
+                for _ in 0..count {
+                    let expr = reader.read()?;
+                    self.check_const_expr(&expr, e.ty, features, types)?;
+                }
+            }
         }
-
         self.module.assert_mut().element_types.push(e.ty);
         Ok(())
     }

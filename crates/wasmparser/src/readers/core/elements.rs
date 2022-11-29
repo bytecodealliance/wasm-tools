@@ -49,112 +49,104 @@ pub enum ElementKind<'a> {
 }
 
 /// Represents the items of an element segment.
-#[derive(Debug, Copy, Clone)]
-pub struct ElementItems<'a> {
-    exprs: bool,
-    offset: usize,
-    data: &'a [u8],
+#[derive(Clone)]
+pub enum ElementItems<'a> {
+    /// This element contains function indices.
+    Functions(ElementFunctionItemsReader<'a>),
+    /// This element contains constant expressions used to initialize the table.
+    Expressions(ElementExpressionItemsReader<'a>),
 }
 
-/// Represents an individual item of an element segment.
-#[derive(Debug)]
-pub enum ElementItem<'a> {
-    /// The item is a function index.
-    Func(u32),
-    /// The item is an initialization expression.
-    Expr(ConstExpr<'a>),
-}
-
-impl<'a> ElementItems<'a> {
-    /// Gets an items reader for the items in an element segment.
-    pub fn get_items_reader<'b>(&self) -> Result<ElementItemsReader<'b>>
-    where
-        'a: 'b,
-    {
-        ElementItemsReader::new(self.data, self.offset, self.exprs)
-    }
-}
-
-/// A reader for element items in an element segment.
-pub struct ElementItemsReader<'a> {
+/// A reader for element function items in an element segment.
+#[derive(Clone)]
+pub struct ElementFunctionItemsReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,
-    exprs: bool,
 }
 
-impl<'a> ElementItemsReader<'a> {
-    /// Constructs a new `ElementItemsReader` for the given data and offset.
-    pub fn new(data: &[u8], offset: usize, exprs: bool) -> Result<ElementItemsReader> {
+impl<'a> ElementFunctionItemsReader<'a> {
+    /// Constructs a new `ElementFunctionItemsReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
         let mut reader = BinaryReader::new_with_offset(data, offset);
         let count = reader.read_var_u32()?;
-        Ok(ElementItemsReader {
-            reader,
-            count,
-            exprs,
-        })
+        Ok(Self { reader, count })
     }
+}
 
-    /// Gets the original position of the reader.
-    pub fn original_position(&self) -> usize {
+impl<'a> SectionReader for ElementFunctionItemsReader<'a> {
+    type Item = u32;
+    fn read(&mut self) -> Result<Self::Item> {
+        self.reader.read_var_u32()
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+    fn range(&self) -> Range<usize> {
+        self.reader.range()
+    }
+}
+
+impl<'a> SectionWithLimitedItems for ElementFunctionItemsReader<'a> {
+    fn get_count(&self) -> u32 {
+        self.count
+    }
+}
+
+impl<'a> IntoIterator for ElementFunctionItemsReader<'a> {
+    type Item = Result<u32>;
+    type IntoIter = crate::SectionIteratorLimited<Self>;
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter::new(self)
+    }
+}
+
+/// A reader for element expression items in an element segment.
+#[derive(Clone)]
+pub struct ElementExpressionItemsReader<'a> {
+    reader: BinaryReader<'a>,
+    count: u32,
+}
+
+impl<'a> ElementExpressionItemsReader<'a> {
+    /// Constructs a new `ElementExpressionItemsReader` for the given data and offset.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
+        let mut reader = BinaryReader::new_with_offset(data, offset);
+        let count = reader.read_var_u32()?;
+        Ok(Self { reader, count })
+    }
+}
+
+impl<'a> SectionReader for ElementExpressionItemsReader<'a> {
+    type Item = ConstExpr<'a>;
+    fn read(&mut self) -> Result<Self::Item> {
+        self.reader.read_const_expr()
+    }
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+    fn original_position(&self) -> usize {
         self.reader.original_position()
     }
 
-    /// Gets the count of element items in the segment.
-    pub fn get_count(&self) -> u32 {
+    fn range(&self) -> Range<usize> {
+        self.reader.range()
+    }
+}
+
+impl<'a> SectionWithLimitedItems for ElementExpressionItemsReader<'a> {
+    fn get_count(&self) -> u32 {
         self.count
     }
-
-    /// Whether or not initialization expressions are used.
-    pub fn uses_exprs(&self) -> bool {
-        self.exprs
-    }
-
-    /// Reads an element item from the segment.
-    pub fn read(&mut self) -> Result<ElementItem<'a>> {
-        if self.exprs {
-            let expr = self.reader.read_const_expr()?;
-            Ok(ElementItem::Expr(expr))
-        } else {
-            let idx = self.reader.read_var_u32()?;
-            Ok(ElementItem::Func(idx))
-        }
-    }
 }
 
-impl<'a> IntoIterator for ElementItemsReader<'a> {
-    type Item = Result<ElementItem<'a>>;
-    type IntoIter = ElementItemsIterator<'a>;
+impl<'a> IntoIterator for ElementExpressionItemsReader<'a> {
+    type Item = Result<ConstExpr<'a>>;
+    type IntoIter = SectionIteratorLimited<Self>;
     fn into_iter(self) -> Self::IntoIter {
-        let count = self.count;
-        ElementItemsIterator {
-            reader: self,
-            left: count,
-            err: false,
-        }
-    }
-}
-
-/// An iterator over element items in an element segment.
-pub struct ElementItemsIterator<'a> {
-    reader: ElementItemsReader<'a>,
-    left: u32,
-    err: bool,
-}
-
-impl<'a> Iterator for ElementItemsIterator<'a> {
-    type Item = Result<ElementItem<'a>>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.err || self.left == 0 {
-            return None;
-        }
-        let result = self.reader.read();
-        self.err = result.is_err();
-        self.left -= 1;
-        Some(result)
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let count = self.reader.get_count() as usize;
-        (count, Some(count))
+        Self::IntoIter::new(self)
     }
 }
 
@@ -189,7 +181,7 @@ impl<'a> ElementSectionReader<'a> {
     ///
     /// ```no_run
     /// # let data: &[u8] = &[];
-    /// use wasmparser::{ElementSectionReader, ElementKind};
+    /// use wasmparser::{ElementSectionReader, ElementKind, ElementItems};
     /// let mut element_reader = ElementSectionReader::new(data, 0).unwrap();
     /// for _ in 0..element_reader.get_count() {
     ///     let element = element_reader.read().expect("element");
@@ -198,10 +190,17 @@ impl<'a> ElementSectionReader<'a> {
     ///         let op = offset_expr_reader.read_operator().expect("op");
     ///         println!("offset expression: {:?}", op);
     ///     }
-    ///     let mut items_reader = element.items.get_items_reader().expect("items reader");
-    ///     for _ in 0..items_reader.get_count() {
-    ///         let item = items_reader.read().expect("item");
-    ///         println!("  Item: {:?}", item);
+    ///     match element.items {
+    ///         ElementItems::Functions(r) => {
+    ///             for item in r {
+    ///                 println!("  Item: {}", item.expect("item"));
+    ///             }
+    ///         }
+    ///         ElementItems::Expressions(r) => {
+    ///             for item in r {
+    ///                 println!("  Item: {:?}", item.expect("item"));
+    ///             }
+    ///         }
     ///     }
     /// }
     /// ```
@@ -283,10 +282,16 @@ impl<'a> ElementSectionReader<'a> {
             }
         }
         let data_end = self.reader.position;
-        let items = ElementItems {
-            offset: self.reader.original_offset + data_start,
-            data: &self.reader.buffer[data_start..data_end],
-            exprs,
+        let items = if exprs {
+            ElementItems::Expressions(ElementExpressionItemsReader::new(
+                &self.reader.buffer[data_start..data_end],
+                self.reader.original_offset + data_start,
+            )?)
+        } else {
+            ElementItems::Functions(ElementFunctionItemsReader::new(
+                &self.reader.buffer[data_start..data_end],
+                self.reader.original_offset + data_start,
+            )?)
         };
 
         let elem_end = self.reader.original_position();

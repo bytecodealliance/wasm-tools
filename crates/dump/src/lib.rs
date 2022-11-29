@@ -154,10 +154,13 @@ impl<'a> Dump<'a> {
                 }
                 Payload::ElementSection(s) => self.section(s, "element", |me, _end, i| {
                     write!(me.state, "element {:?}", i.ty)?;
-                    let mut items = i.items.get_items_reader()?;
+                    let item_count = match &i.items {
+                        ElementItems::Functions(reader) => reader.get_count(),
+                        ElementItems::Expressions(reader) => reader.get_count(),
+                    };
                     match i.kind {
                         ElementKind::Passive => {
-                            write!(me.state, " passive, {} items", items.get_count())?;
+                            write!(me.state, " passive, {} items", item_count)?;
                         }
                         ElementKind::Active {
                             table_index,
@@ -166,17 +169,29 @@ impl<'a> Dump<'a> {
                             write!(me.state, " table[{}]", table_index)?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
                             me.print_ops(offset_expr.get_operators_reader())?;
-                            write!(me.state, "{} items", items.get_count())?;
+                            write!(me.state, "{} items", item_count)?;
                         }
                         ElementKind::Declared => {
-                            write!(me.state, " declared {} items", items.get_count())?;
+                            write!(me.state, " declared {} items", item_count)?;
                         }
                     }
-                    me.print(items.original_position())?;
-                    for _ in 0..items.get_count() {
-                        let item = items.read()?;
-                        write!(me.state, "item {:?}", item)?;
-                        me.print(items.original_position())?;
+                    match i.items {
+                        ElementItems::Functions(mut reader) => {
+                            me.print(reader.original_position())?;
+                            for _ in 0..reader.get_count() {
+                                let item = reader.read()?;
+                                write!(me.state, "item {:?}", item)?;
+                                me.print(reader.original_position())?;
+                            }
+                        }
+                        ElementItems::Expressions(mut reader) => {
+                            me.print(reader.original_position())?;
+                            for _ in 0..reader.get_count() {
+                                let item = reader.read()?;
+                                write!(me.state, "item {:?}", item)?;
+                                me.print(reader.original_position())?;
+                            }
+                        }
                     }
                     Ok(())
                 })?,

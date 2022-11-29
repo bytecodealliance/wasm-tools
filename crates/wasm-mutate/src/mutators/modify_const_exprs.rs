@@ -5,7 +5,9 @@ use crate::mutators::translate::{self, ConstExprKind, Item, Translator};
 use crate::{Error, Mutator, Result};
 use rand::Rng;
 use wasm_encoder::{ElementSection, GlobalSection};
-use wasmparser::{ConstExpr, ElementSectionReader, GlobalSectionReader, ValType};
+use wasmparser::{
+    ConstExpr, ElementSectionReader, GlobalSectionReader, SectionWithLimitedItems, ValType,
+};
 
 #[derive(Copy, Clone)]
 pub enum ConstExpressionMutator {
@@ -198,7 +200,10 @@ impl Mutator for ConstExpressionMutator {
                         if let Self::ElementFunc = self {
                             // Pick a specific element item to mutate. We do this through an option
                             // to skip a specific number of activations of the Translator methods.
-                            let item_count = element.items.get_items_reader()?.get_count();
+                            let item_count = match &element.items {
+                                wasmparser::ElementItems::Functions(r) => r.get_count(),
+                                wasmparser::ElementItems::Expressions(r) => r.get_count(),
+                            };
                             if item_count > 0 {
                                 let skip = translator.config.rng().gen_range(0..item_count);
                                 translator.skip_inits = skip
