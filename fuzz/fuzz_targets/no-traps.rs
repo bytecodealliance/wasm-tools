@@ -29,6 +29,13 @@ fuzz_target!(|data: &[u8]| {
 
     #[cfg(feature = "wasmtime")]
     {
+        // TODO: should re-enable this when the fuzzer works again, needs
+        // someone to invest energy into running this locally for a long time
+        // and then be on the hook for incoming oss-fuzz bugs.
+        if true {
+            return;
+        }
+
         // Configure the engine, module, and store
         let mut eng_conf = Config::new();
         eng_conf.wasm_memory64(true);
