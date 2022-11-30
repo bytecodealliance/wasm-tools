@@ -1116,18 +1116,21 @@ impl Printer {
                     self.print_const_expr_sugar(state, offset_expr, "offset")?;
                 }
             }
-            let mut items_reader = elem.items.get_items_reader()?;
             self.result.push(' ');
-            if items_reader.uses_exprs() {
-                self.print_valtype(elem.ty)?;
-            } else {
-                self.print_reftype(elem.ty)?;
-            }
-            for _ in 0..items_reader.get_count() {
-                self.result.push(' ');
-                match items_reader.read()? {
-                    ElementItem::Expr(expr) => self.print_const_expr_sugar(state, &expr, "item")?,
-                    ElementItem::Func(idx) => self.print_idx(&state.core.func_names, idx)?,
+            match elem.items {
+                ElementItems::Functions(mut reader) => {
+                    self.print_reftype(elem.ty)?;
+                    for _ in 0..reader.get_count() {
+                        self.result.push(' ');
+                        self.print_idx(&state.core.func_names, reader.read()?)?
+                    }
+                }
+                ElementItems::Expressions(mut reader) => {
+                    self.print_valtype(elem.ty)?;
+                    for _ in 0..reader.get_count() {
+                        self.result.push(' ');
+                        self.print_const_expr_sugar(state, &reader.read()?, "item")?
+                    }
                 }
             }
             self.end_group();
