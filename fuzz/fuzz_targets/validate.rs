@@ -27,7 +27,7 @@ fuzz_target!(|data: &[u8]| {
         component_model: (byte1 & 0b0001_0000) != 0,
         tail_call: (byte1 & 0b0010_0000) != 0,
         bulk_memory: (byte1 & 0b0100_0000) != 0,
-        deterministic_only: (byte1 & 0b1000_0000) != 0,
+        floats: (byte1 & 0b1000_0000) != 0,
         multi_memory: (byte2 & 0b0000_0001) != 0,
         memory64: (byte2 & 0b0000_0010) != 0,
         exceptions: (byte2 & 0b0000_0100) != 0,

@@ -455,7 +455,7 @@ impl TestState {
             bulk_memory: true,
             tail_call: true,
             component_model: false,
-            deterministic_only: false,
+            floats: true,
             multi_value: true,
             multi_memory: true,
             memory64: true,

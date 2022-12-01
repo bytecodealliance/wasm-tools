@@ -247,7 +247,7 @@ fn define_benchmarks(c: &mut Criterion) {
             multi_memory: true,
             memory64: true,
             extended_const: true,
-            deterministic_only: false,
+            floats: true,
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,

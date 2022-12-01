@@ -211,7 +211,7 @@ pub struct WasmFeatures {
     pub multi_value: bool,
     /// The WebAssembly bulk memory operations proposal (enabled by default)
     pub bulk_memory: bool,
-    /// The WebAssembly SIMD proposal
+    /// The WebAssembly SIMD proposal (enabled by default)
     pub simd: bool,
     /// The WebAssembly Relaxed SIMD proposal
     pub relaxed_simd: bool,
@@ -219,8 +219,18 @@ pub struct WasmFeatures {
     pub threads: bool,
     /// The WebAssembly tail-call proposal
     pub tail_call: bool,
-    /// Whether or not only deterministic instructions are allowed
-    pub deterministic_only: bool,
+    /// Whether or not floating-point instructions are enabled.
+    ///
+    /// This is enabled by default can be used to disallow floating-point
+    /// operators. Note that disabling this does not disable the `f32` and
+    /// `f64` wasm types, only the operators that work on them.
+    ///
+    /// This does not correspond to a WebAssembly proposal but is instead
+    /// intended for embeddings which have stricter-than-usual requirements
+    /// about execution. Floats in WebAssembly can have different NaN patterns
+    /// across hosts which can lead to host-dependent execution which some
+    /// runtimes may not desire.
+    pub floats: bool,
     /// The WebAssembly multi memory proposal
     pub multi_memory: bool,
     /// The WebAssembly exception handling proposal
@@ -267,7 +277,6 @@ impl Default for WasmFeatures {
             memory64: false,
             extended_const: false,
             component_model: false,
-            deterministic_only: cfg!(feature = "deterministic"),
 
             // on-by-default features
             mutable_global: true,
@@ -277,6 +286,7 @@ impl Default for WasmFeatures {
             multi_value: true,
             reference_types: true,
             simd: true,
+            floats: true,
         }
     }
 }
