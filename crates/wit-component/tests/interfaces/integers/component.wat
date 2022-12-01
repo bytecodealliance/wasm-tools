@@ -97,19 +97,19 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
-    (func (;0;) (type 0) (param i32)
+    (func $indirect-integers-pair-ret (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 0) (param i32)
+    (func $indirect-integers-multi-ret (;1;) (type 0) (param i32)
       local.get 0
       i32.const 1
       call_indirect (type 0)
     )
     (table (;0;) 2 2 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
+    (export "0" (func $indirect-integers-pair-ret))
+    (export "1" (func $indirect-integers-multi-ret))
     (export "$imports" (table 0))
   )
   (core module (;2;)

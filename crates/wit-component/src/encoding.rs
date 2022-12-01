@@ -1432,6 +1432,7 @@ impl<'a> EncodingState<'a> {
                 });
                 ret.list.push(Shim {
                     name,
+                    debug_name: format!("adapt-{adapter}-{func}"),
                     // Pessimistically assume that all adapters require memory
                     // in one form or another. While this isn't technically true
                     // it's true enough for WASI.
@@ -1468,6 +1469,7 @@ impl<'a> EncodingState<'a> {
         let mut imports_section = ImportSection::new();
         let mut elements = ElementSection::new();
         let mut func_indexes = Vec::new();
+        let mut func_names = NameMap::new();
 
         for (i, (sig, shim)) in signatures.iter().zip(&ret.list).enumerate() {
             let i = i as u32;
@@ -1486,7 +1488,10 @@ impl<'a> EncodingState<'a> {
 
             imports_section.import("", &shim.name, EntityType::Function(type_index));
             func_indexes.push(i);
+            func_names.append(i, &shim.debug_name);
         }
+        let mut names = NameSection::new();
+        names.functions(&func_names);
 
         let table_type = TableType {
             element_type: ValType::FuncRef,
@@ -1512,6 +1517,7 @@ impl<'a> EncodingState<'a> {
         shim.section(&tables);
         shim.section(&exports);
         shim.section(&code);
+        shim.section(&names);
 
         let mut fixups = Module::default();
         fixups.section(&types);
@@ -1763,6 +1769,10 @@ struct Shim<'a> {
     /// Currently this is `"0"`, `"1"`, ...
     name: String,
 
+    /// A human-readable debugging name for this shim, used in a core wasm
+    /// `name` section.
+    debug_name: String,
+
     /// Precise information about what this shim is a lowering of.
     kind: ShimKind<'a>,
 }
@@ -1833,6 +1843,7 @@ impl<'a> Shims<'a> {
                 metadata.import_encodings[&(name.to_string(), lowering.name.to_string())];
             self.list.push(Shim {
                 name: shim_name,
+                debug_name: format!("indirect-{name}-{}", lowering.name),
                 options: lowering.options,
                 kind: ShimKind::IndirectLowering {
                     interface: name,

@@ -66,7 +66,7 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32 i32 i32)))
-    (func (;0;) (type 0) (param i32 i32 i32)
+    (func $indirect-imports-roundtrip-flag64 (;0;) (type 0) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
@@ -74,7 +74,7 @@
       call_indirect (type 0)
     )
     (table (;0;) 1 1 funcref)
-    (export "0" (func 0))
+    (export "0" (func $indirect-imports-roundtrip-flag64))
     (export "$imports" (table 0))
   )
   (core module (;2;)

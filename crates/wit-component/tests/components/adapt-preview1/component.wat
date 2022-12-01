@@ -42,20 +42,20 @@
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32) (result i32)))
-    (func (;0;) (type 0) (param i32)
+    (func $adapt-wasi_snapshot_preview1-proc_exit (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 1) (param i32 i32) (result i32)
+    (func $adapt-wasi_snapshot_preview1-random_get (;1;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 1
       call_indirect (type 1)
     )
     (table (;0;) 2 2 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
+    (export "0" (func $adapt-wasi_snapshot_preview1-proc_exit))
+    (export "1" (func $adapt-wasi_snapshot_preview1-random_get))
     (export "$imports" (table 0))
   )
   (core module (;3;)
