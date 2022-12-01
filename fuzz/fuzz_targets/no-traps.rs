@@ -79,6 +79,11 @@ fuzz_target!(|data: &[u8]| {
                 return;
             }
 
+            // Allow out of fuel on module instantiation
+            if let Some(wasmtime::Trap::OutOfFuel) = err.downcast_ref::<wasmtime::Trap>() {
+                return;
+            }
+
             let s = err.to_string();
             // Allow "nominal" traps such as running out of fuel and the
             // module trying to allocate more resources than we'd like to
