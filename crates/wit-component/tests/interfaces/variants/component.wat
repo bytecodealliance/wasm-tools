@@ -166,29 +166,29 @@
     (type (;1;) (func (param i32 i32 i32)))
     (type (;2;) (func (param i32 i32 i32 i64 i32 i64 i32 i64 i32 i64 i32 i32 i32 i32)))
     (type (;3;) (func (param i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)))
-    (func (;0;) (type 0) (param i32)
+    (func $indirect-variants-u1-result (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 1) (param i32 i32 i32)
+    (func $indirect-variants-v1-arg (;1;) (type 1) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 1
       call_indirect (type 1)
     )
-    (func (;2;) (type 0) (param i32)
+    (func $indirect-variants-v1-result (;2;) (type 0) (param i32)
       local.get 0
       i32.const 2
       call_indirect (type 0)
     )
-    (func (;3;) (type 0) (param i32)
+    (func $indirect-variants-option-result (;3;) (type 0) (param i32)
       local.get 0
       i32.const 3
       call_indirect (type 0)
     )
-    (func (;4;) (type 2) (param i32 i32 i32 i64 i32 i64 i32 i64 i32 i64 i32 i32 i32 i32)
+    (func $indirect-variants-casts (;4;) (type 2) (param i32 i32 i32 i64 i32 i64 i32 i64 i32 i64 i32 i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
@@ -206,7 +206,7 @@
       i32.const 4
       call_indirect (type 2)
     )
-    (func (;5;) (type 3) (param i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)
+    (func $indirect-variants-expected-arg (;5;) (type 3) (param i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
@@ -223,61 +223,61 @@
       i32.const 5
       call_indirect (type 3)
     )
-    (func (;6;) (type 0) (param i32)
+    (func $indirect-variants-expected-result (;6;) (type 0) (param i32)
       local.get 0
       i32.const 6
       call_indirect (type 0)
     )
-    (func (;7;) (type 0) (param i32)
+    (func $indirect-variants-return-expected-sugar (;7;) (type 0) (param i32)
       local.get 0
       i32.const 7
       call_indirect (type 0)
     )
-    (func (;8;) (type 0) (param i32)
+    (func $indirect-variants-return-expected-sugar2 (;8;) (type 0) (param i32)
       local.get 0
       i32.const 8
       call_indirect (type 0)
     )
-    (func (;9;) (type 0) (param i32)
+    (func $indirect-variants-return-expected-sugar3 (;9;) (type 0) (param i32)
       local.get 0
       i32.const 9
       call_indirect (type 0)
     )
-    (func (;10;) (type 0) (param i32)
+    (func $indirect-variants-return-expected-sugar4 (;10;) (type 0) (param i32)
       local.get 0
       i32.const 10
       call_indirect (type 0)
     )
-    (func (;11;) (type 0) (param i32)
+    (func $indirect-variants-return-option-sugar (;11;) (type 0) (param i32)
       local.get 0
       i32.const 11
       call_indirect (type 0)
     )
-    (func (;12;) (type 0) (param i32)
+    (func $indirect-variants-return-option-sugar2 (;12;) (type 0) (param i32)
       local.get 0
       i32.const 12
       call_indirect (type 0)
     )
-    (func (;13;) (type 0) (param i32)
+    (func $indirect-variants-expected-simple (;13;) (type 0) (param i32)
       local.get 0
       i32.const 13
       call_indirect (type 0)
     )
     (table (;0;) 14 14 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
-    (export "2" (func 2))
-    (export "3" (func 3))
-    (export "4" (func 4))
-    (export "5" (func 5))
-    (export "6" (func 6))
-    (export "7" (func 7))
-    (export "8" (func 8))
-    (export "9" (func 9))
-    (export "10" (func 10))
-    (export "11" (func 11))
-    (export "12" (func 12))
-    (export "13" (func 13))
+    (export "0" (func $indirect-variants-u1-result))
+    (export "1" (func $indirect-variants-v1-arg))
+    (export "2" (func $indirect-variants-v1-result))
+    (export "3" (func $indirect-variants-option-result))
+    (export "4" (func $indirect-variants-casts))
+    (export "5" (func $indirect-variants-expected-arg))
+    (export "6" (func $indirect-variants-expected-result))
+    (export "7" (func $indirect-variants-return-expected-sugar))
+    (export "8" (func $indirect-variants-return-expected-sugar2))
+    (export "9" (func $indirect-variants-return-expected-sugar3))
+    (export "10" (func $indirect-variants-return-expected-sugar4))
+    (export "11" (func $indirect-variants-return-option-sugar))
+    (export "12" (func $indirect-variants-return-option-sugar2))
+    (export "13" (func $indirect-variants-expected-simple))
     (export "$imports" (table 0))
   )
   (core module (;2;)

@@ -171,163 +171,163 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32)))
     (type (;2;) (func (param i32 i32 i32)))
-    (func (;0;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-u8-param (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-u16-param (;1;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 1
       call_indirect (type 0)
     )
-    (func (;2;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-u32-param (;2;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 2
       call_indirect (type 0)
     )
-    (func (;3;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-u64-param (;3;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 3
       call_indirect (type 0)
     )
-    (func (;4;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-s8-param (;4;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 4
       call_indirect (type 0)
     )
-    (func (;5;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-s16-param (;5;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 5
       call_indirect (type 0)
     )
-    (func (;6;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-s32-param (;6;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 6
       call_indirect (type 0)
     )
-    (func (;7;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-s64-param (;7;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 7
       call_indirect (type 0)
     )
-    (func (;8;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-float32-param (;8;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 8
       call_indirect (type 0)
     )
-    (func (;9;) (type 0) (param i32 i32)
+    (func $indirect-lists-list-float64-param (;9;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 9
       call_indirect (type 0)
     )
-    (func (;10;) (type 1) (param i32)
+    (func $indirect-lists-list-u8-ret (;10;) (type 1) (param i32)
       local.get 0
       i32.const 10
       call_indirect (type 1)
     )
-    (func (;11;) (type 1) (param i32)
+    (func $indirect-lists-list-u16-ret (;11;) (type 1) (param i32)
       local.get 0
       i32.const 11
       call_indirect (type 1)
     )
-    (func (;12;) (type 1) (param i32)
+    (func $indirect-lists-list-u32-ret (;12;) (type 1) (param i32)
       local.get 0
       i32.const 12
       call_indirect (type 1)
     )
-    (func (;13;) (type 1) (param i32)
+    (func $indirect-lists-list-u64-ret (;13;) (type 1) (param i32)
       local.get 0
       i32.const 13
       call_indirect (type 1)
     )
-    (func (;14;) (type 1) (param i32)
+    (func $indirect-lists-list-s8-ret (;14;) (type 1) (param i32)
       local.get 0
       i32.const 14
       call_indirect (type 1)
     )
-    (func (;15;) (type 1) (param i32)
+    (func $indirect-lists-list-s16-ret (;15;) (type 1) (param i32)
       local.get 0
       i32.const 15
       call_indirect (type 1)
     )
-    (func (;16;) (type 1) (param i32)
+    (func $indirect-lists-list-s32-ret (;16;) (type 1) (param i32)
       local.get 0
       i32.const 16
       call_indirect (type 1)
     )
-    (func (;17;) (type 1) (param i32)
+    (func $indirect-lists-list-s64-ret (;17;) (type 1) (param i32)
       local.get 0
       i32.const 17
       call_indirect (type 1)
     )
-    (func (;18;) (type 1) (param i32)
+    (func $indirect-lists-list-float32-ret (;18;) (type 1) (param i32)
       local.get 0
       i32.const 18
       call_indirect (type 1)
     )
-    (func (;19;) (type 1) (param i32)
+    (func $indirect-lists-list-float64-ret (;19;) (type 1) (param i32)
       local.get 0
       i32.const 19
       call_indirect (type 1)
     )
-    (func (;20;) (type 2) (param i32 i32 i32)
+    (func $indirect-lists-tuple-list (;20;) (type 2) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 20
       call_indirect (type 2)
     )
-    (func (;21;) (type 0) (param i32 i32)
+    (func $indirect-lists-string-list-arg (;21;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 21
       call_indirect (type 0)
     )
-    (func (;22;) (type 1) (param i32)
+    (func $indirect-lists-string-list-ret (;22;) (type 1) (param i32)
       local.get 0
       i32.const 22
       call_indirect (type 1)
     )
-    (func (;23;) (type 2) (param i32 i32 i32)
+    (func $indirect-lists-tuple-string-list (;23;) (type 2) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 23
       call_indirect (type 2)
     )
-    (func (;24;) (type 2) (param i32 i32 i32)
+    (func $indirect-lists-string-list (;24;) (type 2) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 24
       call_indirect (type 2)
     )
-    (func (;25;) (type 2) (param i32 i32 i32)
+    (func $indirect-lists-record-list (;25;) (type 2) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 25
       call_indirect (type 2)
     )
-    (func (;26;) (type 2) (param i32 i32 i32)
+    (func $indirect-lists-variant-list (;26;) (type 2) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 26
       call_indirect (type 2)
     )
-    (func (;27;) (type 2) (param i32 i32 i32)
+    (func $indirect-lists-load-store-everything (;27;) (type 2) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
@@ -335,34 +335,34 @@
       call_indirect (type 2)
     )
     (table (;0;) 28 28 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
-    (export "2" (func 2))
-    (export "3" (func 3))
-    (export "4" (func 4))
-    (export "5" (func 5))
-    (export "6" (func 6))
-    (export "7" (func 7))
-    (export "8" (func 8))
-    (export "9" (func 9))
-    (export "10" (func 10))
-    (export "11" (func 11))
-    (export "12" (func 12))
-    (export "13" (func 13))
-    (export "14" (func 14))
-    (export "15" (func 15))
-    (export "16" (func 16))
-    (export "17" (func 17))
-    (export "18" (func 18))
-    (export "19" (func 19))
-    (export "20" (func 20))
-    (export "21" (func 21))
-    (export "22" (func 22))
-    (export "23" (func 23))
-    (export "24" (func 24))
-    (export "25" (func 25))
-    (export "26" (func 26))
-    (export "27" (func 27))
+    (export "0" (func $indirect-lists-list-u8-param))
+    (export "1" (func $indirect-lists-list-u16-param))
+    (export "2" (func $indirect-lists-list-u32-param))
+    (export "3" (func $indirect-lists-list-u64-param))
+    (export "4" (func $indirect-lists-list-s8-param))
+    (export "5" (func $indirect-lists-list-s16-param))
+    (export "6" (func $indirect-lists-list-s32-param))
+    (export "7" (func $indirect-lists-list-s64-param))
+    (export "8" (func $indirect-lists-list-float32-param))
+    (export "9" (func $indirect-lists-list-float64-param))
+    (export "10" (func $indirect-lists-list-u8-ret))
+    (export "11" (func $indirect-lists-list-u16-ret))
+    (export "12" (func $indirect-lists-list-u32-ret))
+    (export "13" (func $indirect-lists-list-u64-ret))
+    (export "14" (func $indirect-lists-list-s8-ret))
+    (export "15" (func $indirect-lists-list-s16-ret))
+    (export "16" (func $indirect-lists-list-s32-ret))
+    (export "17" (func $indirect-lists-list-s64-ret))
+    (export "18" (func $indirect-lists-list-float32-ret))
+    (export "19" (func $indirect-lists-list-float64-ret))
+    (export "20" (func $indirect-lists-tuple-list))
+    (export "21" (func $indirect-lists-string-list-arg))
+    (export "22" (func $indirect-lists-string-list-ret))
+    (export "23" (func $indirect-lists-tuple-string-list))
+    (export "24" (func $indirect-lists-string-list))
+    (export "25" (func $indirect-lists-record-list))
+    (export "26" (func $indirect-lists-variant-list))
+    (export "27" (func $indirect-lists-load-store-everything))
     (export "$imports" (table 0))
   )
   (core module (;2;)

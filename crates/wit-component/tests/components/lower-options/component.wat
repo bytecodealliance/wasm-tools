@@ -104,80 +104,80 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32)))
     (type (;2;) (func (param i32)))
-    (func (;0;) (type 0) (param i32 i32)
+    (func $indirect-foo-b (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 0) (param i32 i32)
+    (func $indirect-foo-c (;1;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 1
       call_indirect (type 0)
     )
-    (func (;2;) (type 1) (param i32 i32 i32)
+    (func $indirect-foo-d (;2;) (type 1) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 2
       call_indirect (type 1)
     )
-    (func (;3;) (type 0) (param i32 i32)
+    (func $indirect-foo-g (;3;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 3
       call_indirect (type 0)
     )
-    (func (;4;) (type 0) (param i32 i32)
+    (func $indirect-foo-h (;4;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 4
       call_indirect (type 0)
     )
-    (func (;5;) (type 0) (param i32 i32)
+    (func $indirect-foo-i (;5;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 5
       call_indirect (type 0)
     )
-    (func (;6;) (type 2) (param i32)
+    (func $indirect-foo-k (;6;) (type 2) (param i32)
       local.get 0
       i32.const 6
       call_indirect (type 2)
     )
-    (func (;7;) (type 2) (param i32)
+    (func $indirect-foo-l (;7;) (type 2) (param i32)
       local.get 0
       i32.const 7
       call_indirect (type 2)
     )
-    (func (;8;) (type 2) (param i32)
+    (func $indirect-foo-m (;8;) (type 2) (param i32)
       local.get 0
       i32.const 8
       call_indirect (type 2)
     )
-    (func (;9;) (type 2) (param i32)
+    (func $indirect-foo-o (;9;) (type 2) (param i32)
       local.get 0
       i32.const 9
       call_indirect (type 2)
     )
-    (func (;10;) (type 2) (param i32)
+    (func $indirect-foo-p (;10;) (type 2) (param i32)
       local.get 0
       i32.const 10
       call_indirect (type 2)
     )
     (table (;0;) 11 11 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
-    (export "2" (func 2))
-    (export "3" (func 3))
-    (export "4" (func 4))
-    (export "5" (func 5))
-    (export "6" (func 6))
-    (export "7" (func 7))
-    (export "8" (func 8))
-    (export "9" (func 9))
-    (export "10" (func 10))
+    (export "0" (func $indirect-foo-b))
+    (export "1" (func $indirect-foo-c))
+    (export "2" (func $indirect-foo-d))
+    (export "3" (func $indirect-foo-g))
+    (export "4" (func $indirect-foo-h))
+    (export "5" (func $indirect-foo-i))
+    (export "6" (func $indirect-foo-k))
+    (export "7" (func $indirect-foo-l))
+    (export "8" (func $indirect-foo-m))
+    (export "9" (func $indirect-foo-o))
+    (export "10" (func $indirect-foo-p))
     (export "$imports" (table 0))
   )
   (core module (;2;)

@@ -140,17 +140,17 @@
   (core module (;1;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32 i32 i32)))
-    (func (;0;) (type 0) (param i32)
+    (func $indirect-records-tuple-result (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 0) (param i32)
+    (func $indirect-records-scalar-result (;1;) (type 0) (param i32)
       local.get 0
       i32.const 1
       call_indirect (type 0)
     )
-    (func (;2;) (type 1) (param i32 i32 i32 i32 i32 i32)
+    (func $indirect-records-aggregate-arg (;2;) (type 1) (param i32 i32 i32 i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
@@ -160,16 +160,16 @@
       i32.const 2
       call_indirect (type 1)
     )
-    (func (;3;) (type 0) (param i32)
+    (func $indirect-records-aggregate-result (;3;) (type 0) (param i32)
       local.get 0
       i32.const 3
       call_indirect (type 0)
     )
     (table (;0;) 4 4 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
-    (export "2" (func 2))
-    (export "3" (func 3))
+    (export "0" (func $indirect-records-tuple-result))
+    (export "1" (func $indirect-records-scalar-result))
+    (export "2" (func $indirect-records-aggregate-arg))
+    (export "3" (func $indirect-records-aggregate-result))
     (export "$imports" (table 0))
   )
   (core module (;2;)

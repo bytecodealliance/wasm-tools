@@ -67,21 +67,21 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32 i32)))
-    (func (;0;) (type 0) (param i32 i32)
+    (func $indirect-bar-bar1 (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 0
       call_indirect (type 0)
     )
-    (func (;1;) (type 0) (param i32 i32)
+    (func $indirect-baz-baz1 (;1;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 1
       call_indirect (type 0)
     )
     (table (;0;) 2 2 funcref)
-    (export "0" (func 0))
-    (export "1" (func 1))
+    (export "0" (func $indirect-bar-bar1))
+    (export "1" (func $indirect-baz-baz1))
     (export "$imports" (table 0))
   )
   (core module (;2;)
