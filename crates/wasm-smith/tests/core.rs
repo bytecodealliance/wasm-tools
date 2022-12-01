@@ -295,7 +295,7 @@ fn parser_features_from_config(config: &impl Config) -> WasmFeatures {
 
         threads: false,
         tail_call: false,
-        deterministic_only: false,
+        floats: true,
         extended_const: false,
         component_model: false,
     }
