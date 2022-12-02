@@ -270,18 +270,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_component_external_kind(&mut self) -> Result<ComponentExternalKind> {
-        let offset = self.original_position();
-        let byte1 = self.read_u8()?;
-        let byte2 = if byte1 == 0x00 {
-            Some(self.read_u8()?)
-        } else {
-            None
-        };
-
-        Self::component_external_kind_from_bytes(byte1, byte2, offset)
-    }
-
     pub(crate) fn read_core_type(&mut self) -> Result<CoreType<'a>> {
         Ok(match self.read_u8()? {
             0x60 => CoreType::Func(self.read()?),
@@ -518,15 +506,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
-        Ok(ComponentExport {
-            name: self.read_string()?,
-            url: self.read_string()?,
-            kind: self.read_component_external_kind()?,
-            index: self.read_var_u32()?,
-        })
-    }
-
     pub(crate) fn read_component_import(&mut self) -> Result<ComponentImport<'a>> {
         Ok(ComponentImport {
             name: self.read_string()?,
@@ -536,7 +515,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_component_type_ref(&mut self) -> Result<ComponentTypeRef> {
-        Ok(match self.read_component_external_kind()? {
+        Ok(match self.read()? {
             ComponentExternalKind::Module => ComponentTypeRef::Module(self.read_var_u32()?),
             ComponentExternalKind::Func => ComponentTypeRef::Func(self.read_var_u32()?),
             ComponentExternalKind::Value => {
@@ -591,7 +570,7 @@ impl<'a> BinaryReader<'a> {
                         Ok(ComponentExport {
                             name: self.read_string()?,
                             url: "",
-                            kind: self.read_component_external_kind()?,
+                            kind: self.read()?,
                             index: self.read_var_u32()?,
                         })
                     })
@@ -621,7 +600,7 @@ impl<'a> BinaryReader<'a> {
     ) -> Result<ComponentInstantiationArg<'a>> {
         Ok(ComponentInstantiationArg {
             name: self.read_string()?,
-            kind: self.read_component_external_kind()?,
+            kind: self.read()?,
             index: self.read_var_u32()?,
         })
     }
