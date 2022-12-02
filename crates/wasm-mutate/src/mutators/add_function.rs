@@ -23,10 +23,9 @@ impl Mutator for AddFunctionMutator {
         let mut func_sec_enc = wasm_encoder::FunctionSection::new();
         if let Some(func_sec_idx) = config.info().functions {
             let raw_func_sec = config.info().raw_sections[func_sec_idx];
-            let mut reader = wasmparser::FunctionSectionReader::new(raw_func_sec.data, 0)?;
-            for _ in 0..reader.get_count() {
-                let x = reader.read()?;
-                func_sec_enc.function(x);
+            let reader = wasmparser::FunctionSectionReader::new(raw_func_sec.data, 0)?;
+            for x in reader {
+                func_sec_enc.function(x?);
             }
         }
         func_sec_enc.function(ty_idx);

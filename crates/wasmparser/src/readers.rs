@@ -349,3 +349,15 @@ where
         self.count
     }
 }
+
+impl<'a> FromReader<'a> for u32 {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        reader.read_var_u32()
+    }
+}
+
+impl<'a> FromReader<'a> for &'a str {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        reader.read_string()
+    }
+}

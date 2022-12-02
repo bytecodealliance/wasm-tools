@@ -133,14 +133,12 @@ impl<'a> ModuleInfo<'a> {
                         }
                     }
                 }
-                Payload::FunctionSection(mut reader) => {
+                Payload::FunctionSection(reader) => {
                     info.functions = Some(info.raw_sections.len());
                     info.section(SectionId::Function.into(), reader.range(), input_wasm);
 
-                    for _ in 0..reader.get_count() {
-                        reader.read().map(|ty| {
-                            info.function_map.push(ty);
-                        })?;
+                    for ty in reader {
+                        info.function_map.push(ty?);
                     }
                 }
                 Payload::TableSection(reader) => {
