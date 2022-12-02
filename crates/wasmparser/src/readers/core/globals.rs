@@ -30,7 +30,7 @@ pub type GlobalSectionReader<'a> = SectionLimited<'a, Global<'a>>;
 impl<'a> FromReader<'a> for Global<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let ty = reader.read()?;
-        let init_expr = reader.read_const_expr()?;
+        let init_expr = reader.read()?;
         Ok(Global { ty, init_expr })
     }
 }

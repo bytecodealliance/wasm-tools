@@ -180,19 +180,17 @@ impl Mutator for ConstExpressionMutator {
                 let mutate_idx = config.rng().gen_range(0..num_total);
                 let section = config.info().elements.ok_or(skip_err)?;
                 let mut new_section = ElementSection::new();
-                let mut reader =
+                let reader =
                     ElementSectionReader::new(config.info().raw_sections[section].data, 0)?;
                 let mut translator = InitTranslator {
                     config,
                     skip_inits: 0,
                     kind: translator_kind,
                 };
-                for idx in 0..reader.get_count() {
+                for (idx, element) in reader.into_iter().enumerate() {
                     translator.config.consume_fuel(1)?;
-                    let start = reader.original_position();
-                    let element = reader.read()?;
-                    let end = reader.original_position();
-                    if idx == mutate_idx {
+                    let element = element?;
+                    if idx as u32 == mutate_idx {
                         if let Self::ElementFunc = self {
                             // Pick a specific element item to mutate. We do this through an option
                             // to skip a specific number of activations of the Translator methods.
@@ -215,8 +213,7 @@ impl Mutator for ConstExpressionMutator {
                         );
                         translator.translate_element(element, &mut new_section)?;
                     } else {
-                        let old_section = &translator.config.info().raw_sections[section];
-                        new_section.raw(&old_section.data[start..end]);
+                        DefaultTranslator.translate_element(element, &mut new_section)?;
                     }
                 }
                 let new_module = config.info().replace_section(section, &new_section);

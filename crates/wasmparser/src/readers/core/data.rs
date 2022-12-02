@@ -70,12 +70,7 @@ impl<'a> FromReader<'a> for Data<'a> {
                 } else {
                     reader.read_var_u32()?
                 };
-                let offset_expr = {
-                    let expr_offset = reader.position;
-                    reader.skip_const_expr()?;
-                    let data = &reader.buffer[expr_offset..reader.position];
-                    ConstExpr::new(data, reader.original_offset + expr_offset)
-                };
+                let offset_expr = reader.read()?;
                 DataKind::Active {
                     memory_index,
                     offset_expr,

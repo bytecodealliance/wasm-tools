@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, OperatorsReader};
+use crate::{BinaryReader, FromReader, OperatorsReader, Result};
 
 /// Represents an initialization expression.
 #[derive(Debug, Copy, Clone)]
@@ -42,5 +42,15 @@ impl<'a> ConstExpr<'a> {
         'a: 'b,
     {
         OperatorsReader::new(self.data, self.offset)
+    }
+}
+
+impl<'a> FromReader<'a> for ConstExpr<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let expr_offset = reader.position;
+        // FIXME(#188) ideally shouldn't need to skip here
+        reader.skip_const_expr()?;
+        let data = &reader.buffer[expr_offset..reader.position];
+        Ok(ConstExpr::new(data, reader.original_offset + expr_offset))
     }
 }

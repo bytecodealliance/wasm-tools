@@ -189,7 +189,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::ElementSection(reader) => {
                     info.elements = Some(info.raw_sections.len());
-                    info.elements_count = reader.get_count();
+                    info.elements_count = reader.count();
                     info.section(SectionId::Element.into(), reader.range(), input_wasm);
                 }
                 Payload::DataSection(reader) => {
