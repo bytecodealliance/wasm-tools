@@ -239,11 +239,6 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_external_kind(&mut self) -> Result<ExternalKind> {
-        let offset = self.original_position();
-        Self::external_kind_from_byte(self.read_u8()?, offset)
-    }
-
     pub(crate) fn component_external_kind_from_bytes(
         byte1: u8,
         byte2: Option<u8>,
@@ -544,14 +539,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_export(&mut self) -> Result<Export<'a>> {
-        Ok(Export {
-            name: self.read_string()?,
-            kind: self.read_external_kind()?,
-            index: self.read_var_u32()?,
-        })
-    }
-
     pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
         Ok(ComponentExport {
             name: self.read_string()?,
@@ -650,7 +637,7 @@ impl<'a> BinaryReader<'a> {
             0x01 => Instance::FromExports(
                 (0..self
                     .read_size(MAX_WASM_INSTANTIATION_EXPORTS, "core instantiation exports")?)
-                    .map(|_| self.read_export())
+                    .map(|_| self.read())
                     .collect::<Result<_>>()?,
             ),
             x => return self.invalid_leading_byte(x, "core instance"),
@@ -708,7 +695,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_type_ref(&mut self) -> Result<TypeRef> {
-        Ok(match self.read_external_kind()? {
+        Ok(match self.read()? {
             ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
             ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
             ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),

@@ -257,7 +257,7 @@ impl<'a> ElementSectionReader<'a> {
             if exprs {
                 self.reader.read_val_type()?
             } else {
-                match self.reader.read_external_kind()? {
+                match self.reader.read()? {
                     ExternalKind::Func => ValType::FuncRef,
                     _ => {
                         return Err(BinaryReaderError::new(

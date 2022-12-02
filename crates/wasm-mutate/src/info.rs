@@ -175,13 +175,12 @@ impl<'a> ModuleInfo<'a> {
                         info.global_types.push(ty);
                     }
                 }
-                Payload::ExportSection(mut reader) => {
+                Payload::ExportSection(reader) => {
                     info.exports = Some(info.raw_sections.len());
-                    info.exports_count = reader.get_count();
+                    info.exports_count = reader.count();
 
-                    for _ in 0..reader.get_count() {
-                        let entry = reader.read()?;
-                        info.export_names.insert(entry.name.into());
+                    for entry in reader.clone() {
+                        info.export_names.insert(entry?.name.into());
                     }
 
                     info.section(SectionId::Export.into(), reader.range(), input_wasm);
