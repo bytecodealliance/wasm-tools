@@ -64,15 +64,13 @@ impl CodemotionMutator {
     ) -> crate::Result<(Function, u32)> {
         let original_code_section = config.info().get_code_section();
 
-        let mut sectionreader = CodeSectionReader::new(original_code_section.data, 0)?;
-        let function_count = sectionreader.get_count();
+        let sectionreader = CodeSectionReader::new(original_code_section.data, 0)?;
+        let function_count = sectionreader.count();
         let function_to_mutate = config.rng().gen_range(0..function_count);
 
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function
-        let all_readers = (0..function_count)
-            .map(|_| sectionreader.read().unwrap())
-            .collect::<Vec<FunctionBody>>();
+        let all_readers = sectionreader.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
             config.consume_fuel(1)?;
@@ -146,11 +144,11 @@ impl Mutator for CodemotionMutator {
 
         let mut codes = CodeSection::new();
         let code_section = config.info().get_code_section();
-        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
-        for fidx in 0..config.info().num_local_functions() {
-            let reader = sectionreader.read()?;
-            if fidx == function_to_mutate {
+        for (fidx, reader) in sectionreader.into_iter().enumerate() {
+            let reader = reader?;
+            if fidx as u32 == function_to_mutate {
                 log::trace!("Mutating function {}", fidx);
                 codes.function(&newfunc);
             } else {

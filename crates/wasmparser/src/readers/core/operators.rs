@@ -225,9 +225,9 @@ impl<'a> IntoIterator for OperatorsReader<'a> {
     /// use wasmparser::{Operator, CodeSectionReader, Result};
     /// # let data: &[u8] = &[
     /// #     0x01, 0x03, 0x00, 0x01, 0x0b];
-    /// let mut code_reader = CodeSectionReader::new(data, 0).unwrap();
-    /// for _ in 0..code_reader.get_count() {
-    ///     let body = code_reader.read().expect("function body");
+    /// let code_reader = CodeSectionReader::new(data, 0).unwrap();
+    /// for body in code_reader {
+    ///     let body = body.expect("function body");
     ///     let mut op_reader = body.get_operators_reader().expect("op reader");
     ///     let ops = op_reader.into_iter().collect::<Result<Vec<Operator>>>().expect("ops");
     ///     assert!(
@@ -280,9 +280,9 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
     /// use wasmparser::{Operator, CodeSectionReader, Result};
     /// # let data: &[u8] = &[
     /// #     0x01, 0x03, 0x00, /* offset = 23 */ 0x01, 0x0b];
-    /// let mut code_reader = CodeSectionReader::new(data, 20).unwrap();
-    /// for _ in 0..code_reader.get_count() {
-    ///     let body = code_reader.read().expect("function body");
+    /// let code_reader = CodeSectionReader::new(data, 20).unwrap();
+    /// for body in code_reader {
+    ///     let body = body.expect("function body");
     ///     let mut op_reader = body.get_operators_reader().expect("op reader");
     ///     let ops = op_reader.into_iter_with_offsets().collect::<Result<Vec<(Operator, usize)>>>().expect("ops");
     ///     assert!(

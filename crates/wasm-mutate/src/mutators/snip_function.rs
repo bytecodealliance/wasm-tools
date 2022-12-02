@@ -19,19 +19,19 @@ impl Mutator for SnipMutator {
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();
         let code_section = config.info().get_code_section();
-        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
-        let count = reader.get_count();
+        let reader = CodeSectionReader::new(code_section.data, 0)?;
+        let count = reader.count();
         let function_to_mutate = config.rng().gen_range(0..count);
         let ftype = config
             .info()
             .get_functype_idx(function_to_mutate + config.info().num_imported_functions())
             .clone();
 
-        for i in 0..count {
+        for (i, func) in reader.into_iter().enumerate() {
             config.consume_fuel(1)?;
-            let f = reader.read().unwrap();
+            let f = func?;
 
-            if i != function_to_mutate {
+            if i as u32 != function_to_mutate {
                 codes.raw(&code_section.data[f.range().start..f.range().end]);
                 continue;
             }

@@ -20,30 +20,27 @@ impl Mutator for FunctionBodyUnreachable {
         let mut codes = CodeSection::new();
 
         let code_section = config.info().get_code_section();
-        let mut reader = CodeSectionReader::new(code_section.data, 0)?;
+        let reader = CodeSectionReader::new(code_section.data, 0)?;
 
-        let count = reader.get_count();
+        let count = reader.count();
         let function_to_mutate = config.rng().gen_range(0..count);
 
-        (0..count)
-            .map(|i| {
-                config.consume_fuel(1)?;
+        for (i, f) in reader.into_iter().enumerate() {
+            config.consume_fuel(1)?;
 
-                let f = reader.read().unwrap();
-                if i == function_to_mutate {
-                    log::trace!("Mutating function {}", i);
-                    let locals = vec![];
-                    let mut f = Function::new(locals);
-                    f.instruction(&Instruction::Unreachable);
-                    f.instruction(&Instruction::End);
+            let f = f?;
+            if i as u32 == function_to_mutate {
+                log::trace!("Mutating function {}", i);
+                let locals = vec![];
+                let mut f = Function::new(locals);
+                f.instruction(&Instruction::Unreachable);
+                f.instruction(&Instruction::End);
 
-                    codes.function(&f);
-                } else {
-                    codes.raw(&code_section.data[f.range().start..f.range().end]);
-                }
-                Ok(())
-            })
-            .collect::<Result<Vec<_>>>()?;
+                codes.function(&f);
+            } else {
+                codes.raw(&code_section.data[f.range().start..f.range().end]);
+            }
+        }
 
         Ok(Box::new(std::iter::once(Ok(config
             .info()

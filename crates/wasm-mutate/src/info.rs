@@ -227,7 +227,7 @@ impl<'a> ModuleInfo<'a> {
         if let Some(section) = self.code {
             let section_data = self.raw_sections[section].data;
             wasmparser::CodeSectionReader::new(section_data, 0)
-                .map(|r| r.get_count() != 0)
+                .map(|r| r.count() != 0)
                 .unwrap_or(false)
         } else {
             false

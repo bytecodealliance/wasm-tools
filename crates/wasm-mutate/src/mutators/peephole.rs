@@ -124,15 +124,13 @@ impl PeepholeMutator {
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let code_section = config.info().get_code_section();
-        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
-        let function_count = sectionreader.get_count();
+        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+        let function_count = sectionreader.count();
         let mut function_to_mutate = config.rng().gen_range(0..function_count);
 
         let mut visited_functions = 0;
 
-        let readers = (0..function_count)
-            .map(|_| sectionreader.read().unwrap())
-            .collect::<Vec<_>>();
+        let readers = sectionreader.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         loop {
             if visited_functions == function_count {
@@ -288,14 +286,14 @@ impl PeepholeMutator {
 
                         let mut codes = CodeSection::new();
                         let code_section = config.info().get_code_section();
-                        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+                        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
                         // this mutator is applicable to internal functions, so
                         // it starts by randomly selecting an index between
                         // the imported functions and the total count, total=imported + internal
-                        for fidx in 0..config.info().num_local_functions() {
-                            let reader = sectionreader.read()?;
-                            if fidx == function_to_mutate {
+                        for (fidx, func) in sectionreader.into_iter().enumerate() {
+                            let reader = func?;
+                            if fidx as u32 == function_to_mutate {
                                 codes.function(&newfunc);
                             } else {
                                 codes.raw(
