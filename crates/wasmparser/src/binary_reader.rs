@@ -355,7 +355,7 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn read_module_type_decl(&mut self) -> Result<ModuleTypeDeclaration<'a>> {
         Ok(match self.read_u8()? {
-            0x00 => ModuleTypeDeclaration::Import(self.read_import()?),
+            0x00 => ModuleTypeDeclaration::Import(self.read()?),
             0x01 => ModuleTypeDeclaration::Type(self.read()?),
             0x02 => {
                 let kind = match self.read_u8()? {
@@ -376,8 +376,8 @@ impl<'a> BinaryReader<'a> {
                 }
             }
             0x03 => ModuleTypeDeclaration::Export {
-                name: self.read_string()?,
-                ty: self.read_type_ref()?,
+                name: self.read()?,
+                ty: self.read()?,
             },
             x => return self.invalid_leading_byte(x, "type definition"),
         })
@@ -527,14 +527,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_import(&mut self) -> Result<Import<'a>> {
-        Ok(Import {
-            module: self.read_string()?,
-            name: self.read_string()?,
-            ty: self.read_type_ref()?,
-        })
-    }
-
     pub(crate) fn read_component_import(&mut self) -> Result<ComponentImport<'a>> {
         Ok(ComponentImport {
             name: self.read_string()?,
@@ -631,16 +623,6 @@ impl<'a> BinaryReader<'a> {
             name: self.read_string()?,
             kind: self.read_component_external_kind()?,
             index: self.read_var_u32()?,
-        })
-    }
-
-    pub(crate) fn read_type_ref(&mut self) -> Result<TypeRef> {
-        Ok(match self.read()? {
-            ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
-            ExternalKind::Table => TypeRef::Table(self.read()?),
-            ExternalKind::Memory => TypeRef::Memory(self.read()?),
-            ExternalKind::Global => TypeRef::Global(self.read()?),
-            ExternalKind::Tag => TypeRef::Tag(self.read()?),
         })
     }
 

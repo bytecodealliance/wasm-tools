@@ -134,11 +134,12 @@ fn smoke_test_imports_config() {
                             wasmparser::Type::Func(ft) => sig_types.push(ft),
                         }
                     }
-                } else if let wasmparser::Payload::ImportSection(mut rdr) = payload {
+                } else if let wasmparser::Payload::ImportSection(rdr) = payload {
                     // Read out imports, checking that they all are within the list of expected
                     // imports (i.e. we don't generate arbitrary ones), and that we handle the
                     // logic correctly (i.e. signature types are as expected)
-                    while let Ok(import) = rdr.read() {
+                    for import in rdr {
+                        let import = import.unwrap();
                         use AvailableImportKind as I;
                         let entry = imports_seen.get_mut(&(import.module, import.name));
                         match (entry, &import.ty) {

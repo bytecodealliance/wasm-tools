@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::ops::Range;
 use wasm_encoder::{RawSection, SectionId};
-use wasmparser::{Chunk, Parser, Payload, SectionReader};
+use wasmparser::{Chunk, Parser, Payload};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
@@ -97,13 +97,12 @@ impl<'a> ModuleInfo<'a> {
                         info.types_map.push(typeinfo);
                     }
                 }
-                Payload::ImportSection(mut reader) => {
+                Payload::ImportSection(reader) => {
                     info.imports = Some(info.raw_sections.len());
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
 
-                    for _ in 0..reader.get_count() {
-                        let ty = reader.read()?;
-                        match ty.ty {
+                    for ty in reader {
+                        match ty?.ty {
                             wasmparser::TypeRef::Func(ty) => {
                                 // Save imported functions
                                 info.function_map.push(ty);
