@@ -117,4 +117,4 @@
     "\00"             ;; no results
     "\ff"             ;; trailing garbage byte
   )
-  "trailing data at the end of the start section")
+  "unexpected content in the component start section")

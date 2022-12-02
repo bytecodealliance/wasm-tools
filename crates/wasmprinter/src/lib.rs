@@ -417,9 +417,9 @@ impl Printer {
                     Self::ensure_component(&states)?;
                     self.print_canonical_functions(states.last_mut().unwrap(), s)?;
                 }
-                Payload::ComponentStartSection(s) => {
+                Payload::ComponentStartSection { start, range } => {
                     Self::ensure_component(&states)?;
-                    self.print_component_start(states.last_mut().unwrap(), s)?;
+                    self.print_component_start(states.last_mut().unwrap(), range.start, start)?;
                 }
                 Payload::ComponentImportSection(s) => {
                     Self::ensure_component(&states)?;
@@ -2057,11 +2057,9 @@ impl Printer {
     fn print_component_start(
         &mut self,
         state: &mut State,
-        mut parser: ComponentStartSectionReader,
+        pos: usize,
+        start: ComponentStartFunction,
     ) -> Result<()> {
-        let pos = parser.original_position();
-        let start = parser.read()?;
-
         self.newline(pos);
         self.start_group("start ");
         self.print_idx(&state.component.func_names, start.func_index)?;

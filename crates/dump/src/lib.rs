@@ -399,11 +399,11 @@ impl<'a> Dump<'a> {
                     })?
                 }
 
-                Payload::ComponentStartSection(mut s) => {
+                Payload::ComponentStartSection { start, range } => {
                     write!(self.state, "start section")?;
-                    self.print(s.range().start)?;
-                    write!(self.state, "{:?}", s.read()?)?;
-                    self.print(s.range().end)?;
+                    self.print(range.start)?;
+                    write!(self.state, "{:?}", start)?;
+                    self.print(range.end)?;
                 }
 
                 Payload::CustomSection(c) => {

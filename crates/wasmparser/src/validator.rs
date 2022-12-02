@@ -455,7 +455,7 @@ impl Validator {
             ComponentAliasSection(s) => self.component_alias_section(s)?,
             ComponentTypeSection(s) => self.component_type_section(s)?,
             ComponentCanonicalSection(s) => self.component_canonical_section(s)?,
-            ComponentStartSection(s) => self.component_start_section(s)?,
+            ComponentStartSection { start, range } => self.component_start_section(start, range)?,
             ComponentImportSection(s) => self.component_import_section(s)?,
             ComponentExportSection(s) => self.component_export_section(s)?,
 
@@ -1099,20 +1099,20 @@ impl Validator {
     /// This method should only be called when parsing a component.
     pub fn component_start_section(
         &mut self,
-        section: &crate::ComponentStartSectionReader,
+        f: &crate::ComponentStartFunction,
+        range: &Range<usize>,
     ) -> Result<()> {
-        let range = section.range();
         self.state.ensure_component("start", range.start)?;
 
-        let mut section = section.clone();
-        let f = section.read()?;
+        // let mut section = section.clone();
+        // let f = section.read()?;
 
-        if !section.eof() {
-            return Err(BinaryReaderError::new(
-                "trailing data at the end of the start section",
-                section.original_position(),
-            ));
-        }
+        // if !section.eof() {
+        //     return Err(BinaryReaderError::new(
+        //         "trailing data at the end of the start section",
+        //         section.original_position(),
+        //     ));
+        // }
 
         self.components.last_mut().unwrap().add_start(
             f.func_index,

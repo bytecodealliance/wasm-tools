@@ -208,18 +208,6 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_component_start(&mut self) -> Result<ComponentStartFunction> {
-        let func_index = self.read_var_u32()?;
-        let size = self.read_size(MAX_WASM_START_ARGS, "start function arguments")?;
-        Ok(ComponentStartFunction {
-            func_index,
-            arguments: (0..size)
-                .map(|_| self.read_var_u32())
-                .collect::<Result<_>>()?,
-            results: self.read_size(MAX_WASM_FUNCTION_RETURNS, "start function results")? as u32,
-        })
-    }
-
     pub(crate) fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
         match byte {
             0x00 => Ok(ExternalKind::Func),

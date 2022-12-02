@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::io::Write;
 use std::ops::Range;
-use wasmparser::{Encoding, Parser, Payload::*, SectionReader};
+use wasmparser::{Encoding, Parser, Payload::*};
 
 /// Dumps information about sections in a WebAssembly file.
 ///
@@ -59,10 +59,12 @@ impl Opts {
                 ComponentAliasSection(s) => printer.section(s, "component alias")?,
                 ComponentTypeSection(s) => printer.section(s, "component types")?,
                 ComponentCanonicalSection(s) => printer.section(s, "canonical functions")?,
-                ComponentStartSection(s) => printer.section_raw(s.range(), 1, "component start")?,
+                ComponentStartSection { range, .. } => {
+                    printer.section_raw(range.clone(), 1, "component start")?
+                }
                 ComponentImportSection(s) => printer.section(s, "component imports")?,
                 ComponentExportSection(s) => printer.section(s, "component exports")?,
-                
+
                 CustomSection(c) => printer.section_raw(
                     c.data_offset()..c.data_offset() + c.data().len(),
                     1,

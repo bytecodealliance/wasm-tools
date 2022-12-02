@@ -232,7 +232,7 @@ impl<'a> Module<'a> {
                 | Payload::ComponentInstanceSection(_)
                 | Payload::ComponentAliasSection(_)
                 | Payload::ComponentCanonicalSection(_)
-                | Payload::ComponentStartSection(_)
+                | Payload::ComponentStartSection { .. }
                 | Payload::ComponentImportSection(_)
                 | Payload::CoreTypeSection(_)
                 | Payload::ComponentExportSection(_)
