@@ -17,6 +17,39 @@ pub enum ComponentExternalKind {
     Component,
 }
 
+impl ComponentExternalKind {
+    pub(crate) fn from_bytes(
+        byte1: u8,
+        byte2: Option<u8>,
+        offset: usize,
+    ) -> Result<ComponentExternalKind> {
+        Ok(match byte1 {
+            0x00 => match byte2.unwrap() {
+                0x11 => ComponentExternalKind::Module,
+                x => {
+                    return Err(BinaryReader::invalid_leading_byte_error(
+                        x,
+                        "component external kind",
+                        offset + 1,
+                    ))
+                }
+            },
+            0x01 => ComponentExternalKind::Func,
+            0x02 => ComponentExternalKind::Value,
+            0x03 => ComponentExternalKind::Type,
+            0x04 => ComponentExternalKind::Component,
+            0x05 => ComponentExternalKind::Instance,
+            x => {
+                return Err(BinaryReader::invalid_leading_byte_error(
+                    x,
+                    "component external kind",
+                    offset,
+                ))
+            }
+        })
+    }
+}
+
 /// Represents an export in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub struct ComponentExport<'a> {
@@ -54,6 +87,6 @@ impl<'a> FromReader<'a> for ComponentExternalKind {
             None
         };
 
-        BinaryReader::component_external_kind_from_bytes(byte1, byte2, offset)
+        ComponentExternalKind::from_bytes(byte1, byte2, offset)
     }
 }

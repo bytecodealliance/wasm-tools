@@ -61,7 +61,7 @@ impl<'a> FromReader<'a> for ComponentAlias<'a> {
 
         Ok(match reader.read_u8()? {
             0x00 => ComponentAlias::InstanceExport {
-                kind: BinaryReader::component_external_kind_from_bytes(byte1, byte2, offset)?,
+                kind: ComponentExternalKind::from_bytes(byte1, byte2, offset)?,
                 instance_index: reader.read_var_u32()?,
                 name: reader.read_string()?,
             },
