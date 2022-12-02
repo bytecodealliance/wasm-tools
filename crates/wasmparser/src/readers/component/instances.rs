@@ -55,15 +55,13 @@ impl<'a> FromReader<'a> for Instance<'a> {
         Ok(match reader.read_u8()? {
             0x00 => Instance::Instantiate {
                 module_index: reader.read_var_u32()?,
-                args: (0..reader
-                    .read_size(MAX_WASM_INSTANTIATION_ARGS, "core instantiation arguments")?)
-                    .map(|_| reader.read())
+                args: reader
+                    .read_iter(MAX_WASM_INSTANTIATION_ARGS, "core instantiation arguments")?
                     .collect::<Result<_>>()?,
             },
             0x01 => Instance::FromExports(
-                (0..reader
-                    .read_size(MAX_WASM_INSTANTIATION_EXPORTS, "core instantiation exports")?)
-                    .map(|_| reader.read())
+                reader
+                    .read_iter(MAX_WASM_INSTANTIATION_ARGS, "core instantiation arguments")?
                     .collect::<Result<_>>()?,
             ),
             x => return reader.invalid_leading_byte(x, "core instance"),
@@ -134,9 +132,8 @@ impl<'a> FromReader<'a> for ComponentInstance<'a> {
         Ok(match reader.read_u8()? {
             0x00 => ComponentInstance::Instantiate {
                 component_index: reader.read_var_u32()?,
-                args: (0..reader
-                    .read_size(MAX_WASM_INSTANTIATION_ARGS, "instantiation arguments")?)
-                    .map(|_| reader.read())
+                args: reader
+                    .read_iter(MAX_WASM_INSTANTIATION_ARGS, "instantiation arguments")?
                     .collect::<Result<_>>()?,
             },
             0x01 => ComponentInstance::FromExports(

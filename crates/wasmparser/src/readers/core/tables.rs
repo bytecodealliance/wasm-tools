@@ -20,7 +20,7 @@ pub type TableSectionReader<'a> = SectionLimited<'a, TableType>;
 
 impl<'a> FromReader<'a> for TableType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let element_type = reader.read_val_type()?;
+        let element_type = reader.read()?;
         let has_max = match reader.read_u8()? {
             0x00 => false,
             0x01 => true,
@@ -31,12 +31,8 @@ impl<'a> FromReader<'a> for TableType {
                 )
             }
         };
-        let initial = reader.read_var_u32()?;
-        let maximum = if has_max {
-            Some(reader.read_var_u32()?)
-        } else {
-            None
-        };
+        let initial = reader.read()?;
+        let maximum = if has_max { Some(reader.read()?) } else { None };
         Ok(TableType {
             element_type,
             initial,

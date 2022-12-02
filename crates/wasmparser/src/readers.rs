@@ -47,6 +47,16 @@ impl<'a> FromReader<'a> for &'a str {
     }
 }
 
+impl<'a, T, U> FromReader<'a> for (T, U)
+where
+    T: FromReader<'a>,
+    U: FromReader<'a>,
+{
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok((reader.read()?, reader.read()?))
+    }
+}
+
 /// A generic structure for reading a section of a WebAssembly binary which has
 /// a limited number of items within it.
 ///

@@ -104,7 +104,7 @@ impl<'a> FromReader<'a> for Element<'a> {
         let exprs = flags & 0b100 != 0;
         let ty = if flags & 0b011 != 0 {
             if exprs {
-                reader.read_val_type()?
+                reader.read()?
             } else {
                 match reader.read()? {
                     ExternalKind::Func => ValType::FuncRef,

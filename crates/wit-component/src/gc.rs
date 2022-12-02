@@ -302,7 +302,7 @@ impl<'a> Module<'a> {
             let local_count = body.read_var_u32()?;
             for _ in 0..local_count {
                 body.read_var_u32()?;
-                body.read_val_type()?;
+                body.read::<ValType>()?;
             }
             me.operators(body)
         }));
@@ -480,7 +480,7 @@ impl<'a> Module<'a> {
             let mut locals = Vec::new();
             for _ in 0..body.read_var_u32()? {
                 let cnt = body.read_var_u32()?;
-                let ty = body.read_val_type()?;
+                let ty = body.read()?;
                 locals.push((cnt, valty(ty)));
             }
             let mut func = wasm_encoder::Function::new(locals);

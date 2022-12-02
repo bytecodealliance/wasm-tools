@@ -17,13 +17,14 @@ pub struct ComponentStartFunction {
 impl<'a> FromReader<'a> for ComponentStartFunction {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let func_index = reader.read_var_u32()?;
-        let size = reader.read_size(MAX_WASM_START_ARGS, "start function arguments")?;
+        let arguments = reader
+            .read_iter(MAX_WASM_START_ARGS, "start function arguments")?
+            .collect::<Result<_>>()?;
+        let results = reader.read_size(MAX_WASM_FUNCTION_RETURNS, "start function results")? as u32;
         Ok(ComponentStartFunction {
             func_index,
-            arguments: (0..size)
-                .map(|_| reader.read_var_u32())
-                .collect::<Result<_>>()?,
-            results: reader.read_size(MAX_WASM_FUNCTION_RETURNS, "start function results")? as u32,
+            arguments,
+            results,
         })
     }
 }

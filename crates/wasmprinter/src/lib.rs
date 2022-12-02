@@ -881,7 +881,7 @@ impl Printer {
             for _ in 0..body.read_var_u32()? {
                 let offset = body.original_position();
                 let cnt = body.read_var_u32()?;
-                let ty = body.read_val_type()?;
+                let ty = body.read()?;
                 if MAX_LOCALS
                     .checked_sub(local_idx)
                     .and_then(|s| s.checked_sub(cnt))

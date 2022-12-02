@@ -38,7 +38,7 @@ impl<'a> FromReader<'a> for Global<'a> {
 impl<'a> FromReader<'a> for GlobalType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(GlobalType {
-            content_type: reader.read_val_type()?,
+            content_type: reader.read()?,
             mutable: match reader.read_u8()? {
                 0x00 => false,
                 0x01 => true,

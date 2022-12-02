@@ -52,22 +52,25 @@ impl<'a> FromReader<'a> for CanonicalFunction {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<CanonicalFunction> {
         Ok(match reader.read_u8()? {
             0x00 => match reader.read_u8()? {
-                0x00 => CanonicalFunction::Lift {
-                    core_func_index: reader.read_var_u32()?,
-                    options: (0..reader
-                        .read_size(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?)
-                        .map(|_| reader.read())
-                        .collect::<Result<_>>()?,
-                    type_index: reader.read_var_u32()?,
-                },
+                0x00 => {
+                    let core_func_index = reader.read_var_u32()?;
+                    let options = reader
+                        .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                        .collect::<Result<_>>()?;
+                    let type_index = reader.read_var_u32()?;
+                    CanonicalFunction::Lift {
+                        core_func_index,
+                        options,
+                        type_index,
+                    }
+                }
                 x => return reader.invalid_leading_byte(x, "canonical function lift"),
             },
             0x01 => match reader.read_u8()? {
                 0x00 => CanonicalFunction::Lower {
                     func_index: reader.read_var_u32()?,
-                    options: (0..reader
-                        .read_size(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?)
-                        .map(|_| reader.read())
+                    options: reader
+                        .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
                         .collect::<Result<_>>()?,
                 },
                 x => return reader.invalid_leading_byte(x, "canonical function lower"),

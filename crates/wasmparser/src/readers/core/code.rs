@@ -135,8 +135,8 @@ impl<'a> LocalsReader<'a> {
 
     /// Reads an item from the reader.
     pub fn read(&mut self) -> Result<(u32, ValType)> {
-        let count = self.reader.read_var_u32()?;
-        let value_type = self.reader.read_val_type()?;
+        let count = self.reader.read()?;
+        let value_type = self.reader.read()?;
         Ok((count, value_type))
     }
 }
