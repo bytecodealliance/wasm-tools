@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::fmt::Write as _;
 use std::io::Write;
 use wasmparser::*;
@@ -155,8 +155,8 @@ impl<'a> Dump<'a> {
                 Payload::ElementSection(s) => self.section(s, "element", |me, _end, i| {
                     write!(me.state, "element {:?}", i.ty)?;
                     let item_count = match &i.items {
-                        ElementItems::Functions(reader) => reader.get_count(),
-                        ElementItems::Expressions(reader) => reader.get_count(),
+                        ElementItems::Functions(reader) => reader.count(),
+                        ElementItems::Expressions(reader) => reader.count(),
                     };
                     match i.kind {
                         ElementKind::Passive => {
@@ -176,20 +176,20 @@ impl<'a> Dump<'a> {
                         }
                     }
                     match i.items {
-                        ElementItems::Functions(mut reader) => {
-                            me.print(reader.original_position())?;
-                            for _ in 0..reader.get_count() {
-                                let item = reader.read()?;
-                                write!(me.state, "item {:?}", item)?;
-                                me.print(reader.original_position())?;
+                        ElementItems::Functions(reader) => {
+                            let mut iter = reader.into_iter();
+                            me.print(iter.original_position())?;
+                            while let Some(item) = iter.next() {
+                                write!(me.state, "item {:?}", item?)?;
+                                me.print(iter.original_position())?;
                             }
                         }
-                        ElementItems::Expressions(mut reader) => {
-                            me.print(reader.original_position())?;
-                            for _ in 0..reader.get_count() {
-                                let item = reader.read()?;
-                                write!(me.state, "item {:?}", item)?;
-                                me.print(reader.original_position())?;
+                        ElementItems::Expressions(reader) => {
+                            let mut iter = reader.into_iter();
+                            me.print(iter.original_position())?;
+                            while let Some(item) = iter.next() {
+                                write!(me.state, "item {:?}", item?)?;
+                                me.print(iter.original_position())?;
                             }
                         }
                     }
@@ -537,36 +537,33 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn section<T>(
+    fn section<'b, T>(
         &mut self,
-        iter: T,
+        iter: SectionLimited<'b, T>,
         name: &str,
-        print: impl FnMut(&mut Self, usize, T::Item) -> Result<()>,
+        print: impl FnMut(&mut Self, usize, T) -> Result<()>,
     ) -> Result<()>
     where
-        T: SectionReader + SectionWithLimitedItems,
+        T: FromReader<'b>,
     {
         write!(self.state, "{} section", name)?;
         self.print(iter.range().start)?;
         self.print_iter(iter, print)
     }
 
-    fn print_iter<T>(
+    fn print_iter<'b, T>(
         &mut self,
-        mut iter: T,
-        mut print: impl FnMut(&mut Self, usize, T::Item) -> Result<()>,
+        iter: SectionLimited<'b, T>,
+        mut print: impl FnMut(&mut Self, usize, T) -> Result<()>,
     ) -> Result<()>
     where
-        T: SectionReader + SectionWithLimitedItems,
+        T: FromReader<'b>,
     {
-        write!(self.state, "{} count", iter.get_count())?;
+        write!(self.state, "{} count", iter.count())?;
+        let mut iter = iter.into_iter();
         self.print(iter.original_position())?;
-        for _ in 0..iter.get_count() {
-            let item = iter.read()?;
-            print(self, iter.original_position(), item)?;
-        }
-        if !iter.eof() {
-            bail!("too many bytes in section");
+        while let Some(item) = iter.next() {
+            print(self, iter.original_position(), item?)?;
         }
         Ok(())
     }

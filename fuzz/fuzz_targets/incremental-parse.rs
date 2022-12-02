@@ -178,8 +178,8 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             (ComponentCanonicalSection(a), ComponentCanonicalSection(b)) => {
                 assert_eq!(a.range(), b.range())
             }
-            (ComponentStartSection(a), ComponentStartSection(b)) => {
-                assert_eq!(a.range(), b.range())
+            (ComponentStartSection { range: a, .. }, ComponentStartSection { range: b, .. }) => {
+                assert_eq!(a, b)
             }
             (ComponentImportSection(a), ComponentImportSection(b)) => {
                 assert_eq!(a.range(), b.range())

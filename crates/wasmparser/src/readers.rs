@@ -24,164 +24,6 @@ mod core;
 pub use self::component::*;
 pub use self::core::*;
 
-/// A trait implemented by section readers.
-pub trait SectionReader {
-    /// The item returned by the reader.
-    type Item;
-
-    /// Reads an item from the section.
-    fn read(&mut self) -> Result<Self::Item>;
-
-    /// Determines if the reader is at end-of-section.
-    fn eof(&self) -> bool;
-
-    /// Gets the original position of the reader.
-    fn original_position(&self) -> usize;
-
-    /// Gets the range of the reader.
-    fn range(&self) -> Range<usize>;
-
-    /// Ensures the reader is at the end of the section.
-    ///
-    /// This methods returns an error if there is more data in the section
-    /// than what is described by the section's header.
-    fn ensure_end(&self) -> Result<()> {
-        if self.eof() {
-            return Ok(());
-        }
-        Err(BinaryReaderError::new(
-            "section size mismatch: unexpected data at the end of the section",
-            self.original_position(),
-        ))
-    }
-}
-
-/// Implemented by sections with a limited number of items.
-pub trait SectionWithLimitedItems: SectionReader {
-    /// Gets the count of the items in the section.
-    fn get_count(&self) -> u32;
-
-    /// Returns an iterator over the items within this section where the offset
-    /// in the original section is provided with the item.
-    fn into_iter_with_offsets(self) -> IntoIterWithOffsets<Self>
-    where
-        Self: Sized,
-    {
-        IntoIterWithOffsets {
-            iter: SectionIteratorLimited::new(self),
-        }
-    }
-}
-
-/// An iterator over items in a section.
-pub struct SectionIterator<R>
-where
-    R: SectionReader,
-{
-    reader: R,
-    err: bool,
-}
-
-impl<R> SectionIterator<R>
-where
-    R: SectionReader,
-{
-    /// Constructs a new `SectionIterator` for the given section reader.
-    pub fn new(reader: R) -> SectionIterator<R> {
-        SectionIterator { reader, err: false }
-    }
-}
-
-impl<R> Iterator for SectionIterator<R>
-where
-    R: SectionReader,
-{
-    type Item = Result<R::Item>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.err || self.reader.eof() {
-            return None;
-        }
-        let result = self.reader.read();
-        self.err = result.is_err();
-        Some(result)
-    }
-}
-
-/// An iterator over a limited section iterator.
-pub struct SectionIteratorLimited<R> {
-    reader: R,
-    left: u32,
-    end: bool,
-}
-
-impl<R> SectionIteratorLimited<R>
-where
-    R: SectionWithLimitedItems,
-{
-    /// Constructs a new `SectionIteratorLimited` for the given limited section reader.
-    pub fn new(reader: R) -> SectionIteratorLimited<R> {
-        let left = reader.get_count();
-        SectionIteratorLimited {
-            reader,
-            left,
-            end: false,
-        }
-    }
-}
-
-impl<R> Iterator for SectionIteratorLimited<R>
-where
-    R: SectionWithLimitedItems,
-{
-    type Item = Result<R::Item>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.end {
-            return None;
-        }
-        if self.left == 0 {
-            return match self.reader.ensure_end() {
-                Ok(()) => None,
-                Err(err) => {
-                    self.end = true;
-                    Some(Err(err))
-                }
-            };
-        }
-        let result = self.reader.read();
-        self.end = result.is_err();
-        self.left -= 1;
-        Some(result)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let count = self.reader.get_count() as usize;
-        (count, Some(count))
-    }
-}
-
-/// An iterator over a limited section iterator.
-pub struct IntoIterWithOffsets<R> {
-    iter: SectionIteratorLimited<R>,
-}
-
-impl<R> Iterator for IntoIterWithOffsets<R>
-where
-    R: SectionWithLimitedItems,
-{
-    type Item = Result<(usize, R::Item)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let pos = self.iter.reader.original_position();
-        Some(self.iter.next()?.map(|item| (pos, item)))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-}
-
 /// A trait implemented for items that can be decoded directly from a
 /// `BinaryReader`, or that which can be parsed from the WebAssembly binary
 /// format.
@@ -191,6 +33,18 @@ pub trait FromReader<'a>: Sized {
     /// Attempts to read `Self` from the provided binary reader, returning an
     /// error if it is unable to do so.
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self>;
+}
+
+impl<'a> FromReader<'a> for u32 {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        reader.read_var_u32()
+    }
+}
+
+impl<'a> FromReader<'a> for &'a str {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        reader.read_string()
+    }
 }
 
 /// A generic structure for reading a section of a WebAssembly binary which has
@@ -244,6 +98,17 @@ impl<'a, T> SectionLimited<'a, T> {
     pub fn range(&self) -> Range<usize> {
         self.reader.range()
     }
+
+    /// Returns an iterator which yields not only each item in this section but
+    /// additionally the offset of each item within the section.
+    pub fn into_iter_with_offsets(self) -> SectionLimitedIntoIterWithOffsets<'a, T>
+    where
+        T: FromReader<'a>,
+    {
+        SectionLimitedIntoIterWithOffsets {
+            iter: self.into_iter(),
+        }
+    }
 }
 
 impl<T> Clone for SectionLimited<'_, T> {
@@ -291,6 +156,13 @@ pub struct SectionLimitedIntoIter<'a, T> {
     end: bool,
 }
 
+impl<T> SectionLimitedIntoIter<'_, T> {
+    /// Returns the current byte offset of the section within this iterator.
+    pub fn original_position(&self) -> usize {
+        self.section.reader.original_position()
+    }
+}
+
 impl<'a, T> Iterator for SectionLimitedIntoIter<'a, T>
 where
     T: FromReader<'a>,
@@ -318,47 +190,24 @@ where
     }
 }
 
-impl<'a, T> SectionReader for SectionLimited<'a, T>
+/// An iterator over a limited section iterator.
+pub struct SectionLimitedIntoIterWithOffsets<'a, T> {
+    iter: SectionLimitedIntoIter<'a, T>,
+}
+
+impl<'a, T> Iterator for SectionLimitedIntoIterWithOffsets<'a, T>
 where
     T: FromReader<'a>,
 {
-    type Item = T;
+    type Item = Result<(usize, T)>;
 
-    fn read(&mut self) -> Result<Self::Item> {
-        self.reader.read()
+    fn next(&mut self) -> Option<Self::Item> {
+        let pos = self.iter.section.reader.original_position();
+        Some(self.iter.next()?.map(|item| (pos, item)))
     }
 
-    fn eof(&self) -> bool {
-        self.reader.eof()
-    }
-
-    fn original_position(&self) -> usize {
-        SectionLimited::original_position(self)
-    }
-
-    fn range(&self) -> Range<usize> {
-        SectionLimited::range(self)
-    }
-}
-
-impl<'a, T> SectionWithLimitedItems for SectionLimited<'a, T>
-where
-    T: FromReader<'a>,
-{
-    fn get_count(&self) -> u32 {
-        self.count
-    }
-}
-
-impl<'a> FromReader<'a> for u32 {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        reader.read_var_u32()
-    }
-}
-
-impl<'a> FromReader<'a> for &'a str {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        reader.read_string()
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
     }
 }
 

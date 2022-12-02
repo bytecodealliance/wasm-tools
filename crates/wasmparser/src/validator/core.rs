@@ -9,8 +9,8 @@ use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
-    Global, GlobalType, MemoryType, Result, SectionReader, SectionWithLimitedItems, TableType,
-    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    Global, GlobalType, MemoryType, Result, TableType, TagType, TypeRef, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -216,12 +216,10 @@ impl ModuleState {
             }
         };
         match e.items {
-            crate::ElementItems::Functions(mut reader) => {
-                let count = reader.get_count();
-                validate_count(count)?;
-                for _ in 0..count {
-                    let offset = reader.original_position();
-                    let f = reader.read()?;
+            crate::ElementItems::Functions(reader) => {
+                validate_count(reader.count())?;
+                for f in reader.into_iter_with_offsets() {
+                    let (offset, f) = f?;
                     if e.ty != ValType::FuncRef {
                         return Err(BinaryReaderError::new(
                             "type mismatch: segment does not have funcref type",
@@ -232,12 +230,10 @@ impl ModuleState {
                     self.module.assert_mut().function_references.insert(f);
                 }
             }
-            crate::ElementItems::Expressions(mut reader) => {
-                let count = reader.get_count();
-                validate_count(count)?;
-                for _ in 0..count {
-                    let expr = reader.read()?;
-                    self.check_const_expr(&expr, e.ty, features, types)?;
+            crate::ElementItems::Expressions(reader) => {
+                validate_count(reader.count())?;
+                for expr in reader {
+                    self.check_const_expr(&expr?, e.ty, features, types)?;
                 }
             }
         }

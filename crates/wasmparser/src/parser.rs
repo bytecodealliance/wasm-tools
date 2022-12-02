@@ -819,7 +819,7 @@ impl Parser {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::{Result, Parser, Chunk, SectionReader, Payload::*};
+    /// use wasmparser::{Result, Parser, Chunk, Payload::*};
     /// use std::ops::Range;
     ///
     /// fn objdump_headers(mut wasm: &[u8]) -> Result<()> {

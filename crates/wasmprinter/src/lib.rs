@@ -178,14 +178,14 @@ impl Printer {
 
             match payload {
                 Payload::FunctionSection(s) => {
-                    if s.get_count() > MAX_WASM_FUNCTIONS {
+                    if s.count() > MAX_WASM_FUNCTIONS {
                         bail!(
                             "module contains {} functions which exceeds the limit of {}",
-                            s.get_count(),
+                            s.count(),
                             MAX_WASM_FUNCTIONS
                         );
                     }
-                    code.reserve(s.get_count() as usize);
+                    code.reserve(s.count() as usize);
                 }
                 Payload::CodeSectionEntry(f) => {
                     code.push(f);
@@ -323,7 +323,7 @@ impl Printer {
                     if mem::replace(&mut code_printed, true) {
                         bail!("function section appeared twice in module");
                     }
-                    if reader.get_count() == 0 {
+                    if reader.count() == 0 {
                         continue;
                     }
                     self.print_code(states.last_mut().unwrap(), &code, reader)?;
@@ -857,15 +857,15 @@ impl Printer {
         &mut self,
         state: &mut State,
         code: &[FunctionBody<'_>],
-        mut funcs: FunctionSectionReader<'_>,
+        funcs: FunctionSectionReader<'_>,
     ) -> Result<()> {
-        if funcs.get_count() != code.len() as u32 {
+        if funcs.count() != code.len() as u32 {
             bail!("mismatch in function and code section counts");
         }
-        for body in code {
+        for (body, ty) in code.iter().zip(funcs) {
             let mut body = body.get_binary_reader();
             let offset = body.original_position();
-            let ty = funcs.read()?;
+            let ty = ty?;
             self.newline(offset);
             self.start_group("func ");
             let func_idx = state.core.funcs;
@@ -1118,18 +1118,18 @@ impl Printer {
             }
             self.result.push(' ');
             match elem.items {
-                ElementItems::Functions(mut reader) => {
+                ElementItems::Functions(reader) => {
                     self.print_reftype(elem.ty)?;
-                    for _ in 0..reader.get_count() {
+                    for idx in reader {
                         self.result.push(' ');
-                        self.print_idx(&state.core.func_names, reader.read()?)?
+                        self.print_idx(&state.core.func_names, idx?)?
                     }
                 }
-                ElementItems::Expressions(mut reader) => {
+                ElementItems::Expressions(reader) => {
                     self.print_valtype(elem.ty)?;
-                    for _ in 0..reader.get_count() {
+                    for expr in reader {
                         self.result.push(' ');
-                        self.print_const_expr_sugar(state, &reader.read()?, "item")?
+                        self.print_const_expr_sugar(state, &expr?, "item")?
                     }
                 }
             }

@@ -54,7 +54,7 @@ impl Opts {
 
     fn demangle(&self, section: &[u8], offset: usize) -> Result<NameSection> {
         let mut new_section = NameSection::new();
-        for section in NameSectionReader::new(section, offset)? {
+        for section in NameSectionReader::new(section, offset) {
             match section? {
                 Name::Module { name, .. } => new_section.module(name),
                 Name::Memory(names) => new_section.memories(&self.name_map(names)?),

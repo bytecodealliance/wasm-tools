@@ -154,11 +154,15 @@ impl Printer {
         Ok(())
     }
 
-    fn section<T>(&mut self, section: T, name: &str) -> Result<()>
+    fn section<'a, T>(
+        &mut self,
+        section: wasmparser::SectionLimited<'a, T>,
+        name: &str,
+    ) -> Result<()>
     where
-        T: wasmparser::SectionWithLimitedItems + wasmparser::SectionReader,
+        T: wasmparser::FromReader<'a>,
     {
-        self.section_raw(section.range(), section.get_count(), name)
+        self.section_raw(section.range(), section.count(), name)
     }
 
     fn section_raw(&mut self, range: Range<usize>, count: u32, name: &str) -> Result<()> {
