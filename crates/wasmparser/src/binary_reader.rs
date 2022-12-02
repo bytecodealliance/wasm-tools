@@ -698,7 +698,7 @@ impl<'a> BinaryReader<'a> {
         Ok(match self.read()? {
             ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
             ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
-            ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),
+            ExternalKind::Memory => TypeRef::Memory(self.read()?),
             ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
             ExternalKind::Tag => TypeRef::Tag(self.read()?),
         })
@@ -726,41 +726,6 @@ impl<'a> BinaryReader<'a> {
             element_type,
             initial,
             maximum,
-        })
-    }
-
-    pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
-        let pos = self.original_position();
-        let flags = self.read_u8()?;
-        if (flags & !0b111) != 0 {
-            return Err(BinaryReaderError::new("invalid memory limits flags", pos));
-        }
-
-        let memory64 = flags & 0b100 != 0;
-        let shared = flags & 0b010 != 0;
-        let has_max = flags & 0b001 != 0;
-        Ok(MemoryType {
-            memory64,
-            shared,
-            // FIXME(WebAssembly/memory64#21) as currently specified if the
-            // `shared` flag is set we should be reading a 32-bit limits field
-            // here. That seems a bit odd to me at the time of this writing so
-            // I've taken the liberty of reading a 64-bit limits field in those
-            // situations. I suspect that this is a typo in the spec, but if not
-            // we'll need to update this to read a 32-bit limits field when the
-            // shared flag is set.
-            initial: if memory64 {
-                self.read_var_u64()?
-            } else {
-                self.read_var_u32()?.into()
-            },
-            maximum: if !has_max {
-                None
-            } else if memory64 {
-                Some(self.read_var_u64()?)
-            } else {
-                Some(self.read_var_u32()?.into())
-            },
         })
     }
 

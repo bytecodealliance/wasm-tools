@@ -154,14 +154,13 @@ impl<'a> ModuleInfo<'a> {
                         info.table_elem_types.push(ty);
                     }
                 }
-                Payload::MemorySection(mut reader) => {
+                Payload::MemorySection(reader) => {
                     info.memories = Some(info.raw_sections.len());
-                    info.memory_count += reader.get_count();
+                    info.memory_count += reader.count();
                     info.section(SectionId::Memory.into(), reader.range(), input_wasm);
 
-                    for _ in 0..reader.get_count() {
-                        let ty = reader.read()?;
-                        info.memory_types.push(ty);
+                    for ty in reader {
+                        info.memory_types.push(ty?);
                     }
                 }
                 Payload::GlobalSection(mut reader) => {
