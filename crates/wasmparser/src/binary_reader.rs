@@ -586,45 +586,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    pub(crate) fn read_canonical_func(&mut self) -> Result<CanonicalFunction> {
-        Ok(match self.read_u8()? {
-            0x00 => match self.read_u8()? {
-                0x00 => CanonicalFunction::Lift {
-                    core_func_index: self.read_var_u32()?,
-                    options: (0..self
-                        .read_size(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?)
-                        .map(|_| self.read_canonical_option())
-                        .collect::<Result<_>>()?,
-                    type_index: self.read_var_u32()?,
-                },
-                x => return self.invalid_leading_byte(x, "canonical function lift"),
-            },
-            0x01 => match self.read_u8()? {
-                0x00 => CanonicalFunction::Lower {
-                    func_index: self.read_var_u32()?,
-                    options: (0..self
-                        .read_size(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?)
-                        .map(|_| self.read_canonical_option())
-                        .collect::<Result<_>>()?,
-                },
-                x => return self.invalid_leading_byte(x, "canonical function lower"),
-            },
-            x => return self.invalid_leading_byte(x, "canonical function"),
-        })
-    }
-
-    pub(crate) fn read_canonical_option(&mut self) -> Result<CanonicalOption> {
-        Ok(match self.read_u8()? {
-            0x00 => CanonicalOption::UTF8,
-            0x01 => CanonicalOption::UTF16,
-            0x02 => CanonicalOption::CompactUTF16,
-            0x03 => CanonicalOption::Memory(self.read_var_u32()?),
-            0x04 => CanonicalOption::Realloc(self.read_var_u32()?),
-            0x05 => CanonicalOption::PostReturn(self.read_var_u32()?),
-            x => return self.invalid_leading_byte(x, "canonical option"),
-        })
-    }
-
     pub(crate) fn read_instance(&mut self) -> Result<Instance<'a>> {
         Ok(match self.read_u8()? {
             0x00 => Instance::Instantiate {
@@ -706,7 +667,7 @@ impl<'a> BinaryReader<'a> {
 
     // Reads a variable-length 32-bit size from the byte stream while checking
     // against a limit.
-    fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
+    pub(crate) fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
         let size = self.read_var_u32()? as usize;
         if size > limit {
             bail!(self.original_position() - 4, "{desc} size is out of bounds");
