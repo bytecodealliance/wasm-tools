@@ -699,24 +699,8 @@ impl<'a> BinaryReader<'a> {
             ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
             ExternalKind::Table => TypeRef::Table(self.read()?),
             ExternalKind::Memory => TypeRef::Memory(self.read()?),
-            ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
+            ExternalKind::Global => TypeRef::Global(self.read()?),
             ExternalKind::Tag => TypeRef::Tag(self.read()?),
-        })
-    }
-
-    pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
-        Ok(GlobalType {
-            content_type: self.read_val_type()?,
-            mutable: match self.read_u8()? {
-                0x00 => false,
-                0x01 => true,
-                _ => {
-                    return Err(BinaryReaderError::new(
-                        "malformed mutability",
-                        self.original_position() - 1,
-                    ))
-                }
-            },
         })
     }
 

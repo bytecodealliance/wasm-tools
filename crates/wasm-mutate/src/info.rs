@@ -161,12 +161,12 @@ impl<'a> ModuleInfo<'a> {
                         info.memory_types.push(ty?);
                     }
                 }
-                Payload::GlobalSection(mut reader) => {
+                Payload::GlobalSection(reader) => {
                     info.globals = Some(info.raw_sections.len());
                     info.section(SectionId::Global.into(), reader.range(), input_wasm);
 
-                    for _ in 0..reader.get_count() {
-                        let ty = reader.read()?;
+                    for ty in reader {
+                        let ty = ty?;
                         // We only need the type of the global, not necessarily if is mutable or not
                         let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
                         info.global_types.push(ty);

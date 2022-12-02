@@ -33,7 +33,7 @@ use self::{
         lang::*,
     },
 };
-use super::{Mutator, OperatorAndByteOffset};
+use super::{DefaultTranslator, Mutator, OperatorAndByteOffset, Translator};
 use crate::{
     module::{map_type, PrimitiveTypeInfo},
     Error, ErrorKind, ModuleInfo, Result, WasmMutate,
@@ -312,17 +312,10 @@ impl PeepholeMutator {
                             // If the global section was already there, try to copy it to the
                             // new raw section
                             let global_section = config.info().get_global_section();
-                            let mut globalreader =
-                                GlobalSectionReader::new(global_section.data, 0)?;
-                            let count = globalreader.get_count();
-                            let mut start = globalreader.original_position();
+                            let globalreader = GlobalSectionReader::new(global_section.data, 0)?;
 
-                            for _ in 0..count {
-                                let _ = globalreader.read()?;
-                                let current_pos = globalreader.original_position();
-                                let global = &global_section.data[start..current_pos];
-                                new_global_section.raw(global);
-                                start = current_pos;
+                            for g in globalreader {
+                                DefaultTranslator.translate_global(g?, &mut new_global_section)?;
                             }
                         }
 
