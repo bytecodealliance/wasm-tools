@@ -700,7 +700,7 @@ impl<'a> BinaryReader<'a> {
             ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
             ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),
             ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
-            ExternalKind::Tag => TypeRef::Tag(self.read_tag_type()?),
+            ExternalKind::Tag => TypeRef::Tag(self.read()?),
         })
     }
 
@@ -761,20 +761,6 @@ impl<'a> BinaryReader<'a> {
             } else {
                 Some(self.read_var_u32()?.into())
             },
-        })
-    }
-
-    pub(crate) fn read_tag_type(&mut self) -> Result<TagType> {
-        let attribute = self.read_u8()?;
-        if attribute != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid tag attributes",
-                self.original_position() - 1,
-            ));
-        }
-        Ok(TagType {
-            kind: TagKind::Exception,
-            func_type_idx: self.read_var_u32()?,
         })
     }
 
