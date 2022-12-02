@@ -197,7 +197,7 @@ impl<'a> ModuleInfo<'a> {
                 }
                 Payload::DataSection(reader) => {
                     info.data = Some(info.raw_sections.len());
-                    info.data_segments_count = reader.get_count();
+                    info.data_segments_count = reader.count();
                     info.section(SectionId::Data.into(), reader.range(), input_wasm);
                 }
                 Payload::CustomSection(c) => {
