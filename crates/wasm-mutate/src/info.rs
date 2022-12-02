@@ -87,16 +87,14 @@ impl<'a> ModuleInfo<'a> {
 
                     continue;
                 }
-                Payload::TypeSection(mut reader) => {
+                Payload::TypeSection(reader) => {
                     info.types = Some(info.raw_sections.len());
                     info.section(SectionId::Type.into(), reader.range(), input_wasm);
 
                     // Save function types
-                    for _ in 0..reader.get_count() {
-                        reader.read().map(|ty| {
-                            let typeinfo = TypeInfo::try_from(ty).unwrap();
-                            info.types_map.push(typeinfo);
-                        })?;
+                    for ty in reader {
+                        let typeinfo = TypeInfo::try_from(ty?).unwrap();
+                        info.types_map.push(typeinfo);
                     }
                 }
                 Payload::ImportSection(mut reader) => {

@@ -551,15 +551,15 @@ impl Module {
         let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
-                wasmparser::Payload::TypeSection(mut type_reader) => {
-                    for _ in 0..type_reader.get_count() {
-                        let ty = type_reader.read().expect("could not parse type section");
+                wasmparser::Payload::TypeSection(type_reader) => {
+                    for ty in type_reader {
+                        let ty = ty.expect("could not parse type section");
                         available_types.push((ty, None));
                     }
                 }
-                wasmparser::Payload::ImportSection(mut import_reader) => {
-                    for _ in 0..import_reader.get_count() {
-                        let im = import_reader.read().expect("could not read import");
+                wasmparser::Payload::ImportSection(import_reader) => {
+                    for im in import_reader {
+                        let im = im.expect("could not read import");
                         // We can immediately filter whether this is an import we want to
                         // use.
                         let use_import = u.arbitrary().unwrap_or(false);

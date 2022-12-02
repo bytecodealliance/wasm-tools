@@ -127,10 +127,10 @@ fn smoke_test_imports_config() {
 
             for payload in Parser::new(0).parse_all(&wasm_bytes) {
                 let payload = payload.unwrap();
-                if let wasmparser::Payload::TypeSection(mut rdr) = payload {
+                if let wasmparser::Payload::TypeSection(rdr) = payload {
                     // Gather the signature types to later check function types against.
-                    while let Ok(ty) = rdr.read() {
-                        match ty {
+                    for ty in rdr {
+                        match ty.unwrap() {
                             wasmparser::Type::Func(ft) => sig_types.push(ft),
                         }
                     }

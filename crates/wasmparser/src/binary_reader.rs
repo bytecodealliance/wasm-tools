@@ -282,30 +282,9 @@ impl<'a> BinaryReader<'a> {
         Self::component_external_kind_from_bytes(byte1, byte2, offset)
     }
 
-    pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
-        let len_params = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
-        let mut params_results = Vec::with_capacity(len_params);
-        for _ in 0..len_params {
-            params_results.push(self.read_val_type()?);
-        }
-        let len_results = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
-        params_results.reserve(len_results);
-        for _ in 0..len_results {
-            params_results.push(self.read_val_type()?);
-        }
-        Ok(FuncType::from_raw_parts(params_results.into(), len_params))
-    }
-
-    pub(crate) fn read_type(&mut self) -> Result<Type> {
-        Ok(match self.read_u8()? {
-            0x60 => Type::Func(self.read_func_type()?),
-            x => return self.invalid_leading_byte(x, "type"),
-        })
-    }
-
     pub(crate) fn read_core_type(&mut self) -> Result<CoreType<'a>> {
         Ok(match self.read_u8()? {
-            0x60 => CoreType::Func(self.read_func_type()?),
+            0x60 => CoreType::Func(self.read()?),
             0x50 => {
                 let size = self.read_size(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?;
                 CoreType::Module(
@@ -377,7 +356,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_module_type_decl(&mut self) -> Result<ModuleTypeDeclaration<'a>> {
         Ok(match self.read_u8()? {
             0x00 => ModuleTypeDeclaration::Import(self.read_import()?),
-            0x01 => ModuleTypeDeclaration::Type(self.read_type()?),
+            0x01 => ModuleTypeDeclaration::Type(self.read()?),
             0x02 => {
                 let kind = match self.read_u8()? {
                     0x10 => OuterAliasKind::Type,
