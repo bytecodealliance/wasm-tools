@@ -1012,7 +1012,7 @@ impl Validator {
     /// This method should only be called when parsing a component.
     pub fn component_alias_section(
         &mut self,
-        section: &crate::ComponentAliasSectionReader,
+        section: &crate::ComponentAliasSectionReader<'_>,
     ) -> Result<()> {
         self.process_component_section(
             section,

@@ -181,6 +181,16 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    /// Reads a value of type `T` from this binary reader, advancing the
+    /// internal position in this reader forward as data is read.
+    #[inline]
+    pub fn read<T>(&mut self) -> Result<T>
+    where
+        T: FromReader<'a>,
+    {
+        T::from_reader(self)
+    }
+
     pub(crate) fn read_u7(&mut self) -> Result<u8> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
@@ -218,7 +228,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
+    pub(crate) fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
         match byte {
             0x00 => Ok(ExternalKind::Func),
             0x01 => Ok(ExternalKind::Table),
@@ -234,7 +244,7 @@ impl<'a> BinaryReader<'a> {
         Self::external_kind_from_byte(self.read_u8()?, offset)
     }
 
-    fn component_external_kind_from_bytes(
+    pub(crate) fn component_external_kind_from_bytes(
         byte1: u8,
         byte2: Option<u8>,
         offset: usize,
@@ -424,7 +434,7 @@ impl<'a> BinaryReader<'a> {
         Ok(match self.read_u8()? {
             0x00 => InstanceTypeDeclaration::CoreType(self.read_core_type()?),
             0x01 => InstanceTypeDeclaration::Type(self.read_component_type()?),
-            0x02 => InstanceTypeDeclaration::Alias(self.read_component_alias()?),
+            0x02 => InstanceTypeDeclaration::Alias(self.read()?),
             0x04 => InstanceTypeDeclaration::Export {
                 name: self.read_string()?,
                 url: self.read_string()?,
@@ -694,70 +704,6 @@ impl<'a> BinaryReader<'a> {
             name: self.read_string()?,
             kind: self.read_component_external_kind()?,
             index: self.read_var_u32()?,
-        })
-    }
-
-    fn component_outer_alias_kind_from_bytes(
-        byte1: u8,
-        byte2: Option<u8>,
-        offset: usize,
-    ) -> Result<ComponentOuterAliasKind> {
-        Ok(match byte1 {
-            0x00 => match byte2.unwrap() {
-                0x10 => ComponentOuterAliasKind::CoreType,
-                0x11 => ComponentOuterAliasKind::CoreModule,
-                x => {
-                    return Err(Self::invalid_leading_byte_error(
-                        x,
-                        "component outer alias kind",
-                        offset + 1,
-                    ))
-                }
-            },
-            0x03 => ComponentOuterAliasKind::Type,
-            0x04 => ComponentOuterAliasKind::Component,
-            x => {
-                return Err(Self::invalid_leading_byte_error(
-                    x,
-                    "component outer alias kind",
-                    offset,
-                ))
-            }
-        })
-    }
-
-    pub(crate) fn read_component_alias(&mut self) -> Result<ComponentAlias<'a>> {
-        // We don't know what type of alias it is yet, so just read the sort bytes
-        let offset = self.original_position();
-        let byte1 = self.read_u8()?;
-        let byte2 = if byte1 == 0x00 {
-            Some(self.read_u8()?)
-        } else {
-            None
-        };
-
-        Ok(match self.read_u8()? {
-            0x00 => ComponentAlias::InstanceExport {
-                kind: Self::component_external_kind_from_bytes(byte1, byte2, offset)?,
-                instance_index: self.read_var_u32()?,
-                name: self.read_string()?,
-            },
-            0x01 => ComponentAlias::CoreInstanceExport {
-                kind: Self::external_kind_from_byte(
-                    byte2.ok_or_else(|| {
-                        Self::invalid_leading_byte_error(byte1, "core instance export kind", offset)
-                    })?,
-                    offset,
-                )?,
-                instance_index: self.read_var_u32()?,
-                name: self.read_string()?,
-            },
-            0x02 => ComponentAlias::Outer {
-                kind: Self::component_outer_alias_kind_from_bytes(byte1, byte2, offset)?,
-                count: self.read_var_u32()?,
-                index: self.read_var_u32()?,
-            },
-            x => return self.invalid_leading_byte(x, "alias"),
         })
     }
 
@@ -1311,7 +1257,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     #[cold]
-    fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
+    pub(crate) fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
         Err(Self::invalid_leading_byte_error(
             byte,
             desc,
@@ -1319,7 +1265,11 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> BinaryReaderError {
+    pub(crate) fn invalid_leading_byte_error(
+        byte: u8,
+        desc: &str,
+        offset: usize,
+    ) -> BinaryReaderError {
         format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 

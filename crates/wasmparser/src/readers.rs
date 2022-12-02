@@ -13,7 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReaderError, Result};
+use crate::{BinaryReader, BinaryReaderError, Result};
+use std::marker;
 use std::ops::Range;
 
 mod component;
@@ -177,5 +178,164 @@ where
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
+    }
+}
+
+/// A trait implemented for items that can be decoded directly from a
+/// `BinaryReader`, or that which can be parsed from the WebAssembly binary
+/// format.
+///
+/// Note that this is also accessible as a [`BinaryReader::read`] method.
+pub trait FromReader<'a>: Sized {
+    /// Attempts to read `Self` from the provided binary reader, returning an
+    /// error if it is unable to do so.
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self>;
+}
+
+/// A generic structure for reading a section of a WebAssembly binary which has
+/// a limited number of items within it.
+///
+/// Many WebAssembly sections are a count of items followed by that many items.
+/// This helper structure can be used to parse these sections and provides
+/// an iteration-based API for reading the contents.
+///
+/// Note that this always implements the [`Clone`] trait to represent the
+/// ability to parse the section multiple times.
+pub struct SectionLimited<'a, T> {
+    reader: BinaryReader<'a>,
+    count: u32,
+    _marker: marker::PhantomData<T>,
+}
+
+impl<'a, T> SectionLimited<'a, T> {
+    /// Creates a new section reader from the provided contents.
+    ///
+    /// The `data` provided here is the data of the section itself that will be
+    /// parsed. The `offset` argument is the byte offset, in the original wasm
+    /// binary, that the section was found. The `offset` argument is used
+    /// for error reporting.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a 32-bit count couldn't be read from the `data`.
+    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
+        let mut reader = BinaryReader::new_with_offset(data, offset);
+        let count = reader.read_var_u32()?;
+        Ok(SectionLimited {
+            reader,
+            count,
+            _marker: marker::PhantomData,
+        })
+    }
+
+    /// Returns the count of total items within this section.
+    pub fn count(&self) -> u32 {
+        self.count
+    }
+
+    /// Returns whether the original byte offset of this section.
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+
+    /// Returns the range, as byte offsets, of this section within the original
+    /// wasm binary.
+    pub fn range(&self) -> Range<usize> {
+        self.reader.range()
+    }
+}
+
+impl<T> Clone for SectionLimited<'_, T> {
+    fn clone(&self) -> Self {
+        SectionLimited {
+            reader: self.reader.clone(),
+            count: self.count,
+            _marker: self._marker,
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for SectionLimited<'a, T>
+where
+    T: FromReader<'a>,
+{
+    type Item = Result<T>;
+    type IntoIter = SectionLimitedIntoIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionLimitedIntoIter {
+            remaining: self.count,
+            section: self,
+            end: false,
+        }
+    }
+}
+
+/// A consuming iterator of a [`SectionLimited`].
+///
+/// This is created via the [`IntoIterator`] `impl` for the [`SectionLimited`]
+/// type.
+pub struct SectionLimitedIntoIter<'a, T> {
+    section: SectionLimited<'a, T>,
+    remaining: u32,
+    end: bool,
+}
+
+impl<'a, T> Iterator for SectionLimitedIntoIter<'a, T>
+where
+    T: FromReader<'a>,
+{
+    type Item = Result<T>;
+
+    fn next(&mut self) -> Option<Result<T>> {
+        if self.end {
+            return None;
+        }
+        if self.remaining == 0 {
+            self.end = true;
+            if self.section.reader.eof() {
+                return None;
+            }
+            return Some(Err(BinaryReaderError::new(
+                "section size mismatch: unexpected data at the end of the section",
+                self.section.reader.original_position(),
+            )));
+        }
+        let result = self.section.reader.read();
+        self.end = result.is_err();
+        self.remaining -= 1;
+        Some(result)
+    }
+}
+
+impl<'a, T> SectionReader for SectionLimited<'a, T>
+where
+    T: FromReader<'a>,
+{
+    type Item = T;
+
+    fn read(&mut self) -> Result<Self::Item> {
+        self.reader.read()
+    }
+
+    fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+
+    fn original_position(&self) -> usize {
+        SectionLimited::original_position(self)
+    }
+
+    fn range(&self) -> Range<usize> {
+        SectionLimited::range(self)
+    }
+}
+
+impl<'a, T> SectionWithLimitedItems for SectionLimited<'a, T>
+where
+    T: FromReader<'a>,
+{
+    fn get_count(&self) -> u32 {
+        self.count
     }
 }

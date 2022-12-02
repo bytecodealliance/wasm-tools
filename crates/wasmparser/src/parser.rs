@@ -1,11 +1,11 @@
 use crate::CoreTypeSectionReader;
 use crate::{
-    limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentAliasSectionReader,
-    ComponentCanonicalSectionReader, ComponentExportSectionReader, ComponentImportSectionReader,
-    ComponentInstanceSectionReader, ComponentStartSectionReader, ComponentTypeSectionReader,
-    CustomSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
-    FunctionBody, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    InstanceSectionReader, MemorySectionReader, Result, SectionReader, TableSectionReader,
+    limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
+    ComponentExportSectionReader, ComponentImportSectionReader, ComponentInstanceSectionReader,
+    ComponentStartSectionReader, ComponentTypeSectionReader, CustomSectionReader,
+    DataSectionReader, ElementSectionReader, ExportSectionReader, FunctionBody,
+    FunctionSectionReader, GlobalSectionReader, ImportSectionReader, InstanceSectionReader,
+    MemorySectionReader, Result, SectionLimited, SectionReader, TableSectionReader,
     TagSectionReader, TypeSectionReader,
 };
 use std::convert::TryInto;
@@ -238,7 +238,7 @@ pub enum Payload<'a> {
     ComponentInstanceSection(ComponentInstanceSectionReader<'a>),
     /// A component alias section was received and the provided reader can be
     /// used to parse the contents of the component alias section.
-    ComponentAliasSection(ComponentAliasSectionReader<'a>),
+    ComponentAliasSection(SectionLimited<'a, crate::ComponentAlias<'a>>),
     /// A component type section was received and the provided reader can be
     /// used to parse the contents of the component type section.
     ComponentTypeSection(ComponentTypeSectionReader<'a>),
@@ -657,12 +657,9 @@ impl Parser {
                         ComponentInstanceSectionReader::new,
                         ComponentInstanceSection,
                     ),
-                    (Encoding::Component, COMPONENT_ALIAS_SECTION) => section(
-                        reader,
-                        len,
-                        ComponentAliasSectionReader::new,
-                        ComponentAliasSection,
-                    ),
+                    (Encoding::Component, COMPONENT_ALIAS_SECTION) => {
+                        section(reader, len, SectionLimited::new, ComponentAliasSection)
+                    }
                     (Encoding::Component, COMPONENT_TYPE_SECTION) => section(
                         reader,
                         len,
