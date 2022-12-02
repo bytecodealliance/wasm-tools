@@ -20,14 +20,6 @@ use std::fmt;
 use std::ops::Range;
 use std::str;
 
-fn is_name(name: &str, expected: &'static str) -> bool {
-    name == expected
-}
-
-fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
-    name.starts_with(prefix)
-}
-
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 
 /// A binary reader for WebAssembly modules.
@@ -291,42 +283,6 @@ impl<'a> BinaryReader<'a> {
             offset,
             memory,
         })
-    }
-
-    pub(crate) fn read_section_code(&mut self, id: u8, offset: usize) -> Result<SectionCode<'a>> {
-        match id {
-            0 => {
-                let name = self.read_string()?;
-                let kind = if is_name(name, "name") {
-                    CustomSectionKind::Name
-                } else if is_name(name, "producers") {
-                    CustomSectionKind::Producers
-                } else if is_name(name, "sourceMappingURL") {
-                    CustomSectionKind::SourceMappingURL
-                } else if is_name_prefix(name, "reloc.") {
-                    CustomSectionKind::Reloc
-                } else if is_name(name, "linking") {
-                    CustomSectionKind::Linking
-                } else {
-                    CustomSectionKind::Unknown
-                };
-                Ok(SectionCode::Custom { name, kind })
-            }
-            1 => Ok(SectionCode::Type),
-            2 => Ok(SectionCode::Import),
-            3 => Ok(SectionCode::Function),
-            4 => Ok(SectionCode::Table),
-            5 => Ok(SectionCode::Memory),
-            6 => Ok(SectionCode::Global),
-            7 => Ok(SectionCode::Export),
-            8 => Ok(SectionCode::Start),
-            9 => Ok(SectionCode::Element),
-            10 => Ok(SectionCode::Code),
-            11 => Ok(SectionCode::Data),
-            12 => Ok(SectionCode::DataCount),
-            13 => Ok(SectionCode::Tag),
-            _ => Err(BinaryReaderError::new("invalid section code", offset)),
-        }
     }
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
@@ -1540,37 +1496,6 @@ impl<'a> BinaryReader<'a> {
             ));
         }
         self.read_u32()
-    }
-
-    pub(crate) fn read_linking_type(&mut self) -> Result<LinkingType> {
-        let ty = self.read_var_u32()?;
-        Ok(match ty {
-            1 => LinkingType::StackPointer(self.read_var_u32()?),
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "invalid linking type",
-                    self.original_position() - 1,
-                ));
-            }
-        })
-    }
-
-    pub(crate) fn read_reloc_type(&mut self) -> Result<RelocType> {
-        let code = self.read_u7()?;
-        match code {
-            0 => Ok(RelocType::FunctionIndexLEB),
-            1 => Ok(RelocType::TableIndexSLEB),
-            2 => Ok(RelocType::TableIndexI32),
-            3 => Ok(RelocType::GlobalAddrLEB),
-            4 => Ok(RelocType::GlobalAddrSLEB),
-            5 => Ok(RelocType::GlobalAddrI32),
-            6 => Ok(RelocType::TypeIndexLEB),
-            7 => Ok(RelocType::GlobalIndexLEB),
-            _ => Err(BinaryReaderError::new(
-                "invalid reloc type",
-                self.original_position() - 1,
-            )),
-        }
     }
 
     pub(crate) fn skip_const_expr(&mut self) -> Result<()> {
