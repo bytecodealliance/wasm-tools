@@ -143,13 +143,13 @@ impl<'a> ModuleInfo<'a> {
                         })?;
                     }
                 }
-                Payload::TableSection(mut reader) => {
+                Payload::TableSection(reader) => {
                     info.tables = Some(info.raw_sections.len());
-                    info.table_count += reader.get_count();
+                    info.table_count += reader.count();
                     info.section(SectionId::Table.into(), reader.range(), input_wasm);
 
-                    for _ in 0..reader.get_count() {
-                        let ty = reader.read()?;
+                    for ty in reader {
+                        let ty = ty?;
                         let ty = PrimitiveTypeInfo::try_from(ty.element_type).unwrap();
                         info.table_elem_types.push(ty);
                     }

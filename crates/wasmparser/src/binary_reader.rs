@@ -697,35 +697,10 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_type_ref(&mut self) -> Result<TypeRef> {
         Ok(match self.read()? {
             ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
-            ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
+            ExternalKind::Table => TypeRef::Table(self.read()?),
             ExternalKind::Memory => TypeRef::Memory(self.read()?),
             ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
             ExternalKind::Tag => TypeRef::Tag(self.read()?),
-        })
-    }
-
-    pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
-        let element_type = self.read_val_type()?;
-        let has_max = match self.read_u8()? {
-            0x00 => false,
-            0x01 => true,
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "invalid table resizable limits flags",
-                    self.original_position() - 1,
-                ))
-            }
-        };
-        let initial = self.read_var_u32()?;
-        let maximum = if has_max {
-            Some(self.read_var_u32()?)
-        } else {
-            None
-        };
-        Ok(TableType {
-            element_type,
-            initial,
-            maximum,
         })
     }
 
