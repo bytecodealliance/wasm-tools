@@ -412,15 +412,15 @@ impl<'a> Dump<'a> {
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
                     if c.name() == "name" {
-                        let mut iter = NameSectionReader::new(c.data(), c.data_offset())?;
-                        while !iter.eof() {
-                            self.print_custom_name_section(iter.read()?, iter.original_position())?;
+                        let mut iter = NameSectionReader::new(c.data(), c.data_offset());
+                        while let Some(section) = iter.next() {
+                            self.print_custom_name_section(section?, iter.original_position())?;
                         }
                     } else if c.name() == "component-name" {
-                        let mut iter = ComponentNameSectionReader::new(c.data(), c.data_offset())?;
-                        while !iter.eof() {
+                        let mut iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
+                        while let Some(section) = iter.next() {
                             self.print_custom_component_name_section(
-                                iter.read()?,
+                                section?,
                                 iter.original_position(),
                             )?;
                         }

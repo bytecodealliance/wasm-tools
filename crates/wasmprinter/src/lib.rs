@@ -200,11 +200,11 @@ impl Printer {
 
                 // Ignore any error associated with the name sections.
                 Payload::CustomSection(c) if c.name() == "name" => {
-                    let reader = NameSectionReader::new(c.data(), c.data_offset())?;
+                    let reader = NameSectionReader::new(c.data(), c.data_offset());
                     drop(self.register_names(state, reader));
                 }
                 Payload::CustomSection(c) if c.name() == "component-name" => {
-                    let reader = ComponentNameSectionReader::new(c.data(), c.data_offset())?;
+                    let reader = ComponentNameSectionReader::new(c.data(), c.data_offset());
                     drop(self.register_component_names(state, reader));
                 }
 

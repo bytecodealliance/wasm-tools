@@ -361,3 +361,91 @@ impl<'a> FromReader<'a> for &'a str {
         reader.read_string()
     }
 }
+
+/// A trait implemented for subsections of another outer section.
+///
+/// This is currently only used for subsections within custom sections, such as
+/// the `name` section of core wasm.
+///
+/// This is used in conjunction with [`Subsections`].
+pub trait Subsection<'a>: Sized {
+    /// Converts the section identifier provided with the section contents into
+    /// a typed section
+    fn from_reader(id: u8, reader: BinaryReader<'a>) -> Result<Self>;
+}
+
+/// Iterator/reader over the contents of a section which is composed of
+/// subsections.
+///
+/// This reader is used for the core `name` section, for example. This type
+/// primarily implements [`Iterator`] for advancing through the sections.
+pub struct Subsections<'a, T> {
+    reader: BinaryReader<'a>,
+    _marker: marker::PhantomData<T>,
+}
+
+impl<'a, T> Subsections<'a, T> {
+    /// Creates a new reader for the specified section contents starting at
+    /// `offset` within the original wasm file.
+    pub fn new(data: &'a [u8], offset: usize) -> Self {
+        Subsections {
+            reader: BinaryReader::new_with_offset(data, offset),
+            _marker: marker::PhantomData,
+        }
+    }
+
+    /// Returns whether the original byte offset of this section.
+    pub fn original_position(&self) -> usize {
+        self.reader.original_position()
+    }
+
+    /// Returns the range, as byte offsets, of this section within the original
+    /// wasm binary.
+    pub fn range(&self) -> Range<usize> {
+        self.reader.range()
+    }
+
+    fn read(&mut self) -> Result<T>
+    where
+        T: Subsection<'a>,
+    {
+        let subsection_id = self.reader.read_u7()?;
+        let payload_len = self.reader.read_var_u32()? as usize;
+        let offset = self.reader.original_position();
+        let data = self.reader.read_bytes(payload_len)?;
+        let reader = BinaryReader::new_with_offset(data, offset);
+        T::from_reader(subsection_id, reader)
+    }
+}
+
+impl<T> Clone for Subsections<'_, T> {
+    fn clone(&self) -> Self {
+        Subsections {
+            reader: self.reader.clone(),
+            _marker: self._marker,
+        }
+    }
+}
+
+impl<T> fmt::Debug for Subsections<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Subsections")
+            .field("range", &self.range())
+            .finish()
+    }
+}
+
+impl<'a, T> Iterator for Subsections<'a, T>
+where
+    T: Subsection<'a>,
+{
+    type Item = Result<T>;
+
+    fn next(&mut self) -> Option<Result<T>> {
+        if self.reader.eof() {
+            None
+        } else {
+            Some(self.read())
+        }
+    }
+}

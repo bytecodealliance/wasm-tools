@@ -14,8 +14,7 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, FromReader, Result, SectionIterator, SectionLimited,
-    SectionReader,
+    BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
 use std::ops::Range;
 
@@ -114,55 +113,14 @@ pub enum Name<'a> {
 }
 
 /// A reader for the name custom section of a WebAssembly module.
-pub struct NameSectionReader<'a> {
-    reader: BinaryReader<'a>,
-}
+pub type NameSectionReader<'a> = Subsections<'a, Name<'a>>;
 
-impl<'a> NameSectionReader<'a> {
-    /// Constructs a new `NameSectionReader` from the given data and offset.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<NameSectionReader<'a>> {
-        Ok(NameSectionReader {
-            reader: BinaryReader::new_with_offset(data, offset),
-        })
-    }
-
-    fn verify_section_end(&self, end: usize) -> Result<()> {
-        if self.reader.buffer.len() < end {
-            return Err(BinaryReaderError::new(
-                "name entry extends past end of the code section",
-                self.reader.original_offset + self.reader.buffer.len(),
-            ));
-        }
-        Ok(())
-    }
-
-    /// Determines if the reader is at the end of the section.
-    pub fn eof(&self) -> bool {
-        self.reader.eof()
-    }
-
-    /// Gets the original position of the section reader.
-    pub fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    /// Reads a name from the section.
-    pub fn read<'b>(&mut self) -> Result<Name<'b>>
-    where
-        'a: 'b,
-    {
-        let subsection_id = self.reader.read_u7()?;
-        let payload_len = self.reader.read_var_u32()? as usize;
-        let payload_start = self.reader.position;
-        let payload_end = payload_start + payload_len;
-        self.verify_section_end(payload_end)?;
-        let offset = self.reader.original_offset + payload_start;
-        let data = &self.reader.buffer[payload_start..payload_end];
-        self.reader.skip_to(payload_end);
-
-        Ok(match subsection_id {
+impl<'a> Subsection<'a> for Name<'a> {
+    fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
+        let data = reader.remaining_buffer();
+        let offset = reader.original_position();
+        Ok(match id {
             0 => {
-                let mut reader = BinaryReader::new_with_offset(data, offset);
                 let name = reader.read_string()?;
                 if !reader.eof() {
                     return Err(BinaryReaderError::new(
@@ -187,33 +145,8 @@ impl<'a> NameSectionReader<'a> {
             ty => Name::Unknown {
                 ty,
                 data,
-                range: offset..offset + payload_len,
+                range: offset..offset + data.len(),
             },
         })
-    }
-}
-
-impl<'a> SectionReader for NameSectionReader<'a> {
-    type Item = Name<'a>;
-    fn read(&mut self) -> Result<Self::Item> {
-        NameSectionReader::read(self)
-    }
-    fn eof(&self) -> bool {
-        NameSectionReader::eof(self)
-    }
-    fn original_position(&self) -> usize {
-        NameSectionReader::original_position(self)
-    }
-    fn range(&self) -> Range<usize> {
-        self.reader.range()
-    }
-}
-
-impl<'a> IntoIterator for NameSectionReader<'a> {
-    type Item = Result<Name<'a>>;
-    type IntoIter = SectionIterator<NameSectionReader<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        SectionIterator::new(self)
     }
 }

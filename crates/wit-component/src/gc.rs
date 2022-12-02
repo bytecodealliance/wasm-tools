@@ -246,7 +246,7 @@ impl<'a> Module<'a> {
     }
 
     fn parse_name_section(&mut self, section: &CustomSectionReader<'a>) -> Result<()> {
-        let section = NameSectionReader::new(section.data(), section.data_offset())?;
+        let section = NameSectionReader::new(section.data(), section.data_offset());
         for s in section {
             match s? {
                 Name::Function(map) => {
