@@ -14,10 +14,13 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, Result, SectionIterator, SectionIteratorLimited,
-    SectionReader, SectionWithLimitedItems,
+    BinaryReader, BinaryReaderError, FromReader, Result, SectionIterator, SectionLimited,
+    SectionReader,
 };
 use std::ops::Range;
+
+/// Represents a name map from the names custom section.
+pub type NameMap<'a> = SectionLimited<'a, Naming<'a>>;
 
 /// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]
@@ -28,61 +31,16 @@ pub struct Naming<'a> {
     pub name: &'a str,
 }
 
-/// Represents a name map from the names custom section.
-#[derive(Debug, Clone)]
-pub struct NameMap<'a> {
-    reader: BinaryReader<'a>,
-    count: u32,
-}
-
-impl<'a> NameMap<'a> {
-    /// Creates a new "name map" which parses the input data.
-    ///
-    /// This is intended to parse the `namemap` production in the name section
-    /// appending of the wasm spec.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<NameMap<'a>> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
-        let count = reader.read_var_u32()?;
-        Ok(NameMap { reader, count })
-    }
-}
-
-impl<'a> SectionReader for NameMap<'a> {
-    type Item = Naming<'a>;
-
-    fn read(&mut self) -> Result<Naming<'a>> {
-        let index = self.reader.read_var_u32()?;
-        let name = self.reader.read_string()?;
+impl<'a> FromReader<'a> for Naming<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let index = reader.read_var_u32()?;
+        let name = reader.read_string()?;
         Ok(Naming { index, name })
     }
-
-    fn eof(&self) -> bool {
-        self.reader.eof()
-    }
-
-    fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    fn range(&self) -> Range<usize> {
-        self.reader.range()
-    }
 }
 
-impl SectionWithLimitedItems for NameMap<'_> {
-    fn get_count(&self) -> u32 {
-        self.count
-    }
-}
-
-impl<'a> IntoIterator for NameMap<'a> {
-    type Item = Result<Naming<'a>>;
-    type IntoIter = SectionIteratorLimited<Self>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        SectionIteratorLimited::new(self)
-    }
-}
+/// Represents a reader for indirect names from the names custom section.
+pub type IndirectNameMap<'a> = SectionLimited<'a, IndirectNaming<'a>>;
 
 /// Represents an indirect name in the names custom section.
 #[derive(Debug, Clone)]
@@ -93,72 +51,25 @@ pub struct IndirectNaming<'a> {
     pub names: NameMap<'a>,
 }
 
-/// Represents a reader for indirect names from the names custom section.
-#[derive(Clone)]
-pub struct IndirectNameMap<'a> {
-    reader: BinaryReader<'a>,
-    count: u32,
-}
-
-impl<'a> IndirectNameMap<'a> {
-    fn new(data: &'a [u8], offset: usize) -> Result<IndirectNameMap<'a>> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
-        let count = reader.read_var_u32()?;
-        Ok(IndirectNameMap { reader, count })
-    }
-}
-
-impl<'a> SectionReader for IndirectNameMap<'a> {
-    type Item = IndirectNaming<'a>;
-
-    fn read(&mut self) -> Result<IndirectNaming<'a>> {
-        let index = self.reader.read_var_u32()?;
-        let start = self.reader.position;
+impl<'a> FromReader<'a> for IndirectNaming<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let index = reader.read_var_u32()?;
+        let start = reader.position;
 
         // Skip the `NameMap` manually here.
         //
         // FIXME(#188) shouldn't need to skip here
-        let count = self.reader.read_var_u32()?;
+        let count = reader.read_var_u32()?;
         for _ in 0..count {
-            self.reader.read_var_u32()?;
-            self.reader.skip_string()?;
+            reader.read_var_u32()?;
+            reader.skip_string()?;
         }
 
-        let end = self.reader.position;
+        let end = reader.position;
         Ok(IndirectNaming {
             index,
-            names: NameMap::new(
-                &self.reader.buffer[start..end],
-                self.reader.original_offset + start,
-            )?,
+            names: NameMap::new(&reader.buffer[start..end], reader.original_offset + start)?,
         })
-    }
-
-    fn eof(&self) -> bool {
-        self.reader.eof()
-    }
-
-    fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    fn range(&self) -> Range<usize> {
-        self.reader.range()
-    }
-}
-
-impl SectionWithLimitedItems for IndirectNameMap<'_> {
-    fn get_count(&self) -> u32 {
-        self.count
-    }
-}
-
-impl<'a> IntoIterator for IndirectNameMap<'a> {
-    type Item = Result<IndirectNaming<'a>>;
-    type IntoIter = SectionIteratorLimited<Self>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        SectionIteratorLimited::new(self)
     }
 }
 

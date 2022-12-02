@@ -14,6 +14,7 @@
  */
 
 use crate::{BinaryReader, BinaryReaderError, Result};
+use std::fmt;
 use std::marker;
 use std::ops::Range;
 
@@ -252,6 +253,15 @@ impl<T> Clone for SectionLimited<'_, T> {
             count: self.count,
             _marker: self._marker,
         }
+    }
+}
+
+impl<T> fmt::Debug for SectionLimited<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SectionLimited")
+            .field("count", &self.count)
+            .field("range", &self.range())
+            .finish()
     }
 }
 
