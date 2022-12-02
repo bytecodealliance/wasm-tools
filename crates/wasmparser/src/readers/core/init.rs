@@ -29,28 +29,23 @@ impl<'a> ConstExpr<'a> {
     }
 
     /// Gets a binary reader for the initialization expression.
-    pub fn get_binary_reader<'b>(&self) -> BinaryReader<'b>
-    where
-        'a: 'b,
-    {
+    pub fn get_binary_reader(&self) -> BinaryReader<'a> {
         BinaryReader::new_with_offset(self.data, self.offset)
     }
 
     /// Gets an operators reader for the initialization expression.
-    pub fn get_operators_reader<'b>(&self) -> OperatorsReader<'b>
-    where
-        'a: 'b,
-    {
-        OperatorsReader::new(self.data, self.offset)
+    pub fn get_operators_reader(&self) -> OperatorsReader<'a> {
+        OperatorsReader::new(self.get_binary_reader())
     }
 }
 
 impl<'a> FromReader<'a> for ConstExpr<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let expr_offset = reader.position;
         // FIXME(#188) ideally shouldn't need to skip here
-        reader.skip_const_expr()?;
-        let data = &reader.buffer[expr_offset..reader.position];
-        Ok(ConstExpr::new(data, reader.original_offset + expr_offset))
+        let reader = reader.skip(|r| r.skip_const_expr())?;
+        Ok(ConstExpr::new(
+            reader.remaining_buffer(),
+            reader.original_position(),
+        ))
     }
 }

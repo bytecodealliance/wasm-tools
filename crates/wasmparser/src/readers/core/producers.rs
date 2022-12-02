@@ -45,19 +45,17 @@ pub struct ProducersField<'a> {
 impl<'a> FromReader<'a> for ProducersField<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let name = reader.read_string()?;
-        let values_start = reader.position;
-        // FIXME(#188) ideally shouldn't need to skip here
-        for _ in 0..reader.read_var_u32()? {
-            reader.skip_string()?;
-            reader.skip_string()?;
-        }
-        let values_end = reader.position;
+        let values = reader.skip(|reader| {
+            // FIXME(#188) ideally shouldn't need to skip here
+            for _ in 0..reader.read_var_u32()? {
+                reader.skip_string()?;
+                reader.skip_string()?;
+            }
+            Ok(())
+        })?;
         Ok(ProducersField {
             name,
-            values: SectionLimited::new(
-                &reader.buffer[values_start..values_end],
-                reader.original_offset + values_start,
-            )?,
+            values: SectionLimited::new(values.remaining_buffer(), values.original_position())?,
         })
     }
 }

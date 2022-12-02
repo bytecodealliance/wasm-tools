@@ -119,28 +119,29 @@ impl<'a> FromReader<'a> for Element<'a> {
         } else {
             ValType::FuncRef
         };
-        let data_start = reader.position;
-        let items_count = reader.read_var_u32()?;
         // FIXME(#188) ideally wouldn't have to do skips here
-        if exprs {
-            for _ in 0..items_count {
-                reader.skip_const_expr()?;
+        let data = reader.skip(|reader| {
+            let items_count = reader.read_var_u32()?;
+            if exprs {
+                for _ in 0..items_count {
+                    reader.skip_const_expr()?;
+                }
+            } else {
+                for _ in 0..items_count {
+                    reader.read_var_u32()?;
+                }
             }
-        } else {
-            for _ in 0..items_count {
-                reader.read_var_u32()?;
-            }
-        }
-        let data_end = reader.position;
+            Ok(())
+        })?;
         let items = if exprs {
             ElementItems::Expressions(SectionLimited::new(
-                &reader.buffer[data_start..data_end],
-                reader.original_offset + data_start,
+                data.remaining_buffer(),
+                data.original_position(),
             )?)
         } else {
             ElementItems::Functions(SectionLimited::new(
-                &reader.buffer[data_start..data_end],
-                reader.original_offset + data_start,
+                data.remaining_buffer(),
+                data.original_position(),
             )?)
         };
 

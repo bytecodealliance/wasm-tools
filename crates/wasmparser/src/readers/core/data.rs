@@ -79,27 +79,18 @@ impl<'a> FromReader<'a> for Data<'a> {
             _ => {
                 return Err(BinaryReaderError::new(
                     "invalid flags byte in data segment",
-                    reader.original_position() - 1,
+                    segment_start,
                 ));
             }
         };
 
-        let data_len = reader.read_var_u32()? as usize;
-        let data_end = reader.position + data_len;
-
-        if reader.buffer.len() < data_end {
-            return Err(BinaryReaderError::new(
-                "unexpected end of section or function: data segment extends past end of the data section",
-                reader.original_offset + reader.buffer.len(),
-            ));
-        }
-
-        let data = &reader.buffer[reader.position..data_end];
-        reader.skip_to(data_end);
-
-        let segment_end = reader.original_position();
-        let range = segment_start..segment_end;
-
-        Ok(Data { kind, data, range })
+        let data = reader.read_reader(
+            "unexpected end of section or function: data segment extends past end of the section",
+        )?;
+        Ok(Data {
+            kind,
+            data: data.remaining_buffer(),
+            range: segment_start..data.range().end,
+        })
     }
 }

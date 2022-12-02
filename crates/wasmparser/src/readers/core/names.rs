@@ -53,21 +53,22 @@ pub struct IndirectNaming<'a> {
 impl<'a> FromReader<'a> for IndirectNaming<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let index = reader.read_var_u32()?;
-        let start = reader.position;
 
         // Skip the `NameMap` manually here.
         //
         // FIXME(#188) shouldn't need to skip here
-        let count = reader.read_var_u32()?;
-        for _ in 0..count {
-            reader.read_var_u32()?;
-            reader.skip_string()?;
-        }
+        let names = reader.skip(|reader| {
+            let count = reader.read_var_u32()?;
+            for _ in 0..count {
+                reader.read_var_u32()?;
+                reader.skip_string()?;
+            }
+            Ok(())
+        })?;
 
-        let end = reader.position;
         Ok(IndirectNaming {
             index,
-            names: NameMap::new(&reader.buffer[start..end], reader.original_offset + start)?,
+            names: NameMap::new(names.remaining_buffer(), names.original_position())?,
         })
     }
 }
