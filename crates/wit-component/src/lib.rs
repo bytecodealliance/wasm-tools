@@ -8,16 +8,16 @@ use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
 
 mod decoding;
-// mod encoding;
+mod encoding;
 mod gc;
 mod printing;
-// mod validation;
+mod validation;
 
 pub use decoding::decode_world;
-// pub use encoding::*;
+pub use encoding::*;
 pub use printing::*;
 
-// pub mod metadata;
+pub mod metadata;
 
 /// Supported string encoding formats.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

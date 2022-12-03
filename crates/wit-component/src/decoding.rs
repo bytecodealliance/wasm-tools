@@ -83,7 +83,7 @@ impl<'a> ComponentInfo<'a> {
 ///
 /// This can fail if the input component is invalid or otherwise isn't of the
 /// expected shape. At this time not all component shapes are supported here.
-pub fn decode_world(name: &str, bytes: &[u8]) -> Result<Document> {
+pub fn decode_world(name: &str, bytes: &[u8]) -> Result<(Document, WorldId)> {
     let info = ComponentInfo::new(bytes)?;
     let mut imports = IndexMap::new();
     let mut exports = IndexMap::new();
@@ -160,14 +160,14 @@ pub fn decode_world(name: &str, bytes: &[u8]) -> Result<Document> {
     } else {
         Some(decoder.decode(None, None, default.iter().map(|(n, t)| (*n, *t)))?)
     };
-    ret.worlds.alloc(World {
+    let world = ret.worlds.alloc(World {
         name: name.to_string(),
         docs: Default::default(),
         imports,
         exports,
         default,
     });
-    Ok(ret)
+    Ok((ret, world))
 }
 
 /// Represents an interface decoder for WebAssembly components.

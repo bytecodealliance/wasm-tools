@@ -34,21 +34,39 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use wasm_encoder::Encode;
 use wasmparser::BinaryReader;
-use wit_parser::{Document, WorldId};
+use wit_parser::{Document, World, WorldId};
 
 const CURRENT_VERSION: u8 = 0x01;
 
-/// Result of extracting interfaces embedded within a core wasm file.
+/// Resulting of decoding a `*.wit` interface from a WebAssembly binary.
 ///
-/// This structure is returned by the [`extract_module_interfaces`] function.
-#[derive(Default)]
-pub struct BindgenMetadata {
-    /// All interfaces found within a module, merged together into one `World`.
+/// This structure is returned by [`decode`] and represents the interface of a
+/// WebAssembly binary.
+pub struct Bindgen {
+    /// Interface and type information for this binary.
     pub doc: Document,
-
     /// The world that was bound.
     pub world: WorldId,
+    /// Metadata abuot this specific module that was bound.
+    pub metadata: ModuleMetadata,
+}
 
+impl Default for Bindgen {
+    fn default() -> Bindgen {
+        let mut doc = Document::default();
+        let world = doc.worlds.alloc(World::default());
+        Bindgen {
+            doc,
+            world,
+            metadata: ModuleMetadata::default(),
+        }
+    }
+}
+
+/// Module-level metadata that's specific to one core WebAssembly module. This
+/// is extracted with a [`Bindgen`].
+#[derive(Default)]
+pub struct ModuleMetadata {
     /// Per-function options imported into the core wasm module, currently only
     /// related to string encoding.
     pub import_encodings: IndexMap<(String, String), StringEncoding>,
@@ -69,15 +87,15 @@ pub struct BindgenMetadata {
 ///
 /// Note that a "stripped" binary where `component-type` sections are removed
 /// is returned as well to embed within a component.
-pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, BindgenMetadata)> {
-    let mut ret = BindgenMetadata::default();
+pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
+    let mut ret = Bindgen::default();
     let mut new_module = wasm_encoder::Module::new();
 
     for payload in wasmparser::Parser::new(0).parse_all(wasm) {
         let payload = payload.context("decoding item in module")?;
         match payload {
             wasmparser::Payload::CustomSection(cs) if cs.name().starts_with("component-type") => {
-                let data = BindgenMetadata::decode(cs.data())
+                let data = Bindgen::decode(cs.data())
                     .with_context(|| format!("decoding custom section {}", cs.name()))?;
                 ret.merge(data)
                     .with_context(|| format!("updating metadata for section {}", cs.name()))?;
@@ -105,7 +123,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, BindgenMetadata)> {
 pub fn encode(doc: &Document, world: WorldId, encoding: StringEncoding) -> Vec<u8> {
     let component = ComponentEncoder::default()
         .types_only(true)
-        .world(world.clone(), encoding)
+        .document(doc.clone(), encoding)
         .unwrap()
         .encode()
         .unwrap();
@@ -117,13 +135,13 @@ pub fn encode(doc: &Document, world: WorldId, encoding: StringEncoding) -> Vec<u
         StringEncoding::UTF16 => 0x01,
         StringEncoding::CompactUTF16 => 0x02,
     });
-    world.name.encode(&mut ret);
+    doc.worlds[world].name.encode(&mut ret);
     ret.extend(component);
     ret
 }
 
-impl BindgenMetadata {
-    fn decode(data: &[u8]) -> Result<BindgenMetadata> {
+impl Bindgen {
+    fn decode(data: &[u8]) -> Result<Bindgen> {
         let mut reader = BinaryReader::new(data);
         let version = reader.read_u8()?;
         if version != CURRENT_VERSION {
@@ -137,45 +155,13 @@ impl BindgenMetadata {
         };
         let name = reader.read_string()?;
 
-        Ok(BindgenMetadata::new(
-            decode_world(name, &data[reader.original_position()..])?,
-            encoding,
-        ))
-    }
-
-    /// Creates a new `BindgenMetadata` instance holding the given set of
-    /// interfaces which are expected to all use the `encoding` specified.
-    pub fn new(doc: Document, world: WorldId, encoding: StringEncoding) -> BindgenMetadata {
-        let mut ret = BindgenMetadata {
-            world,
+        let (doc, world) = decode_world(name, &data[reader.original_position()..])?;
+        let metadata = ModuleMetadata::new(&doc, world, encoding);
+        Ok(Bindgen {
             doc,
-            import_encodings: Default::default(),
-            export_encodings: Default::default(),
-        };
-
-        if let Some(iface) = &ret.world.default {
-            for func in iface.functions.iter() {
-                let name = func.core_export_name(None);
-                let prev = ret.export_encodings.insert(name.to_string(), encoding);
-                assert!(prev.is_none());
-            }
-        }
-
-        for (name, import) in ret.world.imports.iter() {
-            for func in import.functions.iter() {
-                let key = (name.clone(), func.name.clone());
-                let prev = ret.import_encodings.insert(key, encoding);
-                assert!(prev.is_none());
-            }
-        }
-        for (name, export) in ret.world.exports.iter() {
-            for func in export.functions.iter() {
-                let name = func.core_export_name(Some(name));
-                let prev = ret.export_encodings.insert(name.to_string(), encoding);
-                assert!(prev.is_none());
-            }
-        }
-        ret
+            world,
+            metadata,
+        })
     }
 
     /// Merges another `BindgenMetadata` into this one.
@@ -187,37 +173,27 @@ impl BindgenMetadata {
     ///
     /// Note that at this time there's no support for changing string encodings
     /// between metadata.
-    pub fn merge(&mut self, other: BindgenMetadata) -> Result<()> {
-        let BindgenMetadata {
+    pub fn merge(&mut self, other: Bindgen) -> Result<()> {
+        let Bindgen {
+            doc,
             world,
-            import_encodings,
-            export_encodings,
+            metadata:
+                ModuleMetadata {
+                    import_encodings,
+                    export_encodings,
+                },
         } = other;
 
-        // TODO: instead of returning an error here on duplicate interfaces
-        // this should merge the two interfaces. This probably requires world
-        // files to exist first though.
-        for (name, import) in world.imports {
-            let prev = self.world.imports.insert(name.clone(), import);
-            if prev.is_some() {
-                bail!("import interface `{name}` specified twice");
-            }
-        }
-        for (name, export) in world.exports {
-            let prev = self.world.exports.insert(name.clone(), export);
-            if prev.is_some() {
-                bail!("export interface `{name}` specified twice");
-            }
-        }
-        if let Some(default) = world.default {
-            if self.world.default.is_some() {
-                bail!("default export interface specified twice");
-            }
-            self.world.default = Some(default);
-        }
+        let world = self.doc.merge(doc).world_map[world.index()];
+        self.doc
+            .merge_worlds(world, self.world)
+            .context("failed to merge worlds from two documents")?;
 
         for (name, encoding) in export_encodings {
-            let prev = self.export_encodings.insert(name.clone(), encoding);
+            let prev = self
+                .metadata
+                .export_encodings
+                .insert(name.clone(), encoding);
             if let Some(prev) = prev {
                 if prev != encoding {
                     bail!("conflicting string encodings specified for export `{name}`");
@@ -226,6 +202,7 @@ impl BindgenMetadata {
         }
         for ((module, name), encoding) in import_encodings {
             let prev = self
+                .metadata
                 .import_encodings
                 .insert((module.clone(), name.clone()), encoding);
             if let Some(prev) = prev {
@@ -236,5 +213,37 @@ impl BindgenMetadata {
         }
 
         Ok(())
+    }
+}
+
+impl ModuleMetadata {
+    /// Creates a new `BindgenMetadata` instance holding the given set of
+    /// interfaces which are expected to all use the `encoding` specified.
+    pub fn new(doc: &Document, world: WorldId, encoding: StringEncoding) -> ModuleMetadata {
+        let mut ret = ModuleMetadata::default();
+
+        if let Some(iface) = doc.worlds[world].default {
+            for func in doc.interfaces[iface].functions.iter() {
+                let name = func.core_export_name(None);
+                let prev = ret.export_encodings.insert(name.to_string(), encoding);
+                assert!(prev.is_none());
+            }
+        }
+
+        for (name, import) in doc.worlds[world].imports.iter() {
+            for func in doc.interfaces[*import].functions.iter() {
+                let key = (name.clone(), func.name.clone());
+                let prev = ret.import_encodings.insert(key, encoding);
+                assert!(prev.is_none());
+            }
+        }
+        for (name, export) in doc.worlds[world].exports.iter() {
+            for func in doc.interfaces[*export].functions.iter() {
+                let name = func.core_export_name(Some(name));
+                let prev = ret.export_encodings.insert(name.to_string(), encoding);
+                assert!(prev.is_none());
+            }
+        }
+        ret
     }
 }

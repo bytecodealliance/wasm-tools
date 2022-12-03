@@ -48,7 +48,7 @@ fn unwrap_md(contents: &str) -> String {
 }
 
 /// Represents the result of parsing a wit document.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Document {
     /// The worlds contained in the document.
     pub worlds: Arena<World>,
@@ -467,7 +467,7 @@ pub struct Docs {
 
 pub type Params = Vec<(String, Type)>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Results {
     Named(Params),
     Anon(Type),
