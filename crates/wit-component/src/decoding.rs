@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use indexmap::IndexMap;
 use std::hash::{Hash, Hasher};
 use wasmparser::{
@@ -71,20 +71,6 @@ impl<'a> ComponentInfo<'a> {
     }
 }
 
-/// Represents an interface decoder for WebAssembly components.
-struct InterfaceDecoder<'a> {
-    info: &'a ComponentInfo<'a>,
-    interface: Interface,
-
-    // Note that the hash keys in these maps are `&types::Type` where we're
-    // hashing the memory address of the pointer itself. The purpose here is to
-    // ensure that two `TypeId` entries which come from two different index
-    // spaces which point to the same type can name the same type, so the hash
-    // key is the result after `TypeId` lookup.
-    type_map: IndexMap<PtrHash<'a, types::Type>, Type>,
-    name_map: IndexMap<PtrHash<'a, types::Type>, &'a str>,
-}
-
 /// Decode the world described by the given component bytes.
 ///
 /// This function takes a binary component as input and will infer the
@@ -97,10 +83,12 @@ struct InterfaceDecoder<'a> {
 ///
 /// This can fail if the input component is invalid or otherwise isn't of the
 /// expected shape. At this time not all component shapes are supported here.
-pub fn decode_world(name: &str, bytes: &[u8]) -> Result<World> {
+pub fn decode_world(name: &str, bytes: &[u8]) -> Result<Document> {
     let info = ComponentInfo::new(bytes)?;
     let mut imports = IndexMap::new();
     let mut exports = IndexMap::new();
+    let mut ret = Document::default();
+    let mut decoder = InterfaceDecoder::new(&info, &mut ret);
 
     for (name, import) in info.imports.iter() {
         // Imports right now are only supported if they're an import of an
@@ -111,16 +99,15 @@ pub fn decode_world(name: &str, bytes: &[u8]) -> Result<World> {
                 types::Type::ComponentInstance(i) => i,
                 _ => unreachable!(),
             },
-            _ => unimplemented!(),
+            _ => bail!("unsupported non-instance import `{name}`"),
         };
-        let iface = InterfaceDecoder::new(&info)
-            .name(*name)
-            .url(import.url)
-            .decode(
-                ty.exports(info.types.as_ref())
-                    .map(|(n, _, ty)| (n.as_str(), ty)),
-            )?;
-        imports.insert(iface.name.clone(), iface);
+        let id = decoder.decode(
+            Some(*name),
+            Some(import.url),
+            ty.exports(info.types.as_ref())
+                .map(|(n, _, ty)| (n.as_str(), ty)),
+        )?;
+        imports.insert(name.to_string(), id);
     }
 
     let mut default = IndexMap::new();
@@ -152,14 +139,13 @@ pub fn decode_world(name: &str, bytes: &[u8]) -> Result<World> {
                     .unwrap()
                     .as_component_instance_type()
                     .unwrap();
-                let iface = InterfaceDecoder::new(&info)
-                    .name(*name)
-                    .url(export.url)
-                    .decode(
-                        ty.exports(info.types.as_ref())
-                            .map(|(n, _, t)| (n.as_str(), t)),
-                    )?;
-                exports.insert(iface.name.clone(), iface);
+                let id = decoder.decode(
+                    Some(*name),
+                    Some(export.url),
+                    ty.exports(info.types.as_ref())
+                        .map(|(n, _, t)| (n.as_str(), t)),
+                )?;
+                exports.insert(name.to_string(), id);
             }
 
             // Otherwise assume everything else is part of the "default" export.
@@ -172,47 +158,58 @@ pub fn decode_world(name: &str, bytes: &[u8]) -> Result<World> {
     let default = if default.is_empty() {
         None
     } else {
-        Some(InterfaceDecoder::new(&info).decode(default.iter().map(|(n, t)| (*n, *t)))?)
+        Some(decoder.decode(None, None, default.iter().map(|(n, t)| (*n, *t)))?)
     };
-
-    Ok(World {
+    ret.worlds.alloc(World {
         name: name.to_string(),
         docs: Default::default(),
         imports,
         exports,
         default,
-    })
+    });
+    Ok(ret)
 }
 
-impl<'a> InterfaceDecoder<'a> {
+/// Represents an interface decoder for WebAssembly components.
+struct InterfaceDecoder<'a, 'doc> {
+    info: &'a ComponentInfo<'a>,
+    doc: &'doc mut Document,
+
+    // Note that the hash keys in these maps are `&types::Type` where we're
+    // hashing the memory address of the pointer itself. The purpose here is to
+    // ensure that two `TypeId` entries which come from two different index
+    // spaces which point to the same type can name the same type, so the hash
+    // key is the result after `TypeId` lookup.
+    type_map: IndexMap<PtrHash<'a, types::Type>, Type>,
+    name_map: IndexMap<PtrHash<'a, types::Type>, &'a str>,
+}
+
+impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
     /// Creates a new interface decoder for the given component information.
-    fn new(info: &'a ComponentInfo<'a>) -> InterfaceDecoder<'a> {
+    fn new(info: &'a ComponentInfo<'a>, doc: &'doc mut Document) -> Self {
         Self {
             info,
-            interface: Interface::default(),
+            doc,
             name_map: IndexMap::new(),
             type_map: IndexMap::new(),
         }
     }
 
-    /// Sets the name of the interface being decoded.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.interface.name = name.into();
-        self
-    }
-
-    /// Sets the URL of the interface being decoded.
-    pub fn url(mut self, url: impl Into<String>) -> Self {
-        self.interface.url = Some(url.into());
-        self
-    }
-
     /// Consumes the decoder and returns the interface representation assuming
     /// that the interface is made of the specified exports.
     pub fn decode(
-        mut self,
+        &mut self,
+        name: Option<&str>,
+        url: Option<&str>,
         exports: impl ExactSizeIterator<Item = (&'a str, types::ComponentEntityType)> + Clone,
-    ) -> Result<Interface> {
+    ) -> Result<InterfaceId> {
+        let mut interface = Interface::default();
+        if let Some(name) = name {
+            interface.name = name.to_string();
+        }
+        if let Some(url) = url {
+            interface.url = Some(url.to_string());
+        }
         let mut aliases = Vec::new();
         // Populate names in the name map first
         for (name, ty) in exports.clone() {
@@ -238,7 +235,8 @@ impl<'a> InterfaceDecoder<'a> {
                 types::ComponentEntityType::Func(ty) => {
                     match self.info.types.type_from_id(ty).unwrap() {
                         types::Type::ComponentFunc(ty) => {
-                            self.add_function(name, ty)?;
+                            let func = self.function(name, ty)?;
+                            interface.functions.push(func);
                         }
                         _ => unimplemented!(),
                     }
@@ -256,15 +254,25 @@ impl<'a> InterfaceDecoder<'a> {
 
         for (name, key) in aliases {
             let ty = self.type_map[&key];
-            self.interface.types.alloc(TypeDef {
+            let interface = match ty {
+                Type::Id(id) => self.doc.types[id].interface,
+                _ => None,
+            };
+            self.doc.types.alloc(TypeDef {
                 docs: Default::default(),
                 kind: TypeDefKind::Type(ty),
                 name: Some(name.to_string()),
-                foreign_module: None,
+                interface,
             });
         }
 
-        Ok(self.interface)
+        // Reset the `name_map` for the next interface, but notably persist the
+        // `type_map` which is required to get `use` of types across interfaces
+        // working since in the component it will be an alias to a type defined
+        // in a previous interface.
+        self.name_map.clear();
+
+        Ok(self.doc.interfaces.alloc(interface))
     }
 
     fn decode_params(&mut self, ps: &[(KebabString, types::ComponentValType)]) -> Result<Params> {
@@ -304,19 +312,17 @@ impl<'a> InterfaceDecoder<'a> {
         }
     }
 
-    fn add_function(&mut self, func_name: &str, ty: &types::ComponentFuncType) -> Result<()> {
+    fn function(&mut self, func_name: &str, ty: &types::ComponentFuncType) -> Result<Function> {
         let params = self.decode_params(&ty.params)?;
         let results = self.decode_results(&ty.results)?;
 
-        self.interface.functions.push(Function {
+        Ok(Function {
             docs: Docs::default(),
             name: func_name.to_string(),
             kind: FunctionKind::Freestanding,
             params,
             results,
-        });
-
-        Ok(())
+        })
     }
 
     fn decode_type(&mut self, ty: &types::ComponentValType) -> Result<Type> {
@@ -573,11 +579,11 @@ impl<'a> InterfaceDecoder<'a> {
     }
 
     fn alloc_type(&mut self, name: Option<String>, kind: TypeDefKind) -> TypeId {
-        self.interface.types.alloc(TypeDef {
+        self.doc.types.alloc(TypeDef {
             docs: Docs::default(),
             kind,
             name,
-            foreign_module: None,
+            interface: Some(self.doc.interfaces.next_id()),
         })
     }
 }

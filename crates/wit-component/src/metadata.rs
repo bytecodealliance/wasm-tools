@@ -34,7 +34,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use wasm_encoder::Encode;
 use wasmparser::BinaryReader;
-use wit_parser::World;
+use wit_parser::{Document, WorldId};
 
 const CURRENT_VERSION: u8 = 0x01;
 
@@ -44,7 +44,10 @@ const CURRENT_VERSION: u8 = 0x01;
 #[derive(Default)]
 pub struct BindgenMetadata {
     /// All interfaces found within a module, merged together into one `World`.
-    pub world: World,
+    pub doc: Document,
+
+    /// The world that was bound.
+    pub world: WorldId,
 
     /// Per-function options imported into the core wasm module, currently only
     /// related to string encoding.
@@ -99,7 +102,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, BindgenMetadata)> {
 /// into the final core wasm binary. The core wasm binary is later fed
 /// through `wit-component` to produce the actual component where this returned
 /// section will be decoded.
-pub fn encode(world: &World, encoding: StringEncoding) -> Vec<u8> {
+pub fn encode(doc: &Document, world: WorldId, encoding: StringEncoding) -> Vec<u8> {
     let component = ComponentEncoder::default()
         .types_only(true)
         .world(world.clone(), encoding)
@@ -142,9 +145,10 @@ impl BindgenMetadata {
 
     /// Creates a new `BindgenMetadata` instance holding the given set of
     /// interfaces which are expected to all use the `encoding` specified.
-    pub fn new(world: World, encoding: StringEncoding) -> BindgenMetadata {
+    pub fn new(doc: Document, world: WorldId, encoding: StringEncoding) -> BindgenMetadata {
         let mut ret = BindgenMetadata {
             world,
+            doc,
             import_encodings: Default::default(),
             export_encodings: Default::default(),
         };
