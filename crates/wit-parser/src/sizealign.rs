@@ -1,4 +1,4 @@
-use crate::{FlagsRepr, Int, Interface, Type, TypeDef, TypeDefKind};
+use crate::{Document, FlagsRepr, Int, Type, TypeDef, TypeDefKind};
 
 #[derive(Default)]
 pub struct SizeAlign {
@@ -6,10 +6,10 @@ pub struct SizeAlign {
 }
 
 impl SizeAlign {
-    pub fn fill(&mut self, iface: &Interface) {
-        self.map = vec![(0, 0); iface.types.len()];
-        for ty in iface.topological_types() {
-            let pair = self.calculate(&iface.types[ty]);
+    pub fn fill(&mut self, doc: &Document) {
+        self.map = vec![(0, 0); doc.types.len()];
+        for ty in doc.topological_types() {
+            let pair = self.calculate(&doc.types[ty]);
             self.map[ty.index()] = pair;
         }
     }

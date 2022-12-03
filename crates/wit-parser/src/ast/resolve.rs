@@ -1,16 +1,18 @@
 use super::{Error, Func, InterfaceItem, ParamList, ResultList, Span, Value, ValueKind, WorldItem};
 use crate::*;
 use anyhow::Result;
+use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
 #[derive(Default)]
 pub struct Resolver {
-    type_lookup: HashMap<String, TypeId>,
+    type_lookup: IndexMap<String, TypeId>,
     types: Arena<TypeDef>,
     anon_types: HashMap<Key, TypeId>,
     functions: Vec<Function>,
-    globals: Vec<Global>,
+    interfaces: Arena<Interface>,
+    worlds: Arena<World>,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -29,7 +31,7 @@ enum Key {
 }
 
 impl Resolver {
-    pub(crate) fn resolve(&mut self, ast: &ast::Ast<'_>) -> Result<(Vec<World>, Vec<Interface>)> {
+    pub(crate) fn resolve(&mut self, ast: &ast::Ast<'_>) -> Result<Document> {
         let mut worlds = Vec::new();
         let mut interface_map = IndexMap::new();
 
@@ -95,7 +97,11 @@ impl Resolver {
             worlds.push(world);
         }
 
-        Ok((worlds, interface_map.into_values().collect()))
+        Ok(Document {
+            worlds: mem::take(&mut self.worlds),
+            interfaces: mem::take(&mut self.interfaces),
+            types: mem::take(&mut self.types),
+        })
     }
 
     fn insert_extern(
@@ -103,8 +109,8 @@ impl Resolver {
         id: &ast::Id<'_>,
         kind: &ast::ExternKind<'_>,
         direction: &str,
-        resolved: &mut IndexMap<String, Interface>,
-        lookup: &IndexMap<String, Interface>,
+        resolved: &mut IndexMap<String, InterfaceId>,
+        lookup: &IndexMap<String, InterfaceId>,
     ) -> Result<()> {
         let interface = self.resolve_extern(kind, lookup)?;
         if resolved.insert(id.name.to_string(), interface).is_some() {
@@ -120,8 +126,8 @@ impl Resolver {
     fn resolve_extern(
         &mut self,
         kind: &ast::ExternKind<'_>,
-        lookup: &IndexMap<String, Interface>,
-    ) -> Result<Interface> {
+        lookup: &IndexMap<String, InterfaceId>,
+    ) -> Result<InterfaceId> {
         match kind {
             ast::ExternKind::Interface(_span, items) => {
                 self.resolve_interface("", items, &Default::default())
@@ -141,7 +147,7 @@ impl Resolver {
         name: &str,
         fields: &[InterfaceItem<'_>],
         docs: &super::Docs<'_>,
-    ) -> Result<Interface> {
+    ) -> Result<InterfaceId> {
         // ... then register our own names
         self.register_names(fields)?;
 
@@ -175,17 +181,14 @@ impl Resolver {
             }
         }
 
-        self.anon_types.clear();
-
-        Ok(Interface {
+        let iface = Interface {
             name: name.to_string(),
             url: None,
             docs: self.docs(docs),
-            types: mem::take(&mut self.types),
-            type_lookup: mem::take(&mut self.type_lookup),
+            types: mem::take(&mut self.type_lookup),
             functions: mem::take(&mut self.functions),
-            globals: mem::take(&mut self.globals),
-        })
+        };
+        Ok(self.interfaces.alloc(iface))
     }
 
     fn register_names(&mut self, fields: &[InterfaceItem<'_>]) -> Result<()> {
@@ -200,7 +203,7 @@ impl Resolver {
                         // later with the actual desired contents.
                         kind: TypeDefKind::List(Type::U8),
                         name: Some(t.name.name.to_string()),
-                        foreign_module: None,
+                        interface: Some(self.interfaces.next_id()),
                     });
                     self.define_type(&t.name.name, t.name.span, id)?;
                 }
@@ -377,21 +380,13 @@ impl Resolver {
             kind,
             name: None,
             docs: Docs::default(),
-            foreign_module: None,
+            interface: None,
         }))
     }
 
     fn resolve_optional_type(&mut self, ty: Option<&super::Type<'_>>) -> Result<Option<Type>> {
         match ty {
-            Some(ty) => {
-                let kind = self.resolve_type_def(ty)?;
-                Ok(Some(self.anon_type_def(TypeDef {
-                    kind,
-                    name: None,
-                    docs: Docs::default(),
-                    foreign_module: None,
-                })))
-            }
+            Some(ty) => Ok(Some(self.resolve_type(ty)?)),
             None => Ok(None),
         }
     }
@@ -470,14 +465,6 @@ impl Resolver {
                     kind: FunctionKind::Freestanding,
                     params,
                     results,
-                });
-            }
-            ValueKind::Global(ty) => {
-                let ty = self.resolve_type(ty)?;
-                self.globals.push(Global {
-                    docs,
-                    name: value.name.name.to_string(),
-                    ty,
                 });
             }
         }
