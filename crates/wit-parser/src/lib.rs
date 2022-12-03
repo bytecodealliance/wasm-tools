@@ -11,6 +11,8 @@ pub mod abi;
 mod ast;
 mod sizealign;
 pub use sizealign::*;
+mod merge;
+pub use merge::*;
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -46,6 +48,7 @@ fn unwrap_md(contents: &str) -> String {
 }
 
 /// Represents the result of parsing a wit document.
+#[derive(Default)]
 pub struct Document {
     /// The worlds contained in the document.
     pub worlds: Arena<World>,
@@ -239,17 +242,6 @@ impl Document {
                 // `false` for now, may want to reconsider later?
                 TypeDefKind::Flags(_) => false,
             },
-        }
-    }
-
-    pub fn get_variant(&self, ty: &Type) -> Option<&Variant> {
-        if let Type::Id(id) = ty {
-            match &self.types[*id].kind {
-                TypeDefKind::Variant(v) => Some(v),
-                _ => None,
-            }
-        } else {
-            None
         }
     }
 }
