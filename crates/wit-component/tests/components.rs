@@ -3,21 +3,17 @@ use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wit_component::{ComponentEncoder, StringEncoding};
-use wit_parser::World;
+use wit_parser::Document;
 
-fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, World)>> {
+fn read_adapters(dir: &Path) -> Result<Vec<(String, Vec<u8>, Document)>> {
     glob::glob(dir.join("adapt-*.wat").to_str().unwrap())?
         .map(|p| {
             let p = p?;
             let adapter =
                 wat::parse_file(&p).with_context(|| format!("expected file `{}`", p.display()))?;
             let stem = p.file_stem().unwrap().to_str().unwrap();
-            let world = read_world(dir, &format!("{stem}-"))?;
-            Ok((
-                stem.trim_start_matches("adapt-").to_string(),
-                adapter,
-                world,
-            ))
+            let doc = read_document(dir, &format!("{stem}-"))?;
+            Ok((stem.trim_start_matches("adapt-").to_string(), adapter, doc))
         })
         .collect::<Result<_>>()
 }
@@ -69,7 +65,7 @@ fn component_encoding_via_flags() -> Result<()> {
         let mut encoder = ComponentEncoder::default()
             .module(&module)?
             .validate(true)
-            .world(read_world(&path, "")?, StringEncoding::UTF8)?;
+            .document(read_document(&path, "")?, StringEncoding::UTF8)?;
         encoder = add_adapters(encoder, &path)?;
 
         assert_output(test_case, &encoder, &component_path, &error_path)?;
@@ -112,8 +108,12 @@ fn component_encoding_via_custom_sections() -> Result<()> {
 
         // Create the `component-type` custom section which will encode all of
         // the type information about imported/exported functions.
-        let world = read_world(&path, "")?;
-        let contents = wit_component::metadata::encode(&world, StringEncoding::UTF8);
+        let document = read_document(&path, "")?;
+        let contents = wit_component::metadata::encode(
+            &document,
+            document.default_world()?,
+            StringEncoding::UTF8,
+        );
         let section = wasm_encoder::CustomSection {
             name: "component-type",
             data: &contents,
@@ -131,16 +131,17 @@ fn component_encoding_via_custom_sections() -> Result<()> {
     Ok(())
 }
 
-fn read_world(path: &Path, prefix: &str) -> Result<World> {
-    let world_path = path.join(&format!("{prefix}world.wit"));
-    World::parse_file(&world_path)
+fn read_document(path: &Path, prefix: &str) -> Result<Document> {
+    let wit_path = path.join(&format!("{prefix}world.wit"));
+    Document::parse_file(&wit_path)
 }
 
 fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {
-    for (name, mut wasm, interfaces) in read_adapters(path)? {
+    for (name, mut wasm, doc) in read_adapters(path)? {
         // Create a `component-type` custom section by slurping up `imports` as
         // a "world" and encoding it.
-        let contents = wit_component::metadata::encode(&interfaces, StringEncoding::UTF8);
+        let contents =
+            wit_component::metadata::encode(&doc, doc.default_world()?, StringEncoding::UTF8);
         let section = wasm_encoder::CustomSection {
             name: "component-type",
             data: &contents,

@@ -916,10 +916,6 @@ impl<'a> EncodingState<'a> {
             CustomModule::Main => &opts.metadata.metadata,
             CustomModule::Adapter(name) => &opts.adapters[name].1,
         };
-        let instance_index = match module {
-            CustomModule::Main => self.instance_index.expect("instantiated by now"),
-            CustomModule::Adapter(name) => self.adapter_instances[name],
-        };
         let world = match module {
             CustomModule::Main => opts.metadata.world,
             CustomModule::Adapter(name) => opts.adapters[name].2,
@@ -937,6 +933,10 @@ impl<'a> EncodingState<'a> {
             // Alias the exports from the core module
             for func in &doc.interfaces[export].functions {
                 let name = func.core_export_name(export_name);
+                let instance_index = match module {
+                    CustomModule::Main => self.instance_index.expect("instantiated by now"),
+                    CustomModule::Adapter(name) => self.adapter_instances[name],
+                };
                 let core_func_index =
                     self.component
                         .alias_core_item(instance_index, ExportKind::Func, name.as_ref());
