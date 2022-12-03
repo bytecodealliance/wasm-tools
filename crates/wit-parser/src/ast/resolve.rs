@@ -32,7 +32,6 @@ enum Key {
 
 impl Resolver {
     pub(crate) fn resolve(&mut self, ast: &ast::Ast<'_>) -> Result<Document> {
-        let mut worlds = Vec::new();
         let mut interface_map = IndexMap::new();
 
         for interface in ast.interfaces() {
@@ -94,7 +93,7 @@ impl Resolver {
                 }
             }
 
-            worlds.push(world);
+            self.worlds.alloc(world);
         }
 
         Ok(Document {

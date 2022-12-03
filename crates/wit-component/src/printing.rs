@@ -40,7 +40,7 @@ impl DocumentPrinter {
                 writeln!(&mut self.output, "default export {iface_name}")?;
             }
 
-            writeln!(&mut self.output, "}}\n")?;
+            writeln!(&mut self.output, "}}")?;
         }
 
         self.declared.clear();

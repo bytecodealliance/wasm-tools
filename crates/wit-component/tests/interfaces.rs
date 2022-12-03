@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 use wit_component::{ComponentEncoder, StringEncoding};
 use wit_parser::abi::{AbiVariant, WasmType};
-use wit_parser::{Function, Interface, World};
+use wit_parser::{Document, Function};
 
 /// Tests the encoding of the "types only" mode of `wit-component`.
 ///
@@ -40,8 +40,9 @@ fn interface_encoding() -> Result<()> {
 fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
     println!("test {test_case}");
-    let world_path = path.join("world.wit");
-    let world = World::parse_file(&world_path)?;
+    let wit_path = path.join("world.wit");
+    let doc = Document::parse_file(&wit_path)?;
+    let world = &doc.worlds[doc.default_world()?];
     let world_name = world.name.clone();
 
     let assert_output = |wasm: &[u8], wat: &Path| -> Result<()> {
@@ -58,18 +59,19 @@ fn run_test(path: &Path) -> Result<()> {
             );
         }
 
-        let decoded = wit_component::decode_world(&world_name, wasm)
+        let (decoded_doc, decoded_world) = wit_component::decode_world(&world_name, wasm)
             .context(format!("failed to decode bytes for test `{test_case}`"))?;
 
         if test_case == "empty" {
             return Ok(());
         }
 
-        assert_eq!(decoded.imports.len(), world.imports.len());
-        assert_eq!(decoded.exports.len(), world.exports.len());
-        assert_eq!(decoded.default.is_some(), world.default.is_some());
+        let decoded_world = &decoded_doc.worlds[decoded_world];
+        assert_eq!(decoded_world.imports.len(), world.imports.len());
+        assert_eq!(decoded_world.exports.len(), world.exports.len());
+        assert_eq!(decoded_world.default.is_some(), world.default.is_some());
 
-        assert_wit(&world_path, &decoded)?;
+        assert_wit(&wit_path, &decoded_doc)?;
         Ok(())
     };
 
@@ -81,7 +83,7 @@ fn run_test(path: &Path) -> Result<()> {
     let bytes = ComponentEncoder::default()
         .types_only(true)
         .validate(true)
-        .world(world.clone(), StringEncoding::UTF8)?
+        .document(doc.clone(), StringEncoding::UTF8)?
         .encode()
         .with_context(|| {
             format!("failed to encode a types-only component for test case `{test_case}`")
@@ -93,11 +95,11 @@ fn run_test(path: &Path) -> Result<()> {
     // recover the original `*.wit` interfaces from the component output.
 
     println!("test dummy module");
-    let module = dummy_module(&world);
+    let module = dummy_module(&doc);
     let bytes = ComponentEncoder::default()
         .module(&module)?
         .validate(true)
-        .world(world.clone(), StringEncoding::UTF8)?
+        .document(doc.clone(), StringEncoding::UTF8)?
         .encode()
         .with_context(|| format!("failed to encode a component for test case `{test_case}`"))?;
     assert_output(&bytes, &path.join("component.wat"))?;
@@ -105,9 +107,9 @@ fn run_test(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn assert_wit(wit_path: &Path, world: &World) -> Result<()> {
-    let mut printer = wit_component::WorldPrinter::default();
-    let output = printer.print(world).context("failed to print interface")?;
+fn assert_wit(wit_path: &Path, doc: &Document) -> Result<()> {
+    let mut printer = wit_component::DocumentPrinter::default();
+    let output = printer.print(doc).context("failed to print interface")?;
 
     if std::env::var_os("BLESS").is_some() {
         fs::write(&wit_path, output)?;
@@ -122,12 +124,14 @@ fn assert_wit(wit_path: &Path, world: &World) -> Result<()> {
     Ok(())
 }
 
-fn dummy_module(world: &World) -> Vec<u8> {
+fn dummy_module(doc: &Document) -> Vec<u8> {
+    let world = doc.default_world().unwrap();
+    let world = &doc.worlds[world];
     let mut wat = String::new();
     wat.push_str("(module\n");
     for (name, import) in world.imports.iter() {
-        for func in import.functions.iter() {
-            let sig = import.wasm_signature(AbiVariant::GuestImport, func);
+        for func in doc.interfaces[*import].functions.iter() {
+            let sig = doc.wasm_signature(AbiVariant::GuestImport, func);
 
             wat.push_str(&format!("(import \"{name}\" \"{}\" (func", func.name));
             push_tys(&mut wat, "param", &sig.params);
@@ -137,15 +141,15 @@ fn dummy_module(world: &World) -> Vec<u8> {
     }
 
     for (name, export) in world.exports.iter() {
-        for func in export.functions.iter() {
+        for func in doc.interfaces[*export].functions.iter() {
             let name = func.core_export_name(Some(name));
-            push_func(&mut wat, &name, export, func);
+            push_func(&mut wat, &name, doc, func);
         }
     }
 
-    if let Some(default) = &world.default {
-        for func in default.functions.iter() {
-            push_func(&mut wat, &func.name, default, func);
+    if let Some(default) = world.default {
+        for func in doc.interfaces[default].functions.iter() {
+            push_func(&mut wat, &func.name, doc, func);
         }
     }
 
@@ -157,14 +161,14 @@ fn dummy_module(world: &World) -> Vec<u8> {
 
     return wat::parse_str(&wat).unwrap();
 
-    fn push_func(wat: &mut String, name: &str, iface: &Interface, func: &Function) {
-        let sig = iface.wasm_signature(AbiVariant::GuestExport, func);
+    fn push_func(wat: &mut String, name: &str, doc: &Document, func: &Function) {
+        let sig = doc.wasm_signature(AbiVariant::GuestExport, func);
         wat.push_str(&format!("(func (export \"{name}\")"));
         push_tys(wat, "param", &sig.params);
         push_tys(wat, "result", &sig.results);
         wat.push_str(" unreachable)\n");
 
-        if iface.guest_export_needs_post_return(func) {
+        if doc.guest_export_needs_post_return(func) {
             wat.push_str(&format!("(func (export \"cabi_post_{name}\")"));
             push_tys(wat, "param", &sig.results);
             wat.push_str(")\n");

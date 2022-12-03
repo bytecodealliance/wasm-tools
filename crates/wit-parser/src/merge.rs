@@ -72,23 +72,29 @@ impl Document {
 #[derive(Default)]
 #[allow(missing_docs)]
 pub struct Merge {
-    pub type_map: Vec<TypeId>,
+    pub type_map: Vec<Option<TypeId>>,
     pub iface_map: Vec<InterfaceId>,
     pub world_map: Vec<WorldId>,
 }
 
 impl Merge {
     fn merge(&mut self, into: &mut Document, other: Document) {
+        let mut topo_map = vec![0; other.types.len()];
+        for (i, id) in other.topological_types().into_iter().enumerate() {
+            topo_map[id.index()] = i;
+        }
         let Document {
             worlds,
             interfaces,
             types,
         } = other;
+        let mut types = types.into_iter().collect::<Vec<_>>();
+        types.sort_by_key(|(id, _)| topo_map[id.index()]);
+        self.type_map.extend((0..types.len()).map(|_| None));
         for (id, mut ty) in types {
             self.update_typedef(&mut ty);
             let new_id = into.types.alloc(ty);
-            assert_eq!(self.type_map.len(), id.index());
-            self.type_map.push(new_id);
+            self.type_map[id.index()] = Some(new_id);
         }
 
         for (id, mut iface) in interfaces {
@@ -107,7 +113,8 @@ impl Merge {
 
         // Update the `interface` field of `TypeDef` now that all interfaces
         // have been processed.
-        for ty in self.type_map.iter().copied() {
+        for ty in self.type_map.iter() {
+            let ty = ty.unwrap();
             if let Some(id) = &mut into.types[ty].interface {
                 *id = self.iface_map[id.index()];
             }
@@ -173,13 +180,13 @@ impl Merge {
 
     fn update_ty(&self, ty: &mut Type) {
         if let Type::Id(id) = ty {
-            *id = self.type_map[id.index()];
+            *id = self.type_map[id.index()].expect("should visit in topo-order");
         }
     }
 
     fn update_interface(&self, iface: &mut Interface) {
         for (_, ty) in iface.types.iter_mut() {
-            *ty = self.type_map[ty.index()];
+            *ty = self.type_map[ty.index()].expect("types should all be visited");
         }
         for func in iface.functions.iter_mut() {
             for (_, ty) in func.params.iter_mut() {

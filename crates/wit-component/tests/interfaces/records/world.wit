@@ -55,7 +55,7 @@ interface records {
 
 }
 
-interface records-exports {
+interface records0 {
   record empty {
   }
 
@@ -116,5 +116,5 @@ interface records-exports {
 
 world records-world {
   import records: records
-  export records: records-exports
+  export records: records0
 }

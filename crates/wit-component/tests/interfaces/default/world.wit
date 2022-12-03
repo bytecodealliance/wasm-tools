@@ -1,6 +1,8 @@
-world default-world {
-  default export interface {
-    foo: func(a: u32)
+interface interface0 {
+  foo: func(a: u32)
 
-  }
+}
+
+world default-world {
+  default export interface0
 }
