@@ -173,14 +173,10 @@ impl<'a> TypeEncoder<'a> {
         info: Option<&ValidatedModule<'a>>,
         imports: &mut ImportEncoder<'a>,
     ) -> Result<()> {
+        let empty = IndexSet::new();
         for (name, import) in interfaces {
-            let required_funcs = match info {
-                Some(info) => match info.required_imports.get(name.as_str()) {
-                    Some(required) => Some(required),
-                    None => continue,
-                },
-                None => None,
-            };
+            let required_funcs =
+                info.map(|info| info.required_imports.get(name.as_str()).unwrap_or(&empty));
             self.encode_instance_import(name, doc, *import, required_funcs, imports)?;
         }
 
@@ -240,13 +236,6 @@ impl<'a> TypeEncoder<'a> {
         import: InterfaceId,
         required_funcs: Option<&IndexSet<&'a str>>,
     ) -> Result<Option<Vec<(&'a str, ComponentTypeRef)>>> {
-        // Don't import empty instances if no functions are actually required
-        // from this interface.
-        match required_funcs {
-            Some(funcs) if funcs.is_empty() => return Ok(None),
-            _ => {}
-        }
-
         let mut exports = self.encode_interface_named_types(doc, import)?;
 
         for func in &doc.interfaces[import].functions {
@@ -259,6 +248,12 @@ impl<'a> TypeEncoder<'a> {
 
             let index = self.encode_func_type(doc, func)?;
             exports.push((func.name.as_str(), ComponentTypeRef::Func(index)));
+        }
+
+        // Don't import empty instances if no functions are actually required
+        // from this interface.
+        if exports.is_empty() {
+            return Ok(None);
         }
 
         Ok(Some(exports))
@@ -1888,20 +1883,23 @@ impl ComponentEncoder {
             for (interface, name) in world.exports() {
                 match name {
                     Some(name) => {
-                        let index = types
-                            .encode_interface_as_instance_type(doc, interface, None)?
-                            .unwrap();
-                        raw_exports.push((
-                            name,
-                            doc.interfaces[interface].url.as_deref().unwrap_or(""),
-                            ComponentExportKind::Type,
-                            index,
-                        ));
+                        if let Some(index) =
+                            types.encode_interface_as_instance_type(doc, interface, None)?
+                        {
+                            raw_exports.push((
+                                name,
+                                doc.interfaces[interface].url.as_deref().unwrap_or(""),
+                                ComponentExportKind::Type,
+                                index,
+                            ));
+                        }
                     }
                     None => {
-                        default_exports = types
-                            .encode_interface_as_instance_type_exports(doc, interface, None)?
-                            .unwrap();
+                        if let Some(exports) =
+                            types.encode_interface_as_instance_type_exports(doc, interface, None)?
+                        {
+                            default_exports = exports;
+                        }
                     }
                 }
             }
