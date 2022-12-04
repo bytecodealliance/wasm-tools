@@ -184,7 +184,10 @@ impl Resolver {
             name: name.to_string(),
             url: None,
             docs: self.docs(docs),
-            types: mem::take(&mut self.type_lookup),
+            types: mem::take(&mut self.type_lookup)
+                .into_iter()
+                .map(|(_, ty)| ty)
+                .collect(),
             functions: mem::take(&mut self.functions),
         };
         Ok(self.interfaces.alloc(iface))

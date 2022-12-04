@@ -266,7 +266,8 @@ impl<'a> TypeEncoder<'a> {
     ) -> Result<Vec<(&'a str, ComponentTypeRef)>> {
         let mut exports = Vec::new();
 
-        for (name, id) in &doc.interfaces[interface].types {
+        for id in &doc.interfaces[interface].types {
+            let name = &doc.types[*id].name.as_ref().unwrap();
             let idx = match self.encode_valtype(doc, &Type::Id(*id))? {
                 ComponentValType::Type(idx) => idx,
                 // With a name this type should be converted to an indexed type
@@ -920,7 +921,8 @@ impl<'a> EncodingState<'a> {
             let mut interface_exports = Vec::new();
 
             // Make sure all named types are present in the exported instance
-            for (name, id) in doc.interfaces[export].types.iter() {
+            for id in doc.interfaces[export].types.iter() {
+                let name = &doc.types[*id].name.as_ref().unwrap();
                 let ty = *types.type_map.get(id).expect("the type should be encoded");
                 interface_exports.push((name.as_str(), ComponentExportKind::Type, ty));
             }

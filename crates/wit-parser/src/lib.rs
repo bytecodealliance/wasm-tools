@@ -272,7 +272,7 @@ pub struct Interface {
     pub name: String,
     pub url: Option<String>,
     pub docs: Docs,
-    pub types: IndexMap<String, TypeId>,
+    pub types: Vec<TypeId>,
     pub functions: Vec<Function>,
 }
 

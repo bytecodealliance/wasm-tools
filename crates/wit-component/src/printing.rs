@@ -73,34 +73,43 @@ impl DocumentPrinter {
         // from foreign interfaces or those defined locally.
         let mut types_to_declare = Vec::new();
         let mut types_to_import = IndexMap::new();
-        for (name, ty) in &interface.types {
-            match doc.types[*ty].interface {
-                Some(i) if i != id => {
-                    types_to_import
-                        .entry(i)
-                        .or_insert(Vec::new())
-                        .push((*ty, name));
+        for ty_id in &interface.types {
+            let ty = &doc.types[*ty_id];
+            let name = ty
+                .name
+                .as_ref()
+                .ok_or_else(|| anyhow!("unnamed type exported from interface"))?;
+            if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
+                let other = &doc.types[other];
+                if let Some(other_iface) = other.interface {
+                    if other_iface != id {
+                        let other_name = other
+                            .name
+                            .as_ref()
+                            .ok_or_else(|| anyhow!("cannot import unnamed type"))?;
+                        types_to_import
+                            .entry(other_iface)
+                            .or_insert(Vec::new())
+                            .push((name, other_name));
+                        continue;
+                    }
                 }
-                _ => types_to_declare.push(*ty),
             }
+
+            types_to_declare.push(*ty_id);
         }
 
         // Generate a `use` statemenet for all imported types.
         for (id, tys) in types_to_import {
             write!(&mut self.output, "use {{ ")?;
-            for (i, (ty, name)) in tys.into_iter().enumerate() {
+            for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
                 if i > 0 {
                     write!(&mut self.output, ", ")?;
                 }
-                let ty = &doc.types[ty];
-                let other_name = ty
-                    .name
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("import of unnamed type"))?;
-                if name == other_name {
-                    write!(&mut self.output, "{name}")?;
+                if my_name == other_name {
+                    write!(&mut self.output, "{my_name}")?;
                 } else {
-                    write!(&mut self.output, "{other_name} as {name}")?;
+                    write!(&mut self.output, "{other_name} as {my_name}")?;
                 }
             }
             let iface_name = &self.iface_names[id.index()];

@@ -185,7 +185,7 @@ impl Merge {
     }
 
     fn update_interface(&self, iface: &mut Interface) {
-        for (_, ty) in iface.types.iter_mut() {
+        for ty in iface.types.iter_mut() {
             *ty = self.type_map[ty.index()].expect("types should all be visited");
         }
         for func in iface.functions.iter_mut() {

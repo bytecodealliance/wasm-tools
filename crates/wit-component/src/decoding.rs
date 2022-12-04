@@ -249,7 +249,7 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
                     let ty = self.decode_type(&types::ComponentValType::Type(id))?;
                     match ty {
                         Type::Id(id) => {
-                            interface.types.insert(name.to_string(), id);
+                            interface.types.push(id);
                         }
                         _ => unreachable!(),
                     }
@@ -260,19 +260,13 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
 
         for (name, key) in aliases {
             let ty = self.type_map[&key];
-            let id = {
-                let interface = match ty {
-                    Type::Id(id) => self.doc.types[id].interface,
-                    _ => None,
-                };
-                self.doc.types.alloc(TypeDef {
-                    docs: Default::default(),
-                    kind: TypeDefKind::Type(ty),
-                    name: Some(name.to_string()),
-                    interface,
-                })
-            };
-            interface.types.insert(name.to_string(), id);
+            let id = self.doc.types.alloc(TypeDef {
+                docs: Default::default(),
+                kind: TypeDefKind::Type(ty),
+                name: Some(name.to_string()),
+                interface: Some(self.doc.interfaces.next_id()),
+            });
+            interface.types.push(id);
         }
 
         // Reset the `name_map` for the next interface, but notably persist the

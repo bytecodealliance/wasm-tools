@@ -161,26 +161,14 @@ mod generate {
             while u.arbitrary()? {
                 match u.arbitrary()? {
                     Generate::Type => {
-                        // Favor generating a new type, but also allow renaming
-                        // any prior type with a new name to encompass renaming
-                        // within an interface plus importing from other
-                        // interfaces.
-                        if self.named_types.is_empty() || u.ratio(9, 10)? {
-                            let (size, typedef) = self.gen_typedef(u)?;
-                            let id = self.doc.types.alloc(typedef);
-                            self.type_sizes.push(size);
-                            if let Some(name) = &self.doc.types[id].name {
-                                let prev = iface.types.insert(name.clone(), id);
-                                assert!(prev.is_none());
-                                self.named_types.push(id);
-                            }
-                            self.types_in_interface.push(id);
-                        } else {
-                            let id = *u.choose(&self.named_types)?;
-                            let name = self.gen_unique_name(u)?;
-                            let prev = iface.types.insert(name, id);
-                            assert!(prev.is_none());
-                        };
+                        let (size, typedef) = self.gen_typedef(u)?;
+                        let id = self.doc.types.alloc(typedef);
+                        self.type_sizes.push(size);
+                        if self.doc.types[id].name.is_some() {
+                            iface.types.push(id);
+                            self.named_types.push(id);
+                        }
+                        self.types_in_interface.push(id);
                     }
                     Generate::Function => {
                         let f = self.gen_func(u)?;
@@ -254,7 +242,7 @@ mod generate {
                         .collect::<Result<_>>()?,
                 }),
                 Kind::List => TypeDefKind::List(self.gen_type(u, &mut size)?),
-                Kind::Type => TypeDefKind::Type(self.gen_type(u, &mut size)?),
+                Kind::Type => TypeDefKind::Type(self.gen_type_allow_use(u, true, &mut size)?),
                 Kind::Option => TypeDefKind::Option(self.gen_type(u, &mut size)?),
                 Kind::Result => TypeDefKind::Result(Result_ {
                     ok: if u.arbitrary()? {
@@ -329,6 +317,15 @@ mod generate {
         }
 
         fn gen_type(&mut self, u: &mut Unstructured<'_>, size: &mut usize) -> Result<Type> {
+            self.gen_type_allow_use(u, false, size)
+        }
+
+        fn gen_type_allow_use(
+            &mut self,
+            u: &mut Unstructured<'_>,
+            allow_use: bool,
+            size: &mut usize,
+        ) -> Result<Type> {
             const MAX_SIZE: usize = 100;
 
             #[derive(Arbitrary)]
@@ -366,10 +363,15 @@ mod generate {
                     Kind::Char => Ok(Type::Char),
                     Kind::String => Ok(Type::String),
                     Kind::Id => {
-                        if self.types_in_interface.is_empty() {
+                        let types = if allow_use {
+                            &self.named_types
+                        } else {
+                            &self.types_in_interface
+                        };
+                        if types.is_empty() {
                             continue;
                         }
-                        let id = *u.choose(&self.types_in_interface)?;
+                        let id = *u.choose(&types)?;
                         if *size + self.type_sizes[id.index()] > MAX_SIZE {
                             continue;
                         }
