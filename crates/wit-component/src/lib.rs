@@ -7,6 +7,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
 
+mod builder;
 mod decoding;
 mod encoding;
 mod gc;
