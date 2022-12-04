@@ -359,6 +359,7 @@ pub enum FlagsRepr {
 impl Flags {
     pub fn repr(&self) -> FlagsRepr {
         match self.flags.len() {
+            0 => FlagsRepr::U32(0),
             n if n <= 8 => FlagsRepr::U8,
             n if n <= 16 => FlagsRepr::U16,
             n => FlagsRepr::U32(sizealign::align_to(n, 32) / 32),
