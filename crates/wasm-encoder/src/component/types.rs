@@ -363,6 +363,16 @@ impl InstanceType {
     pub fn type_count(&self) -> u32 {
         self.types_added
     }
+
+    /// Returns whether or not this instance type is empty.
+    pub fn is_empty(&self) -> bool {
+        self.num_added == 0
+    }
+
+    /// Returns the number of entries added to this instance types.
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
 }
 
 impl Encode for InstanceType {

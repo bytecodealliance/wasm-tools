@@ -27,6 +27,7 @@ pub struct ComponentBuilder {
     // Component index spaces
     funcs: u32,
     instances: u32,
+    types: u32,
 }
 
 impl ComponentBuilder {
@@ -125,6 +126,26 @@ impl ComponentBuilder {
         self.imports().import(name, url, ty);
         ret
     }
+
+    pub fn instance_type(&mut self, ty: &InstanceType) -> u32 {
+        let ret = inc(&mut self.types);
+        self.types().instance(ty);
+        ret
+    }
+
+    pub fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+        (inc(&mut self.types), self.types().defined_type())
+    }
+
+    pub fn function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+        (inc(&mut self.types), self.types().function())
+    }
+
+    pub fn alias_type_export(&mut self, instance: u32, name: &str) -> u32 {
+        self.aliases()
+            .instance_export(instance, ComponentExportKind::Type, name);
+        inc(&mut self.types)
+    }
 }
 
 // Helper macro to generate methods on `ComponentBuilder` to get specific
@@ -141,7 +162,7 @@ macro_rules! section_accessors {
 
         impl ComponentBuilder {
             $(
-                pub fn $method(&mut self) -> &mut $section {
+                fn $method(&mut self) -> &mut $section {
                     match &self.last_section {
                         // The last encoded section matches the section that's
                         // being requested, so no change is necessary.
@@ -186,6 +207,7 @@ section_accessors! {
     aliases => ComponentAliasSection
     exports => ComponentExportSection
     imports => ComponentImportSection
+    types => ComponentTypeSection
 }
 
 fn inc(idx: &mut u32) -> u32 {

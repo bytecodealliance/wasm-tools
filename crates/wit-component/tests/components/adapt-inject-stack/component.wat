@@ -1,5 +1,18 @@
 (component
+  (type (;0;)
+    (instance
+      (type (;0;) (func (result "a" u32) (result "b" u32)))
+      (export "get-two" (func (type 0)))
+    )
+  )
+  (import "new" (instance (;0;) (type 0)))
   (core module (;0;)
+    (type (;0;) (func (result i32)))
+    (import "old" "get_sum" (func (;0;) (type 0)))
+    (memory (;0;) 1)
+    (export "memory" (memory 0))
+  )
+  (core module (;1;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (result i32)))
     (type (;2;) (func))
@@ -47,20 +60,6 @@
     (export "get_sum" (func 1))
     (start $initialize_stack_pointer)
   )
-  (type (;0;) (func (result "a" u32) (result "b" u32)))
-  (type (;1;)
-    (instance
-      (alias outer 1 0 (type (;0;)))
-      (export "get-two" (func (type 0)))
-    )
-  )
-  (import "new" (instance (;0;) (type 1)))
-  (core module (;1;)
-    (type (;0;) (func (result i32)))
-    (import "old" "get_sum" (func (;0;) (type 0)))
-    (memory (;0;) 1)
-    (export "memory" (memory 0))
-  )
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (result i32)))
@@ -91,7 +90,7 @@
   (core instance (;1;)
     (export "get_sum" (func 0))
   )
-  (core instance (;2;) (instantiate 1
+  (core instance (;2;) (instantiate 0
       (with "old" (instance 1))
     )
   )
@@ -103,7 +102,7 @@
   (core instance (;4;)
     (export "get-two" (func 1))
   )
-  (core instance (;5;) (instantiate 0
+  (core instance (;5;) (instantiate 1
       (with "env" (instance 3))
       (with "new" (instance 4))
     )

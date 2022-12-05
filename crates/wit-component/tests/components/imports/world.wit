@@ -21,5 +21,9 @@ world my-world {
     foo2: func(x: u8)
     foo3: func(x: float32)
     unused: func()
+
+    // doesn't show up in the wit output despite being exported here since it's
+    // not actually used by anything
+    record unused-record {}
   }
 }

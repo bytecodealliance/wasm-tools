@@ -1,12 +1,11 @@
 (component
-  (type (;0;) (func (param "s" string)))
-  (type (;1;)
+  (type (;0;)
     (instance
-      (alias outer 1 0 (type (;0;)))
+      (type (;0;) (func (param "s" string)))
       (export "log" (func (type 0)))
     )
   )
-  (import "foo" (instance (;0;) (type 1)))
+  (import "foo" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func (param i32 i32)))
     (import "foo" "log" (func (;0;) (type 0)))

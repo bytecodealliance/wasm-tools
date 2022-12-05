@@ -3,12 +3,12 @@ interface foo {
     s: string,
   }
 
-  record r-no-string {
-    s: u32,
-  }
-
   variant v {
     s(string),
+  }
+
+  record r-no-string {
+    s: u32,
   }
 
   variant v-no-string {

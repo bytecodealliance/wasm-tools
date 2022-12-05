@@ -1,5 +1,4 @@
 (component
-  (type (;0;) (func (param "a" u32)))
   (core module (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
@@ -18,6 +17,7 @@
   (alias core export 0 "memory" (core memory (;0;)))
   (alias core export 0 "cabi_realloc" (core func (;0;)))
   (alias core export 0 "foo" (core func (;1;)))
+  (type (;0;) (func (param "a" u32)))
   (func (;0;) (type 0) (canon lift (core func 1)))
   (export "foo" (func 0))
 )

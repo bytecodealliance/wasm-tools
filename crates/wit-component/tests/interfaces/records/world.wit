@@ -84,11 +84,11 @@ interface records0 {
     e: really-flags,
   }
 
-  type tuple-typedef = tuple<s32>
-
   type int-typedef = s32
 
   type tuple-typedef2 = tuple<int-typedef>
+
+  type tuple-typedef = tuple<s32>
 
   tuple-arg: func(x: tuple<char, u32>)
 
@@ -111,6 +111,8 @@ interface records0 {
   aggregate-result: func() -> aggregates
 
   typedef-inout: func(e: tuple-typedef2) -> s32
+
+  tuple-tupledef-user: func() -> tuple-typedef
 
 }
 

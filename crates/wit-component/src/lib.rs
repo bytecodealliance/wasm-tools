@@ -15,7 +15,7 @@ mod printing;
 mod validation;
 
 pub use decoding::decode_world;
-pub use encoding::*;
+pub use encoding::ComponentEncoder;
 pub use printing::*;
 
 pub mod metadata;
