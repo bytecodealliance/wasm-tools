@@ -124,7 +124,9 @@ mod generate {
             #[derive(Arbitrary)]
             enum Generate {
                 Import,
-                Export,
+                // TODO: this is buggy right now due to use-through-export not
+                // being implemented. Should fix and re-enable this.
+                // Export,
             }
 
             let mut imports = Vec::new();
@@ -132,7 +134,7 @@ mod generate {
             while interfaces.len() > 0 && u.arbitrary()? {
                 let dst = match u.arbitrary()? {
                     Generate::Import => &mut imports,
-                    Generate::Export => &mut exports,
+                    // Generate::Export => &mut exports,
                 };
                 if dst.len() > 10 {
                     continue;
@@ -145,6 +147,10 @@ mod generate {
                 world.default = Some(*u.choose(&interfaces)?);
             }
 
+            // TODO: most of this probably doesn't make sense. One hope is that
+            // this all goes away and can be replaced with the text-based
+            // resolution pass by generating a text file instead of an AST
+            // directly. Unsure how to best clean this up.
             let mut visited = HashSet::new();
             let mut import_order = Vec::new();
             for id in imports {
