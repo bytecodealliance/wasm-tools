@@ -220,44 +220,51 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
             interface.url = Some(url.to_string());
         }
         // Populate names in the name map first
-        for (name, ty) in exports.clone() {
+        let mut types = Vec::new();
+        let mut funcs = Vec::new();
+        for (name, ty) in exports {
             let id = match ty {
-                types::ComponentEntityType::Type(id) => id,
-                _ => continue,
+                types::ComponentEntityType::Type(id) => {
+                    types.push(id);
+                    id
+                }
+                types::ComponentEntityType::Func(ty) => {
+                    funcs.push((name, ty));
+                    continue;
+                }
+                _ => bail!("expected function or type export"),
             };
 
-            if !self.name_map.contains_key(&id) {
-                self.name_map.insert(id, name);
+            let prev = self.name_map.insert(id, name);
+            assert!(prev.is_none());
+        }
+
+        // Process all types first which should show show up in topological
+        // order of the types as defined in the original component. This will
+        // ensure that type aliases are resolved correctly for now.
+        for id in types {
+            assert!(matches!(
+                self.info.types.type_from_id(id).unwrap(),
+                types::Type::Defined(_)
+            ));
+            let ty = self.decode_type(&types::ComponentValType::Type(id))?;
+            match ty {
+                Type::Id(id) => {
+                    interface.types.push(id);
+                }
+                _ => unreachable!(),
             }
         }
 
-        // Iterate over all exports and interpret them as defined items within
-        // the interface, either functions or types at this time.
-        for (name, ty) in exports {
-            match ty {
-                types::ComponentEntityType::Func(ty) => {
-                    match self.info.types.type_from_id(ty).unwrap() {
-                        types::Type::ComponentFunc(ty) => {
-                            let func = self.function(name, ty)?;
-                            interface.functions.push(func);
-                        }
-                        _ => unimplemented!(),
-                    }
+        // Afterwards process all functions which should mostly use the types
+        // previously decoded.
+        for (name, ty) in funcs {
+            match self.info.types.type_from_id(ty).unwrap() {
+                types::Type::ComponentFunc(ty) => {
+                    let func = self.function(name, ty)?;
+                    interface.functions.push(func);
                 }
-                types::ComponentEntityType::Type(id) => {
-                    assert!(matches!(
-                        self.info.types.type_from_id(id).unwrap(),
-                        types::Type::Defined(_)
-                    ));
-                    let ty = self.decode_type(&types::ComponentValType::Type(id))?;
-                    match ty {
-                        Type::Id(id) => {
-                            interface.types.push(id);
-                        }
-                        _ => unreachable!(),
-                    }
-                }
-                _ => bail!("expected function or type export"),
+                _ => unimplemented!(),
             }
         }
 

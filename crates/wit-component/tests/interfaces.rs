@@ -51,8 +51,8 @@ fn run_test(path: &Path) -> Result<()> {
             fs::write(wat, output)?;
         } else {
             assert_eq!(
-                fs::read_to_string(wat)?.replace("\r\n", "\n"),
-                output,
+                fs::read_to_string(wat)?.replace("\r\n", "\n").trim(),
+                output.trim(),
                 "encoding of `{test_case}` did not match the expected wat file `{}`",
                 wat.display(),
             );
