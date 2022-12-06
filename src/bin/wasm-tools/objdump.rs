@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::io::Write;
 use std::ops::Range;
-use wasmparser::{Encoding, Parser, Payload::*, SectionReader};
+use wasmparser::{Encoding, Parser, Payload::*};
 
 /// Dumps information about sections in a WebAssembly file.
 ///
@@ -59,10 +59,12 @@ impl Opts {
                 ComponentAliasSection(s) => printer.section(s, "component alias")?,
                 ComponentTypeSection(s) => printer.section(s, "component types")?,
                 ComponentCanonicalSection(s) => printer.section(s, "canonical functions")?,
-                ComponentStartSection(s) => printer.section_raw(s.range(), 1, "component start")?,
+                ComponentStartSection { range, .. } => {
+                    printer.section_raw(range.clone(), 1, "component start")?
+                }
                 ComponentImportSection(s) => printer.section(s, "component imports")?,
                 ComponentExportSection(s) => printer.section(s, "component exports")?,
-                
+
                 CustomSection(c) => printer.section_raw(
                     c.data_offset()..c.data_offset() + c.data().len(),
                     1,
@@ -152,11 +154,15 @@ impl Printer {
         Ok(())
     }
 
-    fn section<T>(&mut self, section: T, name: &str) -> Result<()>
+    fn section<'a, T>(
+        &mut self,
+        section: wasmparser::SectionLimited<'a, T>,
+        name: &str,
+    ) -> Result<()>
     where
-        T: wasmparser::SectionWithLimitedItems + wasmparser::SectionReader,
+        T: wasmparser::FromReader<'a>,
     {
-        self.section_raw(section.range(), section.get_count(), name)
+        self.section_raw(section.range(), section.count(), name)
     }
 
     fn section_raw(&mut self, range: Range<usize>, count: u32, name: &str) -> Result<()> {

@@ -62,7 +62,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
     for payload in Parser::new(0).parse_all(wasm) {
         let reader = match payload? {
             Payload::CustomSection(c) if c.name() == "name" => {
-                NameSectionReader::new(c.data(), c.data_offset())?
+                NameSectionReader::new(c.data(), c.data_offset())
             }
             _ => continue,
         };

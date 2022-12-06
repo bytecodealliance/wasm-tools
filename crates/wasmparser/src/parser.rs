@@ -1,12 +1,11 @@
 use crate::CoreTypeSectionReader;
 use crate::{
-    limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentAliasSectionReader,
-    ComponentCanonicalSectionReader, ComponentExportSectionReader, ComponentImportSectionReader,
-    ComponentInstanceSectionReader, ComponentStartSectionReader, ComponentTypeSectionReader,
-    CustomSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
-    FunctionBody, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    InstanceSectionReader, MemorySectionReader, Result, SectionReader, TableSectionReader,
-    TagSectionReader, TypeSectionReader,
+    limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
+    ComponentExportSectionReader, ComponentImportSectionReader, ComponentInstanceSectionReader,
+    ComponentStartFunction, ComponentTypeSectionReader, CustomSectionReader, DataSectionReader,
+    ElementSectionReader, ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader,
+    GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
+    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
 };
 use std::convert::TryInto;
 use std::fmt;
@@ -238,16 +237,20 @@ pub enum Payload<'a> {
     ComponentInstanceSection(ComponentInstanceSectionReader<'a>),
     /// A component alias section was received and the provided reader can be
     /// used to parse the contents of the component alias section.
-    ComponentAliasSection(ComponentAliasSectionReader<'a>),
+    ComponentAliasSection(SectionLimited<'a, crate::ComponentAlias<'a>>),
     /// A component type section was received and the provided reader can be
     /// used to parse the contents of the component type section.
     ComponentTypeSection(ComponentTypeSectionReader<'a>),
     /// A component canonical section was received and the provided reader can be
     /// used to parse the contents of the component canonical section.
     ComponentCanonicalSection(ComponentCanonicalSectionReader<'a>),
-    /// A component start section was received, and the provided reader can be
-    /// used to parse the contents of the component start section.
-    ComponentStartSection(ComponentStartSectionReader<'a>),
+    /// A component start section was received.
+    ComponentStartSection {
+        /// The start function description.
+        start: ComponentStartFunction,
+        /// The range of bytes that specify the `start` field.
+        range: Range<usize>,
+    },
     /// A component import section was received and the provided reader can be
     /// used to parse the contents of the component import section.
     ComponentImportSection(ComponentImportSectionReader<'a>),
@@ -560,9 +563,6 @@ impl Parser {
                     return Err(BinaryReaderError::new("section too large", len_pos));
                 }
 
-                // Check for custom sections (supported by all encodings)
-                if id == 0 {}
-
                 match (self.encoding, id) {
                     // Sections for both modules and components.
                     (_, 0) => section(reader, len, CustomSectionReader::new, CustomSection),
@@ -590,7 +590,7 @@ impl Parser {
                         section(reader, len, ExportSectionReader::new, ExportSection)
                     }
                     (Encoding::Module, START_SECTION) => {
-                        let (func, range) = single_u32(reader, len, "start")?;
+                        let (func, range) = single_item(reader, len, "start")?;
                         Ok(StartSection { func, range })
                     }
                     (Encoding::Module, ELEMENT_SECTION) => {
@@ -614,7 +614,7 @@ impl Parser {
                         section(reader, len, DataSectionReader::new, DataSection)
                     }
                     (Encoding::Module, DATA_COUNT_SECTION) => {
-                        let (count, range) = single_u32(reader, len, "data count")?;
+                        let (count, range) = single_item(reader, len, "data count")?;
                         Ok(DataCountSection { count, range })
                     }
                     (Encoding::Module, TAG_SECTION) => {
@@ -657,12 +657,9 @@ impl Parser {
                         ComponentInstanceSectionReader::new,
                         ComponentInstanceSection,
                     ),
-                    (Encoding::Component, COMPONENT_ALIAS_SECTION) => section(
-                        reader,
-                        len,
-                        ComponentAliasSectionReader::new,
-                        ComponentAliasSection,
-                    ),
+                    (Encoding::Component, COMPONENT_ALIAS_SECTION) => {
+                        section(reader, len, SectionLimited::new, ComponentAliasSection)
+                    }
                     (Encoding::Component, COMPONENT_TYPE_SECTION) => section(
                         reader,
                         len,
@@ -675,12 +672,10 @@ impl Parser {
                         ComponentCanonicalSectionReader::new,
                         ComponentCanonicalSection,
                     ),
-                    (Encoding::Component, COMPONENT_START_SECTION) => section(
-                        reader,
-                        len,
-                        ComponentStartSectionReader::new,
-                        ComponentStartSection,
-                    ),
+                    (Encoding::Component, COMPONENT_START_SECTION) => {
+                        let (start, range) = single_item(reader, len, "component start")?;
+                        Ok(ComponentStartSection { start, range })
+                    }
                     (Encoding::Component, COMPONENT_IMPORT_SECTION) => section(
                         reader,
                         len,
@@ -824,7 +819,7 @@ impl Parser {
     /// # Examples
     ///
     /// ```
-    /// use wasmparser::{Result, Parser, Chunk, SectionReader, Payload::*};
+    /// use wasmparser::{Result, Parser, Chunk, Payload::*};
     /// use std::ops::Range;
     ///
     /// fn objdump_headers(mut wasm: &[u8]) -> Result<()> {
@@ -907,24 +902,27 @@ fn subreader<'a>(reader: &mut BinaryReader<'a>, len: u32) -> Result<BinaryReader
 }
 
 /// Reads a section that is represented by a single uleb-encoded `u32`.
-fn single_u32<'a>(
+fn single_item<'a, T>(
     reader: &mut BinaryReader<'a>,
     len: u32,
     desc: &str,
-) -> Result<(u32, Range<usize>)> {
+) -> Result<(T, Range<usize>)>
+where
+    T: FromReader<'a>,
+{
     let range = reader.original_position()..reader.original_position() + len as usize;
     let mut content = subreader(reader, len)?;
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are
     // expected.
-    let index = content.read_var_u32().map_err(clear_hint)?;
+    let ret = content.read().map_err(clear_hint)?;
     if !content.eof() {
         bail!(
             content.original_position(),
             "unexpected content in the {desc} section",
         );
     }
-    Ok((index, range))
+    Ok((ret, range))
 }
 
 /// Attempts to parse using `f`.
@@ -999,7 +997,7 @@ impl Payload<'_> {
             ComponentAliasSection(s) => Some((COMPONENT_ALIAS_SECTION, s.range())),
             ComponentTypeSection(s) => Some((COMPONENT_TYPE_SECTION, s.range())),
             ComponentCanonicalSection(s) => Some((COMPONENT_CANONICAL_SECTION, s.range())),
-            ComponentStartSection(s) => Some((COMPONENT_START_SECTION, s.range())),
+            ComponentStartSection { range, .. } => Some((COMPONENT_START_SECTION, range.clone())),
             ComponentImportSection(s) => Some((COMPONENT_IMPORT_SECTION, s.range())),
             ComponentExportSection(s) => Some((COMPONENT_EXPORT_SECTION, s.range())),
 
@@ -1080,7 +1078,7 @@ impl fmt::Debug for Payload<'_> {
                 .debug_tuple("ComponentCanonicalSection")
                 .field(&"...")
                 .finish(),
-            ComponentStartSection(_) => f
+            ComponentStartSection { .. } => f
                 .debug_tuple("ComponentStartSection")
                 .field(&"...")
                 .finish(),

@@ -1,5 +1,9 @@
-use crate::{BinaryReader, BinaryReaderError, NameMap, Result, SectionIterator, SectionReader};
+use crate::{BinaryReader, BinaryReaderError, NameMap, Result, Subsection, Subsections};
 use std::ops::Range;
+
+/// Type used to iterate and parse the contents of the `component-name` custom
+/// section in compnents, similar to the `name` section of core modules.
+pub type ComponentNameSectionReader<'a> = Subsections<'a, ComponentName<'a>>;
 
 /// Represents a name read from the names custom section.
 #[derive(Clone)]
@@ -34,52 +38,11 @@ pub enum ComponentName<'a> {
     },
 }
 
-/// A reader for the name custom section of a WebAssembly module.
-pub struct ComponentNameSectionReader<'a> {
-    reader: BinaryReader<'a>,
-}
-
-impl<'a> ComponentNameSectionReader<'a> {
-    /// Constructs a new `ComponentNameSectionReader` from the given data and offset.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<ComponentNameSectionReader<'a>> {
-        Ok(ComponentNameSectionReader {
-            reader: BinaryReader::new_with_offset(data, offset),
-        })
-    }
-
-    fn verify_section_end(&self, end: usize) -> Result<()> {
-        if self.reader.buffer.len() < end {
-            return Err(BinaryReaderError::new(
-                "component name entry extends past end of the code section",
-                self.reader.original_offset + self.reader.buffer.len(),
-            ));
-        }
-        Ok(())
-    }
-
-    /// Determines if the reader is at the end of the section.
-    pub fn eof(&self) -> bool {
-        self.reader.eof()
-    }
-
-    /// Gets the original position of the section reader.
-    pub fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    /// Reads a name from the section.
-    pub fn read(&mut self) -> Result<ComponentName<'a>> {
-        let subsection_id = self.reader.read_u7()?;
-        let payload_len = self.reader.read_var_u32()? as usize;
-        let payload_start = self.reader.position;
-        let payload_end = payload_start + payload_len;
-        self.verify_section_end(payload_end)?;
-        let offset = self.reader.original_offset + payload_start;
-        let data = &self.reader.buffer[payload_start..payload_end];
-        self.reader.skip_to(payload_end);
-        let mut reader = BinaryReader::new_with_offset(data, offset);
-
-        Ok(match subsection_id {
+impl<'a> Subsection<'a> for ComponentName<'a> {
+    fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
+        let data = reader.remaining_buffer();
+        let offset = reader.original_position();
+        Ok(match id {
             0 => {
                 let name = reader.read_string()?;
                 if !reader.eof() {
@@ -107,7 +70,7 @@ impl<'a> ComponentNameSectionReader<'a> {
                             return Ok(ComponentName::Unknown {
                                 ty: 1,
                                 data,
-                                range: offset..offset + payload_len,
+                                range: offset..offset + data.len(),
                             });
                         }
                     },
@@ -120,7 +83,7 @@ impl<'a> ComponentNameSectionReader<'a> {
                         return Ok(ComponentName::Unknown {
                             ty: 1,
                             data,
-                            range: offset..offset + payload_len,
+                            range: offset..offset + data.len(),
                         });
                     }
                 };
@@ -132,33 +95,8 @@ impl<'a> ComponentNameSectionReader<'a> {
             ty => ComponentName::Unknown {
                 ty,
                 data,
-                range: offset..offset + payload_len,
+                range: offset..offset + data.len(),
             },
         })
-    }
-}
-
-impl<'a> SectionReader for ComponentNameSectionReader<'a> {
-    type Item = ComponentName<'a>;
-    fn read(&mut self) -> Result<Self::Item> {
-        ComponentNameSectionReader::read(self)
-    }
-    fn eof(&self) -> bool {
-        ComponentNameSectionReader::eof(self)
-    }
-    fn original_position(&self) -> usize {
-        ComponentNameSectionReader::original_position(self)
-    }
-    fn range(&self) -> Range<usize> {
-        self.reader.range()
-    }
-}
-
-impl<'a> IntoIterator for ComponentNameSectionReader<'a> {
-    type Item = Result<ComponentName<'a>>;
-    type IntoIter = SectionIterator<ComponentNameSectionReader<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        SectionIterator::new(self)
     }
 }

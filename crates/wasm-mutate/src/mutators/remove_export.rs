@@ -16,15 +16,15 @@ impl Mutator for RemoveExportMutator {
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut exports = ExportSection::new();
-        let mut reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
-        let max_exports = reader.get_count() as u64;
+        let reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
+        let max_exports = u64::from(reader.count());
         let skip_at = config.rng().gen_range(0..max_exports);
 
-        for i in 0..max_exports {
+        for (i, export) in reader.into_iter().enumerate() {
+            let export = export?;
             config.consume_fuel(1)?;
-            let export = reader.read().unwrap();
 
-            if skip_at == i {
+            if skip_at == i as u64 {
                 log::trace!("Removing export {:?} at index {}", export, skip_at);
                 continue;
             }

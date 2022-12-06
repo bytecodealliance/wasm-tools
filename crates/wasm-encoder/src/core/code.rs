@@ -87,8 +87,8 @@ impl CodeSection {
     /// let code_section = [10, 6,    1,         4, 0, 65, 0, 11];
     ///
     /// // Parse the code section.
-    /// let mut reader = wasmparser::CodeSectionReader::new(&code_section, 0).unwrap();
-    /// let body = reader.read().unwrap();
+    /// let reader = wasmparser::CodeSectionReader::new(&code_section, 0).unwrap();
+    /// let body = reader.into_iter().next().unwrap().unwrap();
     /// let body_range = body.range();
     ///
     /// // Add the body to a new code section encoder by copying bytes rather

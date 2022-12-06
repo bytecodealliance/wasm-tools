@@ -18,15 +18,15 @@ impl Mutator for ModifyDataMutator {
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut new_section = DataSection::new();
-        let mut reader = DataSectionReader::new(config.info().get_data_section().data, 0)?;
+        let reader = DataSectionReader::new(config.info().get_data_section().data, 0)?;
 
         // Select an arbitrary data segment to modify.
-        let data_to_modify = config.rng().gen_range(0..reader.get_count());
+        let data_to_modify = config.rng().gen_range(0..reader.count());
 
         // Iterate over all data segments in the old data section and re-add
         // them to the `new_section` one-by-one.
-        for i in 0..reader.get_count() {
-            let data = reader.read()?;
+        for (i, data) in reader.into_iter().enumerate() {
+            let data = data?;
             let offset;
             // Preserve the mode of the data segment
             let mode = match &data.kind {
@@ -49,7 +49,7 @@ impl Mutator for ModifyDataMutator {
             // If this is the correct data segment apply the mutation,
             // otherwise preserve the data.
             let mut data = data.data.to_vec();
-            if i == data_to_modify {
+            if i as u32 == data_to_modify {
                 config.raw_mutate(&mut data, self.max_data_size)?;
             }
             new_section.segment(DataSegment { mode, data });

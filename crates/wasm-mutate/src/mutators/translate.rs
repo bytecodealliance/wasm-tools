@@ -1,9 +1,6 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::{
-    DataKind, ElementKind, FunctionBody, Global, Operator, SectionReader, SectionWithLimitedItems,
-    Type,
-};
+use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator, Type};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -252,21 +249,17 @@ pub fn element(
     let functions;
     let exprs;
     let elements = match element.items {
-        wasmparser::ElementItems::Functions(mut reader) => {
-            functions = (0..reader.get_count())
-                .map(|_| t.remap(Item::Function, reader.read()?))
+        wasmparser::ElementItems::Functions(reader) => {
+            functions = reader
+                .into_iter()
+                .map(|f| t.remap(Item::Function, f?))
                 .collect::<Result<Vec<_>, _>>()?;
             Elements::Functions(&functions)
         }
-        wasmparser::ElementItems::Expressions(mut reader) => {
-            exprs = (0..reader.get_count())
-                .map(|_| {
-                    t.translate_const_expr(
-                        &reader.read()?,
-                        &element.ty,
-                        ConstExprKind::ElementFunction,
-                    )
-                })
+        wasmparser::ElementItems::Expressions(reader) => {
+            exprs = reader
+                .into_iter()
+                .map(|f| t.translate_const_expr(&f?, &element.ty, ConstExprKind::ElementFunction))
                 .collect::<Result<Vec<_>, _>>()?;
             Elements::Expressions(&exprs)
         }

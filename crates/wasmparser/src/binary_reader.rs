@@ -20,14 +20,6 @@ use std::fmt;
 use std::ops::Range;
 use std::str;
 
-fn is_name(name: &str, expected: &'static str) -> bool {
-    name == expected
-}
-
-fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
-    name.starts_with(prefix)
-}
-
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 
 /// A binary reader for WebAssembly modules.
@@ -181,6 +173,16 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    /// Reads a value of type `T` from this binary reader, advancing the
+    /// internal position in this reader forward as data is read.
+    #[inline]
+    pub fn read<T>(&mut self) -> Result<T>
+    where
+        T: FromReader<'a>,
+    {
+        T::from_reader(self)
+    }
+
     pub(crate) fn read_u7(&mut self) -> Result<u8> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
@@ -206,19 +208,7 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_component_start(&mut self) -> Result<ComponentStartFunction> {
-        let func_index = self.read_var_u32()?;
-        let size = self.read_size(MAX_WASM_START_ARGS, "start function arguments")?;
-        Ok(ComponentStartFunction {
-            func_index,
-            arguments: (0..size)
-                .map(|_| self.read_var_u32())
-                .collect::<Result<_>>()?,
-            results: self.read_size(MAX_WASM_FUNCTION_RETURNS, "start function results")? as u32,
-        })
-    }
-
-    fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
+    pub(crate) fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
         match byte {
             0x00 => Ok(ExternalKind::Func),
             0x01 => Ok(ExternalKind::Table),
@@ -229,135 +219,6 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_external_kind(&mut self) -> Result<ExternalKind> {
-        let offset = self.original_position();
-        Self::external_kind_from_byte(self.read_u8()?, offset)
-    }
-
-    fn component_external_kind_from_bytes(
-        byte1: u8,
-        byte2: Option<u8>,
-        offset: usize,
-    ) -> Result<ComponentExternalKind> {
-        Ok(match byte1 {
-            0x00 => match byte2.unwrap() {
-                0x11 => ComponentExternalKind::Module,
-                x => {
-                    return Err(Self::invalid_leading_byte_error(
-                        x,
-                        "component external kind",
-                        offset + 1,
-                    ))
-                }
-            },
-            0x01 => ComponentExternalKind::Func,
-            0x02 => ComponentExternalKind::Value,
-            0x03 => ComponentExternalKind::Type,
-            0x04 => ComponentExternalKind::Component,
-            0x05 => ComponentExternalKind::Instance,
-            x => {
-                return Err(Self::invalid_leading_byte_error(
-                    x,
-                    "component external kind",
-                    offset,
-                ))
-            }
-        })
-    }
-
-    pub(crate) fn read_component_external_kind(&mut self) -> Result<ComponentExternalKind> {
-        let offset = self.original_position();
-        let byte1 = self.read_u8()?;
-        let byte2 = if byte1 == 0x00 {
-            Some(self.read_u8()?)
-        } else {
-            None
-        };
-
-        Self::component_external_kind_from_bytes(byte1, byte2, offset)
-    }
-
-    pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
-        let len_params = self.read_size(MAX_WASM_FUNCTION_PARAMS, "function params")?;
-        let mut params_results = Vec::with_capacity(len_params);
-        for _ in 0..len_params {
-            params_results.push(self.read_val_type()?);
-        }
-        let len_results = self.read_size(MAX_WASM_FUNCTION_RETURNS, "function returns")?;
-        params_results.reserve(len_results);
-        for _ in 0..len_results {
-            params_results.push(self.read_val_type()?);
-        }
-        Ok(FuncType::from_raw_parts(params_results.into(), len_params))
-    }
-
-    pub(crate) fn read_type(&mut self) -> Result<Type> {
-        Ok(match self.read_u8()? {
-            0x60 => Type::Func(self.read_func_type()?),
-            x => return self.invalid_leading_byte(x, "type"),
-        })
-    }
-
-    pub(crate) fn read_core_type(&mut self) -> Result<CoreType<'a>> {
-        Ok(match self.read_u8()? {
-            0x60 => CoreType::Func(self.read_func_type()?),
-            0x50 => {
-                let size = self.read_size(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?;
-                CoreType::Module(
-                    (0..size)
-                        .map(|_| self.read_module_type_decl())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            x => return self.invalid_leading_byte(x, "core type"),
-        })
-    }
-
-    pub(crate) fn read_component_type(&mut self) -> Result<ComponentType<'a>> {
-        Ok(match self.read_u8()? {
-            0x40 => ComponentType::Func(ComponentFuncType {
-                params: self
-                    .read_type_vec(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?,
-                results: self.read_component_func_result()?,
-            }),
-            0x41 => {
-                let size =
-                    self.read_size(MAX_WASM_COMPONENT_TYPE_DECLS, "component type declaration")?;
-                ComponentType::Component(
-                    (0..size)
-                        .map(|_| self.read_component_type_decl())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x42 => {
-                let size =
-                    self.read_size(MAX_WASM_INSTANCE_TYPE_DECLS, "instance type declaration")?;
-                ComponentType::Instance(
-                    (0..size)
-                        .map(|_| self.read_instance_type_decl())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            x => {
-                if let Some(ty) = Self::primitive_val_type_from_byte(x) {
-                    ComponentType::Defined(ComponentDefinedType::Primitive(ty))
-                } else {
-                    ComponentType::Defined(self.read_component_defined_type(x)?)
-                }
-            }
-        })
-    }
-
-    pub(crate) fn read_component_func_result(&mut self) -> Result<ComponentFuncResult<'a>> {
-        Ok(match self.read_u8()? {
-            0x00 => ComponentFuncResult::Unnamed(self.read_component_val_type()?),
-            0x01 => ComponentFuncResult::Named(
-                self.read_type_vec(MAX_WASM_FUNCTION_RETURNS, "component function results")?,
-            ),
-            x => return self.invalid_leading_byte(x, "component function results"),
-        })
-    }
-
     pub(crate) fn read_type_vec(
         &mut self,
         max: usize,
@@ -365,505 +226,13 @@ impl<'a> BinaryReader<'a> {
     ) -> Result<Box<[(&'a str, ComponentValType)]>> {
         let size = self.read_size(max, desc)?;
         (0..size)
-            .map(|_| Ok((self.read_string()?, self.read_component_val_type()?)))
+            .map(|_| Ok((self.read_string()?, self.read()?)))
             .collect::<Result<_>>()
-    }
-
-    pub(crate) fn read_module_type_decl(&mut self) -> Result<ModuleTypeDeclaration<'a>> {
-        Ok(match self.read_u8()? {
-            0x00 => ModuleTypeDeclaration::Import(self.read_import()?),
-            0x01 => ModuleTypeDeclaration::Type(self.read_type()?),
-            0x02 => {
-                let kind = match self.read_u8()? {
-                    0x10 => OuterAliasKind::Type,
-                    x => {
-                        return self.invalid_leading_byte(x, "outer alias kind");
-                    }
-                };
-                match self.read_u8()? {
-                    0x01 => ModuleTypeDeclaration::OuterAlias {
-                        kind,
-                        count: self.read_var_u32()?,
-                        index: self.read_var_u32()?,
-                    },
-                    x => {
-                        return self.invalid_leading_byte(x, "outer alias target");
-                    }
-                }
-            }
-            0x03 => ModuleTypeDeclaration::Export {
-                name: self.read_string()?,
-                ty: self.read_type_ref()?,
-            },
-            x => return self.invalid_leading_byte(x, "type definition"),
-        })
-    }
-
-    pub(crate) fn read_component_type_decl(&mut self) -> Result<ComponentTypeDeclaration<'a>> {
-        // Component types are effectively instance types with the additional
-        // variant of imports; check for imports here or delegate to
-        // `read_instance_type_decl` with the appropriate conversions.
-        if self.peek()? == 0x03 {
-            self.position += 1;
-            return Ok(ComponentTypeDeclaration::Import(
-                self.read_component_import()?,
-            ));
-        }
-
-        Ok(match self.read_instance_type_decl()? {
-            InstanceTypeDeclaration::CoreType(t) => ComponentTypeDeclaration::CoreType(t),
-            InstanceTypeDeclaration::Type(t) => ComponentTypeDeclaration::Type(t),
-            InstanceTypeDeclaration::Alias(a) => ComponentTypeDeclaration::Alias(a),
-            InstanceTypeDeclaration::Export { name, url, ty } => {
-                ComponentTypeDeclaration::Export { name, url, ty }
-            }
-        })
-    }
-
-    pub(crate) fn read_instance_type_decl(&mut self) -> Result<InstanceTypeDeclaration<'a>> {
-        Ok(match self.read_u8()? {
-            0x00 => InstanceTypeDeclaration::CoreType(self.read_core_type()?),
-            0x01 => InstanceTypeDeclaration::Type(self.read_component_type()?),
-            0x02 => InstanceTypeDeclaration::Alias(self.read_component_alias()?),
-            0x04 => InstanceTypeDeclaration::Export {
-                name: self.read_string()?,
-                url: self.read_string()?,
-                ty: self.read_component_type_ref()?,
-            },
-            x => return self.invalid_leading_byte(x, "component or instance type declaration"),
-        })
-    }
-
-    fn primitive_val_type_from_byte(byte: u8) -> Option<PrimitiveValType> {
-        Some(match byte {
-            0x7f => PrimitiveValType::Bool,
-            0x7e => PrimitiveValType::S8,
-            0x7d => PrimitiveValType::U8,
-            0x7c => PrimitiveValType::S16,
-            0x7b => PrimitiveValType::U16,
-            0x7a => PrimitiveValType::S32,
-            0x79 => PrimitiveValType::U32,
-            0x78 => PrimitiveValType::S64,
-            0x77 => PrimitiveValType::U64,
-            0x76 => PrimitiveValType::Float32,
-            0x75 => PrimitiveValType::Float64,
-            0x74 => PrimitiveValType::Char,
-            0x73 => PrimitiveValType::String,
-            _ => return None,
-        })
-    }
-
-    fn read_variant_case(&mut self) -> Result<VariantCase<'a>> {
-        Ok(VariantCase {
-            name: self.read_string()?,
-            ty: self.read_optional_val_type()?,
-            refines: match self.read_u8()? {
-                0x0 => None,
-                0x1 => Some(self.read_var_u32()?),
-                x => return self.invalid_leading_byte(x, "variant case refines"),
-            },
-        })
-    }
-
-    fn read_component_val_type(&mut self) -> Result<ComponentValType> {
-        if let Some(ty) = Self::primitive_val_type_from_byte(self.peek()?) {
-            self.position += 1;
-            return Ok(ComponentValType::Primitive(ty));
-        }
-
-        Ok(ComponentValType::Type(self.read_var_s33()? as u32))
-    }
-
-    fn read_component_defined_type(&mut self, byte: u8) -> Result<ComponentDefinedType<'a>> {
-        Ok(match byte {
-            0x72 => {
-                let size = self.read_size(MAX_WASM_RECORD_FIELDS, "record field")?;
-                ComponentDefinedType::Record(
-                    (0..size)
-                        .map(|_| Ok((self.read_string()?, self.read_component_val_type()?)))
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x71 => {
-                let size = self.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
-                ComponentDefinedType::Variant(
-                    (0..size)
-                        .map(|_| self.read_variant_case())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x70 => ComponentDefinedType::List(self.read_component_val_type()?),
-            0x6f => {
-                let size = self.read_size(MAX_WASM_TUPLE_TYPES, "tuple types")?;
-                ComponentDefinedType::Tuple(
-                    (0..size)
-                        .map(|_| self.read_component_val_type())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x6e => {
-                let size = self.read_size(MAX_WASM_FLAG_NAMES, "flag names")?;
-                ComponentDefinedType::Flags(
-                    (0..size)
-                        .map(|_| self.read_string())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x6d => {
-                let size = self.read_size(MAX_WASM_ENUM_CASES, "enum cases")?;
-                ComponentDefinedType::Enum(
-                    (0..size)
-                        .map(|_| self.read_string())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x6c => {
-                let size = self.read_size(MAX_WASM_UNION_TYPES, "union types")?;
-                ComponentDefinedType::Union(
-                    (0..size)
-                        .map(|_| self.read_component_val_type())
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x6b => ComponentDefinedType::Option(self.read_component_val_type()?),
-            0x6a => ComponentDefinedType::Result {
-                ok: self.read_optional_val_type()?,
-                err: self.read_optional_val_type()?,
-            },
-            x => return self.invalid_leading_byte(x, "component defined type"),
-        })
-    }
-
-    pub(crate) fn read_export(&mut self) -> Result<Export<'a>> {
-        Ok(Export {
-            name: self.read_string()?,
-            kind: self.read_external_kind()?,
-            index: self.read_var_u32()?,
-        })
-    }
-
-    pub(crate) fn read_component_export(&mut self) -> Result<ComponentExport<'a>> {
-        Ok(ComponentExport {
-            name: self.read_string()?,
-            url: self.read_string()?,
-            kind: self.read_component_external_kind()?,
-            index: self.read_var_u32()?,
-        })
-    }
-
-    pub(crate) fn read_import(&mut self) -> Result<Import<'a>> {
-        Ok(Import {
-            module: self.read_string()?,
-            name: self.read_string()?,
-            ty: self.read_type_ref()?,
-        })
-    }
-
-    pub(crate) fn read_component_import(&mut self) -> Result<ComponentImport<'a>> {
-        Ok(ComponentImport {
-            name: self.read_string()?,
-            url: self.read_string()?,
-            ty: self.read_component_type_ref()?,
-        })
-    }
-
-    pub(crate) fn read_component_type_ref(&mut self) -> Result<ComponentTypeRef> {
-        Ok(match self.read_component_external_kind()? {
-            ComponentExternalKind::Module => ComponentTypeRef::Module(self.read_var_u32()?),
-            ComponentExternalKind::Func => ComponentTypeRef::Func(self.read_var_u32()?),
-            ComponentExternalKind::Value => {
-                ComponentTypeRef::Value(self.read_component_val_type()?)
-            }
-            ComponentExternalKind::Type => {
-                ComponentTypeRef::Type(self.read_type_bounds()?, self.read_var_u32()?)
-            }
-            ComponentExternalKind::Instance => ComponentTypeRef::Instance(self.read_var_u32()?),
-            ComponentExternalKind::Component => ComponentTypeRef::Component(self.read_var_u32()?),
-        })
-    }
-
-    pub(crate) fn read_type_bounds(&mut self) -> Result<TypeBounds> {
-        Ok(match self.read_u8()? {
-            0x00 => TypeBounds::Eq,
-            x => return self.invalid_leading_byte(x, "type bound"),
-        })
-    }
-
-    pub(crate) fn read_canonical_func(&mut self) -> Result<CanonicalFunction> {
-        Ok(match self.read_u8()? {
-            0x00 => match self.read_u8()? {
-                0x00 => CanonicalFunction::Lift {
-                    core_func_index: self.read_var_u32()?,
-                    options: (0..self
-                        .read_size(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?)
-                        .map(|_| self.read_canonical_option())
-                        .collect::<Result<_>>()?,
-                    type_index: self.read_var_u32()?,
-                },
-                x => return self.invalid_leading_byte(x, "canonical function lift"),
-            },
-            0x01 => match self.read_u8()? {
-                0x00 => CanonicalFunction::Lower {
-                    func_index: self.read_var_u32()?,
-                    options: (0..self
-                        .read_size(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?)
-                        .map(|_| self.read_canonical_option())
-                        .collect::<Result<_>>()?,
-                },
-                x => return self.invalid_leading_byte(x, "canonical function lower"),
-            },
-            x => return self.invalid_leading_byte(x, "canonical function"),
-        })
-    }
-
-    pub(crate) fn read_canonical_option(&mut self) -> Result<CanonicalOption> {
-        Ok(match self.read_u8()? {
-            0x00 => CanonicalOption::UTF8,
-            0x01 => CanonicalOption::UTF16,
-            0x02 => CanonicalOption::CompactUTF16,
-            0x03 => CanonicalOption::Memory(self.read_var_u32()?),
-            0x04 => CanonicalOption::Realloc(self.read_var_u32()?),
-            0x05 => CanonicalOption::PostReturn(self.read_var_u32()?),
-            x => return self.invalid_leading_byte(x, "canonical option"),
-        })
-    }
-
-    pub(crate) fn read_instance(&mut self) -> Result<Instance<'a>> {
-        Ok(match self.read_u8()? {
-            0x00 => Instance::Instantiate {
-                module_index: self.read_var_u32()?,
-                args: (0..self
-                    .read_size(MAX_WASM_INSTANTIATION_ARGS, "core instantiation arguments")?)
-                    .map(|_| self.read_instantiation_arg())
-                    .collect::<Result<_>>()?,
-            },
-            0x01 => Instance::FromExports(
-                (0..self
-                    .read_size(MAX_WASM_INSTANTIATION_EXPORTS, "core instantiation exports")?)
-                    .map(|_| self.read_export())
-                    .collect::<Result<_>>()?,
-            ),
-            x => return self.invalid_leading_byte(x, "core instance"),
-        })
-    }
-
-    pub(crate) fn read_component_instance(&mut self) -> Result<ComponentInstance<'a>> {
-        Ok(match self.read_u8()? {
-            0x00 => ComponentInstance::Instantiate {
-                component_index: self.read_var_u32()?,
-                args: (0..self
-                    .read_size(MAX_WASM_INSTANTIATION_ARGS, "instantiation arguments")?)
-                    .map(|_| self.read_component_instantiation_arg())
-                    .collect::<Result<_>>()?,
-            },
-            0x01 => ComponentInstance::FromExports(
-                (0..self.read_size(MAX_WASM_INSTANTIATION_EXPORTS, "instantiation exports")?)
-                    .map(|_| {
-                        Ok(ComponentExport {
-                            name: self.read_string()?,
-                            url: "",
-                            kind: self.read_component_external_kind()?,
-                            index: self.read_var_u32()?,
-                        })
-                    })
-                    .collect::<Result<_>>()?,
-            ),
-            x => return self.invalid_leading_byte(x, "instance"),
-        })
-    }
-
-    pub(crate) fn read_instantiation_arg_kind(&mut self) -> Result<InstantiationArgKind> {
-        Ok(match self.read_u8()? {
-            0x12 => InstantiationArgKind::Instance,
-            x => return self.invalid_leading_byte(x, "instantiation arg kind"),
-        })
-    }
-
-    pub(crate) fn read_instantiation_arg(&mut self) -> Result<InstantiationArg<'a>> {
-        Ok(InstantiationArg {
-            name: self.read_string()?,
-            kind: self.read_instantiation_arg_kind()?,
-            index: self.read_var_u32()?,
-        })
-    }
-
-    pub(crate) fn read_component_instantiation_arg(
-        &mut self,
-    ) -> Result<ComponentInstantiationArg<'a>> {
-        Ok(ComponentInstantiationArg {
-            name: self.read_string()?,
-            kind: self.read_component_external_kind()?,
-            index: self.read_var_u32()?,
-        })
-    }
-
-    fn component_outer_alias_kind_from_bytes(
-        byte1: u8,
-        byte2: Option<u8>,
-        offset: usize,
-    ) -> Result<ComponentOuterAliasKind> {
-        Ok(match byte1 {
-            0x00 => match byte2.unwrap() {
-                0x10 => ComponentOuterAliasKind::CoreType,
-                0x11 => ComponentOuterAliasKind::CoreModule,
-                x => {
-                    return Err(Self::invalid_leading_byte_error(
-                        x,
-                        "component outer alias kind",
-                        offset + 1,
-                    ))
-                }
-            },
-            0x03 => ComponentOuterAliasKind::Type,
-            0x04 => ComponentOuterAliasKind::Component,
-            x => {
-                return Err(Self::invalid_leading_byte_error(
-                    x,
-                    "component outer alias kind",
-                    offset,
-                ))
-            }
-        })
-    }
-
-    pub(crate) fn read_component_alias(&mut self) -> Result<ComponentAlias<'a>> {
-        // We don't know what type of alias it is yet, so just read the sort bytes
-        let offset = self.original_position();
-        let byte1 = self.read_u8()?;
-        let byte2 = if byte1 == 0x00 {
-            Some(self.read_u8()?)
-        } else {
-            None
-        };
-
-        Ok(match self.read_u8()? {
-            0x00 => ComponentAlias::InstanceExport {
-                kind: Self::component_external_kind_from_bytes(byte1, byte2, offset)?,
-                instance_index: self.read_var_u32()?,
-                name: self.read_string()?,
-            },
-            0x01 => ComponentAlias::CoreInstanceExport {
-                kind: Self::external_kind_from_byte(
-                    byte2.ok_or_else(|| {
-                        Self::invalid_leading_byte_error(byte1, "core instance export kind", offset)
-                    })?,
-                    offset,
-                )?,
-                instance_index: self.read_var_u32()?,
-                name: self.read_string()?,
-            },
-            0x02 => ComponentAlias::Outer {
-                kind: Self::component_outer_alias_kind_from_bytes(byte1, byte2, offset)?,
-                count: self.read_var_u32()?,
-                index: self.read_var_u32()?,
-            },
-            x => return self.invalid_leading_byte(x, "alias"),
-        })
-    }
-
-    pub(crate) fn read_type_ref(&mut self) -> Result<TypeRef> {
-        Ok(match self.read_external_kind()? {
-            ExternalKind::Func => TypeRef::Func(self.read_var_u32()?),
-            ExternalKind::Table => TypeRef::Table(self.read_table_type()?),
-            ExternalKind::Memory => TypeRef::Memory(self.read_memory_type()?),
-            ExternalKind::Global => TypeRef::Global(self.read_global_type()?),
-            ExternalKind::Tag => TypeRef::Tag(self.read_tag_type()?),
-        })
-    }
-
-    pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
-        let element_type = self.read_val_type()?;
-        let has_max = match self.read_u8()? {
-            0x00 => false,
-            0x01 => true,
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "invalid table resizable limits flags",
-                    self.original_position() - 1,
-                ))
-            }
-        };
-        let initial = self.read_var_u32()?;
-        let maximum = if has_max {
-            Some(self.read_var_u32()?)
-        } else {
-            None
-        };
-        Ok(TableType {
-            element_type,
-            initial,
-            maximum,
-        })
-    }
-
-    pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
-        let pos = self.original_position();
-        let flags = self.read_u8()?;
-        if (flags & !0b111) != 0 {
-            return Err(BinaryReaderError::new("invalid memory limits flags", pos));
-        }
-
-        let memory64 = flags & 0b100 != 0;
-        let shared = flags & 0b010 != 0;
-        let has_max = flags & 0b001 != 0;
-        Ok(MemoryType {
-            memory64,
-            shared,
-            // FIXME(WebAssembly/memory64#21) as currently specified if the
-            // `shared` flag is set we should be reading a 32-bit limits field
-            // here. That seems a bit odd to me at the time of this writing so
-            // I've taken the liberty of reading a 64-bit limits field in those
-            // situations. I suspect that this is a typo in the spec, but if not
-            // we'll need to update this to read a 32-bit limits field when the
-            // shared flag is set.
-            initial: if memory64 {
-                self.read_var_u64()?
-            } else {
-                self.read_var_u32()?.into()
-            },
-            maximum: if !has_max {
-                None
-            } else if memory64 {
-                Some(self.read_var_u64()?)
-            } else {
-                Some(self.read_var_u32()?.into())
-            },
-        })
-    }
-
-    pub(crate) fn read_tag_type(&mut self) -> Result<TagType> {
-        let attribute = self.read_u8()?;
-        if attribute != 0 {
-            return Err(BinaryReaderError::new(
-                "invalid tag attributes",
-                self.original_position() - 1,
-            ));
-        }
-        Ok(TagType {
-            kind: TagKind::Exception,
-            func_type_idx: self.read_var_u32()?,
-        })
-    }
-
-    pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
-        Ok(GlobalType {
-            content_type: self.read_val_type()?,
-            mutable: match self.read_u8()? {
-                0x00 => false,
-                0x01 => true,
-                _ => {
-                    return Err(BinaryReaderError::new(
-                        "malformed mutability",
-                        self.original_position() - 1,
-                    ))
-                }
-            },
-        })
     }
 
     // Reads a variable-length 32-bit size from the byte stream while checking
     // against a limit.
-    fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
+    pub(crate) fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
         let size = self.read_var_u32()? as usize;
         if size > limit {
             bail!(self.original_position() - 4, "{desc} size is out of bounds");
@@ -902,42 +271,6 @@ impl<'a> BinaryReader<'a> {
             offset,
             memory,
         })
-    }
-
-    pub(crate) fn read_section_code(&mut self, id: u8, offset: usize) -> Result<SectionCode<'a>> {
-        match id {
-            0 => {
-                let name = self.read_string()?;
-                let kind = if is_name(name, "name") {
-                    CustomSectionKind::Name
-                } else if is_name(name, "producers") {
-                    CustomSectionKind::Producers
-                } else if is_name(name, "sourceMappingURL") {
-                    CustomSectionKind::SourceMappingURL
-                } else if is_name_prefix(name, "reloc.") {
-                    CustomSectionKind::Reloc
-                } else if is_name(name, "linking") {
-                    CustomSectionKind::Linking
-                } else {
-                    CustomSectionKind::Unknown
-                };
-                Ok(SectionCode::Custom { name, kind })
-            }
-            1 => Ok(SectionCode::Type),
-            2 => Ok(SectionCode::Import),
-            3 => Ok(SectionCode::Function),
-            4 => Ok(SectionCode::Table),
-            5 => Ok(SectionCode::Memory),
-            6 => Ok(SectionCode::Global),
-            7 => Ok(SectionCode::Export),
-            8 => Ok(SectionCode::Start),
-            9 => Ok(SectionCode::Element),
-            10 => Ok(SectionCode::Code),
-            11 => Ok(SectionCode::Data),
-            12 => Ok(SectionCode::DataCount),
-            13 => Ok(SectionCode::Tag),
-            _ => Err(BinaryReaderError::new("invalid section code", offset)),
-        }
     }
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
@@ -1302,16 +635,8 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_optional_val_type(&mut self) -> Result<Option<ComponentValType>> {
-        match self.read_u8()? {
-            0x0 => Ok(None),
-            0x1 => Ok(Some(self.read_component_val_type()?)),
-            x => self.invalid_leading_byte(x, "optional component value type"),
-        }
-    }
-
     #[cold]
-    fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
+    pub(crate) fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
         Err(Self::invalid_leading_byte_error(
             byte,
             desc,
@@ -1319,11 +644,15 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> BinaryReaderError {
+    pub(crate) fn invalid_leading_byte_error(
+        byte: u8,
+        desc: &str,
+        offset: usize,
+    ) -> BinaryReaderError {
         format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 
-    fn peek(&self) -> Result<u8> {
+    pub(crate) fn peek(&self) -> Result<u8> {
         self.ensure_has_byte()?;
         Ok(self.buffer[self.position])
     }
@@ -2155,44 +1484,6 @@ impl<'a> BinaryReader<'a> {
             ));
         }
         self.read_u32()
-    }
-
-    pub(crate) fn read_linking_type(&mut self) -> Result<LinkingType> {
-        let ty = self.read_var_u32()?;
-        Ok(match ty {
-            1 => LinkingType::StackPointer(self.read_var_u32()?),
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "invalid linking type",
-                    self.original_position() - 1,
-                ));
-            }
-        })
-    }
-
-    pub(crate) fn read_reloc_type(&mut self) -> Result<RelocType> {
-        let code = self.read_u7()?;
-        match code {
-            0 => Ok(RelocType::FunctionIndexLEB),
-            1 => Ok(RelocType::TableIndexSLEB),
-            2 => Ok(RelocType::TableIndexI32),
-            3 => Ok(RelocType::GlobalAddrLEB),
-            4 => Ok(RelocType::GlobalAddrSLEB),
-            5 => Ok(RelocType::GlobalAddrI32),
-            6 => Ok(RelocType::TypeIndexLEB),
-            7 => Ok(RelocType::GlobalIndexLEB),
-            _ => Err(BinaryReaderError::new(
-                "invalid reloc type",
-                self.original_position() - 1,
-            )),
-        }
-    }
-
-    pub(crate) fn read_const_expr(&mut self) -> Result<ConstExpr<'a>> {
-        let expr_offset = self.position;
-        self.skip_const_expr()?;
-        let data = &self.buffer[expr_offset..self.position];
-        Ok(ConstExpr::new(data, self.original_offset + expr_offset))
     }
 
     pub(crate) fn skip_const_expr(&mut self) -> Result<()> {

@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FunctionBody, Parser, Payload, Result, SectionReader,
-    SectionWithLimitedItems, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, Parser, Payload, Result,
+    SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
 use std::ops::Range;
@@ -455,7 +455,7 @@ impl Validator {
             ComponentAliasSection(s) => self.component_alias_section(s)?,
             ComponentTypeSection(s) => self.component_type_section(s)?,
             ComponentCanonicalSection(s) => self.component_canonical_section(s)?,
-            ComponentStartSection(s) => self.component_start_section(s)?,
+            ComponentStartSection { start, range } => self.component_start_section(start, range)?,
             ComponentImportSection(s) => self.component_import_section(s)?,
             ComponentExportSection(s) => self.component_export_section(s)?,
 
@@ -1012,7 +1012,7 @@ impl Validator {
     /// This method should only be called when parsing a component.
     pub fn component_alias_section(
         &mut self,
-        section: &crate::ComponentAliasSectionReader,
+        section: &crate::ComponentAliasSectionReader<'_>,
     ) -> Result<()> {
         self.process_component_section(
             section,
@@ -1099,20 +1099,20 @@ impl Validator {
     /// This method should only be called when parsing a component.
     pub fn component_start_section(
         &mut self,
-        section: &crate::ComponentStartSectionReader,
+        f: &crate::ComponentStartFunction,
+        range: &Range<usize>,
     ) -> Result<()> {
-        let range = section.range();
         self.state.ensure_component("start", range.start)?;
 
-        let mut section = section.clone();
-        let f = section.read()?;
+        // let mut section = section.clone();
+        // let f = section.read()?;
 
-        if !section.eof() {
-            return Err(BinaryReaderError::new(
-                "trailing data at the end of the start section",
-                section.original_position(),
-            ));
-        }
+        // if !section.eof() {
+        //     return Err(BinaryReaderError::new(
+        //         "trailing data at the end of the start section",
+        //         section.original_position(),
+        //     ));
+        // }
 
         self.components.last_mut().unwrap().add_start(
             f.func_index,
@@ -1238,10 +1238,10 @@ impl Validator {
         }
     }
 
-    fn process_module_section<T>(
+    fn process_module_section<'a, T>(
         &mut self,
         order: Order,
-        section: &T,
+        section: &SectionLimited<'a, T>,
         name: &str,
         validate_section: impl FnOnce(
             &mut ModuleState,
@@ -1254,12 +1254,12 @@ impl Validator {
             &mut ModuleState,
             &WasmFeatures,
             &mut TypeList,
-            T::Item,
+            T,
             usize,
         ) -> Result<()>,
     ) -> Result<()>
     where
-        T: SectionReader + Clone + SectionWithLimitedItems,
+        T: FromReader<'a>,
     {
         let offset = section.range().start;
         self.state.ensure_module(name, offset)?;
@@ -1271,37 +1271,33 @@ impl Validator {
             state,
             &self.features,
             &mut self.types,
-            section.get_count(),
+            section.count(),
             offset,
         )?;
 
-        let mut section = section.clone();
-        for _ in 0..section.get_count() {
-            let offset = section.original_position();
-            let item = section.read()?;
+        for item in section.clone().into_iter_with_offsets() {
+            let (offset, item) = item?;
             validate_item(state, &self.features, &mut self.types, item, offset)?;
         }
-
-        section.ensure_end()?;
 
         Ok(())
     }
 
-    fn process_component_section<T>(
+    fn process_component_section<'a, T>(
         &mut self,
-        section: &T,
+        section: &SectionLimited<'a, T>,
         name: &str,
         validate_section: impl FnOnce(&mut Vec<ComponentState>, &mut TypeList, u32, usize) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut Vec<ComponentState>,
             &mut TypeList,
             &WasmFeatures,
-            T::Item,
+            T,
             usize,
         ) -> Result<()>,
     ) -> Result<()>
     where
-        T: Clone + SectionWithLimitedItems,
+        T: FromReader<'a>,
     {
         let offset = section.range().start;
 
@@ -1316,14 +1312,12 @@ impl Validator {
         validate_section(
             &mut self.components,
             &mut self.types,
-            section.get_count(),
+            section.count(),
             offset,
         )?;
 
-        let mut section = section.clone();
-        for _ in 0..section.get_count() {
-            let offset = section.original_position();
-            let item = section.read()?;
+        for item in section.clone().into_iter_with_offsets() {
+            let (offset, item) = item?;
             validate_item(
                 &mut self.components,
                 &mut self.types,
@@ -1332,8 +1326,6 @@ impl Validator {
                 offset,
             )?;
         }
-
-        section.ensure_end()?;
 
         Ok(())
     }
