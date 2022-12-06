@@ -344,16 +344,24 @@ mod generate {
                 | TypeDefKind::List(_)
                 | TypeDefKind::Result(_) => true,
             };
-            let interface = if !can_be_anonymous || u.arbitrary()? {
-                Some(self.doc.interfaces.next_id())
-            } else {
-                None
-            };
+
+            // Choose a name, either because we are forced to or because the
+            // fuzz input says we should name this.
             let name = if !can_be_anonymous || u.arbitrary()? {
                 Some(self.gen_unique_name(u)?)
             } else {
                 None
             };
+
+            // Determine if the `interface` field will be set. This is required
+            // for named or non-anonymous types since they're attached to an
+            // interface. Otherwise let the fuzz input determine that.
+            let interface = if name.is_some() || !can_be_anonymous || u.arbitrary()? {
+                Some(self.doc.interfaces.next_id())
+            } else {
+                None
+            };
+
             Ok((
                 size,
                 TypeDef {
