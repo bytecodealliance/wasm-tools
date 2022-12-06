@@ -3,20 +3,20 @@
     {
       "name": "foo",
       "types": [
-        {
-          "idx": 0,
-          "name": "x",
-          "primitive": "u32"
-        },
-        {
-          "idx": 1,
-          "name": "bar",
-          "stream": {
-            "element": "type-0",
-            "end": null
-          }
-        }
+        "type-0",
+        "type-1"
       ]
+    }
+  ],
+  "types": [
+    {
+      "primitive": "u32"
+    },
+    {
+      "stream": {
+        "element": "type-0",
+        "end": null
+      }
     }
   ]
 }

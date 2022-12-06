@@ -1,5 +1,5 @@
-`a` is defined more than once
-     --> tests/ui/parse-fail/duplicate-value.wit:5:3
+expected '(', found keyword `s32`
+     --> tests/ui/parse-fail/duplicate-value.wit:4:6
       |
-    5 |   a: u32
-      |   ^
+    4 |   a: s32
+      |      ^
