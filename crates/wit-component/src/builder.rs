@@ -146,6 +146,12 @@ impl ComponentBuilder {
             .instance_export(instance, ComponentExportKind::Type, name);
         inc(&mut self.types)
     }
+
+    pub fn alias_outer_type(&mut self, depth: u32, index: u32) -> u32 {
+        self.aliases()
+            .outer(depth, ComponentOuterAliasKind::Type, index);
+        inc(&mut self.types)
+    }
 }
 
 // Helper macro to generate methods on `ComponentBuilder` to get specific

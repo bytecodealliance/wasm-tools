@@ -26,6 +26,9 @@ pub trait ValtypeEncoder<'a> {
     /// place its results.
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>);
 
+    /// Aliases the provided type as a new type using an outer depth of 0.
+    fn define_type_alias_self(&mut self, ty: u32) -> u32;
+
     /// Creates an export item for the specified type index.
     fn export_type(&mut self, index: u32, name: &'a str);
 
@@ -140,7 +143,16 @@ pub trait ValtypeEncoder<'a> {
                         encoder.list(ty);
                         ComponentValType::Type(index)
                     }
-                    TypeDefKind::Type(ty) => self.encode_valtype(doc, ty)?,
+                    TypeDefKind::Type(ty) => {
+                        match self.encode_valtype(doc, ty)? {
+                            // This is `type a = b` which is encoded as an
+                            // `outer` alias of depth 0
+                            ComponentValType::Type(index) => {
+                                ComponentValType::Type(self.define_type_alias_self(index))
+                            }
+                            t @ ComponentValType::Primitive(_) => t,
+                        }
+                    }
                     TypeDefKind::Future(_) => todo!("encoding for future type"),
                     TypeDefKind::Stream(_) => todo!("encoding for stream type"),
                 };
@@ -275,6 +287,9 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
         self.state.component.function_type()
     }
+    fn define_type_alias_self(&mut self, idx: u32) -> u32 {
+        self.state.component.alias_outer_type(0, idx)
+    }
     fn export_type(&mut self, idx: u32, name: &'a str) {
         self.type_exports.push((idx, name));
     }
@@ -312,6 +327,11 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     }
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
         (self.ty.type_count(), self.ty.ty().function())
+    }
+    fn define_type_alias_self(&mut self, idx: u32) -> u32 {
+        let ret = self.ty.type_count();
+        self.ty.alias_outer_type(0, idx);
+        ret
     }
     fn export_type(&mut self, idx: u32, name: &str) {
         self.ty
