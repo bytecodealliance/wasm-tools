@@ -175,13 +175,21 @@ struct InterfaceDecoder<'a, 'doc> {
     info: &'a ComponentInfo<'a>,
     doc: &'doc mut Document,
 
-    // Note that the hash keys in these maps are `&types::Type` where we're
-    // hashing the memory address of the pointer itself. The purpose here is to
-    // ensure that two `TypeId` entries which come from two different index
-    // spaces which point to the same type can name the same type, so the hash
-    // key is the result after `TypeId` lookup.
-    type_map: IndexMap<PtrHash<'a, types::Type>, Type>,
-    name_map: IndexMap<PtrHash<'a, types::Type>, &'a str>,
+    /// Names learned prior about each type id, if it was exported.
+    name_map: IndexMap<types::TypeId, &'a str>,
+
+    /// A map from a type id to what it's been translated to.
+    type_map: IndexMap<types::TypeId, Type>,
+
+    /// A second map, similar to `type_map`, which is keyed off a pointer hash
+    /// instead of `TypeId`.
+    ///
+    /// The purpose of this is to detect when a type is aliased as there will
+    /// be two unique `TypeId` structures pointing at the same `types::Type`
+    /// structure, so the second layer of map here ensures that types are
+    /// only defined once and the second `TypeId` referring to a type will end
+    /// up as an alias and/or import.
+    type_src_map: IndexMap<PtrHash<'a, types::Type>, Type>,
 }
 
 impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
@@ -192,6 +200,7 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
             doc,
             name_map: IndexMap::new(),
             type_map: IndexMap::new(),
+            type_src_map: IndexMap::new(),
         }
     }
 
@@ -210,7 +219,6 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
         if let Some(url) = url {
             interface.url = Some(url.to_string());
         }
-        let mut aliases = Vec::new();
         // Populate names in the name map first
         for (name, ty) in exports.clone() {
             let id = match ty {
@@ -218,17 +226,11 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
                 _ => continue,
             };
 
-            let ty = self.info.types.type_from_id(id).unwrap();
-            let key = PtrHash(ty);
-            if self.name_map.contains_key(&key) {
-                aliases.push((name, key));
-            } else {
-                let prev = self.name_map.insert(PtrHash(ty), name);
-                assert!(prev.is_none());
-            }
+            let prev = self.name_map.insert(id, name);
+            assert!(prev.is_none());
         }
 
-        // Iterate over all exports an interpret them as defined items within
+        // Iterate over all exports and interpret them as defined items within
         // the interface, either functions or types at this time.
         for (name, ty) in exports {
             match ty {
@@ -256,17 +258,6 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
                 }
                 _ => bail!("expected function or type export"),
             }
-        }
-
-        for (name, key) in aliases {
-            let ty = self.type_map[&key];
-            let id = self.doc.types.alloc(TypeDef {
-                docs: Default::default(),
-                kind: TypeDefKind::Type(ty),
-                name: Some(name.to_string()),
-                interface: Some(self.doc.interfaces.next_id()),
-            });
-            interface.types.push(id);
         }
 
         // Reset the `name_map` for the next interface, but notably persist the
@@ -332,54 +323,70 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
         Ok(match ty {
             types::ComponentValType::Primitive(ty) => self.decode_primitive(*ty)?,
             types::ComponentValType::Type(id) => {
-                let ty = self.info.types.type_from_id(*id).unwrap();
-                let key = PtrHash(ty);
-                if let Some(ty) = self.type_map.get(&key) {
+                // If this precise `TypeId` has already been decoded, then
+                // return that same result.
+                if let Some(ty) = self.type_map.get(id) {
                     return Ok(*ty);
                 }
 
-                let name = self.name_map.get(&key).map(ToString::to_string);
+                let name = self.name_map.get(id).map(ToString::to_string);
+                let ty = self.info.types.type_from_id(*id).unwrap();
+                let key = PtrHash(ty);
+                let ty = match self.type_src_map.get(&key) {
+                    // If this `TypeId` points to a type which has previously
+                    // been defined then a second `TypeId` pointing at it is
+                    // indicative of an alias. Inject the alias here.
+                    Some(prev) => {
+                        let id = self.doc.types.alloc(TypeDef {
+                            docs: Default::default(),
+                            kind: TypeDefKind::Type(*prev),
+                            name: name,
+                            interface: Some(self.doc.interfaces.next_id()),
+                        });
+                        Type::Id(id)
+                    }
 
-                let ty = match ty {
-                    types::Type::Defined(ty) => match ty {
-                        types::ComponentDefinedType::Primitive(ty) => {
-                            self.decode_named_primitive(name, ty)?
-                        }
-                        types::ComponentDefinedType::Record(r) => {
-                            self.decode_record(name, r.fields.iter())?
-                        }
-                        types::ComponentDefinedType::Variant(v) => {
-                            self.decode_variant(name, v.cases.iter())?
-                        }
-                        types::ComponentDefinedType::List(ty) => {
-                            let inner = self.decode_type(ty)?;
-                            Type::Id(self.alloc_type(name, TypeDefKind::List(inner)))
-                        }
-                        types::ComponentDefinedType::Tuple(t) => {
-                            self.decode_tuple(name, &t.types)?
-                        }
-                        types::ComponentDefinedType::Flags(names) => {
-                            self.decode_flags(name, names.iter())?
-                        }
-                        types::ComponentDefinedType::Enum(names) => {
-                            self.decode_enum(name, names.iter())?
-                        }
-                        types::ComponentDefinedType::Union(u) => {
-                            self.decode_union(name, &u.types)?
-                        }
-                        types::ComponentDefinedType::Option(ty) => self.decode_option(name, ty)?,
-                        types::ComponentDefinedType::Result { ok, err } => {
-                            self.decode_result(name, ok.as_ref(), err.as_ref())?
-                        }
-                    },
-                    _ => unreachable!(),
+                    // ... or this `TypeId`'s source definition has never been
+                    // seen before, so declare the full type.
+                    None => {
+                        let ty = self.decode_defined_type(name, ty)?;
+                        let prev = self.type_src_map.insert(key, ty);
+                        assert!(prev.is_none());
+                        ty
+                    }
                 };
 
-                let prev = self.type_map.insert(key, ty);
+                // Record the result of translation with the `TypeId` we have.
+                let prev = self.type_map.insert(*id, ty);
                 assert!(prev.is_none());
                 ty
             }
         })
+    }
+
+    fn decode_defined_type(&mut self, name: Option<String>, ty: &'a types::Type) -> Result<Type> {
+        match ty {
+            types::Type::Defined(ty) => match ty {
+                types::ComponentDefinedType::Primitive(ty) => self.decode_named_primitive(name, ty),
+                types::ComponentDefinedType::Record(r) => self.decode_record(name, r.fields.iter()),
+                types::ComponentDefinedType::Variant(v) => {
+                    self.decode_variant(name, v.cases.iter())
+                }
+                types::ComponentDefinedType::List(ty) => {
+                    let inner = self.decode_type(ty)?;
+                    Ok(Type::Id(self.alloc_type(name, TypeDefKind::List(inner))))
+                }
+                types::ComponentDefinedType::Tuple(t) => self.decode_tuple(name, &t.types),
+                types::ComponentDefinedType::Flags(names) => self.decode_flags(name, names.iter()),
+                types::ComponentDefinedType::Enum(names) => self.decode_enum(name, names.iter()),
+                types::ComponentDefinedType::Union(u) => self.decode_union(name, &u.types),
+                types::ComponentDefinedType::Option(ty) => self.decode_option(name, ty),
+                types::ComponentDefinedType::Result { ok, err } => {
+                    self.decode_result(name, ok.as_ref(), err.as_ref())
+                }
+            },
+            _ => unreachable!(),
+        }
     }
 
     fn decode_optional_type(

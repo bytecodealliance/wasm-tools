@@ -1582,7 +1582,23 @@ impl ComponentState {
             }
             ComponentExternalKind::Type => {
                 check_max(self.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
-                push_component_export!(ComponentEntityType::Type, types, "type")
+                match self.instance_export(instance_index, name, types, offset)? {
+                    ComponentEntityType::Type(ty) => {
+                        self.types.push(TypeId {
+                            type_size: ty.type_size,
+                            index: ty.index,
+                            type_index: Some(self.types.len()),
+                            is_core: false,
+                        });
+                        Ok(())
+                    }
+                    _ => {
+                        bail!(
+                            offset,
+                            "export `{name}` for instance {instance_index} is not a type",
+                        )
+                    }
+                }
             }
         }
     }

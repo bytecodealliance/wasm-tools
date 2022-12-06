@@ -114,38 +114,87 @@ mod generate {
             let mut world = World::default();
             world.name = self.gen_name(u)?;
 
-            let interfaces = self
+            let mut interfaces = self
                 .doc
                 .interfaces
                 .iter()
                 .map(|(id, _)| id)
                 .collect::<Vec<_>>();
-            if interfaces.len() > 0 {
-                #[derive(Arbitrary)]
-                enum Generate {
-                    Import,
-                    Export,
-                }
 
-                while u.arbitrary()? {
-                    let name = self.gen_unique_name(u)?;
-                    let interface = *u.choose(&interfaces)?;
-                    let map = match u.arbitrary()? {
-                        Generate::Import => &mut world.imports,
-                        Generate::Export => &mut world.exports,
-                    };
-                    if map.len() > 10 {
-                        continue;
-                    }
-                    let prev = map.insert(name, interface);
-                    assert!(prev.is_none());
-                }
-                if u.arbitrary()? {
-                    world.default = Some(*u.choose(&interfaces)?);
-                }
+            #[derive(Arbitrary)]
+            enum Generate {
+                Import,
+                Export,
             }
+
+            let mut imports = Vec::new();
+            let mut exports = Vec::new();
+            while interfaces.len() > 0 && u.arbitrary()? {
+                let dst = match u.arbitrary()? {
+                    Generate::Import => &mut imports,
+                    Generate::Export => &mut exports,
+                };
+                if dst.len() > 10 {
+                    continue;
+                }
+                let i = u.int_in_range(0..=interfaces.len() - 1)?;
+                let interface = interfaces.swap_remove(i);
+                dst.push(interface);
+            }
+            if interfaces.len() > 0 && u.arbitrary()? {
+                world.default = Some(*u.choose(&interfaces)?);
+            }
+
+            let mut visited = HashSet::new();
+            let mut import_order = Vec::new();
+            for id in imports {
+                self.topo_visit(id, &mut visited, &mut import_order);
+            }
+            for id in exports.iter() {
+                self.topo_visit(*id, &mut visited, &mut import_order);
+                import_order.pop();
+            }
+            if let Some(default) = world.default {
+                self.topo_visit(default, &mut visited, &mut import_order);
+                import_order.pop();
+            }
+
+            for i in import_order {
+                world.imports.insert(self.gen_unique_name(u)?, i);
+            }
+            for e in exports {
+                world.exports.insert(self.gen_unique_name(u)?, e);
+            }
+
             self.unique_names.clear();
-            Ok(self.doc.worlds.alloc(world))
+            return Ok(self.doc.worlds.alloc(world));
+        }
+
+        fn topo_visit(
+            &self,
+            id: InterfaceId,
+            visited: &mut HashSet<InterfaceId>,
+            order: &mut Vec<InterfaceId>,
+        ) {
+            if !visited.insert(id) {
+                return;
+            }
+            let interface = &self.doc.interfaces[id];
+            for ty in interface.types.iter() {
+                let other_id = match self.doc.types[*ty].kind {
+                    TypeDefKind::Type(Type::Id(id)) => id,
+                    _ => continue,
+                };
+                let other_interface = match self.doc.types[other_id].interface {
+                    Some(i) => i,
+                    None => continue,
+                };
+                if other_interface == id {
+                    continue;
+                }
+                self.topo_visit(other_interface, visited, order);
+            }
+            order.push(id);
         }
 
         fn gen_interface(&mut self, u: &mut Unstructured<'_>) -> Result<InterfaceId> {

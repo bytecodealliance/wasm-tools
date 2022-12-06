@@ -354,10 +354,11 @@ impl<'a> EncodingState<'a> {
         }
     }
 
-    fn root_type_encoder(&mut self) -> RootTypeEncoder<'_, 'a> {
+    fn root_type_encoder(&mut self, interface: InterfaceId) -> RootTypeEncoder<'_, 'a> {
         RootTypeEncoder {
             state: self,
             type_exports: Vec::new(),
+            interface,
         }
     }
 
@@ -375,20 +376,39 @@ impl<'a> EncodingState<'a> {
         let doc = &self.info.encoder.metadata.doc;
         for (name, info) in self.info.import_map.iter() {
             let interface = &doc.interfaces[info.interface];
+            log::trace!("encoding imports for `{name}` as {:?}", info.interface);
             let ty = {
                 let mut encoder = self.instance_type_encoder(info.interface);
+
+                // Encode all required functions from this imported interface
+                // into the instance type.
                 for func in interface.functions.iter() {
                     if !info.required.contains(func.name.as_str()) {
                         continue;
                     }
+                    log::trace!("encoding function type for `{}`", func.name);
                     let idx = encoder.encode_func_type(doc, func)?;
 
                     encoder
                         .ty
                         .export(&func.name, "", ComponentTypeRef::Func(idx));
                 }
+
+                // If there were any live types from this instance which weren't
+                // otherwise reached through the above function types then this
+                // will forward them through.
+                if let Some(live) = encoder.state.info.live_types.get(&info.interface).cloned() {
+                    for ty in live {
+                        log::trace!("encoding extra type {ty:?}");
+                        encoder.encode_valtype(doc, &Type::Id(ty))?;
+                    }
+                }
+
                 encoder.ty
             };
+
+            // Don't both encoding empty instance types since they're not
+            // meaningful tot the runtime of the component anyway.
             if ty.is_empty() {
                 continue;
             }
@@ -545,7 +565,7 @@ impl<'a> EncodingState<'a> {
         let world = &doc.worlds[world];
         for (export, export_name) in world.exports() {
             let mut interface_exports = Vec::new();
-            let mut enc = self.root_type_encoder();
+            let mut enc = self.root_type_encoder(export);
 
             // Alias the exports from the core module
             for func in &doc.interfaces[export].functions {
@@ -1221,7 +1241,7 @@ impl ComponentEncoder {
                             .export(name, url, ComponentExportKind::Type, index);
                     }
                     None => {
-                        let mut ty = state.root_type_encoder();
+                        let mut ty = state.root_type_encoder(id);
                         for func in interface.functions.iter() {
                             let idx = ty.encode_func_type(doc, func)?;
                             ty.state.component.export(

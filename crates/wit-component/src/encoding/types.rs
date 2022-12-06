@@ -265,6 +265,7 @@ pub trait ValtypeEncoder<'a> {
 pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
     pub type_exports: Vec<(u32, &'a str)>,
+    pub interface: InterfaceId,
 }
 
 impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
@@ -280,8 +281,17 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
         &mut self.state.type_map
     }
-    fn maybe_import_type(&mut self, _id: TypeId) -> Option<u32> {
-        None
+    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
+        // If this `id` is anonymous or belongs to this interface
+        // there's nothing to import, it needs defining. Otherwise
+        // perform the importing process with an outer alias to the
+        // parent component.
+        let other = self.state.info.encoder.metadata.doc.types[id].interface?;
+        if other == self.interface {
+            return None;
+        }
+
+        Some(self.state.index_of_type_export(id))
     }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
         &mut self.state.func_type_map

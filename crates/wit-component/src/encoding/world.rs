@@ -5,10 +5,11 @@ use crate::validation::{
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashSet;
+use std::mem;
 use wasmparser::FuncType;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Document, Function, InterfaceId, WorldId,
+    Document, Function, InterfaceId, Type, TypeDefKind, TypeId, WorldId,
 };
 
 pub struct ComponentWorld<'a> {
@@ -16,6 +17,16 @@ pub struct ComponentWorld<'a> {
     pub info: Option<ValidatedModule<'a>>,
     pub adapters: IndexMap<&'a str, (ValidatedAdapter<'a>, Vec<u8>)>,
     pub import_map: IndexMap<&'a str, ImportedInterface<'a>>,
+    pub live_types: IndexMap<InterfaceId, IndexSet<TypeId>>,
+}
+
+#[derive(Debug)]
+pub struct ImportedInterface<'a> {
+    pub url: &'a str,
+    pub direct: Vec<DirectLowering<'a>>,
+    pub indirect: Vec<IndirectLowering<'a>>,
+    pub required: HashSet<&'a str>,
+    pub interface: InterfaceId,
 }
 
 #[derive(Debug)]
@@ -28,15 +39,6 @@ pub struct IndirectLowering<'a> {
     pub name: &'a str,
     pub sig: WasmSignature,
     pub options: RequiredOptions,
-}
-
-#[derive(Debug)]
-pub struct ImportedInterface<'a> {
-    pub url: &'a str,
-    pub direct: Vec<DirectLowering<'a>>,
-    pub indirect: Vec<IndirectLowering<'a>>,
-    pub required: HashSet<&'a str>,
-    pub interface: InterfaceId,
 }
 
 impl<'a> ComponentWorld<'a> {
@@ -61,10 +63,12 @@ impl<'a> ComponentWorld<'a> {
             info,
             adapters: IndexMap::new(),
             import_map: IndexMap::new(),
+            live_types: Default::default(),
         };
 
         ret.process_adapters()?;
         ret.process_imports()?;
+        ret.process_live_types();
 
         Ok(ret)
     }
@@ -96,12 +100,10 @@ impl<'a> ComponentWorld<'a> {
     fn process_imports(&mut self) -> Result<()> {
         let doc = &self.encoder.metadata.doc;
         let world = self.encoder.metadata.world;
+        let empty = IndexSet::new();
         for (name, interface) in doc.worlds[world].imports.iter() {
             let required = match &self.info {
-                Some(info) => match info.required_imports.get(name.as_str()) {
-                    Some(required) => Some(required),
-                    None => continue,
-                },
+                Some(info) => Some(info.required_imports.get(name.as_str()).unwrap_or(&empty)),
                 None => None,
             };
             add_interface(&mut self.import_map, doc, name, *interface, required)?;
@@ -122,6 +124,13 @@ impl<'a> ComponentWorld<'a> {
             id: InterfaceId,
             required: Option<&IndexSet<&str>>,
         ) -> Result<()> {
+            import_map.entry(name).or_insert_with(|| ImportedInterface {
+                interface: id,
+                url: doc.interfaces[id].url.as_deref().unwrap_or(""),
+                direct: Default::default(),
+                indirect: Default::default(),
+                required: Default::default(),
+            });
             for func in doc.interfaces[id].functions.iter() {
                 // If this function isn't actually required then skip it
                 if let Some(required) = required {
@@ -141,13 +150,7 @@ impl<'a> ComponentWorld<'a> {
             id: InterfaceId,
             func: &'a Function,
         ) -> Result<()> {
-            let interface = import_map.entry(name).or_insert_with(|| ImportedInterface {
-                interface: id,
-                url: doc.interfaces[id].url.as_deref().unwrap_or(""),
-                direct: Default::default(),
-                indirect: Default::default(),
-                required: Default::default(),
-            });
+            let interface = import_map.get_mut(name).unwrap();
             assert_eq!(interface.interface, id);
             if !interface.required.insert(func.name.as_str()) {
                 return Ok(());
@@ -205,6 +208,106 @@ impl<'a> ComponentWorld<'a> {
                 WasmType::F32 => ValType::F32,
                 WasmType::F64 => ValType::F64,
             }
+        }
+    }
+
+    fn process_live_types(&mut self) {
+        let mut live_types = mem::take(&mut self.live_types);
+        let doc = &self.encoder.metadata.doc;
+        for (_name, info) in self.import_map.iter() {
+            let interface = &doc.interfaces[info.interface];
+            for func in interface.functions.iter() {
+                if !info.required.contains(func.name.as_str()) {
+                    continue;
+                }
+                self.add_live_func(func, &mut live_types);
+            }
+        }
+        for (id, _) in doc.worlds[self.encoder.metadata.world].exports() {
+            let interface = &doc.interfaces[id];
+            for func in interface.functions.iter() {
+                self.add_live_func(func, &mut live_types);
+            }
+        }
+        for (_, (_, _, world)) in self.encoder.adapters.iter() {
+            for (id, _) in doc.worlds[*world].exports() {
+                let interface = &doc.interfaces[id];
+                for func in interface.functions.iter() {
+                    self.add_live_func(func, &mut live_types);
+                }
+            }
+        }
+
+        self.live_types = live_types;
+    }
+
+    fn add_live_func(
+        &self,
+        func: &Function,
+        live_types: &mut IndexMap<InterfaceId, IndexSet<TypeId>>,
+    ) {
+        for ty in func
+            .params
+            .iter()
+            .map(|(_, t)| t)
+            .chain(func.results.iter_types())
+        {
+            self.add_live(ty, live_types);
+        }
+    }
+
+    fn add_live(&self, ty: &Type, live_types: &mut IndexMap<InterfaceId, IndexSet<TypeId>>) {
+        let id = match *ty {
+            Type::Id(id) => id,
+            _ => return,
+        };
+        let ty = &self.encoder.metadata.doc.types[id];
+        let interface = match ty.interface {
+            Some(id) => id,
+            None => return,
+        };
+        let set = live_types.entry(interface).or_insert_with(Default::default);
+        if !set.insert(id) {
+            return;
+        }
+        log::trace!("live {id:?} in {interface:?}");
+        match &ty.kind {
+            TypeDefKind::Record(t) => {
+                for f in t.fields.iter() {
+                    self.add_live(&f.ty, live_types);
+                }
+            }
+            TypeDefKind::Tuple(t) => {
+                for ty in t.types.iter() {
+                    self.add_live(ty, live_types);
+                }
+            }
+            TypeDefKind::Union(t) => {
+                for c in t.cases.iter() {
+                    self.add_live(&c.ty, live_types);
+                }
+            }
+            TypeDefKind::Variant(t) => {
+                for c in t.cases.iter() {
+                    if let Some(ty) = &c.ty {
+                        self.add_live(ty, live_types);
+                    }
+                }
+            }
+            TypeDefKind::Result(t) => {
+                if let Some(t) = &t.ok {
+                    self.add_live(t, live_types);
+                }
+                if let Some(t) = &t.err {
+                    self.add_live(t, live_types);
+                }
+            }
+            TypeDefKind::Option(t) | TypeDefKind::Type(t) | TypeDefKind::List(t) => {
+                self.add_live(t, live_types);
+            }
+            TypeDefKind::Enum(_) | TypeDefKind::Flags(_) => {}
+            TypeDefKind::Stream(_) => todo!(),
+            TypeDefKind::Future(_) => todo!(),
         }
     }
 }
