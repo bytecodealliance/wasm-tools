@@ -332,9 +332,9 @@ pub struct EncodingState<'a> {
     /// Imported instances and what index they were imported as.
     imported_instances: IndexMap<InterfaceId, u32>,
 
-    /// Map of types defined within the component.
+    /// Map of types defined within the component's root index space.
     type_map: HashMap<TypeId, u32>,
-    /// Map of function types defined within the component.
+    /// Map of function types defined within the component's root index space.
     func_type_map: HashMap<types::FunctionKey<'a>, u32>,
 
     /// Metadata about the world inferred from the input to `ComponentEncoder`.
@@ -407,16 +407,18 @@ impl<'a> EncodingState<'a> {
                 encoder.ty
             };
 
-            // Don't both encoding empty instance types since they're not
-            // meaningful tot the runtime of the component anyway.
+            // Don't encode empty instance types since they're not
+            // meaningful to the runtime of the component anyway.
             if ty.is_empty() {
                 continue;
             }
-            let idx = self.component.instance_type(&ty);
-            let idx = self
-                .component
-                .import(name, &info.url, ComponentTypeRef::Instance(idx));
-            let prev = self.imported_instances.insert(info.interface, idx);
+            let instance_type_idx = self.component.instance_type(&ty);
+            let instance_idx = self.component.import(
+                name,
+                &info.url,
+                ComponentTypeRef::Instance(instance_type_idx),
+            );
+            let prev = self.imported_instances.insert(info.interface, instance_idx);
             assert!(prev.is_none());
         }
         Ok(())
@@ -557,9 +559,11 @@ impl<'a> EncodingState<'a> {
         let world = &doc.worlds[world];
         for (export, export_name) in world.exports() {
             let mut interface_exports = Vec::new();
-            let mut enc = self.root_type_encoder(export);
 
-            // Alias the exports from the core module
+            // All types are encoded into the root component here using this
+            // encoder which keeps track of type exports to determine how to
+            // export them later as well.
+            let mut enc = self.root_type_encoder(export);
             for func in &doc.interfaces[export].functions {
                 let name = func.core_export_name(export_name);
                 let instance_index = match module {
@@ -576,6 +580,9 @@ impl<'a> EncodingState<'a> {
                 let options = RequiredOptions::for_export(doc, func);
 
                 let encoding = metadata.export_encodings[&name[..]];
+                // TODO: This realloc detection should probably be improved with
+                // some sort of scheme to have per-function reallocs like
+                // `cabi_realloc_{name}` or something like that.
                 let realloc_index = match module {
                     CustomModule::Main => enc.state.realloc_index,
                     CustomModule::Adapter(name) => enc.state.adapter_export_reallocs[name],
@@ -583,6 +590,9 @@ impl<'a> EncodingState<'a> {
                 let mut options = options
                     .into_iter(encoding, enc.state.memory_index, realloc_index)?
                     .collect::<Vec<_>>();
+
+                // TODO: This should probe for the existence of
+                // `cabi_post_{name}` but not require its existence.
                 if doc.guest_export_needs_post_return(func) {
                     let post_return = enc.state.component.alias_core_item(
                         instance_index,
@@ -592,10 +602,11 @@ impl<'a> EncodingState<'a> {
                     options.push(CanonicalOption::PostReturn(post_return));
                 }
                 let func_index = enc.state.component.lift_func(core_func_index, ty, options);
-
                 interface_exports.push((func.name.as_str(), ComponentExportKind::Func, func_index));
             }
 
+            // Extend the interface exports to be created with type exports
+            // found during encoding of function types.
             interface_exports.extend(
                 enc.type_exports
                     .into_iter()
@@ -1111,6 +1122,7 @@ pub struct ComponentEncoder {
     //   stripped.
     // * the metadata for the adapter, verified to have no exports and only
     //   imports.
+    // * The world within `self.metadata.doc` which the adapter works with.
     adapters: IndexMap<String, (Vec<u8>, ModuleMetadata, WorldId)>,
 }
 
@@ -1169,6 +1181,9 @@ impl ComponentEncoder {
     /// in the core wasm that's being wrapped.
     pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
+        // Merge the adapter's document into our own document to have one large
+        // document, but the adapter's world isn't merged in to our world so
+        // retain it separately.
         let world = self.metadata.doc.merge(metadata.doc).world_map[metadata.world.index()];
         self.adapters
             .insert(name.to_string(), (wasm, metadata.metadata, world));
@@ -1211,7 +1226,10 @@ impl ComponentEncoder {
                 bail!("a module cannot be specified for a types-only encoding");
             }
 
-            // TODO: comment
+            // In types-only mode there's no actual items to export so skip
+            // shims/adapters etc. Instead instance types are exported to
+            // represent exported instances and exported types represent the
+            // default export.
             for (id, name) in world.exports() {
                 let interface = &doc.interfaces[id];
                 let url = interface.url.as_deref().unwrap_or("");

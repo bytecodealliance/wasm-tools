@@ -14,6 +14,13 @@ pub struct FunctionKey<'a> {
     results: &'a Results,
 }
 
+/// Support for encoding a wit-parser type into a component.
+///
+/// This is a `trait` to enable different implementations which define types
+/// slightly differently in different contexts. For example types might be
+/// defined within an instance type's index space or might be defined in the
+/// component's root index space in a type section. The default trait methods
+/// here are intended to assist in multiplexing over this difference.
 pub trait ValtypeEncoder<'a> {
     /// Returns a new type encoder used to define a new type in this type
     /// section.
@@ -297,15 +304,15 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         &mut self.state.type_map
     }
     fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
-        // If this `id` is anonymous or belongs to this interface
-        // there's nothing to import, it needs defining. Otherwise
-        // perform the importing process with an outer alias to the
-        // parent component.
+        // If this `id` is anonymous or belongs to this interface there's
+        // nothing to import, it needs defining. Otherwise alias the type from
+        // an import into this component's root namespace.
         let other = self.state.info.encoder.metadata.doc.types[id].interface?;
         if other == self.interface {
             return None;
         }
-
+        // TODO: this doesn't work for importing types from other exports. That
+        // just trips an assertion here.
         Some(self.state.index_of_type_export(id))
     }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {

@@ -12,11 +12,24 @@ use wit_parser::{
     Document, Function, InterfaceId, Type, TypeDefKind, TypeId, WorldId,
 };
 
+/// Metadata discovered from the state configured in a `ComponentEncoder`.
+///
+/// This is stored separately from `EncodingState` to be stored as a borrow in
+/// `EncodingState` as this information doesn't change throughout the encoding
+/// process.
 pub struct ComponentWorld<'a> {
+    /// Encoder configuration with modules, the document ,etc.
     pub encoder: &'a ComponentEncoder,
+    /// Validation information of the input module, or `None` in `--types-only`
+    /// mode.
     pub info: Option<ValidatedModule<'a>>,
+    /// Validation information about adapters populated only for required
+    /// adapters. Additionally stores the gc'd wasm for each adapter.
     pub adapters: IndexMap<&'a str, (ValidatedAdapter<'a>, Vec<u8>)>,
+    /// Map of all imports and descriptions of what they're importing.
     pub import_map: IndexMap<&'a str, ImportedInterface<'a>>,
+    /// Set of all live types which must be exported either because they're
+    /// directly used or because they're transitively used.
     pub live_types: IndexMap<InterfaceId, IndexSet<TypeId>>,
 }
 
@@ -25,6 +38,8 @@ pub struct ImportedInterface<'a> {
     pub url: &'a str,
     pub direct: Vec<DirectLowering<'a>>,
     pub indirect: Vec<IndirectLowering<'a>>,
+    /// Required functions on the interface, or the filter on the functions list
+    /// in `interface`.
     pub required: HashSet<&'a str>,
     pub interface: InterfaceId,
 }
@@ -73,10 +88,10 @@ impl<'a> ComponentWorld<'a> {
         Ok(ret)
     }
 
-    // Process adapters which are required here. Iterate over all
-    // adapters and figure out what functions are required from the
-    // adapter itself, either because the functions are imported by the
-    // main module or they're part of the adapter's exports.
+    /// Process adapters which are required here. Iterate over all
+    /// adapters and figure out what functions are required from the
+    /// adapter itself, either because the functions are imported by the
+    /// main module or they're part of the adapter's exports.
     fn process_adapters(&mut self) -> Result<()> {
         let doc = &self.encoder.metadata.doc;
         for (name, (wasm, metadata, world)) in self.encoder.adapters.iter() {
@@ -97,6 +112,52 @@ impl<'a> ComponentWorld<'a> {
         Ok(())
     }
 
+    /// Returns the set of functions required to be exported from an adapter,
+    /// either because they're exported from the adapter's world or because
+    /// they're required as an import to the main module.
+    fn required_adapter_exports(
+        &self,
+        doc: &Document,
+        world: WorldId,
+        required_by_import: Option<&IndexMap<&str, FuncType>>,
+    ) -> IndexMap<String, FuncType> {
+        use wasmparser::ValType;
+
+        let mut required = IndexMap::new();
+        if let Some(imports) = required_by_import {
+            for (name, ty) in imports {
+                required.insert(name.to_string(), ty.clone());
+            }
+        }
+        for (interface, name) in doc.worlds[world].exports() {
+            for func in doc.interfaces[interface].functions.iter() {
+                let name = func.core_export_name(name);
+                let ty = doc.wasm_signature(AbiVariant::GuestExport, func);
+                let prev = required.insert(
+                    name.into_owned(),
+                    wasmparser::FuncType::new(
+                        ty.params.iter().map(to_valty),
+                        ty.results.iter().map(to_valty),
+                    ),
+                );
+                assert!(prev.is_none());
+            }
+        }
+        return required;
+
+        fn to_valty(ty: &WasmType) -> ValType {
+            match ty {
+                WasmType::I32 => ValType::I32,
+                WasmType::I64 => ValType::I64,
+                WasmType::F32 => ValType::F32,
+                WasmType::F64 => ValType::F64,
+            }
+        }
+    }
+
+    /// Fills out the `import_map` field of `self` by determining the live
+    /// functions from all imports. This additionally classifies imported
+    /// functions into direct or indirect lowerings for managing shims.
     fn process_imports(&mut self) -> Result<()> {
         let doc = &self.encoder.metadata.doc;
         let world = self.encoder.metadata.world;
@@ -171,46 +232,9 @@ impl<'a> ComponentWorld<'a> {
         }
     }
 
-    fn required_adapter_exports(
-        &self,
-        doc: &Document,
-        world: WorldId,
-        required_by_import: Option<&IndexMap<&str, FuncType>>,
-    ) -> IndexMap<String, FuncType> {
-        use wasmparser::ValType;
-
-        let mut required = IndexMap::new();
-        if let Some(imports) = required_by_import {
-            for (name, ty) in imports {
-                required.insert(name.to_string(), ty.clone());
-            }
-        }
-        for (interface, name) in doc.worlds[world].exports() {
-            for func in doc.interfaces[interface].functions.iter() {
-                let name = func.core_export_name(name);
-                let ty = doc.wasm_signature(AbiVariant::GuestExport, func);
-                let prev = required.insert(
-                    name.into_owned(),
-                    wasmparser::FuncType::new(
-                        ty.params.iter().map(to_valty),
-                        ty.results.iter().map(to_valty),
-                    ),
-                );
-                assert!(prev.is_none());
-            }
-        }
-        return required;
-
-        fn to_valty(ty: &WasmType) -> ValType {
-            match ty {
-                WasmType::I32 => ValType::I32,
-                WasmType::I64 => ValType::I64,
-                WasmType::F32 => ValType::F32,
-                WasmType::F64 => ValType::F64,
-            }
-        }
-    }
-
+    /// Determines the set of live types which must be exported from each
+    /// individual interface by walking over the set of live functions in
+    /// imports and recursively walking types.
     fn process_live_types(&mut self) {
         let mut live_types = mem::take(&mut self.live_types);
         let doc = &self.encoder.metadata.doc;
