@@ -513,7 +513,8 @@ impl<'a> EncodingState<'a> {
         shims: &Shims<'_>,
         metadata: &ModuleMetadata,
     ) -> u32 {
-        let (instance_index, _, import) = self.info.import_map.get_full(name).unwrap();
+        let import = &self.info.import_map[name];
+        let instance_index = self.imported_instances[&import.interface];
         let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
 
         // Add an entry for all indirect lowerings which come as an export of
@@ -538,9 +539,7 @@ impl<'a> EncodingState<'a> {
         // All direct lowerings can be `canon lower`'d here immediately and
         // passed as arguments.
         for lowering in &import.direct {
-            let func_index = self
-                .component
-                .alias_func(instance_index as u32, lowering.name);
+            let func_index = self.component.alias_func(instance_index, lowering.name);
             let core_func_index = self.component.lower_func(func_index, []);
             exports.push((lowering.name, ExportKind::Func, core_func_index));
         }
@@ -846,12 +845,11 @@ impl<'a> EncodingState<'a> {
                     realloc,
                     encoding,
                 } => {
-                    let (instance_index, _, interface) =
-                        self.info.import_map.get_full(interface).unwrap();
-                    let func_index = self.component.alias_func(
-                        instance_index as u32,
-                        interface.indirect[*indirect_index].name,
-                    );
+                    let interface = &self.info.import_map[interface];
+                    let instance_index = self.imported_instances[&interface.interface];
+                    let func_index = self
+                        .component
+                        .alias_func(instance_index, interface.indirect[*indirect_index].name);
 
                     let realloc = match realloc {
                         CustomModule::Main => self.realloc_index,
