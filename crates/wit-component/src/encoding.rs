@@ -423,10 +423,6 @@ impl<'a> EncodingState<'a> {
     }
 
     fn index_of_type_export(&mut self, id: TypeId) -> u32 {
-        if let Some(idx) = self.type_map.get(&id) {
-            return *idx;
-        }
-
         // Using the original `interface` definition of `id` and its name create
         // an alias which refers to the type export of that instance which must
         // have previously been imported.
@@ -439,10 +435,7 @@ impl<'a> EncodingState<'a> {
             .as_ref()
             .expect("cannot import anonymous type across interfaces");
         let instance = self.imported_instances[&interface];
-        let idx = self.component.alias_type_export(instance, name);
-        let prev = self.type_map.insert(id, idx);
-        assert!(prev.is_none());
-        idx
+        self.component.alias_type_export(instance, name)
     }
 
     fn encode_core_instantiation(&mut self) -> Result<()> {

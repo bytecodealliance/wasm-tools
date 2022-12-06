@@ -348,7 +348,7 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
                         let id = self.doc.types.alloc(TypeDef {
                             docs: Default::default(),
                             kind: TypeDefKind::Type(*prev),
-                            name: name,
+                            name,
                             interface: Some(self.doc.interfaces.next_id()),
                         });
                         Type::Id(id)
