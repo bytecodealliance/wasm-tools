@@ -74,7 +74,7 @@ impl CodemotionMutator {
 
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
             config.consume_fuel(1)?;
-            let reader = all_readers[fidx as usize];
+            let reader = all_readers[fidx as usize].clone();
             let mut operatorreader = reader.get_operators_reader()?;
             operatorreader.allow_memarg64(true);
 

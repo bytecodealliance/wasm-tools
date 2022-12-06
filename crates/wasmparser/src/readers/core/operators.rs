@@ -129,13 +129,8 @@ pub struct OperatorsReader<'a> {
 }
 
 impl<'a> OperatorsReader<'a> {
-    pub(crate) fn new<'b>(data: &'a [u8], offset: usize) -> OperatorsReader<'b>
-    where
-        'a: 'b,
-    {
-        OperatorsReader {
-            reader: BinaryReader::new_with_offset(data, offset),
-        }
+    pub(crate) fn new(reader: BinaryReader<'a>) -> OperatorsReader<'a> {
+        OperatorsReader { reader }
     }
 
     /// Determines if the reader is at the end of the operators.
@@ -171,18 +166,12 @@ impl<'a> OperatorsReader<'a> {
     }
 
     /// Reads an operator from the reader.
-    pub fn read<'b>(&mut self) -> Result<Operator<'b>>
-    where
-        'a: 'b,
-    {
+    pub fn read(&mut self) -> Result<Operator<'a>> {
         self.reader.read_operator()
     }
 
     /// Converts to an iterator of operators paired with offsets.
-    pub fn into_iter_with_offsets<'b>(self) -> OperatorsIteratorWithOffsets<'b>
-    where
-        'a: 'b,
-    {
+    pub fn into_iter_with_offsets(self) -> OperatorsIteratorWithOffsets<'a> {
         OperatorsIteratorWithOffsets {
             reader: self,
             err: false,
@@ -190,10 +179,7 @@ impl<'a> OperatorsReader<'a> {
     }
 
     /// Reads an operator with its offset.
-    pub fn read_with_offset<'b>(&mut self) -> Result<(Operator<'b>, usize)>
-    where
-        'a: 'b,
-    {
+    pub fn read_with_offset(&mut self) -> Result<(Operator<'a>, usize)> {
         let pos = self.reader.original_position();
         Ok((self.read()?, pos))
     }

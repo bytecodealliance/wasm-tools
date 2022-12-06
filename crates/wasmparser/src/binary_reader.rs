@@ -98,7 +98,7 @@ impl BinaryReaderError {
 pub struct BinaryReader<'a> {
     pub(crate) buffer: &'a [u8],
     pub(crate) position: usize,
-    pub(crate) original_offset: usize,
+    original_offset: usize,
     allow_memarg64: bool,
 }
 
@@ -318,6 +318,29 @@ impl<'a> BinaryReader<'a> {
         Ok(&self.buffer[start..self.position])
     }
 
+    /// Reads a length-prefixed list of bytes from this reader and returns a
+    /// new `BinaryReader` to read that list of bytes.
+    ///
+    /// Advances the position of this reader by the number of bytes read.
+    pub fn read_reader(&mut self, err: &str) -> Result<BinaryReader<'a>> {
+        let size = self.read_var_u32()? as usize;
+        let body_start = self.position;
+        let buffer = match self.buffer.get(self.position..).and_then(|s| s.get(..size)) {
+            Some(buf) => buf,
+            None => {
+                return Err(BinaryReaderError::new(
+                    err,
+                    self.original_offset + self.buffer.len(),
+                ))
+            }
+        };
+        self.position += size;
+        Ok(BinaryReader::new_with_offset(
+            buffer,
+            self.original_offset + body_start,
+        ))
+    }
+
     /// Advances the `BinaryReader` four bytes and returns a `u32`.
     /// # Errors
     /// If `BinaryReader` has less than four bytes remaining.
@@ -448,13 +471,15 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    /// Advances the `BinaryReader` `len` bytes, skipping the result.
-    /// # Errors
-    /// If `BinaryReader` has less than `len` bytes remaining.
-    pub fn skip_bytes(&mut self, len: usize) -> Result<()> {
-        self.ensure_has_bytes(len)?;
-        self.position += len;
-        Ok(())
+    /// Executes `f` to skip some data in this binary reader and then returns a
+    /// reader which will read the skipped data.
+    pub fn skip(&mut self, f: impl FnOnce(&mut Self) -> Result<()>) -> Result<Self> {
+        let start = self.position;
+        f(self)?;
+        Ok(BinaryReader::new_with_offset(
+            &self.buffer[start..self.position],
+            self.original_offset + start,
+        ))
     }
 
     /// Advances the `BinaryReader` past a WebAssembly string. This method does
@@ -471,15 +496,9 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        self.skip_bytes(len)
-    }
-
-    pub(crate) fn skip_to(&mut self, position: usize) {
-        assert!(
-            self.position <= position && position <= self.buffer.len(),
-            "skip_to allowed only into region past current position"
-        );
-        self.position = position;
+        self.ensure_has_bytes(len)?;
+        self.position += len;
+        Ok(())
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
