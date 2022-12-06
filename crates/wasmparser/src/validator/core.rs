@@ -3,7 +3,7 @@
 use super::{
     check_max, combine_type_sizes,
     operators::{OperatorValidator, OperatorValidatorAllocations},
-    types::{EntityType, Type, TypeId, TypeList},
+    types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
 use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
@@ -466,7 +466,7 @@ impl Module {
         &mut self,
         ty: crate::Type,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
@@ -489,13 +489,8 @@ impl Module {
             check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        self.types.push(TypeId {
-            type_size: ty.type_size(),
-            index: types.len(),
-            type_index: Some(self.types.len()),
-            is_core: true,
-        });
-        types.push(ty);
+        let id = types.push_defined(ty);
+        self.types.push(id);
         Ok(())
     }
 

@@ -12,7 +12,7 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
     mem,
-    ops::Deref,
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 use url::Url;
@@ -331,14 +331,13 @@ pub struct TypeId {
     pub(crate) type_size: usize,
     /// The index into the global list of types.
     pub(crate) index: usize,
-    /// The original type index.
+    /// A unique integer assigned to this type.
     ///
-    /// This will be `None` for implicitly defined types, e.g. types for
-    /// modules definitions, component definitions, instantiations, and function
-    /// lowerings.
-    pub(crate) type_index: Option<usize>,
-    /// Whether or not the type is a core type.
-    pub(crate) is_core: bool,
+    /// The purpose of this field is to ensure that two different `TypeId`
+    /// representations can be handed out for two different aliased types within
+    /// a component that actually point to the same underlying type (as pointed
+    /// to by the `index` field).
+    unique_id: usize,
 }
 
 /// A unified type definition for validating WebAssembly modules and components.
@@ -2107,3 +2106,68 @@ impl<T> Default for SnapshotList<T> {
 
 /// A snapshot list of types.
 pub(crate) type TypeList = SnapshotList<Type>;
+
+/// Thin wrapper around `TypeList` which provides an allocator of unique ids for
+/// types contained within this list.
+pub(crate) struct TypeAlloc {
+    list: TypeList,
+    unique_counter: usize,
+}
+
+impl Deref for TypeAlloc {
+    type Target = TypeList;
+    fn deref(&self) -> &TypeList {
+        &self.list
+    }
+}
+
+impl DerefMut for TypeAlloc {
+    fn deref_mut(&mut self) -> &mut TypeList {
+        &mut self.list
+    }
+}
+
+impl TypeAlloc {
+    /// Pushes a new anonymous type into this list which will have its
+    /// `unique_id` field cleared.
+    pub fn push_anon(&mut self, ty: Type) -> TypeId {
+        let index = self.list.len();
+        let type_size = ty.type_size();
+        self.list.push(ty);
+        TypeId {
+            index,
+            type_size,
+            unique_id: 0,
+        }
+    }
+
+    /// Pushes a new defined type which has an index in core wasm onto this
+    /// list.
+    ///
+    /// The returned `TypeId` is guaranteed to be unique and not hash-equivalent
+    /// to any other prior ID in this list.
+    pub fn push_defined(&mut self, ty: Type) -> TypeId {
+        let id = self.push_anon(ty);
+        self.with_unique(id)
+    }
+
+    /// Modifies a `TypeId` to have the same contents but a fresh new unique id.
+    ///
+    /// This is used during aliasing with components to assign types a unique
+    /// identifier that doesn't has equivalent to anything else but still
+    /// points to the same underlying type.
+    pub fn with_unique(&mut self, mut ty: TypeId) -> TypeId {
+        ty.unique_id = self.unique_counter;
+        self.unique_counter += 1;
+        ty
+    }
+}
+
+impl Default for TypeAlloc {
+    fn default() -> TypeAlloc {
+        TypeAlloc {
+            list: Default::default(),
+            unique_counter: 1,
+        }
+    }
+}
