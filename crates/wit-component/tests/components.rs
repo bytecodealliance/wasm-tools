@@ -58,74 +58,55 @@ fn component_encoding_via_flags() -> Result<()> {
         let module_path = path.join("module.wat");
         let component_path = path.join("component.wat");
         let error_path = path.join("error.txt");
-
         let module = wat::parse_file(&module_path)
             .with_context(|| format!("expected file `{}`", module_path.display()))?;
+        let document = read_document(&path, "")?;
 
-        let mut encoder = ComponentEncoder::default()
-            .module(&module)?
-            .validate(true)
-            .document(read_document(&path, "")?, StringEncoding::UTF8)?;
-        encoder = add_adapters(encoder, &path)?;
-
-        assert_output(test_case, &encoder, &component_path, &error_path)?;
-    }
-
-    Ok(())
-}
-
-/// Tests the encoding of components.
-///
-/// This test looks in the `components/` directory for test cases. It parses
-/// the inputs to the test out of that directly exactly like
-/// `component_encoding_via_flags` does in this same file.
-///
-/// Rather than pass the default interface, imports, and exports directly to
-/// the `ComponentEncoder`, this test encodes those Interfaces as component
-/// types in custom sections of the wasm Module.
-///
-/// This simulates the flow that toolchains which don't yet know how to
-/// emit a Component will emit a canonical ABI Module containing these custom sections,
-/// and those will then be translated by wit-component to a Component without
-/// needing the wit files passed in as well.
-#[test]
-fn component_encoding_via_custom_sections() -> Result<()> {
-    for entry in fs::read_dir("tests/components")? {
-        let path = entry?.path();
-        if !path.is_dir() {
-            continue;
+        // Test the generated component using the `.document(...)` method
+        {
+            println!("test using `.document(...)`");
+            let mut encoder = ComponentEncoder::default()
+                .module(&module)?
+                .validate(true)
+                .document(document.clone(), StringEncoding::UTF8)?;
+            encoder = add_adapters(encoder, &path)?;
+            assert_output(test_case, &encoder, &component_path, &error_path)?;
         }
 
-        let test_case = path.file_stem().unwrap().to_str().unwrap();
-        println!("testing {test_case}");
+        // Test the generated component by embedding the component type
+        // information in a custom section.
+        {
+            println!("test using custom section");
+            let mut module = module.clone();
+            let contents = wit_component::metadata::encode(
+                &document,
+                document.default_world()?,
+                StringEncoding::UTF8,
+            );
+            let section = wasm_encoder::CustomSection {
+                name: "component-type",
+                data: &contents,
+            };
+            module.push(section.id());
+            section.encode(&mut module);
 
-        let module_path = path.join("module.wat");
-        let component_path = path.join("component.wat");
-        let error_path = path.join("error.txt");
+            // Now parse run the `module` alone through the encoder without extra
+            // information about interfaces to ensure it still works as before.
+            let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
+            encoder = add_adapters(encoder, &path)?;
+            assert_output(test_case, &encoder, &component_path, &error_path)?;
+        }
 
-        let mut module = wat::parse_file(&module_path)
-            .with_context(|| format!("expected file `{}`", module_path.display()))?;
-
-        // Create the `component-type` custom section which will encode all of
-        // the type information about imported/exported functions.
-        let document = read_document(&path, "")?;
-        let contents = wit_component::metadata::encode(
-            &document,
-            document.default_world()?,
-            StringEncoding::UTF8,
-        );
-        let section = wasm_encoder::CustomSection {
-            name: "component-type",
-            data: &contents,
-        };
-        module.push(section.id());
-        section.encode(&mut module);
-
-        // Now parse run the `module` alone through the encoder without extra
-        // information about interfaces to ensure it still works as before.
-        let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
-        encoder = add_adapters(encoder, &path)?;
-        assert_output(test_case, &encoder, &component_path, &error_path)?;
+        // Test the `--types-only` component is valid
+        {
+            println!("test using --types-only");
+            let mut encoder = ComponentEncoder::default()
+                .validate(true)
+                .types_only(true)
+                .document(document.clone(), StringEncoding::UTF8)?;
+            encoder = add_adapters(encoder, &path)?;
+            encoder.encode()?;
+        }
     }
 
     Ok(())
@@ -188,8 +169,10 @@ fn assert_output(
         fs::write(&baseline_path, output)?;
     } else {
         assert_eq!(
-            fs::read_to_string(&baseline_path)?.replace("\r\n", "\n"),
-            output,
+            fs::read_to_string(&baseline_path)?
+                .replace("\r\n", "\n")
+                .trim(),
+            output.trim(),
             "failed baseline comparison for test case `{}` ({})",
             test_case,
             baseline_path.display(),

@@ -226,8 +226,9 @@ impl<'a, 'doc> InterfaceDecoder<'a, 'doc> {
                 _ => continue,
             };
 
-            let prev = self.name_map.insert(id, name);
-            assert!(prev.is_none());
+            if !self.name_map.contains_key(&id) {
+                self.name_map.insert(id, name);
+            }
         }
 
         // Iterate over all exports and interpret them as defined items within
