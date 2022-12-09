@@ -2,16 +2,7 @@
   "worlds": [
     {
       "name": "bar",
-      "default": {
-        "name": "foo",
-        "functions": [
-          {
-            "name": "a",
-            "params": [],
-            "results": []
-          }
-        ]
-      }
+      "default": "i0"
     }
   ],
   "interfaces": [

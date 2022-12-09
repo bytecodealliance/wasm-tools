@@ -1,6 +1,6 @@
 use crate::sizealign::align_to;
 use crate::{
-    Enum, Flags, FlagsRepr, Function, Int, Interface, Record, Result_, Results, Tuple, Type,
+    Document, Enum, Flags, FlagsRepr, Function, Int, Record, Result_, Results, Tuple, Type,
     TypeDefKind, TypeId, Union, Variant,
 };
 
@@ -651,7 +651,7 @@ pub trait Bindgen {
     /// push the appropriate number of results or binding generation will panic.
     fn emit(
         &mut self,
-        iface: &Interface,
+        doc: &Document,
         inst: &Instruction<'_>,
         operands: &mut Vec<Self::Operand>,
         results: &mut Vec<Self::Operand>,
@@ -660,7 +660,7 @@ pub trait Bindgen {
     /// Gets a operand reference to the return pointer area.
     ///
     /// The provided size and alignment is for the function's return type.
-    fn return_pointer(&mut self, iface: &Interface, size: usize, align: usize) -> Self::Operand;
+    fn return_pointer(&mut self, size: usize, align: usize) -> Self::Operand;
 
     /// Enters a new block of code to generate code for.
     ///
@@ -694,10 +694,10 @@ pub trait Bindgen {
     /// Returns whether or not the specified element type is represented in a
     /// "canonical" form for lists. This dictates whether the `ListCanonLower`
     /// and `ListCanonLift` instructions are used or not.
-    fn is_list_canonical(&self, iface: &Interface, element: &Type) -> bool;
+    fn is_list_canonical(&self, doc: &Document, element: &Type) -> bool;
 }
 
-impl Interface {
+impl Document {
     /// Get the WebAssembly type signature for this interface function
     ///
     /// The first entry returned is the list of parameters and the second entry
@@ -950,7 +950,7 @@ struct Generator<'a, B: Bindgen> {
     variant: AbiVariant,
     lift_lower: LiftLower,
     bindgen: &'a mut B,
-    iface: &'a Interface,
+    doc: &'a Document,
     operands: Vec<B::Operand>,
     results: Vec<B::Operand>,
     stack: Vec<B::Operand>,
@@ -959,13 +959,13 @@ struct Generator<'a, B: Bindgen> {
 
 impl<'a, B: Bindgen> Generator<'a, B> {
     fn new(
-        iface: &'a Interface,
+        doc: &'a Document,
         variant: AbiVariant,
         lift_lower: LiftLower,
         bindgen: &'a mut B,
     ) -> Generator<'a, B> {
         Generator {
-            iface,
+            doc,
             variant,
             lift_lower,
             bindgen,
@@ -977,7 +977,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
     }
 
     fn call(&mut self, func: &Function) {
-        let sig = self.iface.wasm_signature(self.variant, func);
+        let sig = self.doc.wasm_signature(self.variant, func);
 
         match self.lift_lower {
             LiftLower::LowerArgsLiftResults => {
@@ -1000,9 +1000,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     let ptr = match self.variant {
                         // When a wasm module calls an import it will provide
                         // space that isn't explicitly deallocated.
-                        AbiVariant::GuestImport => {
-                            self.bindgen.return_pointer(self.iface, size, align)
-                        }
+                        AbiVariant::GuestImport => self.bindgen.return_pointer(size, align),
                         // When calling a wasm module from the outside, though,
                         // malloc needs to be called.
                         AbiVariant::GuestExport => {
@@ -1029,7 +1027,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // this ABI.
                 if self.variant == AbiVariant::GuestImport && sig.retptr {
                     let (size, align) = self.bindgen.sizes().params(func.results.iter_types());
-                    let ptr = self.bindgen.return_pointer(self.iface, size, align);
+                    let ptr = self.bindgen.return_pointer(size, align);
                     self.return_pointer = Some(ptr.clone());
                     self.stack.push(ptr);
                 }
@@ -1084,7 +1082,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     let mut temp = Vec::new();
                     for (_, ty) in func.params.iter() {
                         temp.truncate(0);
-                        self.iface.push_wasm(self.variant, ty, &mut temp);
+                        self.doc.push_wasm(self.variant, ty, &mut temp);
                         for _ in 0..temp.len() {
                             self.emit(&Instruction::GetArg { nth: offset });
                             offset += 1;
@@ -1156,7 +1154,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         AbiVariant::GuestExport => {
                             let (size, align) =
                                 self.bindgen.sizes().params(func.results.iter_types());
-                            let ptr = self.bindgen.return_pointer(self.iface, size, align);
+                            let ptr = self.bindgen.return_pointer(size, align);
                             self.write_params_to_memory(func.results.iter_types(), ptr.clone(), 0);
                             self.stack.push(ptr);
                         }
@@ -1178,7 +1176,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
     }
 
     fn post_return(&mut self, func: &Function) {
-        let sig = self.iface.wasm_signature(self.variant, func);
+        let sig = self.doc.wasm_signature(self.variant, func);
 
         // Currently post-return is only used for lists and lists are always
         // returned indirectly through memory due to their flat representation
@@ -1220,7 +1218,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         self.results.reserve(inst.results_len());
 
         self.bindgen
-            .emit(self.iface, inst, &mut self.operands, &mut self.results);
+            .emit(self.doc, inst, &mut self.operands, &mut self.results);
 
         assert_eq!(
             self.results.len(),
@@ -1268,11 +1266,11 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 let realloc = self.list_realloc();
                 self.emit(&StringLower { realloc });
             }
-            Type::Id(id) => match &self.iface.types[id].kind {
+            Type::Id(id) => match &self.doc.types[id].kind {
                 TypeDefKind::Type(t) => self.lower(t),
                 TypeDefKind::List(element) => {
                     let realloc = self.list_realloc();
-                    if self.bindgen.is_list_canonical(self.iface, element) {
+                    if self.bindgen.is_list_canonical(self.doc, element) {
                         self.emit(&ListCanonLower { element, realloc });
                     } else {
                         self.push_block();
@@ -1288,7 +1286,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&RecordLower {
                         record,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                     let values = self
                         .stack
@@ -1315,7 +1313,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&FlagsLower {
                         flags,
                         ty: id,
-                        name: self.iface.types[id].name.as_ref().unwrap(),
+                        name: self.doc.types[id].name.as_ref().unwrap(),
                     });
                 }
 
@@ -1326,14 +1324,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         variant: v,
                         ty: id,
                         results: &results,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
                 TypeDefKind::Enum(enum_) => {
                     self.emit(&EnumLower {
                         enum_,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
                 TypeDefKind::Option(t) => {
@@ -1359,7 +1357,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         union,
                         ty: id,
                         results: &results,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
                 TypeDefKind::Future(_) => todo!("lower future"),
@@ -1377,7 +1375,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         let mut results = Vec::new();
         let mut temp = Vec::new();
         let mut casts = Vec::new();
-        self.iface.push_wasm(self.variant, ty, &mut results);
+        self.doc.push_wasm(self.variant, ty, &mut results);
         for (i, ty) in cases.into_iter().enumerate() {
             self.push_block();
             self.emit(&VariantPayloadName);
@@ -1394,7 +1392,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // pushed, and record how many. If we pushed too few
                 // then we'll need to push some zeros after this.
                 temp.truncate(0);
-                self.iface.push_wasm(self.variant, ty, &mut temp);
+                self.doc.push_wasm(self.variant, ty, &mut temp);
                 pushed += temp.len();
 
                 // For all the types pushed we may need to insert some
@@ -1452,11 +1450,10 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::Float32 => self.emit(&Float32FromF32),
             Type::Float64 => self.emit(&Float64FromF64),
             Type::String => self.emit(&StringLift),
-            Type::Id(id) => match &self.iface.types[id].kind {
+            Type::Id(id) => match &self.doc.types[id].kind {
                 TypeDefKind::Type(t) => self.lift(t),
                 TypeDefKind::List(element) => {
-                    if self.is_char(element) || self.bindgen.is_list_canonical(self.iface, element)
-                    {
+                    if self.is_char(element) || self.bindgen.is_list_canonical(self.doc, element) {
                         self.emit(&ListCanonLift { element, ty: id });
                     } else {
                         self.push_block();
@@ -1469,33 +1466,33 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 }
                 TypeDefKind::Record(record) => {
                     let mut temp = Vec::new();
-                    self.iface.push_wasm(self.variant, ty, &mut temp);
+                    self.doc.push_wasm(self.variant, ty, &mut temp);
                     let mut args = self
                         .stack
                         .drain(self.stack.len() - temp.len()..)
                         .collect::<Vec<_>>();
                     for field in record.fields.iter() {
                         temp.truncate(0);
-                        self.iface.push_wasm(self.variant, &field.ty, &mut temp);
+                        self.doc.push_wasm(self.variant, &field.ty, &mut temp);
                         self.stack.extend(args.drain(..temp.len()));
                         self.lift(&field.ty);
                     }
                     self.emit(&RecordLift {
                         record,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
                 TypeDefKind::Tuple(tuple) => {
                     let mut temp = Vec::new();
-                    self.iface.push_wasm(self.variant, ty, &mut temp);
+                    self.doc.push_wasm(self.variant, ty, &mut temp);
                     let mut args = self
                         .stack
                         .drain(self.stack.len() - temp.len()..)
                         .collect::<Vec<_>>();
                     for ty in tuple.types.iter() {
                         temp.truncate(0);
-                        self.iface.push_wasm(self.variant, ty, &mut temp);
+                        self.doc.push_wasm(self.variant, ty, &mut temp);
                         self.stack.extend(args.drain(..temp.len()));
                         self.lift(ty);
                     }
@@ -1505,7 +1502,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&FlagsLift {
                         flags,
                         ty: id,
-                        name: self.iface.types[id].name.as_ref().unwrap(),
+                        name: self.doc.types[id].name.as_ref().unwrap(),
                     });
                 }
 
@@ -1514,7 +1511,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&VariantLift {
                         variant: v,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1522,7 +1519,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&EnumLift {
                         enum_,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1541,7 +1538,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&UnionLift {
                         union,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1559,7 +1556,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         let mut params = Vec::new();
         let mut temp = Vec::new();
         let mut casts = Vec::new();
-        self.iface.push_wasm(self.variant, ty, &mut params);
+        self.doc.push_wasm(self.variant, ty, &mut params);
         let block_inputs = self
             .stack
             .drain(self.stack.len() + 1 - params.len()..)
@@ -1570,7 +1567,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // Push only the values we need for this variant onto
                 // the stack.
                 temp.truncate(0);
-                self.iface.push_wasm(self.variant, ty, &mut temp);
+                self.doc.push_wasm(self.variant, ty, &mut temp);
                 self.stack
                     .extend(block_inputs[..temp.len()].iter().cloned());
 
@@ -1609,7 +1606,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::Float64 => self.lower_and_emit(ty, addr, &F64Store { offset }),
             Type::String => self.write_list_to_memory(ty, addr, offset),
 
-            Type::Id(id) => match &self.iface.types[id].kind {
+            Type::Id(id) => match &self.doc.types[id].kind {
                 TypeDefKind::Type(t) => self.write_to_memory(t, addr, offset),
                 TypeDefKind::List(_) => self.write_list_to_memory(ty, addr, offset),
 
@@ -1619,7 +1616,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&RecordLower {
                         record,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                     self.write_fields_to_memory(record.fields.iter().map(|f| &f.ty), addr, offset);
                 }
@@ -1665,7 +1662,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         variant: v,
                         ty: id,
                         results: &[],
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1709,7 +1706,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         union,
                         ty: id,
                         results: &[],
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1806,7 +1803,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::Float64 => self.emit_and_lift(ty, addr, &F64Load { offset }),
             Type::String => self.read_list_from_memory(ty, addr, offset),
 
-            Type::Id(id) => match &self.iface.types[id].kind {
+            Type::Id(id) => match &self.doc.types[id].kind {
                 TypeDefKind::Type(t) => self.read_from_memory(t, addr, offset),
 
                 TypeDefKind::List(_) => self.read_list_from_memory(ty, addr, offset),
@@ -1819,7 +1816,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&RecordLift {
                         record,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
                 TypeDefKind::Tuple(tuple) => {
@@ -1863,7 +1860,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&VariantLift {
                         variant,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1898,7 +1895,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&UnionLift {
                         union,
                         ty: id,
-                        name: self.iface.types[id].name.as_deref().unwrap(),
+                        name: self.doc.types[id].name.as_deref().unwrap(),
                     });
                 }
 
@@ -1980,7 +1977,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
     fn is_char(&self, ty: &Type) -> bool {
         match ty {
             Type::Char => true,
-            Type::Id(id) => match &self.iface.types[*id].kind {
+            Type::Id(id) => match &self.doc.types[*id].kind {
                 TypeDefKind::Type(t) => self.is_char(t),
                 _ => false,
             },
@@ -1993,7 +1990,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
 
         // No need to execute any instructions if this type itself doesn't
         // require any form of post-return.
-        if !self.iface.needs_post_return(ty) {
+        if !self.doc.needs_post_return(ty) {
             return;
         }
 
@@ -2019,7 +2016,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             | Type::Float32
             | Type::Float64 => {}
 
-            Type::Id(id) => match &self.iface.types[id].kind {
+            Type::Id(id) => match &self.doc.types[id].kind {
                 TypeDefKind::Type(t) => self.deallocate(t, addr, offset),
 
                 TypeDefKind::List(element) => {

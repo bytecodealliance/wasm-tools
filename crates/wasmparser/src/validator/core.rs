@@ -3,7 +3,7 @@
 use super::{
     check_max, combine_type_sizes,
     operators::{OperatorValidator, OperatorValidatorAllocations},
-    types::{EntityType, Type, TypeId, TypeList},
+    types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
 use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
@@ -456,7 +456,7 @@ pub(crate) struct Module {
     pub function_references: HashSet<u32>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
-    pub type_size: usize,
+    pub type_size: u32,
     num_imported_globals: u32,
     num_imported_functions: u32,
 }
@@ -466,7 +466,7 @@ impl Module {
         &mut self,
         ty: crate::Type,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
@@ -489,13 +489,8 @@ impl Module {
             check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        self.types.push(TypeId::new(
-            ty.type_size(),
-            types.len(),
-            Some(self.types.len()),
-            true,
-        ));
-        types.push(ty);
+        let id = types.push_defined(ty);
+        self.types.push(id);
         Ok(())
     }
 

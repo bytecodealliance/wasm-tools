@@ -54,7 +54,7 @@ pub mod types;
 use self::component::*;
 pub use self::core::ValidatorResources;
 use self::core::*;
-use self::types::{TypeList, Types, TypesRef};
+use self::types::{TypeAlloc, Types, TypesRef};
 pub use func::{FuncToValidate, FuncValidator, FuncValidatorAllocations};
 pub use operators::{Frame, FrameKind};
 
@@ -74,7 +74,7 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
     Ok(())
 }
 
-fn combine_type_sizes(a: usize, b: usize, offset: usize) -> Result<usize> {
+fn combine_type_sizes(a: u32, b: u32, offset: usize) -> Result<u32> {
     match a.checked_add(b) {
         Some(sum) if sum < MAX_WASM_TYPE_SIZE => Ok(sum),
         _ => Err(format_err!(
@@ -115,7 +115,7 @@ pub struct Validator {
     state: State,
 
     /// The global type space used by the validator and any sub-validators.
-    types: TypeList,
+    types: TypeAlloc,
 
     /// The module state when parsing a WebAssembly module.
     module: Option<ModuleState>,
@@ -1246,14 +1246,14 @@ impl Validator {
         validate_section: impl FnOnce(
             &mut ModuleState,
             &WasmFeatures,
-            &mut TypeList,
+            &mut TypeAlloc,
             u32,
             usize,
         ) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut ModuleState,
             &WasmFeatures,
-            &mut TypeList,
+            &mut TypeAlloc,
             T,
             usize,
         ) -> Result<()>,
@@ -1287,10 +1287,15 @@ impl Validator {
         &mut self,
         section: &SectionLimited<'a, T>,
         name: &str,
-        validate_section: impl FnOnce(&mut Vec<ComponentState>, &mut TypeList, u32, usize) -> Result<()>,
+        validate_section: impl FnOnce(
+            &mut Vec<ComponentState>,
+            &mut TypeAlloc,
+            u32,
+            usize,
+        ) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut Vec<ComponentState>,
-            &mut TypeList,
+            &mut TypeAlloc,
             &WasmFeatures,
             T,
             usize,

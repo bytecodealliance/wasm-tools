@@ -52,10 +52,9 @@ interface records {
   aggregate-result: func() -> aggregates
 
   typedef-inout: func(e: tuple-typedef2) -> s32
-
 }
 
-interface records-exports {
+interface records0 {
   record empty {
   }
 
@@ -84,11 +83,11 @@ interface records-exports {
     e: really-flags,
   }
 
-  type tuple-typedef = tuple<s32>
-
   type int-typedef = s32
 
   type tuple-typedef2 = tuple<int-typedef>
+
+  type tuple-typedef = tuple<s32>
 
   tuple-arg: func(x: tuple<char, u32>)
 
@@ -112,9 +111,10 @@ interface records-exports {
 
   typedef-inout: func(e: tuple-typedef2) -> s32
 
+  tuple-tupledef-user: func() -> tuple-typedef
 }
 
 world records-world {
   import records: records
-  export records: records-exports
+  export records: records0
 }

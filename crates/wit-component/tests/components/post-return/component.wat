@@ -1,5 +1,4 @@
 (component
-  (type (;0;) (func (result string)))
   (core module (;0;)
     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
     (type (;1;) (func (result i32)))
@@ -23,6 +22,7 @@
   (alias core export 0 "memory" (core memory (;0;)))
   (alias core export 0 "cabi_realloc" (core func (;0;)))
   (alias core export 0 "a" (core func (;1;)))
+  (type (;0;) (func (result string)))
   (alias core export 0 "cabi_post_a" (core func (;2;)))
   (func (;0;) (type 0) (canon lift (core func 1) (memory 0) string-encoding=utf8 (post-return 2)))
   (export "a" (func 0))

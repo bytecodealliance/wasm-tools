@@ -1,4 +1,4 @@
-use crate::metadata::BindgenMetadata;
+use crate::metadata::{Bindgen, ModuleMetadata};
 use anyhow::{anyhow, bail, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use wasmparser::{
@@ -7,7 +7,7 @@ use wasmparser::{
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Interface,
+    Document, InterfaceId, WorldId,
 };
 
 fn is_canonical_function(name: &str) -> bool {
@@ -65,7 +65,7 @@ pub struct ValidatedModule<'a> {
     pub realloc: Option<&'a str>,
 
     /// The original metadata specified for this module.
-    pub metadata: &'a BindgenMetadata,
+    pub metadata: &'a ModuleMetadata,
 }
 
 /// This function validates the following:
@@ -81,7 +81,7 @@ pub struct ValidatedModule<'a> {
 /// for this module.
 pub fn validate_module<'a>(
     bytes: &'a [u8],
-    metadata: &'a BindgenMetadata,
+    metadata: &'a Bindgen,
     adapters: &IndexSet<&str>,
 ) -> Result<ValidatedModule<'a>> {
     let mut validator = Validator::new();
@@ -93,7 +93,7 @@ pub fn validate_module<'a>(
         adapters_required: Default::default(),
         has_memory: false,
         realloc: None,
-        metadata,
+        metadata: &metadata.metadata,
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -154,15 +154,16 @@ pub fn validate_module<'a>(
     }
 
     let types = types.unwrap();
+    let world = &metadata.doc.worlds[metadata.world];
 
     for (name, funcs) in &import_funcs {
         if name.is_empty() {
             bail!("module imports from an empty module name");
         }
 
-        match metadata.world.imports.get(*name) {
+        match world.imports.get(*name) {
             Some(interface) => {
-                validate_imported_interface(interface, name, funcs, &types)?;
+                validate_imported_interface(&metadata.doc, *interface, name, funcs, &types)?;
                 let funcs = funcs.into_iter().map(|(f, _ty)| *f).collect();
                 let prev = ret.required_imports.insert(name, funcs);
                 assert!(prev.is_none());
@@ -178,16 +179,16 @@ pub fn validate_module<'a>(
         }
     }
 
-    if let Some(interface) = &metadata.world.default {
-        validate_exported_interface(interface, None, &export_funcs, &types)?;
+    if let Some(interface) = world.default {
+        validate_exported_interface(&metadata.doc, interface, None, &export_funcs, &types)?;
     }
 
-    for (name, interface) in metadata.world.exports.iter() {
+    for (name, interface) in world.exports.iter() {
         if name.is_empty() {
             bail!("cannot export an interface with an empty name");
         }
 
-        validate_exported_interface(interface, Some(name), &export_funcs, &types)?;
+        validate_exported_interface(&metadata.doc, *interface, Some(name), &export_funcs, &types)?;
     }
 
     Ok(ret)
@@ -210,7 +211,9 @@ pub struct ValidatedAdapter<'a> {
     /// import from the `required_import` above.
     pub needs_memory: Option<(String, String)>,
 
-    /// TKTK
+    /// Set of names required to be exported from the main module which are
+    /// imported by this adapter through the `__main_module__` synthetic export.
+    /// This is how the WASI adapter imports `_start`, for example.
     pub needs_core_exports: IndexSet<String>,
 
     /// Name of the exported function to use for the realloc canonical option
@@ -221,7 +224,7 @@ pub struct ValidatedAdapter<'a> {
     pub export_realloc: Option<String>,
 
     /// Metadata about the original adapter module.
-    pub metadata: &'a BindgenMetadata,
+    pub metadata: &'a ModuleMetadata,
 }
 
 /// This function will validate the `bytes` provided as a wasm adapter module.
@@ -239,7 +242,9 @@ pub struct ValidatedAdapter<'a> {
 /// didn't accidentally break the wasm module.
 pub fn validate_adapter_module<'a>(
     bytes: &[u8],
-    metadata: &'a BindgenMetadata,
+    doc: &'a Document,
+    world: WorldId,
+    metadata: &'a ModuleMetadata,
     required: &IndexMap<String, FuncType>,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
@@ -335,15 +340,14 @@ pub fn validate_adapter_module<'a>(
             ret.needs_core_exports
                 .extend(funcs.iter().map(|(name, _ty)| name.to_string()));
         } else {
-            let interface = metadata
-                .world
+            let interface = *doc.worlds[world]
                 .imports
                 .get(name)
                 .ok_or_else(|| anyhow!("adapter module imports unknown module `{name}`"))?;
-            let required_funcs = validate_imported_interface(interface, name, &funcs, &types)?;
-            assert_eq!(interface.name, name);
-            ret.required_imports
-                .insert(interface.name.as_str(), required_funcs);
+            let required_funcs = validate_imported_interface(doc, interface, name, &funcs, &types)?;
+            let iface_name = &doc.interfaces[interface].name;
+            assert_eq!(iface_name, name);
+            ret.required_imports.insert(iface_name, required_funcs);
         }
     }
 
@@ -372,14 +376,15 @@ pub fn validate_adapter_module<'a>(
 }
 
 fn validate_imported_interface<'a>(
-    interface: &'a Interface,
+    doc: &'a Document,
+    interface: InterfaceId,
     name: &str,
     imports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<IndexSet<&'a str>> {
     let mut funcs = IndexSet::new();
     for (func_name, ty) in imports {
-        let f = interface
+        let f = doc.interfaces[interface]
             .functions
             .iter()
             .find(|f| f.name == *func_name)
@@ -391,7 +396,7 @@ fn validate_imported_interface<'a>(
                 )
             })?;
 
-        let expected = wasm_sig_to_func_type(interface.wasm_signature(AbiVariant::GuestImport, f));
+        let expected = wasm_sig_to_func_type(doc.wasm_signature(AbiVariant::GuestImport, f));
         let ty = types.func_type_at(*ty).unwrap();
         if ty != &expected {
             bail!(
@@ -412,17 +417,18 @@ fn validate_imported_interface<'a>(
 }
 
 fn validate_exported_interface(
-    interface: &Interface,
+    doc: &Document,
+    interface: InterfaceId,
     export_name: Option<&str>,
     exports: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
-    for f in &interface.functions {
+    for f in &doc.interfaces[interface].functions {
         let expected_export_name = f.core_export_name(export_name);
         match exports.get(expected_export_name.as_ref()) {
             Some(func_index) => {
                 let expected_ty =
-                    wasm_sig_to_func_type(interface.wasm_signature(AbiVariant::GuestExport, f));
+                    wasm_sig_to_func_type(doc.wasm_signature(AbiVariant::GuestExport, f));
                 let ty = types.function_at(*func_index).unwrap();
                 if ty == &expected_ty {
                     continue;

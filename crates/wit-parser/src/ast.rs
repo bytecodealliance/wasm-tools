@@ -62,10 +62,6 @@ pub struct World<'a> {
 }
 
 impl<'a> World<'a> {
-    pub fn span(&self) -> Span {
-        self.name.span
-    }
-
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
@@ -172,10 +168,6 @@ pub struct Interface<'a> {
 }
 
 impl<'a> Interface<'a> {
-    pub fn span(&self) -> Span {
-        self.name.span
-    }
-
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
@@ -339,7 +331,6 @@ enum ResultList<'a> {
 
 enum ValueKind<'a> {
     Func(Func<'a>),
-    Global(Type<'a>),
 }
 
 struct Func<'a> {
@@ -381,11 +372,8 @@ impl<'a> Func<'a> {
 
 impl<'a> ValueKind<'a> {
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
-        if tokens.eat(Token::Func)? {
-            Func::parse(tokens).map(ValueKind::Func)
-        } else {
-            Type::parse(tokens).map(ValueKind::Global)
-        }
+        tokens.eat(Token::Func)?;
+        Func::parse(tokens).map(ValueKind::Func)
     }
 }
 
@@ -754,14 +742,6 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
-
-pub fn error(span: Span, msg: impl Into<String>) -> anyhow::Error {
-    Error {
-        span,
-        msg: msg.into(),
-    }
-    .into()
-}
 
 pub fn rewrite_error(err: &mut anyhow::Error, file: &str, contents: &str) {
     let parse = match err.downcast_mut::<Error>() {

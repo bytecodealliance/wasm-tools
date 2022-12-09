@@ -12,7 +12,7 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
     mem,
-    ops::Deref,
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 use url::Url;
@@ -331,46 +331,20 @@ pub struct TypeId {
     /// This is stored as part of the ID to avoid having to recurse through
     /// the global type list when calculating type sizes.
     pub(crate) type_size: u32,
-    /// Metadata about the type hash, used to avoid two isomorphic types from
-    /// being considered as equal for Eq and Hash.
+    /// A unique integer assigned to this type.
     ///
-    /// This contains:
-    /// - Bit (1 << 31): True iff the type is a core type
-    /// - Bit (1 << 30): False iff the type is implicitly defined, eg. types
-    ///   for module definitions, component definitions, instantiations and
-    ///   function lowerings.
-    /// - Other bits: if (1 << 62) is not true, then the type index
-    pub(crate) type_hash: u32,
+    /// The purpose of this field is to ensure that two different `TypeId`
+    /// representations can be handed out for two different aliased types within
+    /// a component that actually point to the same underlying type (as pointed
+    /// to by the `index` field).
+    unique_id: u32,
 }
 
-impl TypeId {
-    pub(crate) fn new(
-        type_size: usize,
-        index: usize,
-        type_index: Option<usize>,
-        is_core: bool,
-    ) -> TypeId {
-        let mut type_hash = 0;
-        if is_core {
-            type_hash |= 1 << 31;
-        }
-        if let Some(type_index) = type_index {
-            type_hash |= 1 << 30;
-            let type_index: u32 = type_index
-                .try_into()
-                .expect("failed converting usize to u32");
-            if type_index & (0b11 << 30) != 0 {
-                panic!("type index bigger than 2**30");
-            }
-            type_hash |= type_index;
-        }
-        TypeId {
-            type_size: type_size.try_into().expect("too big type"),
-            index,
-            type_hash,
-        }
-    }
-}
+// The size of `TypeId` was seen to have a large-ish impact in #844, so this
+// assert ensures that it stays relatively small.
+const _: () = {
+    assert!(std::mem::size_of::<TypeId>() <= 16);
+};
 
 /// A unified type definition for validating WebAssembly modules and components.
 #[derive(Debug)]
@@ -460,9 +434,9 @@ impl Type {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
-            Self::Func(ty) => 1 + ty.params().len() + ty.results().len(),
+            Self::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
             Self::Module(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,
@@ -548,10 +522,10 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Primitive(_) => 1,
-            Self::Type(id) => id.type_size as usize,
+            Self::Type(id) => id.type_size,
         }
     }
 }
@@ -621,9 +595,9 @@ impl EntityType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
-            Self::Func(id) | Self::Tag(id) => id.type_size as usize,
+            Self::Func(id) | Self::Tag(id) => id.type_size,
             Self::Table(_) | Self::Memory(_) | Self::Global(_) => 1,
         }
     }
@@ -679,7 +653,7 @@ impl ModuleImportKey for (&str, &str) {
 #[derive(Debug, Clone)]
 pub struct ModuleType {
     /// The effective type size for the module type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The imports of the module type.
     pub imports: IndexMap<(String, String), EntityType>,
     /// The exports of the module type.
@@ -728,7 +702,7 @@ pub enum InstanceTypeKind {
 #[derive(Debug, Clone)]
 pub struct InstanceType {
     /// The effective type size for the module instance type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The kind of module instance type.
     pub kind: InstanceTypeKind,
 }
@@ -825,13 +799,13 @@ impl ComponentEntityType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Module(ty)
             | Self::Func(ty)
             | Self::Type(ty)
             | Self::Instance(ty)
-            | Self::Component(ty) => ty.type_size as usize,
+            | Self::Component(ty) => ty.type_size,
             Self::Value(ty) => ty.type_size(),
         }
     }
@@ -841,7 +815,7 @@ impl ComponentEntityType {
 #[derive(Debug, Clone)]
 pub struct ComponentType {
     /// The effective type size for the component type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The imports of the component type.
     pub imports: IndexMap<KebabString, (Option<Url>, ComponentEntityType)>,
     /// The exports of the component type.
@@ -885,7 +859,7 @@ pub enum ComponentInstanceTypeKind {
 #[derive(Debug, Clone)]
 pub struct ComponentInstanceType {
     /// The effective type size for the instance type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The kind of instance type.
     pub kind: ComponentInstanceTypeKind,
 }
@@ -939,7 +913,7 @@ impl ComponentInstanceType {
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType {
     /// The effective type size for the component function type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The function parameters.
     pub params: Box<[(KebabString, ComponentValType)]>,
     /// The function's results.
@@ -1073,7 +1047,7 @@ pub struct VariantCase {
 #[derive(Debug, Clone)]
 pub struct RecordType {
     /// The effective type size for the record type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The map of record fields.
     pub fields: IndexMap<KebabString, ComponentValType>,
 }
@@ -1082,7 +1056,7 @@ pub struct RecordType {
 #[derive(Debug, Clone)]
 pub struct VariantType {
     /// The effective type size for the variant type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The map of variant cases.
     pub cases: IndexMap<KebabString, VariantCase>,
 }
@@ -1091,7 +1065,7 @@ pub struct VariantType {
 #[derive(Debug, Clone)]
 pub struct TupleType {
     /// The effective type size for the tuple type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The types of the tuple.
     pub types: Box<[ComponentValType]>,
 }
@@ -1100,7 +1074,7 @@ pub struct TupleType {
 #[derive(Debug, Clone)]
 pub struct UnionType {
     /// The inclusive type count for the union type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The types of the union.
     pub types: Box<[ComponentValType]>,
 }
@@ -1235,7 +1209,7 @@ impl ComponentDefinedType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Primitive(_) => 1,
             Self::Flags(_) | Self::Enum(_) => 1,
@@ -2138,3 +2112,68 @@ impl<T> Default for SnapshotList<T> {
 
 /// A snapshot list of types.
 pub(crate) type TypeList = SnapshotList<Type>;
+
+/// Thin wrapper around `TypeList` which provides an allocator of unique ids for
+/// types contained within this list.
+pub(crate) struct TypeAlloc {
+    list: TypeList,
+    unique_counter: u32,
+}
+
+impl Deref for TypeAlloc {
+    type Target = TypeList;
+    fn deref(&self) -> &TypeList {
+        &self.list
+    }
+}
+
+impl DerefMut for TypeAlloc {
+    fn deref_mut(&mut self) -> &mut TypeList {
+        &mut self.list
+    }
+}
+
+impl TypeAlloc {
+    /// Pushes a new anonymous type into this list which will have its
+    /// `unique_id` field cleared.
+    pub fn push_anon(&mut self, ty: Type) -> TypeId {
+        let index = self.list.len();
+        let type_size = ty.type_size();
+        self.list.push(ty);
+        TypeId {
+            index,
+            type_size,
+            unique_id: 0,
+        }
+    }
+
+    /// Pushes a new defined type which has an index in core wasm onto this
+    /// list.
+    ///
+    /// The returned `TypeId` is guaranteed to be unique and not hash-equivalent
+    /// to any other prior ID in this list.
+    pub fn push_defined(&mut self, ty: Type) -> TypeId {
+        let id = self.push_anon(ty);
+        self.with_unique(id)
+    }
+
+    /// Modifies a `TypeId` to have the same contents but a fresh new unique id.
+    ///
+    /// This is used during aliasing with components to assign types a unique
+    /// identifier that doesn't has equivalent to anything else but still
+    /// points to the same underlying type.
+    pub fn with_unique(&mut self, mut ty: TypeId) -> TypeId {
+        ty.unique_id = self.unique_counter;
+        self.unique_counter += 1;
+        ty
+    }
+}
+
+impl Default for TypeAlloc {
+    fn default() -> TypeAlloc {
+        TypeAlloc {
+            list: Default::default(),
+            unique_counter: 1,
+        }
+    }
+}

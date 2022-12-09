@@ -52,27 +52,29 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
-use crate::metadata::{self, BindgenMetadata};
+use crate::builder::ComponentBuilder;
+use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::{
-    validation::{
-        validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule,
-        MAIN_MODULE_IMPORT_NAME,
-    },
+    validation::{ValidatedModule, MAIN_MODULE_IMPORT_NAME},
     StringEncoding,
 };
 use anyhow::{anyhow, bail, Context, Result};
-use indexmap::{map::Entry, IndexMap, IndexSet};
-use std::hash::{Hash, Hasher};
-use std::mem;
+use indexmap::IndexMap;
+use std::collections::HashMap;
+use std::hash::Hash;
 use wasm_encoder::*;
-use wasmparser::{FuncType, Validator, WasmFeatures};
+use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Enum, Flags, Function, FunctionKind, Interface, Params, Record, Result_, Results, Tuple, Type,
-    TypeDef, TypeDefKind, Union, Variant, World,
+    Document, Function, InterfaceId, Type, TypeDefKind, TypeId, WorldId,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
+
+mod types;
+use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
+mod world;
+use world::{ComponentWorld, ImportedInterface};
 
 fn to_val_type(ty: &WasmType) -> ValType {
     match ty {
@@ -83,838 +85,10 @@ fn to_val_type(ty: &WasmType) -> ValType {
     }
 }
 
-struct TypeKey<'a> {
-    interface: &'a Interface,
-    ty: Type,
-}
-
-impl Hash for TypeKey<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.ty {
-            Type::Id(id) => TypeDefKey::new(self.interface, &self.interface.types[id]).hash(state),
-            _ => self.ty.hash(state),
-        }
-    }
-}
-
-impl PartialEq for TypeKey<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self.ty, other.ty) {
-            (Type::Id(id), Type::Id(other_id)) => {
-                TypeDefKey::new(self.interface, &self.interface.types[id])
-                    == TypeDefKey::new(other.interface, &other.interface.types[other_id])
-            }
-            _ => self.ty.eq(&other.ty),
-        }
-    }
-}
-
-impl Eq for TypeKey<'_> {}
-
-/// Represents a key type for interface type definitions.
-pub struct TypeDefKey<'a> {
-    interface: &'a Interface,
-    def: &'a TypeDef,
-}
-
-impl<'a> TypeDefKey<'a> {
-    fn new(interface: &'a Interface, def: &'a TypeDef) -> Self {
-        Self { interface, def }
-    }
-}
-
-impl PartialEq for TypeDefKey<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        let def = self.def;
-        let other_def = other.def;
-        def.name == other_def.name
-            && match (&def.kind, &other_def.kind) {
-                (TypeDefKind::Record(r1), TypeDefKind::Record(r2)) => {
-                    if r1.fields.len() != r2.fields.len() {
-                        return false;
-                    }
-
-                    r1.fields.iter().zip(r2.fields.iter()).all(|(f1, f2)| {
-                        f1.name == f2.name
-                            && TypeKey {
-                                interface: self.interface,
-                                ty: f1.ty,
-                            }
-                            .eq(&TypeKey {
-                                interface: other.interface,
-                                ty: f2.ty,
-                            })
-                    })
-                }
-                (TypeDefKind::Tuple(t1), TypeDefKind::Tuple(t2)) => {
-                    if t1.types.len() != t2.types.len() {
-                        return false;
-                    }
-
-                    t1.types.iter().zip(t2.types.iter()).all(|(t1, t2)| {
-                        TypeKey {
-                            interface: self.interface,
-                            ty: *t1,
-                        }
-                        .eq(&TypeKey {
-                            interface: other.interface,
-                            ty: *t2,
-                        })
-                    })
-                }
-                (TypeDefKind::Flags(f1), TypeDefKind::Flags(f2)) => {
-                    if f1.flags.len() != f2.flags.len() {
-                        return false;
-                    }
-
-                    f1.flags
-                        .iter()
-                        .zip(f2.flags.iter())
-                        .all(|(f1, f2)| f1.name == f2.name)
-                }
-                (TypeDefKind::Variant(v1), TypeDefKind::Variant(v2)) => {
-                    if v1.cases.len() != v2.cases.len() {
-                        return false;
-                    }
-
-                    v1.cases.iter().zip(v2.cases.iter()).all(|(c1, c2)| {
-                        c1.name == c2.name
-                            && match (c1.ty, c2.ty) {
-                                (Some(ty1), Some(ty2)) => {
-                                    TypeKey {
-                                        interface: self.interface,
-                                        ty: ty1,
-                                    } == TypeKey {
-                                        interface: other.interface,
-                                        ty: ty2,
-                                    }
-                                }
-                                (None, None) => true,
-                                _ => false,
-                            }
-                    })
-                }
-                (TypeDefKind::Union(v1), TypeDefKind::Union(v2)) => {
-                    if v1.cases.len() != v2.cases.len() {
-                        return false;
-                    }
-
-                    v1.cases.iter().zip(v2.cases.iter()).all(|(c1, c2)| {
-                        TypeKey {
-                            interface: self.interface,
-                            ty: c1.ty,
-                        } == TypeKey {
-                            interface: other.interface,
-                            ty: c2.ty,
-                        }
-                    })
-                }
-                (TypeDefKind::Enum(e1), TypeDefKind::Enum(e2)) => {
-                    if e1.cases.len() != e2.cases.len() {
-                        return false;
-                    }
-
-                    e1.cases
-                        .iter()
-                        .zip(e2.cases.iter())
-                        .all(|(c1, c2)| c1.name == c2.name)
-                }
-                (TypeDefKind::List(t1), TypeDefKind::List(t2))
-                | (TypeDefKind::Type(t1), TypeDefKind::Type(t2))
-                | (TypeDefKind::Option(t1), TypeDefKind::Option(t2)) => TypeKey {
-                    interface: self.interface,
-                    ty: *t1,
-                }
-                .eq(&TypeKey {
-                    interface: other.interface,
-                    ty: *t2,
-                }),
-                (TypeDefKind::Result(r1), TypeDefKind::Result(r2)) => {
-                    let ok_eq = match (r1.ok, r2.ok) {
-                        (Some(ok1), Some(ok2)) => {
-                            TypeKey {
-                                interface: self.interface,
-                                ty: ok1,
-                            } == TypeKey {
-                                interface: other.interface,
-                                ty: ok2,
-                            }
-                        }
-                        (None, None) => true,
-                        _ => false,
-                    };
-                    let err_eq = match (r1.err, r2.err) {
-                        (Some(err1), Some(err2)) => {
-                            TypeKey {
-                                interface: self.interface,
-                                ty: err1,
-                            } == TypeKey {
-                                interface: other.interface,
-                                ty: err2,
-                            }
-                        }
-                        (None, None) => true,
-                        _ => false,
-                    };
-                    ok_eq && err_eq
-                }
-                _ => false,
-            }
-    }
-}
-
-impl Eq for TypeDefKey<'_> {}
-
-impl Hash for TypeDefKey<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let def = self.def;
-        def.name.hash(state);
-        match &def.kind {
-            TypeDefKind::Record(r) => {
-                state.write_u8(0);
-                r.fields.len().hash(state);
-                for f in &r.fields {
-                    f.name.hash(state);
-                    TypeKey {
-                        interface: self.interface,
-                        ty: f.ty,
-                    }
-                    .hash(state);
-                }
-            }
-            TypeDefKind::Tuple(t) => {
-                state.write_u8(1);
-                t.types.len().hash(state);
-                for ty in &t.types {
-                    TypeKey {
-                        interface: self.interface,
-                        ty: *ty,
-                    }
-                    .hash(state);
-                }
-            }
-            TypeDefKind::Flags(r) => {
-                state.write_u8(2);
-                r.flags.len().hash(state);
-                for f in &r.flags {
-                    f.name.hash(state);
-                }
-            }
-            TypeDefKind::Variant(v) => {
-                state.write_u8(3);
-                v.cases.len().hash(state);
-                for c in &v.cases {
-                    c.name.hash(state);
-                    c.ty.map(|ty| TypeKey {
-                        interface: self.interface,
-                        ty,
-                    })
-                    .hash(state);
-                }
-            }
-            TypeDefKind::Enum(e) => {
-                state.write_u8(4);
-                e.cases.len().hash(state);
-                for c in &e.cases {
-                    c.name.hash(state);
-                }
-            }
-            TypeDefKind::List(ty) => {
-                state.write_u8(5);
-                TypeKey {
-                    interface: self.interface,
-                    ty: *ty,
-                }
-                .hash(state);
-            }
-            TypeDefKind::Type(ty) => {
-                state.write_u8(6);
-                TypeKey {
-                    interface: self.interface,
-                    ty: *ty,
-                }
-                .hash(state);
-            }
-            TypeDefKind::Option(ty) => {
-                state.write_u8(7);
-                TypeKey {
-                    interface: self.interface,
-                    ty: *ty,
-                }
-                .hash(state);
-            }
-            TypeDefKind::Result(r) => {
-                state.write_u8(8);
-                r.ok.map(|ty| TypeKey {
-                    interface: self.interface,
-                    ty,
-                })
-                .hash(state);
-                r.err
-                    .map(|ty| TypeKey {
-                        interface: self.interface,
-                        ty,
-                    })
-                    .hash(state);
-            }
-            TypeDefKind::Union(u) => {
-                state.write_u8(9);
-                u.cases.len().hash(state);
-                for case in u.cases.iter() {
-                    TypeKey {
-                        interface: self.interface,
-                        ty: case.ty,
-                    }
-                    .hash(state);
-                }
-            }
-            TypeDefKind::Future(_) => todo!("hash for future"),
-            TypeDefKind::Stream(_) => todo!("hash for stream"),
-        }
-    }
-}
-
-/// Represents a key type for interface function definitions.
-pub struct FunctionKey<'a> {
-    interface: &'a Interface,
-    func: &'a Function,
-}
-
-impl PartialEq for FunctionKey<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.func.params.len() != other.func.params.len() {
-            return false;
-        }
-
-        let key_equal = |t1, t2| {
-            TypeKey {
-                interface: self.interface,
-                ty: t1,
-            }
-            .eq(&TypeKey {
-                interface: other.interface,
-                ty: t2,
-            })
-        };
-
-        let params_equal = |ps: &Params, ops: &Params| {
-            ps.len() == ops.len()
-                && ps
-                    .iter()
-                    .zip(ops.iter())
-                    .all(|((n1, t1), (n2, t2))| n1 == n2 && key_equal(*t1, *t2))
-        };
-
-        let results_equal = |rs: &Results, ors: &Results| match (rs, ors) {
-            (Results::Named(rs), Results::Named(ors)) => params_equal(rs, ors),
-            (Results::Anon(ty), Results::Anon(oty)) => key_equal(*ty, *oty),
-            _ => false,
-        };
-
-        params_equal(&self.func.params, &other.func.params)
-            && results_equal(&self.func.results, &other.func.results)
-    }
-}
-
-impl Eq for FunctionKey<'_> {}
-
-impl Hash for FunctionKey<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.func.params.len().hash(state);
-        for (name, ty) in self.func.params.iter() {
-            name.hash(state);
-            TypeKey {
-                interface: self.interface,
-                ty: *ty,
-            }
-            .hash(state);
-        }
-        match &self.func.results {
-            Results::Named(rs) => {
-                state.write_u8(0);
-                rs.len().hash(state);
-                for (name, ty) in rs.iter() {
-                    name.hash(state);
-                    TypeKey {
-                        interface: self.interface,
-                        ty: *ty,
-                    }
-                    .hash(state);
-                }
-            }
-            Results::Anon(ty) => {
-                state.write_u8(1);
-                TypeKey {
-                    interface: self.interface,
-                    ty: *ty,
-                }
-                .hash(state);
-            }
-        }
-    }
-}
-
-#[derive(Default)]
-struct InstanceTypeEncoder<'a> {
-    ty: InstanceType,
-    aliased_types: IndexMap<ComponentTypeRef, ComponentTypeRef>,
-    exported_types: IndexMap<&'a str, (&'a str, ComponentTypeRef)>,
-}
-
-impl<'a> InstanceTypeEncoder<'a> {
-    fn export(&mut self, name: &'a str, url: &'a str, type_ref: ComponentTypeRef) -> Result<()> {
-        match self.exported_types.entry(name) {
-            Entry::Occupied(e) => {
-                if e.get().1 != type_ref {
-                    bail!("duplicate export `{}`", name)
-                }
-            }
-            Entry::Vacant(entry) => {
-                entry.insert((url, type_ref));
-                let alias = self.alias_type(type_ref);
-                self.ty.export(name, url, alias);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn alias_type(&mut self, type_ref: ComponentTypeRef) -> ComponentTypeRef {
-        match self.aliased_types.entry(type_ref) {
-            Entry::Occupied(e) => *e.get(),
-            Entry::Vacant(e) => {
-                let index = self.ty.type_count();
-                let (alias, outer_index) = match type_ref {
-                    ComponentTypeRef::Module(outer) => (ComponentTypeRef::Module(index), outer),
-                    ComponentTypeRef::Func(outer) => (ComponentTypeRef::Func(index), outer),
-                    ComponentTypeRef::Value(ComponentValType::Primitive(_)) => unreachable!(),
-                    ComponentTypeRef::Value(ComponentValType::Type(outer)) => (
-                        ComponentTypeRef::Value(ComponentValType::Type(index)),
-                        outer,
-                    ),
-                    ComponentTypeRef::Type(bounds, outer) => {
-                        (ComponentTypeRef::Type(bounds, index), outer)
-                    }
-                    ComponentTypeRef::Instance(outer) => (ComponentTypeRef::Instance(index), outer),
-                    ComponentTypeRef::Component(outer) => {
-                        (ComponentTypeRef::Component(index), outer)
-                    }
-                };
-
-                self.ty.alias_outer_type(1, outer_index);
-                e.insert(alias);
-                alias
-            }
-        }
-    }
-}
-
-#[derive(Default)]
-struct TypeEncoder<'a> {
-    types: ComponentTypeSection,
-    type_map: IndexMap<TypeDefKey<'a>, u32>,
-    func_type_map: IndexMap<FunctionKey<'a>, u32>,
-    exports: ComponentExportSection,
-}
-
-impl<'a> TypeEncoder<'a> {
-    fn finish(&self, component: &mut ComponentEncoding) {
-        if !self.types.is_empty() {
-            component.flush();
-            component.component.section(&self.types);
-        }
-
-        if !self.exports.is_empty() {
-            component.flush();
-            component.component.section(&self.exports);
-        }
-    }
-
-    fn encode_instance_imports(
-        &mut self,
-        interfaces: &'a IndexMap<String, Interface>,
-        info: Option<&ValidatedModule<'a>>,
-        imports: &mut ImportEncoder<'a>,
-    ) -> Result<()> {
-        for (name, import) in interfaces {
-            let required_funcs = match info {
-                Some(info) => match info.required_imports.get(name.as_str()) {
-                    Some(required) => Some(required),
-                    None => continue,
-                },
-                None => None,
-            };
-            self.encode_instance_import(name, import, required_funcs, imports)?;
-        }
-
-        Ok(())
-    }
-
-    /// Encodes an import of the `import` interface specified which will be
-    /// slimmed down to the `required_funcs` set, if specified.
-    ///
-    /// The imported instance, if any, is placed within `imports`.
-    fn encode_instance_import(
-        &mut self,
-        name: &'a str,
-        import: &'a Interface,
-        required_funcs: Option<&IndexSet<&'a str>>,
-        imports: &mut ImportEncoder<'a>,
-    ) -> Result<()> {
-        if let Some(index) = self.encode_interface_as_instance_type(import, required_funcs)? {
-            imports.import(
-                name,
-                import,
-                ComponentTypeRef::Instance(index),
-                required_funcs,
-            )?;
-        }
-
-        Ok(())
-    }
-
-    /// Generates an instance type index representing `import` slimmed down to
-    /// `required_funcs`, if specified.
-    fn encode_interface_as_instance_type(
-        &mut self,
-        import: &'a Interface,
-        required_funcs: Option<&IndexSet<&'a str>>,
-    ) -> Result<Option<u32>> {
-        let exports =
-            match self.encode_interface_as_instance_type_exports(import, required_funcs)? {
-                Some(exports) => exports,
-                None => return Ok(None),
-            };
-        let mut instance = InstanceTypeEncoder::default();
-        for (name, ty) in exports {
-            instance.export(name, "", ty)?;
-        }
-
-        Ok(Some(self.encode_instance_type(&instance.ty)))
-    }
-
-    /// Generates a list of items that make up `import`.
-    fn encode_interface_as_instance_type_exports(
-        &mut self,
-        import: &'a Interface,
-        required_funcs: Option<&IndexSet<&'a str>>,
-    ) -> Result<Option<Vec<(&'a str, ComponentTypeRef)>>> {
-        // Don't import empty instances if no functions are actually required
-        // from this interface.
-        match required_funcs {
-            Some(funcs) if funcs.is_empty() => return Ok(None),
-            _ => {}
-        }
-
-        let mut exports = self.encode_interface_named_types(import)?;
-
-        for func in &import.functions {
-            if let Some(required_funcs) = required_funcs {
-                if !required_funcs.contains(func.name.as_str()) {
-                    continue;
-                }
-            }
-            Self::validate_function(func)?;
-
-            let index = self.encode_func_type(import, func)?;
-            exports.push((func.name.as_str(), ComponentTypeRef::Func(index)));
-        }
-
-        Ok(Some(exports))
-    }
-
-    fn encode_interface_named_types(
-        &mut self,
-        interface: &'a Interface,
-    ) -> Result<Vec<(&'a str, ComponentTypeRef)>> {
-        let mut exports = Vec::new();
-
-        for (id, def) in &interface.types {
-            let name = match &def.name {
-                Some(name) => name,
-                None => continue,
-            };
-            let idx = match self.encode_valtype(interface, &Type::Id(id))? {
-                ComponentValType::Type(idx) => idx,
-                // With a name this type should be converted to an indexed type
-                // automatically and this shouldn't be possible.
-                ComponentValType::Primitive(_) => unreachable!(),
-            };
-            exports.push((name.as_str(), ComponentTypeRef::Type(TypeBounds::Eq, idx)));
-        }
-
-        Ok(exports)
-    }
-
-    fn encode_func_types(&mut self, interfaces: impl Iterator<Item = &'a Interface>) -> Result<()> {
-        for export in interfaces {
-            // TODO: stick interface documentation in a custom section?
-
-            for func in &export.functions {
-                Self::validate_function(func)?;
-
-                self.encode_func_type(export, func)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn encode_instance_type(&mut self, ty: &InstanceType) -> u32 {
-        let index = self.types.len();
-        self.types.instance(ty);
-        index
-    }
-
-    fn encode_params(
-        &mut self,
-        interface: &'a Interface,
-        params: &'a Params,
-    ) -> Result<Vec<(&'a str, ComponentValType)>> {
-        params
-            .iter()
-            .map(|(name, ty)| Ok((name.as_str(), self.encode_valtype(interface, ty)?)))
-            .collect::<Result<_>>()
-    }
-
-    fn encode_func_type(&mut self, interface: &'a Interface, func: &'a Function) -> Result<u32> {
-        let key = FunctionKey { interface, func };
-        if let Some(index) = self.func_type_map.get(&key) {
-            return Ok(*index);
-        }
-
-        // Encode all referenced parameter types from this function.
-        let params: Vec<_> = self.encode_params(interface, &func.params)?;
-
-        enum EncodedResults<'a> {
-            Named(Vec<(&'a str, ComponentValType)>),
-            Anon(ComponentValType),
-        }
-
-        let results = match &func.results {
-            Results::Named(rs) => EncodedResults::Named(self.encode_params(interface, rs)?),
-            Results::Anon(ty) => EncodedResults::Anon(self.encode_valtype(interface, ty)?),
-        };
-
-        // Encode the function type
-        let index = self.types.len();
-        let mut f = self.types.function();
-        f.params(params);
-        match results {
-            EncodedResults::Named(rs) => f.results(rs),
-            EncodedResults::Anon(ty) => f.result(ty),
-        };
-        self.func_type_map.insert(key, index);
-        Ok(index)
-    }
-
-    fn encode_valtype(&mut self, interface: &'a Interface, ty: &Type) -> Result<ComponentValType> {
-        Ok(match ty {
-            Type::Bool => ComponentValType::Primitive(PrimitiveValType::Bool),
-            Type::U8 => ComponentValType::Primitive(PrimitiveValType::U8),
-            Type::U16 => ComponentValType::Primitive(PrimitiveValType::U16),
-            Type::U32 => ComponentValType::Primitive(PrimitiveValType::U32),
-            Type::U64 => ComponentValType::Primitive(PrimitiveValType::U64),
-            Type::S8 => ComponentValType::Primitive(PrimitiveValType::S8),
-            Type::S16 => ComponentValType::Primitive(PrimitiveValType::S16),
-            Type::S32 => ComponentValType::Primitive(PrimitiveValType::S32),
-            Type::S64 => ComponentValType::Primitive(PrimitiveValType::S64),
-            Type::Float32 => ComponentValType::Primitive(PrimitiveValType::Float32),
-            Type::Float64 => ComponentValType::Primitive(PrimitiveValType::Float64),
-            Type::Char => ComponentValType::Primitive(PrimitiveValType::Char),
-            Type::String => ComponentValType::Primitive(PrimitiveValType::String),
-            Type::Id(id) => {
-                let ty = &interface.types[*id];
-                let key = TypeDefKey::new(interface, &interface.types[*id]);
-                let encoded = if let Some(index) = self.type_map.get(&key) {
-                    ComponentValType::Type(*index)
-                } else {
-                    let mut encoded = match &ty.kind {
-                        TypeDefKind::Record(r) => self.encode_record(interface, r)?,
-                        TypeDefKind::Tuple(t) => self.encode_tuple(interface, t)?,
-                        TypeDefKind::Flags(r) => self.encode_flags(r)?,
-                        TypeDefKind::Variant(v) => self.encode_variant(interface, v)?,
-                        TypeDefKind::Union(u) => self.encode_union(interface, u)?,
-                        TypeDefKind::Option(t) => self.encode_option(interface, t)?,
-                        TypeDefKind::Result(r) => self.encode_result(interface, r)?,
-                        TypeDefKind::Enum(e) => self.encode_enum(e)?,
-                        TypeDefKind::List(ty) => {
-                            let ty = self.encode_valtype(interface, ty)?;
-                            let index = self.types.len();
-                            let encoder = self.types.defined_type();
-                            encoder.list(ty);
-                            ComponentValType::Type(index)
-                        }
-                        TypeDefKind::Type(ty) => self.encode_valtype(interface, ty)?,
-                        TypeDefKind::Future(_) => todo!("encoding for future type"),
-                        TypeDefKind::Stream(_) => todo!("encoding for stream type"),
-                    };
-
-                    if ty.name.is_some() {
-                        if let ComponentValType::Primitive(ty) = encoded {
-                            // Named primitive types need entries in the type
-                            // section, so convert this to a type reference
-                            let index = self.types.len();
-                            self.types.defined_type().primitive(ty);
-                            encoded = ComponentValType::Type(index);
-                        }
-                    }
-
-                    if let ComponentValType::Type(index) = encoded {
-                        self.type_map.insert(key, index);
-                    }
-
-                    encoded
-                };
-
-                encoded
-            }
-        })
-    }
-
-    fn encode_optional_valtype(
-        &mut self,
-        interface: &'a Interface,
-        ty: Option<&Type>,
-    ) -> Result<Option<ComponentValType>> {
-        match ty {
-            Some(ty) => self.encode_valtype(interface, ty).map(Some),
-            None => Ok(None),
-        }
-    }
-
-    fn encode_record(
-        &mut self,
-        interface: &'a Interface,
-        record: &Record,
-    ) -> Result<ComponentValType> {
-        let fields = record
-            .fields
-            .iter()
-            .map(|f| Ok((f.name.as_str(), self.encode_valtype(interface, &f.ty)?)))
-            .collect::<Result<Vec<_>>>()?;
-
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.record(fields);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_tuple(
-        &mut self,
-        interface: &'a Interface,
-        tuple: &Tuple,
-    ) -> Result<ComponentValType> {
-        let tys = tuple
-            .types
-            .iter()
-            .map(|ty| self.encode_valtype(interface, ty))
-            .collect::<Result<Vec<_>>>()?;
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.tuple(tys);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_flags(&mut self, flags: &Flags) -> Result<ComponentValType> {
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.flags(flags.flags.iter().map(|f| f.name.as_str()));
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_variant(
-        &mut self,
-        interface: &'a Interface,
-        variant: &Variant,
-    ) -> Result<ComponentValType> {
-        let cases = variant
-            .cases
-            .iter()
-            .map(|c| {
-                Ok((
-                    c.name.as_str(),
-                    self.encode_optional_valtype(interface, c.ty.as_ref())?,
-                    None, // TODO: support defaulting case values in the future
-                ))
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.variant(cases);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_union(
-        &mut self,
-        interface: &'a Interface,
-        union: &Union,
-    ) -> Result<ComponentValType> {
-        let tys = union
-            .cases
-            .iter()
-            .map(|c| self.encode_valtype(interface, &c.ty))
-            .collect::<Result<Vec<_>>>()?;
-
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.union(tys);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_option(
-        &mut self,
-        interface: &'a Interface,
-        payload: &Type,
-    ) -> Result<ComponentValType> {
-        let ty = self.encode_valtype(interface, payload)?;
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.option(ty);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_result(
-        &mut self,
-        interface: &'a Interface,
-        result: &Result_,
-    ) -> Result<ComponentValType> {
-        let ok = self.encode_optional_valtype(interface, result.ok.as_ref())?;
-        let error = self.encode_optional_valtype(interface, result.err.as_ref())?;
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.result(ok, error);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_enum(&mut self, enum_: &Enum) -> Result<ComponentValType> {
-        let index = self.types.len();
-        let encoder = self.types.defined_type();
-        encoder.enum_type(enum_.cases.iter().map(|c| c.name.as_str()));
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn validate_function(function: &Function) -> Result<()> {
-        if function.name.is_empty() {
-            bail!("interface has an unnamed function");
-        }
-
-        if !matches!(function.kind, FunctionKind::Freestanding) {
-            bail!(
-                "unsupported function `{}`: only free-standing functions are currently supported",
-                function.name
-            );
-        }
-
-        Ok(())
-    }
-}
-
 bitflags::bitflags! {
     /// Options in the `canon lower` or `canon lift` required for a particular
     /// function.
-    struct RequiredOptions: u8 {
+    pub struct RequiredOptions: u8 {
         /// A memory must be specified, typically the "main module"'s memory
         /// export.
         const MEMORY = 1 << 0;
@@ -928,18 +102,15 @@ bitflags::bitflags! {
 }
 
 impl RequiredOptions {
-    fn for_import(interface: &Interface, func: &Function) -> RequiredOptions {
-        let sig = interface.wasm_signature(AbiVariant::GuestImport, func);
+    fn for_import(doc: &Document, func: &Function) -> RequiredOptions {
+        let sig = doc.wasm_signature(AbiVariant::GuestImport, func);
         let mut ret = RequiredOptions::empty();
         // Lift the params and lower the results for imports
         ret.add_lift(TypeContents::for_types(
-            interface,
+            doc,
             func.params.iter().map(|(_, t)| t),
         ));
-        ret.add_lower(TypeContents::for_types(
-            interface,
-            func.results.iter_types(),
-        ));
+        ret.add_lower(TypeContents::for_types(doc, func.results.iter_types()));
 
         // If anything is indirect then `memory` will be required to read the
         // indirect values.
@@ -949,18 +120,15 @@ impl RequiredOptions {
         ret
     }
 
-    fn for_export(interface: &Interface, func: &Function) -> RequiredOptions {
-        let sig = interface.wasm_signature(AbiVariant::GuestExport, func);
+    fn for_export(doc: &Document, func: &Function) -> RequiredOptions {
+        let sig = doc.wasm_signature(AbiVariant::GuestExport, func);
         let mut ret = RequiredOptions::empty();
         // Lower the params and lift the results for exports
         ret.add_lower(TypeContents::for_types(
-            interface,
+            doc,
             func.params.iter().map(|(_, t)| t),
         ));
-        ret.add_lift(TypeContents::for_types(
-            interface,
-            func.results.iter_types(),
-        ));
+        ret.add_lift(TypeContents::for_types(doc, func.results.iter_types()));
 
         // If anything is indirect then `memory` will be required to read the
         // indirect values, but if the arguments are indirect then `realloc` is
@@ -1072,48 +240,46 @@ bitflags::bitflags! {
 }
 
 impl TypeContents {
-    fn for_types<'a>(interface: &Interface, types: impl Iterator<Item = &'a Type>) -> Self {
+    fn for_types<'a>(doc: &Document, types: impl Iterator<Item = &'a Type>) -> Self {
         let mut cur = TypeContents::empty();
         for ty in types {
-            cur |= Self::for_type(interface, ty);
+            cur |= Self::for_type(doc, ty);
         }
         cur
     }
 
     fn for_optional_types<'a>(
-        interface: &Interface,
+        doc: &Document,
         types: impl Iterator<Item = Option<&'a Type>>,
     ) -> Self {
-        Self::for_types(interface, types.flatten())
+        Self::for_types(doc, types.flatten())
     }
 
-    fn for_optional_type(interface: &Interface, ty: Option<&Type>) -> Self {
+    fn for_optional_type(doc: &Document, ty: Option<&Type>) -> Self {
         match ty {
-            Some(ty) => Self::for_type(interface, ty),
+            Some(ty) => Self::for_type(doc, ty),
             None => Self::empty(),
         }
     }
 
-    fn for_type(interface: &Interface, ty: &Type) -> Self {
+    fn for_type(doc: &Document, ty: &Type) -> Self {
         match ty {
-            Type::Id(id) => match &interface.types[*id].kind {
-                TypeDefKind::Record(r) => {
-                    Self::for_types(interface, r.fields.iter().map(|f| &f.ty))
-                }
-                TypeDefKind::Tuple(t) => Self::for_types(interface, t.types.iter()),
+            Type::Id(id) => match &doc.types[*id].kind {
+                TypeDefKind::Record(r) => Self::for_types(doc, r.fields.iter().map(|f| &f.ty)),
+                TypeDefKind::Tuple(t) => Self::for_types(doc, t.types.iter()),
                 TypeDefKind::Flags(_) => Self::empty(),
-                TypeDefKind::Option(t) => Self::for_type(interface, t),
+                TypeDefKind::Option(t) => Self::for_type(doc, t),
                 TypeDefKind::Result(r) => {
-                    Self::for_optional_type(interface, r.ok.as_ref())
-                        | Self::for_optional_type(interface, r.err.as_ref())
+                    Self::for_optional_type(doc, r.ok.as_ref())
+                        | Self::for_optional_type(doc, r.err.as_ref())
                 }
                 TypeDefKind::Variant(v) => {
-                    Self::for_optional_types(interface, v.cases.iter().map(|c| c.ty.as_ref()))
+                    Self::for_optional_types(doc, v.cases.iter().map(|c| c.ty.as_ref()))
                 }
-                TypeDefKind::Union(v) => Self::for_types(interface, v.cases.iter().map(|c| &c.ty)),
+                TypeDefKind::Union(v) => Self::for_types(doc, v.cases.iter().map(|c| &c.ty)),
                 TypeDefKind::Enum(_) => Self::empty(),
-                TypeDefKind::List(t) => Self::for_type(interface, t) | Self::LIST,
-                TypeDefKind::Type(t) => Self::for_type(interface, t),
+                TypeDefKind::List(t) => Self::for_type(doc, t) | Self::LIST,
+                TypeDefKind::Type(t) => Self::for_type(doc, t),
                 TypeDefKind::Future(_) => todo!("encoding for future"),
                 TypeDefKind::Stream(_) => todo!("encoding for stream"),
             },
@@ -1124,10 +290,9 @@ impl TypeContents {
 }
 
 /// State relating to encoding a component.
-#[derive(Default)]
-struct EncodingState<'a> {
+pub struct EncodingState<'a> {
     /// The component being encoded.
-    component: ComponentEncoding,
+    component: ComponentBuilder,
     /// The index into the core module index space for the inner core module.
     ///
     /// If `None`, the core module has not been encoded.
@@ -1163,29 +328,122 @@ struct EncodingState<'a> {
     /// and one for exports.
     adapter_import_reallocs: IndexMap<&'a str, Option<u32>>,
     adapter_export_reallocs: IndexMap<&'a str, Option<u32>>,
+
+    /// Imported instances and what index they were imported as.
+    imported_instances: IndexMap<InterfaceId, u32>,
+
+    /// Map of types defined within the component's root index space.
+    type_map: HashMap<TypeId, u32>,
+    /// Map of function types defined within the component's root index space.
+    func_type_map: HashMap<types::FunctionKey<'a>, u32>,
+
+    /// Metadata about the world inferred from the input to `ComponentEncoder`.
+    info: &'a ComponentWorld<'a>,
 }
 
 impl<'a> EncodingState<'a> {
-    fn encode_core_module(&mut self, module: &[u8]) -> u32 {
+    fn encode_core_modules(&mut self) {
         assert!(self.module_index.is_none());
-        let ret = self.component.core_module_raw(module);
-        self.module_index = Some(ret);
-        ret
+        let idx = self.component.core_module_raw(&self.info.encoder.module);
+        self.module_index = Some(idx);
+
+        for (name, (_, wasm)) in self.info.adapters.iter() {
+            let idx = self.component.core_module_raw(wasm);
+            let prev = self.adapter_modules.insert(name, idx);
+            assert!(prev.is_none());
+        }
     }
 
-    fn encode_core_adapter_module(&mut self, name: &'a str, module: &[u8]) -> u32 {
-        let index = self.component.core_module_raw(module);
-        assert!(self.adapter_modules.insert(name, index).is_none());
-        index
+    fn root_type_encoder(&mut self, interface: InterfaceId) -> RootTypeEncoder<'_, 'a> {
+        RootTypeEncoder {
+            state: self,
+            type_exports: Vec::new(),
+            interface,
+        }
     }
 
-    fn encode_core_instantiation(
-        &mut self,
-        imports: &ImportEncoder<'a>,
-        info: &ValidatedModule<'a>,
-    ) -> Result<()> {
+    fn instance_type_encoder(&mut self, interface: InterfaceId) -> InstanceTypeEncoder<'_, 'a> {
+        InstanceTypeEncoder {
+            state: self,
+            interface,
+            type_map: Default::default(),
+            func_type_map: Default::default(),
+            ty: Default::default(),
+        }
+    }
+
+    fn encode_imports(&mut self) -> Result<()> {
+        let doc = &self.info.encoder.metadata.doc;
+        for (name, info) in self.info.import_map.iter() {
+            let interface = &doc.interfaces[info.interface];
+            log::trace!("encoding imports for `{name}` as {:?}", info.interface);
+            let ty = {
+                let mut encoder = self.instance_type_encoder(info.interface);
+
+                // Encode all required functions from this imported interface
+                // into the instance type.
+                for func in interface.functions.iter() {
+                    if !info.required.contains(func.name.as_str()) {
+                        continue;
+                    }
+                    log::trace!("encoding function type for `{}`", func.name);
+                    let idx = encoder.encode_func_type(doc, func)?;
+
+                    encoder
+                        .ty
+                        .export(&func.name, "", ComponentTypeRef::Func(idx));
+                }
+
+                // If there were any live types from this instance which weren't
+                // otherwise reached through the above function types then this
+                // will forward them through.
+                if let Some(live) = encoder.state.info.live_types.get(&info.interface) {
+                    for ty in live {
+                        log::trace!("encoding extra type {ty:?}");
+                        encoder.encode_valtype(doc, &Type::Id(*ty))?;
+                    }
+                }
+
+                encoder.ty
+            };
+
+            // Don't encode empty instance types since they're not
+            // meaningful to the runtime of the component anyway.
+            if ty.is_empty() {
+                continue;
+            }
+            let instance_type_idx = self.component.instance_type(&ty);
+            let instance_idx = self.component.import(
+                name,
+                &info.url,
+                ComponentTypeRef::Instance(instance_type_idx),
+            );
+            let prev = self.imported_instances.insert(info.interface, instance_idx);
+            assert!(prev.is_none());
+        }
+        Ok(())
+    }
+
+    fn index_of_type_export(&mut self, id: TypeId) -> u32 {
+        // Using the original `interface` definition of `id` and its name create
+        // an alias which refers to the type export of that instance which must
+        // have previously been imported.
+        let ty = &self.info.encoder.metadata.doc.types[id];
+        let interface = ty
+            .interface
+            .expect("cannot import anonymous type across interfaces");
+        let name = ty
+            .name
+            .as_ref()
+            .expect("cannot import anonymous type across interfaces");
+        let instance = self.imported_instances[&interface];
+        self.component.alias_type_export(instance, name)
+    }
+
+    fn encode_core_instantiation(&mut self) -> Result<()> {
+        let info = self.info.info.as_ref().unwrap();
         // Encode a shim instantiation if needed
-        let shims = self.encode_shim_instantiation(imports, info);
+        let shims = self.encode_shim_instantiation();
 
         // For each instance import into the main module create a
         // pseudo-core-wasm-module via a bag-of-exports.
@@ -1193,8 +451,7 @@ impl<'a> EncodingState<'a> {
         for name in info.required_imports.keys() {
             let index = self.import_instance_to_lowered_core_instance(
                 CustomModule::Main,
-                name,
-                imports,
+                *name,
                 &shims,
                 info.metadata,
             );
@@ -1229,11 +486,11 @@ impl<'a> EncodingState<'a> {
         // liftings/lowerings later on as well as the adapter modules, if any,
         // instantiated after the core wasm module.
         self.instantiate_core_module(args, info);
-        self.instantiate_adapter_modules(imports, &shims);
+        self.instantiate_adapter_modules(&shims);
 
         // With all the core wasm instances in play now the original shim
         // module, if present, can be filled in with lowerings/adapters/etc.
-        self.encode_indirect_lowerings(imports, shims)
+        self.encode_indirect_lowerings(shims)
     }
 
     /// Lowers a named imported interface a core wasm instances suitable to
@@ -1248,11 +505,11 @@ impl<'a> EncodingState<'a> {
         &mut self,
         for_module: CustomModule<'_>,
         name: &str,
-        imports: &ImportEncoder<'_>,
         shims: &Shims<'_>,
-        metadata: &BindgenMetadata,
+        metadata: &ModuleMetadata,
     ) -> u32 {
-        let (instance_index, _, import) = imports.map.get_full(name).unwrap();
+        let import = &self.info.import_map[name];
+        let instance_index = self.imported_instances[&import.interface];
         let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
 
         // Add an entry for all indirect lowerings which come as an export of
@@ -1277,9 +534,7 @@ impl<'a> EncodingState<'a> {
         // All direct lowerings can be `canon lower`'d here immediately and
         // passed as arguments.
         for lowering in &import.direct {
-            let func_index = self
-                .component
-                .alias_func(instance_index as u32, lowering.name);
+            let func_index = self.component.alias_func(instance_index, lowering.name);
             let core_func_index = self.component.lower_func(func_index, []);
             exports.push((lowering.name, ExportKind::Func, core_func_index));
         }
@@ -1287,71 +542,72 @@ impl<'a> EncodingState<'a> {
         self.component.instantiate_core_exports(exports)
     }
 
-    fn encode_imports(&mut self, imports: &ImportEncoder) {
-        for (name, import) in &imports.map {
-            self.component.import(name, import.url, import.ty);
-        }
-    }
-
-    fn encode_exports<'b>(
-        &mut self,
-        types: &TypeEncoder<'b>,
-        metadata: &BindgenMetadata,
-        instance_index: u32,
-        realloc_index: Option<u32>,
-    ) -> Result<()> {
-        for (export, export_name) in metadata.world.exports() {
+    fn encode_exports(&mut self, opts: &'a ComponentEncoder, module: CustomModule) -> Result<()> {
+        let doc = &opts.metadata.doc;
+        let metadata = match module {
+            CustomModule::Main => &opts.metadata.metadata,
+            CustomModule::Adapter(name) => &opts.adapters[name].1,
+        };
+        let world = match module {
+            CustomModule::Main => opts.metadata.world,
+            CustomModule::Adapter(name) => opts.adapters[name].2,
+        };
+        let world = &doc.worlds[world];
+        for (export, export_name) in world.exports() {
             let mut interface_exports = Vec::new();
 
-            // Make sure all named types are present in the exported instance
-            for (_id, def) in export.types.iter() {
-                let name = match &def.name {
-                    Some(name) => name,
-                    None => continue,
-                };
-                let ty = *types
-                    .type_map
-                    .get(&TypeDefKey {
-                        interface: export,
-                        def,
-                    })
-                    .expect("the type should be encoded");
-                interface_exports.push((name.as_str(), ComponentExportKind::Type, ty));
-            }
-
-            // Alias the exports from the core module
-            for func in &export.functions {
+            // All types are encoded into the root component here using this
+            // encoder which keeps track of type exports to determine how to
+            // export them later as well.
+            let mut enc = self.root_type_encoder(export);
+            for func in &doc.interfaces[export].functions {
                 let name = func.core_export_name(export_name);
-                let core_func_index =
-                    self.component
-                        .alias_core_item(instance_index, ExportKind::Func, name.as_ref());
+                let instance_index = match module {
+                    CustomModule::Main => enc.state.instance_index.expect("instantiated by now"),
+                    CustomModule::Adapter(name) => enc.state.adapter_instances[name],
+                };
+                let core_func_index = enc.state.component.alias_core_item(
+                    instance_index,
+                    ExportKind::Func,
+                    name.as_ref(),
+                );
 
-                let ty = *types
-                    .func_type_map
-                    .get(&FunctionKey {
-                        interface: export,
-                        func,
-                    })
-                    .expect("the type should be encoded");
-
-                let options = RequiredOptions::for_export(export, func);
+                let ty = enc.encode_func_type(doc, func)?;
+                let options = RequiredOptions::for_export(doc, func);
 
                 let encoding = metadata.export_encodings[&name[..]];
+                // TODO: This realloc detection should probably be improved with
+                // some sort of scheme to have per-function reallocs like
+                // `cabi_realloc_{name}` or something like that.
+                let realloc_index = match module {
+                    CustomModule::Main => enc.state.realloc_index,
+                    CustomModule::Adapter(name) => enc.state.adapter_export_reallocs[name],
+                };
                 let mut options = options
-                    .into_iter(encoding, self.memory_index, realloc_index)?
+                    .into_iter(encoding, enc.state.memory_index, realloc_index)?
                     .collect::<Vec<_>>();
-                if export.guest_export_needs_post_return(func) {
-                    let post_return = self.component.alias_core_item(
+
+                // TODO: This should probe for the existence of
+                // `cabi_post_{name}` but not require its existence.
+                if doc.guest_export_needs_post_return(func) {
+                    let post_return = enc.state.component.alias_core_item(
                         instance_index,
                         ExportKind::Func,
                         &format!("cabi_post_{name}"),
                     );
                     options.push(CanonicalOption::PostReturn(post_return));
                 }
-                let func_index = self.component.lift_func(core_func_index, ty, options);
-
+                let func_index = enc.state.component.lift_func(core_func_index, ty, options);
                 interface_exports.push((func.name.as_str(), ComponentExportKind::Func, func_index));
             }
+
+            // Extend the interface exports to be created with type exports
+            // found during encoding of function types.
+            interface_exports.extend(
+                enc.type_exports
+                    .into_iter()
+                    .map(|(idx, name)| (name, ComponentExportKind::Type, idx)),
+            );
 
             if interface_exports.is_empty() {
                 continue;
@@ -1369,7 +625,7 @@ impl<'a> EncodingState<'a> {
                     let instance_index = self.component.instantiate_exports(interface_exports);
                     self.component.export(
                         export_name,
-                        export.url.as_deref().unwrap_or(""),
+                        doc.interfaces[export].url.as_deref().unwrap_or(""),
                         ComponentExportKind::Instance,
                         instance_index,
                     );
@@ -1385,18 +641,15 @@ impl<'a> EncodingState<'a> {
         Ok(())
     }
 
-    fn encode_shim_instantiation(
-        &mut self,
-        imports: &ImportEncoder<'a>,
-        info: &ValidatedModule<'a>,
-    ) -> Shims<'a> {
+    fn encode_shim_instantiation(&mut self) -> Shims<'a> {
         let mut signatures = Vec::new();
         let mut ret = Shims::default();
+        let info = self.info.info.as_ref().unwrap();
 
         // For all interfaces imported into the main module record all of their
         // indirect lowerings into `Shims`.
         for name in info.required_imports.keys() {
-            let import = &imports.map[name];
+            let import = &self.info.import_map[name];
             ret.append_indirect(
                 name,
                 CustomModule::Main,
@@ -1410,9 +663,9 @@ impl<'a> EncodingState<'a> {
         // function and additionally a set of shims are created for the
         // interface imported into the shim module itself.
         for (adapter, funcs) in info.adapters_required.iter() {
-            let info = &imports.adapters[adapter];
+            let (info, _wasm) = &self.info.adapters[adapter];
             for (name, _) in info.required_imports.iter() {
-                let import = &imports.map[name];
+                let import = &self.info.import_map[name];
                 ret.append_indirect(
                     name,
                     CustomModule::Adapter(adapter),
@@ -1560,11 +813,7 @@ impl<'a> EncodingState<'a> {
         code.function(&func);
     }
 
-    fn encode_indirect_lowerings(
-        &mut self,
-        imports: &ImportEncoder,
-        shims: Shims<'_>,
-    ) -> Result<()> {
+    fn encode_indirect_lowerings(&mut self, shims: Shims<'_>) -> Result<()> {
         if shims.list.is_empty() {
             return Ok(());
         }
@@ -1579,7 +828,7 @@ impl<'a> EncodingState<'a> {
             INDIRECT_TABLE_NAME,
         );
 
-        let mut exports = Vec::with_capacity(imports.indirect_count as usize);
+        let mut exports = Vec::new();
         exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
 
         for shim in shims.list.iter() {
@@ -1596,11 +845,11 @@ impl<'a> EncodingState<'a> {
                     realloc,
                     encoding,
                 } => {
-                    let (instance_index, _, interface) = imports.map.get_full(interface).unwrap();
-                    let func_index = self.component.alias_func(
-                        instance_index as u32,
-                        interface.indirect[*indirect_index].name,
-                    );
+                    let interface = &self.info.import_map[interface];
+                    let instance_index = self.imported_instances[&interface.interface];
+                    let func_index = self
+                        .component
+                        .alias_func(instance_index, interface.indirect[*indirect_index].name);
 
                     let realloc = match realloc {
                         CustomModule::Main => self.realloc_index,
@@ -1671,8 +920,8 @@ impl<'a> EncodingState<'a> {
     ///
     /// Each adapter here is instantiated with its required imported interface,
     /// if any.
-    fn instantiate_adapter_modules(&mut self, imports: &ImportEncoder<'a>, shims: &Shims<'_>) {
-        for (name, info) in imports.adapters.iter() {
+    fn instantiate_adapter_modules(&mut self, shims: &Shims<'_>) {
+        for (name, (info, _wasm)) in self.info.adapters.iter() {
             let mut args = Vec::new();
 
             let mut core_exports = Vec::new();
@@ -1710,7 +959,6 @@ impl<'a> EncodingState<'a> {
                 let instance = self.import_instance_to_lowered_core_instance(
                     CustomModule::Adapter(name),
                     import_name,
-                    imports,
                     shims,
                     info.metadata,
                 );
@@ -1829,7 +1077,7 @@ impl<'a> Shims<'a> {
         name: &'a str,
         for_module: CustomModule<'a>,
         import: &ImportedInterface<'a>,
-        metadata: &BindgenMetadata,
+        metadata: &ModuleMetadata,
         sigs: &mut Vec<WasmSignature>,
     ) {
         for (indirect_index, lowering) in import.indirect.iter().enumerate() {
@@ -1856,296 +1104,11 @@ impl<'a> Shims<'a> {
     }
 }
 
-#[derive(Debug)]
-struct DirectLowering<'a> {
-    name: &'a str,
-}
-
-#[derive(Debug)]
-struct IndirectLowering<'a> {
-    name: &'a str,
-    sig: WasmSignature,
-    options: RequiredOptions,
-}
-
-#[derive(Debug)]
-struct ImportedInterface<'a> {
-    ty: ComponentTypeRef,
-    url: &'a str,
-    direct: Vec<DirectLowering<'a>>,
-    indirect: Vec<IndirectLowering<'a>>,
-}
-
-/// Helper type used when encoding a component to have helpers that
-/// simultaneously encode an item while returning its corresponding index in the
-/// generated index spaces as well.
-#[derive(Default)]
-struct ComponentEncoding {
-    /// The binary component as created by `wasm-encoder`.
-    component: Component,
-
-    /// The last section which was appended to during encoding. This type is
-    /// generated by the `section_accessors` macro below.
-    ///
-    /// When something is encoded this is used if it matches the kind of item
-    /// being encoded, otherwise it's "flushed" to the output component and a
-    /// new section is started.
-    last_section: LastSection,
-
-    // Core index spaces
-    core_modules: u32,
-    core_funcs: u32,
-    core_memories: u32,
-    core_tables: u32,
-    core_instances: u32,
-
-    // Component index spaces
-    funcs: u32,
-    instances: u32,
-}
-
-impl ComponentEncoding {
-    fn finish(mut self) -> Vec<u8> {
-        self.flush();
-        self.component.finish()
-    }
-
-    fn instantiate<'a, A>(&mut self, module_index: u32, args: A) -> u32
-    where
-        A: IntoIterator<Item = (&'a str, ModuleArg)>,
-        A::IntoIter: ExactSizeIterator,
-    {
-        self.instances().instantiate(module_index, args);
-        inc(&mut self.core_instances)
-    }
-
-    fn alias_func(&mut self, instance: u32, name: &str) -> u32 {
-        self.aliases()
-            .instance_export(instance, ComponentExportKind::Func, name);
-        inc(&mut self.funcs)
-    }
-
-    fn lower_func<O>(&mut self, func_index: u32, options: O) -> u32
-    where
-        O: IntoIterator<Item = CanonicalOption>,
-        O::IntoIter: ExactSizeIterator,
-    {
-        self.canonical_functions().lower(func_index, options);
-        inc(&mut self.core_funcs)
-    }
-
-    fn lift_func<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> u32
-    where
-        O: IntoIterator<Item = CanonicalOption>,
-        O::IntoIter: ExactSizeIterator,
-    {
-        self.canonical_functions()
-            .lift(core_func_index, type_index, options);
-        inc(&mut self.funcs)
-    }
-
-    fn instantiate_core_exports<'a, E>(&mut self, exports: E) -> u32
-    where
-        E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
-        E::IntoIter: ExactSizeIterator,
-    {
-        self.instances().export_items(exports);
-        inc(&mut self.core_instances)
-    }
-
-    fn instantiate_exports<'a, E>(&mut self, exports: E) -> u32
-    where
-        E: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
-        E::IntoIter: ExactSizeIterator,
-    {
-        self.component_instances().export_items(exports);
-        inc(&mut self.instances)
-    }
-
-    fn core_module(&mut self, module: &Module) -> u32 {
-        self.flush();
-        self.component.section(&ModuleSection(module));
-        inc(&mut self.core_modules)
-    }
-
-    fn core_module_raw(&mut self, module: &[u8]) -> u32 {
-        self.flush();
-        self.component.section(&wasm_encoder::RawSection {
-            id: ComponentSectionId::CoreModule.into(),
-            data: module,
-        });
-        inc(&mut self.core_modules)
-    }
-
-    fn alias_core_item(&mut self, instance: u32, kind: ExportKind, name: &str) -> u32 {
-        self.aliases().core_instance_export(instance, kind, name);
-        match kind {
-            ExportKind::Func => inc(&mut self.core_funcs),
-            ExportKind::Table => inc(&mut self.core_tables),
-            ExportKind::Memory => inc(&mut self.core_memories),
-            ExportKind::Global | ExportKind::Tag => unreachable!(),
-        }
-    }
-
-    fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) {
-        self.exports().export(name, url, kind, idx);
-    }
-
-    fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> u32 {
-        let ret = match &ty {
-            ComponentTypeRef::Instance(_) => inc(&mut self.instances),
-            ComponentTypeRef::Func(_) => inc(&mut self.funcs),
-            _ => unimplemented!(),
-        };
-        self.imports().import(name, url, ty);
-        ret
-    }
-}
-
-// Helper macro to generate methods on `ComponentEncoding` to get specific
-// section encoders that automatically flush and write out prior sections as
-// necessary.
-macro_rules! section_accessors {
-    ($($method:ident => $section:ident)*) => (
-        #[derive(Default)]
-        enum LastSection {
-            #[default]
-            None,
-            $($section($section),)*
-        }
-
-        impl ComponentEncoding {
-            $(
-                fn $method(&mut self) -> &mut $section {
-                    match &self.last_section {
-                        // The last encoded section matches the section that's
-                        // being requested, so no change is necessary.
-                        LastSection::$section(_) => {}
-
-                        // Otherwise the last section didn't match this section,
-                        // so flush any prior section if needed and start
-                        // encoding the desired section of this method.
-                        _ => {
-                            self.flush();
-                            self.last_section = LastSection::$section($section::new());
-                        }
-                    }
-                    match &mut self.last_section {
-                        LastSection::$section(ret) => ret,
-                        _ => unreachable!()
-                    }
-                }
-            )*
-
-            /// Writes out the last section into the final component binary if
-            /// there is a section specified, otherwise does nothing.
-            fn flush(&mut self) {
-                match mem::take(&mut self.last_section) {
-                    LastSection::None => {}
-                    $(
-                        LastSection::$section(section) => {
-                            self.component.section(&section);
-                        }
-                    )*
-                }
-            }
-
-        }
-    )
-}
-
-section_accessors! {
-    component_instances => ComponentInstanceSection
-    instances => InstanceSection
-    canonical_functions => CanonicalFunctionSection
-    aliases => ComponentAliasSection
-    exports => ComponentExportSection
-    imports => ComponentImportSection
-}
-
-fn inc(idx: &mut u32) -> u32 {
-    let ret = *idx;
-    *idx += 1;
-    ret
-}
-
-/// The import encoder handles indirect lowering of any imports
-/// that require canonical options to be specified.
-///
-/// Lowering of such imports is done through a shim module that
-/// defines a table of functions and exports functions that indirectly
-/// call through the table.
-///
-/// Another module is responsible for "fixing-up" the table of functions
-/// once the functions have been lowered, after the core module is instantiated.
-///
-/// If a lowering does not require canonical options, the import is lowered before
-/// the core module is instantiated and passed directly as an instantiation argument.
-#[derive(Default)]
-struct ImportEncoder<'a> {
-    map: IndexMap<&'a str, ImportedInterface<'a>>,
-    adapters: IndexMap<&'a str, ValidatedAdapter<'a>>,
-    direct_count: u32,
-    indirect_count: u32,
-}
-
-impl<'a> ImportEncoder<'a> {
-    fn import(
-        &mut self,
-        name: &'a str,
-        interface: &'a Interface,
-        ty: ComponentTypeRef,
-        funcs: Option<&IndexSet<&'a str>>,
-    ) -> Result<()> {
-        match self.map.entry(name) {
-            indexmap::map::Entry::Occupied(e) => {
-                if e.get().ty != ty {
-                    bail!("duplicate import `{name}`")
-                }
-            }
-            indexmap::map::Entry::Vacant(e) => {
-                let mut direct = Vec::new();
-                let mut indirect = Vec::new();
-                for f in &interface.functions {
-                    if let Some(funcs) = funcs {
-                        if !funcs.contains(f.name.as_str()) {
-                            continue;
-                        }
-                    }
-                    let options = RequiredOptions::for_import(interface, f);
-
-                    if options.is_empty() {
-                        self.direct_count += 1;
-                        direct.push(DirectLowering { name: &f.name });
-                    } else {
-                        let sig = interface.wasm_signature(AbiVariant::GuestImport, f);
-                        self.indirect_count += 1;
-                        indirect.push(IndirectLowering {
-                            name: &f.name,
-                            sig,
-                            options,
-                        });
-                    }
-                }
-
-                e.insert(ImportedInterface {
-                    ty,
-                    url: interface.url.as_deref().unwrap_or(""),
-                    direct,
-                    indirect,
-                });
-            }
-        }
-
-        Ok(())
-    }
-}
-
 /// An encoder of components based on `wit` interface definitions.
 #[derive(Default)]
 pub struct ComponentEncoder {
     module: Vec<u8>,
-    metadata: BindgenMetadata,
+    metadata: Bindgen,
     validate: bool,
     types_only: bool,
 
@@ -2155,7 +1118,8 @@ pub struct ComponentEncoder {
     //   stripped.
     // * the metadata for the adapter, verified to have no exports and only
     //   imports.
-    adapters: IndexMap<String, (Vec<u8>, BindgenMetadata)>,
+    // * The world within `self.metadata.doc` which the adapter works with.
+    adapters: IndexMap<String, (Vec<u8>, ModuleMetadata, WorldId)>,
 }
 
 impl ComponentEncoder {
@@ -2175,13 +1139,22 @@ impl ComponentEncoder {
         self
     }
 
-    /// Add a "world" of interfaces (exports/imports/default) to this encoder
-    /// to configure what's being imported/exported.
+    /// Add a document to this encoder as a manual specification of what's being
+    /// imported/exported.
     ///
     /// The string encoding of the specified world is supplied here as
     /// well.
-    pub fn world(mut self, world: World, encoding: StringEncoding) -> Result<Self> {
-        self.metadata.merge(BindgenMetadata::new(world, encoding))?;
+    ///
+    /// Note that this can also be inferred from the `module` input if the
+    /// module embeds its own metadata. This is otherwise required to describe
+    /// imports/exports that aren't otherwise self-descried in `module`.
+    pub fn document(mut self, doc: Document, encoding: StringEncoding) -> Result<Self> {
+        let world = doc.default_world()?;
+        self.metadata.merge(Bindgen {
+            metadata: ModuleMetadata::new(&doc, world, encoding),
+            doc,
+            world,
+        })?;
         Ok(self)
     }
 
@@ -2204,7 +1177,12 @@ impl ComponentEncoder {
     /// in the core wasm that's being wrapped.
     pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
-        self.adapters.insert(name.to_string(), (wasm, metadata));
+        // Merge the adapter's document into our own document to have one large
+        // document, but the adapter's world isn't merged in to our world so
+        // retain it separately.
+        let world = self.metadata.doc.merge(metadata.doc).world_map[metadata.world.index()];
+        self.adapters
+            .insert(name.to_string(), (wasm, metadata.metadata, world));
         Ok(self)
     }
 
@@ -2217,132 +1195,85 @@ impl ComponentEncoder {
 
     /// Encode the component and return the bytes.
     pub fn encode(&self) -> Result<Vec<u8>> {
-        let info = if !self.module.is_empty() {
-            let adapters = self
-                .adapters
-                .keys()
-                .map(|s| s.as_str())
-                .collect::<IndexSet<_>>();
-            Some(validate_module(&self.module, &self.metadata, &adapters)?)
-        } else {
-            None
+        let doc = &self.metadata.doc;
+        let world = ComponentWorld::new(self)?;
+        let mut state = EncodingState {
+            component: ComponentBuilder::default(),
+            module_index: None,
+            instance_index: None,
+            memory_index: None,
+            realloc_index: None,
+            shim_instance_index: None,
+            fixups_module_index: None,
+            adapter_modules: IndexMap::new(),
+            adapter_instances: IndexMap::new(),
+            adapter_import_reallocs: IndexMap::new(),
+            adapter_export_reallocs: IndexMap::new(),
+            type_map: HashMap::new(),
+            func_type_map: HashMap::new(),
+            imported_instances: Default::default(),
+            info: &world,
         };
-
-        let mut state = EncodingState::default();
-        let mut types = TypeEncoder::default();
-        let mut imports = ImportEncoder::default();
-        types.encode_func_types(self.metadata.world.exports().map(|p| p.0))?;
-        types.encode_instance_imports(&self.metadata.world.imports, info.as_ref(), &mut imports)?;
-
-        for (_name, (_, metadata)) in self.adapters.iter() {
-            types.encode_func_types(metadata.world.exports().map(|p| p.0))?;
-        }
+        let world = &doc.worlds[self.metadata.world];
+        state.encode_imports()?;
 
         if self.types_only {
             if !self.module.is_empty() {
                 bail!("a module cannot be specified for a types-only encoding");
             }
 
-            // In "types only" mode the main difference is how exports are
-            // encoded, imports are the same as usual. Exported interfaces are
-            // represented with an exported instance type, and exported default
-            // interfaces are represented as direct exports from the component
-            // itself.
-            let mut raw_exports = Vec::new();
-            let mut default_exports = Vec::new();
-            for (interface, name) in self.metadata.world.exports() {
+            // In types-only mode there's no actual items to export so skip
+            // shims/adapters etc. Instead instance types are exported to
+            // represent exported instances and exported types represent the
+            // default export.
+            for (id, name) in world.exports() {
+                let interface = &doc.interfaces[id];
+                let url = interface.url.as_deref().unwrap_or("");
                 match name {
                     Some(name) => {
-                        let index = types
-                            .encode_interface_as_instance_type(interface, None)?
-                            .unwrap();
-                        raw_exports.push((
-                            name,
-                            interface.url.as_deref().unwrap_or(""),
-                            ComponentExportKind::Type,
-                            index,
-                        ));
+                        let mut ty = state.instance_type_encoder(id);
+                        for func in interface.functions.iter() {
+                            let idx = ty.encode_func_type(doc, func)?;
+                            ty.ty.export(&func.name, "", ComponentTypeRef::Func(idx));
+                        }
+                        let ty = ty.ty;
+                        if ty.is_empty() {
+                            continue;
+                        }
+                        let index = state.component.instance_type(&ty);
+                        state
+                            .component
+                            .export(name, url, ComponentExportKind::Type, index);
                     }
                     None => {
-                        default_exports = types
-                            .encode_interface_as_instance_type_exports(interface, None)?
-                            .unwrap();
+                        let mut ty = state.root_type_encoder(id);
+                        for func in interface.functions.iter() {
+                            let idx = ty.encode_func_type(doc, func)?;
+                            ty.state.component.export(
+                                &func.name,
+                                "",
+                                ComponentExportKind::Type,
+                                idx,
+                            );
+                        }
+                        for (idx, name) in ty.type_exports {
+                            ty.state
+                                .component
+                                .export(name, "", ComponentExportKind::Type, idx);
+                        }
                     }
                 }
-            }
-
-            types.finish(&mut state.component);
-            state.encode_imports(&imports);
-
-            for (name, url, ty, index) in raw_exports {
-                state.component.export(name, url, ty, index);
-            }
-
-            // Default exports are encoded without a URL since all of the
-            // items being exported come from the same interface
-            for (name, ty) in default_exports {
-                let index = match ty {
-                    ComponentTypeRef::Type(_, idx) => idx,
-                    ComponentTypeRef::Func(idx) => idx,
-                    _ => unimplemented!(),
-                };
-                state
-                    .component
-                    .export(name, "", ComponentExportKind::Type, index);
             }
         } else {
             if self.module.is_empty() {
                 bail!("a module is required when encoding a component");
             }
-            let info = info.as_ref().unwrap();
 
-            // Process adapters which are required here. Iterate over all
-            // adapters and figure out what functions are required from the
-            // adapter itself, either because the functions are imported by the
-            // main module or they're part of the adapter's exports.
-            for (name, (wasm, metadata)) in self.adapters.iter() {
-                let required =
-                    required_adapter_exports(info.adapters_required.get(name.as_str()), metadata);
-                if required.is_empty() {
-                    continue;
-                }
-                let wasm = crate::gc::run(wasm, &required)
-                    .context("failed to reduce input adapter module to its minimal size")?;
-                let info = validate_adapter_module(&wasm, metadata, &required)
-                    .context("failed to validate the imports of the minimized adapter module")?;
-                state.encode_core_adapter_module(name, &wasm);
-                for (name, required) in info.required_imports.iter() {
-                    let interface = &metadata.world.imports[*name];
-                    types.encode_instance_import(name, interface, Some(required), &mut imports)?;
-                }
-                imports.adapters.insert(name, info);
-            }
-
-            for (interface, _default) in self.metadata.world.exports() {
-                types.encode_interface_named_types(interface)?;
-            }
-
-            types.finish(&mut state.component);
-
-            state.encode_imports(&imports);
-            state.encode_core_module(&self.module);
-            state.encode_core_instantiation(&imports, info)?;
-            state.encode_exports(
-                &types,
-                &self.metadata,
-                state.instance_index.expect("instantiated by now"),
-                state.realloc_index,
-            )?;
-            for (name, (_, metadata)) in self.adapters.iter() {
-                if metadata.world.exports().count() == 0 {
-                    continue;
-                }
-                state.encode_exports(
-                    &types,
-                    metadata,
-                    state.adapter_instances[name.as_str()],
-                    state.adapter_export_reallocs[name.as_str()],
-                )?;
+            state.encode_core_modules();
+            state.encode_core_instantiation()?;
+            state.encode_exports(self, CustomModule::Main)?;
+            for name in self.adapters.keys() {
+                state.encode_exports(self, CustomModule::Adapter(name))?;
             }
         }
 
@@ -2360,43 +1291,5 @@ impl ComponentEncoder {
         }
 
         Ok(bytes)
-    }
-}
-
-fn required_adapter_exports(
-    required_by_import: Option<&IndexMap<&str, FuncType>>,
-    metadata: &BindgenMetadata,
-) -> IndexMap<String, FuncType> {
-    use wasmparser::ValType;
-
-    let mut required = IndexMap::new();
-    if let Some(imports) = required_by_import {
-        for (name, ty) in imports {
-            required.insert(name.to_string(), ty.clone());
-        }
-    }
-    for (interface, name) in metadata.world.exports() {
-        for func in interface.functions.iter() {
-            let name = func.core_export_name(name);
-            let ty = interface.wasm_signature(AbiVariant::GuestExport, func);
-            let prev = required.insert(
-                name.into_owned(),
-                wasmparser::FuncType::new(
-                    ty.params.iter().map(to_valty),
-                    ty.results.iter().map(to_valty),
-                ),
-            );
-            assert!(prev.is_none());
-        }
-    }
-    return required;
-
-    fn to_valty(ty: &WasmType) -> ValType {
-        match ty {
-            WasmType::I32 => ValType::I32,
-            WasmType::I64 => ValType::I64,
-            WasmType::F32 => ValType::F32,
-            WasmType::F64 => ValType::F64,
-        }
     }
 }

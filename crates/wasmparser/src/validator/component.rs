@@ -6,7 +6,7 @@ use super::{
     types::{
         ComponentFuncType, ComponentInstanceType, ComponentInstanceTypeKind, ComponentType,
         ComponentValType, EntityType, InstanceType, KebabString, ModuleType, RecordType, Type,
-        TypeId, TypeList, VariantCase,
+        TypeAlloc, TypeId, TypeList, VariantCase,
     },
 };
 use crate::{
@@ -73,7 +73,7 @@ pub(crate) struct ComponentState {
     export_urls: HashSet<String>,
 
     has_start: bool,
-    type_size: usize,
+    type_size: u32,
 }
 
 impl ComponentState {
@@ -93,7 +93,7 @@ impl ComponentState {
         components: &mut [Self],
         ty: crate::CoreType,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
@@ -114,13 +114,8 @@ impl ComponentState {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        current.core_types.push(TypeId::new(
-            ty.type_size(),
-            types.len(),
-            Some(current.core_types.len()),
-            true,
-        ));
-        types.push(ty);
+        let id = types.push_defined(ty);
+        current.core_types.push(id);
 
         Ok(())
     }
@@ -128,7 +123,7 @@ impl ComponentState {
     pub fn add_core_module(
         &mut self,
         module: &Module,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let imports = module.imports_for_module_type(offset)?;
@@ -142,10 +137,8 @@ impl ComponentState {
             exports: module.exports.clone(),
         });
 
-        self.core_modules
-            .push(TypeId::new(ty.type_size(), types.len(), None, true));
-
-        types.push(ty);
+        let id = types.push_anon(ty);
+        self.core_modules.push(id);
 
         Ok(())
     }
@@ -153,7 +146,7 @@ impl ComponentState {
     pub fn add_core_instance(
         &mut self,
         instance: crate::Instance,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let instance = match instance {
@@ -174,7 +167,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         ty: crate::ComponentType,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
@@ -209,13 +202,8 @@ impl ComponentState {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        current.types.push(TypeId::new(
-            ty.type_size(),
-            types.len(),
-            Some(current.types.len()),
-            false,
-        ));
-        types.push(ty);
+        let id = types.push_defined(ty);
+        current.types.push(id);
 
         Ok(())
     }
@@ -368,7 +356,7 @@ impl ComponentState {
         &mut self,
         func_index: u32,
         options: Vec<CanonicalOption>,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let ty = types[self.function_at(func_index, offset)?]
@@ -383,31 +371,27 @@ impl ComponentState {
 
         let lowered_ty = Type::Func(info.into_func_type());
 
-        self.core_funcs
-            .push(TypeId::new(lowered_ty.type_size(), types.len(), None, true));
-
-        types.push(lowered_ty);
+        let id = types.push_anon(lowered_ty);
+        self.core_funcs.push(id);
 
         Ok(())
     }
 
-    pub fn add_component(&mut self, component: &mut Self, types: &mut TypeList) {
+    pub fn add_component(&mut self, component: &mut Self, types: &mut TypeAlloc) {
         let ty = Type::Component(ComponentType {
             type_size: component.type_size,
             imports: mem::take(&mut component.imports),
             exports: mem::take(&mut component.exports),
         });
 
-        self.components
-            .push(TypeId::new(ty.type_size(), types.len(), None, false));
-
-        types.push(ty);
+        let id = types.push_anon(ty);
+        self.components.push(id);
     }
 
     pub fn add_instance(
         &mut self,
         instance: crate::ComponentInstance,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let instance = match instance {
@@ -428,7 +412,7 @@ impl ComponentState {
     pub fn add_alias(
         components: &mut [Self],
         alias: crate::ComponentAlias,
-        types: &TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         match alias {
@@ -459,9 +443,11 @@ impl ComponentState {
                     Self::alias_module(components, count, index, offset)
                 }
                 ComponentOuterAliasKind::CoreType => {
-                    Self::alias_core_type(components, count, index, offset)
+                    Self::alias_core_type(components, count, index, types, offset)
                 }
-                ComponentOuterAliasKind::Type => Self::alias_type(components, count, index, offset),
+                ComponentOuterAliasKind::Type => {
+                    Self::alias_type(components, count, index, types, offset)
+                }
                 ComponentOuterAliasKind::Component => {
                     Self::alias_component(components, count, index, offset)
                 }
@@ -739,7 +725,7 @@ impl ComponentState {
         components: &[Self],
         decls: Vec<crate::ModuleTypeDeclaration>,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ModuleType> {
         let mut state = Module::default();
@@ -797,7 +783,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         decls: Vec<crate::ComponentTypeDeclaration>,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentType> {
         components.push(ComponentState::default());
@@ -829,10 +815,10 @@ impl ComponentState {
                         {
                             match kind {
                                 ComponentOuterAliasKind::CoreType => {
-                                    Self::alias_core_type(components, count, index, offset)?
+                                    Self::alias_core_type(components, count, index, types, offset)?
                                 }
                                 ComponentOuterAliasKind::Type => {
-                                    Self::alias_type(components, count, index, offset)?
+                                    Self::alias_type(components, count, index, types, offset)?
                                 }
                                 _ => unreachable!(),
                             }
@@ -859,7 +845,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         decls: Vec<crate::InstanceTypeDeclaration>,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentInstanceType> {
         components.push(ComponentState::default());
@@ -884,10 +870,10 @@ impl ComponentState {
                     {
                         match kind {
                             ComponentOuterAliasKind::CoreType => {
-                                Self::alias_core_type(components, count, index, offset)?
+                                Self::alias_core_type(components, count, index, types, offset)?
                             }
                             ComponentOuterAliasKind::Type => {
-                                Self::alias_type(components, count, index, offset)?
+                                Self::alias_type(components, count, index, types, offset)?
                             }
                             _ => unreachable!(),
                         }
@@ -978,7 +964,7 @@ impl ComponentState {
         &self,
         module_index: u32,
         module_args: Vec<crate::InstantiationArg>,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
         fn insert_arg<'a>(
@@ -1067,18 +1053,14 @@ impl ComponentState {
             kind: InstanceTypeKind::Instantiated(module_type_id),
         });
 
-        let id = TypeId::new(ty.type_size(), types.len(), None, true);
-
-        types.push(ty);
-
-        Ok(id)
+        Ok(types.push_anon(ty))
     }
 
     fn instantiate_component(
         &mut self,
         component_index: u32,
         component_args: Vec<crate::ComponentInstantiationArg>,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
         fn insert_arg<'a>(
@@ -1206,24 +1188,20 @@ impl ComponentState {
             kind: ComponentInstanceTypeKind::Instantiated(component_type_id),
         });
 
-        let id = TypeId::new(ty.type_size(), types.len(), None, false);
-
-        types.push(ty);
-
-        Ok(id)
+        Ok(types.push_anon(ty))
     }
 
     fn instantiate_exports(
         &mut self,
         exports: Vec<crate::ComponentExport>,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
         fn insert_export(
             name: &str,
             export: ComponentEntityType,
             exports: &mut IndexMap<KebabString, (Option<Url>, ComponentEntityType)>,
-            type_size: &mut usize,
+            type_size: &mut u32,
             offset: usize,
         ) -> Result<()> {
             let name = to_kebab_str(name, "instance export", offset)?;
@@ -1308,24 +1286,20 @@ impl ComponentState {
             kind: ComponentInstanceTypeKind::Exports(inst_exports),
         });
 
-        let id = TypeId::new(ty.type_size(), types.len(), None, false);
-
-        types.push(ty);
-
-        Ok(id)
+        Ok(types.push_anon(ty))
     }
 
     fn instantiate_core_exports(
         &mut self,
         exports: Vec<crate::Export>,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
         fn insert_export(
             name: &str,
             export: EntityType,
             exports: &mut IndexMap<String, EntityType>,
-            type_size: &mut usize,
+            type_size: &mut u32,
             offset: usize,
         ) -> Result<()> {
             *type_size = combine_type_sizes(*type_size, export.type_size(), offset)?;
@@ -1391,11 +1365,7 @@ impl ComponentState {
             kind: InstanceTypeKind::Exports(inst_exports),
         });
 
-        let id = TypeId::new(ty.type_size(), types.len(), None, true);
-
-        types.push(ty);
-
-        Ok(id)
+        Ok(types.push_anon(ty))
     }
 
     fn alias_core_instance_export(
@@ -1471,7 +1441,7 @@ impl ComponentState {
         instance_index: u32,
         kind: ComponentExternalKind,
         name: &str,
-        types: &TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let name = to_kebab_str(name, "alias export", offset)?;
@@ -1550,7 +1520,19 @@ impl ComponentState {
             }
             ComponentExternalKind::Type => {
                 check_max(self.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
-                push_component_export!(ComponentEntityType::Type, types, "type")
+                match self.instance_export(instance_index, name, types, offset)? {
+                    ComponentEntityType::Type(ty) => {
+                        let id = types.with_unique(*ty);
+                        self.types.push(id);
+                        Ok(())
+                    }
+                    _ => {
+                        bail!(
+                            offset,
+                            "export `{name}` for instance {instance_index} is not a type",
+                        )
+                    }
+                }
             }
         }
     }
@@ -1598,6 +1580,7 @@ impl ComponentState {
         components: &mut [Self],
         count: u32,
         index: u32,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
@@ -1606,29 +1589,27 @@ impl ComponentState {
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-        current.core_types.push(TypeId::new(
-            ty.type_size as usize,
-            ty.index,
-            Some(current.core_types.len()),
-            true,
-        ));
+        let id = types.with_unique(ty);
+        current.core_types.push(id);
 
         Ok(())
     }
 
-    fn alias_type(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
+    fn alias_type(
+        components: &mut [Self],
+        count: u32,
+        index: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.type_at(index, false, offset)?;
 
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-        current.types.push(TypeId::new(
-            ty.type_size as usize,
-            ty.index,
-            Some(current.types.len()),
-            false,
-        ));
+        let id = types.with_unique(ty);
+        current.types.push(id);
 
         Ok(())
     }

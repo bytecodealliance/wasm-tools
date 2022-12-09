@@ -7,6 +7,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
 
+mod builder;
 mod decoding;
 mod encoding;
 mod gc;
@@ -14,7 +15,7 @@ mod printing;
 mod validation;
 
 pub use decoding::decode_world;
-pub use encoding::*;
+pub use encoding::ComponentEncoder;
 pub use printing::*;
 
 pub mod metadata;

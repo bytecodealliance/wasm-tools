@@ -1,5 +1,12 @@
 (component
   (core module (;0;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func))
+    (import "old" "nargs" (func (;0;) (type 0)))
+    (func (;1;) (type 1))
+    (export "the_entrypoint" (func 1))
+  )
+  (core module (;1;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
     (type (;2;) (func (result i32)))
@@ -15,14 +22,6 @@
     (global $nargs (;0;) (mut i32) i32.const 0)
     (export "entrypoint" (func 1))
     (export "nargs" (func 2))
-  )
-  (type (;0;) (func (param "nargs" u32)))
-  (core module (;1;)
-    (type (;0;) (func (result i32)))
-    (type (;1;) (func))
-    (import "old" "nargs" (func (;0;) (type 0)))
-    (func (;1;) (type 1))
-    (export "the_entrypoint" (func 1))
   )
   (core module (;2;)
     (type (;0;) (func (result i32)))
@@ -45,7 +44,7 @@
   (core instance (;1;)
     (export "nargs" (func 0))
   )
-  (core instance (;2;) (instantiate 1
+  (core instance (;2;) (instantiate 0
       (with "old" (instance 1))
     )
   )
@@ -53,7 +52,7 @@
   (core instance (;3;)
     (export "the_entrypoint" (func 1))
   )
-  (core instance (;4;) (instantiate 0
+  (core instance (;4;) (instantiate 1
       (with "__main_module__" (instance 3))
     )
   )
@@ -68,6 +67,7 @@
     )
   )
   (alias core export 4 "entrypoint" (core func (;3;)))
+  (type (;0;) (func (param "nargs" u32)))
   (func (;0;) (type 0) (canon lift (core func 3)))
   (export "entrypoint" (func 0))
 )

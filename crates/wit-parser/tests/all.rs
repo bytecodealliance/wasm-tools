@@ -166,35 +166,35 @@ impl Runner<'_> {
     }
 }
 
-fn to_json(document: &Document) -> String {
+fn to_json(doc: &Document) -> String {
     #[derive(Serialize)]
     struct Document {
         #[serde(skip_serializing_if = "Vec::is_empty")]
         worlds: Vec<World>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         interfaces: Vec<Interface>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        types: Vec<Type>,
     }
 
     #[derive(Serialize)]
     struct World {
         name: String,
         #[serde(skip_serializing_if = "Option::is_none")]
-        default: Option<Interface>,
+        default: Option<String>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        imports: Vec<(String, Interface)>,
+        imports: Vec<(String, String)>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        exports: Vec<(String, Interface)>,
+        exports: Vec<(String, String)>,
     }
 
     #[derive(Serialize)]
     struct Interface {
         name: String,
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        types: Vec<TypeDef>,
+        types: Vec<String>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         functions: Vec<Function>,
-        #[serde(skip_serializing_if = "Vec::is_empty")]
-        globals: Vec<Global>,
     }
 
     #[derive(Serialize)]
@@ -266,11 +266,20 @@ fn to_json(document: &Document) -> String {
     }
 
     let document = Document {
-        worlds: document.worlds.iter().map(translate_world).collect(),
-        interfaces: document
+        worlds: doc
+            .worlds
+            .iter()
+            .map(|(_, world)| translate_world(world))
+            .collect(),
+        interfaces: doc
             .interfaces
             .iter()
-            .map(translate_interface)
+            .map(|(_, interface)| translate_interface(interface))
+            .collect(),
+        types: doc
+            .types
+            .iter()
+            .map(|(_, ty)| translate_typedef(ty))
             .collect(),
     };
 
@@ -279,16 +288,16 @@ fn to_json(document: &Document) -> String {
     fn translate_world(w: &wit_parser::World) -> World {
         World {
             name: w.name.clone(),
-            default: w.default.as_ref().map(translate_interface),
+            default: w.default.map(|i| format!("i{}", i.index())),
             imports: w
                 .imports
                 .iter()
-                .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+                .map(|(name, iface)| (name.clone(), format!("i{}", iface.index())))
                 .collect(),
             exports: w
                 .exports
                 .iter()
-                .map(|(name, iface)| (name.clone(), translate_interface(iface)))
+                .map(|(name, iface)| (name.clone(), format!("i{}", iface.index())))
                 .collect(),
         }
     }
@@ -297,12 +306,7 @@ fn to_json(document: &Document) -> String {
         let types = i
             .types
             .iter()
-            .map(|(i, r)| TypeDef {
-                idx: i.index(),
-                name: r.name.clone(),
-                ty: translate_typedef(r),
-                foreign_module: r.foreign_module.clone(),
-            })
+            .map(|i| format!("type-{}", i.index()))
             .collect::<Vec<_>>();
         let functions = i
             .functions
@@ -313,20 +317,11 @@ fn to_json(document: &Document) -> String {
                 results: f.results.iter_types().map(translate_type).collect(),
             })
             .collect::<Vec<_>>();
-        let globals = i
-            .globals
-            .iter()
-            .map(|g| Global {
-                name: g.name.clone(),
-                ty: translate_type(&g.ty),
-            })
-            .collect::<Vec<_>>();
 
         Interface {
             name: i.name.clone(),
             types,
             functions,
-            globals,
         }
     }
 
@@ -399,28 +394,6 @@ fn to_json(document: &Document) -> String {
 }
 
 fn test_document(document: &Document) {
-    for interface in &document.interfaces {
-        test_interface(interface);
-    }
-
-    for world in &document.worlds {
-        test_world(world);
-    }
-}
-
-fn test_world(world: &World) {
-    for (_, interface) in world.imports.iter() {
-        test_interface(interface);
-    }
-    for (_, interface) in world.exports.iter() {
-        test_interface(interface);
-    }
-    if let Some(default) = &world.default {
-        test_interface(default);
-    }
-}
-
-fn test_interface(interface: &Interface) {
     let mut sizes = SizeAlign::default();
-    sizes.fill(interface);
+    sizes.fill(document);
 }

@@ -1,5 +1,0 @@
-`a` is defined more than once
-     --> tests/ui/parse-fail/duplicate-value.wit:5:3
-      |
-    5 |   a: u32
-      |   ^

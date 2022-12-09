@@ -1,0 +1,22 @@
+(component
+  (type (;0;)
+    (instance
+      (type (;0;) (func (param "x" bool)))
+      (export "name" (func (type 0)))
+    )
+  )
+  (import "foo" (instance (;0;) (type 0)))
+  (core module (;0;)
+    (type (;0;) (func (param i32)))
+    (import "foo" "name" (func (;0;) (type 0)))
+  )
+  (alias export 0 "name" (func (;0;)))
+  (core func (;0;) (canon lower (func 0)))
+  (core instance (;0;)
+    (export "name" (func 0))
+  )
+  (core instance (;1;) (instantiate 0
+      (with "foo" (instance 0))
+    )
+  )
+)

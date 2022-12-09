@@ -2,55 +2,51 @@
   "worlds": [
     {
       "name": "foo",
-      "default": {
-        "name": "",
-        "types": [
-          {
-            "idx": 0,
-            "list": "u8"
-          },
-          {
-            "idx": 1,
-            "tuple": {
-              "types": [
-                "type-0"
-              ]
-            }
-          }
-        ],
-        "functions": [
-          {
-            "name": "a",
-            "params": [],
-            "results": [
-              "type-1"
-            ]
-          }
-        ]
-      },
+      "default": "i1",
       "imports": [
         [
           "foo",
-          {
-            "name": "",
-            "types": [
-              {
-                "idx": 0,
-                "list": "u8"
-              }
-            ],
-            "functions": [
-              {
-                "name": "a",
-                "params": [],
-                "results": [
-                  "type-0"
-                ]
-              }
-            ]
-          }
+          "i0"
         ]
       ]
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "",
+      "functions": [
+        {
+          "name": "a",
+          "params": [],
+          "results": [
+            "type-0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "",
+      "functions": [
+        {
+          "name": "a",
+          "params": [],
+          "results": [
+            "type-1"
+          ]
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "list": "u8"
+    },
+    {
+      "tuple": {
+        "types": [
+          "type-0"
+        ]
+      }
     }
   ]
 }

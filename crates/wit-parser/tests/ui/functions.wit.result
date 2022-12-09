@@ -2,28 +2,6 @@
   "interfaces": [
     {
       "name": "functions",
-      "types": [
-        {
-          "idx": 0,
-          "tuple": {
-            "types": [
-              "u32",
-              "u32"
-            ]
-          }
-        },
-        {
-          "idx": 1,
-          "option": "u32"
-        },
-        {
-          "idx": 2,
-          "result": {
-            "ok": "u32",
-            "err": "float32"
-          }
-        }
-      ],
       "functions": [
         {
           "name": "f1",
@@ -98,6 +76,25 @@
           "results": []
         }
       ]
+    }
+  ],
+  "types": [
+    {
+      "tuple": {
+        "types": [
+          "u32",
+          "u32"
+        ]
+      }
+    },
+    {
+      "option": "u32"
+    },
+    {
+      "result": {
+        "ok": "u32",
+        "err": "float32"
+      }
     }
   ]
 }
