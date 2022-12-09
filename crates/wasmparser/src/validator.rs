@@ -74,7 +74,7 @@ fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: usi
     Ok(())
 }
 
-fn combine_type_sizes(a: usize, b: usize, offset: usize) -> Result<usize> {
+fn combine_type_sizes(a: u32, b: u32, offset: usize) -> Result<u32> {
     match a.checked_add(b) {
         Some(sum) if sum < MAX_WASM_TYPE_SIZE => Ok(sum),
         _ => Err(format_err!(

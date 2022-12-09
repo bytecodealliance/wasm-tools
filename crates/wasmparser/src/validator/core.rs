@@ -456,7 +456,7 @@ pub(crate) struct Module {
     pub function_references: HashSet<u32>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
-    pub type_size: usize,
+    pub type_size: u32,
     num_imported_globals: u32,
     num_imported_functions: u32,
 }

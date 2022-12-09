@@ -73,7 +73,7 @@ pub(crate) struct ComponentState {
     export_urls: HashSet<String>,
 
     has_start: bool,
-    type_size: usize,
+    type_size: u32,
 }
 
 impl ComponentState {
@@ -1201,7 +1201,7 @@ impl ComponentState {
             name: &str,
             export: ComponentEntityType,
             exports: &mut IndexMap<KebabString, (Option<Url>, ComponentEntityType)>,
-            type_size: &mut usize,
+            type_size: &mut u32,
             offset: usize,
         ) -> Result<()> {
             let name = to_kebab_str(name, "instance export", offset)?;
@@ -1299,7 +1299,7 @@ impl ComponentState {
             name: &str,
             export: EntityType,
             exports: &mut IndexMap<String, EntityType>,
-            type_size: &mut usize,
+            type_size: &mut u32,
             offset: usize,
         ) -> Result<()> {
             *type_size = combine_type_sizes(*type_size, export.type_size(), offset)?;

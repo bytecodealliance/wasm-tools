@@ -330,15 +330,21 @@ pub struct TypeId {
     ///
     /// This is stored as part of the ID to avoid having to recurse through
     /// the global type list when calculating type sizes.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// A unique integer assigned to this type.
     ///
     /// The purpose of this field is to ensure that two different `TypeId`
     /// representations can be handed out for two different aliased types within
     /// a component that actually point to the same underlying type (as pointed
     /// to by the `index` field).
-    unique_id: usize,
+    unique_id: u32,
 }
+
+// The size of `TypeId` was seen to have a large-ish impact in #844, so this
+// assert ensures that it stays relatively small.
+const _: () = {
+    assert!(std::mem::size_of::<TypeId>() <= 16);
+};
 
 /// A unified type definition for validating WebAssembly modules and components.
 #[derive(Debug)]
@@ -428,9 +434,9 @@ impl Type {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
-            Self::Func(ty) => 1 + ty.params().len() + ty.results().len(),
+            Self::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
             Self::Module(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,
@@ -516,10 +522,10 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Primitive(_) => 1,
-            Self::Type(id) => id.type_size as usize,
+            Self::Type(id) => id.type_size,
         }
     }
 }
@@ -589,9 +595,9 @@ impl EntityType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
-            Self::Func(id) | Self::Tag(id) => id.type_size as usize,
+            Self::Func(id) | Self::Tag(id) => id.type_size,
             Self::Table(_) | Self::Memory(_) | Self::Global(_) => 1,
         }
     }
@@ -647,7 +653,7 @@ impl ModuleImportKey for (&str, &str) {
 #[derive(Debug, Clone)]
 pub struct ModuleType {
     /// The effective type size for the module type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The imports of the module type.
     pub imports: IndexMap<(String, String), EntityType>,
     /// The exports of the module type.
@@ -696,7 +702,7 @@ pub enum InstanceTypeKind {
 #[derive(Debug, Clone)]
 pub struct InstanceType {
     /// The effective type size for the module instance type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The kind of module instance type.
     pub kind: InstanceTypeKind,
 }
@@ -793,13 +799,13 @@ impl ComponentEntityType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Module(ty)
             | Self::Func(ty)
             | Self::Type(ty)
             | Self::Instance(ty)
-            | Self::Component(ty) => ty.type_size as usize,
+            | Self::Component(ty) => ty.type_size,
             Self::Value(ty) => ty.type_size(),
         }
     }
@@ -809,7 +815,7 @@ impl ComponentEntityType {
 #[derive(Debug, Clone)]
 pub struct ComponentType {
     /// The effective type size for the component type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The imports of the component type.
     pub imports: IndexMap<KebabString, (Option<Url>, ComponentEntityType)>,
     /// The exports of the component type.
@@ -853,7 +859,7 @@ pub enum ComponentInstanceTypeKind {
 #[derive(Debug, Clone)]
 pub struct ComponentInstanceType {
     /// The effective type size for the instance type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The kind of instance type.
     pub kind: ComponentInstanceTypeKind,
 }
@@ -907,7 +913,7 @@ impl ComponentInstanceType {
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType {
     /// The effective type size for the component function type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The function parameters.
     pub params: Box<[(KebabString, ComponentValType)]>,
     /// The function's results.
@@ -1041,7 +1047,7 @@ pub struct VariantCase {
 #[derive(Debug, Clone)]
 pub struct RecordType {
     /// The effective type size for the record type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The map of record fields.
     pub fields: IndexMap<KebabString, ComponentValType>,
 }
@@ -1050,7 +1056,7 @@ pub struct RecordType {
 #[derive(Debug, Clone)]
 pub struct VariantType {
     /// The effective type size for the variant type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The map of variant cases.
     pub cases: IndexMap<KebabString, VariantCase>,
 }
@@ -1059,7 +1065,7 @@ pub struct VariantType {
 #[derive(Debug, Clone)]
 pub struct TupleType {
     /// The effective type size for the tuple type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The types of the tuple.
     pub types: Box<[ComponentValType]>,
 }
@@ -1068,7 +1074,7 @@ pub struct TupleType {
 #[derive(Debug, Clone)]
 pub struct UnionType {
     /// The inclusive type count for the union type.
-    pub(crate) type_size: usize,
+    pub(crate) type_size: u32,
     /// The types of the union.
     pub types: Box<[ComponentValType]>,
 }
@@ -1203,7 +1209,7 @@ impl ComponentDefinedType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> usize {
+    pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Primitive(_) => 1,
             Self::Flags(_) | Self::Enum(_) => 1,
@@ -2111,7 +2117,7 @@ pub(crate) type TypeList = SnapshotList<Type>;
 /// types contained within this list.
 pub(crate) struct TypeAlloc {
     list: TypeList,
-    unique_counter: usize,
+    unique_counter: u32,
 }
 
 impl Deref for TypeAlloc {
