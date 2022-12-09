@@ -8,18 +8,9 @@ use wit_parser::Document;
 /// Tests the encoding of the "types only" mode of `wit-component`.
 ///
 /// This test looks in the `interfaces/` directory for test cases in a similar
-/// format to those in the `components/` where there's a bunch of:
-///
-/// * `import-*.wit`
-/// * `export-*.wit`
-/// * `default.wit`
-///
-/// Where these represent the "world" of a component. Eventually this should
-/// probably become just one file. For now though this suffices and plumbs
-/// through the respective arguments of `wit-component`. The `*.wit` files are
-/// encoded in "types only" mode and verified against `types_only.wat` and then
-/// additionally encoded in normal mode with a dummy module to verify that works
-/// as well.
+/// format to those in the `components/` where there's a `world.wit` which is
+/// encoded as `types_only.wat` and additionally encoded in normal mode with a
+/// dummy module to verify that works as well.
 ///
 /// Run the test with the environment variable `BLESS` set to update
 /// the wat baseline file.

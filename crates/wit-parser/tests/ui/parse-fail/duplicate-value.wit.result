@@ -1,5 +1,0 @@
-expected '(', found keyword `s32`
-     --> tests/ui/parse-fail/duplicate-value.wit:4:6
-      |
-    4 |   a: s32
-      |      ^

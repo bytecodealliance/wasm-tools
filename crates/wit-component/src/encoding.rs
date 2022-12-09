@@ -542,11 +542,7 @@ impl<'a> EncodingState<'a> {
         self.component.instantiate_core_exports(exports)
     }
 
-    fn encode_exports<'b>(
-        &mut self,
-        opts: &'a ComponentEncoder,
-        module: CustomModule,
-    ) -> Result<()> {
+    fn encode_exports(&mut self, opts: &'a ComponentEncoder, module: CustomModule) -> Result<()> {
         let doc = &opts.metadata.doc;
         let metadata = match module {
             CustomModule::Main => &opts.metadata.metadata,

@@ -5,7 +5,7 @@ impl Document {
     ///
     /// This method is an infallible operation that will append all of the
     /// contents of `other` into `self`. All types, interfaces, and worlds are
-    /// moved over en-masse. The return value is a structur which can be used to
+    /// moved over en-masse. The return value is a structure which can be used to
     /// remap old within `Document` to new ids.
     //
     // Note that this should eventually not error on duplicate interfaces but

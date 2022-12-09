@@ -99,7 +99,7 @@ impl DocumentPrinter {
             types_to_declare.push(*ty_id);
         }
 
-        // Generate a `use` statemenet for all imported types.
+        // Generate a `use` statement for all imported types.
         for (id, tys) in types_to_import {
             write!(&mut self.output, "use {{ ")?;
             for (i, (my_name, other_name)) in tys.into_iter().enumerate() {

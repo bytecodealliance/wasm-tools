@@ -211,7 +211,9 @@ pub struct ValidatedAdapter<'a> {
     /// import from the `required_import` above.
     pub needs_memory: Option<(String, String)>,
 
-    /// TKTK
+    /// Set of names required to be exported from the main module which are
+    /// imported by this adapter through the `__main_module__` synthetic export.
+    /// This is how the WASI adapter imports `_start`, for example.
     pub needs_core_exports: IndexSet<String>,
 
     /// Name of the exported function to use for the realloc canonical option

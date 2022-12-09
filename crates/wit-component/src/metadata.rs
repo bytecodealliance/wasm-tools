@@ -38,7 +38,7 @@ use wit_parser::{Document, World, WorldId};
 
 const CURRENT_VERSION: u8 = 0x01;
 
-/// Resulting of decoding a `*.wit` interface from a WebAssembly binary.
+/// The result of decoding binding information from a WebAssembly binary.
 ///
 /// This structure is returned by [`decode`] and represents the interface of a
 /// WebAssembly binary.
@@ -47,7 +47,7 @@ pub struct Bindgen {
     pub doc: Document,
     /// The world that was bound.
     pub world: WorldId,
-    /// Metadata abuot this specific module that was bound.
+    /// Metadata about this specific module that was bound.
     pub metadata: ModuleMetadata,
 }
 
@@ -77,8 +77,8 @@ pub struct ModuleMetadata {
 }
 
 /// This function will parse the `wasm` binary given as input and return a
-/// [`BindgenMetadata`] which extracts the custom sections describing
-/// component-level types from within the binary itself.
+/// [`Bindgen`] which extracts the custom sections describing component-level
+/// types from within the binary itself.
 ///
 /// This is used to parse the output of `wit-bindgen`-generated modules and is
 /// one of the earliest phases in transitioning such a module to a component.
@@ -217,7 +217,7 @@ impl Bindgen {
 }
 
 impl ModuleMetadata {
-    /// Creates a new `BindgenMetadata` instance holding the given set of
+    /// Creates a new `ModuleMetadata` instance holding the given set of
     /// interfaces which are expected to all use the `encoding` specified.
     pub fn new(doc: &Document, world: WorldId, encoding: StringEncoding) -> ModuleMetadata {
         let mut ret = ModuleMetadata::default();

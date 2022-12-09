@@ -209,12 +209,6 @@ impl Document {
         }
     }
 
-    // pub fn topological_imports(&self, world: WorldId) -> Vec<(&str, InterfaceId)> {
-    //     let world = &self.worlds[world];
-    //     let mut imports = Vec::new();
-    //     for
-    // }
-
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
         match ty {
             Type::U8
