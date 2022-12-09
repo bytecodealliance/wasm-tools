@@ -4352,11 +4352,11 @@ fn memory_offset(u: &mut Unstructured, module: &Module, memory_index: u32) -> Re
         // work. 16 is the number of bytes of the largest load type (V128).
         (true, true) => {
             let no_trap_max = (i64::MAX - 16) as u64;
-            (min, no_trap_max, no_trap_max)
+            (min.min(no_trap_max), no_trap_max, no_trap_max)
         }
         (false, true) => {
             let no_trap_max = (i32::MAX - 16) as u64;
-            (min, no_trap_max, no_trap_max)
+            (min.min(no_trap_max), no_trap_max, no_trap_max)
         }
     };
 
