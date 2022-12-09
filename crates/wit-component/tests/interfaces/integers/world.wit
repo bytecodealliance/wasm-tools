@@ -36,7 +36,6 @@ interface integers {
   pair-ret: func() -> tuple<s64, u8>
 
   multi-ret: func() -> (a: s64, b: u8)
-
 }
 
 world integers-world {

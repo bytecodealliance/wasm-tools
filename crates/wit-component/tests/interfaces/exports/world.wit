@@ -4,7 +4,6 @@ interface foo {
   }
 
   my-function: func(a: my-struct) -> string
-
 }
 
 world export-foo {

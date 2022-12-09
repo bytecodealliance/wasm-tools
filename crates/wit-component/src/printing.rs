@@ -121,7 +121,10 @@ impl DocumentPrinter {
             self.declare_type(doc, &Type::Id(id))?;
         }
 
-        for func in &interface.functions {
+        for (i, func) in interface.functions.iter().enumerate() {
+            if i > 0 {
+                self.output.push_str("\n");
+            }
             write!(&mut self.output, "{}: func(", func.name)?;
             for (i, (name, ty)) in func.params.iter().enumerate() {
                 if i > 0 {
@@ -157,7 +160,7 @@ impl DocumentPrinter {
                 }
             }
 
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
 
         Ok(())

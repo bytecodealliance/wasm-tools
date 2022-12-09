@@ -160,7 +160,6 @@ interface imports {
   roundtrip-flag32: func(x: flag32) -> flag32
 
   roundtrip-flag64: func(x: flag64) -> flag64
-
 }
 
 world flags-world {

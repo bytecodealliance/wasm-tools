@@ -87,7 +87,6 @@ interface lists {
   variant-list: func(x: list<some-variant>) -> list<other-variant>
 
   load-store-everything: func(a: load-store-all-sizes) -> load-store-all-sizes
-
 }
 
 world lists-world {

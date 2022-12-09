@@ -4,7 +4,6 @@ interface foo {
   type b = a
 
   f: func(a: a) -> b
-
 }
 
 interface foo0 {
@@ -13,7 +12,6 @@ interface foo0 {
   type b = a
 
   f: func(a: a) -> b
-
 }
 
 world my-world {

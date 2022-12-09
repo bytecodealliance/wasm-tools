@@ -52,7 +52,6 @@ interface records {
   aggregate-result: func() -> aggregates
 
   typedef-inout: func(e: tuple-typedef2) -> s32
-
 }
 
 interface records0 {
@@ -113,7 +112,6 @@ interface records0 {
   typedef-inout: func(e: tuple-typedef2) -> s32
 
   tuple-tupledef-user: func() -> tuple-typedef
-
 }
 
 world records-world {

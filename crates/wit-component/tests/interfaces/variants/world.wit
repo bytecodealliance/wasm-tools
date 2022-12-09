@@ -95,7 +95,6 @@ interface variants {
   return-option-sugar2: func() -> option<my-errno>
 
   expected-simple: func() -> result<u32, s32>
-
 }
 
 world variants-world {
