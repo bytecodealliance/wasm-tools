@@ -13,29 +13,23 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, BinaryReaderError, FromReader, OperatorsReader, Result, SectionLimited, ValType,
-};
+use crate::{BinaryReader, FromReader, OperatorsReader, Result, SectionLimited, ValType};
 use std::ops::Range;
 
 /// A reader for the code section of a WebAssembly module.
 pub type CodeSectionReader<'a> = SectionLimited<'a, FunctionBody<'a>>;
 
 /// Represents a WebAssembly function body.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct FunctionBody<'a> {
-    offset: usize,
-    data: &'a [u8],
-    allow_memarg64: bool,
+    reader: BinaryReader<'a>,
 }
 
 impl<'a> FunctionBody<'a> {
     /// Constructs a new `FunctionBody` for the given data and offset.
     pub fn new(offset: usize, data: &'a [u8]) -> Self {
         Self {
-            offset,
-            data,
-            allow_memarg64: false,
+            reader: BinaryReader::new_with_offset(data, offset),
         }
     }
 
@@ -45,17 +39,12 @@ impl<'a> FunctionBody<'a> {
     /// This is intended to be `true` when support for the memory64
     /// WebAssembly proposal is also enabled.
     pub fn allow_memarg64(&mut self, allow: bool) {
-        self.allow_memarg64 = allow;
+        self.reader.allow_memarg64(allow);
     }
 
     /// Gets a binary reader for this function body.
-    pub fn get_binary_reader<'b>(&self) -> BinaryReader<'b>
-    where
-        'a: 'b,
-    {
-        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
-        reader.allow_memarg64(self.allow_memarg64);
-        reader
+    pub fn get_binary_reader(&self) -> BinaryReader<'a> {
+        self.reader.clone()
     }
 
     fn skip_locals(reader: &mut BinaryReader) -> Result<()> {
@@ -68,51 +57,29 @@ impl<'a> FunctionBody<'a> {
     }
 
     /// Gets the locals reader for this function body.
-    pub fn get_locals_reader<'b>(&self) -> Result<LocalsReader<'b>>
-    where
-        'a: 'b,
-    {
-        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
+    pub fn get_locals_reader(&self) -> Result<LocalsReader<'a>> {
+        let mut reader = self.reader.clone();
         let count = reader.read_var_u32()?;
         Ok(LocalsReader { reader, count })
     }
 
     /// Gets the operators reader for this function body.
-    pub fn get_operators_reader<'b>(&self) -> Result<OperatorsReader<'b>>
-    where
-        'a: 'b,
-    {
-        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
+    pub fn get_operators_reader(&self) -> Result<OperatorsReader<'a>> {
+        let mut reader = self.reader.clone();
         Self::skip_locals(&mut reader)?;
-        let pos = reader.position;
-        let mut reader = OperatorsReader::new(&self.data[pos..], self.offset + pos);
-        reader.allow_memarg64(self.allow_memarg64);
-        Ok(reader)
+        Ok(OperatorsReader::new(reader))
     }
 
     /// Gets the range of the function body.
     pub fn range(&self) -> Range<usize> {
-        self.offset..self.offset + self.data.len()
+        self.reader.range()
     }
 }
 
 impl<'a> FromReader<'a> for FunctionBody<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let size = reader.read_var_u32()? as usize;
-        let body_start = reader.position;
-        let body_end = body_start + size;
-        if reader.buffer.len() < body_end {
-            return Err(BinaryReaderError::new(
-                "function body extends past end of the code section",
-                reader.original_offset + reader.buffer.len(),
-            ));
-        }
-        reader.skip_to(body_end);
-        Ok(FunctionBody {
-            offset: reader.original_offset + body_start,
-            data: &reader.buffer[body_start..body_end],
-            allow_memarg64: false,
-        })
+        let reader = reader.read_reader("function body extends past end of the code section")?;
+        Ok(FunctionBody { reader })
     }
 }
 

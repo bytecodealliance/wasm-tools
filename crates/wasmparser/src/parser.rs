@@ -546,7 +546,7 @@ impl Parser {
                 if id & 0x80 != 0 {
                     return Err(BinaryReaderError::new("malformed section id", id_pos));
                 }
-                let len_pos = reader.position;
+                let len_pos = reader.original_position();
                 let mut len = reader.read_var_u32()?;
 
                 // Test to make sure that this section actually fits within
@@ -890,17 +890,6 @@ fn section<'a, T>(
     Ok(variant(reader))
 }
 
-/// Creates a new `BinaryReader` from the given `reader` which will be reading
-/// the first `len` bytes.
-///
-/// This means that `len` bytes must be resident in memory at the time of this
-/// reading.
-fn subreader<'a>(reader: &mut BinaryReader<'a>, len: u32) -> Result<BinaryReader<'a>> {
-    let offset = reader.original_position();
-    let payload = reader.read_bytes(len as usize)?;
-    Ok(BinaryReader::new_with_offset(payload, offset))
-}
-
 /// Reads a section that is represented by a single uleb-encoded `u32`.
 fn single_item<'a, T>(
     reader: &mut BinaryReader<'a>,
@@ -911,7 +900,7 @@ where
     T: FromReader<'a>,
 {
     let range = reader.original_position()..reader.original_position() + len as usize;
-    let mut content = subreader(reader, len)?;
+    let mut content = BinaryReader::new_with_offset(reader.read_bytes(len as usize)?, range.start);
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are
     // expected.

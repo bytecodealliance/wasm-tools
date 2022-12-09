@@ -259,10 +259,7 @@ impl<'a, T> Subsections<'a, T> {
         T: Subsection<'a>,
     {
         let subsection_id = self.reader.read_u7()?;
-        let payload_len = self.reader.read_var_u32()? as usize;
-        let offset = self.reader.original_position();
-        let data = self.reader.read_bytes(payload_len)?;
-        let reader = BinaryReader::new_with_offset(data, offset);
+        let reader = self.reader.read_reader("unexpected end of section")?;
         T::from_reader(subsection_id, reader)
     }
 }

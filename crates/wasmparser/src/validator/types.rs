@@ -324,13 +324,13 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 /// Represents a unique identifier for a type known to a [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeId {
+    /// The index into the global list of types.
+    pub(crate) index: usize,
     /// The effective type size for the type.
     ///
     /// This is stored as part of the ID to avoid having to recurse through
     /// the global type list when calculating type sizes.
     pub(crate) type_size: usize,
-    /// The index into the global list of types.
-    pub(crate) index: usize,
     /// A unique integer assigned to this type.
     ///
     /// The purpose of this field is to ensure that two different `TypeId`
@@ -519,7 +519,7 @@ impl ComponentValType {
     pub(crate) fn type_size(&self) -> usize {
         match self {
             Self::Primitive(_) => 1,
-            Self::Type(id) => id.type_size,
+            Self::Type(id) => id.type_size as usize,
         }
     }
 }
@@ -591,7 +591,7 @@ impl EntityType {
 
     pub(crate) fn type_size(&self) -> usize {
         match self {
-            Self::Func(id) | Self::Tag(id) => id.type_size,
+            Self::Func(id) | Self::Tag(id) => id.type_size as usize,
             Self::Table(_) | Self::Memory(_) | Self::Global(_) => 1,
         }
     }
@@ -799,7 +799,7 @@ impl ComponentEntityType {
             | Self::Func(ty)
             | Self::Type(ty)
             | Self::Instance(ty)
-            | Self::Component(ty) => ty.type_size,
+            | Self::Component(ty) => ty.type_size as usize,
             Self::Value(ty) => ty.type_size(),
         }
     }

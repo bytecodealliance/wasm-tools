@@ -436,7 +436,7 @@ impl Validator {
             } => self.code_section_start(*count, range)?,
             CodeSectionEntry(body) => {
                 let func_validator = self.code_section_entry(body)?;
-                return Ok(ValidPayload::Func(func_validator, *body));
+                return Ok(ValidPayload::Func(func_validator, body.clone()));
             }
             DataSection(s) => self.data_section(s)?,
 

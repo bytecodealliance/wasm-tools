@@ -137,7 +137,7 @@ impl PeepholeMutator {
                 return Err(Error::no_mutations_applicable());
             }
 
-            let reader = readers[function_to_mutate as usize];
+            let reader = readers[function_to_mutate as usize].clone();
             let mut operatorreader = reader.get_operators_reader()?;
             operatorreader.allow_memarg64(true);
             let mut localsreader = reader.get_locals_reader()?;
@@ -272,7 +272,7 @@ impl PeepholeMutator {
 
                         config.consume_fuel(1)?;
 
-                        let mut newfunc = self.copy_locals(reader)?;
+                        let mut newfunc = self.copy_locals(reader.clone())?;
                         let needed_resources = Encoder::build_function(
                             config,
                             opcode_to_mutate,
