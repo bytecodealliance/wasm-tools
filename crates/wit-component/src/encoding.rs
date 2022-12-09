@@ -397,10 +397,10 @@ impl<'a> EncodingState<'a> {
                 // If there were any live types from this instance which weren't
                 // otherwise reached through the above function types then this
                 // will forward them through.
-                if let Some(live) = encoder.state.info.live_types.get(&info.interface).cloned() {
+                if let Some(live) = encoder.state.info.live_types.get(&info.interface) {
                     for ty in live {
                         log::trace!("encoding extra type {ty:?}");
-                        encoder.encode_valtype(doc, &Type::Id(ty))?;
+                        encoder.encode_valtype(doc, &Type::Id(*ty))?;
                     }
                 }
 
