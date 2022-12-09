@@ -1299,7 +1299,7 @@ impl Module {
                     // it will fit. Afterwards ensure that the offset of the
                     // data segment is in-bounds by clamping it to the
                     if self.config.disallow_traps() {
-                        let max_size = mem.minimum * 64 * 1024;
+                        let max_size = (u64::MAX / 64 / 1024).min(mem.minimum) * 64 * 1024;
                         init.truncate(max_size as usize);
                         let max_offset = max_size - init.len() as u64;
                         match &mut offset {
