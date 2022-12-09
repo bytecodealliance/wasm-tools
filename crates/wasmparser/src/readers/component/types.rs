@@ -24,11 +24,11 @@ impl<'a> FromReader<'a> for CoreType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x60 => CoreType::Func(reader.read()?),
-            0x50 => {
-                let size =
-                    reader.read_size(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?;
-                CoreType::Module((0..size).map(|_| reader.read()).collect::<Result<_>>()?)
-            }
+            0x50 => CoreType::Module(
+                reader
+                    .read_iter(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?
+                    .collect::<Result<_>>()?,
+            ),
             x => return reader.invalid_leading_byte(x, "core type"),
         })
     }
@@ -235,21 +235,23 @@ pub enum ComponentType<'a> {
 impl<'a> FromReader<'a> for ComponentType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
-            0x40 => ComponentType::Func(ComponentFuncType {
-                params: reader
-                    .read_type_vec(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?,
-                results: reader.read()?,
-            }),
-            0x41 => {
-                let size = reader
-                    .read_size(MAX_WASM_COMPONENT_TYPE_DECLS, "component type declaration")?;
-                ComponentType::Component((0..size).map(|_| reader.read()).collect::<Result<_>>()?)
+            0x40 => {
+                let params = reader
+                    .read_iter(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?
+                    .collect::<Result<_>>()?;
+                let results = reader.read()?;
+                ComponentType::Func(ComponentFuncType { params, results })
             }
-            0x42 => {
-                let size =
-                    reader.read_size(MAX_WASM_INSTANCE_TYPE_DECLS, "instance type declaration")?;
-                ComponentType::Instance((0..size).map(|_| reader.read()).collect::<Result<_>>()?)
-            }
+            0x41 => ComponentType::Component(
+                reader
+                    .read_iter(MAX_WASM_COMPONENT_TYPE_DECLS, "component type declaration")?
+                    .collect::<Result<_>>()?,
+            ),
+            0x42 => ComponentType::Instance(
+                reader
+                    .read_iter(MAX_WASM_INSTANCE_TYPE_DECLS, "instance type declaration")?
+                    .collect::<Result<_>>()?,
+            ),
             x => {
                 if let Some(ty) = PrimitiveValType::from_byte(x) {
                     ComponentType::Defined(ComponentDefinedType::Primitive(ty))
@@ -354,7 +356,9 @@ impl<'a> FromReader<'a> for ComponentFuncResult<'a> {
         Ok(match reader.read_u8()? {
             0x00 => ComponentFuncResult::Unnamed(reader.read()?),
             0x01 => ComponentFuncResult::Named(
-                reader.read_type_vec(MAX_WASM_FUNCTION_RETURNS, "component function results")?,
+                reader
+                    .read_iter(MAX_WASM_FUNCTION_RETURNS, "component function results")?
+                    .collect::<Result<_>>()?,
             ),
             x => return reader.invalid_leading_byte(x, "component function results"),
         })
@@ -466,43 +470,37 @@ pub enum ComponentDefinedType<'a> {
 impl<'a> ComponentDefinedType<'a> {
     fn read(reader: &mut BinaryReader<'a>, byte: u8) -> Result<ComponentDefinedType<'a>> {
         Ok(match byte {
-            0x72 => {
-                let size = reader.read_size(MAX_WASM_RECORD_FIELDS, "record field")?;
-                ComponentDefinedType::Record(
-                    (0..size)
-                        .map(|_| Ok((reader.read_string()?, reader.read()?)))
-                        .collect::<Result<_>>()?,
-                )
-            }
-            0x71 => {
-                let size = reader.read_size(MAX_WASM_VARIANT_CASES, "variant cases")?;
-                ComponentDefinedType::Variant(
-                    (0..size).map(|_| reader.read()).collect::<Result<_>>()?,
-                )
-            }
+            0x72 => ComponentDefinedType::Record(
+                reader
+                    .read_iter(MAX_WASM_RECORD_FIELDS, "record field")?
+                    .collect::<Result<_>>()?,
+            ),
+            0x71 => ComponentDefinedType::Variant(
+                reader
+                    .read_iter(MAX_WASM_VARIANT_CASES, "variant cases")?
+                    .collect::<Result<_>>()?,
+            ),
             0x70 => ComponentDefinedType::List(reader.read()?),
-            0x6f => {
-                let size = reader.read_size(MAX_WASM_TUPLE_TYPES, "tuple types")?;
-                ComponentDefinedType::Tuple(
-                    (0..size).map(|_| reader.read()).collect::<Result<_>>()?,
-                )
-            }
-            0x6e => {
-                let size = reader.read_size(MAX_WASM_FLAG_NAMES, "flag names")?;
-                ComponentDefinedType::Flags(
-                    (0..size).map(|_| reader.read()).collect::<Result<_>>()?,
-                )
-            }
-            0x6d => {
-                let size = reader.read_size(MAX_WASM_ENUM_CASES, "enum cases")?;
-                ComponentDefinedType::Enum((0..size).map(|_| reader.read()).collect::<Result<_>>()?)
-            }
-            0x6c => {
-                let size = reader.read_size(MAX_WASM_UNION_TYPES, "union types")?;
-                ComponentDefinedType::Union(
-                    (0..size).map(|_| reader.read()).collect::<Result<_>>()?,
-                )
-            }
+            0x6f => ComponentDefinedType::Tuple(
+                reader
+                    .read_iter(MAX_WASM_TUPLE_TYPES, "tuple types")?
+                    .collect::<Result<_>>()?,
+            ),
+            0x6e => ComponentDefinedType::Flags(
+                reader
+                    .read_iter(MAX_WASM_FLAG_NAMES, "flag names")?
+                    .collect::<Result<_>>()?,
+            ),
+            0x6d => ComponentDefinedType::Enum(
+                reader
+                    .read_iter(MAX_WASM_ENUM_CASES, "enum cases")?
+                    .collect::<Result<_>>()?,
+            ),
+            0x6c => ComponentDefinedType::Union(
+                reader
+                    .read_iter(MAX_WASM_UNION_TYPES, "union types")?
+                    .collect::<Result<_>>()?,
+            ),
             0x6b => ComponentDefinedType::Option(reader.read()?),
             0x6a => ComponentDefinedType::Result {
                 ok: reader.read()?,

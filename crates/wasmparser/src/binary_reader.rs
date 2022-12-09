@@ -17,6 +17,7 @@ use crate::{limits::*, *};
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
+use std::marker;
 use std::ops::Range;
 use std::str;
 
@@ -194,20 +195,6 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
-    /// Reads a core WebAssembly value type from the binary reader.
-    pub fn read_val_type(&mut self) -> Result<ValType> {
-        match Self::val_type_from_byte(self.peek()?) {
-            Some(ty) => {
-                self.position += 1;
-                Ok(ty)
-            }
-            None => Err(BinaryReaderError::new(
-                "invalid value type",
-                self.original_position(),
-            )),
-        }
-    }
-
     pub(crate) fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
         match byte {
             0x00 => Ok(ExternalKind::Func),
@@ -219,25 +206,38 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub(crate) fn read_type_vec(
-        &mut self,
-        max: usize,
-        desc: &str,
-    ) -> Result<Box<[(&'a str, ComponentValType)]>> {
-        let size = self.read_size(max, desc)?;
-        (0..size)
-            .map(|_| Ok((self.read_string()?, self.read()?)))
-            .collect::<Result<_>>()
-    }
-
-    // Reads a variable-length 32-bit size from the byte stream while checking
-    // against a limit.
-    pub(crate) fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
+    /// Reads a variable-length 32-bit size from the byte stream while checking
+    /// against a limit.
+    pub fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
+        let pos = self.original_position();
         let size = self.read_var_u32()? as usize;
         if size > limit {
-            bail!(self.original_position() - 4, "{desc} size is out of bounds");
+            bail!(pos, "{desc} size is out of bounds");
         }
         Ok(size)
+    }
+
+    /// Reads a variable-length 32-bit size from the byte stream while checking
+    /// against a limit.
+    ///
+    /// Then reads that many values of type `T` and returns them as an iterator.
+    ///
+    /// Note that regardless of how many items are read from the returned
+    /// iterator the items will still be parsed from this reader.
+    pub fn read_iter<'me, T>(
+        &'me mut self,
+        limit: usize,
+        desc: &str,
+    ) -> Result<BinaryReaderIter<'a, 'me, T>>
+    where
+        T: FromReader<'a>,
+    {
+        let size = self.read_size(limit, desc)?;
+        Ok(BinaryReaderIter {
+            remaining: size,
+            reader: self,
+            _marker: marker::PhantomData,
+        })
     }
 
     fn read_first_byte_and_var_u32(&mut self) -> Result<(u8, u32)> {
@@ -676,19 +676,6 @@ impl<'a> BinaryReader<'a> {
         Ok(self.buffer[self.position])
     }
 
-    fn val_type_from_byte(byte: u8) -> Option<ValType> {
-        match byte {
-            0x7F => Some(ValType::I32),
-            0x7E => Some(ValType::I64),
-            0x7D => Some(ValType::F32),
-            0x7C => Some(ValType::F64),
-            0x7B => Some(ValType::V128),
-            0x70 => Some(ValType::FuncRef),
-            0x6F => Some(ValType::ExternRef),
-            _ => None,
-        }
-    }
-
     fn read_block_type(&mut self) -> Result<BlockType> {
         let b = self.peek()?;
 
@@ -699,7 +686,7 @@ impl<'a> BinaryReader<'a> {
         }
 
         // Check for a block type of form [] -> [t].
-        if let Some(ty) = Self::val_type_from_byte(b) {
+        if let Some(ty) = ValType::from_byte(b) {
             self.position += 1;
             return Ok(BlockType::Type(ty));
         }
@@ -803,7 +790,7 @@ impl<'a> BinaryReader<'a> {
                         self.position,
                     ));
                 }
-                visitor.visit_typed_select(self.read_val_type()?)
+                visitor.visit_typed_select(self.read()?)
             }
 
             0x20 => visitor.visit_local_get(self.read_var_u32()?),
@@ -981,7 +968,7 @@ impl<'a> BinaryReader<'a> {
             0xc3 => visitor.visit_i64_extend16_s(),
             0xc4 => visitor.visit_i64_extend32_s(),
 
-            0xd0 => visitor.visit_ref_null(self.read_val_type()?),
+            0xd0 => visitor.visit_ref_null(self.read()?),
             0xd1 => visitor.visit_ref_is_null(),
             0xd2 => visitor.visit_ref_func(self.read_var_u32()?),
 
@@ -1640,4 +1627,47 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
     type Output = Operator<'a>;
 
     for_each_operator!(define_visit_operator);
+}
+
+/// Iterator returned from [`BinaryReader::read_iter`].
+pub struct BinaryReaderIter<'a, 'me, T: FromReader<'a>> {
+    remaining: usize,
+    reader: &'me mut BinaryReader<'a>,
+    _marker: marker::PhantomData<T>,
+}
+
+impl<'a, T> Iterator for BinaryReaderIter<'a, '_, T>
+where
+    T: FromReader<'a>,
+{
+    type Item = Result<T>;
+
+    fn next(&mut self) -> Option<Result<T>> {
+        if self.remaining == 0 {
+            None
+        } else {
+            let ret = self.reader.read::<T>();
+            if ret.is_err() {
+                self.remaining = 0;
+            } else {
+                self.remaining -= 1;
+            }
+            Some(ret)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a, T> Drop for BinaryReaderIter<'a, '_, T>
+where
+    T: FromReader<'a>,
+{
+    fn drop(&mut self) {
+        while self.next().is_some() {
+            // ...
+        }
+    }
 }
