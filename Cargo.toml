@@ -42,12 +42,12 @@ wasmtime = { version = "3.0.0", default-features = false, features = ['cranelift
 
 wasm-encoder = { version = "0.20.0", path = "crates/wasm-encoder"}
 wasm-compose = { version = "0.2.1", path = "crates/wasm-compose"}
-wasm-mutate = { version = "0.2.12", path = "crates/wasm-mutate" }
+wasm-mutate = { version = "0.2.13", path = "crates/wasm-mutate" }
 wasm-shrink = { version = "0.1.14", path = "crates/wasm-shrink" }
-wasm-smith = { version = "0.11.9", path = "crates/wasm-smith" }
-wasmparser = { version = "0.95.0", path = "crates/wasmparser" }
+wasm-smith = { version = "0.11.10", path = "crates/wasm-smith" }
+wasmparser = { version = "0.96.0", path = "crates/wasmparser" }
 wasmparser-dump = { version = "0.1.12", path = "crates/dump" }
-wasmprinter = { version = "0.2.44", path = "crates/wasmprinter" }
+wasmprinter = { version = "0.2.45", path = "crates/wasmprinter" }
 wast = { version = "50.0.0", path = "crates/wast" }
 wat = { version = "1.0.52", path = "crates/wat" }
 wit-component = { version = "0.3.2", path = "crates/wit-component" }
