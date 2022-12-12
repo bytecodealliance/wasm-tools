@@ -2,16 +2,22 @@ use super::{Error, Func, InterfaceItem, ParamList, ResultList, Span, Value, Valu
 use crate::*;
 use anyhow::Result;
 use indexmap::IndexMap;
+use petgraph::{algo::toposort, graphmap::DiGraphMap};
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
 #[derive(Default)]
 pub struct Resolver {
+    // Type names defined in each interface; the position within the vec
+    // corresponds to the containing interface's InterfaceId.
+    interface_type_names: Vec<IndexMap<String, TypeId>>,
+
     type_lookup: IndexMap<String, TypeId>,
     types: Arena<TypeDef>,
     anon_types: HashMap<Key, TypeId>,
     functions: Vec<Function>,
     interfaces: Arena<Interface>,
+    interface_lookup: IndexMap<String, InterfaceId>,
     worlds: Arena<World>,
 }
 
@@ -31,21 +37,75 @@ enum Key {
 }
 
 impl Resolver {
-    pub(crate) fn resolve(&mut self, ast: &ast::Ast<'_>) -> Result<Document> {
-        let mut interface_map = IndexMap::new();
+    fn resolve_interfaces(&mut self, ast: &ast::Ast<'_>) -> Result<()> {
+        let mut graph = DiGraphMap::<&str, usize>::new();
+        let mut defs: HashMap<&str, Span> = Default::default();
 
+        // Register all interface names
         for interface in ast.interfaces() {
-            let name = &interface.name.name;
-            let instance = self.resolve_interface(name, &interface.items, &interface.docs)?;
-
-            if interface_map.insert(name.to_string(), instance).is_some() {
+            let name = &*interface.name.name;
+            let span = interface.name.span;
+            if defs.insert(name, span).is_some() {
                 return Err(Error {
                     span: interface.name.span,
                     msg: format!("interface `{name}` is defined more than once"),
                 }
                 .into());
             }
+            graph.add_node(name);
         }
+        // ...then populate use-dependencies
+        for interface in ast.interfaces() {
+            let name = &*interface.name.name;
+
+            for use_ in interface.uses() {
+                let use_name = &*use_.from.name;
+                // Ensure the interface being used is known.
+                if !defs.contains_key(use_name) {
+                    return Err(Error {
+                        span: use_.from.span,
+                        msg: format!("interface `{use_name}` is undefined"),
+                    }
+                    .into());
+                }
+                graph.add_edge(name, use_name, 0);
+            }
+        }
+
+        match toposort(&graph, None) {
+            Ok(ordered) => {
+                let sorted = ordered
+                    .into_iter()
+                    .rev()
+                    .map(|name| ast.interfaces().find(|i| &*i.name.name == name).unwrap());
+
+                for interface in sorted {
+                    let items = &interface.items;
+                    let name = &interface.name.name;
+                    let docs = &interface.docs;
+                    let instance = self.resolve_interface(name, items, docs)?;
+                    assert!(self
+                        .interface_lookup
+                        .insert(name.to_string(), instance)
+                        .is_none());
+                }
+
+                Ok(())
+            }
+            Err(cycle) => {
+                let name = cycle.node_id();
+                let span = defs[name];
+                return Err(Error {
+                    span,
+                    msg: format!("interface `{name}` contains a use cycle"),
+                }
+                .into());
+            }
+        }
+    }
+
+    pub(crate) fn resolve(&mut self, ast: &ast::Ast<'_>) -> Result<Document> {
+        self.resolve_interfaces(ast)?;
 
         for w in ast.worlds() {
             let mut world = World {
@@ -60,23 +120,11 @@ impl Resolver {
                 match item {
                     WorldItem::Import(import) => {
                         let ast::Import { name, kind } = import;
-                        self.insert_extern(
-                            name,
-                            kind,
-                            "import",
-                            &mut world.imports,
-                            &interface_map,
-                        )?;
+                        self.insert_extern(name, kind, "import", &mut world.imports)?;
                     }
                     WorldItem::Export(export) => {
                         let ast::Export { name, kind } = export;
-                        self.insert_extern(
-                            name,
-                            kind,
-                            "export",
-                            &mut world.exports,
-                            &interface_map,
-                        )?;
+                        self.insert_extern(name, kind, "export", &mut world.exports)?;
                     }
                     WorldItem::ExportDefault(iface) => {
                         if world.default.is_some() {
@@ -87,7 +135,7 @@ impl Resolver {
                             .into());
                         }
 
-                        let iface = self.resolve_extern(iface, &interface_map)?;
+                        let iface = self.resolve_extern(iface)?;
                         world.default = Some(iface);
                     }
                 }
@@ -109,9 +157,8 @@ impl Resolver {
         kind: &ast::ExternKind<'_>,
         direction: &str,
         resolved: &mut IndexMap<String, InterfaceId>,
-        lookup: &IndexMap<String, InterfaceId>,
     ) -> Result<()> {
-        let interface = self.resolve_extern(kind, lookup)?;
+        let interface = self.resolve_extern(kind)?;
         if resolved.insert(id.name.to_string(), interface).is_some() {
             return Err(Error {
                 span: id.span,
@@ -122,23 +169,61 @@ impl Resolver {
         Ok(())
     }
 
-    fn resolve_extern(
-        &mut self,
-        kind: &ast::ExternKind<'_>,
-        lookup: &IndexMap<String, InterfaceId>,
-    ) -> Result<InterfaceId> {
+    fn resolve_extern(&mut self, kind: &ast::ExternKind<'_>) -> Result<InterfaceId> {
         match kind {
             ast::ExternKind::Interface(_span, items) => {
                 self.resolve_interface("", items, &Default::default())
             }
-            ast::ExternKind::Id(id) => lookup.get(&*id.name).cloned().ok_or_else(|| {
-                Error {
-                    span: id.span,
-                    msg: format!("{} not defined", id.name),
-                }
-                .into()
-            }),
+            ast::ExternKind::Id(id) => {
+                self.interface_lookup
+                    .get(&*id.name)
+                    .cloned()
+                    .ok_or_else(|| {
+                        Error {
+                            span: id.span,
+                            msg: format!("{} not defined", id.name),
+                        }
+                        .into()
+                    })
+            }
         }
+    }
+
+    fn process_use(&mut self, fields: &[InterfaceItem<'_>]) -> Result<()> {
+        for item in fields.iter() {
+            let u = match item {
+                InterfaceItem::Use(u) => u,
+                _ => continue,
+            };
+            let dep_id = self.interface_lookup[&*u.from.name];
+            let from_name = &u.from.name;
+            for name in u.names.iter() {
+                let (my_name, span) = match &name.as_ {
+                    Some(id) => (&id.name, id.span),
+                    None => (&name.name.name, name.name.span),
+                };
+                let dep_names = &self.interface_type_names[dep_id.index()];
+
+                let use_type_name = name.name.name.to_string();
+
+                match dep_names.get(&use_type_name) {
+                    Some(type_id) => {
+                        self.define_type(my_name, span, *type_id)?;
+                    }
+                    None => {
+                        return Err(Error {
+                            span: name.name.span,
+                            msg: format!(
+                                "type `{}` not defined in interface `{}`",
+                                name.name.name, from_name,
+                            ),
+                        }
+                        .into())
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn resolve_interface(
@@ -147,6 +232,8 @@ impl Resolver {
         fields: &[InterfaceItem<'_>],
         docs: &super::Docs<'_>,
     ) -> Result<InterfaceId> {
+        // First resolve any names introduced by `use`
+        self.process_use(fields)?;
         // ... then register our own names
         self.register_names(fields)?;
 
@@ -177,8 +264,12 @@ impl Resolver {
                         &mut valid_types,
                     )?;
                 }
+                InterfaceItem::Use(_) => {}
             }
         }
+
+        let type_names = self.type_lookup.clone();
+        self.interface_type_names.push(type_names);
 
         let iface = Interface {
             name: name.to_string(),
@@ -218,6 +309,7 @@ impl Resolver {
                         .into());
                     }
                 }
+                InterfaceItem::Use(_) => {}
             }
         }
 

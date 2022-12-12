@@ -16,6 +16,7 @@ Tooling for parsing `*.wit` files and working with their contents.
 id-arena = "2"
 anyhow = { workspace = true }
 indexmap = { workspace = true }
+petgraph = "0.6.2"
 pulldown-cmark = { version = "0.8", default-features = false }
 unicode-xid = "0.2.2"
 

@@ -168,6 +168,14 @@ pub struct Interface<'a> {
 }
 
 impl<'a> Interface<'a> {
+    pub fn uses(&self) -> impl Iterator<Item = &Use<'a>> {
+        self.items.iter().filter_map(|item| match item {
+            InterfaceItem::Use(item) => Some(item),
+            InterfaceItem::TypeDef(_) => None,
+            InterfaceItem::Value(_) => None,
+        })
+    }
+
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
@@ -192,6 +200,47 @@ impl<'a> Interface<'a> {
 pub enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
     Value(Value<'a>),
+    Use(Use<'a>),
+}
+
+pub struct Use<'a> {
+    pub names: Vec<UseName<'a>>,
+    pub from: Id<'a>,
+}
+
+pub struct UseName<'a> {
+    pub name: Id<'a>,
+    pub as_: Option<Id<'a>>,
+}
+
+impl<'a> Use<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>, _docs: Docs<'a>) -> Result<Self> {
+        tokens.expect(Token::Use)?;
+        let names = Use::parse_names(tokens)?;
+        tokens.expect(Token::From_)?;
+        let from = parse_id(tokens)?;
+        Ok(Use { names, from })
+    }
+
+    fn parse_names(tokens: &mut Tokenizer<'a>) -> Result<Vec<UseName<'a>>> {
+        tokens.expect(Token::LeftBrace)?;
+        let mut names = Vec::new();
+        loop {
+            let mut name = UseName {
+                name: parse_id(tokens)?,
+                as_: None,
+            };
+            if tokens.eat(Token::As)? {
+                name.as_ = Some(parse_id(tokens)?);
+            }
+            names.push(name);
+            if !tokens.eat(Token::Comma)? {
+                break;
+            }
+        }
+        tokens.expect(Token::RightBrace)?;
+        Ok(names)
+    }
 }
 
 pub struct Id<'a> {
@@ -399,7 +448,8 @@ impl<'a> InterfaceItem<'a> {
             Some((_span, Token::Id)) | Some((_span, Token::ExplicitId)) => {
                 Value::parse(tokens, docs).map(InterfaceItem::Value)
             }
-            other => Err(err_expected(tokens, "`type` or `func`", other).into()),
+            Some((_span, Token::Use)) => Use::parse(tokens, docs).map(InterfaceItem::Use),
+            other => Err(err_expected(tokens, "`use`, `type` or `func`", other).into()),
         }
     }
 }
