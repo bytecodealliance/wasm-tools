@@ -481,12 +481,17 @@ impl Printer {
         ) -> Result<()> {
             for indirect in names {
                 let indirect = indirect?;
-                let mut used = HashSet::new();
+                let mut used = match name {
+                    // labels can be shadowed, so maintaining the used names is not useful.
+                    "label" => None,
+                    "local" => Some(HashSet::new()),
+                    _ => unimplemented!("{name} is an unknown type of indirect names"),
+                };
                 for naming in indirect.names {
                     let naming = naming?;
                     into.insert(
                         (indirect.index, naming.index),
-                        Naming::new(naming.name, naming.index, name, &mut used),
+                        Naming::new(naming.name, naming.index, name, used.as_mut()),
                     );
                 }
             }
@@ -496,7 +501,7 @@ impl Printer {
         for section in names {
             match section? {
                 Name::Module { name, .. } => {
-                    let name = Naming::new(name, 0, "module", &mut HashSet::new());
+                    let name = Naming::new(name, 0, "module", None);
                     state.name = Some(name);
                 }
                 Name::Function(n) => name_map(&mut state.core.func_names, n, "func")?,
@@ -522,7 +527,7 @@ impl Printer {
         for section in names {
             match section? {
                 ComponentName::Component { name, .. } => {
-                    let name = Naming::new(name, 0, "component", &mut HashSet::new());
+                    let name = Naming::new(name, 0, "component", None);
                     state.name = Some(name);
                 }
                 ComponentName::CoreFuncs(n) => {
@@ -2402,7 +2407,12 @@ impl Printer {
 }
 
 impl Naming {
-    fn new<'a>(name: &'a str, index: u32, group: &str, used: &mut HashSet<&'a str>) -> Naming {
+    fn new<'a>(
+        name: &'a str,
+        index: u32,
+        group: &str,
+        used: Option<&mut HashSet<&'a str>>,
+    ) -> Naming {
         let mut identifier = None;
 
         // If the `name` provided can't be used as the raw identifier for the
@@ -2413,8 +2423,8 @@ impl Naming {
         // * Identifiers have a fixed set of valid characters
         // * For wasmprinter's purposes we "reserve" identifiers with the `#`
         //   prefix, which is in theory rare to encounter in practice.
-        // * If the name has already been used for some other item then it can't
-        //   be reused.
+        // * If the name has already been used for some other item and cannot
+        //   be reused (e.g. because shadowing in this context is not possible).
         //
         // If any of these conditions match then we generate a unique identifier
         // based on `name` but not it exactly. By factoring in the `group`,
@@ -2426,7 +2436,7 @@ impl Naming {
         if name.is_empty()
             || name.chars().any(|c| !is_idchar(c))
             || name.starts_with('#')
-            || !used.insert(name)
+            || used.map(|set| !set.insert(name)).unwrap_or(false)
         {
             let mut id = String::new();
             id.push('#');
@@ -2523,7 +2533,7 @@ fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>, name: &str) -> 
         let naming = naming?;
         into.insert(
             naming.index,
-            Naming::new(naming.name, naming.index, name, &mut used),
+            Naming::new(naming.name, naming.index, name, Some(&mut used)),
         );
     }
     Ok(())
