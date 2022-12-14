@@ -2,17 +2,18 @@ interface foo {}
 interface bar {}
 
 world the-world {
-  import foo: foo
-  import bar: bar
+  import foo: self.foo
+  import bar: self.bar
   import baz: interface {
     foo: func()
   }
-  export foo: foo
-  export bar: bar
+  export foo: self.foo
+  export bar: self.bar
   export baz: interface {
     foo: func()
   }
+}
 
-  default export interface {
-  }
+default world a-different-world {
+  import foo: self.foo
 }

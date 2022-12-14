@@ -1,5 +1,5 @@
 // parse-fail
 
 world foo {
-  import bar: bar
+  import bar: self.bar
 }

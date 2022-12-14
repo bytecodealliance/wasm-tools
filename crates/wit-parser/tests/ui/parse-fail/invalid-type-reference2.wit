@@ -1,0 +1,4 @@
+interface foo {
+  x: func()
+  y: func() -> x
+}

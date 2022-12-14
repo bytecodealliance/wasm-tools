@@ -1,0 +1,5 @@
+default interface not specified in document
+     --> tests/ui/parse-fail/bad-pkg3/root.wit:2:11
+      |
+    2 |   use bar.baz.{}
+      |           ^--

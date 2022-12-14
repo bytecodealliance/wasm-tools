@@ -1,0 +1,3 @@
+// parse-fail
+default interface foo {}
+default interface bar {}

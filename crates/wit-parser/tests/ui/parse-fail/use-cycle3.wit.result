@@ -1,0 +1,5 @@
+interface `foo` depends on itself
+     --> tests/ui/parse-fail/use-cycle3.wit:5:11
+      |
+    5 |   use pkg.use-cycle3.{bar}
+      |           ^---------

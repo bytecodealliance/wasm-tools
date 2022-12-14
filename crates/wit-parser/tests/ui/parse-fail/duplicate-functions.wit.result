@@ -1,4 +1,4 @@
-`foo` is defined more than once
+name `foo` is defined more than once
      --> tests/ui/parse-fail/duplicate-functions.wit:5:3
       |
     5 |   foo: func()

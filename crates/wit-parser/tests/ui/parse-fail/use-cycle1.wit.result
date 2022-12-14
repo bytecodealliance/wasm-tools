@@ -1,0 +1,5 @@
+interface `foo` depends on itself
+     --> tests/ui/parse-fail/use-cycle1.wit:4:12
+      |
+    4 |   use self.foo.{bar}
+      |            ^--

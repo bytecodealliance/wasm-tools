@@ -1,0 +1,6 @@
+// parse-fail
+
+interface foo {
+  use pkg.unresolved-use5.{x}
+}
+

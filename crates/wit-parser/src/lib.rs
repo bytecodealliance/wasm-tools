@@ -1,18 +1,17 @@
-use anyhow::{bail, Context, Result};
-use ast::lex::Tokenizer;
+use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
-use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag};
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::fmt;
 use std::path::Path;
 
 pub mod abi;
 mod ast;
+use ast::{lex::Span, Ast, Resolver, SourceMap};
 mod sizealign;
 pub use sizealign::*;
-mod merge;
-pub use merge::*;
+mod resolve;
+pub use resolve::{Package, PackageId, Resolve};
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -20,260 +19,254 @@ pub fn validate_id(s: &str) -> Result<()> {
     Ok(())
 }
 
-fn unwrap_md(contents: &str) -> String {
-    let mut wit = String::new();
-    let mut last_pos = 0;
-    let mut in_wit_code_block = false;
-    Parser::new_ext(contents, Options::empty())
-        .into_offset_iter()
-        .for_each(|(event, range)| match (event, range) {
-            (Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))), _) => {
-                in_wit_code_block = true;
-            }
-            (Event::Text(text), range) if in_wit_code_block => {
-                // Ensure that offsets are correct by inserting newlines to
-                // cover the Markdown content outside of wit code blocks.
-                for _ in contents[last_pos..range.start].lines() {
-                    wit.push('\n');
-                }
-                wit.push_str(&text);
-                last_pos = range.end;
-            }
-            (Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))), _) => {
-                in_wit_code_block = false;
-            }
-            _ => {}
-        });
-    wit
-}
-
-/// Represents the result of parsing a wit document.
-#[derive(Default, Clone)]
-pub struct Document {
-    /// The worlds contained in the document.
-    pub worlds: Arena<World>,
-    /// The top-level interfaces contained in the document.
-    pub interfaces: Arena<Interface>,
-    /// All types in all interfaces
-    pub types: Arena<TypeDef>,
-}
-
 pub type WorldId = Id<World>;
 pub type InterfaceId = Id<Interface>;
 pub type TypeId = Id<TypeDef>;
+pub type DocumentId = Id<Document>;
 
-impl Document {
+/// Representation of a parsed WIT package which has not resolved external
+/// dependencies yet.
+///
+/// This representation has performed internal resolution of the WIT package
+/// itself, ensuring that all references internally are valid and the WIT was
+/// syntactically valid and such.
+///
+/// The fields of this structure represent a flat list of arrays unioned from
+/// all documents within the WIT package. This means, for example, that all
+/// types from all documents are located in `self.types`. The fields of each
+/// item can help splitting back out into packages/interfaces/etc as necessary.
+///
+/// Note that an `UnresolvedPackage` cannot be queried in general about
+/// information such as size or alignment as that would require resolution of
+/// foreign dependencies. Translations such as to-binary additionally are not
+/// supported on an `UnresolvedPackage` due to the lack of knowledge about the
+/// foreign types. This is intended to be an intermediate state which can be
+/// inspected by embedders, if necessary, before quickly transforming to a
+/// `Resolve` to fully work with a WIT package.
+//
+// TODO: implement and add docs about converting to a `Resolve`
+#[derive(Default, Clone)]
+pub struct UnresolvedPackage {
+    /// All worlds from all documents within this package.
+    ///
+    /// Each world lists the document that it is from.
+    pub worlds: Arena<World>,
+
+    /// All interfaces from all documents within this package.
+    ///
+    /// Each interface lists the document that it is from. Interfaces are listed
+    /// in topological order as well so iteration through this arena will only
+    /// reference prior elements already visited when working with recursive
+    /// references.
+    pub interfaces: Arena<Interface>,
+
+    /// All types from all documents within this package.
+    ///
+    /// Each type lists the interface or world that defined it, or nothing if
+    /// it's an anonymous type. Types are listed in this arena in topological
+    /// order to ensure that iteration through this arena will only reference
+    /// other types transitively that are already iterated over.
+    pub types: Arena<TypeDef>,
+
+    /// All documents found within this package.
+    ///
+    /// Documents are sorted topologically in this arena with respect to imports
+    /// between them.
+    pub documents: Arena<Document>,
+
+    /// All foreign dependencies that this package depends on.
+    ///
+    /// These foreign dependencies must be resolved to convert this unresolved
+    /// package into a `Resolve`. The map here is keyed by the name of the
+    /// foreign package that this depends on, and the sub-map is keyed by a
+    /// document name followed by the identifier within `self.documents`. The
+    /// fields of `self.documents` describes the required types, interfaces,
+    /// etc, that are required from each foreign package.
+    pub foreign_deps: IndexMap<String, IndexMap<String, DocumentId>>,
+
+    unknown_type_spans: Vec<Span>,
+    world_spans: Vec<(Vec<Span>, Vec<Span>)>,
+    document_spans: Vec<Span>,
+    interface_spans: Vec<Span>,
+    foreign_dep_spans: Vec<Span>,
+    source_map: SourceMap,
+}
+
+#[derive(Debug)]
+struct Error {
+    span: Span,
+    msg: String,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.msg.fmt(f)
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl UnresolvedPackage {
     /// Parses the given string as a wit document.
     ///
-    /// The `path` argument is used for error reporting.
+    /// The `path` argument is used for error reporting. The `contents` provided
+    /// will not be able to use `pkg` use paths to other documents.
     pub fn parse(path: &Path, contents: &str) -> Result<Self> {
-        Self::_parse(path, contents)
+        let mut map = SourceMap::default();
+        map.push(path, contents);
+        Self::_parse(map)
     }
 
-    /// Parses the given string as a wit document.
+    /// Parse a WIT package at the provided path.
     ///
-    /// The `path` argument is used for error reporting.
+    /// The path provided is inferred whether it's a file or a directory. A file
+    /// is parsed with [`UnresolvedPackage::parse_file`] and a directory is
+    /// parsed with [`UnresolvedPackage::parse_dir`].
+    pub fn parse_path(path: &Path) -> Result<Self> {
+        if path.is_dir() {
+            UnresolvedPackage::parse_dir(path)
+        } else {
+            UnresolvedPackage::parse_file(path)
+        }
+    }
+
+    /// Parses a WIT package from the file provided.
+    ///
+    /// The WIT package returned will be a single-document package and will not
+    /// be able to use `pkg` paths to other documents.
     pub fn parse_file(path: &Path) -> Result<Self> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
-        Self::_parse(path, &contents)
+        Self::parse(path, &contents)
     }
 
-    // This will eventually grow a closure which is "go read some other file"
-    // for `use` statements
-    fn _parse(path: &Path, contents: &str) -> Result<Self> {
-        // If we have a ".md" file, it's a wit file wrapped in a markdown file;
-        // parse the markdown to extract the `wit` code blocks.
-        let contents: Cow<'_, str> = if path.extension().and_then(|s| s.to_str()) == Some("md") {
-            unwrap_md(contents).into()
-        } else {
-            contents.into()
-        };
-
-        Self::rewrite_error(path, &contents, || {
-            let mut lexer = Tokenizer::new(&contents)?;
-            let ast = ast::Ast::parse(&mut lexer)?;
-            ast::Resolver::default().resolve(&ast)
-        })
-    }
-
-    /// Converts the document into a single world definition.
+    /// Parses a WIT package from the directory provided.
     ///
-    /// Returns an error if there were no worlds defined in the document or
-    /// if there were multiple worlds defined.
-    pub fn default_world(&self) -> Result<WorldId> {
-        match self.worlds.len() {
-            0 => bail!("no worlds were defined in the document"),
-            1 => Ok(self.worlds.iter().next().unwrap().0),
-            _ => bail!("more than one world was defined in the document",),
+    /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
+    /// `path` into the returned package.
+    pub fn parse_dir(path: &Path) -> Result<Self> {
+        let mut map = SourceMap::default();
+        let cx = || format!("failed to read directory {path:?}");
+        for entry in path.read_dir().with_context(&cx)? {
+            let entry = entry.with_context(&cx)?;
+            let path = entry.path();
+            let ty = entry.file_type().with_context(&cx)?;
+            if ty.is_dir() {
+                continue;
+            }
+            if ty.is_symlink() {
+                if path.is_dir() {
+                    continue;
+                }
+            }
+            let filename = match path.file_name().and_then(|s| s.to_str()) {
+                Some(name) => name,
+                None => continue,
+            };
+            if !filename.ends_with(".wit") && !filename.ends_with(".wit.md") {
+                continue;
+            }
+            let contents = std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read file {path:?}"))?;
+            map.push(&path, contents);
         }
+        Self::_parse(map)
     }
 
-    /// Converts the document into a single interface definition.
-    ///
-    /// Returns an error if there were no worlds defined in the document or
-    /// if there were multiple worlds defined.
-    pub fn default_interface(&self) -> Result<InterfaceId> {
-        if self.worlds.len() > 0 {
-            bail!("a world may not be defined in an interface definition");
-        }
-
-        match self.interfaces.len() {
-            0 => bail!("no interfaces were defined in the document"),
-            1 => Ok(self.interfaces.iter().next().unwrap().0),
-            _ => bail!("more than one interface was defined in the document"),
-        }
-    }
-
-    fn rewrite_error<F, T>(path: &Path, contents: &str, f: F) -> Result<T>
-    where
-        F: FnOnce() -> Result<T>,
-    {
-        match f() {
-            Ok(t) => Ok(t),
-            Err(mut e) => {
-                let file = path.display().to_string();
-                ast::rewrite_error(&mut e, &file, contents);
-                Err(e)
+    fn _parse(map: SourceMap) -> Result<Self> {
+        let mut doc = map.rewrite_error(|| {
+            let mut resolver = Resolver::default();
+            for file in map.tokenizers() {
+                let (path, mut tokens) = file?;
+                let ast = Ast::parse(&mut tokens)?;
+                resolver.push(path, ast)?;
             }
-        }
-    }
-
-    pub fn topological_types(&self) -> Vec<TypeId> {
-        let mut ret = Vec::new();
-        let mut visited = HashSet::new();
-        for (id, _) in self.types.iter() {
-            self.topo_visit(id, &mut ret, &mut visited);
-        }
-        ret
-    }
-
-    fn topo_visit(&self, id: TypeId, list: &mut Vec<TypeId>, visited: &mut HashSet<TypeId>) {
-        if !visited.insert(id) {
-            return;
-        }
-        match &self.types[id].kind {
-            TypeDefKind::Flags(_) | TypeDefKind::Enum(_) => {}
-            TypeDefKind::Type(t) | TypeDefKind::List(t) => self.topo_visit_ty(t, list, visited),
-            TypeDefKind::Record(r) => {
-                for f in r.fields.iter() {
-                    self.topo_visit_ty(&f.ty, list, visited);
-                }
-            }
-            TypeDefKind::Tuple(t) => {
-                for t in t.types.iter() {
-                    self.topo_visit_ty(t, list, visited);
-                }
-            }
-            TypeDefKind::Variant(v) => {
-                for v in v.cases.iter() {
-                    if let Some(ty) = v.ty {
-                        self.topo_visit_ty(&ty, list, visited);
-                    }
-                }
-            }
-            TypeDefKind::Option(ty) => self.topo_visit_ty(ty, list, visited),
-            TypeDefKind::Result(r) => {
-                if let Some(ok) = r.ok {
-                    self.topo_visit_ty(&ok, list, visited);
-                }
-                if let Some(err) = r.err {
-                    self.topo_visit_ty(&err, list, visited);
-                }
-            }
-            TypeDefKind::Union(u) => {
-                for t in u.cases.iter() {
-                    self.topo_visit_ty(&t.ty, list, visited);
-                }
-            }
-            TypeDefKind::Future(ty) => {
-                if let Some(ty) = ty {
-                    self.topo_visit_ty(ty, list, visited);
-                }
-            }
-            TypeDefKind::Stream(s) => {
-                if let Some(element) = s.element {
-                    self.topo_visit_ty(&element, list, visited);
-                }
-                if let Some(end) = s.end {
-                    self.topo_visit_ty(&end, list, visited);
-                }
-            }
-        }
-        list.push(id);
-    }
-
-    fn topo_visit_ty(&self, ty: &Type, list: &mut Vec<TypeId>, visited: &mut HashSet<TypeId>) {
-        if let Type::Id(id) = ty {
-            self.topo_visit(*id, list, visited);
-        }
-    }
-
-    pub fn all_bits_valid(&self, ty: &Type) -> bool {
-        match ty {
-            Type::U8
-            | Type::S8
-            | Type::U16
-            | Type::S16
-            | Type::U32
-            | Type::S32
-            | Type::U64
-            | Type::S64
-            | Type::Float32
-            | Type::Float64 => true,
-
-            Type::Bool | Type::Char | Type::String => false,
-
-            Type::Id(id) => match &self.types[*id].kind {
-                TypeDefKind::List(_)
-                | TypeDefKind::Variant(_)
-                | TypeDefKind::Enum(_)
-                | TypeDefKind::Option(_)
-                | TypeDefKind::Result(_)
-                | TypeDefKind::Future(_)
-                | TypeDefKind::Stream(_)
-                | TypeDefKind::Union(_) => false,
-                TypeDefKind::Type(t) => self.all_bits_valid(t),
-                TypeDefKind::Record(r) => r.fields.iter().all(|f| self.all_bits_valid(&f.ty)),
-                TypeDefKind::Tuple(t) => t.types.iter().all(|t| self.all_bits_valid(t)),
-
-                // FIXME: this could perhaps be `true` for multiples-of-32 but
-                // seems better to probably leave this as unconditionally
-                // `false` for now, may want to reconsider later?
-                TypeDefKind::Flags(_) => false,
-            },
-        }
+            resolver.resolve()
+        })?;
+        doc.source_map = map;
+        Ok(doc)
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+/// Represents the result of parsing a wit document.
+#[derive(Debug, Clone)]
+pub struct Document {
+    pub name: String,
+
+    /// The top-level interfaces contained in the document.
+    ///
+    /// The interfaces here are listed in topological order of the
+    /// dependencies between them.
+    pub interfaces: IndexMap<String, InterfaceId>,
+
+    /// The worlds contained in the document.
+    pub worlds: Vec<WorldId>,
+
+    /// The default interface of this document, if any.
+    ///
+    /// This interface will also be listed in `self.interfaces`
+    pub default_interface: Option<InterfaceId>,
+
+    /// The default world of this document, if any.
+    ///
+    /// This will also be listed in `self.worlds`.
+    pub default_world: Option<WorldId>,
+}
+
+#[derive(Debug, Clone)]
 pub struct World {
+    /// The WIT identifier name of this world.
     pub name: String,
+
+    /// Documentation associated with this world declaration.
     pub docs: Docs,
-    pub default: Option<InterfaceId>,
-    pub imports: IndexMap<String, InterfaceId>,
-    pub exports: IndexMap<String, InterfaceId>,
+
+    /// All imported items into this interface, both worlds and functions.
+    pub imports: IndexMap<String, WorldItem>,
+
+    /// All exported items from this interface, both worlds and functions.
+    pub exports: IndexMap<String, WorldItem>,
+
+    /// The document that owns this world.
+    pub document: DocumentId,
 }
 
-impl World {
-    /// Returns an iterator which visits all the exported interfaces, both named
-    /// and default. The second entry in each pair the export name of the
-    /// interface, or `None` if it's the default export interface.
-    pub fn exports(&self) -> impl Iterator<Item = (InterfaceId, Option<&str>)> + '_ {
-        self.exports
-            .iter()
-            .map(|(name, i)| (*i, Some(name.as_str())))
-            .chain(self.default.iter().map(|i| (*i, None)))
-    }
+#[derive(Debug, Clone)]
+pub enum WorldItem {
+    /// An interface is being imported or exported from a world, indicating that
+    /// it's a namespace of functions.
+    Interface(InterfaceId),
+
+    /// A function is being directly imported or exported from this world.
+    Function(Function),
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Interface {
-    pub name: String,
+    /// Optionally listed name of this interface.
+    ///
+    /// This is `None` for inline interfaces in worlds.
+    pub name: Option<String>,
+
+    /// Optionally listed URL for an interface.
+    ///
+    /// NB: this isn't super well managed at this point.
     pub url: Option<String>,
+
+    /// Documentation associated with this interface.
     pub docs: Docs,
-    pub types: Vec<TypeId>,
+
+    /// Exported types from this interface.
+    ///
+    /// Export names are listed within the types themselves. Note that the
+    /// export name here matches the name listed in the `TypeDef`.
+    pub types: IndexMap<String, TypeId>,
+
+    /// Exported functions from this interface.
     pub functions: Vec<Function>,
+
+    /// The document that this interface belongs to.
+    pub document: DocumentId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -281,7 +274,7 @@ pub struct TypeDef {
     pub docs: Docs,
     pub kind: TypeDefKind,
     pub name: Option<String>,
-    pub interface: Option<InterfaceId>,
+    pub owner: TypeOwner,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -298,6 +291,24 @@ pub enum TypeDefKind {
     Future(Option<Type>),
     Stream(Stream),
     Type(Type),
+
+    /// This represents a type of unknown structure imported from a foreign
+    /// interface.
+    ///
+    /// This variant is only used during the creation of `UnresolvedPackage` but
+    /// by the time a `Resolve` is created then this will not exist.
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeOwner {
+    /// This type was defined within a `world` block.
+    World(WorldId),
+    /// This type was defined within an `interface` block.
+    Interface(InterfaceId),
+    /// This type wasn't inherently defined anywhere, such as a `list<T>`, which
+    /// doesn't need an owner.
+    None,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -512,12 +523,12 @@ impl Results {
         }
     }
 
-    pub fn throws<'a>(&self, doc: &'a Document) -> Option<(Option<&'a Type>, Option<&'a Type>)> {
+    pub fn throws<'a>(&self, resolve: &'a Resolve) -> Option<(Option<&'a Type>, Option<&'a Type>)> {
         if self.len() != 1 {
             return None;
         }
         match self.iter_types().next().unwrap() {
-            Type::Id(id) => match &doc.types[*id].kind {
+            Type::Id(id) => match &resolve.types[*id].kind {
                 TypeDefKind::Result(r) => Some((r.ok.as_ref(), r.err.as_ref())),
                 _ => None,
             },

@@ -1,0 +1,10 @@
+interface foo {
+  type a = u32
+}
+
+world the-world {
+  import bar: interface {
+    use self.foo.{a}
+  }
+  import foo: interface {}
+}

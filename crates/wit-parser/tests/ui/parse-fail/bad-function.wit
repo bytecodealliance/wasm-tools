@@ -1,0 +1,5 @@
+// parse-fail
+
+interface foo {
+  x: func(param: nonexistent)
+}

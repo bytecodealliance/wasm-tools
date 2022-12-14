@@ -1,0 +1,5 @@
+name `x` is defined more than once
+     --> tests/ui/parse-fail/use-conflict.wit:8:20
+      |
+    8 |   use self.foo.{x, x}
+      |                    ^

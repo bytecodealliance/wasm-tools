@@ -1,4 +1,4 @@
-no type named `bar`
+type `bar` does not exist
      --> tests/ui/parse-fail/undefined-typed.wit:4:14
       |
     4 |   type foo = bar

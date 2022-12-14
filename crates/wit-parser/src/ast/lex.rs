@@ -10,6 +10,7 @@ use self::Token::*;
 #[derive(Clone)]
 pub struct Tokenizer<'a> {
     input: &'a str,
+    span_offset: u32,
     chars: CrlfFold<'a>,
 }
 
@@ -35,6 +36,7 @@ pub enum Token {
     Equals,
     Comma,
     Colon,
+    Period,
     Semicolon,
     LeftParen,
     RightParen,
@@ -82,38 +84,35 @@ pub enum Token {
     Export,
     World,
     Default,
+    Pkg,
+    Self_,
 
     Id,
     ExplicitId,
-    StrLit,
 }
 
 #[derive(Eq, PartialEq, Debug)]
 #[allow(dead_code)]
 pub enum Error {
-    InvalidCharInString(usize, char),
-    InvalidCharInId(usize, char),
-    IdPartEmpty(usize),
-    InvalidEscape(usize, char),
-    // InvalidHexEscape(usize, char),
-    // InvalidEscapeValue(usize, u32),
-    Unexpected(usize, char),
-    UnterminatedComment(usize),
-    UnterminatedString(usize),
-    NewlineInString(usize),
+    InvalidCharInId(u32, char),
+    IdPartEmpty(u32),
+    InvalidEscape(u32, char),
+    Unexpected(u32, char),
+    UnterminatedComment(u32),
     Wanted {
-        at: usize,
+        at: u32,
         expected: &'static str,
         found: &'static str,
     },
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn new(input: &'a str) -> Result<Tokenizer<'a>> {
+    pub fn new(input: &'a str, span_offset: u32) -> Result<Tokenizer<'a>> {
         detect_invalid_input(input)?;
 
         let mut t = Tokenizer {
             input,
+            span_offset,
             chars: CrlfFold {
                 chars: input.char_indices(),
             },
@@ -128,33 +127,22 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn get_span(&self, span: Span) -> &'a str {
-        &self.input[span.start as usize..span.end as usize]
+        let start = usize::try_from(span.start - self.span_offset).unwrap();
+        let end = usize::try_from(span.end - self.span_offset).unwrap();
+        &self.input[start..end]
     }
 
-    pub fn parse_id(&self, span: Span) -> Result<String> {
-        let ret = self.get_span(span).to_owned();
-        validate_id(span.start as usize, &ret)?;
+    pub fn parse_id(&self, span: Span) -> Result<&'a str> {
+        let ret = self.get_span(span);
+        validate_id(span.start, &ret)?;
         Ok(ret)
     }
 
-    // This is going to be used shortly for a new feature.
-    #[allow(dead_code)]
-    pub fn parse_str(&self, span: Span) -> Result<String> {
-        let mut ret = String::new();
-        let s = self.get_span(span);
-        let mut l = Tokenizer::new(s)?;
-        assert!(matches!(l.chars.next(), Some((_, '"'))));
-        while let Some(c) = l.eat_str_char(0).unwrap() {
-            ret.push(c);
-        }
-        Ok(ret)
-    }
-
-    pub fn parse_explicit_id(&self, span: Span) -> Result<String> {
+    pub fn parse_explicit_id(&self, span: Span) -> Result<&'a str> {
         let token = self.get_span(span);
         let id_part = token.strip_prefix('%').unwrap();
-        validate_id(span.start as usize, id_part)?;
-        Ok(id_part.to_owned())
+        validate_id(span.start, id_part)?;
+        Ok(id_part)
     }
 
     pub fn next(&mut self) -> Result<Option<(Span, Token)>, Error> {
@@ -167,10 +155,11 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn next_raw(&mut self) -> Result<Option<(Span, Token)>, Error> {
-        let (start, ch) = match self.chars.next() {
+        let (str_start, ch) = match self.chars.next() {
             Some(pair) => pair,
             None => return Ok(None),
         };
+        let start = self.span_offset + u32::try_from(str_start).unwrap();
         let token = match ch {
             '\n' | '\t' | ' ' => {
                 // Eat all contiguous whitespace tokens
@@ -208,6 +197,7 @@ impl<'a> Tokenizer<'a> {
             '=' => Equals,
             ',' => Comma,
             ':' => Colon,
+            '.' => Period,
             ';' => Semicolon,
             '(' => LeftParen,
             ')' => RightParen,
@@ -222,10 +212,6 @@ impl<'a> Tokenizer<'a> {
                 } else {
                     return Err(Error::Unexpected(start, '-'));
                 }
-            }
-            '"' => {
-                while let Some(_ch) = self.eat_str_char(start)? {}
-                StrLit
             }
             '%' => {
                 let mut iter = self.chars.clone();
@@ -251,8 +237,9 @@ impl<'a> Tokenizer<'a> {
                     }
                     self.chars = iter.clone();
                 }
-                let end = start + ch.len_utf8() + (remaining - self.chars.chars.as_str().len());
-                match &self.input[start..end] {
+                let str_end =
+                    str_start + ch.len_utf8() + (remaining - self.chars.chars.as_str().len());
+                match &self.input[str_start..str_end] {
                     "use" => Use,
                     "type" => Type,
                     "func" => Func,
@@ -290,6 +277,8 @@ impl<'a> Tokenizer<'a> {
                     "import" => Import,
                     "export" => Export,
                     "default" => Default,
+                    "pkg" => Pkg,
+                    "self" => Self_,
                     _ => Id,
                 }
             }
@@ -300,8 +289,7 @@ impl<'a> Tokenizer<'a> {
             None => self.input.len(),
         };
 
-        let start = u32::try_from(start).unwrap();
-        let end = u32::try_from(end).unwrap();
+        let end = self.span_offset + u32::try_from(end).unwrap();
         Ok(Some((Span { start, end }, token)))
     }
 
@@ -324,36 +312,14 @@ impl<'a> Tokenizer<'a> {
                     Ok(span)
                 } else {
                     Err(Error::Wanted {
-                        at: usize::try_from(span.start).unwrap(),
+                        at: span.start,
                         expected: expected.describe(),
                         found: found.describe(),
                     })
                 }
             }
             None => Err(Error::Wanted {
-                at: self.input.len(),
-                expected: expected.describe(),
-                found: "eof",
-            }),
-        }
-    }
-
-    #[allow(dead_code)] // TODO
-    pub fn expect_raw(&mut self, expected: Token) -> Result<Span, Error> {
-        match self.next_raw()? {
-            Some((span, found)) => {
-                if expected == found {
-                    Ok(span)
-                } else {
-                    Err(Error::Wanted {
-                        at: usize::try_from(span.start).unwrap(),
-                        expected: expected.describe(),
-                        found: found.describe(),
-                    })
-                }
-            }
-            None => Err(Error::Wanted {
-                at: self.input.len(),
+                at: self.span_offset + u32::try_from(self.input.len()).unwrap(),
                 expected: expected.describe(),
                 found: "eof",
             }),
@@ -369,32 +335,6 @@ impl<'a> Tokenizer<'a> {
             }
             _ => false,
         }
-    }
-
-    fn eat_str_char(&mut self, start: usize) -> Result<Option<char>, Error> {
-        let ch = match self.chars.next() {
-            Some((_, '"')) => return Ok(None),
-            Some((_, '\\')) => match self.chars.next() {
-                Some((_, '"')) => '"',
-                Some((_, '\'')) => '\'',
-                Some((_, 't')) => '\t',
-                Some((_, 'n')) => '\n',
-                Some((_, 'r')) => '\r',
-                Some((_, '\\')) => '\\',
-                Some((i, c)) => return Err(Error::InvalidEscape(i, c)),
-                None => return Err(Error::UnterminatedString(start)),
-            },
-            Some((_, ch))
-                if ch == '\u{09}'
-                    || (('\u{20}'..='\u{10ffff}').contains(&ch) && ch != '\u{7f}') =>
-            {
-                ch
-            }
-            Some((i, '\n')) => return Err(Error::NewlineInString(i)),
-            Some((i, ch)) => return Err(Error::InvalidCharInString(i, ch)),
-            None => return Err(Error::UnterminatedString(start)),
-        };
-        Ok(Some(ch))
     }
 }
 
@@ -478,7 +418,7 @@ fn is_keylike_continue(ch: char) -> bool {
     UnicodeXID::is_xid_continue(ch) || ch == '-'
 }
 
-pub fn validate_id(start: usize, id: &str) -> Result<(), Error> {
+pub fn validate_id(start: u32, id: &str) -> Result<(), Error> {
     // IDs must have at least one part.
     if id.is_empty() {
         return Err(Error::IdPartEmpty(start));
@@ -525,6 +465,7 @@ impl Token {
             Equals => "'='",
             Comma => "','",
             Colon => "':'",
+            Period => "'.'",
             Semicolon => "';'",
             LeftParen => "'('",
             RightParen => "')'",
@@ -561,7 +502,6 @@ impl Token {
             Underscore => "keyword `_`",
             Id => "an identifier",
             ExplicitId => "an '%' identifier",
-            StrLit => "a string",
             RArrow => "`->`",
             Star => "`*`",
             As => "keyword `as`",
@@ -574,6 +514,8 @@ impl Token {
             Export => "keyword `export`",
             World => "keyword `world`",
             Default => "keyword `default`",
+            Self_ => "keyword `self`",
+            Pkg => "keyword `pkg`",
         }
     }
 }
@@ -588,34 +530,11 @@ impl fmt::Display for Error {
             Error::Wanted {
                 expected, found, ..
             } => write!(f, "expected {}, found {}", expected, found),
-            Error::UnterminatedString(_) => write!(f, "unterminated string literal"),
-            Error::NewlineInString(_) => write!(f, "newline in string literal"),
-            Error::InvalidCharInString(_, ch) => write!(f, "invalid character in string {:?}", ch),
             Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {:?}", ch),
             Error::IdPartEmpty(_) => write!(f, "identifiers must have characters between '-'s"),
             Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {:?}", ch),
         }
     }
-}
-
-pub fn rewrite_error(err: &mut anyhow::Error, file: &str, contents: &str) {
-    let lex = match err.downcast_mut::<Error>() {
-        Some(err) => err,
-        None => return,
-    };
-    let pos = match lex {
-        Error::Unexpected(at, _)
-        | Error::UnterminatedComment(at)
-        | Error::Wanted { at, .. }
-        | Error::UnterminatedString(at)
-        | Error::NewlineInString(at)
-        | Error::InvalidCharInString(at, _)
-        | Error::InvalidCharInId(at, _)
-        | Error::IdPartEmpty(at)
-        | Error::InvalidEscape(at, _) => *at,
-    };
-    let msg = super::highlight_err(pos, None, file, contents, lex);
-    *err = anyhow::anyhow!("{}", msg);
 }
 
 #[test]
@@ -679,7 +598,7 @@ fn test_validate_id() {
 #[test]
 fn test_tokenizer() {
     fn collect(s: &str) -> Result<Vec<Token>> {
-        let mut t = Tokenizer::new(s)?;
+        let mut t = Tokenizer::new(s, 0)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
             tokens.push(token.1);
@@ -729,10 +648,6 @@ fn test_tokenizer() {
             Token::RightParen
         ]
     );
-
-    assert_eq!(collect("\"a\"").unwrap(), vec![Token::StrLit]);
-    assert_eq!(collect("\"a-a\"").unwrap(), vec![Token::StrLit]);
-    assert_eq!(collect("\"bool\"").unwrap(), vec![Token::StrLit]);
 
     assert!(collect("\u{149}").is_err(), "strongly discouraged");
     assert!(collect("\u{673}").is_err(), "strongly discouraged");

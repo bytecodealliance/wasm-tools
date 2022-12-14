@@ -1,8 +1,0 @@
-// parse-fail
-
-interface foo {}
-
-world foo {
-  default export foo
-  default export foo
-}
