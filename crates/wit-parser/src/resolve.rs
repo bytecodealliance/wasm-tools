@@ -507,7 +507,9 @@ impl Remap {
         // explicitly named imports of interfaces are recorded as well for
         // determining names later on.
         let mut explicit_import_names = HashMap::new();
+        let mut explicit_export_names = HashMap::new();
         let mut imports = Vec::new();
+        let mut exports = Vec::new();
         for ((name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans) {
             match item {
                 WorldItem::Interface(id) => {
@@ -519,95 +521,41 @@ impl Remap {
                 WorldItem::Function(_) => unimplemented!(),
             }
         }
+        for ((name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans) {
+            match item {
+                WorldItem::Interface(id) => {
+                    let id = self.interfaces[id.index()];
+                    exports.push((id, *span));
+                    let prev = explicit_export_names.insert(id, name);
+                    assert!(prev.is_none());
+                }
+                WorldItem::Function(_) => unimplemented!(),
+            }
+        }
 
         // Next all imports and their transitive imports are processed. This
         // is done through a `stack` of `Action` items which is processed in
         // LIFO order, meaning that an action of processing the dependencies
         // is pushed after processing the node itself. The dependency processing
         // will push more items onto the stack as necessary.
-        //
-        // Throughout this an `imports_processed` set is maintained to ensure
-        // that multiple dependencies on the same interface won't push it twice
-        // to the import list as it's needed only once.
-        //
-        // Note that at this point all interfaces are known to be acyclic so
-        // there's no cycle detection here.
-        enum Action {
-            Import(InterfaceId, Span),
-            Deps(InterfaceId, Span),
-        }
-
-        let mut stack = Vec::new();
-        let mut resolving_stack = Vec::new();
-        let mut imports_processed = HashSet::new();
-        let name_of = |id: InterfaceId| {
-            explicit_import_names
-                .get(&id)
-                .unwrap_or_else(|| resolve.interfaces[id].name.as_ref().unwrap())
+        let mut elaborate = WorldElaborator {
+            resolve,
+            world,
+            imports_processed: Default::default(),
+            exports_processed: Default::default(),
+            resolving_stack: Default::default(),
+            explicit_import_names: &explicit_import_names,
+            explicit_export_names: &explicit_export_names,
         };
         for (id, span) in imports {
-            if !imports_processed.insert(id) {
-                continue;
-            }
-            stack.push(Action::Import(id, span));
-            stack.push(Action::Deps(id, span));
-
-            while let Some(action) = stack.pop() {
-                match action {
-                    Action::Import(id, span) => {
-                        let name = name_of(id);
-                        let prev = world.imports.insert(name.clone(), WorldItem::Interface(id));
-                        if prev.is_none() {
-                            assert_eq!(resolving_stack.pop(), Some(id));
-                            continue;
-                        }
-
-                        if explicit_import_names.contains_key(&id) {
-                            bail!(Error {
-                                span,
-                                msg: format!(
-                                    "import name `{name}` conflicts with implicitly imported interface"
-                                ),
-                            })
-                        }
-
-                        let mut msg = format!("import of `{}`\n", name_of(resolving_stack[0]));
-                        for i in resolving_stack.iter().skip(1) {
-                            writeln!(msg, "  .. which depends on `{}`", name_of(*i)).unwrap();
-                        }
-                        writeln!(
-                            msg,
-                            "conflicts with a previously imported interface \
-                             using the name `{name}`",
-                        )
-                        .unwrap();
-                        bail!(Error { span, msg })
-                    }
-                    Action::Deps(id, span) => {
-                        resolving_stack.push(id);
-                        for (_, ty) in resolve.interfaces[id].types.iter() {
-                            let ty = match resolve.types[*ty].kind {
-                                TypeDefKind::Type(Type::Id(id)) => id,
-                                _ => continue,
-                            };
-                            match resolve.types[ty].owner {
-                                TypeOwner::None => {}
-                                TypeOwner::Interface(other) => {
-                                    if !imports_processed.insert(other) {
-                                        continue;
-                                    }
-                                    stack.push(Action::Import(other, span));
-                                    stack.push(Action::Deps(other, span));
-                                }
-                                TypeOwner::World(_) => unreachable!(),
-                            }
-                        }
-                    }
-                }
-            }
+            elaborate.import(id, span)?;
+        }
+        for (id, span) in exports {
+            elaborate.export(id, span)?;
         }
 
-        log::trace!("{:?}", world.imports);
+        log::trace!("imports = {:?}", world.imports);
+        log::trace!("exports = {:?}", world.exports);
 
         Ok(())
     }
@@ -625,5 +573,112 @@ impl Remap {
         if let Some(default) = &mut doc.default_world {
             *default = self.worlds[default.index()];
         }
+    }
+}
+
+struct WorldElaborator<'a, 'b> {
+    resolve: &'a Resolve,
+    world: &'b mut World,
+    explicit_import_names: &'a HashMap<InterfaceId, String>,
+    explicit_export_names: &'a HashMap<InterfaceId, String>,
+
+    /// Set of imports which are either imported into the world already or in
+    /// the `stack` to get processed, used to ensure the same dependency isn't
+    /// pushed multiple times into the stack.
+    imports_processed: HashSet<InterfaceId>,
+    exports_processed: HashSet<InterfaceId>,
+
+    /// Dependency chain of why we're importing the top of `stack`, used to
+    /// print an error message.
+    resolving_stack: Vec<(InterfaceId, bool)>,
+}
+
+impl<'a> WorldElaborator<'a, '_> {
+    fn import(&mut self, id: InterfaceId, span: Span) -> Result<()> {
+        self.recurse(id, span, true)
+    }
+
+    fn export(&mut self, id: InterfaceId, span: Span) -> Result<()> {
+        self.recurse(id, span, false)
+    }
+
+    fn recurse(&mut self, id: InterfaceId, span: Span, import: bool) -> Result<()> {
+        let processed = if import {
+            &mut self.imports_processed
+        } else {
+            &mut self.exports_processed
+        };
+        if !processed.insert(id) {
+            return Ok(());
+        }
+
+        self.resolving_stack.push((id, import));
+        for (_, ty) in self.resolve.interfaces[id].types.iter() {
+            let ty = match self.resolve.types[*ty].kind {
+                TypeDefKind::Type(Type::Id(id)) => id,
+                _ => continue,
+            };
+            let dep = match self.resolve.types[ty].owner {
+                TypeOwner::None => continue,
+                TypeOwner::Interface(other) => other,
+                TypeOwner::World(_) => unreachable!(),
+            };
+            let import = import || !self.explicit_export_names.contains_key(&dep);
+
+            self.recurse(dep, span, import)?;
+        }
+        assert_eq!(self.resolving_stack.pop(), Some((id, import)));
+
+        let name = self.name_of(id, import);
+        let set = if import {
+            &mut self.world.imports
+        } else {
+            &mut self.world.exports
+        };
+        let prev = set.insert(name.clone(), WorldItem::Interface(id));
+        if prev.is_none() {
+            return Ok(());
+        }
+
+        let desc = |import: bool| {
+            if import {
+                "import"
+            } else {
+                "export"
+            }
+        };
+
+        let mut msg = format!("{} of `{}`", desc(import), self.name_of(id, import));
+        if self.resolving_stack.is_empty() {
+            msg.push_str(" ");
+        } else {
+            msg.push_str("\n");
+        }
+        for (i, import) in self.resolving_stack.iter().rev() {
+            writeln!(
+                msg,
+                "  .. which is depended on by {} `{}`",
+                desc(*import),
+                self.name_of(*i, *import)
+            )
+            .unwrap();
+        }
+        writeln!(
+            msg,
+            "conflicts with a previously imported interface \
+                             using the name `{name}`",
+        )
+        .unwrap();
+        bail!(Error { span, msg })
+    }
+
+    fn name_of(&self, id: InterfaceId, import: bool) -> &'a String {
+        let set = if import {
+            &self.explicit_import_names
+        } else {
+            &self.explicit_export_names
+        };
+        set.get(&id)
+            .unwrap_or_else(|| self.resolve.interfaces[id].name.as_ref().unwrap())
     }
 }
