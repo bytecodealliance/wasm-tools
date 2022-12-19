@@ -1,0 +1,11 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    i32.const -256
+    i32.const 16384
+    i32.const 257
+    memory.copy
+  )
+  (memory (;0;) 1 1)
+  (export "test" (func 0))
+)

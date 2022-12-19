@@ -1,0 +1,18 @@
+(component
+  (core module $A (;0;)
+    (type (;0;) (func (result i32)))
+    (func (;0;) (type 0) (result i32)
+      i32.const 1
+    )
+    (export "one" (func 0))
+  )
+  (core module $B (;1;)
+    (type (;0;) (func (result i32)))
+    (import "a" "one" (func (;0;) (type 0)))
+  )
+  (core instance $a (;0;) (instantiate $A))
+  (core instance $b (;1;) (instantiate $B
+      (with "a" (instance $a))
+    )
+  )
+)

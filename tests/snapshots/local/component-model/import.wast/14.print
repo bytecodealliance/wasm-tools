@@ -1,0 +1,4 @@
+(component
+  (type (;0;) (func))
+  (import "a" "https://example.com" (func (;0;) (type 0)))
+)

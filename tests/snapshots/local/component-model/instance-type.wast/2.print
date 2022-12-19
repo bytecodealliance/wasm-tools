@@ -1,0 +1,19 @@
+(component
+  (type (;0;)
+    (instance
+      (type (;0;)
+        (instance)
+      )
+      (export "a" (instance (type 0)))
+    )
+  )
+  (type $x (;1;)
+    (instance)
+  )
+  (type (;2;)
+    (instance
+      (alias outer 1 $x (type (;0;)))
+      (export "a" (instance (type 0)))
+    )
+  )
+)

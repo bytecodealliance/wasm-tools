@@ -1,0 +1,8 @@
+(component
+  (type (;0;)
+    (instance
+      (type (;0;) string)
+      (export "a" (type (eq 0)))
+    )
+  )
+)

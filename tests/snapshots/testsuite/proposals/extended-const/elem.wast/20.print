@@ -1,0 +1,6 @@
+(module
+  (type (;0;) (func))
+  (import "spectest" "table" (table (;0;) 0 100 funcref))
+  (func $f (;0;) (type 0))
+  (elem (;0;) (i32.const 0) func $f)
+)

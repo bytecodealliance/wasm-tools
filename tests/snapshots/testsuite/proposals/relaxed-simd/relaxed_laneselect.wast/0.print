@@ -1,0 +1,31 @@
+(module
+  (type (;0;) (func (param v128 v128 v128) (result v128)))
+  (func (;0;) (type 0) (param v128 v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    i8x16.relaxed_laneselect
+  )
+  (func (;1;) (type 0) (param v128 v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    i8x16.relaxed_laneselect
+  )
+  (func (;2;) (type 0) (param v128 v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    i8x16.relaxed_laneselect
+  )
+  (func (;3;) (type 0) (param v128 v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    i8x16.relaxed_laneselect
+  )
+  (export "i8x16.relaxed_laneselect" (func 0))
+  (export "i16x8.relaxed_laneselect" (func 1))
+  (export "i32x4.relaxed_laneselect" (func 2))
+  (export "i64x2.relaxed_laneselect" (func 3))
+)
