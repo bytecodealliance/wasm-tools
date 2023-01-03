@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use std::borrow::Cow;
@@ -45,8 +45,11 @@ pub type DocumentId = Id<Document>;
 /// `Resolve` to fully work with a WIT package.
 //
 // TODO: implement and add docs about converting to a `Resolve`
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct UnresolvedPackage {
+    /// Local name for this package.
+    pub name: String,
+
     /// All worlds from all documents within this package.
     ///
     /// Each world lists the document that it is from.
@@ -113,8 +116,12 @@ impl UnresolvedPackage {
     /// will not be able to use `pkg` use paths to other documents.
     pub fn parse(path: &Path, contents: &str) -> Result<Self> {
         let mut map = SourceMap::default();
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
         map.push(path, contents);
-        Self::_parse(map)
+        Self::_parse(name, map)
     }
 
     /// Parse a WIT package at the provided path.
@@ -146,6 +153,10 @@ impl UnresolvedPackage {
     /// `path` into the returned package.
     pub fn parse_dir(path: &Path) -> Result<Self> {
         let mut map = SourceMap::default();
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
             let entry = entry.with_context(&cx)?;
@@ -170,10 +181,10 @@ impl UnresolvedPackage {
                 .with_context(|| format!("failed to read file {path:?}"))?;
             map.push(&path, contents);
         }
-        Self::_parse(map)
+        Self::_parse(name, map)
     }
 
-    fn _parse(map: SourceMap) -> Result<Self> {
+    fn _parse(name: &str, map: SourceMap) -> Result<Self> {
         let mut doc = map.rewrite_error(|| {
             let mut resolver = Resolver::default();
             for file in map.tokenizers() {
@@ -181,7 +192,7 @@ impl UnresolvedPackage {
                 let ast = Ast::parse(&mut tokens)?;
                 resolver.push(path, ast)?;
             }
-            resolver.resolve()
+            resolver.resolve(name)
         })?;
         doc.source_map = map;
         Ok(doc)
@@ -211,6 +222,9 @@ pub struct Document {
     ///
     /// This will also be listed in `self.worlds`.
     pub default_world: Option<WorldId>,
+
+    /// The package that this document belongs to.
+    pub package: Option<PackageId>,
 }
 
 #[derive(Debug, Clone)]

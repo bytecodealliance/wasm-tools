@@ -1,6 +1,5 @@
 use anyhow::{anyhow, bail, Result};
 use indexmap::{IndexMap, IndexSet};
-use std::collections::HashSet;
 use std::fmt::{self, Write};
 use wit_parser::*;
 
@@ -9,79 +8,48 @@ use wit_parser::*;
 pub struct DocumentPrinter {
     output: Output,
     declared: IndexSet<TypeId>,
-    iface_names: Vec<String>,
 }
 
 impl DocumentPrinter {
     /// Print the given `*.wit` document to a string.
-    pub fn print(&mut self, doc: &Document) -> Result<String> {
-        let mut all_names = HashSet::new();
-        for (id, iface) in doc.interfaces.iter() {
-            let name = name(&iface.name, &mut all_names);
+    pub fn print(&mut self, resolve: &Resolve, docid: DocumentId) -> Result<String> {
+        let doc = &resolve.documents[docid];
+        for (name, id) in doc.interfaces.iter() {
             writeln!(&mut self.output, "interface {name} {{")?;
-            self.print_interface(doc, id)?;
+            self.print_interface(resolve, *id)?;
             writeln!(&mut self.output, "}}\n")?;
-            self.iface_names.push(name);
         }
 
-        for (_id, world) in doc.worlds.iter() {
-            let name = name(&world.name, &mut all_names);
+        for id in doc.worlds.iter() {
+            let world = &resolve.worlds[*id];
+            let name = &world.name;
             writeln!(&mut self.output, "world {name} {{")?;
             for (name, import) in world.imports.iter() {
-                let iface_name = &self.iface_names[import.index()];
-                writeln!(&mut self.output, "import {name}: {iface_name}")?;
+                self.print_world_item(resolve, name, import, docid, "import")?;
             }
             for (name, export) in world.exports.iter() {
-                let iface_name = &self.iface_names[export.index()];
-                writeln!(&mut self.output, "export {name}: {iface_name}")?;
+                self.print_world_item(resolve, name, export, docid, "export")?;
             }
-            if let Some(default) = &world.default {
-                let iface_name = &self.iface_names[default.index()];
-                writeln!(&mut self.output, "default export {iface_name}")?;
-            }
-
             writeln!(&mut self.output, "}}")?;
         }
 
         self.declared.clear();
-        self.iface_names.clear();
-        return Ok(std::mem::take(&mut self.output).into());
-
-        fn name(name: &str, all_names: &mut HashSet<String>) -> String {
-            if !name.is_empty() && all_names.insert(name.to_string()) {
-                return name.to_string();
-            }
-            for i in 0.. {
-                let name = if name.is_empty() {
-                    format!("interface{i}")
-                } else {
-                    format!("{name}{i}")
-                };
-                if all_names.insert(name.clone()) {
-                    return name;
-                }
-            }
-            unreachable!()
-        }
+        Ok(std::mem::take(&mut self.output).into())
     }
 
     /// Print the given WebAssembly interface to a string.
-    fn print_interface(&mut self, doc: &Document, id: InterfaceId) -> Result<()> {
-        let interface = &doc.interfaces[id];
+    fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
+        let interface = &resolve.interfaces[id];
 
         // Partition types defined in this interface into either those imported
         // from foreign interfaces or those defined locally.
         let mut types_to_declare = Vec::new();
         let mut types_to_import = IndexMap::new();
-        for ty_id in &interface.types {
-            let ty = &doc.types[*ty_id];
-            let name = ty
-                .name
-                .as_ref()
-                .ok_or_else(|| anyhow!("unnamed type exported from interface"))?;
+        for (name, ty_id) in &interface.types {
+            let ty = &resolve.types[*ty_id];
             if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
-                let other = &doc.types[other];
-                if let Some(other_iface) = other.interface {
+                let other = &resolve.types[other];
+                if let TypeOwner::Interface(other_iface) = other.owner {
                     if other_iface != id {
                         let other_name = other
                             .name
@@ -100,8 +68,11 @@ impl DocumentPrinter {
         }
 
         // Generate a `use` statement for all imported types.
+        let my_doc = resolve.interfaces[id].document;
         for (id, tys) in types_to_import {
-            write!(&mut self.output, "use {{ ")?;
+            write!(&mut self.output, "use ")?;
+            self.print_path_to_interface(resolve, id, my_doc)?;
+            write!(&mut self.output, ".{{")?;
             for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
                 if i > 0 {
                     write!(&mut self.output, ", ")?;
@@ -112,13 +83,12 @@ impl DocumentPrinter {
                     write!(&mut self.output, "{other_name} as {my_name}")?;
                 }
             }
-            let iface_name = &self.iface_names[id.index()];
-            writeln!(&mut self.output, " }} from {iface_name}")?;
+            writeln!(&mut self.output, "}}")?;
         }
 
         // Declare all local types
         for id in types_to_declare {
-            self.declare_type(doc, &Type::Id(id))?;
+            self.declare_type(resolve, &Type::Id(id))?;
         }
 
         for (i, func) in interface.functions.iter().enumerate() {
@@ -131,7 +101,7 @@ impl DocumentPrinter {
                     self.output.push_str(", ");
                 }
                 write!(&mut self.output, "{}: ", name)?;
-                self.print_type_name(doc, ty)?;
+                self.print_type_name(resolve, ty)?;
             }
             self.output.push_str(")");
 
@@ -140,7 +110,7 @@ impl DocumentPrinter {
                     0 => (),
                     1 => {
                         self.output.push_str(" -> ");
-                        self.print_type_name(doc, &rs[0].1)?;
+                        self.print_type_name(resolve, &rs[0].1)?;
                     }
                     _ => {
                         self.output.push_str(" -> (");
@@ -149,14 +119,14 @@ impl DocumentPrinter {
                                 self.output.push_str(", ");
                             }
                             write!(&mut self.output, "{name}: ")?;
-                            self.print_type_name(doc, ty)?;
+                            self.print_type_name(resolve, ty)?;
                         }
                         self.output.push_str(")");
                     }
                 },
                 Results::Anon(ty) => {
                     self.output.push_str(" -> ");
-                    self.print_type_name(doc, ty)?;
+                    self.print_type_name(resolve, ty)?;
                 }
             }
 
@@ -166,7 +136,56 @@ impl DocumentPrinter {
         Ok(())
     }
 
-    fn print_type_name(&mut self, doc: &Document, ty: &Type) -> Result<()> {
+    fn print_world_item(
+        &mut self,
+        resolve: &Resolve,
+        name: &str,
+        item: &WorldItem,
+        cur_doc: DocumentId,
+        desc: &str,
+    ) -> Result<()> {
+        write!(&mut self.output, "{desc} {name}: ")?;
+        match item {
+            WorldItem::Interface(id) => {
+                if resolve.interfaces[*id].name.is_some() {
+                    self.print_path_to_interface(resolve, *id, cur_doc)?;
+                    self.output.push_str("\n");
+                } else {
+                    writeln!(self.output, "{desc} {name}: interface {{")?;
+                    self.print_interface(resolve, *id)?;
+                    writeln!(self.output, "}}")?;
+                }
+            }
+            WorldItem::Function(f) => {
+                drop(f);
+                panic!();
+            }
+        }
+        Ok(())
+    }
+
+    fn print_path_to_interface(
+        &mut self,
+        resolve: &Resolve,
+        interface: InterfaceId,
+        cur_doc: DocumentId,
+    ) -> Result<()> {
+        let cur_pkg = resolve.documents[cur_doc].package;
+        let iface = &resolve.interfaces[interface];
+        let iface_doc = &resolve.documents[iface.document];
+        if iface.document == cur_doc {
+            write!(&mut self.output, "self")?;
+        } else if cur_pkg == iface_doc.package {
+            write!(&mut self.output, "pkg.{}", iface_doc.name)?;
+        } else {
+            let iface_pkg = &resolve.packages[iface_doc.package.unwrap()];
+            write!(&mut self.output, "{}.{}", iface_pkg.name, iface_doc.name)?;
+        }
+        write!(&mut self.output, ".{}", iface.name.as_ref().unwrap())?;
+        Ok(())
+    }
+
+    fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
         match ty {
             Type::Bool => self.output.push_str("bool"),
             Type::U8 => self.output.push_str("u8"),
@@ -183,7 +202,7 @@ impl DocumentPrinter {
             Type::String => self.output.push_str("string"),
 
             Type::Id(id) => {
-                let ty = &doc.types[*id];
+                let ty = &resolve.types[*id];
                 if let Some(name) = &ty.name {
                     self.output.push_str(name);
                     return Ok(());
@@ -191,41 +210,42 @@ impl DocumentPrinter {
 
                 match &ty.kind {
                     TypeDefKind::Tuple(t) => {
-                        self.print_tuple_type(doc, t)?;
+                        self.print_tuple_type(resolve, t)?;
                     }
                     TypeDefKind::Option(t) => {
-                        self.print_option_type(doc, t)?;
+                        self.print_option_type(resolve, t)?;
                     }
                     TypeDefKind::Result(t) => {
-                        self.print_result_type(doc, t)?;
+                        self.print_result_type(resolve, t)?;
                     }
                     TypeDefKind::Record(_) => {
-                        bail!("doc has an unnamed record type");
+                        bail!("resolve has an unnamed record type");
                     }
                     TypeDefKind::Flags(_) => {
-                        bail!("doc has unnamed flags type")
+                        bail!("resolve has unnamed flags type")
                     }
                     TypeDefKind::Enum(_) => {
-                        bail!("doc has unnamed enum type")
+                        bail!("resolve has unnamed enum type")
                     }
                     TypeDefKind::Variant(_) => {
-                        bail!("doc has unnamed variant type")
+                        bail!("resolve has unnamed variant type")
                     }
                     TypeDefKind::Union(_) => {
                         bail!("document has unnamed union type")
                     }
                     TypeDefKind::List(ty) => {
                         self.output.push_str("list<");
-                        self.print_type_name(doc, ty)?;
+                        self.print_type_name(resolve, ty)?;
                         self.output.push_str(">");
                     }
-                    TypeDefKind::Type(ty) => self.print_type_name(doc, ty)?,
+                    TypeDefKind::Type(ty) => self.print_type_name(resolve, ty)?,
                     TypeDefKind::Future(_) => {
                         todo!("document has an unnamed future type")
                     }
                     TypeDefKind::Stream(_) => {
                         todo!("document has an unnamed stream type")
                     }
+                    TypeDefKind::Unknown => unreachable!(),
                 }
             }
         }
@@ -233,36 +253,36 @@ impl DocumentPrinter {
         Ok(())
     }
 
-    fn print_tuple_type(&mut self, doc: &Document, tuple: &Tuple) -> Result<()> {
+    fn print_tuple_type(&mut self, resolve: &Resolve, tuple: &Tuple) -> Result<()> {
         self.output.push_str("tuple<");
         for (i, ty) in tuple.types.iter().enumerate() {
             if i > 0 {
                 self.output.push_str(", ");
             }
-            self.print_type_name(doc, ty)?;
+            self.print_type_name(resolve, ty)?;
         }
         self.output.push_str(">");
 
         Ok(())
     }
 
-    fn print_option_type(&mut self, doc: &Document, payload: &Type) -> Result<()> {
+    fn print_option_type(&mut self, resolve: &Resolve, payload: &Type) -> Result<()> {
         self.output.push_str("option<");
-        self.print_type_name(doc, payload)?;
+        self.print_type_name(resolve, payload)?;
         self.output.push_str(">");
         Ok(())
     }
 
-    fn print_result_type(&mut self, doc: &Document, result: &Result_) -> Result<()> {
+    fn print_result_type(&mut self, resolve: &Resolve, result: &Result_) -> Result<()> {
         match result {
             Result_ {
                 ok: Some(ok),
                 err: Some(err),
             } => {
                 self.output.push_str("result<");
-                self.print_type_name(doc, ok)?;
+                self.print_type_name(resolve, ok)?;
                 self.output.push_str(", ");
-                self.print_type_name(doc, err)?;
+                self.print_type_name(resolve, err)?;
                 self.output.push_str(">");
             }
             Result_ {
@@ -270,7 +290,7 @@ impl DocumentPrinter {
                 err: Some(err),
             } => {
                 self.output.push_str("result<_, ");
-                self.print_type_name(doc, err)?;
+                self.print_type_name(resolve, err)?;
                 self.output.push_str(">");
             }
             Result_ {
@@ -278,7 +298,7 @@ impl DocumentPrinter {
                 err: None,
             } => {
                 self.output.push_str("result<");
-                self.print_type_name(doc, ok)?;
+                self.print_type_name(resolve, ok)?;
                 self.output.push_str(">");
             }
             Result_ {
@@ -291,7 +311,7 @@ impl DocumentPrinter {
         Ok(())
     }
 
-    fn declare_type(&mut self, doc: &Document, ty: &Type) -> Result<()> {
+    fn declare_type(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
         match ty {
             Type::Bool
             | Type::U8
@@ -312,29 +332,38 @@ impl DocumentPrinter {
                     return Ok(());
                 }
 
-                let ty = &doc.types[*id];
+                let ty = &resolve.types[*id];
                 match &ty.kind {
-                    TypeDefKind::Record(r) => self.declare_record(doc, ty.name.as_deref(), r)?,
-                    TypeDefKind::Tuple(t) => self.declare_tuple(doc, ty.name.as_deref(), t)?,
+                    TypeDefKind::Record(r) => {
+                        self.declare_record(resolve, ty.name.as_deref(), r)?
+                    }
+                    TypeDefKind::Tuple(t) => self.declare_tuple(resolve, ty.name.as_deref(), t)?,
                     TypeDefKind::Flags(f) => self.declare_flags(ty.name.as_deref(), f)?,
-                    TypeDefKind::Variant(v) => self.declare_variant(doc, ty.name.as_deref(), v)?,
-                    TypeDefKind::Union(u) => self.declare_union(doc, ty.name.as_deref(), u)?,
-                    TypeDefKind::Option(t) => self.declare_option(doc, ty.name.as_deref(), t)?,
-                    TypeDefKind::Result(r) => self.declare_result(doc, ty.name.as_deref(), r)?,
+                    TypeDefKind::Variant(v) => {
+                        self.declare_variant(resolve, ty.name.as_deref(), v)?
+                    }
+                    TypeDefKind::Union(u) => self.declare_union(resolve, ty.name.as_deref(), u)?,
+                    TypeDefKind::Option(t) => {
+                        self.declare_option(resolve, ty.name.as_deref(), t)?
+                    }
+                    TypeDefKind::Result(r) => {
+                        self.declare_result(resolve, ty.name.as_deref(), r)?
+                    }
                     TypeDefKind::Enum(e) => self.declare_enum(ty.name.as_deref(), e)?,
                     TypeDefKind::List(inner) => {
-                        self.declare_list(doc, ty.name.as_deref(), inner)?
+                        self.declare_list(resolve, ty.name.as_deref(), inner)?
                     }
                     TypeDefKind::Type(inner) => match ty.name.as_deref() {
                         Some(name) => {
                             write!(&mut self.output, "type {} = ", name)?;
-                            self.print_type_name(doc, inner)?;
+                            self.print_type_name(resolve, inner)?;
                             self.output.push_str("\n\n");
                         }
                         None => bail!("unnamed type in document"),
                     },
                     TypeDefKind::Future(_) => todo!("declare future"),
                     TypeDefKind::Stream(_) => todo!("declare stream"),
+                    TypeDefKind::Unknown => unreachable!(),
                 }
             }
         }
@@ -343,12 +372,12 @@ impl DocumentPrinter {
 
     fn declare_record(
         &mut self,
-        doc: &Document,
+        resolve: &Resolve,
         name: Option<&str>,
         record: &Record,
     ) -> Result<()> {
         for field in record.fields.iter() {
-            self.declare_type(doc, &field.ty)?;
+            self.declare_type(resolve, &field.ty)?;
         }
 
         match name {
@@ -356,8 +385,8 @@ impl DocumentPrinter {
                 writeln!(&mut self.output, "record {} {{", name)?;
                 for field in &record.fields {
                     write!(&mut self.output, "{}: ", field.name)?;
-                    self.declare_type(doc, &field.ty)?;
-                    self.print_type_name(doc, &field.ty)?;
+                    self.declare_type(resolve, &field.ty)?;
+                    self.print_type_name(resolve, &field.ty)?;
                     self.output.push_str(",\n");
                 }
                 self.output.push_str("}\n\n");
@@ -367,14 +396,19 @@ impl DocumentPrinter {
         }
     }
 
-    fn declare_tuple(&mut self, doc: &Document, name: Option<&str>, tuple: &Tuple) -> Result<()> {
+    fn declare_tuple(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        tuple: &Tuple,
+    ) -> Result<()> {
         for ty in tuple.types.iter() {
-            self.declare_type(doc, ty)?;
+            self.declare_type(resolve, ty)?;
         }
 
         if let Some(name) = name {
             write!(&mut self.output, "type {} = ", name)?;
-            self.print_tuple_type(doc, tuple)?;
+            self.print_tuple_type(resolve, tuple)?;
             self.output.push_str("\n\n");
         }
         Ok(())
@@ -396,13 +430,13 @@ impl DocumentPrinter {
 
     fn declare_variant(
         &mut self,
-        doc: &Document,
+        resolve: &Resolve,
         name: Option<&str>,
         variant: &Variant,
     ) -> Result<()> {
         for case in variant.cases.iter() {
             if let Some(ty) = case.ty {
-                self.declare_type(doc, &ty)?;
+                self.declare_type(resolve, &ty)?;
             }
         }
 
@@ -415,7 +449,7 @@ impl DocumentPrinter {
             write!(&mut self.output, "{}", case.name)?;
             if let Some(ty) = case.ty {
                 self.output.push_str("(");
-                self.print_type_name(doc, &ty)?;
+                self.print_type_name(resolve, &ty)?;
                 self.output.push_str(")");
             }
             self.output.push_str(",\n");
@@ -424,9 +458,14 @@ impl DocumentPrinter {
         Ok(())
     }
 
-    fn declare_union(&mut self, doc: &Document, name: Option<&str>, union: &Union) -> Result<()> {
+    fn declare_union(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        union: &Union,
+    ) -> Result<()> {
         for case in union.cases.iter() {
-            self.declare_type(doc, &case.ty)?;
+            self.declare_type(resolve, &case.ty)?;
         }
 
         let name = match name {
@@ -436,19 +475,24 @@ impl DocumentPrinter {
         writeln!(&mut self.output, "union {} {{", name)?;
         for case in &union.cases {
             self.output.push_str("");
-            self.print_type_name(doc, &case.ty)?;
+            self.print_type_name(resolve, &case.ty)?;
             self.output.push_str(",\n");
         }
         self.output.push_str("}\n\n");
         Ok(())
     }
 
-    fn declare_option(&mut self, doc: &Document, name: Option<&str>, payload: &Type) -> Result<()> {
-        self.declare_type(doc, payload)?;
+    fn declare_option(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        payload: &Type,
+    ) -> Result<()> {
+        self.declare_type(resolve, payload)?;
 
         if let Some(name) = name {
             write!(&mut self.output, "type {} = ", name)?;
-            self.print_option_type(doc, payload)?;
+            self.print_option_type(resolve, payload)?;
             self.output.push_str("\n\n");
         }
         Ok(())
@@ -456,20 +500,20 @@ impl DocumentPrinter {
 
     fn declare_result(
         &mut self,
-        doc: &Document,
+        resolve: &Resolve,
         name: Option<&str>,
         result: &Result_,
     ) -> Result<()> {
         if let Some(ok) = result.ok {
-            self.declare_type(doc, &ok)?;
+            self.declare_type(resolve, &ok)?;
         }
         if let Some(err) = result.err {
-            self.declare_type(doc, &err)?;
+            self.declare_type(resolve, &err)?;
         }
 
         if let Some(name) = name {
             write!(&mut self.output, "type {} = ", name)?;
-            self.print_result_type(doc, result)?;
+            self.print_result_type(resolve, result)?;
             self.output.push_str("\n\n");
         }
         Ok(())
@@ -488,12 +532,12 @@ impl DocumentPrinter {
         Ok(())
     }
 
-    fn declare_list(&mut self, doc: &Document, name: Option<&str>, ty: &Type) -> Result<()> {
-        self.declare_type(doc, ty)?;
+    fn declare_list(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
+        self.declare_type(resolve, ty)?;
 
         if let Some(name) = name {
             write!(&mut self.output, "type {} = list<", name)?;
-            self.print_type_name(doc, ty)?;
+            self.print_type_name(resolve, ty)?;
             self.output.push_str(">\n\n");
             return Ok(());
         }

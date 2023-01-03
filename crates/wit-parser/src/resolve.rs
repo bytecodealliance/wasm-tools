@@ -35,6 +35,9 @@ pub struct Resolve {
 
 #[derive(Clone)]
 pub struct Package {
+    /// Locally-known name of this package.
+    pub name: String,
+
     /// Documents contained within this package, organized by name.
     pub documents: IndexMap<String, DocumentId>,
 }
@@ -309,8 +312,14 @@ impl Remap {
             let prev = documents.insert(resolve.documents[*id].name.clone(), *id);
             assert!(prev.is_none());
         }
-
-        Ok(resolve.packages.alloc(Package { documents }))
+        let pkgid = resolve.packages.alloc(Package {
+            name: unresolved.name,
+            documents,
+        });
+        for (_, id) in resolve.packages[pkgid].documents.iter() {
+            resolve.documents[*id].package = Some(pkgid);
+        }
+        Ok(pkgid)
     }
 
     fn process_foreign_deps(
@@ -573,6 +582,7 @@ impl Remap {
         if let Some(default) = &mut doc.default_world {
             *default = self.worlds[default.index()];
         }
+        assert!(doc.package.is_none());
     }
 }
 

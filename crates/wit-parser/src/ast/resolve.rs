@@ -73,7 +73,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage> {
+    pub(crate) fn resolve(&mut self, name: &str) -> Result<UnresolvedPackage> {
         self.populate_foreign_deps();
 
         // Determine the dependencies between documents in the current package
@@ -111,6 +111,7 @@ impl<'a> Resolver<'a> {
         }
 
         Ok(UnresolvedPackage {
+            name: name.to_string(),
             worlds: mem::take(&mut self.worlds),
             types: mem::take(&mut self.types),
             interfaces: mem::take(&mut self.interfaces),
@@ -166,6 +167,7 @@ impl<'a> Resolver<'a> {
                         default_world: None,
                         interfaces: IndexMap::new(),
                         worlds: Vec::new(),
+                        package: None,
                     })
                 });
 
@@ -320,6 +322,7 @@ impl<'a> Resolver<'a> {
             default_world: None,
             interfaces: IndexMap::new(),
             worlds: Vec::new(),
+            package: None,
         });
         self.document_interfaces.push(IndexMap::new());
         self.document_lookup.insert(name, document_id);

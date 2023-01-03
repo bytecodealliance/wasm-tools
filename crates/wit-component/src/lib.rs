@@ -7,18 +7,18 @@ use std::fmt::Display;
 use std::str::FromStr;
 use wasm_encoder::CanonicalOption;
 
-mod builder;
+// mod builder;
 mod decoding;
-mod encoding;
-mod gc;
+// mod encoding;
+// mod gc;
 mod printing;
-mod validation;
+// mod validation;
 
-pub use decoding::decode_world;
-pub use encoding::ComponentEncoder;
+pub use decoding::{decode, DecodedWasm};
+// pub use encoding::ComponentEncoder;
 pub use printing::*;
 
-pub mod metadata;
+// pub mod metadata;
 
 /// Supported string encoding formats.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

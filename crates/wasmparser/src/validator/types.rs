@@ -218,6 +218,12 @@ impl fmt::Display for KebabString {
     }
 }
 
+impl From<KebabString> for String {
+    fn from(s: KebabString) -> String {
+        s.0
+    }
+}
+
 /// A simple alloc-free list of types used for calculating lowered function signatures.
 pub(crate) struct LoweredTypes {
     types: [ValType; MAX_LOWERED_TYPES],

@@ -34,9 +34,9 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use wasm_encoder::Encode;
 use wasmparser::BinaryReader;
-use wit_parser::{Document, World, WorldId};
+use wit_parser::{Resolve, World, WorldId};
 
-const CURRENT_VERSION: u8 = 0x01;
+const CURRENT_VERSION: u8 = 0x02;
 
 /// The result of decoding binding information from a WebAssembly binary.
 ///
@@ -44,7 +44,7 @@ const CURRENT_VERSION: u8 = 0x01;
 /// WebAssembly binary.
 pub struct Bindgen {
     /// Interface and type information for this binary.
-    pub doc: Document,
+    pub resolve: Resolve,
     /// The world that was bound.
     pub world: WorldId,
     /// Metadata about this specific module that was bound.
@@ -53,10 +53,10 @@ pub struct Bindgen {
 
 impl Default for Bindgen {
     fn default() -> Bindgen {
-        let mut doc = Document::default();
-        let world = doc.worlds.alloc(World::default());
+        let mut resolve = Resolve::default();
+        let world = resolve.worlds.alloc(World::default());
         Bindgen {
-            doc,
+            resolve,
             world,
             metadata: ModuleMetadata::default(),
         }
@@ -120,7 +120,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
 /// into the final core wasm binary. The core wasm binary is later fed
 /// through `wit-component` to produce the actual component where this returned
 /// section will be decoded.
-pub fn encode(doc: &Document, world: WorldId, encoding: StringEncoding) -> Vec<u8> {
+pub fn encode(resolve: &Resolve, world: WorldId, encoding: StringEncoding) -> Vec<u8> {
     let component = ComponentEncoder::default()
         .types_only(true)
         .document(doc.clone(), encoding)
