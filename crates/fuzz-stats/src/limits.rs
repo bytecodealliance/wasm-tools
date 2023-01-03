@@ -1,4 +1,6 @@
 use wasmtime::*;
+
+#[derive(Clone)]
 pub struct StoreLimits {
     pub remaining_memory: usize,
     pub oom: bool,

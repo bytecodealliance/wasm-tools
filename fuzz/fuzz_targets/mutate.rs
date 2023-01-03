@@ -147,71 +147,94 @@ mod eval {
             (_, _) => return,
         };
 
-        let mut store = wasmtime::Store::new(
-            &engine,
-            StoreLimits {
-                remaining_memory: 1 << 30,
-                oom: false,
-            },
-        );
-        store.limiter(|s| s as &mut dyn ResourceLimiter);
-        let (orig_imports, mutated_imports) = match dummy::dummy_imports(&mut store, &orig_module) {
-            Ok(imps) => (imps.clone(), imps),
+        let limits = StoreLimits {
+            remaining_memory: 1 << 30,
+            oom: false,
+        };
+        let mut orig_store = wasmtime::Store::new(&engine, limits.clone());
+        let mut mutated_store = wasmtime::Store::new(&engine, limits);
+        orig_store.limiter(|s| s as &mut dyn ResourceLimiter);
+        mutated_store.limiter(|s| s as &mut dyn ResourceLimiter);
+        let orig_imports = match dummy::dummy_imports(&mut orig_store, &orig_module) {
+            Ok(imps) => imps,
+            Err(_) => return,
+        };
+        let mutated_imports = match dummy::dummy_imports(&mut mutated_store, &mutated_module) {
+            Ok(imps) => imps,
             Err(_) => return,
         };
 
         let (orig_instance, mutated_instance) = match (
-            wasmtime::Instance::new(&mut store, &orig_module, &orig_imports),
-            wasmtime::Instance::new(&mut store, &mutated_module, &mutated_imports),
+            wasmtime::Instance::new(&mut orig_store, &orig_module, &orig_imports),
+            wasmtime::Instance::new(&mut mutated_store, &mutated_module, &mutated_imports),
         ) {
             (Ok(x), Ok(y)) => (x, y),
             (_, _) => return,
         };
 
-        assert_same_state(&mut store, &orig_module, orig_instance, mutated_instance);
-        assert_same_calls(&mut store, &orig_module, orig_instance, mutated_instance);
-        assert_same_state(&mut store, &orig_module, orig_instance, mutated_instance);
+        assert_same_state(
+            &orig_module,
+            &mut orig_store,
+            orig_instance,
+            &mut mutated_store,
+            mutated_instance,
+        );
+        assert_same_calls(
+            &orig_module,
+            &mut orig_store,
+            orig_instance,
+            &mut mutated_store,
+            mutated_instance,
+        );
+        assert_same_state(
+            &orig_module,
+            &mut orig_store,
+            orig_instance,
+            &mut mutated_store,
+            mutated_instance,
+        );
     }
 
     fn assert_same_state(
-        store: &mut wasmtime::Store<StoreLimits>,
         orig_module: &wasmtime::Module,
+        orig_store: &mut wasmtime::Store<StoreLimits>,
         orig_instance: wasmtime::Instance,
+        mutated_store: &mut wasmtime::Store<StoreLimits>,
         mutated_instance: wasmtime::Instance,
     ) {
         for export in orig_module.exports() {
             match export.ty() {
                 wasmtime::ExternType::Global(_) => {
                     let orig = orig_instance
-                        .get_export(&mut *store, export.name())
+                        .get_export(&mut *orig_store, export.name())
                         .unwrap()
                         .into_global()
                         .unwrap()
-                        .get(&mut *store);
+                        .get(&mut *orig_store);
                     let mutated = mutated_instance
-                        .get_export(&mut *store, export.name())
+                        .get_export(&mut *mutated_store, export.name())
                         .unwrap()
                         .into_global()
                         .unwrap()
-                        .get(&mut *store);
+                        .get(&mut *mutated_store);
                     assert_val_eq(&orig, &mutated);
                 }
                 wasmtime::ExternType::Memory(_) => {
                     let orig = orig_instance
-                        .get_export(&mut *store, export.name())
+                        .get_export(&mut *orig_store, export.name())
                         .unwrap()
                         .into_memory()
                         .unwrap();
                     let mut h = DefaultHasher::default();
-                    orig.data(&store).hash(&mut h);
+                    orig.data(&orig_store).hash(&mut h);
                     let orig = h.finish();
                     let mutated = mutated_instance
-                        .get_export(&mut *store, export.name())
+                        .get_export(&mut *mutated_store, export.name())
                         .unwrap()
                         .into_memory()
                         .unwrap();
                     let mut h = DefaultHasher::default();
-                    mutated.data(&store).hash(&mut h);
+                    mutated.data(&mutated_store).hash(&mut h);
                     let mutated = h.finish();
                     assert_eq!(orig, mutated, "original and mutated Wasm memories diverged");
                 }
@@ -221,9 +244,10 @@ mod eval {
     }
 
     fn assert_same_calls(
-        store: &mut wasmtime::Store<StoreLimits>,
         orig_module: &wasmtime::Module,
+        orig_store: &mut wasmtime::Store<StoreLimits>,
         orig_instance: wasmtime::Instance,
+        mutated_store: &mut wasmtime::Store<StoreLimits>,
         mutated_instance: wasmtime::Instance,
     ) {
         for export in orig_module.exports() {
@@ -231,25 +255,27 @@ mod eval {
                 wasmtime::ExternType::Func(func_ty) => func_ty,
                 _ => continue,
             };
-            let orig_func = orig_instance.get_func(&mut *store, export.name()).unwrap();
+            let orig_func = orig_instance
+                .get_func(&mut *orig_store, export.name())
+                .unwrap();
             let mutated_func = mutated_instance
-                .get_func(&mut *store, export.name())
+                .get_func(&mut *mutated_store, export.name())
                 .unwrap();
             let args = dummy::dummy_values(func_ty.params());
             let mut orig_results = vec![Val::I32(0); func_ty.results().len()];
             let mut mutated_results = orig_results.clone();
             log::debug!("invoking `{}`", export.name());
-            let prev_consumed = store.fuel_consumed().unwrap();
+            let prev_consumed = orig_store.fuel_consumed().unwrap();
             match (
                 {
-                    store.add_fuel(1_000).unwrap();
-                    orig_func.call(&mut *store, &args, &mut orig_results)
+                    orig_store.add_fuel(1_000).unwrap();
+                    orig_func.call(&mut *orig_store, &args, &mut orig_results)
                 },
                 {
-                    let consumed = store.fuel_consumed().unwrap() - prev_consumed;
+                    let consumed = orig_store.fuel_consumed().unwrap() - prev_consumed;
                     log::debug!("consumed {consumed} fuel");
-                    store.add_fuel(consumed).unwrap();
-                    mutated_func.call(&mut *store, &args, &mut mutated_results)
+                    mutated_store.add_fuel(consumed).unwrap();
+                    mutated_func.call(&mut *mutated_store, &args, &mut mutated_results)
                 },
             ) {
                 (Ok(()), Ok(())) => {
