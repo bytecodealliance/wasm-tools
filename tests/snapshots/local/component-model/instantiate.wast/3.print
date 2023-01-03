@@ -1,0 +1,19 @@
+(component
+  (type (;0;)
+    (component)
+  )
+  (import "a" (component $i (;0;) (type 0)))
+  (type (;1;)
+    (component
+      (type (;0;)
+        (component)
+      )
+      (import "a" (component (type 0)))
+    )
+  )
+  (import "b" (component $c (;1;) (type 1)))
+  (instance (;0;) (instantiate $c
+      (with "a" (component $i))
+    )
+  )
+)

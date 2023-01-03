@@ -1,0 +1,6 @@
+(module
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func (param i32 f32)))
+  (import "test" "t2" (tag (;0;) (type 0) (param i32)))
+  (import "test" "t3" (tag (;1;) (type 1) (param i32 f32)))
+)

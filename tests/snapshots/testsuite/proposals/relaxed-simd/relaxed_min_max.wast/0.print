@@ -1,0 +1,27 @@
+(module
+  (type (;0;) (func (param v128 v128) (result v128)))
+  (func (;0;) (type 0) (param v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    f32x4.relaxed_min
+  )
+  (func (;1;) (type 0) (param v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    f32x4.relaxed_max
+  )
+  (func (;2;) (type 0) (param v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    f64x2.relaxed_max
+  )
+  (func (;3;) (type 0) (param v128 v128) (result v128)
+    local.get 0
+    local.get 1
+    f64x2.relaxed_min
+  )
+  (export "f32x4.relaxed_min" (func 0))
+  (export "f32x4.relaxed_max" (func 1))
+  (export "f64x2.relaxed_max" (func 2))
+  (export "f64x2.relaxed_min" (func 3))
+)

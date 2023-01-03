@@ -1,0 +1,13 @@
+(component
+  (type (;0;)
+    (instance
+      (core type (;0;)
+        (module)
+      )
+      (export "v" (core module (type 0)))
+    )
+  )
+  (import "a" (instance $foo (;0;) (type 0)))
+  (alias export $foo "v" (core module (;0;)))
+  (export "v" (core module 0))
+)
