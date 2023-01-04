@@ -35,5 +35,5 @@
   (alias core export $main "start-post-return" (core func (;2;)))
   (func $start (;0;) (type 0) (canon lift (core func $main_func) (memory 0) (realloc 1) (post-return 2)))
   (start $start (value $name) (result (value (;1;))))
-  (export "greeting" (value 1))
+  (export (;2;) "greeting" (value 1))
 )

@@ -1,13 +1,17 @@
 use super::ItemRef;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, Index, Span};
+use crate::token::{Id, Index, NameAnnotation, Span};
 
 /// An entry in a WebAssembly component's export section.
 #[derive(Debug)]
 pub struct ComponentExport<'a> {
     /// Where this export was defined.
     pub span: Span,
+    /// Optional identifier bound to this export.
+    pub id: Option<Id<'a>>,
+    /// An optional name for this instance stored in the custom `name` section.
+    pub debug_name: Option<NameAnnotation<'a>>,
     /// The name of this export from the component.
     pub name: &'a str,
     /// The URL of the export.
@@ -19,11 +23,15 @@ pub struct ComponentExport<'a> {
 impl<'a> Parse<'a> for ComponentExport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::export>()?.0;
+        let id = parser.parse()?;
+        let debug_name = parser.parse()?;
         let name = parser.parse()?;
         let url = parser.parse()?;
         let kind = parser.parse()?;
         Ok(ComponentExport {
             span,
+            id,
+            debug_name,
             name,
             url,
             kind,

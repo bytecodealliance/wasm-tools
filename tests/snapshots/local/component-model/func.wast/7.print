@@ -14,5 +14,5 @@
   (alias core export $i "ret-list" (core func (;0;)))
   (alias core export $i "memory" (core memory (;0;)))
   (func (;0;) (type 1) (canon lift (core func 0) (memory 0)))
-  (export "ret-list" (func 0))
+  (export (;1;) "ret-list" (func 0))
 )

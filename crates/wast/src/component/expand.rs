@@ -138,6 +138,8 @@ impl<'a> Expander<'a> {
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: module.span,
+                    id: None,
+                    debug_name: None,
                     name,
                     url,
                     kind: ComponentExportKind::module(module.span, id),
@@ -183,6 +185,8 @@ impl<'a> Expander<'a> {
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: component.span,
+                    id: None,
+                    debug_name: None,
                     name,
                     url,
                     kind: ComponentExportKind::component(component.span, id),
@@ -216,6 +220,8 @@ impl<'a> Expander<'a> {
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: instance.span,
+                    id: None,
+                    debug_name: None,
                     name,
                     url,
                     kind: ComponentExportKind::instance(instance.span, id),
@@ -282,6 +288,8 @@ impl<'a> Expander<'a> {
             self.component_fields_to_append
                 .push(ComponentField::Export(ComponentExport {
                     span: func.span,
+                    id: None,
+                    debug_name: None,
                     name,
                     url,
                     kind: ComponentExportKind::func(func.span, id),

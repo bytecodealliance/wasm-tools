@@ -9,8 +9,8 @@
 
   (component $child
     (import "wasi-file" (instance $wasi-file
-      (export "read" (func $read (param "count" u32) (result (list u8))))
-      (export "write" (func $write (param "bytes" (list u8)) (result u32)))
+      (export "read" (func (param "count" u32) (result (list u8))))
+      (export "write" (func (param "bytes" (list u8)) (result u32)))
     ))
 
     (core instance $libc (instantiate $libc))
@@ -42,8 +42,8 @@
 
   (component $virtualize
     (import "wasi-file" (instance $wasi-file
-      (export "read" (func $read (param "len" u32) (result (list u8))))
-      (export "write" (func $write (param "buf" (list u8)) (result u32)))
+      (export "read" (func (param "len" u32) (result (list u8))))
+      (export "write" (func (param "buf" (list u8)) (result u32)))
     ))
     (export "read" (func $wasi-file "read"))
     (export "write" (func $wasi-file "write"))
@@ -51,18 +51,18 @@
 
   (component
     (type $WasiFile (instance
-      (export "read" (func $read (param "len" u32) (result (list u8))))
-      (export "write" (func $write (param "buf" (list u8)) (result u32)))
+      (export "read" (func (param "len" u32) (result (list u8))))
+      (export "write" (func (param "buf" (list u8)) (result u32)))
     ))
     (import "wasi-file" (instance $real-wasi (type $WasiFile)))
     (import "virtualize" (component $VIRTUALIZE
       (import "wasi-file" (instance (type $WasiFile)))
-        (export "read" (func $read (param "len" u32) (result (list u8))))
-        (export "write" (func $write (param "buf" (list u8)) (result u32)))
+        (export "read" (func (param "len" u32) (result (list u8))))
+        (export "write" (func (param "buf" (list u8)) (result u32)))
       ))
       (import "child" (component $CHILD
         (import "wasi-file" (instance (type $WasiFile)))
-        (export "play" (func $play))
+        (export "play" (func))
       )
     )
 
@@ -74,8 +74,8 @@
 
   (component
     (type $WasiFile (instance
-      (export "read" (func $read (param "len" u32) (result (list u8))))
-      (export "write" (func $write (param "buf" (list u8)) (result u32)))
+      (export "read" (func (param "len" u32) (result (list u8))))
+      (export "write" (func (param "buf" (list u8)) (result u32)))
     ))
     (import "wasi-file" (instance $real-wasi (type $WasiFile)))
 

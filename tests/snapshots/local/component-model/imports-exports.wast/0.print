@@ -32,5 +32,5 @@
       (with "c" (instance 2))
     )
   )
-  (export "d2" (instance $d2))
+  (export (;4;) "d2" (instance $d2))
 )

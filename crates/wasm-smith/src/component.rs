@@ -2005,9 +2005,6 @@ enum InstanceExportAliasKind {
     Instance,
     Func,
     Value,
-    Table,
-    Memory,
-    Global,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

@@ -47,5 +47,5 @@
   (alias core export $libc "memory" (core memory (;1;)))
   (alias core export $libc "realloc" (core func (;3;)))
   (func $run (;1;) (type 1) (canon lift (core func 2) (memory 1) (realloc 3)))
-  (export "run" (func $run))
+  (export (;2;) "run" (func $run))
 )

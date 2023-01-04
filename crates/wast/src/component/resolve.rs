@@ -83,6 +83,17 @@ impl<'a> ComponentState<'a> {
             ..ComponentState::default()
         }
     }
+
+    fn register_item_sig(&mut self, sig: &ItemSig<'a>) -> Result<u32, Error> {
+        match &sig.kind {
+            ItemSigKind::CoreModule(_) => self.core_modules.register(sig.id, "core module"),
+            ItemSigKind::Func(_) => self.funcs.register(sig.id, "func"),
+            ItemSigKind::Component(_) => self.components.register(sig.id, "component"),
+            ItemSigKind::Instance(_) => self.instances.register(sig.id, "instance"),
+            ItemSigKind::Value(_) => self.values.register(sig.id, "value"),
+            ItemSigKind::Type(_) => self.types.register(sig.id, "type"),
+        }
+    }
 }
 
 impl<'a> Resolver<'a> {
@@ -522,9 +533,12 @@ impl<'a> Resolver<'a> {
                     ComponentTypeDecl::Type(ty) => {
                         state.types.register(ty.id, "type")?;
                     }
-                    // Only the type namespace is populated within the component type
-                    // namespace so these are ignored here.
-                    ComponentTypeDecl::Import(_) | ComponentTypeDecl::Export(_) => {}
+                    ComponentTypeDecl::Export(e) => {
+                        state.register_item_sig(&e.item)?;
+                    }
+                    ComponentTypeDecl::Import(i) => {
+                        state.register_item_sig(&i.item)?;
+                    }
                 }
                 Ok(())
             },
@@ -551,7 +565,9 @@ impl<'a> Resolver<'a> {
                     InstanceTypeDecl::Type(ty) => {
                         state.types.register(ty.id, "type")?;
                     }
-                    InstanceTypeDecl::Export(_export) => {}
+                    InstanceTypeDecl::Export(export) => {
+                        state.register_item_sig(&export.item)?;
+                    }
                 }
                 Ok(())
             },
@@ -778,20 +794,18 @@ impl<'a> ComponentState<'a> {
                 }
                 return Ok(());
             }
-            ComponentField::Import(i) => match &i.item.kind {
-                ItemSigKind::CoreModule(_) => {
-                    self.core_modules.register(i.item.id, "core module")?
+            ComponentField::Import(i) => self.register_item_sig(&i.item)?,
+            ComponentField::Export(e) => match &e.kind {
+                ComponentExportKind::CoreModule(_) => {
+                    self.core_modules.register(e.id, "core module")?
                 }
-                ItemSigKind::Func(_) => self.funcs.register(i.item.id, "func")?,
-                ItemSigKind::Component(_) => self.components.register(i.item.id, "component")?,
-                ItemSigKind::Instance(_) => self.instances.register(i.item.id, "instance")?,
-                ItemSigKind::Value(_) => self.values.register(i.item.id, "value")?,
-                ItemSigKind::Type(_) => self.types.register(i.item.id, "type")?,
+                ComponentExportKind::Func(_) => self.funcs.register(e.id, "func")?,
+                ComponentExportKind::Instance(_) => self.instances.register(e.id, "instance")?,
+                ComponentExportKind::Value(_) => self.values.register(e.id, "value")?,
+                ComponentExportKind::Component(_) => self.components.register(e.id, "component")?,
+                ComponentExportKind::Type(_) => self.types.register(e.id, "type")?,
             },
-            ComponentField::Export(_) | ComponentField::Custom(_) => {
-                // Exports and custom sections don't define any items
-                return Ok(());
-            }
+            ComponentField::Custom(_) => return Ok(()),
         };
 
         Ok(())

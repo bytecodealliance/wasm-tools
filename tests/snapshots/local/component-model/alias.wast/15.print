@@ -6,5 +6,5 @@
   )
   (import "a" (instance $foo (;0;) (type 0)))
   (alias export $foo "v" (value (;0;)))
-  (export "v" (value 0))
+  (export (;1;) "v" (value 0))
 )

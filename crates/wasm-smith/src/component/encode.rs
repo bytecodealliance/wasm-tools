@@ -1,4 +1,5 @@
 use super::*;
+use wasm_encoder::{ComponentExportKind, ComponentOuterAliasKind, ExportKind};
 use wasmparser::types::KebabStr;
 
 impl Component {
@@ -188,21 +189,9 @@ impl Type {
                         ComponentTypeDef::Export { name, url, ty } => {
                             enc_comp_ty.export(name, url.as_deref().unwrap_or(""), *ty);
                         }
-                        ComponentTypeDef::Alias(Alias::Outer {
-                            count,
-                            i,
-                            kind: OuterAliasKind::Type(_),
-                        }) => {
-                            enc_comp_ty.alias_outer_type(*count, *i);
+                        ComponentTypeDef::Alias(a) => {
+                            enc_comp_ty.alias(translate_alias(a));
                         }
-                        ComponentTypeDef::Alias(Alias::Outer {
-                            count,
-                            i,
-                            kind: OuterAliasKind::CoreType(_),
-                        }) => {
-                            enc_comp_ty.alias_outer_core_type(*count, *i);
-                        }
-                        ComponentTypeDef::Alias(_) => unreachable!(),
                     }
                 }
                 enc.component(&enc_comp_ty);
@@ -220,21 +209,9 @@ impl Type {
                         InstanceTypeDecl::Export { name, url, ty } => {
                             enc_inst_ty.export(name, url.as_deref().unwrap_or(""), *ty);
                         }
-                        InstanceTypeDecl::Alias(Alias::Outer {
-                            count,
-                            i,
-                            kind: OuterAliasKind::Type(_),
-                        }) => {
-                            enc_inst_ty.alias_outer_type(*count, *i);
+                        InstanceTypeDecl::Alias(a) => {
+                            enc_inst_ty.alias(translate_alias(a));
                         }
-                        InstanceTypeDecl::Alias(Alias::Outer {
-                            count,
-                            i,
-                            kind: OuterAliasKind::CoreType(_),
-                        }) => {
-                            enc_inst_ty.alias_outer_core_type(*count, *i);
-                        }
-                        InstanceTypeDecl::Alias(_) => unreachable!(),
                     }
                 }
                 enc.instance(&enc_inst_ty);
@@ -294,4 +271,49 @@ fn translate_canon_opt(options: &[CanonOpt]) -> Vec<wasm_encoder::CanonicalOptio
             CanonOpt::PostReturn(idx) => wasm_encoder::CanonicalOption::PostReturn(*idx),
         })
         .collect()
+}
+
+fn translate_alias(alias: &Alias) -> wasm_encoder::Alias<'_> {
+    match alias {
+        Alias::InstanceExport {
+            instance,
+            name,
+            kind,
+        } => wasm_encoder::Alias::InstanceExport {
+            instance: *instance,
+            name,
+            kind: match kind {
+                InstanceExportAliasKind::Module => ComponentExportKind::Module,
+                InstanceExportAliasKind::Component => ComponentExportKind::Component,
+                InstanceExportAliasKind::Instance => ComponentExportKind::Instance,
+                InstanceExportAliasKind::Func => ComponentExportKind::Func,
+                InstanceExportAliasKind::Value => ComponentExportKind::Value,
+            },
+        },
+        Alias::CoreInstanceExport {
+            instance,
+            name,
+            kind,
+        } => wasm_encoder::Alias::CoreInstanceExport {
+            instance: *instance,
+            name,
+            kind: match kind {
+                CoreInstanceExportAliasKind::Func => ExportKind::Func,
+                CoreInstanceExportAliasKind::Table => ExportKind::Table,
+                CoreInstanceExportAliasKind::Global => ExportKind::Global,
+                CoreInstanceExportAliasKind::Memory => ExportKind::Memory,
+                CoreInstanceExportAliasKind::Tag => ExportKind::Tag,
+            },
+        },
+        Alias::Outer { count, i, kind } => wasm_encoder::Alias::Outer {
+            count: *count,
+            index: *i,
+            kind: match kind {
+                OuterAliasKind::Module => ComponentOuterAliasKind::CoreModule,
+                OuterAliasKind::Component => ComponentOuterAliasKind::Component,
+                OuterAliasKind::Type(_) => ComponentOuterAliasKind::Type,
+                OuterAliasKind::CoreType(_) => ComponentOuterAliasKind::CoreType,
+            },
+        },
+    }
 }

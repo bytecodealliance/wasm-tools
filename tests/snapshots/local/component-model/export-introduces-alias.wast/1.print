@@ -1,0 +1,15 @@
+(component
+  (type (;0;)
+    (component
+      (type (;0;) u8)
+      (type (;1;)
+        (instance
+          (alias outer 1 0 (type (;0;)))
+          (export "t" (type (eq 0)))
+        )
+      )
+      (import "x" (instance (type 1)))
+      (alias export 0 "t" (type (;2;)))
+    )
+  )
+)

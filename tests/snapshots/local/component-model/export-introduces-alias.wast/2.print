@@ -1,0 +1,21 @@
+(component
+  (type (;0;)
+    (component
+      (type (;0;) u8)
+      (type (;1;)
+        (instance
+          (type (;0;)
+            (instance
+              (alias outer 2 0 (type (;0;)))
+              (export "t" (type (eq 0)))
+            )
+          )
+          (export "i" (instance (type 0)))
+        )
+      )
+      (import "x" (instance (type 1)))
+      (alias export 0 "i" (instance (;0;)))
+      (alias export 1 "t" (type (;2;)))
+    )
+  )
+)

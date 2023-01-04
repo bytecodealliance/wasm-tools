@@ -215,35 +215,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let entity = self.check_type_ref(&import.ty, types, offset)?;
-
-        let (len, max, desc) = match entity {
-            ComponentEntityType::Module(id) => {
-                self.core_modules.push(id);
-                (self.core_modules.len(), MAX_WASM_MODULES, "modules")
-            }
-            ComponentEntityType::Component(id) => {
-                self.components.push(id);
-                (self.components.len(), MAX_WASM_COMPONENTS, "components")
-            }
-            ComponentEntityType::Instance(id) => {
-                self.instances.push(id);
-                (self.instance_count(), MAX_WASM_INSTANCES, "instances")
-            }
-            ComponentEntityType::Func(id) => {
-                self.funcs.push(id);
-                (self.function_count(), MAX_WASM_FUNCTIONS, "functions")
-            }
-            ComponentEntityType::Value(ty) => {
-                self.values.push((ty, false));
-                (self.values.len(), MAX_WASM_VALUES, "values")
-            }
-            ComponentEntityType::Type(id) => {
-                self.types.push(id);
-                (self.types.len(), MAX_WASM_TYPES, "types")
-            }
-        };
-
-        check_max(len, 0, max, desc, offset)?;
+        self.add_entity(entity, false, offset)?;
         let name = to_kebab_str(import.name, "import", offset)?;
 
         match self.imports.entry(name.to_owned()) {
@@ -271,6 +243,43 @@ impl ComponentState {
         Ok(())
     }
 
+    fn add_entity(
+        &mut self,
+        ty: ComponentEntityType,
+        value_used: bool,
+        offset: usize,
+    ) -> Result<()> {
+        let (len, max, desc) = match ty {
+            ComponentEntityType::Module(id) => {
+                self.core_modules.push(id);
+                (self.core_modules.len(), MAX_WASM_MODULES, "modules")
+            }
+            ComponentEntityType::Component(id) => {
+                self.components.push(id);
+                (self.components.len(), MAX_WASM_COMPONENTS, "components")
+            }
+            ComponentEntityType::Instance(id) => {
+                self.instances.push(id);
+                (self.instance_count(), MAX_WASM_INSTANCES, "instances")
+            }
+            ComponentEntityType::Func(id) => {
+                self.funcs.push(id);
+                (self.function_count(), MAX_WASM_FUNCTIONS, "functions")
+            }
+            ComponentEntityType::Value(ty) => {
+                self.values.push((ty, value_used));
+                (self.values.len(), MAX_WASM_VALUES, "values")
+            }
+            ComponentEntityType::Type(id) => {
+                self.types.push(id);
+                (self.types.len(), MAX_WASM_TYPES, "types")
+            }
+        };
+
+        check_max(len, 0, max, desc, offset)?;
+        Ok(())
+    }
+
     pub fn add_export(
         &mut self,
         name: &str,
@@ -282,6 +291,7 @@ impl ComponentState {
         if check_limit {
             check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
         }
+        self.add_entity(ty, true, offset)?;
 
         let name = to_kebab_str(name, "export", offset)?;
 
@@ -808,26 +818,7 @@ impl ComponentState {
                         .add_import(import, types, offset)?;
                 }
                 crate::ComponentTypeDeclaration::Alias(alias) => {
-                    match alias {
-                        crate::ComponentAlias::Outer { kind, count, index }
-                            if kind == ComponentOuterAliasKind::CoreType
-                                || kind == ComponentOuterAliasKind::Type =>
-                        {
-                            match kind {
-                                ComponentOuterAliasKind::CoreType => {
-                                    Self::alias_core_type(components, count, index, types, offset)?
-                                }
-                                ComponentOuterAliasKind::Type => {
-                                    Self::alias_type(components, count, index, types, offset)?
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-                        _ => return Err(BinaryReaderError::new(
-                            "only outer type aliases are allowed in component type declarations",
-                            offset,
-                        )),
-                    }
+                    Self::add_alias(components, alias, types, offset)?;
                 }
             };
         }
@@ -863,28 +854,9 @@ impl ComponentState {
                     let ty = current.check_type_ref(&ty, types, offset)?;
                     current.add_export(name, url, ty, offset, true)?;
                 }
-                crate::InstanceTypeDeclaration::Alias(alias) => match alias {
-                    crate::ComponentAlias::Outer { kind, count, index }
-                        if kind == ComponentOuterAliasKind::CoreType
-                            || kind == ComponentOuterAliasKind::Type =>
-                    {
-                        match kind {
-                            ComponentOuterAliasKind::CoreType => {
-                                Self::alias_core_type(components, count, index, types, offset)?
-                            }
-                            ComponentOuterAliasKind::Type => {
-                                Self::alias_type(components, count, index, types, offset)?
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                    _ => {
-                        return Err(BinaryReaderError::new(
-                            "only outer type aliases are allowed in instance type declarations",
-                            offset,
-                        ))
-                    }
-                },
+                crate::InstanceTypeDeclaration::Alias(alias) => {
+                    Self::add_alias(components, alias, types, offset)?;
+                }
             };
         }
 
