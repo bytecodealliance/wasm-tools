@@ -26,5 +26,5 @@
     (export "a" (type 0))
     (export "b" (type 1))
   )
-  (export "foo" (instance 0))
+  (export (;1;) "foo" (instance 0))
 )

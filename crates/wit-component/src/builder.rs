@@ -120,8 +120,15 @@ impl ComponentBuilder {
         }
     }
 
-    pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) {
+    pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) -> u32 {
         self.exports().export(name, url, kind, idx);
+        match kind {
+            ComponentExportKind::Type => inc(&mut self.types),
+            ComponentExportKind::Func => inc(&mut self.funcs),
+            ComponentExportKind::Module => inc(&mut self.core_modules),
+            ComponentExportKind::Instance => inc(&mut self.instances),
+            ComponentExportKind::Component | ComponentExportKind::Value => unimplemented!(),
+        }
     }
 
     pub fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> u32 {

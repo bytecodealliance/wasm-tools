@@ -38,11 +38,11 @@ impl Encode for ComponentOuterAliasKind {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentAliasSection, ComponentExportKind, ComponentOuterAliasKind};
+/// use wasm_encoder::{Component, Alias, ComponentAliasSection, ComponentExportKind, ComponentOuterAliasKind};
 ///
 /// let mut aliases = ComponentAliasSection::new();
-/// aliases.instance_export(0, ComponentExportKind::Func, "f");
-/// aliases.outer(0, ComponentOuterAliasKind::Type, 1);
+/// aliases.alias(Alias::InstanceExport { instance: 0, kind: ComponentExportKind::Func, name: "f" });
+/// aliases.alias(Alias::Outer { count: 0, kind: ComponentOuterAliasKind::Type, index: 1 });
 ///
 /// let mut component = Component::new();
 /// component.section(&aliases);

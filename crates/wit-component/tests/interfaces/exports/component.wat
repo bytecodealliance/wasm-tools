@@ -28,5 +28,5 @@
     (export "my-function" (func 0))
     (export "my-struct" (type 0))
   )
-  (export "foo" (instance 0))
+  (export (;1;) "foo" (instance 0))
 )

@@ -24,5 +24,5 @@
   (instance (;0;)
     (export "entrypoint" (func 0))
   )
-  (export "new" (instance 0))
+  (export (;1;) "new" (instance 0))
 )
