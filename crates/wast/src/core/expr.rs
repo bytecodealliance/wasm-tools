@@ -1872,9 +1872,10 @@ pub struct SelectTypes<'a> {
 
 impl<'a> Parse<'a> for SelectTypes<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut tys = None;
+        let mut found = false;
+        let mut list = Vec::new();
         while parser.peek2::<kw::result>() {
-            let mut list = Vec::new();
+            found = true;
             parser.parens(|p| {
                 p.parse::<kw::result>()?;
                 while !p.is_empty() {
@@ -1882,8 +1883,9 @@ impl<'a> Parse<'a> for SelectTypes<'a> {
                 }
                 Ok(())
             })?;
-            tys = Some(list);
         }
-        Ok(SelectTypes { tys })
+        Ok(SelectTypes {
+            tys: if found { Some(list) } else { None },
+        })
     }
 }
