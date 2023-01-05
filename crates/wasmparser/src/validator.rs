@@ -507,7 +507,7 @@ impl Validator {
                     bail!(
                         range.start,
                         "unknown binary version: {num:#x}, \
-                         note the WebAssembly component model feature not enabled?",
+                         note: the WebAssembly component model feature is not enabled",
                     );
                 }
                 if num == WASM_COMPONENT_VERSION {
