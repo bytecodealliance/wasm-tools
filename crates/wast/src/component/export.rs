@@ -101,6 +101,14 @@ impl<'a> ComponentExportKind<'a> {
             export_names: Default::default(),
         })
     }
+
+    pub(crate) fn ty(span: Span, id: Id<'a>) -> Self {
+        Self::Type(ItemRef {
+            kind: kw::r#type(span),
+            idx: Index::Id(id),
+            export_names: Default::default(),
+        })
+    }
 }
 
 impl<'a> Parse<'a> for ComponentExportKind<'a> {

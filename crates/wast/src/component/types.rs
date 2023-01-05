@@ -133,7 +133,7 @@ pub struct Type<'a> {
     pub name: Option<NameAnnotation<'a>>,
     /// If present, inline export annotations which indicate names this
     /// definition should be exported under.
-    pub exports: core::InlineExport<'a>,
+    pub exports: InlineExport<'a>,
     /// The type definition.
     pub def: TypeDef<'a>,
 }
