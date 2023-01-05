@@ -3,4 +3,4 @@
     "\00asm"
     "\0a\00\01\00"
     )
-  "WebAssembly component model feature not enabled")
+  "unknown binary version: 0xa, note: the WebAssembly component model feature is not enabled")
