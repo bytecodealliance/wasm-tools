@@ -74,7 +74,7 @@
 
 (assert_invalid
   (component binary
-    "\00asm" "\0a\00\01\00"   ;; component header
+    "\00asm" "\0b\00\01\00"   ;; component header
 
     "\07\05"          ;; type section, 5 bytes large
     "\01"             ;; 1 count
@@ -97,7 +97,7 @@
 
 (assert_invalid
   (component binary
-    "\00asm" "\0a\00\01\00"   ;; component header
+    "\00asm" "\0b\00\01\00"   ;; component header
 
     "\07\05"          ;; type section, 5 bytes large
     "\01"             ;; 1 count
