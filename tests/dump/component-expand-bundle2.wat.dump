@@ -1,8 +1,8 @@
-  0x0 | 00 61 73 6d | version 65546 (Component)
-      | 0a 00 01 00
+  0x0 | 00 61 73 6d | version 11 (Component)
+      | 0b 00 01 00
   0x8 | 04 30       | [component 0] inline size
-    0xa | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+    0xa | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
    0x12 | 01 08       | [core module 0] inline size
      0x14 | 00 61 73 6d | version 1 (Module)
           | 01 00 00 00
@@ -18,8 +18,8 @@
    0x36 | 00 02       | component name
    0x38 | 01 63       | "c"
  0x3a | 04 35       | [component 1] inline size
-   0x3c | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+   0x3c | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
    0x44 | 07 0d       | component type section
    0x46 | 01          | 1 count
    0x47 | 41 02 00 50 | [type 0] Component([CoreType(Module([])), Import(ComponentImport { name: "i", url: "", ty: Module(0) })])

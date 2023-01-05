@@ -1,5 +1,5 @@
-  0x0 | 00 61 73 6d | version 65546 (Component)
-      | 0a 00 01 00
+  0x0 | 00 61 73 6d | version 11 (Component)
+      | 0b 00 01 00
   0x8 | 07 03       | component type section
   0xa | 01          | 1 count
   0xb | 41 00       | [type 0] Component([])
@@ -8,23 +8,23 @@
  0x10 | 01 61 00 04 | [component 0] ComponentImport { name: "a", url: "", ty: Component(0) }
       | 00         
  0x15 | 04 08       | [component 1] inline size
-   0x17 | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+   0x17 | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
  0x1f | 04 08       | [component 2] inline size
-   0x21 | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+   0x21 | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
  0x29 | 04 08       | [component 3] inline size
-   0x2b | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+   0x2b | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
  0x33 | 04 12       | [component 4] inline size
-   0x35 | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+   0x35 | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
    0x3d | 04 08       | [component 0] inline size
-     0x3f | 00 61 73 6d | version 65546 (Component)
-          | 0a 00 01 00
+     0x3f | 00 61 73 6d | version 11 (Component)
+          | 0b 00 01 00
  0x47 | 04 71       | [component 5] inline size
-   0x49 | 00 61 73 6d | version 65546 (Component)
-        | 0a 00 01 00
+   0x49 | 00 61 73 6d | version 11 (Component)
+        | 0b 00 01 00
    0x51 | 01 13       | [core module 0] inline size
      0x53 | 00 61 73 6d | version 1 (Module)
           | 01 00 00 00

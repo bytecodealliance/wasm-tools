@@ -12,9 +12,14 @@ use std::fmt;
 use std::iter;
 use std::ops::Range;
 
-pub(crate) const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
-pub(crate) const WASM_MODULE_VERSION: u32 = 0x1;
-pub(crate) const WASM_COMPONENT_VERSION: u32 = 0x0001000a;
+pub(crate) const WASM_MODULE_VERSION: u16 = 0x1;
+
+// Note that this started at `0xa` and we're incrementing up from there. When
+// the component model is stabilized this will become 0x1. The changes here are:
+//
+// * [????-??-??] 0xa - original version
+// * [2022-01-05] 0xb - `export` introduces an alias
+pub(crate) const WASM_COMPONENT_VERSION: u16 = 0xb;
 
 /// The supported encoding formats for the parser.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -95,7 +100,7 @@ pub enum Payload<'a> {
     /// Indicates the header of a WebAssembly module or component.
     Version {
         /// The version number found in the header.
-        num: u32,
+        num: u16,
         /// The encoding format being parsed.
         encoding: Encoding,
         /// The range of bytes that were parsed to consume the header of the
@@ -514,18 +519,17 @@ impl Parser {
 
         match self.state {
             State::Header => {
+                const KIND_MODULE: u16 = 0x00;
+                const KIND_COMPONENT: u16 = 0x01;
+
                 let start = reader.original_position();
-                let num = reader.read_header_version()?;
-                self.encoding = match num {
-                    WASM_EXPERIMENTAL_VERSION | WASM_MODULE_VERSION => Encoding::Module,
-                    WASM_COMPONENT_VERSION => Encoding::Component,
-                    _ => {
-                        return Err(BinaryReaderError::new(
-                            "unknown binary version",
-                            reader.original_position() - 4,
-                        ))
-                    }
+                let header_version = reader.read_header_version()?;
+                self.encoding = match (header_version >> 16) as u16 {
+                    KIND_MODULE => Encoding::Module,
+                    KIND_COMPONENT => Encoding::Component,
+                    _ => bail!(start + 4, "unknown binary version: {header_version:#10x}"),
                 };
+                let num = header_version as u16;
                 self.state = State::SectionStart;
                 Ok(Version {
                     num,
@@ -1162,7 +1166,7 @@ mod tests {
     fn parser_after_component_header() -> Parser {
         let mut p = Parser::default();
         assert_matches!(
-            p.parse(b"\0asm\x0a\0\x01\0", false),
+            p.parse(b"\0asm\x0b\0\x01\0", false),
             Ok(Chunk::Parsed {
                 consumed: 8,
                 payload: Payload::Version {

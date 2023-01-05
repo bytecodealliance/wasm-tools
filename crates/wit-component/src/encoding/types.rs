@@ -337,7 +337,11 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     }
     fn define_type_alias_self(&mut self, idx: u32) -> u32 {
         let ret = self.ty.type_count();
-        self.ty.alias_outer_type(0, idx);
+        self.ty.alias(Alias::Outer {
+            count: 0,
+            index: idx,
+            kind: ComponentOuterAliasKind::Type,
+        });
         ret
     }
     fn export_type(&mut self, idx: u32, name: &str) {
@@ -360,7 +364,11 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
         let outer_idx = self.state.index_of_type_export(id);
         let ret = self.ty.type_count();
         self.type_map.insert(id, ret);
-        self.ty.alias_outer_type(1, outer_idx);
+        self.ty.alias(Alias::Outer {
+            count: 1,
+            index: outer_idx,
+            kind: ComponentOuterAliasKind::Type,
+        });
         Some(ret)
     }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {

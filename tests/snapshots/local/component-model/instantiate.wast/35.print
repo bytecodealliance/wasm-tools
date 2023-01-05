@@ -7,7 +7,7 @@
       )
       (export "" (func $f))
     )
-    (export "module" (core module $sub))
+    (export (;1;) "module" (core module $sub))
   )
   (instance $a (;0;) (instantiate $m))
   (alias export $a "module" (core module $sub (;0;)))

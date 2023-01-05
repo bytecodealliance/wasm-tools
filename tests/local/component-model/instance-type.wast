@@ -39,9 +39,9 @@
     ;; functions
     (export "a" (func))
     (export "a2" (func (type $local_type)))
-    (export "b" (func $foo))
+    (export "b" (func))
     (export "c" (func (@name "bar")))
-    (export "d" (func $foo (@name "bar")))
+    (export "d" (func (@name "bar")))
     (export "e" (func (type $t)))
     (export "f" (func (param "f" string)))
     (export "g" (func (param "g" s32) (result u32)))

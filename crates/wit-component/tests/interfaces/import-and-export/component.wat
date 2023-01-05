@@ -38,5 +38,5 @@
   (instance (;1;)
     (export "bar" (func 1))
   )
-  (export "bar" (instance 1))
+  (export (;2;) "bar" (instance 1))
 )

@@ -468,7 +468,7 @@ impl Validator {
     }
 
     /// Validates [`Payload::Version`](crate::Payload).
-    pub fn version(&mut self, num: u32, encoding: Encoding, range: &Range<usize>) -> Result<()> {
+    pub fn version(&mut self, num: u16, encoding: Encoding, range: &Range<usize>) -> Result<()> {
         match &self.state {
             State::Unparsed(expected) => {
                 if let Some(expected) = expected {
@@ -492,28 +492,32 @@ impl Validator {
             }
         }
 
-        self.state = match (encoding, num) {
-            (Encoding::Module, WASM_MODULE_VERSION) => {
-                assert!(self.module.is_none());
-                self.module = Some(ModuleState::default());
-                State::Module
-            }
-            (Encoding::Component, WASM_COMPONENT_VERSION) => {
-                if !self.features.component_model {
-                    return Err(BinaryReaderError::new(
-                        "WebAssembly component model feature not enabled",
-                        range.start,
-                    ));
+        self.state = match encoding {
+            Encoding::Module => {
+                if num == WASM_MODULE_VERSION {
+                    assert!(self.module.is_none());
+                    self.module = Some(ModuleState::default());
+                    State::Module
+                } else {
+                    bail!(range.start, "unknown binary version: {num:#x}");
                 }
-
-                self.components.push(ComponentState::default());
-                State::Component
             }
-            _ => {
-                return Err(BinaryReaderError::new(
-                    "unknown binary version",
-                    range.start,
-                ));
+            Encoding::Component => {
+                if !self.features.component_model {
+                    bail!(
+                        range.start,
+                        "unknown binary version: {num:#x}, \
+                         note: the WebAssembly component model feature is not enabled",
+                    );
+                }
+                if num == WASM_COMPONENT_VERSION {
+                    self.components.push(ComponentState::default());
+                    State::Component
+                } else if num < WASM_COMPONENT_VERSION {
+                    bail!(range.start, "unsupported component version: {num:#x}");
+                } else {
+                    bail!(range.start, "unknown component version: {num:#x}");
+                }
             }
         };
 

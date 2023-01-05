@@ -114,5 +114,5 @@
   (type (;1;) (list string))
   (type (;2;) (func (param "args" 1)))
   (func (;1;) (type 2) (canon lift (core func 6) (memory 0) (realloc 2) string-encoding=utf8))
-  (export "entrypoint" (func 1))
+  (export (;2;) "entrypoint" (func 1))
 )

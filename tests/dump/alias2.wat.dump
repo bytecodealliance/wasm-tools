@@ -1,5 +1,5 @@
-   0x0 | 00 61 73 6d | version 65546 (Component)
-       | 0a 00 01 00
+   0x0 | 00 61 73 6d | version 11 (Component)
+       | 0b 00 01 00
    0x8 | 07 30       | component type section
    0xa | 01          | 1 count
    0xb | 42 09 00 50 | [type 0] Instance([CoreType(Module([])), Export { name: "a", url: "", ty: Module(0) }, Type(Func(ComponentFuncType { params: [], results: Named([]) })), Export { name: "b", url: "", ty: Func(0) }, Export { name: "c", url: "", ty: Value(Primitive(String)) }, Type(Instance([])), Export { name: "d", url: "", ty: Instance(1) }, Type(Component([])), Export { name: "e", url: "", ty: Component(2) }])
@@ -19,8 +19,8 @@
   0x3d | 01 61 00 05 | [instance 0] ComponentImport { name: "a", url: "", ty: Instance(0) }
        | 00         
   0x42 | 04 59       | [component 0] inline size
-    0x44 | 00 61 73 6d | version 65546 (Component)
-         | 0a 00 01 00
+    0x44 | 00 61 73 6d | version 11 (Component)
+         | 0b 00 01 00
     0x4c | 03 03       | core type section
     0x4e | 01          | 1 count
     0x4f | 50 00       | [core type 0] Module([])
@@ -79,8 +79,8 @@
        | 01 64 05 01
        | 01 65 04 01
   0xd5 | 04 34       | [component 2] inline size
-    0xd7 | 00 61 73 6d | version 65546 (Component)
-         | 0a 00 01 00
+    0xd7 | 00 61 73 6d | version 11 (Component)
+         | 0b 00 01 00
     0xdf | 06 05       | component alias section
     0xe1 | 01          | 1 count
     0xe2 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }

@@ -69,5 +69,5 @@
   (alias core export 4 "entrypoint" (core func (;3;)))
   (type (;0;) (func (param "nargs" u32)))
   (func (;0;) (type 0) (canon lift (core func 3)))
-  (export "entrypoint" (func 0))
+  (export (;1;) "entrypoint" (func 0))
 )

@@ -1448,17 +1448,9 @@ impl Printer {
             match decl {
                 ComponentTypeDeclaration::CoreType(ty) => self.print_core_type(states, ty)?,
                 ComponentTypeDeclaration::Type(ty) => self.print_component_type_def(states, ty)?,
-                ComponentTypeDeclaration::Alias(alias) => match alias {
-                    ComponentAlias::InstanceExport { .. } => {
-                        bail!("component types cannot alias instance exports")
-                    }
-                    ComponentAlias::CoreInstanceExport { .. } => {
-                        bail!("component types cannot alias core instance exports")
-                    }
-                    ComponentAlias::Outer { kind, count, index } => {
-                        self.print_component_outer_alias(states, kind, count, index)?
-                    }
-                },
+                ComponentTypeDeclaration::Alias(alias) => {
+                    self.print_component_alias(states, alias)?;
+                }
                 ComponentTypeDeclaration::Export { name, url, ty } => {
                     self.start_group("export ");
                     self.print_str(name)?;
@@ -1493,17 +1485,9 @@ impl Printer {
             match decl {
                 InstanceTypeDeclaration::CoreType(ty) => self.print_core_type(states, ty)?,
                 InstanceTypeDeclaration::Type(ty) => self.print_component_type_def(states, ty)?,
-                InstanceTypeDeclaration::Alias(alias) => match alias {
-                    ComponentAlias::InstanceExport { .. } => {
-                        bail!("instance types cannot alias instance exports")
-                    }
-                    ComponentAlias::CoreInstanceExport { .. } => {
-                        bail!("instance types cannot alias core instance exports")
-                    }
-                    ComponentAlias::Outer { kind, count, index } => {
-                        self.print_component_outer_alias(states, kind, count, index)?
-                    }
-                },
+                InstanceTypeDeclaration::Alias(alias) => {
+                    self.print_component_alias(states, alias)?;
+                }
                 InstanceTypeDeclaration::Export { name, url, ty } => {
                     self.start_group("export ");
                     self.print_str(name)?;
@@ -1561,62 +1545,6 @@ impl Printer {
         let state = states.last_mut().unwrap();
         match kind {
             OuterAliasKind::Type => state.core.types.push(None),
-        }
-
-        Ok(())
-    }
-
-    fn print_component_outer_alias(
-        &mut self,
-        states: &mut [State],
-        kind: ComponentOuterAliasKind,
-        count: u32,
-        index: u32,
-    ) -> Result<()> {
-        let state = states.last().unwrap();
-        let outer = Self::outer_state(states, count)?;
-        self.start_group("alias outer ");
-        if let Some(name) = outer.name.as_ref() {
-            name.write(&mut self.result);
-        } else {
-            self.result.push_str(count.to_string().as_str());
-        }
-        self.result.push(' ');
-        match kind {
-            ComponentOuterAliasKind::CoreModule => {
-                self.print_idx(&outer.core.module_names, index)?;
-                self.result.push(' ');
-                self.start_group("core module ");
-                self.print_name(&state.core.module_names, state.core.modules)?;
-            }
-            ComponentOuterAliasKind::CoreType => {
-                self.print_idx(&outer.core.type_names, index)?;
-                self.result.push(' ');
-                self.start_group("core type ");
-                self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
-            }
-            ComponentOuterAliasKind::Type => {
-                self.print_idx(&outer.component.type_names, index)?;
-                self.result.push(' ');
-                self.start_group("type ");
-                self.print_name(&state.component.type_names, state.component.types)?;
-            }
-            ComponentOuterAliasKind::Component => {
-                self.print_idx(&outer.component.component_names, index)?;
-                self.result.push(' ');
-                self.start_group("component ");
-                self.print_name(&state.component.component_names, state.component.components)?;
-            }
-        }
-        self.end_group(); // kind
-        self.end_group(); // alias
-
-        let state = states.last_mut().unwrap();
-        match kind {
-            ComponentOuterAliasKind::CoreModule => state.core.modules += 1,
-            ComponentOuterAliasKind::CoreType => state.core.types.push(None),
-            ComponentOuterAliasKind::Type => state.component.types += 1,
-            ComponentOuterAliasKind::Component => state.component.components += 1,
         }
 
         Ok(())
@@ -1820,7 +1748,7 @@ impl Printer {
         for export in parser.into_iter_with_offsets() {
             let (offset, export) = export?;
             self.newline(offset);
-            self.print_component_export(state, &export)?;
+            self.print_component_export(state, &export, true)?;
         }
         Ok(())
     }
@@ -1829,8 +1757,38 @@ impl Printer {
         &mut self,
         state: &mut State,
         export: &ComponentExport,
+        named: bool,
     ) -> Result<()> {
         self.start_group("export ");
+        if named {
+            match &export.kind {
+                ComponentExternalKind::Func => {
+                    self.print_name(&state.component.func_names, state.component.funcs)?;
+                    state.component.funcs += 1;
+                }
+                ComponentExternalKind::Module => {
+                    self.print_name(&state.core.module_names, state.core.modules)?;
+                    state.core.modules += 1;
+                }
+                ComponentExternalKind::Value => {
+                    self.print_name(&state.component.value_names, state.component.values)?;
+                    state.component.values += 1;
+                }
+                ComponentExternalKind::Type => {
+                    self.print_name(&state.component.type_names, state.component.types)?;
+                    state.component.types += 1;
+                }
+                ComponentExternalKind::Instance => {
+                    self.print_name(&state.component.instance_names, state.component.instances)?;
+                    state.component.instances += 1;
+                }
+                ComponentExternalKind::Component => {
+                    self.print_name(&state.component.component_names, state.component.components)?;
+                    state.component.components += 1;
+                }
+            }
+            self.result.push(' ');
+        }
         self.print_str(export.name)?;
         if !export.url.is_empty() {
             self.result.push(' ');
@@ -2022,7 +1980,7 @@ impl Printer {
                 ComponentInstance::FromExports(exports) => {
                     for export in exports.iter() {
                         self.newline(offset);
-                        self.print_component_export(state, export)?;
+                        self.print_component_export(state, export, false)?;
                     }
                 }
             }
@@ -2099,112 +2057,169 @@ impl Printer {
         for alias in parser.into_iter_with_offsets() {
             let (offset, alias) = alias?;
             self.newline(offset);
-            match alias {
-                ComponentAlias::InstanceExport {
-                    kind,
-                    instance_index,
-                    name,
-                } => {
-                    let state = states.last_mut().unwrap();
-                    self.start_group("alias export ");
-                    self.print_idx(&state.component.instance_names, instance_index)?;
-                    self.result.push(' ');
-                    self.print_str(name)?;
-                    self.result.push(' ');
-                    match kind {
-                        ComponentExternalKind::Module => {
-                            self.start_group("core module ");
-                            self.print_name(&state.core.module_names, state.core.modules)?;
-                            self.end_group();
-                            state.core.modules += 1;
-                        }
-                        ComponentExternalKind::Component => {
-                            self.start_group("component ");
-                            self.print_name(
-                                &state.component.component_names,
-                                state.component.components,
-                            )?;
-                            self.end_group();
-                            state.component.components += 1;
-                        }
-                        ComponentExternalKind::Instance => {
-                            self.start_group("instance ");
-                            self.print_name(
-                                &state.component.instance_names,
-                                state.component.instances,
-                            )?;
-                            self.end_group();
-                            state.component.instances += 1;
-                        }
-                        ComponentExternalKind::Func => {
-                            self.start_group("func ");
-                            self.print_name(&state.component.func_names, state.component.funcs)?;
-                            self.end_group();
-                            state.component.funcs += 1;
-                        }
-                        ComponentExternalKind::Value => {
-                            self.start_group("value ");
-                            self.print_name(&state.component.value_names, state.component.values)?;
-                            self.end_group();
-                            state.component.values += 1;
-                        }
-                        ComponentExternalKind::Type => {
-                            self.start_group("type ");
-                            self.print_name(&state.component.type_names, state.component.types)?;
-                            self.end_group();
-                            state.component.types += 1;
-                        }
-                    }
+            self.print_component_alias(states, alias)?;
+        }
+        Ok(())
+    }
 
-                    self.end_group(); // alias export
-                }
-                ComponentAlias::CoreInstanceExport {
-                    instance_index,
-                    kind,
-                    name,
-                } => {
-                    let state = states.last_mut().unwrap();
-                    self.start_group("alias core export ");
-                    self.print_idx(&state.core.instance_names, instance_index)?;
-                    self.result.push(' ');
-                    self.print_str(name)?;
-                    self.result.push(' ');
-                    match kind {
-                        ExternalKind::Func => {
-                            self.start_group("core func ");
-                            self.print_name(&state.core.func_names, state.core.funcs)?;
-                            self.end_group();
-                            state.core.funcs += 1;
-                        }
-                        ExternalKind::Table => {
-                            self.start_group("core table ");
-                            self.print_name(&state.core.table_names, state.core.tables)?;
-                            self.end_group();
-                            state.core.tables += 1;
-                        }
-                        ExternalKind::Memory => {
-                            self.start_group("core memory ");
-                            self.print_name(&state.core.memory_names, state.core.memories)?;
-                            self.end_group();
-                            state.core.memories += 1;
-                        }
-                        ExternalKind::Global => {
-                            self.start_group("core global ");
-                            self.print_name(&state.core.global_names, state.core.globals)?;
-                            self.end_group();
-                            state.core.globals += 1;
-                        }
-                        ExternalKind::Tag => {
-                            self.start_group("core tag ");
-                            write!(self.result, "(;{};)", state.core.tags)?;
-                            self.end_group();
-                            state.core.tags += 1;
-                        }
+    fn print_component_alias(
+        &mut self,
+        states: &mut [State],
+        alias: ComponentAlias<'_>,
+    ) -> Result<()> {
+        match alias {
+            ComponentAlias::InstanceExport {
+                kind,
+                instance_index,
+                name,
+            } => {
+                let state = states.last_mut().unwrap();
+                self.start_group("alias export ");
+                self.print_idx(&state.component.instance_names, instance_index)?;
+                self.result.push(' ');
+                self.print_str(name)?;
+                self.result.push(' ');
+                match kind {
+                    ComponentExternalKind::Module => {
+                        self.start_group("core module ");
+                        self.print_name(&state.core.module_names, state.core.modules)?;
+                        self.end_group();
+                        state.core.modules += 1;
                     }
-                    self.end_group(); // alias export
+                    ComponentExternalKind::Component => {
+                        self.start_group("component ");
+                        self.print_name(
+                            &state.component.component_names,
+                            state.component.components,
+                        )?;
+                        self.end_group();
+                        state.component.components += 1;
+                    }
+                    ComponentExternalKind::Instance => {
+                        self.start_group("instance ");
+                        self.print_name(
+                            &state.component.instance_names,
+                            state.component.instances,
+                        )?;
+                        self.end_group();
+                        state.component.instances += 1;
+                    }
+                    ComponentExternalKind::Func => {
+                        self.start_group("func ");
+                        self.print_name(&state.component.func_names, state.component.funcs)?;
+                        self.end_group();
+                        state.component.funcs += 1;
+                    }
+                    ComponentExternalKind::Value => {
+                        self.start_group("value ");
+                        self.print_name(&state.component.value_names, state.component.values)?;
+                        self.end_group();
+                        state.component.values += 1;
+                    }
+                    ComponentExternalKind::Type => {
+                        self.start_group("type ");
+                        self.print_name(&state.component.type_names, state.component.types)?;
+                        self.end_group();
+                        state.component.types += 1;
+                    }
                 }
-                ComponentAlias::Outer { kind, count, index } => {
-                    self.print_component_outer_alias(states, kind, count, index)?
+
+                self.end_group(); // alias export
+            }
+            ComponentAlias::CoreInstanceExport {
+                instance_index,
+                kind,
+                name,
+            } => {
+                let state = states.last_mut().unwrap();
+                self.start_group("alias core export ");
+                self.print_idx(&state.core.instance_names, instance_index)?;
+                self.result.push(' ');
+                self.print_str(name)?;
+                self.result.push(' ');
+                match kind {
+                    ExternalKind::Func => {
+                        self.start_group("core func ");
+                        self.print_name(&state.core.func_names, state.core.funcs)?;
+                        self.end_group();
+                        state.core.funcs += 1;
+                    }
+                    ExternalKind::Table => {
+                        self.start_group("core table ");
+                        self.print_name(&state.core.table_names, state.core.tables)?;
+                        self.end_group();
+                        state.core.tables += 1;
+                    }
+                    ExternalKind::Memory => {
+                        self.start_group("core memory ");
+                        self.print_name(&state.core.memory_names, state.core.memories)?;
+                        self.end_group();
+                        state.core.memories += 1;
+                    }
+                    ExternalKind::Global => {
+                        self.start_group("core global ");
+                        self.print_name(&state.core.global_names, state.core.globals)?;
+                        self.end_group();
+                        state.core.globals += 1;
+                    }
+                    ExternalKind::Tag => {
+                        self.start_group("core tag ");
+                        write!(self.result, "(;{};)", state.core.tags)?;
+                        self.end_group();
+                        state.core.tags += 1;
+                    }
+                }
+                self.end_group(); // alias export
+            }
+
+            ComponentAlias::Outer { kind, count, index } => {
+                let state = states.last().unwrap();
+                let outer = Self::outer_state(states, count)?;
+                self.start_group("alias outer ");
+                if let Some(name) = outer.name.as_ref() {
+                    name.write(&mut self.result);
+                } else {
+                    self.result.push_str(count.to_string().as_str());
+                }
+                self.result.push(' ');
+                match kind {
+                    ComponentOuterAliasKind::CoreModule => {
+                        self.print_idx(&outer.core.module_names, index)?;
+                        self.result.push(' ');
+                        self.start_group("core module ");
+                        self.print_name(&state.core.module_names, state.core.modules)?;
+                    }
+                    ComponentOuterAliasKind::CoreType => {
+                        self.print_idx(&outer.core.type_names, index)?;
+                        self.result.push(' ');
+                        self.start_group("core type ");
+                        self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+                    }
+                    ComponentOuterAliasKind::Type => {
+                        self.print_idx(&outer.component.type_names, index)?;
+                        self.result.push(' ');
+                        self.start_group("type ");
+                        self.print_name(&state.component.type_names, state.component.types)?;
+                    }
+                    ComponentOuterAliasKind::Component => {
+                        self.print_idx(&outer.component.component_names, index)?;
+                        self.result.push(' ');
+                        self.start_group("component ");
+                        self.print_name(
+                            &state.component.component_names,
+                            state.component.components,
+                        )?;
+                    }
+                }
+                self.end_group(); // kind
+                self.end_group(); // alias
+
+                let state = states.last_mut().unwrap();
+                match kind {
+                    ComponentOuterAliasKind::CoreModule => state.core.modules += 1,
+                    ComponentOuterAliasKind::CoreType => state.core.types.push(None),
+                    ComponentOuterAliasKind::Type => state.component.types += 1,
+                    ComponentOuterAliasKind::Component => state.component.components += 1,
                 }
             }
         }

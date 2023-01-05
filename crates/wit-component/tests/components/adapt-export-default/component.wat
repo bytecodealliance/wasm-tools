@@ -21,5 +21,5 @@
   (alias core export 2 "entrypoint" (core func (;1;)))
   (type (;0;) (func))
   (func (;0;) (type 0) (canon lift (core func 1)))
-  (export "entrypoint" (func 0))
+  (export (;1;) "entrypoint" (func 0))
 )

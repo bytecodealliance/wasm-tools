@@ -12,5 +12,5 @@
       (export "bar" (func (type 0)))
     )
   )
-  (export "bar" (type 1))
+  (export (;2;) "bar" (type 1))
 )

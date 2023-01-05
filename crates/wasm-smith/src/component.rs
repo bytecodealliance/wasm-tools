@@ -1114,6 +1114,11 @@ impl ComponentBuilder {
         // Export.
         if self.current_type_scope().can_ref_type() {
             choices.push(|me, exports, export_urls, u, _type_fuel| {
+                let ty = me.arbitrary_type_ref(u, false, true)?.unwrap();
+                if let ComponentTypeRef::Type(_, idx) = ty {
+                    let ty = me.current_type_scope().get(idx).clone();
+                    me.current_type_scope_mut().push(ty);
+                }
                 Ok(InstanceTypeDecl::Export {
                     name: crate::unique_kebab_string(100, exports, u)?,
                     url: if u.arbitrary()? {
@@ -1121,7 +1126,7 @@ impl ComponentBuilder {
                     } else {
                         None
                     },
-                    ty: me.arbitrary_type_ref(u, false, true)?.unwrap(),
+                    ty,
                 })
             });
         }
@@ -2005,9 +2010,6 @@ enum InstanceExportAliasKind {
     Instance,
     Func,
     Value,
-    Table,
-    Memory,
-    Global,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

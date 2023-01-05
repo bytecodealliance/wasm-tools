@@ -9,5 +9,5 @@
   )
   (import "i" (instance $i (;0;) (type 0)))
   (alias export $i "f1" (func (;0;)))
-  (export "run" (func 0))
+  (export (;1;) "run" (func 0))
 )

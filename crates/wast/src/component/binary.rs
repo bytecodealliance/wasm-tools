@@ -266,28 +266,15 @@ impl<'a> Encoder<'a> {
 
     fn encode_alias(&mut self, alias: &Alias<'a>) {
         let name = get_name(&alias.id, &alias.name);
+        self.aliases.alias((&alias.target).into());
         match &alias.target {
-            AliasTarget::Export {
-                instance,
-                name: export_name,
-                kind,
-            } => {
-                self.aliases
-                    .instance_export((*instance).into(), (*kind).into(), export_name);
+            AliasTarget::Export { kind, .. } => {
                 self.names_for_component_export_alias(*kind).push(name);
             }
-            AliasTarget::CoreExport {
-                instance,
-                name: export_name,
-                kind,
-            } => {
-                self.aliases
-                    .core_instance_export((*instance).into(), (*kind).into(), export_name);
+            AliasTarget::CoreExport { kind, .. } => {
                 self.names_for_core_export_alias(*kind).push(name);
             }
-            AliasTarget::Outer { outer, index, kind } => {
-                self.aliases
-                    .outer((*outer).into(), (*kind).into(), (*index).into());
+            AliasTarget::Outer { kind, .. } => {
                 self.names_for_component_outer_alias(*kind).push(name);
             }
         }
@@ -344,10 +331,19 @@ impl<'a> Encoder<'a> {
         self.flush(Some(self.imports.id()));
     }
 
-    fn encode_export(&mut self, export: &ComponentExport) {
+    fn encode_export(&mut self, export: &ComponentExport<'a>) {
+        let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
         self.exports
             .export(export.name, export.url.unwrap_or(""), kind, index);
+        match &export.kind {
+            ComponentExportKind::CoreModule(_) => self.core_module_names.push(name),
+            ComponentExportKind::Func(_) => self.func_names.push(name),
+            ComponentExportKind::Instance(_) => self.instance_names.push(name),
+            ComponentExportKind::Value(_) => self.value_names.push(name),
+            ComponentExportKind::Component(_) => self.component_names.push(name),
+            ComponentExportKind::Type(_) => self.type_names.push(name),
+        }
         self.flush(Some(self.exports.id()));
     }
 
@@ -776,23 +772,9 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                 ComponentTypeDecl::Type(t) => {
                     encode_type(encoded.ty(), &t.def);
                 }
-                ComponentTypeDecl::Alias(a) => match &a.target {
-                    AliasTarget::Outer {
-                        outer,
-                        index,
-                        kind: ComponentOuterAliasKind::CoreType,
-                    } => {
-                        encoded.alias_outer_core_type(u32::from(*outer), u32::from(*index));
-                    }
-                    AliasTarget::Outer {
-                        outer,
-                        index,
-                        kind: ComponentOuterAliasKind::Type,
-                    } => {
-                        encoded.alias_outer_type(u32::from(*outer), u32::from(*index));
-                    }
-                    _ => unreachable!("only outer type aliases are supported"),
-                },
+                ComponentTypeDecl::Alias(a) => {
+                    encoded.alias((&a.target).into());
+                }
                 ComponentTypeDecl::Import(i) => {
                     encoded.import(i.name, i.url.unwrap_or(""), (&i.item.kind).into());
                 }
@@ -818,23 +800,9 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                 InstanceTypeDecl::Type(t) => {
                     encode_type(encoded.ty(), &t.def);
                 }
-                InstanceTypeDecl::Alias(a) => match &a.target {
-                    AliasTarget::Outer {
-                        outer,
-                        index,
-                        kind: ComponentOuterAliasKind::CoreType,
-                    } => {
-                        encoded.alias_outer_core_type(u32::from(*outer), u32::from(*index));
-                    }
-                    AliasTarget::Outer {
-                        outer,
-                        index,
-                        kind: ComponentOuterAliasKind::Type,
-                    } => {
-                        encoded.alias_outer_type(u32::from(*outer), u32::from(*index));
-                    }
-                    _ => unreachable!("only outer type aliases are supported"),
-                },
+                InstanceTypeDecl::Alias(a) => {
+                    encoded.alias((&a.target).into());
+                }
                 InstanceTypeDecl::Export(e) => {
                     encoded.export(e.name, e.url.unwrap_or(""), (&e.item.kind).into());
                 }
@@ -946,6 +914,36 @@ impl From<&CanonOpt<'_>> for wasm_encoder::CanonicalOption {
             CanonOpt::Memory(m) => Self::Memory(m.idx.into()),
             CanonOpt::Realloc(f) => Self::Realloc(f.idx.into()),
             CanonOpt::PostReturn(f) => Self::PostReturn(f.idx.into()),
+        }
+    }
+}
+
+impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
+    fn from(target: &AliasTarget<'a>) -> Self {
+        match target {
+            AliasTarget::Export {
+                instance,
+                name,
+                kind,
+            } => wasm_encoder::Alias::InstanceExport {
+                instance: (*instance).into(),
+                kind: (*kind).into(),
+                name,
+            },
+            AliasTarget::CoreExport {
+                instance,
+                name,
+                kind,
+            } => wasm_encoder::Alias::CoreInstanceExport {
+                instance: (*instance).into(),
+                kind: (*kind).into(),
+                name,
+            },
+            AliasTarget::Outer { outer, index, kind } => wasm_encoder::Alias::Outer {
+                count: (*outer).into(),
+                kind: (*kind).into(),
+                index: (*index).into(),
+            },
         }
     }
 }

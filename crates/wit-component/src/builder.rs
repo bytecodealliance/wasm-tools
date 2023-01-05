@@ -46,8 +46,11 @@ impl ComponentBuilder {
     }
 
     pub fn alias_func(&mut self, instance: u32, name: &str) -> u32 {
-        self.aliases()
-            .instance_export(instance, ComponentExportKind::Func, name);
+        self.aliases().alias(Alias::InstanceExport {
+            instance,
+            kind: ComponentExportKind::Func,
+            name,
+        });
         inc(&mut self.funcs)
     }
 
@@ -104,7 +107,11 @@ impl ComponentBuilder {
     }
 
     pub fn alias_core_item(&mut self, instance: u32, kind: ExportKind, name: &str) -> u32 {
-        self.aliases().core_instance_export(instance, kind, name);
+        self.aliases().alias(Alias::CoreInstanceExport {
+            instance,
+            kind,
+            name,
+        });
         match kind {
             ExportKind::Func => inc(&mut self.core_funcs),
             ExportKind::Table => inc(&mut self.core_tables),
@@ -113,8 +120,15 @@ impl ComponentBuilder {
         }
     }
 
-    pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) {
+    pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) -> u32 {
         self.exports().export(name, url, kind, idx);
+        match kind {
+            ComponentExportKind::Type => inc(&mut self.types),
+            ComponentExportKind::Func => inc(&mut self.funcs),
+            ComponentExportKind::Module => inc(&mut self.core_modules),
+            ComponentExportKind::Instance => inc(&mut self.instances),
+            ComponentExportKind::Component | ComponentExportKind::Value => unimplemented!(),
+        }
     }
 
     pub fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> u32 {
@@ -142,14 +156,20 @@ impl ComponentBuilder {
     }
 
     pub fn alias_type_export(&mut self, instance: u32, name: &str) -> u32 {
-        self.aliases()
-            .instance_export(instance, ComponentExportKind::Type, name);
+        self.aliases().alias(Alias::InstanceExport {
+            instance,
+            kind: ComponentExportKind::Type,
+            name,
+        });
         inc(&mut self.types)
     }
 
-    pub fn alias_outer_type(&mut self, depth: u32, index: u32) -> u32 {
-        self.aliases()
-            .outer(depth, ComponentOuterAliasKind::Type, index);
+    pub fn alias_outer_type(&mut self, count: u32, index: u32) -> u32 {
+        self.aliases().alias(Alias::Outer {
+            count,
+            kind: ComponentOuterAliasKind::Type,
+            index,
+        });
         inc(&mut self.types)
     }
 }

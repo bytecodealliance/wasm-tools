@@ -10,5 +10,5 @@
   (import "i" (component $c (;0;) (type 0)))
   (instance $i (;0;) (instantiate $c))
   (alias export $i "f1" (func (;0;)))
-  (export "run" (func 0))
+  (export (;1;) "run" (func 0))
 )

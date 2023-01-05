@@ -1415,7 +1415,7 @@ impl<'a> CompositionGraphEncoder<'a> {
         &mut self,
         aliases: &mut ComponentAliasSection,
         instance: u32,
-        export: &str,
+        name: &str,
         kind: ComponentExportKind,
     ) -> u32 {
         let (desc, count) = match kind {
@@ -1427,9 +1427,13 @@ impl<'a> CompositionGraphEncoder<'a> {
             ComponentExportKind::Component => ("component", &mut self.components),
         };
 
-        log::debug!("aliasing {desc} export `{export}` from encoded index {instance} (encoded index {count}) in composed component");
+        log::debug!("aliasing {desc} export `{name}` from encoded index {instance} (encoded index {count}) in composed component");
 
-        aliases.instance_export(instance, kind, export);
+        aliases.alias(Alias::InstanceExport {
+            instance,
+            kind,
+            name,
+        });
 
         let index = *count;
         *count += 1;

@@ -9,5 +9,5 @@
   )
   (import "a" (instance $foo (;0;) (type 0)))
   (alias export $foo "v" (core module (;0;)))
-  (export "v" (core module 0))
+  (export (;1;) "v" (core module 0))
 )

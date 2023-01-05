@@ -1,5 +1,5 @@
-   0x0 | 00 61 73 6d | version 65546 (Component)
-       | 0a 00 01 00
+   0x0 | 00 61 73 6d | version 11 (Component)
+       | 0b 00 01 00
    0x8 | 07 30       | component type section
    0xa | 01          | 1 count
    0xb | 42 06 01 70 | [type 0] Instance([Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("len", Primitive(U32))], results: Unnamed(Type(0)) })), Export { name: "read", url: "", ty: Func(1) }, Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("buf", Type(2))], results: Unnamed(Primitive(U32)) })), Export { name: "write", url: "", ty: Func(3) }])
