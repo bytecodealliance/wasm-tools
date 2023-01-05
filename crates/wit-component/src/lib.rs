@@ -9,13 +9,13 @@ use wasm_encoder::CanonicalOption;
 
 // mod builder;
 mod decoding;
-// mod encoding;
+mod encoding;
 // mod gc;
 mod printing;
 // mod validation;
 
 pub use decoding::{decode, DecodedWasm};
-// pub use encoding::ComponentEncoder;
+pub use encoding::encode;
 pub use printing::*;
 
 // pub mod metadata;

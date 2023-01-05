@@ -146,6 +146,10 @@ impl OutputArg {
         Ok(())
     }
 
+    pub fn output_path(&self) -> Option<&Path> {
+        self.output.as_deref()
+    }
+
     pub fn output_writer(&self) -> Result<Box<dyn Write>> {
         match &self.output {
             Some(output) => Ok(Box::new(BufWriter::new(File::create(&output)?))),

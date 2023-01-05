@@ -101,6 +101,7 @@ cpp_demangle = { version = "0.4.0", optional = true }
 # Dependencies of `component`
 wit-component = { workspace = true, optional = true }
 wit-parser = { workspace = true, optional = true }
+wast = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"
@@ -146,4 +147,4 @@ objdump = ['wasmparser']
 strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']
-component = ['wit-component', 'wit-parser']
+component = ['wit-component', 'wit-parser', 'wast']
