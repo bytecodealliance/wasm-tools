@@ -365,6 +365,17 @@ impl<'a> Expander<'a> {
             TypeDef::Component(t) => t.key().insert(self, index),
             TypeDef::Instance(t) => t.key().insert(self, index),
         }
+        for (name, url) in field.exports.names.drain(..) {
+            self.component_fields_to_append
+                .push(ComponentField::Export(ComponentExport {
+                    span: field.span,
+                    id: None,
+                    debug_name: None,
+                    name,
+                    url,
+                    kind: ComponentExportKind::ty(field.span, id),
+                }));
+        }
     }
 
     fn expand_func_ty(&mut self, ty: &mut ComponentFunctionType<'a>) {
