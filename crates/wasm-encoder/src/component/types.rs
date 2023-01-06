@@ -88,10 +88,15 @@ impl Encode for ModuleType {
 #[derive(Debug)]
 pub struct CoreTypeEncoder<'a> {
     index: u32,
-    bytes: &'a mut Vec<u8>
+    bytes: &'a mut Vec<u8>,
 }
 
 impl<'a> CoreTypeEncoder<'a> {
+    fn new(index: u32, sink: &'a mut Vec<u8>) -> Self {
+        sink.push(0x40);
+        Self { index, bytes: sink }
+    }
+
     /// Define a function type.
     pub fn function<P, R>(self, params: P, results: R) -> u32
     where
@@ -164,10 +169,7 @@ impl CoreTypeSection {
     pub fn ty(&mut self) -> CoreTypeEncoder<'_> {
         let index = self.num_added;
         self.num_added += 1;
-        CoreTypeEncoder {
-            index,
-            bytes: &mut self.bytes
-        }
+        CoreTypeEncoder::new(index, &mut self.bytes)
     }
 
     /// Define a function type in this type section.
@@ -225,9 +227,9 @@ impl ComponentType {
         let index = self.num_added;
         self.num_added += 1;
         self.core_types_added += 1;
-        CoreTypeEncoder { 
+        CoreTypeEncoder {
             index,
-            bytes: &mut self.bytes
+            bytes: &mut self.bytes,
         }
     }
 
@@ -386,7 +388,7 @@ impl Encode for InstanceType {
 #[derive(Debug)]
 pub struct ComponentFuncTypeEncoder<'a> {
     index: u32,
-    bytes: &'a mut Vec<u8>
+    bytes: &'a mut Vec<u8>,
 }
 
 impl<'a> ComponentFuncTypeEncoder<'a> {
@@ -451,7 +453,7 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
 #[derive(Debug)]
 pub struct ComponentTypeEncoder<'a> {
     index: u32,
-    bytes: &'a mut Vec<u8>
+    bytes: &'a mut Vec<u8>,
 }
 
 impl<'a> ComponentTypeEncoder<'a> {
@@ -568,7 +570,7 @@ impl From<PrimitiveValType> for ComponentValType {
 #[derive(Debug)]
 pub struct ComponentDefinedTypeEncoder<'a> {
     index: u32,
-    bytes: &'a mut Vec<u8>
+    bytes: &'a mut Vec<u8>,
 }
 
 impl<'a> ComponentDefinedTypeEncoder<'a> {
@@ -601,7 +603,7 @@ impl<'a> ComponentDefinedTypeEncoder<'a> {
     }
 
     /// Define a variant type.
-    pub fn variant<'b, C>(self, cases: C)
+    pub fn variant<'b, C>(self, cases: C) -> u32
     where
         C: IntoIterator<Item = (&'b str, Option<ComponentValType>, Option<u32>)>,
         C::IntoIter: ExactSizeIterator,
@@ -614,16 +616,18 @@ impl<'a> ComponentDefinedTypeEncoder<'a> {
             ty.encode(self.bytes);
             refines.encode(self.bytes);
         }
+        self.index
     }
 
     /// Define a list type.
-    pub fn list(self, ty: impl Into<ComponentValType>) {
+    pub fn list(self, ty: impl Into<ComponentValType>) -> u32 {
         self.bytes.push(0x70);
         ty.into().encode(self.bytes);
+        self.index
     }
 
     /// Define a tuple type.
-    pub fn tuple<I, T>(self, types: I)
+    pub fn tuple<I, T>(self, types: I) -> u32
     where
         I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
@@ -635,10 +639,11 @@ impl<'a> ComponentDefinedTypeEncoder<'a> {
         for ty in types {
             ty.into().encode(self.bytes);
         }
+        self.index
     }
 
     /// Define a flags type.
-    pub fn flags<'b, I>(self, names: I)
+    pub fn flags<'b, I>(self, names: I) -> u32
     where
         I: IntoIterator<Item = &'b str>,
         I::IntoIter: ExactSizeIterator,
@@ -649,10 +654,11 @@ impl<'a> ComponentDefinedTypeEncoder<'a> {
         for name in names {
             name.encode(self.bytes);
         }
+        self.index
     }
 
     /// Define an enum type.
-    pub fn enum_type<'b, I>(self, tags: I)
+    pub fn enum_type<'b, I>(self, tags: I) -> u32
     where
         I: IntoIterator<Item = &'b str>,
         I::IntoIter: ExactSizeIterator,
@@ -663,10 +669,11 @@ impl<'a> ComponentDefinedTypeEncoder<'a> {
         for tag in tags {
             tag.encode(self.bytes);
         }
+        self.index
     }
 
     /// Define a union type.
-    pub fn union<I, T>(self, types: I)
+    pub fn union<I, T>(self, types: I) -> u32
     where
         I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
@@ -678,19 +685,22 @@ impl<'a> ComponentDefinedTypeEncoder<'a> {
         for ty in types {
             ty.into().encode(self.bytes);
         }
+        self.index
     }
 
     /// Define an option type.
-    pub fn option(self, ty: impl Into<ComponentValType>) {
+    pub fn option(self, ty: impl Into<ComponentValType>) -> u32 {
         self.bytes.push(0x6B);
         ty.into().encode(self.bytes);
+        self.index
     }
 
     /// Define a result type.
-    pub fn result(self, ok: Option<ComponentValType>, err: Option<ComponentValType>) {
+    pub fn result(self, ok: Option<ComponentValType>, err: Option<ComponentValType>) -> u32 {
         self.bytes.push(0x6A);
         ok.encode(self.bytes);
         err.encode(self.bytes);
+        self.index
     }
 }
 
@@ -750,7 +760,7 @@ impl ComponentTypeSection {
         self.num_added += 1;
         ComponentTypeEncoder {
             index,
-            bytes: &mut self.bytes
+            bytes: &mut self.bytes,
         }
     }
 
