@@ -2,7 +2,7 @@
   (type (;0;)
     (instance
       (type (;0;) (func (result "a" u32) (result "b" u32)))
-      (export "get-two" (func (type 0)))
+      (export (;0;) "get-two" (func (type 0)))
     )
   )
   (import "new" (instance (;0;) (type 0)))

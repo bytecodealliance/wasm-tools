@@ -2,9 +2,9 @@
   (type (;0;)
     (component
       (type (;0;) (func))
-      (export "f1" (func (type 0)))
+      (export (;0;) "f1" (func (type 0)))
       (type (;1;) (func (param "p1" string)))
-      (export "f2" (func (type 1)))
+      (export (;1;) "f2" (func (type 1)))
     )
   )
   (import "i" (component $c (;0;) (type 0)))
