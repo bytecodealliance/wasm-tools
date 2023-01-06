@@ -2,7 +2,7 @@
   (type (;0;)
     (instance
       (type (;0;) (func (param "s" string)))
-      (export "log" (func (type 0)))
+      (export (;0;) "log" (func (type 0)))
     )
   )
   (import "foo" (instance (;0;) (type 0)))

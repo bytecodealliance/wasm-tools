@@ -4,7 +4,7 @@
       (type (;0;)
         (component)
       )
-      (export "v" (component (type 0)))
+      (export (;0;) "v" (component (type 0)))
     )
   )
   (import "a" (instance $foo (;0;) (type 0)))

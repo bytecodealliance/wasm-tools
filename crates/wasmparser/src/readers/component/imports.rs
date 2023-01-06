@@ -45,6 +45,20 @@ pub enum ComponentTypeRef {
     Component(u32),
 }
 
+impl ComponentTypeRef {
+    /// Returns the corresponding [`ComponentExternalKind`] for this reference.
+    pub fn kind(&self) -> ComponentExternalKind {
+        match self {
+            ComponentTypeRef::Module(_) => ComponentExternalKind::Module,
+            ComponentTypeRef::Func(_) => ComponentExternalKind::Func,
+            ComponentTypeRef::Value(_) => ComponentExternalKind::Value,
+            ComponentTypeRef::Type(..) => ComponentExternalKind::Type,
+            ComponentTypeRef::Instance(_) => ComponentExternalKind::Instance,
+            ComponentTypeRef::Component(_) => ComponentExternalKind::Component,
+        }
+    }
+}
+
 impl<'a> FromReader<'a> for ComponentTypeRef {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read()? {

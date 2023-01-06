@@ -7,10 +7,10 @@
           (type (;0;)
             (instance
               (alias outer 2 0 (type (;0;)))
-              (export "t" (type (eq 0)))
+              (export (;1;) "t" (type (eq 0)))
             )
           )
-          (export "i" (instance (type 0)))
+          (export (;0;) "i" (instance (type 0)))
         )
       )
       (import "x" (instance (type 1)))

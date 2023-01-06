@@ -55,7 +55,7 @@
   (type (;6;)
     (instance
       (type (;0;) (func))
-      (export "x" (func (type 0)))
+      (export (;0;) "x" (func (type 0)))
     )
   )
   (import "i" (instance (;4;) (type 6)))

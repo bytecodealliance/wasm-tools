@@ -4,7 +4,7 @@
       (core type (;0;)
         (module)
       )
-      (export "v" (core module (type 0)))
+      (export (;0;) "v" (core module (type 0)))
     )
   )
   (import "a" (instance $foo (;0;) (type 0)))

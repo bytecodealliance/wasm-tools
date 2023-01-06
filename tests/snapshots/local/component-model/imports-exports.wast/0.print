@@ -2,7 +2,7 @@
   (type (;0;)
     (instance
       (type (;0;) (func (result string)))
-      (export "f" (func (type 0)))
+      (export (;0;) "f" (func (type 0)))
     )
   )
   (import "c" (instance $c (;0;) (type 0)))
@@ -11,12 +11,12 @@
       (type (;0;)
         (instance
           (type (;0;) (func (result string)))
-          (export "f" (func (type 0)))
+          (export (;0;) "f" (func (type 0)))
         )
       )
       (import "c" (instance (type 0)))
       (type (;1;) (func (result string)))
-      (export "g" (func (type 1)))
+      (export (;0;) "g" (func (type 1)))
     )
   )
   (import "d" (component $D (;0;) (type 1)))
