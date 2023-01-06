@@ -41,11 +41,10 @@ impl TagSection {
     }
 
     /// Define a tag.
-    pub fn tag(&mut self, tag_type: TagType) -> u32 {
+    pub fn tag(&mut self, tag_type: TagType) -> &mut Self {
         tag_type.encode(&mut self.bytes);
-        let index = self.num_added;
         self.num_added += 1;
-        index
+        self
     }
 }
 

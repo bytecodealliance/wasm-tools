@@ -13,7 +13,7 @@ use crate::{encode_section, encoding_size, ConstExpr, Encode, Section, SectionId
 /// };
 ///
 /// let mut memory = MemorySection::new();
-/// let memory_index = memory.memory(MemoryType {
+/// memory.memory(MemoryType {
 ///     minimum: 1,
 ///     maximum: None,
 ///     memory64: false,
@@ -21,6 +21,7 @@ use crate::{encode_section, encoding_size, ConstExpr, Encode, Section, SectionId
 /// });
 ///
 /// let mut data = DataSection::new();
+/// let memory_index = 0;
 /// let offset = ConstExpr::i32_const(42);
 /// let segment_data = b"hello";
 /// data.active(memory_index, &offset, segment_data.iter().copied());

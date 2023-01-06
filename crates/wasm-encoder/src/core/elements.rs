@@ -13,13 +13,14 @@ use crate::{encode_section, ConstExpr, Encode, Section, SectionId, ValType};
 /// };
 ///
 /// let mut tables = TableSection::new();
-/// let table_index = tables.table(TableType {
+/// tables.table(TableType {
 ///     element_type: ValType::FuncRef,
 ///     minimum: 128,
 ///     maximum: None,
 /// });
 ///
 /// let mut elements = ElementSection::new();
+/// let table_index = 0;
 /// let offset = ConstExpr::i32_const(42);
 /// let element_type = ValType::FuncRef;
 /// let functions = Elements::Functions(&[

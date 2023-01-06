@@ -44,11 +44,10 @@ impl TableSection {
     }
 
     /// Define a table.
-    pub fn table(&mut self, table_type: TableType) -> u32 {
+    pub fn table(&mut self, table_type: TableType) -> &mut Self {
         table_type.encode(&mut self.bytes);
-        let index = self.num_added;
         self.num_added += 1;
-        index
+        self
     }
 }
 

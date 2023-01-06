@@ -43,11 +43,10 @@ impl FunctionSection {
     }
 
     /// Define a function in a module's function section.
-    pub fn function(&mut self, type_index: u32) -> u32 {
+    pub fn function(&mut self, type_index: u32) -> &mut Self {
         type_index.encode(&mut self.bytes);
-        let index = self.num_added;
         self.num_added += 1;
-        index
+        self
     }
 }
 
