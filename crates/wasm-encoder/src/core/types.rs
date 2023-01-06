@@ -79,7 +79,7 @@ impl TypeSection {
     }
 
     /// Define a function type in this type section.
-    pub fn function<P, R>(&mut self, params: P, results: R) -> &mut Self
+    pub fn function<P, R>(&mut self, params: P, results: R) -> u32
     where
         P: IntoIterator<Item = ValType>,
         P::IntoIter: ExactSizeIterator,
@@ -94,8 +94,10 @@ impl TypeSection {
         self.bytes.extend(params.map(u8::from));
         results.len().encode(&mut self.bytes);
         self.bytes.extend(results.map(u8::from));
+
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

@@ -124,30 +124,32 @@ impl SymbolTable {
     ///
     /// The `name` must be omitted if `index` references an imported table and
     /// the `WASM_SYM_EXPLICIT_NAME` flag is not set.
-    pub fn function(&mut self, flags: u32, index: u32, name: Option<&str>) -> &mut Self {
+    pub fn function(&mut self, flags: u32, index: u32, name: Option<&str>) -> u32 {
         SYMTAB_FUNCTION.encode(&mut self.bytes);
         flags.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         if let Some(name) = name {
             name.encode(&mut self.bytes);
         }
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Define a global symbol in this symbol table.
     ///
     /// The `name` must be omitted if `index` references an imported table and
     /// the `WASM_SYM_EXPLICIT_NAME` flag is not set.
-    pub fn global(&mut self, flags: u32, index: u32, name: Option<&str>) -> &mut Self {
+    pub fn global(&mut self, flags: u32, index: u32, name: Option<&str>) -> u32 {
         SYMTAB_GLOBAL.encode(&mut self.bytes);
         flags.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         if let Some(name) = name {
             name.encode(&mut self.bytes);
         }
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     // TODO: tags
@@ -156,15 +158,16 @@ impl SymbolTable {
     ///
     /// The `name` must be omitted if `index` references an imported table and
     /// the `WASM_SYM_EXPLICIT_NAME` flag is not set.
-    pub fn table(&mut self, flags: u32, index: u32, name: Option<&str>) -> &mut Self {
+    pub fn table(&mut self, flags: u32, index: u32, name: Option<&str>) -> u32 {
         SYMTAB_TABLE.encode(&mut self.bytes);
         flags.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         if let Some(name) = name {
             name.encode(&mut self.bytes);
         }
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Add a data symbol to this symbol table.
@@ -173,7 +176,7 @@ impl SymbolTable {
         flags: u32,
         name: &str,
         definition: Option<DataSymbolDefinition>,
-    ) -> &mut Self {
+    ) -> u32 {
         SYMTAB_DATA.encode(&mut self.bytes);
         flags.encode(&mut self.bytes);
         name.encode(&mut self.bytes);
@@ -182,8 +185,9 @@ impl SymbolTable {
             def.offset.encode(&mut self.bytes);
             def.size.encode(&mut self.bytes);
         }
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     // TODO: sections

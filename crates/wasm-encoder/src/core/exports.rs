@@ -63,12 +63,13 @@ impl ExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export(&mut self, name: &str, kind: ExportKind, index: u32) -> &mut Self {
+    pub fn export(&mut self, name: &str, kind: ExportKind, index: u32) -> u32 {
         name.encode(&mut self.bytes);
         kind.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

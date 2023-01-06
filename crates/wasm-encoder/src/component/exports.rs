@@ -92,13 +92,15 @@ impl ComponentExportSection {
         url: &str,
         kind: ComponentExportKind,
         index: u32,
-    ) -> &mut Self {
+    ) -> u32 {
         name.encode(&mut self.bytes);
         url.encode(&mut self.bytes);
         kind.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
+
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

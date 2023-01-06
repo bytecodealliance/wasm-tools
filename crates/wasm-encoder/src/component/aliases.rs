@@ -106,10 +106,11 @@ impl ComponentAliasSection {
     }
 
     /// Define an alias to a component instance's export.
-    pub fn alias(&mut self, alias: Alias<'_>) -> &mut Self {
+    pub fn alias(&mut self, alias: Alias<'_>) -> u32 {
         alias.encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

@@ -94,7 +94,8 @@ impl Encode for ComponentTypeRef {
 ///       ("b", PrimitiveValType::String)
 ///     ]
 ///   )
-///   .result(PrimitiveValType::String);
+///   .result(PrimitiveValType::String)
+///   .finish();
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();
@@ -129,12 +130,14 @@ impl ComponentImportSection {
     }
 
     /// Define an import in the component import section.
-    pub fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> u32 {
         name.encode(&mut self.bytes);
         url.encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
+
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

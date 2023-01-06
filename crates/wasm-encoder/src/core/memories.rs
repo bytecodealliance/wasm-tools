@@ -45,10 +45,11 @@ impl MemorySection {
     }
 
     /// Define a memory.
-    pub fn memory(&mut self, memory_type: MemoryType) -> &mut Self {
+    pub fn memory(&mut self, memory_type: MemoryType) -> u32 {
         memory_type.encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

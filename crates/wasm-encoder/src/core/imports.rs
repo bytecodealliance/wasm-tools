@@ -120,12 +120,13 @@ impl ImportSection {
     }
 
     /// Define an import in the import section.
-    pub fn import(&mut self, module: &str, field: &str, ty: impl Into<EntityType>) -> &mut Self {
+    pub fn import(&mut self, module: &str, field: &str, ty: impl Into<EntityType>) -> u32 {
         module.encode(&mut self.bytes);
         field.encode(&mut self.bytes);
         ty.into().encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

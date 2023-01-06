@@ -14,10 +14,9 @@ use std::borrow::Cow;
 /// };
 ///
 /// let mut types = TypeSection::new();
-/// types.function(vec![], vec![ValType::I32]);
+/// let type_index = types.function(vec![], vec![ValType::I32]);
 ///
 /// let mut functions = FunctionSection::new();
-/// let type_index = 0;
 /// functions.function(type_index);
 ///
 /// let locals = vec![];
@@ -66,10 +65,11 @@ impl CodeSection {
     }
 
     /// Write a function body into this code section.
-    pub fn function(&mut self, func: &Function) -> &mut Self {
+    pub fn function(&mut self, func: &Function) -> u32 {
         func.encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Add a raw byte slice into this code section as a function body.
@@ -96,10 +96,11 @@ impl CodeSection {
     /// let mut encoder = wasm_encoder::CodeSection::new();
     /// encoder.raw(&code_section[body_range.start..body_range.end]);
     /// ```
-    pub fn raw(&mut self, data: &[u8]) -> &mut Self {
+    pub fn raw(&mut self, data: &[u8]) -> u32 {
         data.encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

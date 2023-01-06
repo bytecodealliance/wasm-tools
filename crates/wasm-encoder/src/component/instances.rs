@@ -59,7 +59,7 @@ impl InstanceSection {
     }
 
     /// Define an instance by instantiating a core module.
-    pub fn instantiate<'a, A>(&mut self, module_index: u32, args: A) -> &mut Self
+    pub fn instantiate<'a, A>(&mut self, module_index: u32, args: A) -> u32
     where
         A: IntoIterator<Item = (&'a str, ModuleArg)>,
         A::IntoIter: ExactSizeIterator,
@@ -72,12 +72,14 @@ impl InstanceSection {
             name.encode(&mut self.bytes);
             arg.encode(&mut self.bytes);
         }
+
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Define an instance by exporting core WebAssembly items.
-    pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
+    pub fn export_items<'a, E>(&mut self, exports: E) -> u32
     where
         E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
@@ -90,8 +92,10 @@ impl InstanceSection {
             kind.encode(&mut self.bytes);
             index.encode(&mut self.bytes);
         }
+
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 
@@ -146,7 +150,7 @@ impl ComponentInstanceSection {
     }
 
     /// Define an instance by instantiating a component.
-    pub fn instantiate<'a, A>(&mut self, component_index: u32, args: A) -> &mut Self
+    pub fn instantiate<'a, A>(&mut self, component_index: u32, args: A) -> u32
     where
         A: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
         A::IntoIter: ExactSizeIterator,
@@ -160,12 +164,13 @@ impl ComponentInstanceSection {
             kind.encode(&mut self.bytes);
             index.encode(&mut self.bytes);
         }
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Define an instance by exporting items.
-    pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
+    pub fn export_items<'a, E>(&mut self, exports: E) -> u32
     where
         E: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
@@ -178,8 +183,10 @@ impl ComponentInstanceSection {
             kind.encode(&mut self.bytes);
             index.encode(&mut self.bytes);
         }
+
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

@@ -46,18 +46,20 @@ impl GlobalSection {
     }
 
     /// Define a global.
-    pub fn global(&mut self, global_type: GlobalType, init_expr: &ConstExpr) -> &mut Self {
+    pub fn global(&mut self, global_type: GlobalType, init_expr: &ConstExpr) -> u32 {
         global_type.encode(&mut self.bytes);
         init_expr.encode(&mut self.bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Add a raw byte slice into this code section as a global.
-    pub fn raw(&mut self, data: &[u8]) -> &mut Self {
+    pub fn raw(&mut self, data: &[u8]) -> u32 {
         self.bytes.extend(data);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 
