@@ -93,7 +93,6 @@ pub struct CoreTypeEncoder<'a> {
 
 impl<'a> CoreTypeEncoder<'a> {
     fn new(index: u32, sink: &'a mut Vec<u8>) -> Self {
-        sink.push(0x40);
         Self { index, bytes: sink }
     }
 
@@ -458,7 +457,6 @@ pub struct ComponentTypeEncoder<'a> {
 
 impl<'a> ComponentTypeEncoder<'a> {
     fn new(index: u32, sink: &'a mut Vec<u8>) -> Self {
-        sink.push(0x40);
         Self { index, bytes: sink }
     }
 
@@ -575,7 +573,6 @@ pub struct ComponentDefinedTypeEncoder<'a> {
 
 impl<'a> ComponentDefinedTypeEncoder<'a> {
     fn new(index: u32, sink: &'a mut Vec<u8>) -> Self {
-        sink.push(0x40);
         Self { index, bytes: sink }
     }
 

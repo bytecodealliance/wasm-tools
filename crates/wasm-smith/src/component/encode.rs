@@ -225,7 +225,7 @@ impl DefinedType {
         match self {
             Self::Primitive(ty) => {
                 enc.primitive(*ty);
-            },
+            }
             Self::Record(ty) => {
                 enc.record(ty.fields.iter().map(|(name, ty)| (name.as_str(), *ty)));
             }
