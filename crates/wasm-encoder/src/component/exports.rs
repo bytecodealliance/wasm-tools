@@ -86,15 +86,19 @@ impl ComponentExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, index: u32) -> u32 {
+    pub fn export(
+        &mut self,
+        name: &str,
+        url: &str,
+        kind: ComponentExportKind,
+        index: u32,
+    ) -> &mut Self {
         name.encode(&mut self.bytes);
         url.encode(&mut self.bytes);
         kind.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
-
-        let index = self.num_added;
         self.num_added += 1;
-        index
+        self
     }
 }
 

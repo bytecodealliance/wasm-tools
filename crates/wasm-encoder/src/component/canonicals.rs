@@ -83,7 +83,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Define a function that will lift a core WebAssembly function to the canonical ABI.
-    pub fn lift<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> u32
+    pub fn lift<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -97,14 +97,12 @@ impl CanonicalFunctionSection {
             option.encode(&mut self.bytes);
         }
         type_index.encode(&mut self.bytes);
-
-        let index = self.num_added;
         self.num_added += 1;
-        index
+        self
     }
 
     /// Define a function that will lower a canonical ABI function to a core WebAssembly function.
-    pub fn lower<O>(&mut self, func_index: u32, options: O) -> u32
+    pub fn lower<O>(&mut self, func_index: u32, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -117,10 +115,8 @@ impl CanonicalFunctionSection {
         for option in options {
             option.encode(&mut self.bytes);
         }
-
-        let index = self.num_added;
         self.num_added += 1;
-        index
+        self
     }
 }
 
