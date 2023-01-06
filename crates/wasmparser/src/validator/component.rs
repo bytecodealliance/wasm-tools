@@ -284,12 +284,20 @@ impl ComponentState {
         &mut self,
         name: &str,
         url: &str,
-        ty: ComponentEntityType,
+        mut ty: ComponentEntityType,
         offset: usize,
         check_limit: bool,
+        types: &mut TypeAlloc,
     ) -> Result<()> {
         if check_limit {
             check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
+        }
+        // Assign a unique index to this type id as it gets pushed onto the
+        // internal type list because this is creating an alias and this TypeId
+        // should uniquely indicate that it's a distinct reference to the same
+        // underlying actual type information.
+        if let ComponentEntityType::Type(id) = &mut ty {
+            *id = types.with_unique(*id);
         }
         self.add_entity(ty, true, offset)?;
 
@@ -809,7 +817,7 @@ impl ComponentState {
                 crate::ComponentTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, offset, true)?;
+                    current.add_export(name, url, ty, offset, true, types)?;
                 }
                 crate::ComponentTypeDeclaration::Import(import) => {
                     components
@@ -852,7 +860,7 @@ impl ComponentState {
                 crate::InstanceTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, offset, true)?;
+                    current.add_export(name, url, ty, offset, true, types)?;
                 }
                 crate::InstanceTypeDeclaration::Alias(alias) => {
                     Self::add_alias(components, alias, types, offset)?;

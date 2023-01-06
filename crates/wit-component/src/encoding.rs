@@ -74,8 +74,8 @@
 mod wit;
 pub use wit::encode;
 
-//mod types;
-//use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
+mod types;
+// use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
 //mod world;
 //use world::{ComponentWorld, ImportedInterface};
 

@@ -199,6 +199,11 @@ pub struct WitOpts {
     /// instead of the WebAssembly binary format.
     #[clap(short = 't', long)]
     wat: bool,
+
+    /// When specifying `--wasm` the output wasm binary is validated by default,
+    /// and this can be used to skip that step.
+    #[clap(long)]
+    skip_validation: bool,
 }
 
 impl WitOpts {
@@ -329,6 +334,13 @@ impl WitOpts {
 
         let resolve = decoded.resolve();
         let bytes = wit_component::encode(&resolve, pkg)?;
+        if !self.skip_validation {
+            wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
+                component_model: true,
+                ..Default::default()
+            })
+            .validate_all(&bytes)?;
+        }
         self.output.output(Output::Wasm {
             bytes: &bytes,
             wat: self.wat,

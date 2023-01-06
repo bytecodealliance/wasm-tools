@@ -73,7 +73,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self, name: &str) -> Result<UnresolvedPackage> {
+    pub(crate) fn resolve(&mut self, name: &str, url: Option<&str>) -> Result<UnresolvedPackage> {
         self.populate_foreign_deps();
 
         // Determine the dependencies between documents in the current package
@@ -112,6 +112,7 @@ impl<'a> Resolver<'a> {
 
         Ok(UnresolvedPackage {
             name: name.to_string(),
+            url: url.map(|s| s.to_string()),
             worlds: mem::take(&mut self.worlds),
             types: mem::take(&mut self.types),
             interfaces: mem::take(&mut self.interfaces),
@@ -184,7 +185,7 @@ impl<'a> Resolver<'a> {
                                     types: IndexMap::new(),
                                     docs: Docs::default(),
                                     document: doc,
-                                    functions: Vec::new(),
+                                    functions: IndexMap::new(),
                                 });
                                 DocumentItem::Interface(id)
                             });
@@ -204,7 +205,7 @@ impl<'a> Resolver<'a> {
                                 types: IndexMap::new(),
                                 docs: Docs::default(),
                                 document: doc,
-                                functions: Vec::new(),
+                                functions: IndexMap::new(),
                             })
                         }),
                 };
@@ -480,7 +481,7 @@ impl<'a> Resolver<'a> {
             document,
             name: name.map(|s| s.to_string()),
             url: None,
-            functions: Vec::new(),
+            functions: IndexMap::new(),
             types: IndexMap::new(),
         });
         assert_eq!(interface_id.index(), self.interface_types.len());
@@ -579,13 +580,17 @@ impl<'a> Resolver<'a> {
                             self.define_interface_name(&value.name, InterfaceItem::Func)?;
                             let params = self.resolve_params(params)?;
                             let results = self.resolve_results(results)?;
-                            self.interfaces[interface_id].functions.push(Function {
-                                docs,
-                                name: value.name.name.to_string(),
-                                kind: FunctionKind::Freestanding,
-                                params,
-                                results,
-                            });
+                            let prev = self.interfaces[interface_id].functions.insert(
+                                value.name.name.to_string(),
+                                Function {
+                                    docs,
+                                    name: value.name.name.to_string(),
+                                    kind: FunctionKind::Freestanding,
+                                    params,
+                                    results,
+                                },
+                            );
+                            assert!(prev.is_none());
                         }
                     }
                 }

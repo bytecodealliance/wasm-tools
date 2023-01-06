@@ -12,6 +12,8 @@ mod sizealign;
 pub use sizealign::*;
 mod resolve;
 pub use resolve::{Package, PackageId, Resolve};
+mod live;
+pub use live::LiveTypes;
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -49,6 +51,13 @@ pub type DocumentId = Id<Document>;
 pub struct UnresolvedPackage {
     /// Local name for this package.
     pub name: String,
+
+    /// Optionally-specified URL for this package.
+    ///
+    /// Must be specified for non-local dependencies. Note that this is never
+    /// automatically set from [`UnresolvedPackage::parse`] methods, and it must
+    /// be manually configured in the return value.
+    pub url: Option<String>,
 
     /// All worlds from all documents within this package.
     ///
@@ -121,7 +130,7 @@ impl UnresolvedPackage {
             .and_then(|s| s.to_str())
             .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
         map.push(path, contents);
-        Self::_parse(name, map)
+        Self::_parse(name, None, map)
     }
 
     /// Parse a WIT package at the provided path.
@@ -181,10 +190,10 @@ impl UnresolvedPackage {
                 .with_context(|| format!("failed to read file {path:?}"))?;
             map.push(&path, contents);
         }
-        Self::_parse(name, map)
+        Self::_parse(name, None, map)
     }
 
-    fn _parse(name: &str, map: SourceMap) -> Result<Self> {
+    fn _parse(name: &str, url: Option<&str>, map: SourceMap) -> Result<Self> {
         let mut doc = map.rewrite_error(|| {
             let mut resolver = Resolver::default();
             for file in map.tokenizers() {
@@ -192,7 +201,7 @@ impl UnresolvedPackage {
                 let ast = Ast::parse(&mut tokens)?;
                 resolver.push(path, ast)?;
             }
-            resolver.resolve(name)
+            resolver.resolve(name, url)
         })?;
         doc.source_map = map;
         Ok(doc)
@@ -277,7 +286,7 @@ pub struct Interface {
     pub types: IndexMap<String, TypeId>,
 
     /// Exported functions from this interface.
-    pub functions: Vec<Function>,
+    pub functions: IndexMap<String, Function>,
 
     /// The document that this interface belongs to.
     pub document: DocumentId,

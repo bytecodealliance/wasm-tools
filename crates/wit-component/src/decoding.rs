@@ -93,6 +93,7 @@ impl<'a> ComponentInfo<'a> {
         let package = resolve.packages.alloc(Package {
             name: name.to_string(),
             documents: Default::default(),
+            url: None,
         });
         let mut decoder = WitPackageDecoder {
             resolve,
@@ -136,6 +137,17 @@ impl DecodedWasm {
         match self {
             DecodedWasm::WitPackage(resolve, _) => resolve,
             DecodedWasm::Component(resolve, _) => resolve,
+        }
+    }
+
+    /// Returns the main package of what was decoded.
+    pub fn package(&self) -> PackageId {
+        match self {
+            DecodedWasm::WitPackage(_, id) => *id,
+            DecodedWasm::Component(resolve, world) => {
+                let doc = resolve.worlds[*world].document;
+                resolve.documents[doc].package.unwrap()
+            }
         }
     }
 }
@@ -249,7 +261,11 @@ impl WitPackageDecoder<'_> {
         Ok(())
     }
 
-    fn register_import(&mut self, url: &Url, ty: &types::ComponentInstanceType) -> Result<()> {
+    fn register_import(
+        &mut self,
+        url: &Url,
+        ty: &types::ComponentInstanceType,
+    ) -> Result<InterfaceId> {
         let interface = self.extract_url_interface(url)?;
 
         for (name, export_url, ty) in ty.exports(self.info.types.as_ref()) {
@@ -257,53 +273,98 @@ impl WitPackageDecoder<'_> {
                 bail!("instance type export `{name}` should not have a url")
             }
 
-            let ty = match ty {
-                types::ComponentEntityType::Type(ty) => ty,
-                _ => bail!("instance type export `{name}` is not a type"),
-            };
-            let def = match self.info.types.type_from_id(ty) {
-                Some(types::Type::Defined(ty)) => ty,
-                _ => unreachable!(),
-            };
+            match ty {
+                types::ComponentEntityType::Type(ty) => {
+                    let def = match self.info.types.type_from_id(ty) {
+                        Some(types::Type::Defined(ty)) => ty,
+                        _ => unreachable!(),
+                    };
 
-            // If the interface already defines this type then that's to be
-            // expected.
-            //
-            // TODO: comments
-            //
-            // TODO: should ideally verify the preexisting type matches `ty`.
-            let id = match self.resolve.interfaces[interface].types.get(name.as_str()) {
-                Some(id) => *id,
-                None => {
-                    // If this is a pkg-local dependency then that means it can only
-                    // refer to previously defined types, so error at this point.
-                    if url.scheme() == "pkg" {
-                        bail!("instance type export `{name}` not defined in interface");
-                    }
+                    let id = match self.resolve.interfaces[interface].types.get(name.as_str()) {
+                        // If this name is already defined as a type in the
+                        // specified interface then that's ok. For package-local
+                        // interfaces that's expected since the interface was
+                        // fully defined. For remote interfaces it means we're
+                        // using something that was already used elsewhere. In
+                        // both cases continue along.
+                        //
+                        // TODO: ideally this would verify that `def` matches
+                        // the structure of `id`.
+                        Some(id) => *id,
 
-                    // ... otherwise this is a lazily defined type for a foreign
-                    // dependency.
-                    let kind = self.convert_defined(def)?;
-                    let id = self.resolve.types.alloc(TypeDef {
-                        name: Some(name.to_string()),
-                        kind,
-                        docs: Default::default(),
-                        owner: TypeOwner::Interface(interface),
-                    });
-                    let prev = self.resolve.interfaces[interface]
-                        .types
-                        .insert(name.to_string(), id);
+                        // If the name is not defined, however, then there's two
+                        // possibilities:
+                        //
+                        // * For package-local interfaces this is an error
+                        //   because the package-local interface defined
+                        //   everything already and this is referencing
+                        //   something that isn't defined.
+                        //
+                        // * For remote interfaces they're never fully declared
+                        //   so it's lazily filled in here. This means that the
+                        //   view of remote interfaces ends up being the minimal
+                        //   slice needed for this resolve, which is what's
+                        //   intended.
+                        None => {
+                            if url.scheme() == "pkg" {
+                                bail!("instance type export `{name}` not defined in interface");
+                            }
+                            let kind = self.convert_defined(def)?;
+                            let id = self.resolve.types.alloc(TypeDef {
+                                name: Some(name.to_string()),
+                                kind,
+                                docs: Default::default(),
+                                owner: TypeOwner::Interface(interface),
+                            });
+                            let prev = self.resolve.interfaces[interface]
+                                .types
+                                .insert(name.to_string(), id);
+                            assert!(prev.is_none());
+                            id
+                        }
+                    };
+
+                    // Register the `types::TypeId` with our resolve `TypeId`
+                    // for ensuring type information remains correct throughout
+                    // decoding.
+                    let prev = self.type_map.insert(ty, Type::Id(id));
                     assert!(prev.is_none());
-                    id
+                    if !self.type_src_map.contains_key(&PtrHash(def)) {
+                        self.type_src_map.insert(PtrHash(def), Type::Id(id));
+                    }
                 }
-            };
-            let prev = self.type_map.insert(ty, Type::Id(id));
-            assert!(prev.is_none());
-            let prev = self.type_src_map.insert(PtrHash(def), Type::Id(id));
-            assert!(prev.is_none());
+
+                // This has similar logic to types above where we lazily fill in
+                // functions for remote dependencies and otherwise assert
+                // they're already defined for local dependencies.
+                types::ComponentEntityType::Func(ty) => {
+                    let def = match self.info.types.type_from_id(ty) {
+                        Some(types::Type::ComponentFunc(ty)) => ty,
+                        _ => unreachable!(),
+                    };
+                    if self.resolve.interfaces[interface]
+                        .functions
+                        .contains_key(name.as_str())
+                    {
+                        // TODO: should ideally verify that function signatures
+                        // match.
+                        continue;
+                    }
+                    if url.scheme() == "pkg" {
+                        bail!("instance function export `{name}` not defined in interface");
+                    }
+                    let func = self.convert_function(name, def)?;
+                    let prev = self.resolve.interfaces[interface]
+                        .functions
+                        .insert(name.to_string(), func);
+                    assert!(prev.is_none());
+                }
+
+                _ => bail!("instance type export `{name}` is not a type"),
+            }
         }
 
-        Ok(())
+        Ok(interface)
     }
 
     fn extract_url_interface(&mut self, url: &Url) -> Result<InterfaceId> {
@@ -348,10 +409,11 @@ impl WitPackageDecoder<'_> {
 
         // Lazily create a `Package` as necessary, along with the document and
         // interface.
-        let package = *self.url_to_package.entry(url).or_insert_with(|| {
+        let package = *self.url_to_package.entry(url.clone()).or_insert_with(|| {
             self.resolve.packages.alloc(Package {
                 name: package_name.to_string(),
                 documents: Default::default(),
+                url: Some(url.to_string()),
             })
         });
         let doc = *self.resolve.packages[package]
@@ -376,7 +438,7 @@ impl WitPackageDecoder<'_> {
                     url: None,
                     docs: Default::default(),
                     types: IndexMap::default(),
-                    functions: Vec::new(),
+                    functions: IndexMap::new(),
                     document: doc,
                 })
             });
@@ -394,7 +456,7 @@ impl WitPackageDecoder<'_> {
             url: None,
             docs: Default::default(),
             types: IndexMap::default(),
-            functions: Vec::new(),
+            functions: IndexMap::new(),
             document: doc,
         };
 
@@ -447,33 +509,9 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let params = ty
-                        .params
-                        .iter()
-                        .map(|(name, ty)| Ok((name.to_string(), self.convert_valtype(ty)?)))
-                        .collect::<Result<Vec<_>>>()?;
-                    let results = if ty.results.len() == 1 {
-                        Results::Anon(self.convert_valtype(&ty.results[0].1)?)
-                    } else {
-                        Results::Named(
-                            ty.results
-                                .iter()
-                                .map(|(name, ty)| {
-                                    Ok((
-                                        name.as_ref().unwrap().to_string(),
-                                        self.convert_valtype(ty)?,
-                                    ))
-                                })
-                                .collect::<Result<Vec<_>>>()?,
-                        )
-                    };
-                    interface.functions.push(Function {
-                        docs: Default::default(),
-                        kind: FunctionKind::Freestanding,
-                        name: name.to_string(),
-                        params,
-                        results,
-                    });
+                    let func = self.convert_function(&name, ty)?;
+                    let prev = interface.functions.insert(name.to_string(), func);
+                    assert!(prev.is_none());
                 }
                 _ => bail!("instance type export `{name}` is not a type or function"),
             };
@@ -494,6 +532,9 @@ impl WitPackageDecoder<'_> {
             exports: Default::default(),
             document,
         };
+
+        // Imports in this component type represent all of the imported items
+        // into the world itself, so all imports get registered.
         for (name, (url, ty)) in ty.imports.iter() {
             let item = match ty {
                 types::ComponentEntityType::Instance(idx) => {
@@ -502,15 +543,15 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let id = match url {
-                        Some(url) => {
-                            // TODO: walk over types in the interface and
-                            // register them with
-                            // `self.{type_map,type_src_map}`.
-                            if true {
-                                panic!()
-                            }
-                            self.extract_url_interface(url)?
-                        }
+                        // If a URL is specified then the import is either to a
+                        // package-local or foreign interface, and both
+                        // situations are handled in `register_import`.
+                        Some(url) => self.register_import(url, ty)?,
+
+                        // Without a URL this indicates an inline interface that
+                        // wasn't declared explicitly elsewhere with a name, and
+                        // `register_interface` will create a new `Interface`
+                        // with no name.
                         None => self.register_interface(document, None, ty)?,
                     };
                     WorldItem::Interface(id)
@@ -519,6 +560,7 @@ impl WitPackageDecoder<'_> {
             };
             world.imports.insert(name.to_string(), item);
         }
+
         for (name, (url, ty)) in ty.exports.iter() {
             let item = match ty {
                 types::ComponentEntityType::Instance(idx) => {
@@ -537,6 +579,36 @@ impl WitPackageDecoder<'_> {
             world.exports.insert(name.to_string(), item);
         }
         Ok(self.resolve.worlds.alloc(world))
+    }
+
+    fn convert_function(&mut self, name: &str, ty: &types::ComponentFuncType) -> Result<Function> {
+        let params = ty
+            .params
+            .iter()
+            .map(|(name, ty)| Ok((name.to_string(), self.convert_valtype(ty)?)))
+            .collect::<Result<Vec<_>>>()?;
+        let results = if ty.results.len() == 1 {
+            Results::Anon(self.convert_valtype(&ty.results[0].1)?)
+        } else {
+            Results::Named(
+                ty.results
+                    .iter()
+                    .map(|(name, ty)| {
+                        Ok((
+                            name.as_ref().unwrap().to_string(),
+                            self.convert_valtype(ty)?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            )
+        };
+        Ok(Function {
+            docs: Default::default(),
+            kind: FunctionKind::Freestanding,
+            name: name.to_string(),
+            params,
+            results,
+        })
     }
 
     fn convert_valtype(&mut self, ty: &types::ComponentValType) -> Result<Type> {

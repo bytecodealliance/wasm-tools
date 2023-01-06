@@ -1,10 +1,10 @@
-use super::EncodingState;
+// use super::EncodingState;
 use anyhow::Result;
 use std::collections::HashMap;
 use wasm_encoder::*;
 use wit_parser::{
-    Document, Enum, Flags, Function, InterfaceId, Params, Record, Result_, Results, Tuple, Type,
-    TypeDefKind, TypeId, Union, Variant,
+    Enum, Flags, Function, Params, Record, Resolve, Result_, Results, Tuple, Type, TypeDefKind,
+    TypeId, Union, Variant,
 };
 
 /// Represents a key type for interface function definitions.
@@ -33,11 +33,8 @@ pub trait ValtypeEncoder<'a> {
     /// place its results.
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>);
 
-    /// Aliases the provided type as a new type using an outer depth of 0.
-    fn define_type_alias_self(&mut self, ty: u32) -> u32;
-
     /// Creates an export item for the specified type index.
-    fn export_type(&mut self, index: u32, name: &'a str);
+    fn export_type(&mut self, index: u32, name: &'a str) -> u32;
 
     /// Returns a map of all types previously defined in this type index space.
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32>;
@@ -54,7 +51,7 @@ pub trait ValtypeEncoder<'a> {
 
     /// Encodes a new function type which is defined within the provided
     /// document.
-    fn encode_func_type(&mut self, doc: &'a Document, func: &'a Function) -> Result<u32> {
+    fn encode_func_type(&mut self, resolve: &'a Resolve, func: &'a Function) -> Result<u32> {
         let key = FunctionKey {
             params: &func.params,
             results: &func.results,
@@ -64,7 +61,7 @@ pub trait ValtypeEncoder<'a> {
         }
 
         // Encode all referenced parameter types from this function.
-        let params: Vec<_> = self.encode_params(doc, &func.params)?;
+        let params: Vec<_> = self.encode_params(resolve, &func.params)?;
 
         enum EncodedResults<'a> {
             Named(Vec<(&'a str, ComponentValType)>),
@@ -72,8 +69,8 @@ pub trait ValtypeEncoder<'a> {
         }
 
         let results = match &func.results {
-            Results::Named(rs) => EncodedResults::Named(self.encode_params(doc, rs)?),
-            Results::Anon(ty) => EncodedResults::Anon(self.encode_valtype(doc, ty)?),
+            Results::Named(rs) => EncodedResults::Named(self.encode_params(resolve, rs)?),
+            Results::Anon(ty) => EncodedResults::Anon(self.encode_valtype(resolve, ty)?),
         };
 
         // Encode the function type
@@ -90,21 +87,21 @@ pub trait ValtypeEncoder<'a> {
 
     fn encode_params(
         &mut self,
-        doc: &'a Document,
+        resolve: &'a Resolve,
         params: &'a Params,
     ) -> Result<Vec<(&'a str, ComponentValType)>> {
         params
             .iter()
-            .map(|(name, ty)| Ok((name.as_str(), self.encode_valtype(doc, ty)?)))
+            .map(|(name, ty)| Ok((name.as_str(), self.encode_valtype(resolve, ty)?)))
             .collect::<Result<_>>()
     }
 
-    /// Encodes the `ty`, defined within `doc`, into this encoder and returns
+    /// Encodes the `ty`, defined within `resolve`, into this encoder and returns
     /// the corresponding `ComponentValType` that it represents.
     ///
     /// This will recursively define the entire structure of `ty` within `self`
     /// if necessary.
-    fn encode_valtype(&mut self, doc: &'a Document, ty: &Type) -> Result<ComponentValType> {
+    fn encode_valtype(&mut self, resolve: &'a Resolve, ty: &Type) -> Result<ComponentValType> {
         Ok(match *ty {
             Type::Bool => ComponentValType::Primitive(PrimitiveValType::Bool),
             Type::U8 => ComponentValType::Primitive(PrimitiveValType::U8),
@@ -134,34 +131,26 @@ pub trait ValtypeEncoder<'a> {
                 }
 
                 // ... and failing all that insert the type export.
-                let ty = &doc.types[id];
+                let ty = &resolve.types[id];
                 let mut encoded = match &ty.kind {
-                    TypeDefKind::Record(r) => self.encode_record(doc, r)?,
-                    TypeDefKind::Tuple(t) => self.encode_tuple(doc, t)?,
+                    TypeDefKind::Record(r) => self.encode_record(resolve, r)?,
+                    TypeDefKind::Tuple(t) => self.encode_tuple(resolve, t)?,
                     TypeDefKind::Flags(r) => self.encode_flags(r)?,
-                    TypeDefKind::Variant(v) => self.encode_variant(doc, v)?,
-                    TypeDefKind::Union(u) => self.encode_union(doc, u)?,
-                    TypeDefKind::Option(t) => self.encode_option(doc, t)?,
-                    TypeDefKind::Result(r) => self.encode_result(doc, r)?,
+                    TypeDefKind::Variant(v) => self.encode_variant(resolve, v)?,
+                    TypeDefKind::Union(u) => self.encode_union(resolve, u)?,
+                    TypeDefKind::Option(t) => self.encode_option(resolve, t)?,
+                    TypeDefKind::Result(r) => self.encode_result(resolve, r)?,
                     TypeDefKind::Enum(e) => self.encode_enum(e)?,
                     TypeDefKind::List(ty) => {
-                        let ty = self.encode_valtype(doc, ty)?;
+                        let ty = self.encode_valtype(resolve, ty)?;
                         let (index, encoder) = self.defined_type();
                         encoder.list(ty);
                         ComponentValType::Type(index)
                     }
-                    TypeDefKind::Type(ty) => {
-                        match self.encode_valtype(doc, ty)? {
-                            // This is `type a = b` which is encoded as an
-                            // `outer` alias of depth 0
-                            ComponentValType::Type(index) => {
-                                ComponentValType::Type(self.define_type_alias_self(index))
-                            }
-                            t @ ComponentValType::Primitive(_) => t,
-                        }
-                    }
+                    TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,
                     TypeDefKind::Future(_) => todo!("encoding for future type"),
                     TypeDefKind::Stream(_) => todo!("encoding for stream type"),
+                    TypeDefKind::Unknown => unreachable!(),
                 };
 
                 if let Some(name) = &ty.name {
@@ -175,7 +164,7 @@ pub trait ValtypeEncoder<'a> {
                             index
                         }
                     };
-                    self.export_type(index, name);
+                    let index = self.export_type(index, name);
 
                     encoded = ComponentValType::Type(index);
                 }
@@ -191,20 +180,20 @@ pub trait ValtypeEncoder<'a> {
 
     fn encode_optional_valtype(
         &mut self,
-        doc: &'a Document,
+        resolve: &'a Resolve,
         ty: Option<&Type>,
     ) -> Result<Option<ComponentValType>> {
         match ty {
-            Some(ty) => self.encode_valtype(doc, ty).map(Some),
+            Some(ty) => self.encode_valtype(resolve, ty).map(Some),
             None => Ok(None),
         }
     }
 
-    fn encode_record(&mut self, doc: &'a Document, record: &Record) -> Result<ComponentValType> {
+    fn encode_record(&mut self, resolve: &'a Resolve, record: &Record) -> Result<ComponentValType> {
         let fields = record
             .fields
             .iter()
-            .map(|f| Ok((f.name.as_str(), self.encode_valtype(doc, &f.ty)?)))
+            .map(|f| Ok((f.name.as_str(), self.encode_valtype(resolve, &f.ty)?)))
             .collect::<Result<Vec<_>>>()?;
 
         let (index, encoder) = self.defined_type();
@@ -212,11 +201,11 @@ pub trait ValtypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_tuple(&mut self, doc: &'a Document, tuple: &Tuple) -> Result<ComponentValType> {
+    fn encode_tuple(&mut self, resolve: &'a Resolve, tuple: &Tuple) -> Result<ComponentValType> {
         let tys = tuple
             .types
             .iter()
-            .map(|ty| self.encode_valtype(doc, ty))
+            .map(|ty| self.encode_valtype(resolve, ty))
             .collect::<Result<Vec<_>>>()?;
         let (index, encoder) = self.defined_type();
         encoder.tuple(tys);
@@ -229,14 +218,18 @@ pub trait ValtypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_variant(&mut self, doc: &'a Document, variant: &Variant) -> Result<ComponentValType> {
+    fn encode_variant(
+        &mut self,
+        resolve: &'a Resolve,
+        variant: &Variant,
+    ) -> Result<ComponentValType> {
         let cases = variant
             .cases
             .iter()
             .map(|c| {
                 Ok((
                     c.name.as_str(),
-                    self.encode_optional_valtype(doc, c.ty.as_ref())?,
+                    self.encode_optional_valtype(resolve, c.ty.as_ref())?,
                     None, // TODO: support defaulting case values in the future
                 ))
             })
@@ -247,11 +240,11 @@ pub trait ValtypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_union(&mut self, doc: &'a Document, union: &Union) -> Result<ComponentValType> {
+    fn encode_union(&mut self, resolve: &'a Resolve, union: &Union) -> Result<ComponentValType> {
         let tys = union
             .cases
             .iter()
-            .map(|c| self.encode_valtype(doc, &c.ty))
+            .map(|c| self.encode_valtype(resolve, &c.ty))
             .collect::<Result<Vec<_>>>()?;
 
         let (index, encoder) = self.defined_type();
@@ -259,16 +252,20 @@ pub trait ValtypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_option(&mut self, doc: &'a Document, payload: &Type) -> Result<ComponentValType> {
-        let ty = self.encode_valtype(doc, payload)?;
+    fn encode_option(&mut self, resolve: &'a Resolve, payload: &Type) -> Result<ComponentValType> {
+        let ty = self.encode_valtype(resolve, payload)?;
         let (index, encoder) = self.defined_type();
         encoder.option(ty);
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_result(&mut self, doc: &'a Document, result: &Result_) -> Result<ComponentValType> {
-        let ok = self.encode_optional_valtype(doc, result.ok.as_ref())?;
-        let error = self.encode_optional_valtype(doc, result.err.as_ref())?;
+    fn encode_result(
+        &mut self,
+        resolve: &'a Resolve,
+        result: &Result_,
+    ) -> Result<ComponentValType> {
+        let ok = self.encode_optional_valtype(resolve, result.ok.as_ref())?;
+        let error = self.encode_optional_valtype(resolve, result.err.as_ref())?;
         let (index, encoder) = self.defined_type();
         encoder.result(ok, error);
         Ok(ComponentValType::Type(index))
@@ -281,97 +278,97 @@ pub trait ValtypeEncoder<'a> {
     }
 }
 
-pub struct RootTypeEncoder<'state, 'a> {
-    pub state: &'state mut EncodingState<'a>,
-    pub type_exports: Vec<(u32, &'a str)>,
-    pub interface: InterfaceId,
-}
+// pub struct RootTypeEncoder<'state, 'a> {
+//     pub state: &'state mut EncodingState<'a>,
+//     pub type_exports: Vec<(u32, &'a str)>,
+//     pub interface: InterfaceId,
+// }
 
-impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
-    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
-        self.state.component.defined_type()
-    }
-    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
-        self.state.component.function_type()
-    }
-    fn define_type_alias_self(&mut self, idx: u32) -> u32 {
-        self.state.component.alias_outer_type(0, idx)
-    }
-    fn export_type(&mut self, idx: u32, name: &'a str) {
-        self.type_exports.push((idx, name));
-    }
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-        &mut self.state.type_map
-    }
-    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
-        // If this `id` is anonymous or belongs to this interface there's
-        // nothing to import, it needs defining. Otherwise alias the type from
-        // an import into this component's root namespace.
-        let other = self.state.info.encoder.metadata.doc.types[id].interface?;
-        if other == self.interface {
-            return None;
-        }
-        // TODO: this doesn't work for importing types from other exports. That
-        // just trips an assertion here.
-        Some(self.state.index_of_type_export(id))
-    }
-    fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        &mut self.state.func_type_map
-    }
-}
+// impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
+//     fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+//         self.state.component.defined_type()
+//     }
+//     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+//         self.state.component.function_type()
+//     }
+//     fn define_type_alias_self(&mut self, idx: u32) -> u32 {
+//         self.state.component.alias_outer_type(0, idx)
+//     }
+//     fn export_type(&mut self, idx: u32, name: &'a str) {
+//         self.type_exports.push((idx, name));
+//     }
+//     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
+//         &mut self.state.type_map
+//     }
+//     fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
+//         // If this `id` is anonymous or belongs to this interface there's
+//         // nothing to import, it needs defining. Otherwise alias the type from
+//         // an import into this component's root namespace.
+//         let other = self.state.info.encoder.metadata.resolve.types[id].interface?;
+//         if other == self.interface {
+//             return None;
+//         }
+//         // TODO: this doesn't work for importing types from other exports. That
+//         // just trips an assertion here.
+//         Some(self.state.index_of_type_export(id))
+//     }
+//     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
+//         &mut self.state.func_type_map
+//     }
+// }
 
-pub struct InstanceTypeEncoder<'state, 'a> {
-    pub state: &'state mut EncodingState<'a>,
-    pub interface: InterfaceId,
-    pub type_map: HashMap<TypeId, u32>,
-    pub func_type_map: HashMap<FunctionKey<'a>, u32>,
-    pub ty: InstanceType,
-}
+// pub struct InstanceTypeEncoder<'state, 'a> {
+//     pub state: &'state mut EncodingState<'a>,
+//     pub interface: InterfaceId,
+//     pub type_map: HashMap<TypeId, u32>,
+//     pub func_type_map: HashMap<FunctionKey<'a>, u32>,
+//     pub ty: InstanceType,
+// }
 
-impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
-    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
-        (self.ty.type_count(), self.ty.ty().defined_type())
-    }
-    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
-        (self.ty.type_count(), self.ty.ty().function())
-    }
-    fn define_type_alias_self(&mut self, idx: u32) -> u32 {
-        let ret = self.ty.type_count();
-        self.ty.alias(Alias::Outer {
-            count: 0,
-            index: idx,
-            kind: ComponentOuterAliasKind::Type,
-        });
-        ret
-    }
-    fn export_type(&mut self, idx: u32, name: &str) {
-        self.ty
-            .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, idx));
-    }
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-        &mut self.type_map
-    }
-    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
-        // If this `id` is anonymous or belongs to this interface
-        // there's nothing to import, it needs defining. Otherwise
-        // perform the importing process with an outer alias to the
-        // parent component.
-        let other = self.state.info.encoder.metadata.doc.types[id].interface?;
-        if other == self.interface {
-            return None;
-        }
+// impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
+//     fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+//         (self.ty.type_count(), self.ty.ty().defined_type())
+//     }
+//     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+//         (self.ty.type_count(), self.ty.ty().function())
+//     }
+//     fn define_type_alias_self(&mut self, idx: u32) -> u32 {
+//         let ret = self.ty.type_count();
+//         self.ty.alias(Alias::Outer {
+//             count: 0,
+//             index: idx,
+//             kind: ComponentOuterAliasKind::Type,
+//         });
+//         ret
+//     }
+//     fn export_type(&mut self, idx: u32, name: &str) {
+//         self.ty
+//             .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, idx));
+//     }
+//     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
+//         &mut self.type_map
+//     }
+//     fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
+//         // If this `id` is anonymous or belongs to this interface
+//         // there's nothing to import, it needs defining. Otherwise
+//         // perform the importing process with an outer alias to the
+//         // parent component.
+//         let other = self.state.info.encoder.metadata.resolve.types[id].interface?;
+//         if other == self.interface {
+//             return None;
+//         }
 
-        let outer_idx = self.state.index_of_type_export(id);
-        let ret = self.ty.type_count();
-        self.type_map.insert(id, ret);
-        self.ty.alias(Alias::Outer {
-            count: 1,
-            index: outer_idx,
-            kind: ComponentOuterAliasKind::Type,
-        });
-        Some(ret)
-    }
-    fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        &mut self.func_type_map
-    }
-}
+//         let outer_idx = self.state.index_of_type_export(id);
+//         let ret = self.ty.type_count();
+//         self.type_map.insert(id, ret);
+//         self.ty.alias(Alias::Outer {
+//             count: 1,
+//             index: outer_idx,
+//             kind: ComponentOuterAliasKind::Type,
+//         });
+//         Some(ret)
+//     }
+//     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
+//         &mut self.func_type_map
+//     }
+// }

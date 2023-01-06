@@ -147,6 +147,12 @@ impl ComponentBuilder {
         ret
     }
 
+    pub fn component_type(&mut self, ty: &ComponentType) -> u32 {
+        let ret = inc(&mut self.types);
+        self.types().component(ty);
+        ret
+    }
+
     pub fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
         (inc(&mut self.types), self.types().defined_type())
     }

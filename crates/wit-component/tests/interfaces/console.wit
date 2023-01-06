@@ -1,0 +1,3 @@
+interface console {
+  log: func(arg: string)
+}

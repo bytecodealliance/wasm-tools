@@ -1,0 +1,5 @@
+interface shared {
+  type t2 = u8
+
+}
+

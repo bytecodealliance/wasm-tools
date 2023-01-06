@@ -1169,7 +1169,7 @@ impl Validator {
                 current.exports.reserve(count as usize);
                 Ok(())
             },
-            |components, _, _, export, offset| {
+            |components, types, _, export, offset| {
                 let current = components.last_mut().unwrap();
                 let ty = current.export_to_entity_type(&export, offset)?;
                 current.add_export(
@@ -1178,6 +1178,7 @@ impl Validator {
                     ty,
                     offset,
                     false, /* checked above */
+                    types,
                 )
             },
         )

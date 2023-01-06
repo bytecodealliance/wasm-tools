@@ -38,6 +38,10 @@ pub struct Package {
     /// Locally-known name of this package.
     pub name: String,
 
+    /// Optionally-specified URL of this package, must be specified for remote
+    /// dependencies.
+    pub url: Option<String>,
+
     /// Documents contained within this package, organized by name.
     pub documents: IndexMap<String, DocumentId>,
 }
@@ -74,11 +78,12 @@ impl Resolve {
         let mut enqueued = HashSet::new();
         let mut packages = IndexMap::new();
         let mut pkg_deps = IndexMap::new();
-        to_parse.push(path.to_path_buf());
+        to_parse.push((path.to_path_buf(), None));
         enqueued.insert(path.to_path_buf());
-        while let Some(pkg_root) = to_parse.pop() {
-            let pkg = UnresolvedPackage::parse_dir(&pkg_root)
+        while let Some((pkg_root, url)) = to_parse.pop() {
+            let mut pkg = UnresolvedPackage::parse_dir(&pkg_root)
                 .with_context(|| format!("failed to parse package at {path:?}"))?;
+            pkg.url = url;
 
             let mut deps = Vec::new();
             pkg.source_map.rewrite_error(|| {
@@ -94,7 +99,8 @@ impl Resolve {
                                 msg: format!("dependency on `{dep}` doesn't exist at {path:?}"),
                             })
                         }
-                        to_parse.push(path.clone());
+                        let url = Some(format!("path:/{dep}"));
+                        to_parse.push((path.clone(), url));
                     }
                     deps.push((path, span));
                 }
@@ -314,6 +320,7 @@ impl Remap {
         }
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name,
+            url: unresolved.url,
             documents,
         });
         for (_, id) in resolve.packages[pkgid].documents.iter() {
@@ -477,7 +484,7 @@ impl Remap {
         for (_name, ty) in iface.types.iter_mut() {
             *ty = self.types[ty.index()];
         }
-        for func in iface.functions.iter_mut() {
+        for (_, func) in iface.functions.iter_mut() {
             for (_, ty) in func.params.iter_mut() {
                 self.update_ty(ty);
             }

@@ -91,11 +91,11 @@ impl DocumentPrinter {
             self.declare_type(resolve, &Type::Id(id))?;
         }
 
-        for (i, func) in interface.functions.iter().enumerate() {
+        for (i, (name, func)) in interface.functions.iter().enumerate() {
             if i > 0 {
                 self.output.push_str("\n");
             }
-            write!(&mut self.output, "{}: func(", func.name)?;
+            write!(&mut self.output, "{name}: func(")?;
             for (i, (name, ty)) in func.params.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -151,7 +151,7 @@ impl DocumentPrinter {
                     self.print_path_to_interface(resolve, *id, cur_doc)?;
                     self.output.push_str("\n");
                 } else {
-                    writeln!(self.output, "{desc} {name}: interface {{")?;
+                    writeln!(self.output, "interface {{")?;
                     self.print_interface(resolve, *id)?;
                     writeln!(self.output, "}}")?;
                 }
