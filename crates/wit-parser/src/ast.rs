@@ -51,7 +51,7 @@ impl<'a> Ast<'a> {
                                     }
                                 }
                                 ExternKind::Path(path) => f(None, path, None)?,
-                                // ExternKind::Func(_) => {}
+                                ExternKind::Func(_) => {}
                             },
                         }
                     }
@@ -175,7 +175,7 @@ impl<'a> Export<'a> {
 pub enum ExternKind<'a> {
     Interface(Span, Vec<InterfaceItem<'a>>),
     Path(UsePath<'a>),
-    // Func(Func<'a>),
+    Func(Func<'a>),
 }
 
 impl<'a> ExternKind<'a> {
@@ -189,8 +189,7 @@ impl<'a> ExternKind<'a> {
                 let items = Interface::parse_items(tokens)?;
                 Ok(ExternKind::Interface(span, items))
             }
-            // TODO: should parse this when it's implemented
-            // Some((_span, Token::Func)) => Ok(ExternKind::Func(Func::parse(tokens)?)),
+            Some((_span, Token::Func)) => Ok(ExternKind::Func(Func::parse(tokens)?)),
             other => Err(err_expected(tokens, "path, value, or interface", other).into()),
         }
     }

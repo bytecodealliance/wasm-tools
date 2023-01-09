@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use wasm_encoder::Encode;
+use wasm_encoder::{Encode, Section};
 use wasm_tools::Output;
 use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
 use wit_parser::{PackageId, Resolve, UnresolvedPackage};
@@ -169,11 +169,7 @@ impl EmbedOpts {
             None => bail!("invalid `--world` argument"),
         };
         let world = match parts.next() {
-            Some(name) => match resolve.documents[doc]
-                .worlds
-                .iter()
-                .find(|w| resolve.worlds[**w].name == name)
-            {
+            Some(name) => match resolve.documents[doc].worlds.get(name) {
                 Some(world) => *world,
                 None => bail!("no world named `{name}` in document"),
             },
@@ -189,11 +185,12 @@ impl EmbedOpts {
             self.encoding.unwrap_or(StringEncoding::UTF8),
         )?;
 
-        wasm_encoder::CustomSection {
+        let section = wasm_encoder::CustomSection {
             name: "component-type",
             data: &encoded,
-        }
-        .encode(&mut wasm);
+        };
+        wasm.push(section.id());
+        section.encode(&mut wasm);
 
         self.io.output(Output::Wasm {
             bytes: &wasm,

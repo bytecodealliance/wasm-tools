@@ -64,10 +64,11 @@ impl Encoder<'_> {
         let mut encoder = InterfaceEncoder::new(self.resolve);
         for (owner, ids) in imported_interfaces {
             let owner_iface = &self.resolve.interfaces[owner];
+            encoder.push_instance();
             for id in ids {
                 encoder.encode_valtype(self.resolve, &Type::Id(id))?;
             }
-            let instance = encoder.take_instance();
+            let instance = encoder.pop_instance();
             let idx = encoder.outer.type_count();
             encoder.outer.ty().instance(&instance);
             encoder.import_map.insert(owner, encoder.instances);
@@ -88,7 +89,7 @@ impl Encoder<'_> {
                 .export(name, "", ComponentTypeRef::Instance(idx));
         }
 
-        for world in doc.worlds.iter() {
+        for (_name, world) in doc.worlds.iter() {
             let world = &self.resolve.worlds[*world];
             let mut component = InterfaceEncoder::new(self.resolve);
             for (name, import) in world.imports.iter() {
@@ -97,7 +98,10 @@ impl Encoder<'_> {
                         let idx = component.encode_instance(*i)?;
                         (self.url_of(*i), ComponentTypeRef::Instance(idx))
                     }
-                    WorldItem::Function(_) => panic!(),
+                    WorldItem::Function(f) => {
+                        let idx = component.encode_func_type(self.resolve, f)?;
+                        (String::new(), ComponentTypeRef::Func(idx))
+                    }
                 };
                 component.outer.import(name, &url, ty);
             }
@@ -107,7 +111,10 @@ impl Encoder<'_> {
                         let idx = component.encode_instance(*i)?;
                         (self.url_of(*i), ComponentTypeRef::Instance(idx))
                     }
-                    WorldItem::Function(_) => panic!(),
+                    WorldItem::Function(f) => {
+                        let idx = component.encode_func_type(self.resolve, f)?;
+                        (String::new(), ComponentTypeRef::Func(idx))
+                    }
                 };
                 component.outer.export(name, &url, ty);
             }
@@ -146,7 +153,7 @@ impl Encoder<'_> {
 struct InterfaceEncoder<'a> {
     resolve: &'a Resolve,
     outer: ComponentType,
-    ty: InstanceType,
+    ty: Option<InstanceType>,
     func_type_map: HashMap<FunctionKey<'a>, u32>,
     type_map: HashMap<TypeId, u32>,
     import_map: HashMap<InterfaceId, u32>,
@@ -159,7 +166,7 @@ impl InterfaceEncoder<'_> {
         InterfaceEncoder {
             resolve,
             outer: ComponentType::new(),
-            ty: InstanceType::new(),
+            ty: None,
             type_map: Default::default(),
             func_type_map: Default::default(),
             import_map: Default::default(),
@@ -169,15 +176,19 @@ impl InterfaceEncoder<'_> {
     }
 
     fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
+        self.push_instance();
         let iface = &self.resolve.interfaces[interface];
         for (_, id) in iface.types.iter() {
             self.encode_valtype(self.resolve, &Type::Id(*id))?;
         }
         for (name, func) in iface.functions.iter() {
             let ty = self.encode_func_type(self.resolve, func)?;
-            self.ty.export(name, "", ComponentTypeRef::Func(ty));
+            self.ty
+                .as_mut()
+                .unwrap()
+                .export(name, "", ComponentTypeRef::Func(ty));
         }
-        let instance = self.take_instance();
+        let instance = self.pop_instance();
         let idx = self.outer.type_count();
         self.outer.ty().instance(&instance);
         self.import_map.insert(interface, self.instances);
@@ -185,25 +196,47 @@ impl InterfaceEncoder<'_> {
         Ok(idx)
     }
 
-    fn take_instance(&mut self) -> InstanceType {
+    fn push_instance(&mut self) {
+        assert!(self.ty.is_none());
         self.func_type_map.clear();
         self.type_map.clear();
-        mem::take(&mut self.ty)
+        self.ty = Some(InstanceType::default());
+    }
+
+    fn pop_instance(&mut self) -> InstanceType {
+        self.func_type_map.clear();
+        self.type_map.clear();
+        mem::take(&mut self.ty).unwrap()
     }
 }
 
 impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
-        (self.ty.type_count(), self.ty.ty().defined_type())
+        match &mut self.ty {
+            Some(ty) => (ty.type_count(), ty.ty().defined_type()),
+            None => (self.outer.type_count(), self.outer.ty().defined_type()),
+        }
     }
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
-        (self.ty.type_count(), self.ty.ty().function())
+        match &mut self.ty {
+            Some(ty) => (ty.type_count(), ty.ty().function()),
+            None => (self.outer.type_count(), self.outer.ty().function()),
+        }
     }
-    fn export_type(&mut self, index: u32, name: &'a str) -> u32 {
-        let ret = self.ty.type_count();
-        self.ty
-            .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
-        ret
+    fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32> {
+        match &mut self.ty {
+            Some(ty) => {
+                let ret = ty.type_count();
+                ty.export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                Some(ret)
+            }
+            None => {
+                let ret = self.outer.type_count();
+                self.outer
+                    .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                Some(ret)
+            }
+        }
     }
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
         &mut self.type_map
@@ -224,8 +257,12 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             });
             ret
         });
-        let ret = self.ty.type_count();
-        self.ty.alias(Alias::Outer {
+        let ty = match &mut self.ty {
+            Some(ty) => ty,
+            None => unimplemented!(),
+        };
+        let ret = ty.type_count();
+        ty.alias(Alias::Outer {
             count: 1,
             index: outer_idx,
             kind: ComponentOuterAliasKind::Type,

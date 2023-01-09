@@ -20,9 +20,8 @@ impl DocumentPrinter {
             writeln!(&mut self.output, "}}\n")?;
         }
 
-        for id in doc.worlds.iter() {
+        for (name, id) in doc.worlds.iter() {
             let world = &resolve.worlds[*id];
-            let name = &world.name;
             writeln!(&mut self.output, "world {name} {{")?;
             for (name, import) in world.imports.iter() {
                 self.print_world_item(resolve, name, import, docid, "import")?;
@@ -95,44 +94,49 @@ impl DocumentPrinter {
             if i > 0 {
                 self.output.push_str("\n");
             }
-            write!(&mut self.output, "{name}: func(")?;
-            for (i, (name, ty)) in func.params.iter().enumerate() {
-                if i > 0 {
-                    self.output.push_str(", ");
-                }
-                write!(&mut self.output, "{}: ", name)?;
-                self.print_type_name(resolve, ty)?;
-            }
-            self.output.push_str(")");
-
-            match &func.results {
-                Results::Named(rs) => match rs.len() {
-                    0 => (),
-                    1 => {
-                        self.output.push_str(" -> ");
-                        self.print_type_name(resolve, &rs[0].1)?;
-                    }
-                    _ => {
-                        self.output.push_str(" -> (");
-                        for (i, (name, ty)) in rs.iter().enumerate() {
-                            if i > 0 {
-                                self.output.push_str(", ");
-                            }
-                            write!(&mut self.output, "{name}: ")?;
-                            self.print_type_name(resolve, ty)?;
-                        }
-                        self.output.push_str(")");
-                    }
-                },
-                Results::Anon(ty) => {
-                    self.output.push_str(" -> ");
-                    self.print_type_name(resolve, ty)?;
-                }
-            }
-
+            write!(&mut self.output, "{name}: ")?;
+            self.print_function(resolve, func)?;
             self.output.push_str("\n");
         }
 
+        Ok(())
+    }
+
+    fn print_function(&mut self, resolve: &Resolve, func: &Function) -> Result<()> {
+        self.output.push_str("func(");
+        for (i, (name, ty)) in func.params.iter().enumerate() {
+            if i > 0 {
+                self.output.push_str(", ");
+            }
+            write!(&mut self.output, "{}: ", name)?;
+            self.print_type_name(resolve, ty)?;
+        }
+        self.output.push_str(")");
+
+        match &func.results {
+            Results::Named(rs) => match rs.len() {
+                0 => (),
+                1 => {
+                    self.output.push_str(" -> ");
+                    self.print_type_name(resolve, &rs[0].1)?;
+                }
+                _ => {
+                    self.output.push_str(" -> (");
+                    for (i, (name, ty)) in rs.iter().enumerate() {
+                        if i > 0 {
+                            self.output.push_str(", ");
+                        }
+                        write!(&mut self.output, "{name}: ")?;
+                        self.print_type_name(resolve, ty)?;
+                    }
+                    self.output.push_str(")");
+                }
+            },
+            Results::Anon(ty) => {
+                self.output.push_str(" -> ");
+                self.print_type_name(resolve, ty)?;
+            }
+        }
         Ok(())
     }
 
@@ -157,8 +161,8 @@ impl DocumentPrinter {
                 }
             }
             WorldItem::Function(f) => {
-                drop(f);
-                panic!();
+                self.print_function(resolve, f)?;
+                self.output.push_str("\n");
             }
         }
         Ok(())

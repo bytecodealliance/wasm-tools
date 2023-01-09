@@ -20,7 +20,7 @@ impl LiveTypes {
         for (_, id) in doc.interfaces.iter() {
             self.add_interface(resolve, *id);
         }
-        for id in doc.worlds.iter() {
+        for (_, id) in doc.worlds.iter() {
             self.add_world(resolve, *id);
         }
     }
@@ -38,10 +38,14 @@ impl LiveTypes {
     pub fn add_world(&mut self, resolve: &Resolve, world: WorldId) {
         let world = &resolve.worlds[world];
         for (_, item) in world.imports.iter().chain(world.exports.iter()) {
-            match item {
-                WorldItem::Interface(id) => self.add_interface(resolve, *id),
-                WorldItem::Function(f) => self.add_func(resolve, f),
-            }
+            self.add_world_item(resolve, item);
+        }
+    }
+
+    pub fn add_world_item(&mut self, resolve: &Resolve, item: &WorldItem) {
+        match item {
+            WorldItem::Interface(id) => self.add_interface(resolve, *id),
+            WorldItem::Function(f) => self.add_func(resolve, f),
         }
     }
 

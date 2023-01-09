@@ -220,7 +220,7 @@ pub struct Document {
     pub interfaces: IndexMap<String, InterfaceId>,
 
     /// The worlds contained in the document.
-    pub worlds: Vec<WorldId>,
+    pub worlds: IndexMap<String, WorldId>,
 
     /// The default interface of this document, if any.
     ///

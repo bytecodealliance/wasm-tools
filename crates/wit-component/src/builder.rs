@@ -169,15 +169,6 @@ impl ComponentBuilder {
         });
         inc(&mut self.types)
     }
-
-    pub fn alias_outer_type(&mut self, count: u32, index: u32) -> u32 {
-        self.aliases().alias(Alias::Outer {
-            count,
-            kind: ComponentOuterAliasKind::Type,
-            index,
-        });
-        inc(&mut self.types)
-    }
 }
 
 // Helper macro to generate methods on `ComponentBuilder` to get specific

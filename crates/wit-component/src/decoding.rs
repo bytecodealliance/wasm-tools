@@ -216,7 +216,7 @@ impl WitPackageDecoder<'_> {
         let doc = self.resolve.documents.alloc(Document {
             name: name.to_string(),
             interfaces: IndexMap::new(),
-            worlds: Vec::new(),
+            worlds: IndexMap::new(),
             default_interface: None,
             default_world: None,
             package: Some(self.package),
@@ -253,7 +253,10 @@ impl WitPackageDecoder<'_> {
                     let id = self
                         .register_world(doc, name, ty)
                         .with_context(|| format!("failed to process export `{name}`"))?;
-                    self.resolve.documents[doc].worlds.push(id);
+                    let prev = self.resolve.documents[doc]
+                        .worlds
+                        .insert(name.to_string(), id);
+                    assert!(prev.is_none());
                 }
                 _ => bail!("component export `{name}` is not an instance or component"),
             }
@@ -423,7 +426,7 @@ impl WitPackageDecoder<'_> {
                 self.resolve.documents.alloc(Document {
                     name: document.to_string(),
                     interfaces: IndexMap::new(),
-                    worlds: Vec::new(),
+                    worlds: IndexMap::new(),
                     default_interface: None,
                     default_world: None,
                     package: Some(package),
@@ -556,6 +559,16 @@ impl WitPackageDecoder<'_> {
                     };
                     WorldItem::Interface(id)
                 }
+
+                types::ComponentEntityType::Func(idx) => {
+                    let ty = match self.info.types.type_from_id(*idx) {
+                        Some(types::Type::ComponentFunc(ty)) => ty,
+                        _ => unreachable!(),
+                    };
+                    let func = self.convert_function(name, ty)?;
+                    WorldItem::Function(func)
+                }
+
                 _ => bail!("component import `{name}` is not an instance"),
             };
             world.imports.insert(name.to_string(), item);
@@ -574,6 +587,16 @@ impl WitPackageDecoder<'_> {
                     };
                     WorldItem::Interface(id)
                 }
+
+                types::ComponentEntityType::Func(idx) => {
+                    let ty = match self.info.types.type_from_id(*idx) {
+                        Some(types::Type::ComponentFunc(ty)) => ty,
+                        _ => unreachable!(),
+                    };
+                    let func = self.convert_function(name, ty)?;
+                    WorldItem::Function(func)
+                }
+
                 _ => bail!("component export `{name}` is not an instance"),
             };
             world.exports.insert(name.to_string(), item);

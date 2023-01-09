@@ -1,1 +1,4 @@
-import interface `foo` is missing function `bar` that is required by the module
+failed to validate import interface `foo`
+
+Caused by:
+    import interface `foo` is missing function `bar` that is required by the module

@@ -1,4 +1,4 @@
-use super::{Error, Func, ParamList, ResultList, ValueKind};
+use super::{Error, ParamList, ResultList, ValueKind};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::{bail, Result};
@@ -167,7 +167,7 @@ impl<'a> Resolver<'a> {
                         default_interface: None,
                         default_world: None,
                         interfaces: IndexMap::new(),
-                        worlds: Vec::new(),
+                        worlds: IndexMap::new(),
                         package: None,
                     })
                 });
@@ -322,7 +322,7 @@ impl<'a> Resolver<'a> {
             default_interface: None,
             default_world: None,
             interfaces: IndexMap::new(),
-            worlds: Vec::new(),
+            worlds: IndexMap::new(),
             package: None,
         });
         self.document_interfaces.push(IndexMap::new());
@@ -362,7 +362,7 @@ impl<'a> Resolver<'a> {
 
         // After all interfaces are defined then process all worlds as all items
         // they import from should now be available.
-        for (_name, world) in worlds {
+        for (name, world) in worlds {
             let id = self.resolve_world(document_id, world)?;
             if world.default {
                 let prev = &mut self.documents[document_id].default_world;
@@ -375,7 +375,10 @@ impl<'a> Resolver<'a> {
                 }
                 *prev = Some(id);
             }
-            self.documents[document_id].worlds.push(id);
+            let prev = self.documents[document_id]
+                .worlds
+                .insert(name.to_string(), id);
+            assert!(prev.is_none());
         }
 
         Ok(document_id)
@@ -401,7 +404,7 @@ impl<'a> Resolver<'a> {
             match item {
                 // ast::WorldItem::Use(_) => todo!(),
                 ast::WorldItem::Import(import) => {
-                    let item = self.resolve_world_item(document, &import.kind)?;
+                    let item = self.resolve_world_item(import.name.name, document, &import.kind)?;
                     if let WorldItem::Interface(id) = item {
                         if imported_interfaces.insert(id, import.name.name).is_some() {
                             return Err(Error {
@@ -423,7 +426,7 @@ impl<'a> Resolver<'a> {
                     import_spans.push(import.name.span);
                 }
                 ast::WorldItem::Export(export) => {
-                    let item = self.resolve_world_item(document, &export.kind)?;
+                    let item = self.resolve_world_item(export.name.name, document, &export.kind)?;
                     if let WorldItem::Interface(id) = item {
                         if exported_interfaces.insert(id, export.name.name).is_some() {
                             return Err(Error {
@@ -453,6 +456,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_world_item(
         &mut self,
+        name: &str,
         document: DocumentId,
         kind: &ast::ExternKind<'a>,
     ) -> Result<WorldItem> {
@@ -464,7 +468,15 @@ impl<'a> Resolver<'a> {
             ast::ExternKind::Path(path) => {
                 let id = self.resolve_path(path)?;
                 Ok(WorldItem::Interface(id))
-            } // ast::ExternKind::Func(_) => todo!(),
+            }
+            ast::ExternKind::Func(func) => {
+                // Push a dummy type lookup which will get used during type
+                // resolution which is empty.
+                self.interface_types.push(IndexMap::default());
+                let func = self.resolve_function(Docs::default(), name, func)?;
+                self.interface_types.pop();
+                Ok(WorldItem::Function(func))
+            }
         }
     }
 
@@ -576,20 +588,12 @@ impl<'a> Resolver<'a> {
                 ast::InterfaceItem::Value(value) => {
                     let docs = self.docs(&value.docs);
                     match &value.kind {
-                        ValueKind::Func(Func { params, results }) => {
+                        ValueKind::Func(func) => {
                             self.define_interface_name(&value.name, InterfaceItem::Func)?;
-                            let params = self.resolve_params(params)?;
-                            let results = self.resolve_results(results)?;
-                            let prev = self.interfaces[interface_id].functions.insert(
-                                value.name.name.to_string(),
-                                Function {
-                                    docs,
-                                    name: value.name.name.to_string(),
-                                    kind: FunctionKind::Freestanding,
-                                    params,
-                                    results,
-                                },
-                            );
+                            let func = self.resolve_function(docs, value.name.name, func)?;
+                            let prev = self.interfaces[interface_id]
+                                .functions
+                                .insert(value.name.name.to_string(), func);
                             assert!(prev.is_none());
                         }
                     }
@@ -599,6 +603,18 @@ impl<'a> Resolver<'a> {
         }
 
         Ok(interface_id)
+    }
+
+    fn resolve_function(&mut self, docs: Docs, name: &str, func: &ast::Func) -> Result<Function> {
+        let params = self.resolve_params(&func.params)?;
+        let results = self.resolve_results(&func.results)?;
+        Ok(Function {
+            docs,
+            name: name.to_string(),
+            kind: FunctionKind::Freestanding,
+            params,
+            results,
+        })
     }
 
     fn resolve_path(&self, path: &ast::UsePath<'a>) -> Result<InterfaceId> {

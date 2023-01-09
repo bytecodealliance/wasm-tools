@@ -1,0 +1,5 @@
+name imported twice
+     --> tests/ui/parse-fail/world-top-level-func.wit:3:10
+      |
+    3 |   import foo: func()
+      |          ^--

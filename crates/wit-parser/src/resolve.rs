@@ -1,7 +1,7 @@
 use crate::ast::lex::Span;
 use crate::{
-    Document, DocumentId, Error, Interface, InterfaceId, Results, Type, TypeDef, TypeDefKind,
-    TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
+    Document, DocumentId, Error, Function, Interface, InterfaceId, Results, Type, TypeDef,
+    TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
 };
 use anyhow::{bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -220,14 +220,140 @@ impl Resolve {
             },
         }
     }
+
+    /// Merges all the contents of a different `Resolve` into this one. The
+    /// `Remap` structure returned provides a mapping from all old indices to
+    /// new indices
+    pub fn merge(&mut self, resolve: Resolve) -> Remap {
+        let mut remap = Remap::default();
+        let Resolve {
+            types,
+            worlds,
+            interfaces,
+            documents,
+            packages,
+        } = resolve;
+
+        for (id, mut ty) in types {
+            remap.update_typedef(&mut ty);
+            let new_id = self.types.alloc(ty);
+            assert_eq!(remap.types.len(), id.index());
+            remap.types.push(new_id);
+        }
+
+        for (id, mut iface) in interfaces {
+            remap.update_interface(&mut iface);
+            let new_id = self.interfaces.alloc(iface);
+            assert_eq!(remap.interfaces.len(), id.index());
+            remap.interfaces.push(new_id);
+        }
+
+        for (id, mut world) in worlds {
+            for (_, item) in world.imports.iter_mut().chain(&mut world.exports) {
+                match item {
+                    WorldItem::Function(f) => remap.update_function(f),
+                    WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
+                }
+            }
+            let new_id = self.worlds.alloc(world);
+            assert_eq!(remap.worlds.len(), id.index());
+            remap.worlds.push(new_id);
+        }
+
+        for (id, mut doc) in documents {
+            remap.update_document(&mut doc);
+            let new_id = self.documents.alloc(doc);
+            assert_eq!(remap.documents.len(), id.index());
+            remap.documents.push(new_id);
+        }
+
+        for (id, mut pkg) in packages {
+            for (_, doc) in pkg.documents.iter_mut() {
+                *doc = remap.documents[doc.index()];
+            }
+            let new_id = self.packages.alloc(pkg);
+            assert_eq!(remap.packages.len(), id.index());
+            remap.packages.push(new_id);
+        }
+
+        // Fixup all "parent" links now
+        for id in remap.documents.iter().copied() {
+            if let Some(pkg) = &mut self.documents[id].package {
+                *pkg = remap.packages[pkg.index()];
+            }
+        }
+        for id in remap.worlds.iter().copied() {
+            let doc = &mut self.worlds[id].document;
+            *doc = remap.documents[doc.index()];
+        }
+        for id in remap.interfaces.iter().copied() {
+            let doc = &mut self.interfaces[id].document;
+            *doc = remap.documents[doc.index()];
+        }
+        for id in remap.types.iter().copied() {
+            match &mut self.types[id].owner {
+                TypeOwner::Interface(id) => *id = remap.interfaces[id.index()],
+                TypeOwner::World(id) => *id = remap.worlds[id.index()],
+                TypeOwner::None => {}
+            }
+        }
+
+        remap
+    }
+
+    /// Merges the world `from` into the world `into`.
+    ///
+    /// This will attempt to merge one world into another, unioning all of its
+    /// imports and exports together. This is an operation performed by
+    /// `wit-component`, for example where two different worlds from two
+    /// different libraries were linked into the same core wasm file and are
+    /// producing a singular world that will be the final component's
+    /// interface.
+    ///
+    /// This operation can fail if the imports/exports overlap.
+    //
+    // TODO: overlap shouldn't be a hard error here, there should be some form
+    // of comparing names/urls/deep merging or such to get this working.
+    pub fn merge_worlds(&mut self, from: WorldId, into: WorldId) -> Result<()> {
+        let mut new_imports = Vec::new();
+        let mut new_exports = Vec::new();
+
+        let from_world = &self.worlds[from];
+        let into_world = &self.worlds[into];
+        for (name, import) in from_world.imports.iter() {
+            match into_world.imports.get(name) {
+                Some(_) => bail!("duplicate import found for interface `{name}`"),
+                None => new_imports.push((name.clone(), import.clone())),
+            }
+        }
+        for (name, export) in from_world.exports.iter() {
+            match into_world.exports.get(name) {
+                Some(_) => bail!("duplicate export found for interface `{name}`"),
+                None => new_exports.push((name.clone(), export.clone())),
+            }
+        }
+
+        let into = &mut self.worlds[into];
+        for (name, import) in new_imports {
+            let prev = into.imports.insert(name, import);
+            assert!(prev.is_none());
+        }
+        for (name, import) in new_exports {
+            let prev = into.exports.insert(name, import);
+            assert!(prev.is_none());
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Default)]
-struct Remap {
-    types: Vec<TypeId>,
-    interfaces: Vec<InterfaceId>,
-    documents: Vec<DocumentId>,
-    worlds: Vec<WorldId>,
+pub struct Remap {
+    pub types: Vec<TypeId>,
+    pub interfaces: Vec<InterfaceId>,
+    pub worlds: Vec<WorldId>,
+    pub documents: Vec<DocumentId>,
+    pub packages: Vec<PackageId>,
 }
 
 impl Remap {
@@ -485,17 +611,21 @@ impl Remap {
             *ty = self.types[ty.index()];
         }
         for (_, func) in iface.functions.iter_mut() {
-            for (_, ty) in func.params.iter_mut() {
-                self.update_ty(ty);
-            }
-            match &mut func.results {
-                Results::Named(named) => {
-                    for (_, ty) in named.iter_mut() {
-                        self.update_ty(ty);
-                    }
+            self.update_function(func);
+        }
+    }
+
+    fn update_function(&self, func: &mut Function) {
+        for (_, ty) in func.params.iter_mut() {
+            self.update_ty(ty);
+        }
+        match &mut func.results {
+            Results::Named(named) => {
+                for (_, ty) in named.iter_mut() {
+                    self.update_ty(ty);
                 }
-                Results::Anon(ty) => self.update_ty(ty),
             }
+            Results::Anon(ty) => self.update_ty(ty),
         }
     }
 
@@ -526,6 +656,8 @@ impl Remap {
         let mut explicit_export_names = HashMap::new();
         let mut imports = Vec::new();
         let mut exports = Vec::new();
+        let mut import_funcs = Vec::new();
+        let mut export_funcs = Vec::new();
         for ((name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans) {
             match item {
                 WorldItem::Interface(id) => {
@@ -534,7 +666,10 @@ impl Remap {
                     let prev = explicit_import_names.insert(id, name);
                     assert!(prev.is_none());
                 }
-                WorldItem::Function(_) => unimplemented!(),
+                WorldItem::Function(mut f) => {
+                    self.update_function(&mut f);
+                    import_funcs.push((name, f));
+                }
             }
         }
         for ((name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans) {
@@ -545,7 +680,10 @@ impl Remap {
                     let prev = explicit_export_names.insert(id, name);
                     assert!(prev.is_none());
                 }
-                WorldItem::Function(_) => unimplemented!(),
+                WorldItem::Function(mut f) => {
+                    self.update_function(&mut f);
+                    export_funcs.push((name, f));
+                }
             }
         }
 
@@ -570,6 +708,23 @@ impl Remap {
             elaborate.export(id, span)?;
         }
 
+        for (name, func) in import_funcs {
+            let prev = world
+                .imports
+                .insert(name.clone(), WorldItem::Function(func));
+            if prev.is_some() {
+                bail!("import of function `{name}` shadows previously imported interface");
+            }
+        }
+        for (name, func) in export_funcs {
+            let prev = world
+                .exports
+                .insert(name.clone(), WorldItem::Function(func));
+            if prev.is_some() {
+                bail!("export of function `{name}` shadows previously exported interface");
+            }
+        }
+
         log::trace!("imports = {:?}", world.imports);
         log::trace!("exports = {:?}", world.exports);
 
@@ -580,7 +735,7 @@ impl Remap {
         for (_name, iface) in doc.interfaces.iter_mut() {
             *iface = self.interfaces[iface.index()];
         }
-        for world in doc.worlds.iter_mut() {
+        for (_name, world) in doc.worlds.iter_mut() {
             *world = self.worlds[world.index()];
         }
         if let Some(default) = &mut doc.default_interface {
@@ -589,7 +744,6 @@ impl Remap {
         if let Some(default) = &mut doc.default_world {
             *default = self.worlds[default.index()];
         }
-        assert!(doc.package.is_none());
     }
 }
 
