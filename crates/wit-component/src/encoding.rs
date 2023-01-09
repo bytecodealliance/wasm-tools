@@ -58,7 +58,7 @@
 //    validation::{ValidatedModule, MAIN_MODULE_IMPORT_NAME},
 //    StringEncoding,
 //};
-//use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 //use indexmap::IndexMap;
 //use std::collections::HashMap;
 //use std::hash::Hash;
@@ -1107,192 +1107,167 @@ mod types;
 //    }
 //}
 
-///// An encoder of components based on `wit` interface definitions.
-//#[derive(Default)]
-//pub struct ComponentEncoder {
-//    module: Vec<u8>,
-//    metadata: Bindgen,
-//    validate: bool,
-//    types_only: bool,
+/// An encoder of components based on `wit` interface definitions.
+#[derive(Default)]
+pub struct ComponentEncoder {
+    module: Vec<u8>,
+    // metadata: Bindgen,
+    validate: bool,
+    // This is a map from the name of the adapter to a pair of:
+    //
+    // * The wasm of the adapter itself, with `component-type` sections
+    //   stripped.
+    // * the metadata for the adapter, verified to have no exports and only
+    //   imports.
+    // * The world within `self.metadata.doc` which the adapter works with.
+    // adapters: IndexMap<String, (Vec<u8>, ModuleMetadata, WorldId)>,
+}
 
-//    // This is a map from the name of the adapter to a pair of:
-//    //
-//    // * The wasm of the adapter itself, with `component-type` sections
-//    //   stripped.
-//    // * the metadata for the adapter, verified to have no exports and only
-//    //   imports.
-//    // * The world within `self.metadata.doc` which the adapter works with.
-//    adapters: IndexMap<String, (Vec<u8>, ModuleMetadata, WorldId)>,
-//}
+impl ComponentEncoder {
+    /// Set the core module to encode as a component.
+    /// This method will also parse any component type information stored in custom sections
+    /// inside the module, and add them as the interface, imports, and exports.
+    pub fn module(mut self, module: &[u8]) -> Result<Self> {
+        panic!()
+        // let (wasm, metadata) = metadata::decode(module)?;
+        // self.module = wasm;
+        // self.metadata.merge(metadata)?;
+        // Ok(self)
+    }
 
-//impl ComponentEncoder {
-//    /// Set the core module to encode as a component.
-//    /// This method will also parse any component type information stored in custom sections
-//    /// inside the module, and add them as the interface, imports, and exports.
-//    pub fn module(mut self, module: &[u8]) -> Result<Self> {
-//        let (wasm, metadata) = metadata::decode(module)?;
-//        self.module = wasm;
-//        self.metadata.merge(metadata)?;
-//        Ok(self)
-//    }
+    /// Sets whether or not the encoder will validate its output.
+    pub fn validate(mut self, validate: bool) -> Self {
+        self.validate = validate;
+        self
+    }
 
-//    /// Sets whether or not the encoder will validate its output.
-//    pub fn validate(mut self, validate: bool) -> Self {
-//        self.validate = validate;
-//        self
-//    }
+    /// Specifies a new adapter which is used to translate from a historical
+    /// wasm ABI to the canonical ABI and the `interface` provided.
+    ///
+    /// This is primarily used to polyfill, for example,
+    /// `wasi_snapshot_preview1` with a component-model using interface. The
+    /// `name` provided is the module name of the adapter that is being
+    /// polyfilled, for example `"wasi_snapshot_preview1"`.
+    ///
+    /// The `bytes` provided is a core wasm module which implements the `name`
+    /// interface in terms of the `interface` interface. This core wasm module
+    /// is severely restricted in its shape, for example it cannot have any data
+    /// segments or element segments.
+    ///
+    /// The `interface` provided is the component-model-using-interface that the
+    /// wasm module specified by `bytes` imports. The `bytes` will then import
+    /// `interface` and export functions to get imported from the module `name`
+    /// in the core wasm that's being wrapped.
+    pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
+        panic!()
+        // let (wasm, metadata) = metadata::decode(bytes)?;
+        // // Merge the adapter's document into our own document to have one large
+        // // document, but the adapter's world isn't merged in to our world so
+        // // retain it separately.
+        // let world = self.metadata.doc.merge(metadata.doc).world_map[metadata.world.index()];
+        // self.adapters
+        //     .insert(name.to_string(), (wasm, metadata.metadata, world));
+        // Ok(self)
+    }
 
-//    /// Add a document to this encoder as a manual specification of what's being
-//    /// imported/exported.
-//    ///
-//    /// The string encoding of the specified world is supplied here as
-//    /// well.
-//    ///
-//    /// Note that this can also be inferred from the `module` input if the
-//    /// module embeds its own metadata. This is otherwise required to describe
-//    /// imports/exports that aren't otherwise self-descried in `module`.
-//    pub fn document(mut self, doc: Document, encoding: StringEncoding) -> Result<Self> {
-//        let world = doc.default_world()?;
-//        self.metadata.merge(Bindgen {
-//            metadata: ModuleMetadata::new(&doc, world, encoding),
-//            doc,
-//            world,
-//        })?;
-//        Ok(self)
-//    }
+    /// Encode the component and return the bytes.
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        panic!()
+        // let doc = &self.metadata.doc;
+        // let world = ComponentWorld::new(self)?;
+        // let mut state = EncodingState {
+        //     component: ComponentBuilder::default(),
+        //     module_index: None,
+        //     instance_index: None,
+        //     memory_index: None,
+        //     realloc_index: None,
+        //     shim_instance_index: None,
+        //     fixups_module_index: None,
+        //     adapter_modules: IndexMap::new(),
+        //     adapter_instances: IndexMap::new(),
+        //     adapter_import_reallocs: IndexMap::new(),
+        //     adapter_export_reallocs: IndexMap::new(),
+        //     type_map: HashMap::new(),
+        //     func_type_map: HashMap::new(),
+        //     imported_instances: Default::default(),
+        //     info: &world,
+        // };
+        // let world = &doc.worlds[self.metadata.world];
+        // state.encode_imports()?;
 
-//    /// Specifies a new adapter which is used to translate from a historical
-//    /// wasm ABI to the canonical ABI and the `interface` provided.
-//    ///
-//    /// This is primarily used to polyfill, for example,
-//    /// `wasi_snapshot_preview1` with a component-model using interface. The
-//    /// `name` provided is the module name of the adapter that is being
-//    /// polyfilled, for example `"wasi_snapshot_preview1"`.
-//    ///
-//    /// The `bytes` provided is a core wasm module which implements the `name`
-//    /// interface in terms of the `interface` interface. This core wasm module
-//    /// is severely restricted in its shape, for example it cannot have any data
-//    /// segments or element segments.
-//    ///
-//    /// The `interface` provided is the component-model-using-interface that the
-//    /// wasm module specified by `bytes` imports. The `bytes` will then import
-//    /// `interface` and export functions to get imported from the module `name`
-//    /// in the core wasm that's being wrapped.
-//    pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
-//        let (wasm, metadata) = metadata::decode(bytes)?;
-//        // Merge the adapter's document into our own document to have one large
-//        // document, but the adapter's world isn't merged in to our world so
-//        // retain it separately.
-//        let world = self.metadata.doc.merge(metadata.doc).world_map[metadata.world.index()];
-//        self.adapters
-//            .insert(name.to_string(), (wasm, metadata.metadata, world));
-//        Ok(self)
-//    }
+        // if self.types_only {
+        //     if !self.module.is_empty() {
+        //         bail!("a module cannot be specified for a types-only encoding");
+        //     }
 
-//    /// Indicates whether this encoder is only encoding types and does not
-//    /// require a `module` as input.
-//    pub fn types_only(mut self, only: bool) -> Self {
-//        self.types_only = only;
-//        self
-//    }
+        //     // In types-only mode there's no actual items to export so skip
+        //     // shims/adapters etc. Instead instance types are exported to
+        //     // represent exported instances and exported types represent the
+        //     // default export.
+        //     for (id, name) in world.exports() {
+        //         let interface = &doc.interfaces[id];
+        //         let url = interface.url.as_deref().unwrap_or("");
+        //         match name {
+        //             Some(name) => {
+        //                 let mut ty = state.instance_type_encoder(id);
+        //                 for func in interface.functions.iter() {
+        //                     let idx = ty.encode_func_type(doc, func)?;
+        //                     ty.ty.export(&func.name, "", ComponentTypeRef::Func(idx));
+        //                 }
+        //                 let ty = ty.ty;
+        //                 if ty.is_empty() {
+        //                     continue;
+        //                 }
+        //                 let index = state.component.instance_type(&ty);
+        //                 state
+        //                     .component
+        //                     .export(name, url, ComponentExportKind::Type, index);
+        //             }
+        //             None => {
+        //                 let mut ty = state.root_type_encoder(id);
+        //                 for func in interface.functions.iter() {
+        //                     let idx = ty.encode_func_type(doc, func)?;
+        //                     ty.state.component.export(
+        //                         &func.name,
+        //                         "",
+        //                         ComponentExportKind::Type,
+        //                         idx,
+        //                     );
+        //                 }
+        //                 for (idx, name) in ty.type_exports {
+        //                     ty.state
+        //                         .component
+        //                         .export(name, "", ComponentExportKind::Type, idx);
+        //                 }
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     if self.module.is_empty() {
+        //         bail!("a module is required when encoding a component");
+        //     }
 
-//    /// Encode the component and return the bytes.
-//    pub fn encode(&self) -> Result<Vec<u8>> {
-//        let doc = &self.metadata.doc;
-//        let world = ComponentWorld::new(self)?;
-//        let mut state = EncodingState {
-//            component: ComponentBuilder::default(),
-//            module_index: None,
-//            instance_index: None,
-//            memory_index: None,
-//            realloc_index: None,
-//            shim_instance_index: None,
-//            fixups_module_index: None,
-//            adapter_modules: IndexMap::new(),
-//            adapter_instances: IndexMap::new(),
-//            adapter_import_reallocs: IndexMap::new(),
-//            adapter_export_reallocs: IndexMap::new(),
-//            type_map: HashMap::new(),
-//            func_type_map: HashMap::new(),
-//            imported_instances: Default::default(),
-//            info: &world,
-//        };
-//        let world = &doc.worlds[self.metadata.world];
-//        state.encode_imports()?;
+        //     state.encode_core_modules();
+        //     state.encode_core_instantiation()?;
+        //     state.encode_exports(self, CustomModule::Main)?;
+        //     for name in self.adapters.keys() {
+        //         state.encode_exports(self, CustomModule::Adapter(name))?;
+        //     }
+        // }
 
-//        if self.types_only {
-//            if !self.module.is_empty() {
-//                bail!("a module cannot be specified for a types-only encoding");
-//            }
+        // let bytes = state.component.finish();
 
-//            // In types-only mode there's no actual items to export so skip
-//            // shims/adapters etc. Instead instance types are exported to
-//            // represent exported instances and exported types represent the
-//            // default export.
-//            for (id, name) in world.exports() {
-//                let interface = &doc.interfaces[id];
-//                let url = interface.url.as_deref().unwrap_or("");
-//                match name {
-//                    Some(name) => {
-//                        let mut ty = state.instance_type_encoder(id);
-//                        for func in interface.functions.iter() {
-//                            let idx = ty.encode_func_type(doc, func)?;
-//                            ty.ty.export(&func.name, "", ComponentTypeRef::Func(idx));
-//                        }
-//                        let ty = ty.ty;
-//                        if ty.is_empty() {
-//                            continue;
-//                        }
-//                        let index = state.component.instance_type(&ty);
-//                        state
-//                            .component
-//                            .export(name, url, ComponentExportKind::Type, index);
-//                    }
-//                    None => {
-//                        let mut ty = state.root_type_encoder(id);
-//                        for func in interface.functions.iter() {
-//                            let idx = ty.encode_func_type(doc, func)?;
-//                            ty.state.component.export(
-//                                &func.name,
-//                                "",
-//                                ComponentExportKind::Type,
-//                                idx,
-//                            );
-//                        }
-//                        for (idx, name) in ty.type_exports {
-//                            ty.state
-//                                .component
-//                                .export(name, "", ComponentExportKind::Type, idx);
-//                        }
-//                    }
-//                }
-//            }
-//        } else {
-//            if self.module.is_empty() {
-//                bail!("a module is required when encoding a component");
-//            }
+        // if self.validate {
+        //     let mut validator = Validator::new_with_features(WasmFeatures {
+        //         component_model: true,
+        //         ..Default::default()
+        //     });
 
-//            state.encode_core_modules();
-//            state.encode_core_instantiation()?;
-//            state.encode_exports(self, CustomModule::Main)?;
-//            for name in self.adapters.keys() {
-//                state.encode_exports(self, CustomModule::Adapter(name))?;
-//            }
-//        }
+        //     validator
+        //         .validate_all(&bytes)
+        //         .context("failed to validate component output")?;
+        // }
 
-//        let bytes = state.component.finish();
-
-//        if self.validate {
-//            let mut validator = Validator::new_with_features(WasmFeatures {
-//                component_model: true,
-//                ..Default::default()
-//            });
-
-//            validator
-//                .validate_all(&bytes)
-//                .context("failed to validate component output")?;
-//        }
-
-//        Ok(bytes)
-//    }
-//}
+        // Ok(bytes)
+    }
+}

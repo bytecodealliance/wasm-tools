@@ -15,10 +15,10 @@ mod printing;
 // mod validation;
 
 pub use decoding::{decode, DecodedWasm};
-pub use encoding::encode;
+pub use encoding::{encode, ComponentEncoder};
 pub use printing::*;
 
-// pub mod metadata;
+pub mod metadata;
 
 /// Supported string encoding formats.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

@@ -3,146 +3,206 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use wasm_encoder::Encode;
 use wasm_tools::Output;
-use wit_component::{DecodedWasm, DocumentPrinter};
-use wit_parser::{Resolve, UnresolvedPackage};
-// use wit_component::{decode_world, ComponentEncoder, DocumentPrinter, StringEncoding};
+use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
+use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
 pub enum Opts {
-    // New(NewOpts),
+    New(NewOpts),
     Wit(WitOpts),
+    Embed(EmbedOpts),
 }
 
 impl Opts {
     pub fn run(self) -> Result<()> {
         match self {
-            // Opts::New(new) => new.run(),
+            Opts::New(new) => new.run(),
             Opts::Wit(wit) => wit.run(),
+            Opts::Embed(embed) => embed.run(),
         }
     }
 }
 
-// fn parse_optionally_name_file(s: &str) -> (&str, &str) {
-//     let mut parts = s.splitn(2, '=');
-//     let name_or_path = parts.next().unwrap();
-//     match parts.next() {
-//         Some(path) => (name_or_path, path),
-//         None => {
-//             let name = Path::new(name_or_path)
-//                 .file_stem()
-//                 .unwrap()
-//                 .to_str()
-//                 .unwrap();
-//             (name, name_or_path)
-//         }
-//     }
-// }
+fn parse_optionally_name_file(s: &str) -> (&str, &str) {
+    let mut parts = s.splitn(2, '=');
+    let name_or_path = parts.next().unwrap();
+    match parts.next() {
+        Some(path) => (name_or_path, path),
+        None => {
+            let name = Path::new(name_or_path)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            (name, name_or_path)
+        }
+    }
+}
 
-// fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
-//     let (name, path) = parse_optionally_name_file(s);
-//     let wasm = wat::parse_file(path)?;
-//     Ok((name.to_string(), wasm))
-// }
+fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
+    let (name, path) = parse_optionally_name_file(s);
+    let wasm = wat::parse_file(path)?;
+    Ok((name.to_string(), wasm))
+}
 
-///// WebAssembly component encoder from an input core wasm binary.
-/////
-///// This subcommand will create a new component `*.wasm` file from an input core
-///// wasm binary. The input core wasm binary is expected to be compiled with
-///// `wit-component` or derivative projects which encodes component-based type
-///// information into the input core wasm binary's custom sections. The `--wit`
-///// option can also be used to specify the interface manually too.
-//#[derive(Parser)]
-//pub struct NewOpts {
-//    /// The path to an adapter module to satisfy imports.
-//    ///
-//    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
-//    /// ABI, for example, to one that uses the component model. The first
-//    /// `[NAME=]` specified in the argument is inferred from the name of file
-//    /// specified by `MODULE` if not present and is the name of the import
-//    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
-//    ///
-//    /// The second part of this argument, optionally specified, is the interface
-//    /// that this adapter module imports. If not specified then the interface
-//    /// imported is inferred from the adapter module itself.
-//    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
-//    adapters: Vec<(String, Vec<u8>)>,
+/// WebAssembly component encoder from an input core wasm binary.
+///
+/// This subcommand will create a new component `*.wasm` file from an input core
+/// wasm binary. The input core wasm binary is expected to be compiled with
+/// `wit-component` or derivative projects which encodes component-based type
+/// information into the input core wasm binary's custom sections. The `--wit`
+/// option can also be used to specify the interface manually too.
+#[derive(Parser)]
+pub struct NewOpts {
+    /// The path to an adapter module to satisfy imports.
+    ///
+    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
+    /// ABI, for example, to one that uses the component model. The first
+    /// `[NAME=]` specified in the argument is inferred from the name of file
+    /// specified by `MODULE` if not present and is the name of the import
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
+    ///
+    /// The second part of this argument, optionally specified, is the interface
+    /// that this adapter module imports. If not specified then the interface
+    /// imported is inferred from the adapter module itself.
+    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
+    adapters: Vec<(String, Vec<u8>)>,
 
-//    #[clap(flatten)]
-//    io: wasm_tools::InputOutput,
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
 
-//    /// The "world" that the input binary implements.
-//    ///
-//    /// This argument is a `*.wit` file which describes the imports and exports
-//    /// of the core wasm module. Users of `wit-bindgen` don't need this as those
-//    /// generators already embed this information into the input core wasm
-//    /// binary.
-//    #[clap(long, value_name = "PATH")]
-//    wit: Option<PathBuf>,
+    /// Skip validation of the output component.
+    #[clap(long)]
+    skip_validation: bool,
 
-//    /// Skip validation of the output component.
-//    #[clap(long)]
-//    skip_validation: bool,
+    /// Print the output in the WebAssembly text format instead of binary.
+    #[clap(long, short = 't')]
+    wat: bool,
+}
 
-//    /// The expected string encoding format for the component.
-//    ///
-//    /// Supported values are: `utf8` (default), `utf16`, and `compact-utf16`.
-//    /// This is only applicable to the `--wit` argument to describe the string
-//    /// encoding of the functions in that world.
-//    #[clap(long, value_name = "ENCODING")]
-//    encoding: Option<StringEncoding>,
+impl NewOpts {
+    /// Executes the application.
+    fn run(self) -> Result<()> {
+        let wasm = self.io.parse_input_wasm()?;
+        let mut encoder = ComponentEncoder::default()
+            .validate(!self.skip_validation)
+            .module(&wasm)?;
 
-//    /// Print the output in the WebAssembly text format instead of binary.
-//    #[clap(long, short = 't')]
-//    wat: bool,
+        for (name, wasm) in self.adapters.iter() {
+            encoder = encoder.adapter(name, wasm)?;
+        }
 
-//    /// Generate a "types only" component which is a binary encoding of the
-//    /// input wit file or the wit already encoded into the module.
-//    #[clap(long)]
-//    types_only: bool,
-//}
+        let bytes = encoder
+            .encode()
+            .with_context(|| format!("failed to encode a component from module "))?;
 
-//impl NewOpts {
-//    /// Executes the application.
-//    fn run(self) -> Result<()> {
-//        let wasm = if self.types_only {
-//            self.io.init_logger();
-//            None
-//        } else {
-//            Some(self.io.parse_input_wasm()?)
-//        };
-//        let mut encoder = ComponentEncoder::default()
-//            .validate(!self.skip_validation)
-//            .types_only(self.types_only);
+        self.io.output(Output::Wasm {
+            bytes: &bytes,
+            wat: self.wat,
+        })?;
 
-//        if let Some(wasm) = wasm {
-//            encoder = encoder.module(&wasm)?;
-//        }
+        Ok(())
+    }
+}
 
-//        if let Some(wit) = &self.wit {
-//            let encoding = self.encoding.unwrap_or(StringEncoding::UTF8);
-//            let doc = Document::parse_file(wit)?;
-//            encoder = encoder.document(doc, encoding)?;
-//        }
+/// Embeds metadata for a component inside of a core wasm module.
+///
+/// This subcommand is a convenience tool provided for producing core wasm
+/// binaries which will get consumed by `wasm-tools component new`. This will
+/// embed metadata for a component within a core wasm binary as a custom
+/// section.
+///
+/// This metadata describe the imports and exports of a core wasm module with a
+/// WIT package's `world`. The metadata will be used when creating a full
+/// component.
+///
+/// Note that this subcommand may not be required most of the time since most
+/// language tooling will already embed this metadata in the final wasm binary
+/// for you. This is primarily intended for one-off testing or for developers
+/// working with text format wasm.
+#[derive(Parser)]
+pub struct EmbedOpts {
+    /// The WIT package where the `world` that the core wasm module implements
+    /// lives.
+    ///
+    /// This can either be a directory or a path to a single `*.wit` file.
+    wit: PathBuf,
 
-//        for (name, wasm) in self.adapters.iter() {
-//            encoder = encoder.adapter(name, wasm)?;
-//        }
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
 
-//        let bytes = encoder
-//            .encode()
-//            .with_context(|| format!("failed to encode a component from module ",))?;
+    /// The expected string encoding format for the component.
+    ///
+    /// Supported values are: `utf8` (default), `utf16`, and `compact-utf16`.
+    /// This is only applicable to the `--wit` argument to describe the string
+    /// encoding of the functions in that world.
+    #[clap(long, value_name = "ENCODING")]
+    encoding: Option<StringEncoding>,
 
-//        self.io.output(Output::Wasm {
-//            bytes: &bytes,
-//            wat: self.wat,
-//        })?;
+    /// The world that the component uses.
+    ///
+    /// This is the path, within the `WIT` package provided as a positional
+    /// argument, to the `world` that the core wasm module works with. This can
+    /// either be a bare string which a document name that has a `default
+    /// world`, or it can be a `foo/bar` name where `foo` names a document and
+    /// `bar` names a world within that document.
+    #[clap(short, long)]
+    world: String,
+}
 
-//        Ok(())
-//    }
-//}
+impl EmbedOpts {
+    /// Executes the application.
+    fn run(self) -> Result<()> {
+        let mut wasm = self.io.parse_input_wasm()?;
+        let (resolve, id) = parse_wit(&self.wit)?;
+
+        let mut parts = self.world.split('/');
+        let doc = match parts.next() {
+            Some(name) => match resolve.packages[id].documents.get(name) {
+                Some(doc) => *doc,
+                None => bail!("no document named `{name}` in package"),
+            },
+            None => bail!("invalid `--world` argument"),
+        };
+        let world = match parts.next() {
+            Some(name) => match resolve.documents[doc]
+                .worlds
+                .iter()
+                .find(|w| resolve.worlds[**w].name == name)
+            {
+                Some(world) => *world,
+                None => bail!("no world named `{name}` in document"),
+            },
+            None => match resolve.documents[doc].default_world {
+                Some(world) => world,
+                None => bail!("no default world found in document"),
+            },
+        };
+
+        let encoded = wit_component::metadata::encode(
+            &resolve,
+            world,
+            self.encoding.unwrap_or(StringEncoding::UTF8),
+        )?;
+
+        wasm_encoder::CustomSection {
+            name: "component-type",
+            data: &encoded,
+        }
+        .encode(&mut wasm);
+
+        self.io.output(Output::Wasm {
+            bytes: &wasm,
+            wat: false,
+        })?;
+
+        Ok(())
+    }
+}
 
 /// Tool for working with the WIT text format for components.
 ///
@@ -238,13 +298,7 @@ impl WitOpts {
                     wit_component::decode(name, &bytes).context("failed to decode WIT document")?
                 }
                 _ => {
-                    let mut resolve = Resolve::default();
-                    let id = if input.is_dir() {
-                        resolve.push_dir(&input)?
-                    } else {
-                        let pkg = UnresolvedPackage::parse_file(&input)?;
-                        resolve.push(pkg, &Default::default())?
-                    };
+                    let (resolve, id) = parse_wit(input)?;
                     DecodedWasm::WitPackage(resolve, id)
                 }
             },
@@ -379,6 +433,17 @@ impl WitOpts {
         self.output.output(Output::Wat(&output))?;
         Ok(())
     }
+}
+
+fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
+    let mut resolve = Resolve::default();
+    let id = if path.is_dir() {
+        resolve.push_dir(&path)?
+    } else {
+        let pkg = UnresolvedPackage::parse_file(&path)?;
+        resolve.push(pkg, &Default::default())?
+    };
+    Ok((resolve, id))
 }
 
 /// Test to see if a string is probably a `*.wat` text syntax.
