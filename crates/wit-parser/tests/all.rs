@@ -119,7 +119,7 @@ impl Runner<'_> {
                             "some generic platform-agnostic error message",
                         );
                     }
-                    normalize(test, &format!("{:?}", e))
+                    normalize(&format!("{:?}", e))
                 }
             }
         } else {
@@ -146,7 +146,7 @@ impl Runner<'_> {
                 "failed to read test expectation file {:?}\nthis can be fixed with BLESS=1",
                 result_file
             ))?;
-            let expected = normalize(test, &expected);
+            let expected = normalize(&expected);
             if expected != result {
                 bail!(
                     "failed test: result is not as expected:{}",
@@ -157,13 +157,10 @@ impl Runner<'_> {
         self.bump_ntests();
         return Ok(());
 
-        fn normalize(test: &Path, s: &str) -> String {
-            s.replace(
-                &test.display().to_string(),
-                &test.display().to_string().replace('\\', "/"),
-            )
-            .replace("\\parse-fail\\", "/parse-fail/")
-            .replace("\r\n", "\n")
+        fn normalize(s: &str) -> String {
+            s.replace('\\', "/")
+                .replace("\\parse-fail\\", "/parse-fail/")
+                .replace("\r\n", "\n")
         }
     }
 
