@@ -96,7 +96,10 @@ impl Resolve {
                         if !path.is_dir() {
                             bail!(Error {
                                 span,
-                                msg: format!("dependency on `{dep}` doesn't exist at {path:?}"),
+                                msg: format!(
+                                    "dependency on `{dep}` doesn't exist at: {}",
+                                    path.display()
+                                ),
                             })
                         }
                         let url = Some(format!("path:/{dep}"));
