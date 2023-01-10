@@ -36,32 +36,32 @@ fuzz_target!(|data: &[u8]| {
         eng_conf.consume_fuel(true);
         let engine = Engine::new(&eng_conf).unwrap();
         let module = Module::from_binary(&engine, &wasm_bytes).unwrap();
-        let mut store = Store::new(
-            &engine,
-            fuzz_stats::limits::StoreLimits {
-                remaining_memory: 1 << 30,
-                oom: false,
-            },
-        );
-        store.limiter(|s| s as &mut dyn ResourceLimiter);
-        set_fuel(&mut store, 1_000);
-
-        // Instantiate the module
-        let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)
-            .and_then(|imports| Instance::new(&mut store, &module, &imports));
-        let instance = match inst_result {
-            Ok(r) => r,
-            Err(err) => return check_err(err),
-        };
 
         // Call all exported functions
         for export in module.exports() {
             match export.ty() {
                 ExternType::Func(func_ty) => {
+                    let mut store = Store::new(
+                        &engine,
+                        fuzz_stats::limits::StoreLimits {
+                            remaining_memory: 1 << 30,
+                            oom: false,
+                        },
+                    );
+                    store.limiter(|s| s as &mut dyn ResourceLimiter);
+                    store.add_fuel(1_000).unwrap();
+
+                    // Instantiate the module
+                    let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)
+                        .and_then(|imports| Instance::new(&mut store, &module, &imports));
+                    let instance = match inst_result {
+                        Ok(r) => r,
+                        Err(err) => return check_err(err),
+                    };
+
                     let args = fuzz_stats::dummy::dummy_values(func_ty.params());
                     let mut results = fuzz_stats::dummy::dummy_values(func_ty.results());
                     let func = instance.get_func(&mut store, export.name()).unwrap();
-                    set_fuel(&mut store, 1_000);
                     match func.call(&mut store, &args, &mut results) {
                         Ok(_) => {}
                         Err(err) => check_err(err),
@@ -116,23 +116,4 @@ fn validate_module(config: SwarmConfig, wasm_bytes: &Vec<u8>) {
     if let Err(e) = validator.validate_all(wasm_bytes) {
         panic!("Invalid module: {}", e);
     }
-}
-
-#[cfg(feature = "wasmtime")]
-fn set_fuel<T>(store: &mut Store<T>, fuel: u64) {
-    // This is necessary because consume_fuel below will err if there is <=0
-    // fuel in the store. Since we are just using that call to get the current
-    // amount of fuel AND we are immediately adjusting the fuel to the value we
-    // can safely add 1 fuel here as a hacky work-around for the time being.
-    store.add_fuel(1_000).unwrap();
-    // Determine the amount of fuel already within the store, if any, and
-    // add/consume as appropriate to set the remaining amount to` fuel`.
-    let remaining = store.consume_fuel(0).unwrap();
-    if fuel > remaining {
-        store.add_fuel(fuel - remaining).unwrap();
-    } else {
-        store.consume_fuel(remaining - fuel).unwrap();
-    }
-    // double-check that the store has the expected amount of fuel remaining
-    assert_eq!(store.consume_fuel(0).unwrap(), fuel);
 }
