@@ -158,9 +158,7 @@ impl Runner<'_> {
         return Ok(());
 
         fn normalize(s: &str) -> String {
-            s.replace('\\', "/")
-                .replace("\\parse-fail\\", "/parse-fail/")
-                .replace("\r\n", "\n")
+            s.replace('\\', "/").replace("\r\n", "\n")
         }
     }
 
