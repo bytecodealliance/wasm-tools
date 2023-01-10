@@ -450,6 +450,9 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
 fn is_wasm(bytes: &[u8]) -> bool {
     use wast::lexer::{Lexer, Token};
 
+    if bytes.starts_with(b"\0asm") {
+        return true;
+    }
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => return true,
