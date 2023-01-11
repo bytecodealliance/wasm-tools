@@ -82,7 +82,7 @@ impl Resolve {
         enqueued.insert(path.to_path_buf());
         while let Some((pkg_root, url)) = to_parse.pop() {
             let mut pkg = UnresolvedPackage::parse_dir(&pkg_root)
-                .with_context(|| format!("failed to parse package at {path:?}"))?;
+                .with_context(|| format!("failed to parse package: {}", path.display()))?;
             pkg.url = url;
 
             let mut deps = Vec::new();

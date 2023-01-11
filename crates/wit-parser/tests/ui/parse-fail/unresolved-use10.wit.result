@@ -1,4 +1,4 @@
-failed to parse package at "tests/ui/parse-fail/unresolved-use10"
+failed to parse package: tests/ui/parse-fail/unresolved-use10
 
 Caused by:
     document does not specify a default interface

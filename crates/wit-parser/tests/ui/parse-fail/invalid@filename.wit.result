@@ -1,1 +1,1 @@
-filename was not a valid WIT identifier for "tests/ui/parse-fail/invalid@filename.wit": invalid character in identifier '@'
+filename was not a valid WIT identifier for tests/ui/parse-fail/invalid@filename.wit: invalid character in identifier '@'

@@ -64,7 +64,10 @@ impl<'a> Resolver<'a> {
             None => filename,
         };
         crate::validate_id(name).map_err(|e| {
-            anyhow::anyhow!("filename was not a valid WIT identifier for {path:?}: {e}")
+            anyhow::anyhow!(
+                "filename was not a valid WIT identifier for {}: {e}",
+                path.display()
+            )
         })?;
         let prev = self.asts.insert(name, ast);
         if prev.is_some() {
