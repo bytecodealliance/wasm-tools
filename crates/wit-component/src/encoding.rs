@@ -53,6 +53,7 @@
 //! component model.
 
 use crate::builder::ComponentBuilder;
+use crate::dummy;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::{
     validation::{ValidatedModule, MAIN_MODULE_IMPORT_NAME},
@@ -1156,6 +1157,14 @@ impl ComponentEncoder {
             world,
         })?;
         Ok(self)
+    }
+
+    /// Add a document & synthesize a dummy module for this encoder.
+    pub fn document_dummy(mut self, doc: Document, encoding: StringEncoding) -> Result<Self> {
+        let module = dummy::dummy_module(&doc);
+        let (wasm, _) = metadata::decode(&module)?;
+        self.module = wasm;
+        self.document(doc, encoding)
     }
 
     /// Specifies a new adapter which is used to translate from a historical

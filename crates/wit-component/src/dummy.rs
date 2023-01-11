@@ -1,6 +1,7 @@
 use wit_parser::abi::{AbiVariant, WasmType};
 use wit_parser::{Document, Function};
 
+/// Generate a dummy implementation core Wasm module for a given WIT document
 pub fn dummy_module(doc: &Document) -> Vec<u8> {
     let world = doc.default_world().unwrap();
     let world = &doc.worlds[world];
