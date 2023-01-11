@@ -1,8 +1,8 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Result};
 use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
 use wasm_encoder::{Encode, Section};
-use wit_component::{ComponentEncoder, StringEncoding};
+use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
 use wit_parser::{Resolve, UnresolvedPackage};
 
 /// Tests the encoding of components.
@@ -24,6 +24,8 @@ use wit_parser::{Resolve, UnresolvedPackage};
 ///
 /// * `component.wat` - the expected encoded component in text format if the
 ///   encoding is expected to succeed.
+/// * `component.wit` - if `component.wat` exists this is the inferred interface
+///   of the component.
 /// * `error.txt` - the expected error message if the encoding is expected to
 ///   fail.
 ///
@@ -47,12 +49,28 @@ fn component_encoding_via_flags() -> Result<()> {
         println!("testing {test_case}");
 
         let module_path = path.join("module.wat");
-        let component_path = path.join("component.wat");
-        let error_path = path.join("error.txt");
         let module = read_core_module(&module_path)?;
         let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
         encoder = add_adapters(encoder, &path)?;
-        assert_output(test_case, &encoder, &component_path, &error_path)?;
+        let component_path = path.join("component.wat");
+        let component_wit_path = path.join("component.wit");
+        let error_path = path.join("error.txt");
+
+        let bytes = match encoder.encode() {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                assert_output(&format!("{err:?}"), &error_path)?;
+                continue;
+            }
+        };
+        let wat = wasmprinter::print_bytes(&bytes)?;
+        assert_output(&wat, &component_path)?;
+        let (doc, resolve) = match wit_component::decode("component", &bytes)? {
+            DecodedWasm::WitPackage(..) => unreachable!(),
+            DecodedWasm::Component(resolve, world) => (resolve.worlds[world].document, resolve),
+        };
+        let wit = DocumentPrinter::default().print(&resolve, doc)?;
+        assert_output(&wit, &component_wit_path)?;
     }
 
     Ok(())
@@ -97,45 +115,16 @@ fn read_core_module(path: &Path) -> Result<Vec<u8>> {
     Ok(wasm)
 }
 
-fn assert_output(
-    test_case: &str,
-    encoder: &ComponentEncoder,
-    component_path: &Path,
-    error_path: &Path,
-) -> Result<()> {
-    let r = encoder.encode();
-
-    let (output, baseline_path) = if error_path.is_file() {
-        match r {
-            Ok(_) => bail!("encoding should fail for test case `{}`", test_case),
-            Err(e) => (format!("{e:?}"), &error_path),
-        }
-    } else {
-        (
-            wasmprinter::print_bytes(
-                &r.with_context(|| format!("failed to encode for test case `{}`", test_case))?,
-            )
-            .with_context(|| {
-                format!(
-                    "failed to print component bytes for test case `{}`",
-                    test_case
-                )
-            })?,
-            &component_path,
-        )
-    };
-
+fn assert_output(contents: &str, path: &Path) -> Result<()> {
+    let contents = contents.replace("\r\n", "\n");
     if std::env::var_os("BLESS").is_some() {
-        fs::write(&baseline_path, output)?;
+        fs::write(path, contents)?;
     } else {
         assert_eq!(
-            fs::read_to_string(&baseline_path)?
-                .replace("\r\n", "\n")
-                .trim(),
-            output.trim(),
-            "failed baseline comparison for test case `{}` ({})",
-            test_case,
-            baseline_path.display(),
+            fs::read_to_string(path)?.replace("\r\n", "\n").trim(),
+            contents.trim(),
+            "failed baseline comparison ({})",
+            path.display(),
         );
     }
     Ok(())

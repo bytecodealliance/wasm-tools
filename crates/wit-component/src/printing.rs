@@ -15,12 +15,18 @@ impl DocumentPrinter {
     pub fn print(&mut self, resolve: &Resolve, docid: DocumentId) -> Result<String> {
         let doc = &resolve.documents[docid];
         for (name, id) in doc.interfaces.iter() {
+            if Some(*id) == doc.default_interface {
+                self.output.push_str("default ");
+            }
             writeln!(&mut self.output, "interface {name} {{")?;
             self.print_interface(resolve, *id)?;
             writeln!(&mut self.output, "}}\n")?;
         }
 
         for (name, id) in doc.worlds.iter() {
+            if Some(*id) == doc.default_world {
+                self.output.push_str("default ");
+            }
             let world = &resolve.worlds[*id];
             writeln!(&mut self.output, "world {name} {{")?;
             for (name, import) in world.imports.iter() {

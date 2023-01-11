@@ -1,0 +1,15 @@
+interface foo {
+  a: func() -> string
+}
+
+interface bar {
+  a: func()
+
+  b: func() -> string
+}
+
+default world component {
+  import foo: self.foo
+  export bar: self.bar
+  export a: func(x: string) -> tuple<string, u32, string>
+}

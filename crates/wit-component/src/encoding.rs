@@ -590,9 +590,12 @@ impl<'a> EncodingState<'a> {
                         ));
                     }
 
-                    // Extend the interface exports to be created with type exports
-                    // found during encoding of function types.
-                    interface_exports.extend(
+                    // Place type imports first for now. The lifted function
+                    // types in theory should reference the indices of these
+                    // exports but that's not possible in the binary encoding
+                    // right now.
+                    interface_exports.splice(
+                        0..0,
                         enc.type_exports
                             .into_iter()
                             .map(|(idx, name)| (name, ComponentExportKind::Type, idx)),

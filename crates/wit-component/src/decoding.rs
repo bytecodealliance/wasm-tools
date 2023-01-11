@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use url::Url;
 use wasmparser::{
-    types, ComponentExport, ComponentExternalKind, ComponentImport, Parser, Payload,
-    PrimitiveValType, ValidPayload, Validator, WasmFeatures,
+    types, ComponentExport, ComponentExternalKind, ComponentImport, ComponentTypeRef, Parser,
+    Payload, PrimitiveValType, ValidPayload, Validator, WasmFeatures,
 };
 use wit_parser::*;
 
@@ -72,8 +72,8 @@ impl<'a> ComponentInfo<'a> {
     }
 
     fn is_wit_package(&self) -> bool {
-        // wit packages only export component types
-        if !self.imports.is_empty() {
+        // wit packages only export component types and must export at least one
+        if !self.imports.is_empty() || self.exports.is_empty() {
             return false;
         }
 
@@ -115,6 +115,103 @@ impl<'a> ComponentInfo<'a> {
                 .with_context(|| format!("failed to decode document `{doc}`"))?;
         }
         Ok((decoder.resolve, package))
+    }
+
+    fn decode_component(&self, name: &str) -> Result<(Resolve, WorldId)> {
+        assert!(!self.is_wit_package());
+        let mut resolve = Resolve::default();
+        let package = resolve.packages.alloc(Package {
+            name: name.to_string(),
+            documents: Default::default(),
+            url: None,
+        });
+        let doc = resolve.documents.alloc(Document {
+            name: "root".to_string(),
+            interfaces: Default::default(),
+            worlds: Default::default(),
+            default_interface: None,
+            default_world: None,
+            package: Some(package),
+        });
+        let world = resolve.worlds.alloc(World {
+            name: name.to_string(),
+            docs: Default::default(),
+            imports: Default::default(),
+            exports: Default::default(),
+            document: doc,
+        });
+        resolve.documents[doc]
+            .worlds
+            .insert(name.to_string(), world);
+        resolve.documents[doc].default_world = Some(world);
+        let mut decoder = WitPackageDecoder {
+            resolve,
+            package,
+            info: self,
+            url_to_package: HashMap::default(),
+            type_map: HashMap::new(),
+            type_src_map: HashMap::new(),
+            url_to_interface: HashMap::new(),
+        };
+
+        for (name, import) in self.imports.iter() {
+            let item = match import.ty {
+                ComponentTypeRef::Instance(i) => {
+                    let ty = match self.types.type_at(i, false) {
+                        Some(types::Type::ComponentInstance(ty)) => ty,
+                        _ => unreachable!(),
+                    };
+                    let id = decoder
+                        .register_interface(doc, Some(name), ty)
+                        .with_context(|| format!("failed to decode WIT from import `{name}`"))?;
+                    decoder.resolve.documents[doc]
+                        .interfaces
+                        .insert(name.to_string(), id);
+                    WorldItem::Interface(id)
+                }
+                ComponentTypeRef::Func(i) => {
+                    let ty = match self.types.type_at(i, false) {
+                        Some(types::Type::ComponentFunc(ty)) => ty,
+                        _ => unreachable!(),
+                    };
+                    let func = decoder.convert_function(name, ty).with_context(|| {
+                        format!("failed to decode function from import `{name}`")
+                    })?;
+                    WorldItem::Function(func)
+                }
+                _ => bail!("component import `{name}` was neither a function nor instance"),
+            };
+            decoder.resolve.worlds[world]
+                .imports
+                .insert(name.to_string(), item);
+        }
+        for (name, export) in self.exports.iter() {
+            let item = match export.kind {
+                ComponentExternalKind::Func => {
+                    let ty = self.types.component_function_at(export.index).unwrap();
+                    let func = decoder.convert_function(name, ty).with_context(|| {
+                        format!("failed to decode function from export `{name}`")
+                    })?;
+
+                    WorldItem::Function(func)
+                }
+                ComponentExternalKind::Instance => {
+                    let ty = self.types.component_instance_at(export.index).unwrap();
+                    let id = decoder
+                        .register_interface(doc, Some(name), ty)
+                        .with_context(|| format!("failed to decode WIT from export `{name}`"))?;
+                    decoder.resolve.documents[doc]
+                        .interfaces
+                        .insert(name.to_string(), id);
+                    WorldItem::Interface(id)
+                }
+                _ => bail!("component export `{name}` was neither a function nor instance"),
+            };
+            decoder.resolve.worlds[world]
+                .exports
+                .insert(name.to_string(), item);
+        }
+        Ok((decoder.resolve, world))
     }
 }
 
@@ -166,7 +263,8 @@ pub fn decode(name: &str, bytes: &[u8]) -> Result<DecodedWasm> {
         let (resolve, pkg) = info.decode_wit_package(name)?;
         Ok(DecodedWasm::WitPackage(resolve, pkg))
     } else {
-        unimplemented!()
+        let (resolve, world) = info.decode_component(name)?;
+        Ok(DecodedWasm::Component(resolve, world))
     }
 }
 

@@ -1,0 +1,12 @@
+interface foo {
+  foo: func()
+}
+
+interface my-wasi {
+  proc-exit: func(code: u32)
+}
+
+default world component {
+  import foo: self.foo
+  import my-wasi: self.my-wasi
+}
