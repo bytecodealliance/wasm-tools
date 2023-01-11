@@ -9,7 +9,6 @@ use wasm_encoder::CanonicalOption;
 
 mod builder;
 mod decoding;
-mod dummy;
 mod encoding;
 mod gc;
 mod printing;
@@ -19,8 +18,12 @@ pub use decoding::{decode, DecodedWasm};
 pub use encoding::{encode, ComponentEncoder};
 pub use printing::*;
 
-pub use dummy::dummy_module;
 pub mod metadata;
+
+#[cfg(feature = "dummy-module")]
+pub use dummy::dummy_module;
+#[cfg(feature = "dummy-module")]
+mod dummy;
 
 /// Supported string encoding formats.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
