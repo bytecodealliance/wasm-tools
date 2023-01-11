@@ -52,8 +52,8 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
-use crate::builder::ComponentBuilder;
 use crate::dummy;
+use crate::builder::ComponentBuilder;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::{
     validation::{ValidatedModule, MAIN_MODULE_IMPORT_NAME},
@@ -1162,6 +1162,7 @@ impl ComponentEncoder {
 
     /// Add a document & synthesize a dummy module for this encoder.
     pub fn document_dummy(mut self, doc: Document, encoding: StringEncoding) -> Result<Self> {
+        self.dummy = true;
         let module = dummy::dummy_module(&doc);
         let (wasm, _) = metadata::decode(&module)?;
         self.module = wasm;
