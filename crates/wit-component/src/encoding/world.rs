@@ -39,7 +39,7 @@ pub struct ImportedInterface<'a> {
     /// Required functions on the interface, or the filter on the functions list
     /// in `interface`.
     pub required: HashSet<&'a str>,
-    pub interface: Option<(InterfaceId, &'a str)>,
+    pub interface: Option<(InterfaceId, String)>,
 }
 
 #[derive(Debug)]
@@ -204,7 +204,7 @@ impl<'a> ComponentWorld<'a> {
                 }
                 WorldItem::Interface(id) => {
                     let required = required.get(name).unwrap_or(&empty);
-                    let url = resolve.interfaces[*id].url.as_deref().unwrap_or("");
+                    let url = resolve.url_of(*id).unwrap_or(String::new());
                     let interface =
                         import_map
                             .entry(Some(name))

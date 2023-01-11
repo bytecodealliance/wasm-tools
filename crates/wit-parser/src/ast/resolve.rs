@@ -184,7 +184,6 @@ impl<'a> Resolver<'a> {
                                 self.interface_spans.push(iface.span);
                                 let id = self.interfaces.alloc(Interface {
                                     name: Some(iface.name.to_string()),
-                                    url: None,
                                     types: IndexMap::new(),
                                     docs: Docs::default(),
                                     document: doc,
@@ -204,7 +203,6 @@ impl<'a> Resolver<'a> {
                             self.interface_spans.push(doc_span);
                             self.interfaces.alloc(Interface {
                                 name: None,
-                                url: None,
                                 types: IndexMap::new(),
                                 docs: Docs::default(),
                                 document: doc,
@@ -495,7 +493,6 @@ impl<'a> Resolver<'a> {
             docs,
             document,
             name: name.map(|s| s.to_string()),
-            url: None,
             functions: IndexMap::new(),
             types: IndexMap::new(),
         });

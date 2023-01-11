@@ -439,7 +439,6 @@ impl WitPackageDecoder<'_> {
             .or_insert_with(|| {
                 self.resolve.interfaces.alloc(Interface {
                     name: Some(interface.to_string()),
-                    url: None,
                     docs: Default::default(),
                     types: IndexMap::default(),
                     functions: IndexMap::new(),
@@ -457,7 +456,6 @@ impl WitPackageDecoder<'_> {
     ) -> Result<InterfaceId> {
         let mut interface = Interface {
             name: name.map(|n| n.to_string()),
-            url: None,
             docs: Default::default(),
             types: IndexMap::default(),
             functions: IndexMap::new(),

@@ -275,11 +275,6 @@ pub struct Interface {
     /// This is `None` for inline interfaces in worlds.
     pub name: Option<String>,
 
-    /// Optionally listed URL for an interface.
-    ///
-    /// NB: this isn't super well managed at this point.
-    pub url: Option<String>,
-
     /// Documentation associated with this interface.
     pub docs: Docs,
 

@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::mem;
 use std::path::{Path, PathBuf};
+use url::Url;
 
 /// Representation of a fully resolved set of WIT packages.
 ///
@@ -347,6 +348,26 @@ impl Resolve {
         }
 
         Ok(())
+    }
+
+    /// Returns the URL of the specified `interface`, if available.
+    ///
+    /// This currently creates a URL based on the URL of the package that
+    /// `interface` resides in. If the package owner of `interface` does not
+    /// specify a URL then `None` will be returned.
+    ///
+    /// If the `interface` specified does not have a name then `None` will be
+    /// returned as well.
+    pub fn url_of(&self, interface: InterfaceId) -> Option<String> {
+        let interface = &self.interfaces[interface];
+        let doc = &self.documents[interface.document];
+        let package = &self.packages[doc.package.unwrap()];
+        let mut base = Url::parse(package.url.as_ref()?).unwrap();
+        base.path_segments_mut()
+            .unwrap()
+            .push(&doc.name)
+            .push(interface.name.as_ref()?);
+        Some(base.to_string())
     }
 }
 

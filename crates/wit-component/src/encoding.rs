@@ -381,7 +381,8 @@ impl<'a> EncodingState<'a> {
                 Some(name) => name,
                 None => unimplemented!("top-level imports"),
             };
-            let (interface_id, url) = info.interface.unwrap();
+            let (interface_id, url) = info.interface.as_ref().unwrap();
+            let interface_id = *interface_id;
             let interface = &resolve.interfaces[interface_id];
             log::trace!("encoding imports for `{name}` as {:?}", interface_id);
             let ty = {
@@ -515,8 +516,8 @@ impl<'a> EncodingState<'a> {
         metadata: &ModuleMetadata,
     ) -> u32 {
         let import = &self.info.import_map[&Some(name)];
-        let (interface, _url) = import.interface.unwrap();
-        let instance_index = self.imported_instances[&interface];
+        let (interface, _url) = import.interface.as_ref().unwrap();
+        let instance_index = self.imported_instances[interface];
         let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
 
         // Add an entry for all indirect lowerings which come as an export of
@@ -602,9 +603,10 @@ impl<'a> EncodingState<'a> {
                     }
 
                     let instance_index = self.component.instantiate_exports(interface_exports);
+                    let url = resolve.url_of(*export).unwrap_or(String::new());
                     self.component.export(
                         export_name,
-                        resolve.interfaces[*export].url.as_deref().unwrap_or(""),
+                        &url,
                         ComponentExportKind::Instance,
                         instance_index,
                     );
@@ -869,8 +871,8 @@ impl<'a> EncodingState<'a> {
                     encoding,
                 } => {
                     let interface = &self.info.import_map[&Some(*interface)];
-                    let (interface_id, _url) = interface.interface.unwrap();
-                    let instance_index = self.imported_instances[&interface_id];
+                    let (interface_id, _url) = interface.interface.as_ref().unwrap();
+                    let instance_index = self.imported_instances[interface_id];
                     let func_index = self
                         .component
                         .alias_func(instance_index, interface.indirect[*indirect_index].name);
