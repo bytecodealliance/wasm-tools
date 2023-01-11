@@ -52,8 +52,8 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
-use crate::dummy;
 use crate::builder::ComponentBuilder;
+use crate::dummy;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::{
     validation::{ValidatedModule, MAIN_MODULE_IMPORT_NAME},
@@ -1112,7 +1112,6 @@ pub struct ComponentEncoder {
     metadata: Bindgen,
     validate: bool,
     types_only: bool,
-    dummy: bool,
 
     // This is a map from the name of the adapter to a pair of:
     //
@@ -1162,7 +1161,6 @@ impl ComponentEncoder {
 
     /// Add a document & synthesize a dummy module for this encoder.
     pub fn document_dummy(mut self, doc: Document, encoding: StringEncoding) -> Result<Self> {
-        self.dummy = true;
         let module = dummy::dummy_module(&doc);
         let (wasm, _) = metadata::decode(&module)?;
         self.module = wasm;
@@ -1229,7 +1227,7 @@ impl ComponentEncoder {
         state.encode_imports()?;
 
         if self.types_only {
-            if self.dummy || !self.module.is_empty() {
+            if !self.module.is_empty() {
                 bail!("a module cannot be specified for a types-only encoding");
             }
 
@@ -1276,14 +1274,8 @@ impl ComponentEncoder {
                 }
             }
         } else {
-            if self.dummy {
-                if !self.module.is_empty() {
-                    bail!("a module cannot be specified for a dummy encoding");
-                }
-            } else {
-                if self.module.is_empty() {
-                    bail!("a module is required when encoding a component");
-                }
+            if self.module.is_empty() {
+                bail!("a module is required when encoding a component");
             }
 
             state.encode_core_modules();
