@@ -11,7 +11,7 @@ use ast::{lex::Span, Ast, Resolver, SourceMap};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
-pub use resolve::{Package, PackageId, Resolve};
+pub use resolve::{Package, PackageId, Remap, Resolve};
 mod live;
 pub use live::LiveTypes;
 
@@ -44,9 +44,13 @@ pub type DocumentId = Id<Document>;
 /// supported on an `UnresolvedPackage` due to the lack of knowledge about the
 /// foreign types. This is intended to be an intermediate state which can be
 /// inspected by embedders, if necessary, before quickly transforming to a
-/// `Resolve` to fully work with a WIT package.
-//
-// TODO: implement and add docs about converting to a `Resolve`
+/// [`Resolve`] to fully work with a WIT package.
+///
+/// After an [`UnresolvedPackage`] is parsed it can be fully resolved with
+/// [`Resolve::push`]. During this operation a dependency map is specified which
+/// will connect the `foreign_deps` field of this structure to packages
+/// previously inserted within the [`Resolve`]. Embedders are responsible for
+/// performing this resolution themselves.
 #[derive(Clone)]
 pub struct UnresolvedPackage {
     /// Local name for this package.

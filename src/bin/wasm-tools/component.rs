@@ -52,13 +52,18 @@ fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
 /// WebAssembly component encoder from an input core wasm binary.
 ///
 /// This subcommand will create a new component `*.wasm` file from an input core
-/// wasm binary. The input core wasm binary is expected to be compiled with
-/// `wit-component` or derivative projects which encodes component-based type
-/// information into the input core wasm binary's custom sections. The `--wit`
-/// option can also be used to specify the interface manually too.
+/// wasm binary. The input core wasm binary must have metadata embedded within
+/// it about the component-types used during its compilation. This is done
+/// automatically for `wit-bindgen`-based projects, for example, and can be
+/// manually done through the `wasm-tools component embed` subcommand.
+///
+/// This command will perform translation by collecting all type information
+/// used during compilation of the core wasm module and will produce a component
+/// with all of this type information resolved.
 #[derive(Parser)]
 pub struct NewOpts {
-    /// The path to an adapter module to satisfy imports.
+    /// The path to an adapter module to satisfy imports not otherwise bound to
+    /// WIT interfaces.
     ///
     /// An adapter module can be used to translate the `wasi_snapshot_preview1`
     /// ABI, for example, to one that uses the component model. The first

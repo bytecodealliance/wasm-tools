@@ -350,6 +350,8 @@ impl Resolve {
     }
 }
 
+/// Structure returned by [`Resolve::merge`] which contains mappings from
+/// old-ids to new-ids after the merge.
 #[derive(Default)]
 pub struct Remap {
     pub types: Vec<TypeId>,

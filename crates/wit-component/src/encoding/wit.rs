@@ -8,7 +8,24 @@ use url::Url;
 use wasm_encoder::*;
 use wit_parser::*;
 
-/// TODO
+/// Encodes the given `package` within `resolve` to a binary WebAssembly
+/// representation.
+///
+/// This function is the root of the implementation of serializing a WIT package
+/// into a WebAssembly representation. The wasm representation serves two
+/// purposes:
+///
+/// * One is to be a binary encoding of a WIT document which is ideally more
+///   stable than the WIT textual format itself.
+/// * Another is to provide a clear mapping of all WIT features into the
+///   component model through use of its binary representation.
+///
+/// The `resolve` provided is a "world" of packages and types and such and the
+/// `package` argument is an ID within the world provided. The documents within
+/// `package` will all be encoded into the binary returned.
+///
+/// The binary returned can be [`decode`d](crate::decode) to recover the WIT
+/// package provided.
 pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
     let mut encoder = Encoder {
         component: ComponentBuilder::default(),
