@@ -9,6 +9,7 @@ use wasm_encoder::CanonicalOption;
 
 mod builder;
 mod decoding;
+mod dummy;
 mod encoding;
 mod gc;
 mod printing;
@@ -18,6 +19,7 @@ pub use decoding::decode_world;
 pub use encoding::ComponentEncoder;
 pub use printing::*;
 
+pub use dummy::dummy_module;
 pub mod metadata;
 
 /// Supported string encoding formats.

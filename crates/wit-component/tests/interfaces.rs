@@ -85,7 +85,7 @@ fn run_test(path: &Path) -> Result<()> {
     // recover the original `*.wit` interfaces from the component output.
 
     println!("test dummy module");
-    let module = test_helpers::dummy_module(&doc);
+    let module = wit_component::dummy_module(&doc);
     let bytes = ComponentEncoder::default()
         .module(&module)?
         .validate(true)
