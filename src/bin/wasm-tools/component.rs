@@ -98,14 +98,19 @@ pub struct NewOpts {
 
     /// Generate a "types only" component which is a binary encoding of the
     /// input wit file or the wit already encoded into the module.
-    #[clap(long)]
+    #[clap(long, conflicts_with = "dummy")]
     types_only: bool,
+
+    /// Generate a "dummy" component which contains a core Wasm stub
+    /// implementation.
+    #[clap(long, conflicts_with = "types_only")]
+    dummy: bool,
 }
 
 impl NewOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let wasm = if self.types_only {
+        let wasm = if self.types_only || self.dummy {
             self.io.init_logger();
             None
         } else {
@@ -122,7 +127,11 @@ impl NewOpts {
         if let Some(wit) = &self.wit {
             let encoding = self.encoding.unwrap_or(StringEncoding::UTF8);
             let doc = Document::parse_file(wit)?;
-            encoder = encoder.document(doc, encoding)?;
+            if self.dummy {
+                encoder = encoder.document_dummy(doc, encoding)?;
+            } else {
+                encoder = encoder.document(doc, encoding)?;
+            }
         }
 
         for (name, wasm) in self.adapters.iter() {
