@@ -5,6 +5,7 @@ mod exports;
 mod imports;
 mod instances;
 mod modules;
+mod names;
 mod start;
 mod types;
 
@@ -15,6 +16,7 @@ pub use self::exports::*;
 pub use self::imports::*;
 pub use self::instances::*;
 pub use self::modules::*;
+pub use self::names::*;
 pub use self::start::*;
 pub use self::types::*;
 
@@ -104,7 +106,7 @@ impl Component {
         Self {
             bytes: vec![
                 0x00, 0x61, 0x73, 0x6D, // magic (`\0asm`)
-                0x0a, 0x00, 0x01, 0x00, // version
+                0x0b, 0x00, 0x01, 0x00, // version
             ],
         }
     }

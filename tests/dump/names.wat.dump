@@ -18,12 +18,12 @@
       | 65         
  0x22 | 00 04       | module name
  0x24 | 03 66 6f 6f | "foo"
- 0x28 | 01 04       | function names
+ 0x28 | 01 04       | function section
  0x2a | 01          | 1 count
  0x2b | 00 01 66    | Naming { index: 0, name: "f" }
- 0x2e | 02 09       | local names
+ 0x2e | 02 09       | local section
  0x30 | 01          | 1 count
- 0x31 | 00          | function 0 locals
+ 0x31 | 00          | function 0 local section
  0x32 | 02          | 2 count
  0x33 | 00 01 78    | Naming { index: 0, name: "x" }
  0x36 | 01 01 79    | Naming { index: 1, name: "y" }

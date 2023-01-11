@@ -127,18 +127,19 @@ fn smoke_test_imports_config() {
 
             for payload in Parser::new(0).parse_all(&wasm_bytes) {
                 let payload = payload.unwrap();
-                if let wasmparser::Payload::TypeSection(mut rdr) = payload {
+                if let wasmparser::Payload::TypeSection(rdr) = payload {
                     // Gather the signature types to later check function types against.
-                    while let Ok(ty) = rdr.read() {
-                        match ty {
+                    for ty in rdr {
+                        match ty.unwrap() {
                             wasmparser::Type::Func(ft) => sig_types.push(ft),
                         }
                     }
-                } else if let wasmparser::Payload::ImportSection(mut rdr) = payload {
+                } else if let wasmparser::Payload::ImportSection(rdr) = payload {
                     // Read out imports, checking that they all are within the list of expected
                     // imports (i.e. we don't generate arbitrary ones), and that we handle the
                     // logic correctly (i.e. signature types are as expected)
-                    while let Ok(import) = rdr.read() {
+                    for import in rdr {
+                        let import = import.unwrap();
                         use AvailableImportKind as I;
                         let entry = imports_seen.get_mut(&(import.module, import.name));
                         match (entry, &import.ty) {
@@ -203,13 +204,13 @@ fn smoke_test_no_trapping_mode() {
     let mut buf = vec![0; 2048];
     for _ in 0..1024 {
         rng.fill_bytes(&mut buf);
-        let u = Unstructured::new(&buf);
-        if let Ok(mut module) = Module::arbitrary_take_rest(u) {
-            if module.no_traps().is_ok() {
-                let wasm_bytes = module.to_bytes();
-                let mut validator = Validator::new_with_features(wasm_features());
-                validate(&mut validator, &wasm_bytes);
-            }
+        let mut u = Unstructured::new(&buf);
+        let mut cfg = SwarmConfig::arbitrary(&mut u).unwrap();
+        cfg.disallow_traps = true;
+        if let Ok(module) = Module::new(cfg, &mut u) {
+            let wasm_bytes = module.to_bytes();
+            let mut validator = Validator::new_with_features(wasm_features());
+            validate(&mut validator, &wasm_bytes);
         }
     }
 }
@@ -295,7 +296,7 @@ fn parser_features_from_config(config: &impl Config) -> WasmFeatures {
 
         threads: false,
         tail_call: false,
-        deterministic_only: false,
+        floats: true,
         extended_const: false,
         component_model: false,
         function_references: false,

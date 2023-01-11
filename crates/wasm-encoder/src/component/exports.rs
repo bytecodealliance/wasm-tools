@@ -56,7 +56,7 @@ impl Encode for ComponentExportKind {
 ///
 /// // This exports a function named "foo"
 /// let mut exports = ComponentExportSection::new();
-/// exports.export("foo", ComponentExportKind::Func, 0);
+/// exports.export("foo", "", ComponentExportKind::Func, 0);
 ///
 /// let mut component = Component::new();
 /// component.section(&exports);
@@ -86,8 +86,15 @@ impl ComponentExportSection {
     }
 
     /// Define an export in the export section.
-    pub fn export(&mut self, name: &str, kind: ComponentExportKind, index: u32) -> &mut Self {
+    pub fn export(
+        &mut self,
+        name: &str,
+        url: &str,
+        kind: ComponentExportKind,
+        index: u32,
+    ) -> &mut Self {
         name.encode(&mut self.bytes);
+        url.encode(&mut self.bytes);
         kind.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         self.num_added += 1;

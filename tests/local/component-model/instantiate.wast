@@ -1,35 +1,35 @@
 (component
-  (import "" (core module $m))
+  (import "a" (core module $m))
   (core instance $a (instantiate $m))
 )
 
 (component
   (import "a" (func $i))
-  (import "" (component $c (import "a" (func))))
+  (import "b" (component $c (import "a" (func))))
   (instance (instantiate $c (with "a" (func $i))))
 )
 
 (component
   (import "a" (value $i string))
-  (import "" (component $c (import "a" (value string))))
+  (import "b" (component $c (import "a" (value string))))
   (instance (instantiate $c (with "a" (value $i))))
 )
 
 (component
   (import "a" (component $i))
-  (import "" (component $c (import "a" (component))))
+  (import "b" (component $c (import "a" (component))))
   (instance (instantiate $c (with "a" (component $i))))
 )
 
 (component
   (import "a" (core module $i))
-  (import "" (component $c (import "a" (core module))))
+  (import "b" (component $c (import "a" (core module))))
   (instance (instantiate $c (with "a" (core module $i))))
 )
 
 (component
   (import "a" (instance $i))
-  (import "" (component $c (import "a" (instance))))
+  (import "b" (component $c (import "a" (instance))))
   (instance (instantiate $c (with "a" (instance $i))))
 )
 
@@ -82,7 +82,7 @@
 
 (component
   (import "a" (component $m
-    (import "" (instance
+    (import "a" (instance
       (export "a" (core module))
     ))
   ))
@@ -91,7 +91,7 @@
   ))
   (instance $x (instantiate $m2))
 
-  (instance (instantiate $m (with "" (instance
+  (instance (instantiate $m (with "a" (instance
     (export "a" (core module $x "b"))
   ))))
 )
@@ -125,9 +125,9 @@
   
   ;; inline exports/imports
   (type $empty (instance))
-  (instance $d (import "i1") (type $empty))
-  (instance (import "i2"))
-  (instance (import "i3")
+  (instance $d (import "g") (type $empty))
+  (instance (import "h"))
+  (instance (import "i")
     (export "x" (func)))
   (instance (export "c") (export "d") (import "x"))
 )
@@ -144,7 +144,7 @@
   "unknown component")
 (assert_invalid
   (component
-    (import "" (core module))
+    (import "a" (core module))
     (core instance (instantiate 1))
   )
   "unknown module")
@@ -156,109 +156,109 @@
 )
 (assert_invalid
   (component
-    (import "" (core module $m (import "" "" (func))))
+    (import "a" (core module $m (import "" "" (func))))
     (core instance (instantiate $m))
   )
   "missing module instantiation argument")
 (assert_invalid
   (component
-    (import "" (component $m (import "" (func))))
+    (import "a" (component $m (import "a" (func))))
     (instance (instantiate $m))
   )
   "missing component instantiation argument")
 
 (assert_invalid
   (component
-    (import "" (component $m
-      (import "" (func))
+    (import "a" (component $m
+      (import "a" (func))
     ))
-    (import "i" (component $c))
-    (instance $i (instantiate $m (with "" (component $c))))
+    (import "b" (component $c))
+    (instance $i (instantiate $m (with "a" (component $c))))
   )
   "to be of type `function`")
 
 (component
-  (import "" (component $m
-    (import "" (func))
+  (import "a" (component $m
+    (import "a" (func))
   ))
-  (import "i" (func $f (result string)))
-  (instance $i (instantiate $m (with "" (func $f))))
+  (import "b" (func $f (result string)))
+  (instance $i (instantiate $m (with "a" (func $f))))
 )
 
 (assert_invalid
   (component
-    (import "" (component $m
-      (import "" (func))
+    (import "a" (component $m
+      (import "a" (func))
     ))
-    (import "i" (func (param "i" string)))
-    (instance $i (instantiate $m (with "" (func 0))))
+    (import "b" (func (param "i" string)))
+    (instance $i (instantiate $m (with "a" (func 0))))
   )
   "function type mismatch")
 
 (assert_invalid
   (component
-    (import "" (component $m
-      (import "" (core module
+    (import "a" (component $m
+      (import "a" (core module
         (import "" "" (func))
       ))
     ))
-    (import "i" (core module $i
+    (import "b" (core module $i
       (import "" "" (global i32))
     ))
-    (instance $i (instantiate $m (with "" (core module $i))))
+    (instance $i (instantiate $m (with "a" (core module $i))))
   )
   "module type mismatch")
 
 (assert_invalid
   (component
-    (import "" (component $m
-      (import "" (core module))
+    (import "a" (component $m
+      (import "a" (core module))
     ))
-    (import "i" (core module $i
+    (import "b" (core module $i
       (import "" "foobar" (global i32))
     ))
-    (instance $i (instantiate $m (with "" (core module $i))))
+    (instance $i (instantiate $m (with "a" (core module $i))))
   )
   "module type mismatch")
 
 ;; it's ok to give a module with fewer imports
 (component
-  (import "" (component $m
-    (import "" (core module
+  (import "a" (component $m
+    (import "a" (core module
       (import "" "" (global i32))
       (import "" "f" (func))
     ))
   ))
-  (import "i" (core module $i
+  (import "b" (core module $i
     (import "" "" (global i32))
   ))
-  (instance $i (instantiate $m (with "" (core module $i))))
+  (instance $i (instantiate $m (with "a" (core module $i))))
 )
 
 ;; export subsets
 (component
-  (import "" (component $m
-    (import "" (core module
+  (import "a" (component $m
+    (import "a" (core module
       (export "" (func))
     ))
   ))
-  (import "i" (core module $i
+  (import "b" (core module $i
     (export "" (func))
     (export "a" (func))
   ))
-  (instance $i (instantiate $m (with "" (core module $i))))
+  (instance $i (instantiate $m (with "a" (core module $i))))
 )
 (component
-  (import "" (component $m
-    (import "" (instance
-      (export "" (func))
+  (import "a" (component $m
+    (import "a" (instance
+      (export "a" (func))
     ))
   ))
-  (import "a" (instance $i
-    (export "" (func))
+  (import "b" (instance $i
     (export "a" (func))
+    (export "b" (func))
   ))
-  (instance (instantiate $m (with "" (instance $i))))
+  (instance (instantiate $m (with "a" (instance $i))))
 )
 
 
@@ -441,20 +441,20 @@
     (component $m)
     (instance $i (instantiate $m))
     (instance (instantiate $m
-      (with "" (instance $i))
-      (with "" (instance $i))
+      (with "a" (instance $i))
+      (with "a" (instance $i))
     ))
   )
-  "duplicate component instantiation argument named ``")
+  "instantiation argument `a` conflicts with previous argument `a`")
 
 (assert_invalid
   (component
-    (component $c (import "" (func)))
+    (component $c (import "a" (func)))
     (instance (instantiate $c
-      (with "" (component $c))
+      (with "a" (component $c))
     ))
   )
-  "expected component instantiation argument `` to be of type `function`")
+  "expected component instantiation argument `a` to be of type `function`")
 
 (assert_invalid
   (component
@@ -505,24 +505,24 @@
   (component
     (component $c)
     (instance
-      (export "" (component $c))
-      (export "" (component $c))
+      (export "a" (component $c))
+      (export "a" (component $c))
     )
   )
-  "export name `` already defined")
+  "instance export name `a` conflicts with previous export name `a`")
 
 (component
-  (import "1" (instance $i))
-  (import "2" (func $f))
-  (import "3" (component $c))
-  (import "4" (core module $m))
-  (import "5" (value $v string))
+  (import "a" (instance $i))
+  (import "b" (func $f))
+  (import "c" (component $c))
+  (import "d" (core module $m))
+  (import "e" (value $v string))
   (instance
-    (export "1" (instance $i))
-    (export "2" (func $f))
-    (export "3" (component $c))
-    (export "4" (core module $m))
-    (export "5" (value $v))
+    (export "a" (instance $i))
+    (export "b" (func $f))
+    (export "c" (component $c))
+    (export "d" (core module $m))
+    (export "e" (value $v))
   )
 )
 
@@ -557,19 +557,19 @@
   (component
     (component $c)
     (instance $i (instantiate $c))
-    (export "" (instance $i ""))
+    (export "a" (instance $i "a"))
   )
-  "no export named ``")
+  "no export named `a`")
 
 (assert_invalid
   (component
-    (export "" (instance 100 ""))
+    (export "a" (instance 100 "a"))
   )
   "index out of bounds")
 
 (assert_invalid
   (component
-    (import "" (core module $libc
+    (import "a" (core module $libc
       (export "memory" (memory 1))
       (export "table" (table 0 funcref))
       (export "func" (func))

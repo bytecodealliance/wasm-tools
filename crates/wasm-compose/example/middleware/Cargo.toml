@@ -12,7 +12,7 @@ wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindge
 crate-type = ["cdylib"]
 
 [package.metadata.component]
-direct-interface-export = "service"
+direct-export = "service"
 
 [package.metadata.component.imports]
 backend = "../service.wit"

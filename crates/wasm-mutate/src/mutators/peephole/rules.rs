@@ -313,7 +313,7 @@ impl PeepholeMutator {
         }
 
         // Mess with dropped subexpressions.
-        if !config.reduce {
+        if !config.reduce && !config.preserve_semantics {
             rules.extend(vec![
                 rewrite!(
                     "i32.drop-x";

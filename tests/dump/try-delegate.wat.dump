@@ -19,8 +19,8 @@
  0x1f | 00 0d       | custom section
  0x21 | 04 6e 61 6d | name: "name"
       | 65         
- 0x26 | 03 06       | label names
+ 0x26 | 03 06       | label section
  0x28 | 01          | 1 count
- 0x29 | 00          | function 0 labels
+ 0x29 | 00          | function 0 label section
  0x2a | 01          | 1 count
  0x2b | 00 01 6c    | Naming { index: 0, name: "l" }

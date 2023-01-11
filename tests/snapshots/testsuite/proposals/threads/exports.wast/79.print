@@ -1,0 +1,4 @@
+(module
+  (memory $a (;0;) 0 1 shared)
+  (export "a" (memory $a))
+)

@@ -37,7 +37,7 @@ programmatically as well:
 | Tool | Crate | Description |
 |------|------|------------|
 | `wasm-tools validate` | [wasmparser] | Validate a WebAssembly file |
-| `wasm-tools parser` | [wat] and [wast] | Translate the WebAssembly text format to binary |
+| `wasm-tools parse` | [wat] and [wast] | Translate the WebAssembly text format to binary |
 | `wasm-tools print` | [wasmprinter] | Translate the WebAssembly binary format to text |
 | `wasm-tools smith` | [wasm-smith] | Generate a "random" valid WebAssembly module |
 | `wasm-tools mutate` | [wasm-mutate] | Mutate an input wasm file into a new valid wasm file |
@@ -45,6 +45,10 @@ programmatically as well:
 | `wasm-tools dump` |   | Print debugging information about the binary format |
 | `wasm-tools objdump` |   | Print debugging information about section headers |
 | `wasm-tools strip` |   | Remove custom sections from a WebAssembly file |
+| `wasm-tools demangle` |   | Demangle Rust and C++ symbol names in the `name` section |
+| `wasm-tools compose` | [wasm-compose] | Compose wasm components together |
+| `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
+| `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat
@@ -53,6 +57,8 @@ programmatically as well:
 [wasm-smith]: https://crates.io/crates/wasm-smith
 [wasm-mutate]: https://crates.io/crates/wasm-mutate
 [wasm-shrink]: https://crates.io/crates/wasm-shrink
+[wit-component]: https://crates.io/crates/wit-component
+[wasm-compose]: https://crates.io/crates/wasm-compose
 
 The `wasm-tools` CLI is primarily intended to be a debugging aid. The various
 subcommands all have `--help` explainer texts to describe more about their
@@ -73,6 +79,10 @@ implemented in this repository as well. These libraries are:
 * [**`wasm-smith`**](crates/wasm-smith) - a WebAssembly test case generator
 * [**`wasm-encoder`**](crates/wasm-encoder) - a crate to generate a binary
   WebAssembly module
+* [**`wit-parser`**](crates/wit-parser) - a crate to parse and manage `*.wit`
+  files and interfaces.
+* [**`wit-component`**](crates/wit-component) - a crate to create components
+  from core wasm modules.
 
 It's recommended to use the libraries directly rather than the CLI tooling when
 embedding into a separate project.

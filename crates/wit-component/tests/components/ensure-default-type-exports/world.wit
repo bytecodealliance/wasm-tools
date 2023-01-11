@@ -1,0 +1,22 @@
+interface foo {
+  type foo = u8
+
+  record bar {
+      x: foo
+  }
+
+  a: func(b: bar)
+}
+
+world my-world {
+  import foo: foo
+  default export interface {
+    type foo = u8
+
+    record bar {
+        x: foo
+    }
+
+    a: func(b: bar)
+  }
+}

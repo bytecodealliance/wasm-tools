@@ -1,4 +1,4 @@
-use anyhow::{Result};
+use anyhow::Result;
 use wasm_encoder::RawSection;
 use wasmparser::{Parser, Payload::*};
 

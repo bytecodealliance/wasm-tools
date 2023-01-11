@@ -2,7 +2,6 @@
 
 mod code_builder;
 pub(crate) mod encode;
-pub(crate) mod no_traps;
 mod terminate;
 
 use crate::{arbitrary_loop, limited_string, unique_string, Config, DefaultConfig};
@@ -552,15 +551,15 @@ impl Module {
         let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
-                wasmparser::Payload::TypeSection(mut type_reader) => {
-                    for _ in 0..type_reader.get_count() {
-                        let ty = type_reader.read().expect("could not parse type section");
+                wasmparser::Payload::TypeSection(type_reader) => {
+                    for ty in type_reader {
+                        let ty = ty.expect("could not parse type section");
                         available_types.push((ty, None));
                     }
                 }
-                wasmparser::Payload::ImportSection(mut import_reader) => {
-                    for _ in 0..import_reader.get_count() {
-                        let im = import_reader.read().expect("could not read import");
+                wasmparser::Payload::ImportSection(import_reader) => {
+                    for im in import_reader {
+                        let im = im.expect("could not read import");
                         // We can immediately filter whether this is an import we want to
                         // use.
                         let use_import = u.arbitrary().unwrap_or(false);
@@ -1023,26 +1022,39 @@ impl Module {
 
         // Create a helper closure to choose an arbitrary offset.
         let mut offset_global_choices = vec![];
-        for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
-            .iter()
-            .enumerate()
-        {
-            if !g.mutable && g.val_type == ValType::I32 {
-                offset_global_choices.push(i as u32);
+        if !self.config.disallow_traps() {
+            for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+                .iter()
+                .enumerate()
+            {
+                if !g.mutable && g.val_type == ValType::I32 {
+                    offset_global_choices.push(i as u32);
+                }
             }
         }
-        let arbitrary_active_elem = |u: &mut Unstructured, min: u32, table: Option<u32>| {
+        let arbitrary_active_elem = |u: &mut Unstructured,
+                                     min_mem_size: u32,
+                                     table: Option<u32>,
+                                     disallow_traps: bool,
+                                     table_ty: &TableType| {
             let (offset, max_size_hint) = if !offset_global_choices.is_empty() && u.arbitrary()? {
                 let g = u.choose(&offset_global_choices)?;
                 (Offset::Global(*g), None)
             } else {
-                let offset = arbitrary_offset(u, min.into(), u32::MAX.into(), 0)? as u32;
-                let max_size_hint =
-                    if offset <= min && u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0 {
-                        Some(min - offset)
-                    } else {
-                        None
-                    };
+                let max_mem_size = if disallow_traps {
+                    table_ty.minimum
+                } else {
+                    u32::MAX
+                };
+                let offset =
+                    arbitrary_offset(u, min_mem_size.into(), max_mem_size.into(), 0)? as u32;
+                let max_size_hint = if disallow_traps
+                    || (offset <= min_mem_size && u.int_in_range(0..=CHANCE_OFFSET_INBOUNDS)? != 0)
+                {
+                    Some(min_mem_size - offset)
+                } else {
+                    None
+                };
                 (Offset::Const32(offset as i32), max_size_hint)
             };
             Ok((ElementKind::Active { table, offset }, max_size_hint))
@@ -1052,7 +1064,7 @@ impl Module {
             dyn Fn(&mut Unstructured) -> Result<(ElementKind, Option<u32>)> + 'a;
         let mut funcrefs: Vec<Box<GenElemSegment>> = Vec::new();
         let mut externrefs: Vec<Box<GenElemSegment>> = Vec::new();
-
+        let disallow_traps = self.config().disallow_traps();
         for (i, ty) in self.tables.iter().enumerate() {
             // If this table starts with no capacity then any non-empty element
             // segment placed onto it will immediately trap, which isn't too
@@ -1071,11 +1083,15 @@ impl Module {
             // If the first table is a funcref table then it's a candidate for
             // the MVP encoding of element segments.
             if i == 0 && ty.element_type == ValType::FuncRef {
-                dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, None)));
+                dst.push(Box::new(move |u| {
+                    arbitrary_active_elem(u, minimum, None, disallow_traps, ty)
+                }));
             }
             if self.config.bulk_memory_enabled() {
                 let idx = Some(i as u32);
-                dst.push(Box::new(move |u| arbitrary_active_elem(u, minimum, idx)));
+                dst.push(Box::new(move |u| {
+                    arbitrary_active_elem(u, minimum, idx, disallow_traps, ty)
+                }));
             }
         }
 
@@ -1198,41 +1214,40 @@ impl Module {
         if memories == 0 && !self.config.bulk_memory_enabled() {
             return Ok(());
         }
-
+        let disallow_traps = self.config.disallow_traps();
         let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Offset>>> =
             vec![];
         choices32.push(Box::new(|u, min_size, data_len| {
-            Ok(Offset::Const32(arbitrary_offset(
-                u,
-                u32::try_from(min_size.saturating_mul(64 * 1024))
-                    .unwrap_or(u32::MAX)
-                    .into(),
-                u32::MAX.into(),
-                data_len,
-            )? as i32))
+            let min = u32::try_from(min_size.saturating_mul(64 * 1024))
+                .unwrap_or(u32::MAX)
+                .into();
+            let max = if disallow_traps { min } else { u32::MAX.into() };
+            Ok(Offset::Const32(
+                arbitrary_offset(u, min, max, data_len)? as i32
+            ))
         }));
         let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Offset>>> =
             vec![];
         choices64.push(Box::new(|u, min_size, data_len| {
-            Ok(Offset::Const64(arbitrary_offset(
-                u,
-                min_size.saturating_mul(64 * 1024),
-                u64::MAX,
-                data_len,
-            )? as i64))
+            let min = min_size.saturating_mul(64 * 1024);
+            let max = if disallow_traps { min } else { u64::MAX };
+            Ok(Offset::Const64(
+                arbitrary_offset(u, min, max, data_len)? as i64
+            ))
         }));
-
-        for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
-            .iter()
-            .enumerate()
-        {
-            if g.mutable {
-                continue;
-            }
-            if g.val_type == ValType::I32 {
-                choices32.push(Box::new(move |_, _, _| Ok(Offset::Global(i as u32))));
-            } else if g.val_type == ValType::I64 {
-                choices64.push(Box::new(move |_, _, _| Ok(Offset::Global(i as u32))));
+        if !self.config().disallow_traps() {
+            for (i, g) in self.globals[..self.globals.len() - self.defined_globals.len()]
+                .iter()
+                .enumerate()
+            {
+                if g.mutable {
+                    continue;
+                }
+                if g.val_type == ValType::I32 {
+                    choices32.push(Box::new(move |_, _, _| Ok(Offset::Global(i as u32))));
+                } else if g.val_type == ValType::I64 {
+                    choices64.push(Box::new(move |_, _, _| Ok(Offset::Global(i as u32))));
+                }
             }
         }
 
@@ -1260,7 +1275,7 @@ impl Module {
             self.config.min_data_segments(),
             self.config.max_data_segments(),
             |u| {
-                let init: Vec<u8> = u.arbitrary()?;
+                let mut init: Vec<u8> = u.arbitrary()?;
 
                 // Passive data can only be generated if bulk memory is enabled.
                 // Otherwise if there are no memories we *only* generate passive
@@ -1278,7 +1293,26 @@ impl Module {
                     } else {
                         u.choose(&choices32)?
                     };
-                    let offset = f(u, mem.minimum, init.len())?;
+                    let mut offset = f(u, mem.minimum, init.len())?;
+
+                    // If traps are disallowed then truncate the size of the
+                    // data segment to the minimum size of memory to guarantee
+                    // it will fit. Afterwards ensure that the offset of the
+                    // data segment is in-bounds by clamping it to the
+                    if self.config.disallow_traps() {
+                        let max_size = (u64::MAX / 64 / 1024).min(mem.minimum) * 64 * 1024;
+                        init.truncate(max_size as usize);
+                        let max_offset = max_size - init.len() as u64;
+                        match &mut offset {
+                            Offset::Const32(x) => {
+                                *x = (*x as u64).min(max_offset) as i32;
+                            }
+                            Offset::Const64(x) => {
+                                *x = (*x as u64).min(max_offset) as i64;
+                            }
+                            Offset::Global(_) => unreachable!(),
+                        }
+                    }
                     DataSegmentKind::Active {
                         offset,
                         memory_index,
@@ -1304,11 +1338,18 @@ impl Module {
 
 pub(crate) fn arbitrary_limits32(
     u: &mut Unstructured,
+    min_minimum: Option<u32>,
     max_minimum: u32,
     max_required: bool,
     max_inbounds: u32,
 ) -> Result<(u32, Option<u32>)> {
-    let (min, max) = arbitrary_limits64(u, max_minimum.into(), max_required, max_inbounds.into())?;
+    let (min, max) = arbitrary_limits64(
+        u,
+        min_minimum.map(Into::into),
+        max_minimum.into(),
+        max_required,
+        max_inbounds.into(),
+    )?;
     Ok((
         u32::try_from(min).unwrap(),
         max.map(|i| u32::try_from(i).unwrap()),
@@ -1317,11 +1358,12 @@ pub(crate) fn arbitrary_limits32(
 
 pub(crate) fn arbitrary_limits64(
     u: &mut Unstructured,
+    min_minimum: Option<u64>,
     max_minimum: u64,
     max_required: bool,
     max_inbounds: u64,
 ) -> Result<(u64, Option<u64>)> {
-    let min = gradually_grow(u, 0, max_inbounds, max_minimum)?;
+    let min = gradually_grow(u, min_minimum.unwrap_or(0), max_inbounds, max_minimum)?;
     let max = if max_required || u.arbitrary().unwrap_or(false) {
         Some(u.int_in_range(min..=max_minimum)?)
     } else {
@@ -1372,13 +1414,22 @@ pub(crate) fn arbitrary_table_type(u: &mut Unstructured, config: &dyn Config) ->
     // We don't want to generate tables that are too large on average, so
     // keep the "inbounds" limit here a bit smaller.
     let max_inbounds = 10_000;
-    let max_elements = config.max_table_elements();
+    let min_elements = if config.disallow_traps() {
+        Some(1)
+    } else {
+        None
+    };
+    let max_elements = min_elements.unwrap_or(0).max(config.max_table_elements());
     let (minimum, maximum) = arbitrary_limits32(
         u,
+        min_elements,
         max_elements,
         config.table_max_size_required(),
         max_inbounds.min(max_elements),
     )?;
+    if config.disallow_traps() {
+        assert!(minimum > 0);
+    }
     Ok(TableType {
         element_type: if config.reference_types_enabled() {
             *u.choose(&[ValType::FuncRef, ValType::ExternRef])?
@@ -1398,9 +1449,17 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &dyn Config) -> Re
     // depending on the maximum number of memories.
     let memory64 = config.memory64_enabled() && u.arbitrary()?;
     let max_inbounds = 16 * 1024 / u64::try_from(config.max_memories()).unwrap();
-    let max_pages = config.max_memory_pages(memory64);
+    let min_pages = if config.disallow_traps() {
+        Some(1)
+    } else {
+        None
+    };
+    let max_pages = min_pages
+        .unwrap_or(0)
+        .max(config.max_memory_pages(memory64));
     let (minimum, maximum) = arbitrary_limits64(
         u,
+        min_pages,
         max_pages,
         config.memory_max_size_required() || shared,
         max_inbounds.min(max_pages),
@@ -1539,15 +1598,20 @@ fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -
 /// Selects a reasonable offset for an element or data segment. This favors
 /// having the segment being in-bounds, but it may still generate
 /// any offset.
-fn arbitrary_offset(u: &mut Unstructured, min: u64, max: u64, size: usize) -> Result<u64> {
-    let size = u64::try_from(size).unwrap();
+fn arbitrary_offset(
+    u: &mut Unstructured,
+    limit_min: u64,
+    limit_max: u64,
+    segment_size: usize,
+) -> Result<u64> {
+    let size = u64::try_from(segment_size).unwrap();
 
     // If the segment is too big for the whole memory, just give it any
     // offset.
-    if size > min {
-        u.int_in_range(0..=max)
+    if size > limit_min {
+        u.int_in_range(0..=limit_max)
     } else {
-        gradually_grow(u, 0, min - size, max)
+        gradually_grow(u, 0, limit_min - size, limit_max)
     }
 }
 

@@ -28,7 +28,7 @@
   (component $B
     (type $Wasi (instance))
     (import "wasi" (instance $wasi (type $Wasi)))
-    (import "A:1.x" (component $A
+    (import "a1-x" (component $A
       (import "wasi" (instance (type $Wasi)))
       (export "a" (func))
     ))
@@ -51,7 +51,7 @@
     (import "wasi" (instance $wasi (type $Wasi)))
     (instance $b (instantiate $B
       (with "wasi" (instance $wasi))
-      (with "A:1.x" (component $A)))
+      (with "a1-x" (component $A)))
     )
     (export "b" (func $b "b"))
   )
@@ -59,7 +59,7 @@
   (component $C 
     (type $Wasi (instance)) 
     (import "wasi" (instance $wasi (type $Wasi))) 
-    (import "B:1.x" (component $B 
+    (import "b1-x" (component $B 
       (import "wasi" (instance $wasi (type $Wasi))) 
       (export "b" (func)) 
     )) 
@@ -71,7 +71,7 @@
     (import "wasi" (instance $wasi (type $Wasi))) 
     (instance $c (instantiate $C
       (with "wasi" (instance $wasi)) 
-      (with "B:1.x" (component $B_wrap)) 
+      (with "b1-x" (component $B_wrap)) 
     )) 
     (export "c" (func $c "c")) 
   ) 
@@ -79,7 +79,7 @@
   (component $D 
     (type $Wasi (instance)) 
     (import "wasi" (instance $wasi (type $Wasi))) 
-    (import "C:1.x" (component $C 
+    (import "c1-x" (component $C 
       (import "wasi" (instance $wasi (type $Wasi))) 
       (export "c" (func)) 
     )) 
@@ -89,7 +89,7 @@
 
   (instance $d (instantiate $D 
     (with "wasi" (instance $wasi)) 
-    (with "C:1.x" (component $C_wrap)) 
+    (with "c1-x" (component $C_wrap)) 
   )) 
 
   (export "d" (func $d "d")) 

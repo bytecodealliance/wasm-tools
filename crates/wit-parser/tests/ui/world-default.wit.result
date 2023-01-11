@@ -1,0 +1,20 @@
+{
+  "worlds": [
+    {
+      "name": "bar",
+      "default": "i0"
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "foo",
+      "functions": [
+        {
+          "name": "a",
+          "params": [],
+          "results": []
+        }
+      ]
+    }
+  ]
+}

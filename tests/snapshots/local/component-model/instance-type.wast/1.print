@@ -1,0 +1,10 @@
+(component
+  (type (;0;)
+    (instance
+      (type (;0;)
+        (instance)
+      )
+      (export "a" (instance (type 0)))
+    )
+  )
+)

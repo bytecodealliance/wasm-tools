@@ -1,0 +1,4 @@
+// parse-fail
+
+interface foo {}
+interface foo {}

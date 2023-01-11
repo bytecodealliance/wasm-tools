@@ -1,0 +1,100 @@
+{
+  "interfaces": [
+    {
+      "name": "functions",
+      "functions": [
+        {
+          "name": "f1",
+          "params": [],
+          "results": []
+        },
+        {
+          "name": "f2",
+          "params": [
+            "u32"
+          ],
+          "results": []
+        },
+        {
+          "name": "f3",
+          "params": [
+            "u32"
+          ],
+          "results": []
+        },
+        {
+          "name": "f4",
+          "params": [],
+          "results": [
+            "u32"
+          ]
+        },
+        {
+          "name": "f6",
+          "params": [],
+          "results": [
+            "type-0"
+          ]
+        },
+        {
+          "name": "f7",
+          "params": [
+            "float32",
+            "float32"
+          ],
+          "results": [
+            "type-0"
+          ]
+        },
+        {
+          "name": "f8",
+          "params": [
+            "type-1"
+          ],
+          "results": [
+            "type-2"
+          ]
+        },
+        {
+          "name": "f9",
+          "params": [],
+          "results": [
+            "u32",
+            "float32"
+          ]
+        },
+        {
+          "name": "f10",
+          "params": [],
+          "results": [
+            "u32"
+          ]
+        },
+        {
+          "name": "f11",
+          "params": [],
+          "results": []
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "tuple": {
+        "types": [
+          "u32",
+          "u32"
+        ]
+      }
+    },
+    {
+      "option": "u32"
+    },
+    {
+      "result": {
+        "ok": "u32",
+        "err": "float32"
+      }
+    }
+  ]
+}

@@ -30,35 +30,48 @@ doctest = false
 name = "text-parser"
 path = "fuzz_targets/text-parser.rs"
 test = false
+bench = false
 
 [[bin]]
 name = "validate"
 path = "fuzz_targets/validate.rs"
 test = false
+bench = false
 
 [[bin]]
 name = "print"
 path = "fuzz_targets/print.rs"
 test = false
+bench = false
 
 [[bin]]
 name = "roundtrip"
 path = "fuzz_targets/roundtrip.rs"
 test = false
+bench = false
 
 [[bin]]
 name = "incremental-parse"
 path = "fuzz_targets/incremental-parse.rs"
 test = false
+bench = false
 
 [[bin]]
 name = "validate-valid-module"
 path = "fuzz_targets/validate-valid-module.rs"
 test = false
 doc = false
+bench = false
 
 [[bin]]
 name = "mutate"
 path = "fuzz_targets/mutate.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "no-traps"
+path = "fuzz_targets/no-traps.rs"
 test = false
 doc = false

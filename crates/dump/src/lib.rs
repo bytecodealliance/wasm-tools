@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::fmt::Write as _;
 use std::io::Write;
 use wasmparser::*;
@@ -154,10 +154,13 @@ impl<'a> Dump<'a> {
                 }
                 Payload::ElementSection(s) => self.section(s, "element", |me, _end, i| {
                     write!(me.state, "element {:?}", i.ty)?;
-                    let mut items = i.items.get_items_reader()?;
+                    let item_count = match &i.items {
+                        ElementItems::Functions(reader) => reader.count(),
+                        ElementItems::Expressions(reader) => reader.count(),
+                    };
                     match i.kind {
                         ElementKind::Passive => {
-                            write!(me.state, " passive, {} items", items.get_count())?;
+                            write!(me.state, " passive, {} items", item_count)?;
                         }
                         ElementKind::Active {
                             table_index,
@@ -166,17 +169,29 @@ impl<'a> Dump<'a> {
                             write!(me.state, " table[{}]", table_index)?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
                             me.print_ops(offset_expr.get_operators_reader())?;
-                            write!(me.state, "{} items", items.get_count())?;
+                            write!(me.state, "{} items", item_count)?;
                         }
                         ElementKind::Declared => {
-                            write!(me.state, " declared {} items", items.get_count())?;
+                            write!(me.state, " declared {} items", item_count)?;
                         }
                     }
-                    me.print(items.original_position())?;
-                    for _ in 0..items.get_count() {
-                        let item = items.read()?;
-                        write!(me.state, "item {:?}", item)?;
-                        me.print(items.original_position())?;
+                    match i.items {
+                        ElementItems::Functions(reader) => {
+                            let mut iter = reader.into_iter();
+                            me.print(iter.original_position())?;
+                            while let Some(item) = iter.next() {
+                                write!(me.state, "item {:?}", item?)?;
+                                me.print(iter.original_position())?;
+                            }
+                        }
+                        ElementItems::Expressions(reader) => {
+                            let mut iter = reader.into_iter();
+                            me.print(iter.original_position())?;
+                            while let Some(item) = iter.next() {
+                                write!(me.state, "item {:?}", item?)?;
+                                me.print(iter.original_position())?;
+                            }
+                        }
                     }
                     Ok(())
                 })?,
@@ -384,11 +399,11 @@ impl<'a> Dump<'a> {
                     })?
                 }
 
-                Payload::ComponentStartSection(mut s) => {
+                Payload::ComponentStartSection { start, range } => {
                     write!(self.state, "start section")?;
-                    self.print(s.range().start)?;
-                    write!(self.state, "{:?}", s.read()?)?;
-                    self.print(s.range().end)?;
+                    self.print(range.start)?;
+                    write!(self.state, "{:?}", start)?;
+                    self.print(range.end)?;
                 }
 
                 Payload::CustomSection(c) => {
@@ -397,9 +412,17 @@ impl<'a> Dump<'a> {
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
                     if c.name() == "name" {
-                        let mut iter = NameSectionReader::new(c.data(), c.data_offset())?;
-                        while !iter.eof() {
-                            self.print_custom_name_section(iter.read()?, iter.original_position())?;
+                        let mut iter = NameSectionReader::new(c.data(), c.data_offset());
+                        while let Some(section) = iter.next() {
+                            self.print_custom_name_section(section?, iter.original_position())?;
+                        }
+                    } else if c.name() == "component-name" {
+                        let mut iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
+                        while let Some(section) = iter.next() {
+                            self.print_custom_component_name_section(
+                                section?,
+                                iter.original_position(),
+                            )?;
                         }
                     } else {
                         self.print_byte_header()?;
@@ -437,16 +460,10 @@ impl<'a> Dump<'a> {
     }
 
     fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
-        write!(self.state, "{} names", thing)?;
-        self.print(n.original_position())?;
-        let mut map = n.get_map()?;
-        write!(self.state, "{} count", map.get_count())?;
-        self.print(map.original_position())?;
-        for _ in 0..map.get_count() {
-            write!(self.state, "{:?}", map.read()?)?;
-            self.print(map.original_position())?;
-        }
-        Ok(())
+        self.section(n, thing, |me, end, naming| {
+            write!(me.state, "{:?}", naming)?;
+            me.print(end)
+        })
     }
 
     fn print_indirect_name_map(
@@ -455,37 +472,19 @@ impl<'a> Dump<'a> {
         thing_b: &str,
         n: IndirectNameMap<'_>,
     ) -> Result<()> {
-        write!(self.state, "{} names", thing_b)?;
-        self.print(n.original_position())?;
-        let mut outer_map = n.get_indirect_map()?;
-        write!(self.state, "{} count", outer_map.get_indirect_count())?;
-        self.print(outer_map.original_position())?;
-        for _ in 0..outer_map.get_indirect_count() {
-            let inner = outer_map.read()?;
-            write!(
-                self.state,
-                "{} {} {}s",
-                thing_a, inner.indirect_index, thing_b,
-            )?;
-            self.print(inner.original_position())?;
-            let mut map = inner.get_map()?;
-            write!(self.state, "{} count", map.get_count())?;
-            self.print(map.original_position())?;
-            for _ in 0..map.get_count() {
-                write!(self.state, "{:?}", map.read()?)?;
-                self.print(map.original_position())?;
-            }
-        }
-        Ok(())
+        self.section(n, thing_b, |me, _end, naming| {
+            write!(me.state, "{} {} ", thing_a, naming.index)?;
+            me.print_name_map(thing_b, naming.names)
+        })
     }
 
     fn print_custom_name_section(&mut self, name: Name<'_>, end: usize) -> Result<()> {
         match name {
-            Name::Module(n) => {
+            Name::Module { name, name_range } => {
                 write!(self.state, "module name")?;
-                self.print(n.original_position())?;
-                write!(self.state, "{:?}", n.get_name()?)?;
-                self.print(end)?;
+                self.print(name_range.start)?;
+                write!(self.state, "{:?}", name)?;
+                self.print(name_range.end)?;
             }
             Name::Function(n) => self.print_name_map("function", n)?,
             Name::Local(n) => self.print_indirect_name_map("function", "local", n)?,
@@ -505,43 +504,73 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn section<T>(
+    fn print_custom_component_name_section(
         &mut self,
-        iter: T,
+        name: ComponentName<'_>,
+        end: usize,
+    ) -> Result<()> {
+        match name {
+            ComponentName::Component { name, name_range } => {
+                write!(self.state, "component name")?;
+                self.print(name_range.start)?;
+                write!(self.state, "{:?}", name)?;
+                self.print(name_range.end)?;
+            }
+            ComponentName::CoreFuncs(n) => self.print_name_map("core func", n)?,
+            ComponentName::CoreTables(n) => self.print_name_map("core table", n)?,
+            ComponentName::CoreGlobals(n) => self.print_name_map("core global", n)?,
+            ComponentName::CoreMemories(n) => self.print_name_map("core memory", n)?,
+            ComponentName::CoreInstances(n) => self.print_name_map("core instance", n)?,
+            ComponentName::CoreModules(n) => self.print_name_map("core module", n)?,
+            ComponentName::CoreTypes(n) => self.print_name_map("core type", n)?,
+            ComponentName::Types(n) => self.print_name_map("type", n)?,
+            ComponentName::Instances(n) => self.print_name_map("instance", n)?,
+            ComponentName::Components(n) => self.print_name_map("component", n)?,
+            ComponentName::Funcs(n) => self.print_name_map("func", n)?,
+            ComponentName::Values(n) => self.print_name_map("value", n)?,
+            ComponentName::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown names: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn section<'b, T>(
+        &mut self,
+        iter: SectionLimited<'b, T>,
         name: &str,
-        print: impl FnMut(&mut Self, usize, T::Item) -> Result<()>,
+        print: impl FnMut(&mut Self, usize, T) -> Result<()>,
     ) -> Result<()>
     where
-        T: SectionReader + SectionWithLimitedItems,
+        T: FromReader<'b>,
     {
         write!(self.state, "{} section", name)?;
         self.print(iter.range().start)?;
         self.print_iter(iter, print)
     }
 
-    fn print_iter<T>(
+    fn print_iter<'b, T>(
         &mut self,
-        mut iter: T,
-        mut print: impl FnMut(&mut Self, usize, T::Item) -> Result<()>,
+        iter: SectionLimited<'b, T>,
+        mut print: impl FnMut(&mut Self, usize, T) -> Result<()>,
     ) -> Result<()>
     where
-        T: SectionReader + SectionWithLimitedItems,
+        T: FromReader<'b>,
     {
-        write!(self.state, "{} count", iter.get_count())?;
+        write!(self.state, "{} count", iter.count())?;
+        let mut iter = iter.into_iter();
         self.print(iter.original_position())?;
-        for _ in 0..iter.get_count() {
-            let item = iter.read()?;
-            print(self, iter.original_position(), item)?;
-        }
-        if !iter.eof() {
-            bail!("too many bytes in section");
+        while let Some(item) = iter.next() {
+            print(self, iter.original_position(), item?)?;
         }
         Ok(())
     }
 
     fn print_ops(&mut self, mut i: OperatorsReader) -> Result<()> {
         while !i.eof() {
-            match i.visit_with_offset(self) {
+            match i.visit_operator(self) {
                 Ok(()) => {}
                 Err(_) => write!(self.state, "??")?,
             }
@@ -610,7 +639,7 @@ fn inc(spot: &mut u32) -> u32 {
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+            fn $visit(&mut self $($(,$arg: $argty)*)?) {
                 write!(
                     self.state,
                     concat!(

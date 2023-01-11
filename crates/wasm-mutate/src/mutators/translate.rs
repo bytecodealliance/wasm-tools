@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::{DataKind, ElementItem, ElementKind, FunctionBody, Global, Operator, Type};
+use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator, Type};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -258,31 +258,28 @@ pub fn element(
         ElementKind::Declared => ElementMode::Declared,
     };
     let element_type = t.translate_refty(&element.ty)?;
-    let mut functions = Vec::new();
-    let mut exprs = Vec::new();
-    let mut reader = element.items.get_items_reader()?;
-    for _ in 0..reader.get_count() {
-        match reader.read()? {
-            ElementItem::Func(idx) => {
-                functions.push(t.remap(Item::Function, idx)?);
-            }
-            ElementItem::Expr(expr) => {
-                exprs.push(t.translate_const_expr(
-                    &expr,
-                    &wasmparser::ValType::Ref(element.ty),
-                    ConstExprKind::ElementFunction,
-                )?);
-            }
+    let functions;
+    let exprs;
+    let elements = match element.items {
+        wasmparser::ElementItems::Functions(reader) => {
+            functions = reader
+                .into_iter()
+                .map(|f| t.remap(Item::Function, f?))
+                .collect::<Result<Vec<_>, _>>()?;
+            Elements::Functions(&functions)
         }
-    }
+        wasmparser::ElementItems::Expressions(reader) => {
+            exprs = reader
+                .into_iter()
+                .map(|f| t.translate_const_expr(&f?, &wasmparser::ValType::Ref(element.ty), ConstExprKind::ElementFunction))
+                .collect::<Result<Vec<_>, _>>()?;
+            Elements::Expressions(&exprs)
+        }
+    };
     s.segment(ElementSegment {
         mode,
         element_type,
-        elements: if reader.uses_exprs() {
-            Elements::Expressions(&exprs)
-        } else {
-            Elements::Functions(&functions)
-        },
+        elements,
     });
     Ok(())
 }

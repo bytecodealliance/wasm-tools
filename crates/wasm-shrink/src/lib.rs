@@ -235,8 +235,7 @@ impl ShrinkRun {
             component_model: false,
             function_references: false,
 
-            // We'll never enable this here.
-            deterministic_only: false,
+            floats: true,
         });
 
         validator.validate_all(wasm)?;

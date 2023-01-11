@@ -1,32 +1,30 @@
-use service::{Error, Request, Response, Service};
+use bindings::service::{Error, Request, Response, Service};
+use std::str;
 
 struct Component;
 
 impl Service for Component {
     fn execute(req: Request) -> Result<Response, Error> {
-        // Right now, generated types aren't shared for bindings, so we
-        // have to manually convert between the different types; eventually
-        // this will not be necessary and we can call `backend::execute`
-        // with the request passed to us.
-        let headers: Vec<_> = req
+        // The content should be plain text
+        let content_type = req
             .headers
             .iter()
-            .map(|(k, v)| (k.as_slice(), v.as_slice()))
-            .collect();
+            .find(|(k, _)| k == b"content-type")
+            .map(|(_, v)| v)
+            .ok_or_else(|| Error::BadRequest)?;
+        if content_type != b"text/plain" {
+            return Err(Error::BadRequest);
+        }
 
-        // Send the request to the backend and convert the response
-        backend::execute(backend::Request {
-            headers: &headers,
-            body: req.body.as_slice(),
-        })
-        .map(|r| Response {
-            headers: r.headers,
-            body: r.body,
-        })
-        .map_err(|e| match e {
-            backend::Error::BadRequest => Error::BadRequest,
+        // We assume the body is UTF-8 encoded
+        let body = str::from_utf8(&req.body).map_err(|_| Error::BadRequest)?;
+
+        // Echo the body back in the response
+        Ok(Response {
+            headers: vec![(b"content-type".to_vec(), b"text/plain".to_vec())],
+            body: format!("The request body was: {body}").into_bytes(),
         })
     }
 }
 
-service::export!(Component);
+bindings::export!(Component);

@@ -1,0 +1,108 @@
+{
+  "interfaces": [
+    {
+      "name": "wasi",
+      "types": [
+        "type-0",
+        "type-1",
+        "type-2"
+      ]
+    }
+  ],
+  "types": [
+    {
+      "enum": {
+        "cases": [
+          "realtime",
+          "monotonic"
+        ]
+      }
+    },
+    {
+      "primitive": "u64"
+    },
+    {
+      "enum": {
+        "cases": [
+          "success",
+          "toobig",
+          "access",
+          "addrinuse",
+          "addrnotavail",
+          "afnosupport",
+          "again",
+          "already",
+          "badf",
+          "badmsg",
+          "busy",
+          "canceled",
+          "child",
+          "connaborted",
+          "connrefused",
+          "connreset",
+          "deadlk",
+          "destaddrreq",
+          "dom",
+          "dquot",
+          "exist",
+          "fault",
+          "fbig",
+          "hostunreach",
+          "idrm",
+          "ilseq",
+          "inprogress",
+          "intr",
+          "inval",
+          "io",
+          "isconn",
+          "isdir",
+          "loop",
+          "mfile",
+          "mlink",
+          "msgsize",
+          "multihop",
+          "nametoolong",
+          "netdown",
+          "netreset",
+          "netunreach",
+          "nfile",
+          "nobufs",
+          "nodev",
+          "noent",
+          "noexec",
+          "nolck",
+          "nolink",
+          "nomem",
+          "nomsg",
+          "noprotoopt",
+          "nospc",
+          "nosys",
+          "notconn",
+          "notdir",
+          "notempty",
+          "notrecoverable",
+          "notsock",
+          "notsup",
+          "notty",
+          "nxio",
+          "overflow",
+          "ownerdead",
+          "perm",
+          "pipe",
+          "proto",
+          "protonosupport",
+          "prototype",
+          "range",
+          "rofs",
+          "spipe",
+          "srch",
+          "stale",
+          "timedout",
+          "txtbsy",
+          "xdev",
+          "notcapable"
+        ]
+      }
+    }
+  ]
+}

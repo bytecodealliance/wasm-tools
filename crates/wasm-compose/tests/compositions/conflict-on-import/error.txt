@@ -1,1 +1,1 @@
-cannot import instance `a` due to conflicting types for export `x` between components `tests/compositions/conflict-on-import/root.wat` and `tests/compositions/conflict-on-import/b.wat`
+cannot import instance with name `a` for an instantiation argument of component `b` because it conflicts with an imported instantiation argument of component `$input`

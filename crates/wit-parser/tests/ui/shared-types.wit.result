@@ -1,0 +1,52 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "default": "i1",
+      "imports": [
+        [
+          "foo",
+          "i0"
+        ]
+      ]
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "",
+      "functions": [
+        {
+          "name": "a",
+          "params": [],
+          "results": [
+            "type-0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "",
+      "functions": [
+        {
+          "name": "a",
+          "params": [],
+          "results": [
+            "type-1"
+          ]
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "list": "u8"
+    },
+    {
+      "tuple": {
+        "types": [
+          "type-0"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+(module
+  (elem (;0;) func)
+  (elem (;1;) func)
+  (elem (;2;) funcref)
+  (elem (;3;) declare func)
+  (elem (;4;) declare funcref)
+)

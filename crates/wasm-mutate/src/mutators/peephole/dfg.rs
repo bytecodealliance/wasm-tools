@@ -948,7 +948,7 @@ impl<'a> DFGBuilder {
                 Operator::I8x16MinU => self.binop(idx, Lang::I8x16MinU),
                 Operator::I8x16MaxS => self.binop(idx, Lang::I8x16MaxS),
                 Operator::I8x16MaxU => self.binop(idx, Lang::I8x16MaxU),
-                Operator::I8x16RoundingAverageU => self.binop(idx, Lang::I8x16AvgrU),
+                Operator::I8x16AvgrU => self.binop(idx, Lang::I8x16AvgrU),
 
                 Operator::I16x8ExtAddPairwiseI8x16S => {
                     self.unop(idx, Lang::I16x8ExtAddPairwiseI8x16S)
@@ -981,7 +981,7 @@ impl<'a> DFGBuilder {
                 Operator::I16x8MinU => self.binop(idx, Lang::I16x8MinU),
                 Operator::I16x8MaxS => self.binop(idx, Lang::I16x8MaxS),
                 Operator::I16x8MaxU => self.binop(idx, Lang::I16x8MaxU),
-                Operator::I16x8RoundingAverageU => self.binop(idx, Lang::I16x8AvgrU),
+                Operator::I16x8AvgrU => self.binop(idx, Lang::I16x8AvgrU),
                 Operator::I16x8ExtMulLowI8x16S => self.binop(idx, Lang::I16x8ExtMulLowI8x16S),
                 Operator::I16x8ExtMulHighI8x16S => self.binop(idx, Lang::I16x8ExtMulHighI8x16S),
                 Operator::I16x8ExtMulLowI8x16U => self.binop(idx, Lang::I16x8ExtMulLowI8x16U),

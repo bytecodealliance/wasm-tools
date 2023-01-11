@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser"
-version = "0.92.0"
+version = "0.96.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
@@ -14,6 +14,7 @@ exclude = ["benches/*.wasm"]
 
 [dependencies]
 indexmap = { workspace = true }
+url = "2.3.1"
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -27,9 +28,3 @@ once_cell = "1.13.0"
 [[bench]]
 name = "benchmark"
 harness = false
-
-[features]
-# The "deterministic" feature supports only Wasm code with "deterministic" execution
-# across any hardware. This feature is very critical for many Blockchain infrastructures
-# that rely on deterministic executions of smart contracts across different hardwares.
-deterministic = []

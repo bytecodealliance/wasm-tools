@@ -13,8 +13,13 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, BinaryReaderError, Result, SectionIterator, SectionReader};
+use crate::{
+    BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
+};
 use std::ops::Range;
+
+/// Represents a name map from the names custom section.
+pub type NameMap<'a> = SectionLimited<'a, Naming<'a>>;
 
 /// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]
@@ -25,221 +30,59 @@ pub struct Naming<'a> {
     pub name: &'a str,
 }
 
-/// Represents the type of name.
-#[derive(Debug, Copy, Clone)]
-pub enum NameType {
-    /// The name is for a module.
-    Module,
-    /// The name is for a function.
-    Function,
-    /// The name is for a local.
-    Local,
-    /// The name is for a label.
-    Label,
-    /// The name is for a type.
-    Type,
-    /// The name is for a table.
-    Table,
-    /// The name is for a memory.
-    Memory,
-    /// The name is for a global.
-    Global,
-    /// The name is for an element segment.
-    Element,
-    /// The name is for a data segment.
-    Data,
-    /// The name is unknown.
-    ///
-    /// The value is the unknown section identifier.
-    Unknown(u8),
-}
-
-/// Represents a single name in the names custom section.
-#[derive(Debug, Copy, Clone)]
-pub struct SingleName<'a> {
-    data: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> SingleName<'a> {
-    /// Gets the name as a string.
-    pub fn get_name<'b>(&self) -> Result<&'b str>
-    where
-        'a: 'b,
-    {
-        let mut reader = BinaryReader::new_with_offset(self.data, self.offset);
-        let result = reader.read_string()?;
-        if !reader.eof() {
-            return Err(BinaryReaderError::new(
-                "trailing data at the end of a name",
-                reader.original_position(),
-            ));
-        }
-        Ok(result)
-    }
-
-    /// Gets the original position of the name.
-    pub fn original_position(&self) -> usize {
-        self.offset
-    }
-}
-
-/// A reader for direct names in the names custom section.
-pub struct NamingReader<'a> {
-    reader: BinaryReader<'a>,
-    count: u32,
-}
-
-impl<'a> NamingReader<'a> {
-    fn new(data: &'a [u8], offset: usize) -> Result<NamingReader<'a>> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
-        let count = reader.read_var_u32()?;
-        Ok(NamingReader { reader, count })
-    }
-
-    fn skip(reader: &mut BinaryReader) -> Result<()> {
-        let count = reader.read_var_u32()?;
-        for _ in 0..count {
-            reader.read_var_u32()?;
-            reader.skip_string()?;
-        }
-        Ok(())
-    }
-
-    /// Gets the original position of the reader.
-    pub fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    /// Gets the count of items in the section.
-    pub fn get_count(&self) -> u32 {
-        self.count
-    }
-
-    /// Reads a name from the names custom section.
-    pub fn read<'b>(&mut self) -> Result<Naming<'b>>
-    where
-        'a: 'b,
-    {
-        let index = self.reader.read_var_u32()?;
-        let name = self.reader.read_string()?;
+impl<'a> FromReader<'a> for Naming<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let index = reader.read_var_u32()?;
+        let name = reader.read_string()?;
         Ok(Naming { index, name })
     }
 }
 
-/// Represents a name map from the names custom section.
-#[derive(Debug, Copy, Clone)]
-pub struct NameMap<'a> {
-    data: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> NameMap<'a> {
-    /// Gets a naming reader for the map.
-    pub fn get_map<'b>(&self) -> Result<NamingReader<'b>>
-    where
-        'a: 'b,
-    {
-        NamingReader::new(self.data, self.offset)
-    }
-
-    /// Gets the original position of the map.
-    pub fn original_position(&self) -> usize {
-        self.offset
-    }
-}
+/// Represents a reader for indirect names from the names custom section.
+pub type IndirectNameMap<'a> = SectionLimited<'a, IndirectNaming<'a>>;
 
 /// Represents an indirect name in the names custom section.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct IndirectNaming<'a> {
     /// The indirect index of the name.
-    pub indirect_index: u32,
-    data: &'a [u8],
-    offset: usize,
+    pub index: u32,
+    /// The map of names within the `index` prior.
+    pub names: NameMap<'a>,
 }
 
-impl<'a> IndirectNaming<'a> {
-    /// Gets the naming reader for the indirect name.
-    pub fn get_map<'b>(&self) -> Result<NamingReader<'b>>
-    where
-        'a: 'b,
-    {
-        NamingReader::new(self.data, self.offset)
-    }
+impl<'a> FromReader<'a> for IndirectNaming<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let index = reader.read_var_u32()?;
 
-    /// Gets the original position of the indirect name.
-    pub fn original_position(&self) -> usize {
-        self.offset
-    }
-}
+        // Skip the `NameMap` manually here.
+        //
+        // FIXME(#188) shouldn't need to skip here
+        let names = reader.skip(|reader| {
+            let count = reader.read_var_u32()?;
+            for _ in 0..count {
+                reader.read_var_u32()?;
+                reader.skip_string()?;
+            }
+            Ok(())
+        })?;
 
-/// Represents a reader for indirect names from the names custom section.
-pub struct IndirectNamingReader<'a> {
-    reader: BinaryReader<'a>,
-    count: u32,
-}
-
-impl<'a> IndirectNamingReader<'a> {
-    fn new(data: &'a [u8], offset: usize) -> Result<IndirectNamingReader<'a>> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
-        let count = reader.read_var_u32()?;
-        Ok(IndirectNamingReader { reader, count })
-    }
-
-    /// Gets the count of indirect names.
-    pub fn get_indirect_count(&self) -> u32 {
-        self.count
-    }
-
-    /// Gets the original position of the reader.
-    pub fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    /// Reads an indirect name from the reader.
-    pub fn read<'b>(&mut self) -> Result<IndirectNaming<'b>>
-    where
-        'a: 'b,
-    {
-        let index = self.reader.read_var_u32()?;
-        let start = self.reader.position;
-        NamingReader::skip(&mut self.reader)?;
-        let end = self.reader.position;
         Ok(IndirectNaming {
-            indirect_index: index,
-            data: &self.reader.buffer[start..end],
-            offset: self.reader.original_offset + start,
+            index,
+            names: NameMap::new(names.remaining_buffer(), names.original_position())?,
         })
     }
 }
 
-/// Represents an indirect name map.
-#[derive(Debug, Copy, Clone)]
-pub struct IndirectNameMap<'a> {
-    data: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> IndirectNameMap<'a> {
-    /// Gets an indirect naming reader for the map.
-    pub fn get_indirect_map<'b>(&self) -> Result<IndirectNamingReader<'b>>
-    where
-        'a: 'b,
-    {
-        IndirectNamingReader::new(self.data, self.offset)
-    }
-
-    /// Gets an original position of the map.
-    pub fn original_position(&self) -> usize {
-        self.offset
-    }
-}
-
 /// Represents a name read from the names custom section.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Name<'a> {
     /// The name is for the module.
-    Module(SingleName<'a>),
+    Module {
+        /// The specified name.
+        name: &'a str,
+        /// The byte range that `name` occupies in the original binary.
+        name_range: Range<usize>,
+    },
     /// The name is for the functions.
     Function(NameMap<'a>),
     /// The name is for the function locals.
@@ -271,92 +114,40 @@ pub enum Name<'a> {
 }
 
 /// A reader for the name custom section of a WebAssembly module.
-pub struct NameSectionReader<'a> {
-    reader: BinaryReader<'a>,
-}
+pub type NameSectionReader<'a> = Subsections<'a, Name<'a>>;
 
-impl<'a> NameSectionReader<'a> {
-    /// Constructs a new `NameSectionReader` from the given data and offset.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<NameSectionReader<'a>> {
-        Ok(NameSectionReader {
-            reader: BinaryReader::new_with_offset(data, offset),
-        })
-    }
-
-    fn verify_section_end(&self, end: usize) -> Result<()> {
-        if self.reader.buffer.len() < end {
-            return Err(BinaryReaderError::new(
-                "name entry extends past end of the code section",
-                self.reader.original_offset + self.reader.buffer.len(),
-            ));
-        }
-        Ok(())
-    }
-
-    /// Determines if the reader is at the end of the section.
-    pub fn eof(&self) -> bool {
-        self.reader.eof()
-    }
-
-    /// Gets the original position of the section reader.
-    pub fn original_position(&self) -> usize {
-        self.reader.original_position()
-    }
-
-    /// Reads a name from the section.
-    pub fn read<'b>(&mut self) -> Result<Name<'b>>
-    where
-        'a: 'b,
-    {
-        let ty = self.reader.read_name_type()?;
-        let payload_len = self.reader.read_var_u32()? as usize;
-        let payload_start = self.reader.position;
-        let payload_end = payload_start + payload_len;
-        self.verify_section_end(payload_end)?;
-        let offset = self.reader.original_offset + payload_start;
-        let data = &self.reader.buffer[payload_start..payload_end];
-        self.reader.skip_to(payload_end);
-        Ok(match ty {
-            NameType::Module => Name::Module(SingleName { data, offset }),
-            NameType::Function => Name::Function(NameMap { data, offset }),
-            NameType::Local => Name::Local(IndirectNameMap { data, offset }),
-            NameType::Label => Name::Label(IndirectNameMap { data, offset }),
-            NameType::Type => Name::Type(NameMap { data, offset }),
-            NameType::Table => Name::Table(NameMap { data, offset }),
-            NameType::Memory => Name::Memory(NameMap { data, offset }),
-            NameType::Global => Name::Global(NameMap { data, offset }),
-            NameType::Element => Name::Element(NameMap { data, offset }),
-            NameType::Data => Name::Data(NameMap { data, offset }),
-            NameType::Unknown(ty) => Name::Unknown {
+impl<'a> Subsection<'a> for Name<'a> {
+    fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
+        let data = reader.remaining_buffer();
+        let offset = reader.original_position();
+        Ok(match id {
+            0 => {
+                let name = reader.read_string()?;
+                if !reader.eof() {
+                    return Err(BinaryReaderError::new(
+                        "trailing data at the end of a name",
+                        reader.original_position(),
+                    ));
+                }
+                Name::Module {
+                    name,
+                    name_range: offset..offset + reader.position,
+                }
+            }
+            1 => Name::Function(NameMap::new(data, offset)?),
+            2 => Name::Local(IndirectNameMap::new(data, offset)?),
+            3 => Name::Label(IndirectNameMap::new(data, offset)?),
+            4 => Name::Type(NameMap::new(data, offset)?),
+            5 => Name::Table(NameMap::new(data, offset)?),
+            6 => Name::Memory(NameMap::new(data, offset)?),
+            7 => Name::Global(NameMap::new(data, offset)?),
+            8 => Name::Element(NameMap::new(data, offset)?),
+            9 => Name::Data(NameMap::new(data, offset)?),
+            ty => Name::Unknown {
                 ty,
                 data,
-                range: offset..offset + payload_len,
+                range: offset..offset + data.len(),
             },
         })
-    }
-}
-
-impl<'a> SectionReader for NameSectionReader<'a> {
-    type Item = Name<'a>;
-    fn read(&mut self) -> Result<Self::Item> {
-        NameSectionReader::read(self)
-    }
-    fn eof(&self) -> bool {
-        NameSectionReader::eof(self)
-    }
-    fn original_position(&self) -> usize {
-        NameSectionReader::original_position(self)
-    }
-    fn range(&self) -> Range<usize> {
-        self.reader.range()
-    }
-}
-
-impl<'a> IntoIterator for NameSectionReader<'a> {
-    type Item = Result<Name<'a>>;
-    type IntoIter = SectionIterator<NameSectionReader<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        SectionIterator::new(self)
     }
 }

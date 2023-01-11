@@ -1,0 +1,24 @@
+{
+  "interfaces": [
+    {
+      "name": "foo",
+      "functions": [
+        {
+          "name": "x",
+          "params": [],
+          "results": []
+        },
+        {
+          "name": "y",
+          "params": [],
+          "results": []
+        },
+        {
+          "name": "z",
+          "params": [],
+          "results": []
+        }
+      ]
+    }
+  ]
+}

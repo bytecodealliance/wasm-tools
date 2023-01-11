@@ -1,0 +1,6 @@
+// parse-fail
+
+interface foo {
+  foo: func()
+  foo: func()
+}

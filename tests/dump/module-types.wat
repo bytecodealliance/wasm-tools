@@ -1,5 +1,5 @@
 (component
-  (import "" (core module $m
+  (import "a" (core module $m
     (import "" "f" (func))
     (import "" "g" (global i32))
     (import "" "t" (table 1 funcref))

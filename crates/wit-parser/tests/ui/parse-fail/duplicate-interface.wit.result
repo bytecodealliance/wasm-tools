@@ -1,0 +1,5 @@
+interface `foo` is defined more than once
+     --> tests/ui/parse-fail/duplicate-interface.wit:4:11
+      |
+    4 | interface foo {}
+      |           ^--

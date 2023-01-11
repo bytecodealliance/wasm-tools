@@ -100,7 +100,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("exception-handling", |f| &mut f.exceptions),
         ("memory64", |f| &mut f.memory64),
         ("extended-const", |f| &mut f.extended_const),
-        ("deterministic", |f| &mut f.deterministic_only),
+        ("floats", |f| &mut f.floats),
         ("saturating-float-to-int", |f| {
             &mut f.saturating_float_to_int
         }),

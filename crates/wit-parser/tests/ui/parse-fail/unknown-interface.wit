@@ -1,0 +1,5 @@
+// parse-fail
+
+world foo {
+  import bar: bar
+}

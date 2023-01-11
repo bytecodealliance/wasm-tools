@@ -1,0 +1,6 @@
+interface empty {}
+
+world empty-world {
+  import empty: empty
+  export empty: empty
+}

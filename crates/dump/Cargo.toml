@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser-dump"
-version = "0.1.9"
+version = "0.1.12"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"

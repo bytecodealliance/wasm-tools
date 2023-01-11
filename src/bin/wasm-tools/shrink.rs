@@ -25,24 +25,21 @@ use wasm_shrink::{IsInteresting, WasmShrink};
 /// $ wasm-shrink compile.sh crasher.wasm -o shrunken.wasm
 #[derive(Parser)]
 pub struct Opts {
-    /// The output file path to write the shrunken Wasm file to.
-    ///
-    /// By default, a file path based on the input will be generated.
-    #[clap(short, long)]
-    output: Option<PathBuf>,
-
     #[clap(flatten)]
     shrink: WasmShrink,
 
     /// The interestingness predicate script.
     predicate: PathBuf,
 
-    /// The input Wasm.
-    input: PathBuf,
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
 }
 
 impl Opts {
     pub fn run(self) -> Result<()> {
+        let input = self.io.parse_input_wasm()?;
+        let initial_size = input.len();
+
         // Prerequisites for the predicate.
         anyhow::ensure!(
             self.predicate.is_file(),
@@ -55,14 +52,14 @@ impl Opts {
             self.predicate.display()
         );
 
-        let input = wat::parse_file(&self.input)
-            .with_context(|| format!("Failed to read input Wasm file: {}", self.input.display()))?;
-        let initial_size = input.len();
-
         let output = self
-            .output
-            .clone()
-            .unwrap_or_else(|| self.input.with_extension("shrunken.wasm"));
+            .io
+            .output_path()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| match self.io.input_path() {
+                Some(path) => path.with_extension("shrunken.wasm"),
+                None => "shrunken.wasm".into(),
+            });
         log::info!("Will write shrunken Wasm file to: {}", output.display());
 
         let predicate = make_predicate(&self.predicate);

@@ -35,6 +35,10 @@ use wast::{parser, QuoteWat, Wast, WastDirective, Wat};
 fn main() {
     let tests = find_tests();
     let filter = std::env::args().nth(1);
+    let bless = std::env::var_os("BLESS").is_some();
+    if bless {
+        std::fs::remove_dir_all("tests/snapshots").expect("clear the snapshots directory");
+    }
 
     let tests = tests
         .par_iter()
@@ -191,6 +195,10 @@ impl TestState {
         // Test that we can print these bytes.
         let string = wasmprinter::print_bytes(contents).context("failed to print wasm")?;
         self.bump_ntests();
+        // Snapshot these bytes.
+        self.snapshot("print", test, &string)
+            .context("failed to validate the `print` snapshot")?;
+        self.bump_ntests();
 
         // If we can, convert the string back to bytes and assert it has the
         // same binary representation.
@@ -202,6 +210,32 @@ impl TestState {
             self.binary_compare(&binary2, contents)
                 .context("failed to compare original `wat` with roundtrip `wat`")
                 .context(format!("as parsed:\n{}", string))?;
+        }
+
+        // Test that the `wasmprinter`-printed bytes have "pretty" whitespace
+        // which means that all whitespace is either categorized as leading
+        // whitespace or a single space. Examples of "bad whitespace" are:
+        //
+        // * trailing whitespace at the end of a line
+        // * two spaces in a row
+        //
+        // Both of these cases indicate possible bugs in `wasmprinter` itself
+        // which while they don't actually affect the meaning they do "affect"
+        // humans reading the output.
+        for token in wast::lexer::Lexer::new(&string).allow_confusing_unicode(true) {
+            let ws = match token? {
+                wast::lexer::Token::Whitespace(ws) => ws,
+                _ => continue,
+            };
+            if ws.starts_with("\n") || ws == " " {
+                continue;
+            }
+            let offset = ws.as_ptr() as usize - string.as_ptr() as usize;
+            let span = wast::token::Span::from_offset(offset);
+            let msg = format!("found non-one-length whitespace in `wasmprinter` output: {ws:?}");
+            let mut err = wast::Error::new(span, msg);
+            err.set_text(&string);
+            return Err(err.into());
         }
 
         Ok(())
@@ -226,9 +260,10 @@ impl TestState {
         let errors = wast
             .directives
             .into_par_iter()
-            .filter_map(|directive| {
+            .enumerate()
+            .filter_map(|(index, directive)| {
                 let span = directive.span();
-                self.test_wast_directive(test, directive)
+                self.test_wast_directive(test, directive, index)
                     .with_context(|| {
                         let (line, col) = span.linecol_in(contents);
                         format!(
@@ -256,7 +291,7 @@ impl TestState {
         bail!("{}", s)
     }
 
-    fn test_wast_directive(&self, test: &Path, directive: WastDirective) -> Result<()> {
+    fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
         // Only test parsing and encoding of modules which wasmparser doesn't
         // support test (basically just test `wast`, nothing else)
         let skip_verify = test.iter().any(|t| t == "gc")
@@ -290,7 +325,11 @@ impl TestState {
 
                     _ => true,
                 };
-                self.test_wasm(test, &actual, test_roundtrip)
+
+                let mut test_path = test.to_path_buf();
+                test_path.push(idx.to_string());
+
+                self.test_wasm(&test_path, &actual, test_roundtrip)
                     .context("failed testing wasm binary produced by `wast`")?;
             }
 
@@ -359,6 +398,67 @@ impl TestState {
     fn test_wasm_valid(&self, test: &Path, contents: &[u8]) -> Result<()> {
         self.wasmparser_validator_for(test).validate_all(contents)?;
         self.bump_ntests();
+        Ok(())
+    }
+
+    /// Compare the test result with a snapshot stored in the repository.
+    ///
+    /// Works great for tools like wasmprinter for which having a nice overview of what effect the
+    /// changes cause.
+    fn snapshot(&self, kind: &str, path: &Path, contents: &str) -> Result<()> {
+        let contents = contents.replace("\r\n", "\n");
+        let bless = std::env::var_os("BLESS").is_some();
+        let snapshot_dir = ["tests", "snapshots"]
+            .into_iter()
+            .collect::<std::path::PathBuf>();
+        let test_name = path
+            .iter()
+            .skip_while(|&c| c != std::ffi::OsStr::new("tests"))
+            .skip(1)
+            .collect::<std::path::PathBuf>();
+        let mut snapshot_name = test_name.into_os_string();
+        snapshot_name.push(".");
+        snapshot_name.push(kind);
+        let snapshot_path = snapshot_dir.join(snapshot_name);
+        if bless {
+            std::fs::create_dir_all(snapshot_path.parent().unwrap()).with_context(|| {
+                format!("could not create the snapshot dir {:?}", snapshot_path)
+            })?;
+            std::fs::write(&snapshot_path, contents).with_context(|| {
+                format!("could not write out the snapshot to {:?}", snapshot_path)
+            })?;
+        } else {
+            let snapshot = std::fs::read(snapshot_path)
+                .context("could not read the snapshot, try `env BLESS=1`")?;
+            let snapshot =
+                std::str::from_utf8(&snapshot).context("can't decode snapshot as utf-8")?;
+            // Handle git possibly doing some newline shenanigans on windows.
+            let snapshot = snapshot.replace("\r\n", "\n");
+            if snapshot != contents {
+                let mut result = String::with_capacity(snapshot.len());
+                for diff in diff::lines(&snapshot, &contents) {
+                    match diff {
+                        diff::Result::Left(s) => {
+                            result.push_str("-");
+                            result.push_str(s);
+                        }
+                        diff::Result::Right(s) => {
+                            result.push_str("+");
+                            result.push_str(s);
+                        }
+                        diff::Result::Both(s, _) => {
+                            result.push_str(" ");
+                            result.push_str(s);
+                        }
+                    }
+                    result.push_str("\n");
+                }
+                anyhow::bail!(
+                    "snapshot does not match the expected result, try `env BLESS=1`\n{}",
+                    result
+                );
+            }
+        }
         Ok(())
     }
 
@@ -438,7 +538,7 @@ impl TestState {
             bulk_memory: true,
             tail_call: true,
             component_model: false,
-            deterministic_only: false,
+            floats: true,
             multi_value: true,
             multi_memory: true,
             memory64: true,

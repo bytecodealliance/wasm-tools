@@ -7,19 +7,19 @@
 
   (func $i32x4_trunc_f32x4_s (param v128) (result v128)
     local.get 0
-    i32x4.relaxed_trunc_f32x4_s)
+    i32x4.relaxed_trunc_sat_f32x4_s)
 
   (func $i32x4_trunc_f32x4_u (param v128) (result v128)
     local.get 0
-    i32x4.relaxed_trunc_f32x4_u)
+    i32x4.relaxed_trunc_sat_f32x4_u)
 
   (func $i32x4.trunc_f64x2_s_zero (param v128) (result v128)
     local.get 0
-    i32x4.relaxed_trunc_f64x2_s_zero)
+    i32x4.relaxed_trunc_sat_f64x2_s_zero)
 
   (func $i32x4.trunc_f64x2_u_zero (param v128) (result v128)
     local.get 0
-    i32x4.relaxed_trunc_f64x2_u_zero)
+    i32x4.relaxed_trunc_sat_f64x2_u_zero)
 
   (func $f32x4_fma (param v128 v128 v128) (result v128)
     local.get 0

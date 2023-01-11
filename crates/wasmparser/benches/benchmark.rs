@@ -130,8 +130,17 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                             op?;
                         }
                     }
-                    for op in item.items.get_items_reader()? {
-                        op?;
+                    match item.items {
+                        wasmparser::ElementItems::Functions(r) => {
+                            for op in r {
+                                op?;
+                            }
+                        }
+                        wasmparser::ElementItems::Expressions(r) => {
+                            for op in r {
+                                op?;
+                            }
+                        }
                     }
                 }
             }
@@ -149,7 +158,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 let mut reader = body.get_binary_reader();
                 for _ in 0..reader.read_var_u32()? {
                     reader.read_var_u32()?;
-                    reader.read_val_type()?;
+                    reader.read::<wasmparser::ValType>()?;
                 }
                 while !reader.eof() {
                     reader.visit_operator(&mut NopVisit)?;
@@ -238,7 +247,7 @@ fn define_benchmarks(c: &mut Criterion) {
             multi_memory: true,
             memory64: true,
             extended_const: true,
-            deterministic_only: false,
+            floats: true,
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,
@@ -315,7 +324,7 @@ struct NopVisit;
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+            fn $visit(&mut self $($(,$arg: $argty)*)?) {
                 define_visit_operator!(@visit $op $( $($arg)* )?);
             }
         )*

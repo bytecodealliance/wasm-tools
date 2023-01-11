@@ -1,21 +1,21 @@
 (assert_invalid
   (component
     (type $t (instance))
-    (import "" (func (type $t)))
+    (import "a" (func (type $t)))
   )
   "type index 0 is not a function type")
 
 (assert_invalid
   (component
     (core type $t (func))
-    (import "" (core module (type $t)))
+    (import "a" (core module (type $t)))
   )
   "core type index 0 is not a module type")
 
 (assert_invalid
   (component
     (type $t (func))
-    (import "" (instance (type $t)))
+    (import "a" (instance (type $t)))
   )
   "type index 0 is not an instance type")
 
@@ -23,7 +23,7 @@
   (component
     (type $t (func))
     (type (component
-      (import "" (instance (type $t)))
+      (import "a" (instance (type $t)))
     ))
   )
   "type index 0 is not an instance type")
@@ -32,7 +32,7 @@
   (component
     (core type $t (func))
     (type (component
-      (import "" (core module (type $t)))
+      (import "a" (core module (type $t)))
     ))
   )
   "core type index 0 is not a module type")
@@ -41,27 +41,27 @@
   (component
     (type $t (instance))
     (type (component
-      (import "" (func (type $t)))
+      (import "a" (func (type $t)))
     ))
   )
   "type index 0 is not a function type")
 
 (assert_invalid
   (component
-    (export "" (core module 0))
+    (export "a" (core module 0))
   )
   "module index out of bounds")
 
 (assert_invalid
   (component
-    (export "" (instance 0))
+    (export "a" (instance 0))
   )
   "instance index out of bounds")
 
 (assert_invalid
   (component
     (core type (module
-      (export "" (func (type 0)))
+      (export "a" (func (type 0)))
     ))
   )
   "type index out of bounds")
@@ -69,11 +69,11 @@
 (assert_invalid
   (component
     (core type (module
-      (export "" (func))
-      (export "" (func))
+      (export "a" (func))
+      (export "a" (func))
     ))
   )
-  "export name `` already defined")
+  "export name `a` already defined")
 
 (assert_invalid
   (component
@@ -95,7 +95,7 @@
 (assert_invalid
   (component
     (type (component
-      (export "" (func (type 0)))
+      (export "a" (func (type 0)))
     ))
   )
   "type index out of bounds")
@@ -103,20 +103,20 @@
 (assert_invalid
   (component
     (type (component
-      (export "" (func))
-      (export "" (func))
+      (export "a" (func))
+      (export "A" (func))
     ))
   )
-  "export name `` already defined")
+  "export name `A` conflicts with previous export name `a`")
 
 (assert_invalid
   (component
     (type (component
-      (import "" (func))
-      (import "" (func))
+      (import "A" (func))
+      (import "a" (func))
     ))
   )
-  "duplicate import name")
+  "import name `a` conflicts with previous import name `A`")
 
 (assert_invalid
   (component $c
@@ -191,11 +191,11 @@
 (assert_invalid
   (component
     (type (instance
-      (export "" (func))
-      (export "" (func))
+      (export "foo-BAR-baz" (func))
+      (export "FOO-bar-BAZ" (func))
     ))
   )
-  "export name `` already defined")
+  "export name `FOO-bar-BAZ` conflicts with previous export name `foo-BAR-baz`")
 
 (assert_invalid
   (component $c
@@ -278,14 +278,14 @@
 (component
   (type (instance
     (type string)
-    (export "" (type (eq 0)))
+    (export "a" (type (eq 0)))
   ))
 )
 
 (component
   (type (component
     (type string)
-    (import "" (type (eq 0)))
-    (export "" (type (eq 0)))
+    (import "a" (type (eq 0)))
+    (export "a" (type (eq 0)))
   ))
 )

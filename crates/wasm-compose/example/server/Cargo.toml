@@ -9,6 +9,6 @@ async-std = { version = "1.12.0", features = ["attributes"] }
 clap = { version = "3.2.16", features = ["derive"] }
 driftwood = "0.0.6"
 tide = "0.16.0"
-wasmtime = { features = ["component-model"], git = "https://github.com/bytecodealliance/wasmtime", rev = "e45577e097b064797def3554468cffa5fdd443d3" }
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "b61e678", features = ["component-model"] }
 
 [workspace]

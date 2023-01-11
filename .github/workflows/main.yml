@@ -42,7 +42,6 @@ jobs:
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
     - run: cargo test --all
-    - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
     - run: cargo test -p wasmparser --benches
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
@@ -68,7 +67,8 @@ jobs:
     - name: Install Rust
       run: rustup update nightly && rustup default nightly
     - run: cargo install cargo-fuzz
-    - run: cargo fuzz build
+    - run: cargo fuzz build --dev -s none
+    - run: cargo fuzz build --dev --features wasmtime -s none
 
   check:
     runs-on: ubuntu-latest
@@ -86,6 +86,7 @@ jobs:
       - run: cargo check --no-default-features --features objdump
       - run: cargo check --no-default-features --features strip
       - run: cargo check --no-default-features --features compose
+      - run: cargo check --no-default-features --features demangle
 
   doc:
     runs-on: ubuntu-latest

@@ -1,25 +1,25 @@
 (component
-  (import "" (instance $i
-    (export "1" (core module))
-    (export "2" (func))
-    (export "3" (value string))
-    (export "4" (instance))
-    (export "5" (component))
+  (import "a" (instance $i
+    (export "a" (core module))
+    (export "b" (func))
+    (export "c" (value string))
+    (export "d" (instance))
+    (export "e" (component))
   ))
 
   (component $c
-    (import "1" (core module))
-    (import "2" (func))
-    (import "3" (value string))
-    (import "4" (instance))
-    (import "5" (component))
+    (import "a" (core module))
+    (import "b" (func))
+    (import "c" (value string))
+    (import "d" (instance))
+    (import "e" (component))
   )
 
   (instance (instantiate $c
-    (with "1" (core module $i "1"))
-    (with "2" (func $i "2"))
-    (with "3" (value $i "4"))
-    (with "4" (instance $i "3"))
-    (with "5" (component $i "5"))
+    (with "a" (core module $i "a"))
+    (with "b" (func $i "b"))
+    (with "c" (value $i "c"))
+    (with "d" (instance $i "d"))
+    (with "e" (component $i "e"))
   ))
 )

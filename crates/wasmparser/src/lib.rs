@@ -97,7 +97,7 @@
 ///     // `VisitOperator` trait that this corresponds to.
 ///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
 ///         $(
-///             fn $visit(&mut self, _offset: usize $($(,$arg: $argty)*)?) {
+///             fn $visit(&mut self $($(,$arg: $argty)*)?) {
 ///                 // do nothing for this example
 ///             }
 ///         )*
@@ -533,7 +533,7 @@ macro_rules! for_each_operator {
             @simd I8x16MinU => visit_i8x16_min_u
             @simd I8x16MaxS => visit_i8x16_max_s
             @simd I8x16MaxU => visit_i8x16_max_u
-            @simd I8x16RoundingAverageU => visit_i8x16_avgr_u
+            @simd I8x16AvgrU => visit_i8x16_avgr_u
             @simd I16x8ExtAddPairwiseI8x16S => visit_i16x8_extadd_pairwise_i8x16_s
             @simd I16x8ExtAddPairwiseI8x16U => visit_i16x8_extadd_pairwise_i8x16_u
             @simd I16x8Abs => visit_i16x8_abs
@@ -561,7 +561,7 @@ macro_rules! for_each_operator {
             @simd I16x8MinU => visit_i16x8_min_u
             @simd I16x8MaxS => visit_i16x8_max_s
             @simd I16x8MaxU => visit_i16x8_max_u
-            @simd I16x8RoundingAverageU => visit_i16x8_avgr_u
+            @simd I16x8AvgrU => visit_i16x8_avgr_u
             @simd I16x8ExtMulLowI8x16S => visit_i16x8_extmul_low_i8x16_s
             @simd I16x8ExtMulHighI8x16S => visit_i16x8_extmul_high_i8x16_s
             @simd I16x8ExtMulLowI8x16U => visit_i16x8_extmul_low_i8x16_u

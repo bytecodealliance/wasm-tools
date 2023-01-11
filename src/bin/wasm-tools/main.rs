@@ -2,10 +2,12 @@ use anyhow::Result;
 use clap::Parser;
 use std::io;
 use std::process::ExitCode;
-use wasm_tools::Verbosity;
 
 macro_rules! subcommands {
-    ($(($name:ident, $string:tt))*) => {
+    ($(
+        $(#[$attr:meta])*
+        ($name:ident, $string:tt)
+    )*) => {
         $(
             #[cfg(feature = $string)]
             mod $name;
@@ -17,13 +19,8 @@ macro_rules! subcommands {
         enum WasmTools {
             $(
                 #[cfg(feature = $string)]
-                $name {
-                    #[clap(flatten)]
-                    opts: $name::Opts,
-
-                    #[clap(flatten)]
-                    verbosity: Verbosity,
-                },
+                $(#[$attr])*
+                $name($name::Opts),
             )*
         }
 
@@ -32,10 +29,7 @@ macro_rules! subcommands {
                 match self {
                     $(
                         #[cfg(feature = $string)]
-                        Self::$name { opts, verbosity } => {
-                            verbosity.init_logger();
-                            opts.run()
-                        }
+                        Self::$name(opts) => opts.run(),
                     )*
                 }
             }
@@ -54,6 +48,9 @@ subcommands! {
     (objdump, "objdump")
     (strip, "strip")
     (compose, "compose")
+    (demangle, "demangle")
+    #[command(subcommand)]
+    (component, "component")
 }
 
 fn main() -> ExitCode {

@@ -1,0 +1,5 @@
+more than one default interface was defined
+     --> tests/ui/parse-fail/world-default3.wit:7:18
+      |
+    7 |   default export foo
+      |                  ^--

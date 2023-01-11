@@ -72,7 +72,7 @@ An instantiation has the following fields:
   arguments; argument names match the names of the imports of the dependency being
   instantiated.
 
-Note that the instantiation name `$component` is special and signifies how the input
+Note that the instantiation name `$input` is special and signifies how the input
 component is to be instantiated.
 
 ### Instantiation arguments
@@ -97,7 +97,7 @@ A slightly complex example of configuring instantiations:
 
 ```yaml
 instantiations:
-  $component:
+  $input:
     arguments:
       a: b
   b:
@@ -109,7 +109,7 @@ instantiations:
     dependency: f
 ```
 
-In the above example, the `$component` instantiation (i.e. the root instantiation) has explicitly
+In the above example, the `$input` instantiation (i.e. the root instantiation) has explicitly
 specified that the argument named `a` is to be provided instance `b`.
 
 It also defines an instantiation named `b` which is to be passed an instance export named `e`

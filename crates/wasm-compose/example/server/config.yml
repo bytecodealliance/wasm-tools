@@ -1,9 +1,7 @@
 search-paths:
-  - ../backend/target/wasm32-unknown-unknown/release
-  - ../middleware/target/wasm32-unknown-unknown/release
+  - ../service/target/wasm32-unknown-unknown/release
 
-# Remove the comments below to compose with the middleware component
-# instantiations:
-#   $component:
-#     arguments:
-#       backend: middleware
+instantiations:
+  $input:
+    arguments:
+      backend: svc

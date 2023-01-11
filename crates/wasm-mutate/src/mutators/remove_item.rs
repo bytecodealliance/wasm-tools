@@ -15,8 +15,8 @@ use std::collections::HashSet;
 use wasm_encoder::*;
 use wasmparser::{
     BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
-    ExternalKind, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    MemorySectionReader, Operator, SectionReader, TableSectionReader, TagSectionReader,
+    ExternalKind, FromReader, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
+    MemorySectionReader, Operator, SectionLimited, TableSectionReader, TagSectionReader,
     TypeSectionReader,
 };
 
@@ -359,22 +359,22 @@ impl RemoveItem {
     /// The `offset` provided is the initial offset in the index space, for
     /// example the global section starts at the offset equal to the number of
     /// imported globals because local globals are numbered afterwards.
-    fn filter_out<S, T>(
+    fn filter_out<'a, S, T>(
         &mut self,
         module: &mut Module,
         offset: u32,
-        mut section: S,
+        section: SectionLimited<'a, S>,
         section_item: Item,
-        encode: impl Fn(&mut Self, S::Item, &mut T) -> Result<()>,
+        encode: impl Fn(&mut Self, S, &mut T) -> Result<()>,
     ) -> Result<()>
     where
-        S: SectionReader,
+        S: FromReader<'a>,
         T: Default + Section,
     {
         let mut result = T::default();
         let mut index = offset;
-        while !section.eof() {
-            let item = section.read()?;
+        for item in section {
+            let item = item?;
             if index != self.idx || section_item != self.item {
                 encode(self, item, &mut result)?;
             }

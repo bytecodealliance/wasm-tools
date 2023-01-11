@@ -1,5 +1,8 @@
+use bindings::{
+    backend,
+    service::{Error, Request, Response, Service},
+};
 use flate2::{write::GzEncoder, Compression};
-use service::{Error, Request, Response, Service};
 use std::io::Write;
 
 struct Component;
@@ -50,4 +53,4 @@ impl Service for Component {
     }
 }
 
-service::export!(Component);
+bindings::export!(Component);

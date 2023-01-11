@@ -3,14 +3,14 @@
 use super::{
     check_max, combine_type_sizes,
     operators::{OperatorValidator, OperatorValidatorAllocations},
-    types::{EntityType, Type, TypeId, TypeList},
+    types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
+use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementItem, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType,
-    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources,
-    FUNC_REF,
+    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType, FUNC_REF,
+    Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType, TagType, TypeRef, ValType, VisitOperator,
+    WasmFeatures, WasmFuncType, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -171,15 +171,6 @@ impl ModuleState {
             self.module
                 .check_value_type(ValType::Ref(e.ty), features, types, offset)?;
         }
-        if let HeapType::TypedFunc(_) = e.ty.heap_type {
-            // nullable: "as long as the index is ok"
-            if !e.ty.nullable && e.items.get_items_reader()?.get_count() <= 0 {
-                return Err(BinaryReaderError::new(
-                    "a non-nullable element must come with an initialization expression",
-                    offset,
-                ));
-            }
-        }
         match e.kind {
             ElementKind::Active {
                 table_index,
@@ -210,20 +201,31 @@ impl ModuleState {
                 }
             }
         }
-        let mut items = e.items.get_items_reader()?;
-        if items.get_count() > MAX_WASM_TABLE_ENTRIES as u32 {
-            return Err(BinaryReaderError::new(
-                "number of elements is out of bounds",
-                offset,
-            ));
-        }
-        for _ in 0..items.get_count() {
-            let offset = items.original_position();
-            match items.read()? {
-                ElementItem::Expr(expr) => {
-                    self.check_const_expr(&expr, ValType::Ref(e.ty), features, types)?;
+
+        let validate_count = |count: u32| -> Result<(), BinaryReaderError> {
+            if count > MAX_WASM_TABLE_ENTRIES as u32 {
+                Err(BinaryReaderError::new(
+                    "number of elements is out of bounds",
+                    offset,
+                ))
+            } else {
+                Ok(())
+            }
+        };
+        match e.items {
+            crate::ElementItems::Functions(reader) => {
+                let count = reader.count();
+                if let HeapType::TypedFunc(_) = e.ty.heap_type {
+                    if !e.ty.nullable && count <= 0 {
+                        return Err(BinaryReaderError::new(
+                            "a non-nullable element must come with an initialization expression",
+                            offset,
+                        ));
+                    }
                 }
-                ElementItem::Func(f) => {
+                validate_count(count)?;
+                for f in reader.into_iter_with_offsets() {
+                    let (offset, f) = f?;
                     if e.ty != FUNC_REF {
                         return Err(BinaryReaderError::new(
                             "type mismatch: segment does not have funcref type",
@@ -234,8 +236,13 @@ impl ModuleState {
                     self.module.assert_mut().function_references.insert(f);
                 }
             }
+            crate::ElementItems::Expressions(reader) => {
+                validate_count(reader.count())?;
+                for expr in reader {
+                    self.check_const_expr(&expr?, ValType::Ref(e.ty), features, types)?;
+                }
+            }
         }
-
         self.module.assert_mut().element_types.push(e.ty);
         Ok(())
     }
@@ -248,6 +255,7 @@ impl ModuleState {
         types: &TypeList,
     ) -> Result<()> {
         let mut validator = VisitConstOperator {
+            offset: 0,
             order: self.order,
             uninserted_funcref: false,
             ops: OperatorValidator::new_const_expr(
@@ -263,7 +271,8 @@ impl ModuleState {
 
         let mut ops = expr.get_operators_reader();
         while !ops.eof() {
-            ops.visit_with_offset(&mut validator)??;
+            validator.offset = ops.original_position();
+            ops.visit_operator(&mut validator)??;
         }
         validator.ops.finish(ops.original_position())?;
 
@@ -275,6 +284,7 @@ impl ModuleState {
         return Ok(());
 
         struct VisitConstOperator<'a> {
+            offset: usize,
             uninserted_funcref: bool,
             ops: OperatorValidator,
             resources: OperatorValidatorResources<'a>,
@@ -283,33 +293,33 @@ impl ModuleState {
 
         impl VisitConstOperator<'_> {
             fn validator(&mut self) -> impl VisitOperator<'_, Output = Result<()>> {
-                self.ops.with_resources(&self.resources)
+                self.ops.with_resources(&self.resources, self.offset)
             }
 
-            fn validate_extended_const(&mut self, offset: usize) -> Result<()> {
+            fn validate_extended_const(&mut self) -> Result<()> {
                 if self.ops.features.extended_const {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
                         "constant expression required: non-constant operator",
-                        offset,
+                        self.offset,
                     ))
                 }
             }
 
-            fn validate_global(&mut self, offset: usize, index: u32) -> Result<()> {
+            fn validate_global(&mut self, index: u32) -> Result<()> {
                 let module = &self.resources.module;
-                let global = module.global_at(index, offset)?;
+                let global = module.global_at(index, self.offset)?;
                 if index >= module.num_imported_globals {
                     return Err(BinaryReaderError::new(
                         "constant expression required: global.get of locally defined global",
-                        offset,
+                        self.offset,
                     ));
                 }
                 if global.mutable {
                     return Err(BinaryReaderError::new(
                         "constant expression required: global.get of mutable global",
-                        offset,
+                        self.offset,
                     ));
                 }
                 Ok(())
@@ -349,79 +359,79 @@ impl ModuleState {
             ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
                 $(
                     #[allow(unused_variables)]
-                    fn $visit(&mut self, pos: usize $($(,$arg: $argty)*)?) -> Self::Output {
-                        define_visit_operator!(@visit self $visit pos $($($arg)*)?)
+                    fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
+                        define_visit_operator!(@visit self $visit $($($arg)*)?)
                     }
                 )*
             };
 
             // These are always valid in const expressions
-            (@visit $self:ident visit_i32_const $pos:ident $val:ident) => {{
-                $self.validator().visit_i32_const($pos, $val)
+            (@visit $self:ident visit_i32_const $val:ident) => {{
+                $self.validator().visit_i32_const($val)
             }};
-            (@visit $self:ident visit_i64_const $pos:ident $val:ident) => {{
-                $self.validator().visit_i64_const($pos, $val)
+            (@visit $self:ident visit_i64_const $val:ident) => {{
+                $self.validator().visit_i64_const($val)
             }};
-            (@visit $self:ident visit_f32_const $pos:ident $val:ident) => {{
-                $self.validator().visit_f32_const($pos, $val)
+            (@visit $self:ident visit_f32_const $val:ident) => {{
+                $self.validator().visit_f32_const($val)
             }};
-            (@visit $self:ident visit_f64_const $pos:ident $val:ident) => {{
-                $self.validator().visit_f64_const($pos, $val)
+            (@visit $self:ident visit_f64_const $val:ident) => {{
+                $self.validator().visit_f64_const($val)
             }};
-            (@visit $self:ident visit_v128_const $pos:ident $val:ident) => {{
-                $self.validator().visit_v128_const($pos, $val)
+            (@visit $self:ident visit_v128_const $val:ident) => {{
+                $self.validator().visit_v128_const($val)
             }};
-            (@visit $self:ident visit_ref_null $pos:ident $val:ident) => {{
-                $self.validator().visit_ref_null($pos, $val)
+            (@visit $self:ident visit_ref_null $val:ident) => {{
+                $self.validator().visit_ref_null($val)
             }};
-            (@visit $self:ident visit_end $pos:ident) => {{
-                $self.validator().visit_end($pos)
+            (@visit $self:ident visit_end) => {{
+                $self.validator().visit_end()
             }};
 
 
             // These are valid const expressions when the extended-const proposal is enabled.
-            (@visit $self:ident visit_i32_add $pos:ident) => {{
-                $self.validate_extended_const($pos)?;
-                $self.validator().visit_i32_add($pos)
+            (@visit $self:ident visit_i32_add) => {{
+                $self.validate_extended_const()?;
+                $self.validator().visit_i32_add()
             }};
-            (@visit $self:ident visit_i32_sub $pos:ident) => {{
-                $self.validate_extended_const($pos)?;
-                $self.validator().visit_i32_sub($pos)
+            (@visit $self:ident visit_i32_sub) => {{
+                $self.validate_extended_const()?;
+                $self.validator().visit_i32_sub()
             }};
-            (@visit $self:ident visit_i32_mul $pos:ident) => {{
-                $self.validate_extended_const($pos)?;
-                $self.validator().visit_i32_mul($pos)
+            (@visit $self:ident visit_i32_mul) => {{
+                $self.validate_extended_const()?;
+                $self.validator().visit_i32_mul()
             }};
-            (@visit $self:ident visit_i64_add $pos:ident) => {{
-                $self.validate_extended_const($pos)?;
-                $self.validator().visit_i64_add($pos)
+            (@visit $self:ident visit_i64_add) => {{
+                $self.validate_extended_const()?;
+                $self.validator().visit_i64_add()
             }};
-            (@visit $self:ident visit_i64_sub $pos:ident) => {{
-                $self.validate_extended_const($pos)?;
-                $self.validator().visit_i64_sub($pos)
+            (@visit $self:ident visit_i64_sub) => {{
+                $self.validate_extended_const()?;
+                $self.validator().visit_i64_sub()
             }};
-            (@visit $self:ident visit_i64_mul $pos:ident) => {{
-                $self.validate_extended_const($pos)?;
-                $self.validator().visit_i64_mul($pos)
+            (@visit $self:ident visit_i64_mul) => {{
+                $self.validate_extended_const()?;
+                $self.validator().visit_i64_mul()
             }};
 
             // `global.get` is a valid const expression for imported, immutable
             // globals.
-            (@visit $self:ident visit_global_get $pos:ident $idx:ident) => {{
-                $self.validate_global($pos, $idx)?;
-                $self.validator().visit_global_get($pos, $idx)
+            (@visit $self:ident visit_global_get $idx:ident) => {{
+                $self.validate_global($idx)?;
+                $self.validator().visit_global_get($idx)
             }};
             // `ref.func`, if it's in a `global` initializer, will insert into
             // the set of referenced functions so it's processed here.
-            (@visit $self:ident visit_ref_func $pos:ident $idx:ident) => {{
+            (@visit $self:ident visit_ref_func $idx:ident) => {{
                 $self.insert_ref_func($idx);
-                $self.validator().visit_ref_func($pos, $idx)
+                $self.validator().visit_ref_func($idx)
             }};
 
-            (@visit $self:ident $op:ident $pos:ident $($args:tt)*) => {{
+            (@visit $self:ident $op:ident $($args:tt)*) => {{
                 Err(BinaryReaderError::new(
                     "constant expression required: non-constant operator",
-                    $pos,
+                    $self.offset,
                 ))
             }}
         }
@@ -452,7 +462,7 @@ pub(crate) struct Module {
     pub function_references: HashSet<u32>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
-    pub type_size: usize,
+    pub type_size: u32,
     num_imported_globals: u32,
     num_imported_functions: u32,
 }
@@ -462,7 +472,7 @@ impl Module {
         &mut self,
         ty: crate::Type,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
@@ -485,13 +495,8 @@ impl Module {
             check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        self.types.push(TypeId {
-            type_size: ty.type_size(),
-            index: types.len(),
-            type_index: Some(self.types.len()),
-            is_core: true,
-        });
-        types.push(ty);
+        let id = types.push_defined(ty);
+        self.types.push(id);
         Ok(())
     }
 

@@ -33,7 +33,7 @@ use self::{
         lang::*,
     },
 };
-use super::{Mutator, OperatorAndByteOffset};
+use super::{DefaultTranslator, Mutator, OperatorAndByteOffset, Translator};
 use crate::{
     module::{map_type, PrimitiveTypeInfo},
     Error, ErrorKind, ModuleInfo, Result, WasmMutate,
@@ -124,22 +124,20 @@ impl PeepholeMutator {
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let code_section = config.info().get_code_section();
-        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
-        let function_count = sectionreader.get_count();
+        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+        let function_count = sectionreader.count();
         let mut function_to_mutate = config.rng().gen_range(0..function_count);
 
         let mut visited_functions = 0;
 
-        let readers = (0..function_count)
-            .map(|_| sectionreader.read().unwrap())
-            .collect::<Vec<_>>();
+        let readers = sectionreader.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         loop {
             if visited_functions == function_count {
                 return Err(Error::no_mutations_applicable());
             }
 
-            let reader = readers[function_to_mutate as usize];
+            let reader = readers[function_to_mutate as usize].clone();
             let mut operatorreader = reader.get_operators_reader()?;
             operatorreader.allow_memarg64(true);
             let mut localsreader = reader.get_locals_reader()?;
@@ -274,7 +272,7 @@ impl PeepholeMutator {
 
                         config.consume_fuel(1)?;
 
-                        let mut newfunc = self.copy_locals(reader)?;
+                        let mut newfunc = self.copy_locals(reader.clone())?;
                         let needed_resources = Encoder::build_function(
                             config,
                             opcode_to_mutate,
@@ -288,14 +286,14 @@ impl PeepholeMutator {
 
                         let mut codes = CodeSection::new();
                         let code_section = config.info().get_code_section();
-                        let mut sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+                        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
 
                         // this mutator is applicable to internal functions, so
                         // it starts by randomly selecting an index between
                         // the imported functions and the total count, total=imported + internal
-                        for fidx in 0..config.info().num_local_functions() {
-                            let reader = sectionreader.read()?;
-                            if fidx == function_to_mutate {
+                        for (fidx, func) in sectionreader.into_iter().enumerate() {
+                            let reader = func?;
+                            if fidx as u32 == function_to_mutate {
                                 codes.function(&newfunc);
                             } else {
                                 codes.raw(
@@ -312,17 +310,10 @@ impl PeepholeMutator {
                             // If the global section was already there, try to copy it to the
                             // new raw section
                             let global_section = config.info().get_global_section();
-                            let mut globalreader =
-                                GlobalSectionReader::new(global_section.data, 0)?;
-                            let count = globalreader.get_count();
-                            let mut start = globalreader.original_position();
+                            let globalreader = GlobalSectionReader::new(global_section.data, 0)?;
 
-                            for _ in 0..count {
-                                let _ = globalreader.read()?;
-                                let current_pos = globalreader.original_position();
-                                let global = &global_section.data[start..current_pos];
-                                new_global_section.raw(global);
-                                start = current_pos;
+                            for g in globalreader {
+                                DefaultTranslator.translate_global(g?, &mut new_global_section)?;
                             }
                         }
 
