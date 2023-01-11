@@ -157,12 +157,28 @@ pub struct EmbedOpts {
     /// `bar` names a world within that document.
     #[clap(short, long)]
     world: String,
+
+    /// Don't read a core wasm module as input, instead generating a "dummy"
+    /// module as a placeholder.
+    ///
+    /// This flag will generate a dummy core wasm module on the fly to match the
+    /// `WIT` argument provided. This dummy module will have the correct
+    /// imports/exports and the right signatures for the component model. This
+    /// can be useful to, perhaps, inspect a template module and what it looks
+    /// like to work with an interface in the component model.
+    #[clap(long)]
+    dummy: bool,
 }
 
 impl EmbedOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let mut wasm = self.io.parse_input_wasm()?;
+        let wasm = if self.dummy {
+            self.io.init_logger();
+            None
+        } else {
+            Some(self.io.parse_input_wasm()?)
+        };
         let (resolve, id) = parse_wit(&self.wit)?;
 
         let mut parts = self.world.split('/');
@@ -194,6 +210,7 @@ impl EmbedOpts {
             name: "component-type",
             data: &encoded,
         };
+        let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
         wasm.push(section.id());
         section.encode(&mut wasm);
 

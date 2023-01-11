@@ -31,7 +31,7 @@ fuzz_target!(|data: &[u8]| {
     let text_from_types_only = DocumentPrinter::default().print(&types_only_doc).unwrap();
     write_file("doc.types-only.wit", &text_from_types_only);
 
-    let dummy = test_helpers::dummy_module(&doc);
+    let dummy = dummy::dummy_module(&doc);
     write_file("doc.dummy.wasm", &dummy);
     let normal_binary = ComponentEncoder::default()
         .validate(true)

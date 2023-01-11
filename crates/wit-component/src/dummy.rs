@@ -1,6 +1,7 @@
 use wit_parser::abi::{AbiVariant, WasmType};
 use wit_parser::{Function, Resolve, WorldId, WorldItem};
 
+/// Generate a dummy implementation core Wasm module for a given WIT document
 pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
     let world = &resolve.worlds[world];
     let mut wat = String::new();
