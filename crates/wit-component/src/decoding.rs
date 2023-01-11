@@ -102,6 +102,7 @@ impl<'a> ComponentInfo<'a> {
             url_to_package: HashMap::default(),
             type_map: HashMap::new(),
             type_src_map: HashMap::new(),
+            url_to_interface: HashMap::new(),
         };
 
         for (doc, export) in self.exports.iter() {
@@ -174,6 +175,7 @@ struct WitPackageDecoder<'a> {
     info: &'a ComponentInfo<'a>,
     package: PackageId,
     url_to_package: HashMap<Url, PackageId>,
+    url_to_interface: HashMap<Url, InterfaceId>,
 
     /// A map from a type id to what it's been translated to.
     type_map: HashMap<types::TypeId, Type>,
@@ -227,10 +229,6 @@ impl WitPackageDecoder<'_> {
         assert!(prev.is_none());
 
         for (name, (url, ty)) in ty.exports.iter() {
-            if url.is_some() {
-                bail!("component type export `{name}` should not have a url")
-            }
-
             match ty {
                 types::ComponentEntityType::Instance(idx) => {
                     let ty = match self.info.types.type_from_id(*idx) {
@@ -244,6 +242,10 @@ impl WitPackageDecoder<'_> {
                         .interfaces
                         .insert(name.to_string(), id);
                     assert!(prev.is_none());
+                    if let Some(url) = url {
+                        let prev = self.url_to_interface.insert(url.clone(), id);
+                        assert!(prev.is_none());
+                    }
                 }
                 types::ComponentEntityType::Component(idx) => {
                     let ty = match self.info.types.type_from_id(*idx) {
@@ -372,32 +374,31 @@ impl WitPackageDecoder<'_> {
 
     fn extract_url_interface(&mut self, url: &Url) -> Result<InterfaceId> {
         Ok(if url.scheme() == "pkg" {
-            self.extract_pkg_interface(url)
-                .with_context(|| format!("failed to parse url: {url}"))?
+            self.url_to_interface
+                .get(url)
+                .copied()
+                .ok_or_else(|| anyhow!("no previously defined interface with url: {url}"))?
         } else {
             self.extract_dep_interface(url)
                 .with_context(|| format!("failed to parse url: {url}"))?
         })
     }
 
-    fn extract_pkg_interface(&self, url: &Url) -> Result<InterfaceId> {
-        let mut segments = url.path_segments().ok_or_else(|| anyhow!("invalid url"))?;
-        let document = segments.next().ok_or_else(|| anyhow!("invalid url"))?;
-        let interface = segments.next().ok_or_else(|| anyhow!("invalid url"))?;
-        if segments.next().is_some() {
-            bail!("invalid url")
-        }
-        let doc = *self.resolve.packages[self.package]
-            .documents
-            .get(document)
-            .ok_or_else(|| anyhow!("document `{document}` not previously defined"))?;
-        let doc = &self.resolve.documents[doc];
-        let interface = *doc.interfaces.get(interface).ok_or_else(|| {
-            anyhow!("interface `{interface}` not defined in document `{document}`")
-        })?;
-        Ok(interface)
-    }
-
+    /// TODO: Ideally this function should not need to exist.
+    ///
+    /// This function parses the `url` provided and requires it to have a
+    /// particular structure. That's not really great, however, since otherwise
+    /// there's no need to impose structure on the url field of imports/exports.
+    ///
+    /// Note that this is only used for foreign dependencies of which the binary
+    /// encoding does not currently reflect the package/document/interface
+    /// organization. Instead foreign dependencies simply have their interfaces
+    /// imported, and from this interface import we need to somehow translate
+    /// back into a package/document structure as well.
+    ///
+    /// Resolving this may require changing the binary format for components, or
+    /// otherwise encoding more pieces into the binary encoding of a WIT
+    /// document. In any case this is "good enough" for now hopefully.
     fn extract_dep_interface(&mut self, url: &Url) -> Result<InterfaceId> {
         // Extract the interface and the document from the url
         let mut segments = url.path_segments().ok_or_else(|| anyhow!("invalid url"))?;

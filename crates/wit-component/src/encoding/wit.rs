@@ -46,8 +46,9 @@ impl Encoder<'_> {
     fn run(&mut self) -> Result<()> {
         for (name, doc) in self.resolve.packages[self.package].documents.iter() {
             let ty = self.encode_document(*doc)?;
+            let url = format!("pkg:/{name}");
             self.component
-                .export(name, "", ComponentExportKind::Type, ty);
+                .export(name, &url, ComponentExportKind::Type, ty);
         }
         Ok(())
     }
@@ -101,12 +102,13 @@ impl Encoder<'_> {
         let doc = &self.resolve.documents[doc];
         for (name, interface) in doc.interfaces.iter() {
             let idx = encoder.encode_instance(*interface)?;
+            let url = format!("pkg:/{}/{name}", doc.name);
             encoder
                 .outer
-                .export(name, "", ComponentTypeRef::Instance(idx));
+                .export(name, &url, ComponentTypeRef::Instance(idx));
         }
 
-        for (_name, world) in doc.worlds.iter() {
+        for (name, world) in doc.worlds.iter() {
             let world = &self.resolve.worlds[*world];
             let mut component = InterfaceEncoder::new(self.resolve);
             for (name, import) in world.imports.iter() {
@@ -137,9 +139,10 @@ impl Encoder<'_> {
             }
             let idx = encoder.outer.type_count();
             encoder.outer.ty().component(&component.outer);
+            let url = format!("pkg:/{}/{name}", doc.name);
             encoder
                 .outer
-                .export(&world.name, "", ComponentTypeRef::Component(idx));
+                .export(&name, &url, ComponentTypeRef::Component(idx));
         }
 
         Ok(self.component.component_type(&encoder.outer))
