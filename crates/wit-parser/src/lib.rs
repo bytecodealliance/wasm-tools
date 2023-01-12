@@ -210,6 +210,12 @@ impl UnresolvedPackage {
         doc.source_map = map;
         Ok(doc)
     }
+
+    /// Returns an iterator over the list of source files that were read when
+    /// parsing this package.
+    pub fn source_files(&self) -> impl Iterator<Item = &Path> {
+        self.source_map.source_files()
+    }
 }
 
 /// Represents the result of parsing a wit document.

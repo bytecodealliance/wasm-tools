@@ -457,7 +457,7 @@ impl WitOpts {
 fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
     let mut resolve = Resolve::default();
     let id = if path.is_dir() {
-        resolve.push_dir(&path)?
+        resolve.push_dir(&path)?.0
     } else {
         let pkg = UnresolvedPackage::parse_file(&path)?;
         resolve.push(pkg, &Default::default())?

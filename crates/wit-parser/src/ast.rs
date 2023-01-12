@@ -1002,4 +1002,8 @@ impl SourceMap {
             (text.lines().count(), 0)
         }
     }
+
+    pub fn source_files(&self) -> impl Iterator<Item = &Path> {
+        self.sources.iter().map(|(_, path, _)| path.as_path())
+    }
 }

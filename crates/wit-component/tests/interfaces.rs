@@ -38,7 +38,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     println!("running test at {path:?}");
     let mut resolve = Resolve::new();
     let package = if is_dir {
-        resolve.push_dir(path)?
+        resolve.push_dir(path)?.0
     } else {
         resolve.push(UnresolvedPackage::parse_file(path)?, &Default::default())?
     };

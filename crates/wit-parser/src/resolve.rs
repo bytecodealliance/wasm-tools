@@ -69,7 +69,11 @@ impl Resolve {
     /// returned indicating that the dependency is not defined. All dependencies
     /// are listed in a flat namespace under `$path/deps` so they can refer to
     /// each other.
-    pub fn push_dir(&mut self, path: &Path) -> Result<PackageId> {
+    ///
+    /// This function returns the [`PackageId`] of the root parsed package at
+    /// `path`, along with a list of all paths that were consumed during parsing
+    /// for the root package and all dependency packages.
+    pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
         // Maintain a `to_parse` stack of packages that have yet to be parsed
         // along with an `enqueued` set of all the prior parsed packages and
         // packges enqueued to be parsed. These are then used to fill the
@@ -130,18 +134,20 @@ impl Resolve {
         // package, which is the one returned here.
         let mut package_ids = IndexMap::new();
         let mut last = None;
+        let mut files = Vec::new();
         for path in order {
             let pkg = packages.remove(path).unwrap();
             let mut deps = HashMap::new();
             for ((dep, _), (path, _span)) in pkg.foreign_deps.iter().zip(&pkg_deps[path]) {
                 deps.insert(dep.clone(), package_ids[&**path]);
             }
+            files.extend(pkg.source_files().map(|p| p.to_path_buf()));
             let pkgid = self.push(pkg, &deps)?;
             package_ids.insert(path, pkgid);
             last = Some(pkgid);
         }
 
-        return Ok(last.unwrap());
+        return Ok((last.unwrap(), files));
 
         fn visit<'a>(
             path: &'a Path,

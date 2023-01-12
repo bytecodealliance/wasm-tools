@@ -104,7 +104,7 @@ impl Runner<'_> {
     fn run(&mut self, test: &Path) -> Result<()> {
         let mut resolve = Resolve::new();
         let result = if test.is_dir() {
-            resolve.push_dir(test)
+            resolve.push_dir(test).map(|(id, _)| id)
         } else {
             UnresolvedPackage::parse_file(test).and_then(|p| resolve.push(p, &Default::default()))
         };
