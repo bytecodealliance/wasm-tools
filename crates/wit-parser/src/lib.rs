@@ -322,7 +322,7 @@ pub enum TypeDefKind {
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     World(WorldId),
