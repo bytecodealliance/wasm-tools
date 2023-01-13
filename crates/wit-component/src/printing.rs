@@ -18,7 +18,9 @@ impl DocumentPrinter {
             if Some(*id) == doc.default_interface {
                 self.output.push_str("default ");
             }
-            writeln!(&mut self.output, "interface {name} {{")?;
+            self.output.push_str("interface ");
+            self.print_name(name);
+            self.output.push_str(" {\n");
             self.print_interface(resolve, *id)?;
             writeln!(&mut self.output, "}}\n")?;
         }
@@ -28,7 +30,9 @@ impl DocumentPrinter {
                 self.output.push_str("default ");
             }
             let world = &resolve.worlds[*id];
-            writeln!(&mut self.output, "world {name} {{")?;
+            self.output.push_str("world ");
+            self.print_name(name);
+            self.output.push_str(" {\n");
             for (name, import) in world.imports.iter() {
                 self.print_world_item(resolve, name, import, docid, "import")?;
             }
@@ -83,9 +87,11 @@ impl DocumentPrinter {
                     write!(&mut self.output, ", ")?;
                 }
                 if my_name == other_name {
-                    write!(&mut self.output, "{my_name}")?;
+                    self.print_name(my_name);
                 } else {
-                    write!(&mut self.output, "{other_name} as {my_name}")?;
+                    self.print_name(other_name);
+                    self.output.push_str(" as ");
+                    self.print_name(my_name);
                 }
             }
             writeln!(&mut self.output, "}}")?;
@@ -100,7 +106,8 @@ impl DocumentPrinter {
             if i > 0 {
                 self.output.push_str("\n");
             }
-            write!(&mut self.output, "{name}: ")?;
+            self.print_name(name);
+            self.output.push_str(": ");
             self.print_function(resolve, func)?;
             self.output.push_str("\n");
         }
@@ -114,7 +121,8 @@ impl DocumentPrinter {
             if i > 0 {
                 self.output.push_str(", ");
             }
-            write!(&mut self.output, "{}: ", name)?;
+            self.print_name(name);
+            self.output.push_str(": ");
             self.print_type_name(resolve, ty)?;
         }
         self.output.push_str(")");
@@ -128,7 +136,8 @@ impl DocumentPrinter {
                         if i > 0 {
                             self.output.push_str(", ");
                         }
-                        write!(&mut self.output, "{name}: ")?;
+                        self.print_name(name);
+                        self.output.push_str(": ");
                         self.print_type_name(resolve, ty)?;
                     }
                     self.output.push_str(")");
@@ -150,7 +159,10 @@ impl DocumentPrinter {
         cur_doc: DocumentId,
         desc: &str,
     ) -> Result<()> {
-        write!(&mut self.output, "{desc} {name}: ")?;
+        self.output.push_str(desc);
+        self.output.push_str(" ");
+        self.print_name(name);
+        self.output.push_str(": ");
         match item {
             WorldItem::Interface(id) => {
                 if resolve.interfaces[*id].name.is_some() {
@@ -180,14 +192,18 @@ impl DocumentPrinter {
         let iface = &resolve.interfaces[interface];
         let iface_doc = &resolve.documents[iface.document];
         if iface.document == cur_doc {
-            write!(&mut self.output, "self")?;
+            self.output.push_str("self");
         } else if cur_pkg == iface_doc.package {
-            write!(&mut self.output, "pkg.{}", iface_doc.name)?;
+            self.output.push_str("pkg.");
+            self.print_name(&iface_doc.name);
         } else {
             let iface_pkg = &resolve.packages[iface_doc.package.unwrap()];
-            write!(&mut self.output, "{}.{}", iface_pkg.name, iface_doc.name)?;
+            self.print_name(&iface_pkg.name);
+            self.output.push_str(".");
+            self.print_name(&iface_doc.name);
         }
-        write!(&mut self.output, ".{}", iface.name.as_ref().unwrap())?;
+        self.output.push_str(".");
+        self.print_name(iface.name.as_ref().unwrap());
         Ok(())
     }
 
@@ -210,7 +226,7 @@ impl DocumentPrinter {
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
                 if let Some(name) = &ty.name {
-                    self.output.push_str(name);
+                    self.print_name(name);
                     return Ok(());
                 }
 
@@ -361,7 +377,9 @@ impl DocumentPrinter {
                     }
                     TypeDefKind::Type(inner) => match ty.name.as_deref() {
                         Some(name) => {
-                            write!(&mut self.output, "type {} = ", name)?;
+                            self.output.push_str("type ");
+                            self.print_name(name);
+                            self.output.push_str(" = ");
                             self.print_type_name(resolve, inner)?;
                             self.output.push_str("\n\n");
                         }
@@ -388,9 +406,12 @@ impl DocumentPrinter {
 
         match name {
             Some(name) => {
-                writeln!(&mut self.output, "record {} {{", name)?;
+                self.output.push_str("record ");
+                self.print_name(name);
+                self.output.push_str(" {\n");
                 for field in &record.fields {
-                    write!(&mut self.output, "{}: ", field.name)?;
+                    self.print_name(&field.name);
+                    self.output.push_str(": ");
                     self.declare_type(resolve, &field.ty)?;
                     self.print_type_name(resolve, &field.ty)?;
                     self.output.push_str(",\n");
@@ -413,7 +434,9 @@ impl DocumentPrinter {
         }
 
         if let Some(name) = name {
-            write!(&mut self.output, "type {} = ", name)?;
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = ");
             self.print_tuple_type(resolve, tuple)?;
             self.output.push_str("\n\n");
         }
@@ -423,9 +446,12 @@ impl DocumentPrinter {
     fn declare_flags(&mut self, name: Option<&str>, flags: &Flags) -> Result<()> {
         match name {
             Some(name) => {
-                writeln!(&mut self.output, "flags {} {{", name)?;
+                self.output.push_str("flags ");
+                self.print_name(name);
+                self.output.push_str(" {\n");
                 for flag in &flags.flags {
-                    writeln!(&mut self.output, "{},", flag.name)?;
+                    self.print_name(&flag.name);
+                    self.output.push_str(",\n");
                 }
                 self.output.push_str("}\n\n");
             }
@@ -450,9 +476,11 @@ impl DocumentPrinter {
             Some(name) => name,
             None => bail!("document has unnamed union type"),
         };
-        writeln!(&mut self.output, "variant {} {{", name)?;
+        self.output.push_str("variant ");
+        self.print_name(name);
+        self.output.push_str(" {\n");
         for case in &variant.cases {
-            write!(&mut self.output, "{}", case.name)?;
+            self.print_name(&case.name);
             if let Some(ty) = case.ty {
                 self.output.push_str("(");
                 self.print_type_name(resolve, &ty)?;
@@ -478,7 +506,9 @@ impl DocumentPrinter {
             Some(name) => name,
             None => bail!("document has unnamed union type"),
         };
-        writeln!(&mut self.output, "union {} {{", name)?;
+        self.output.push_str("union ");
+        self.print_name(name);
+        self.output.push_str(" {\n");
         for case in &union.cases {
             self.output.push_str("");
             self.print_type_name(resolve, &case.ty)?;
@@ -497,7 +527,9 @@ impl DocumentPrinter {
         self.declare_type(resolve, payload)?;
 
         if let Some(name) = name {
-            write!(&mut self.output, "type {} = ", name)?;
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = ");
             self.print_option_type(resolve, payload)?;
             self.output.push_str("\n\n");
         }
@@ -518,7 +550,9 @@ impl DocumentPrinter {
         }
 
         if let Some(name) = name {
-            write!(&mut self.output, "type {} = ", name)?;
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = ");
             self.print_result_type(resolve, result)?;
             self.output.push_str("\n\n");
         }
@@ -530,9 +564,12 @@ impl DocumentPrinter {
             Some(name) => name,
             None => bail!("document has unnamed enum type"),
         };
-        writeln!(&mut self.output, "enum {} {{", name)?;
+        self.output.push_str("enum ");
+        self.print_name(name);
+        self.output.push_str(" {\n");
         for case in &enum_.cases {
-            writeln!(&mut self.output, "{},", case.name)?;
+            self.print_name(&case.name);
+            self.output.push_str(",\n");
         }
         self.output.push_str("}\n\n");
         Ok(())
@@ -542,13 +579,33 @@ impl DocumentPrinter {
         self.declare_type(resolve, ty)?;
 
         if let Some(name) = name {
-            write!(&mut self.output, "type {} = list<", name)?;
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = list<");
             self.print_type_name(resolve, ty)?;
             self.output.push_str(">\n\n");
             return Ok(());
         }
 
         Ok(())
+    }
+
+    fn print_name(&mut self, name: &str) {
+        if is_keyword(name) {
+            self.output.push_str("%");
+        }
+        self.output.push_str(name);
+    }
+}
+
+fn is_keyword(name: &str) -> bool {
+    match name {
+        "use" | "type" | "func" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64"
+        | "float32" | "float64" | "char" | "record" | "flags" | "variant" | "enum" | "union"
+        | "bool" | "string" | "option" | "result" | "future" | "stream" | "list" | "_" | "as"
+        | "from" | "static" | "interface" | "tuple" | "implements" | "world" | "import"
+        | "export" | "default" | "pkg" | "self" => true,
+        _ => false,
     }
 }
 
