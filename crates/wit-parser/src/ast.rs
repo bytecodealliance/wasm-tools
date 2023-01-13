@@ -1,5 +1,5 @@
-use crate::Error;
-use anyhow::{bail, Result};
+use crate::{Error, UnresolvedPackage};
+use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use std::borrow::Cow;
 use std::convert::TryFrom;
@@ -849,22 +849,68 @@ fn err_expected(
     }
 }
 
+/// A listing of source files which are used to get parsed into an
+/// [`UnresolvedPackage`].
 #[derive(Clone, Default)]
 pub struct SourceMap {
-    sources: Vec<(u32, PathBuf, String)>,
+    sources: Vec<Source>,
     offset: u32,
 }
 
+#[derive(Clone)]
+struct Source {
+    offset: u32,
+    path: PathBuf,
+    name: String,
+    contents: String,
+}
+
 impl SourceMap {
-    pub fn push(&mut self, path: &Path, contents: impl Into<String>) {
+    /// Creates a new empty source map.
+    pub fn new() -> SourceMap {
+        SourceMap::default()
+    }
+
+    /// Reads the file `path` on the filesystem and appends its contents to this
+    /// [`SourceMap`].
+    ///
+    /// This method pushes a new document into the source map. The name of the
+    /// document is derived from the filename of the `path` provided.
+    pub fn push_file(&mut self, path: &Path) -> Result<()> {
+        let contents = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read file {path:?}"))?;
+        let filename = match path.file_name().and_then(|s| s.to_str()) {
+            Some(stem) => stem,
+            None => bail!("no filename for {path:?}"),
+        };
+        let name = match filename.find('.') {
+            Some(i) => &filename[..i],
+            None => filename,
+        };
+        self.push(path, name, contents);
+        Ok(())
+    }
+
+    /// Appends the given contents with the given path into this source map.
+    ///
+    /// Each path added to a [`SourceMap`] will become a document in the final
+    /// package. The `path` provided is not read from the filesystem and is
+    /// instead only used during error messages. The `name` provided is the name
+    /// of the document within the WIT package and must be a valid WIT
+    /// identifier.
+    pub fn push(&mut self, path: &Path, name: &str, contents: impl Into<String>) {
         let mut contents = contents.into();
         if path.extension().and_then(|s| s.to_str()) == Some("md") {
             log::debug!("automatically unwrapping markdown container");
             contents = unwrap_md(&contents);
         }
         let new_offset = self.offset + u32::try_from(contents.len()).unwrap();
-        self.sources
-            .push((self.offset, path.to_path_buf(), contents));
+        self.sources.push(Source {
+            offset: self.offset,
+            path: path.to_path_buf(),
+            contents,
+            name: name.to_string(),
+        });
         self.offset = new_offset;
 
         fn unwrap_md(contents: &str) -> String {
@@ -905,17 +951,30 @@ impl SourceMap {
         }
     }
 
-    pub fn tokenizers(&self) -> impl Iterator<Item = Result<(&Path, Tokenizer<'_>)>> {
-        let mut srcs = self
-            .sources
-            .iter()
-            .map(|(offset, path, contents)| Tokenizer::new(contents, *offset).map(|t| (&**path, t)))
-            .collect::<Vec<_>>();
-        srcs.sort_by_key(|file| file.as_ref().ok().map(|(path, _)| path.to_path_buf()));
-        srcs.into_iter()
+    /// Parses the files added to this source map into an [`UnresolvedPackage`].
+    ///
+    /// All files previously added are considered documents of the package to be
+    /// returned.
+    pub fn parse(self, name: &str, url: Option<&str>) -> Result<UnresolvedPackage> {
+        let mut doc = self.rewrite_error(|| {
+            let mut resolver = Resolver::default();
+            let mut srcs = self.sources.iter().collect::<Vec<_>>();
+            srcs.sort_by_key(|src| &src.name);
+            for src in srcs {
+                let mut tokens = Tokenizer::new(&src.contents, src.offset)
+                    .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
+                let ast = Ast::parse(&mut tokens)?;
+                resolver.push(&src.name, ast).with_context(|| {
+                    format!("failed to start resolving path: {}", src.path.display())
+                })?;
+            }
+            resolver.resolve(name, url)
+        })?;
+        doc.source_map = self;
+        Ok(doc)
     }
 
-    pub fn rewrite_error<F, T>(&self, f: F) -> Result<T>
+    pub(crate) fn rewrite_error<F, T>(&self, f: F) -> Result<T>
     where
         F: FnOnce() -> Result<T>,
     {
@@ -954,18 +1013,15 @@ impl SourceMap {
     }
 
     fn highlight_err(&self, start: u32, end: Option<u32>, err: impl fmt::Display) -> String {
-        let i = match self
-            .sources
-            .binary_search_by_key(&start, |(offset, _, _)| *offset)
-        {
+        let i = match self.sources.binary_search_by_key(&start, |src| src.offset) {
             Ok(i) => i,
             Err(i) => i - 1,
         };
-        let (offset, file, contents) = &self.sources[i];
-        let start = usize::try_from(start - *offset).unwrap();
-        let end = end.map(|end| usize::try_from(end - *offset).unwrap());
-        let (line, col) = linecol_in(start, contents);
-        let snippet = contents.lines().nth(line).unwrap_or("");
+        let src = &self.sources[i];
+        let start = usize::try_from(start - src.offset).unwrap();
+        let end = end.map(|end| usize::try_from(end - src.offset).unwrap());
+        let (line, col) = linecol_in(start, &src.contents);
+        let snippet = src.contents.lines().nth(line).unwrap_or("");
         let mut msg = format!(
             "\
 {err}
@@ -974,13 +1030,13 @@ impl SourceMap {
  {line:4} | {snippet}
       | {marker:>0$}",
             col + 1,
-            file = file.display(),
+            file = src.path.display(),
             line = line + 1,
             col = col + 1,
             marker = "^",
         );
         if let Some(end) = end {
-            if let Some(s) = contents.get(start..end) {
+            if let Some(s) = src.contents.get(start..end) {
                 for _ in s.chars().skip(1) {
                     msg.push('-');
                 }
@@ -1003,7 +1059,8 @@ impl SourceMap {
         }
     }
 
+    /// Returns an iterator over all filenames added to this source map.
     pub fn source_files(&self) -> impl Iterator<Item = &Path> {
-        self.sources.iter().map(|(_, path, _)| path.as_path())
+        self.sources.iter().map(|src| src.path.as_path())
     }
 }

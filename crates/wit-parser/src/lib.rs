@@ -7,7 +7,8 @@ use std::path::Path;
 
 pub mod abi;
 mod ast;
-use ast::{lex::Span, Ast, Resolver, SourceMap};
+use ast::lex::Span;
+pub use ast::SourceMap;
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -130,11 +131,15 @@ impl UnresolvedPackage {
     pub fn parse(path: &Path, contents: &str) -> Result<Self> {
         let mut map = SourceMap::default();
         let name = path
-            .file_stem()
+            .file_name()
             .and_then(|s| s.to_str())
             .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
-        map.push(path, contents);
-        Self::_parse(name, None, map)
+        let name = match name.find('.') {
+            Some(i) => &name[..i],
+            None => name,
+        };
+        map.push(path, name, contents);
+        map.parse(name, None)
     }
 
     /// Parse a WIT package at the provided path.
@@ -190,25 +195,9 @@ impl UnresolvedPackage {
             if !filename.ends_with(".wit") && !filename.ends_with(".wit.md") {
                 continue;
             }
-            let contents = std::fs::read_to_string(&path)
-                .with_context(|| format!("failed to read file {path:?}"))?;
-            map.push(&path, contents);
+            map.push_file(&path)?;
         }
-        Self::_parse(name, None, map)
-    }
-
-    fn _parse(name: &str, url: Option<&str>, map: SourceMap) -> Result<Self> {
-        let mut doc = map.rewrite_error(|| {
-            let mut resolver = Resolver::default();
-            for file in map.tokenizers() {
-                let (path, mut tokens) = file?;
-                let ast = Ast::parse(&mut tokens)?;
-                resolver.push(path, ast)?;
-            }
-            resolver.resolve(name, url)
-        })?;
-        doc.source_map = map;
-        Ok(doc)
+        map.parse(name, None)
     }
 
     /// Returns an iterator over the list of source files that were read when

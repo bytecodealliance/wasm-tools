@@ -1,7 +1,7 @@
 use super::{Error, ParamList, ResultList, ValueKind};
 use crate::ast::toposort::toposort;
 use crate::*;
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::mem;
@@ -54,21 +54,14 @@ enum Key {
 }
 
 impl<'a> Resolver<'a> {
-    pub(crate) fn push(&mut self, path: &'a Path, ast: ast::Ast<'a>) -> Result<()> {
-        let filename = match path.file_name().and_then(|s| s.to_str()) {
-            Some(stem) => stem,
-            None => bail!("no filename for {path:?}"),
-        };
-        let name = match filename.find('.') {
-            Some(i) => &filename[..i],
-            None => filename,
-        };
-        crate::validate_id(name).map_err(|e| {
-            anyhow::anyhow!(
-                "filename was not a valid WIT identifier for {}: {e}",
-                path.display()
-            )
-        })?;
+    pub(crate) fn push(&mut self, name: &'a str, ast: ast::Ast<'a>) -> Result<()> {
+        // Note that this specifically uses `map_err` instead of `with_context`
+        // since the error returned from `validate_id` is an `Error` which has a
+        // filename and a line number, but there's no filename or line number
+        // associated with this error so we just want the string message.
+        crate::validate_id(name)
+            .map_err(|e| anyhow!("name of document isn't a valid WIT identifier `{name}`: {e}"))?;
+
         let prev = self.asts.insert(name, ast);
         if prev.is_some() {
             bail!("document `{name}` defined twice");
