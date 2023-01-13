@@ -211,7 +211,7 @@ impl ComponentState {
     pub fn add_import(
         &mut self,
         import: crate::ComponentImport,
-        types: &TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let entity = self.check_type_ref(&import.ty, types, offset)?;
@@ -270,8 +270,8 @@ impl ComponentState {
                 self.values.push((ty, value_used));
                 (self.values.len(), MAX_WASM_VALUES, "values")
             }
-            ComponentEntityType::Type(id) => {
-                self.types.push(id);
+            ComponentEntityType::Type { created, .. } => {
+                self.types.push(created);
                 (self.types.len(), MAX_WASM_TYPES, "types")
             }
         };
@@ -284,20 +284,12 @@ impl ComponentState {
         &mut self,
         name: &str,
         url: &str,
-        mut ty: ComponentEntityType,
+        ty: ComponentEntityType,
         offset: usize,
         check_limit: bool,
-        types: &mut TypeAlloc,
     ) -> Result<()> {
         if check_limit {
             check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
-        }
-        // Assign a unique index to this type id as it gets pushed onto the
-        // internal type list because this is creating an alias and this TypeId
-        // should uniquely indicate that it's a distinct reference to the same
-        // underlying actual type information.
-        if let ComponentEntityType::Type(id) = &mut ty {
-            *id = types.with_unique(*id);
         }
         self.add_entity(ty, true, offset)?;
 
@@ -662,10 +654,10 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn check_type_ref(
+    fn check_type_ref(
         &self,
         ty: &ComponentTypeRef,
-        types: &TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
         Ok(match ty {
@@ -693,7 +685,12 @@ impl ComponentState {
                 ComponentEntityType::Value(ty)
             }
             ComponentTypeRef::Type(TypeBounds::Eq, index) => {
-                ComponentEntityType::Type(self.type_at(*index, false, offset)?)
+                let referenced = self.type_at(*index, false, offset)?;
+                let created = types.with_unique(referenced);
+                ComponentEntityType::Type {
+                    referenced,
+                    created,
+                }
             }
             ComponentTypeRef::Instance(index) => {
                 let id = self.type_at(*index, false, offset)?;
@@ -715,6 +712,7 @@ impl ComponentState {
     pub fn export_to_entity_type(
         &mut self,
         export: &crate::ComponentExport,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
         Ok(match export.kind {
@@ -728,7 +726,12 @@ impl ComponentState {
                 ComponentEntityType::Value(*self.value_at(export.index, offset)?)
             }
             ComponentExternalKind::Type => {
-                ComponentEntityType::Type(self.type_at(export.index, false, offset)?)
+                let referenced = self.type_at(export.index, false, offset)?;
+                let created = types.with_unique(referenced);
+                ComponentEntityType::Type {
+                    referenced,
+                    created,
+                }
             }
             ComponentExternalKind::Instance => {
                 ComponentEntityType::Instance(self.instance_at(export.index, offset)?)
@@ -817,7 +820,7 @@ impl ComponentState {
                 crate::ComponentTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, offset, true, types)?;
+                    current.add_export(name, url, ty, offset, true)?;
                 }
                 crate::ComponentTypeDeclaration::Import(import) => {
                     components
@@ -860,7 +863,7 @@ impl ComponentState {
                 crate::InstanceTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, offset, true, types)?;
+                    current.add_export(name, url, ty, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Alias(alias) => {
                     Self::add_alias(components, alias, types, offset)?;
@@ -1250,9 +1253,18 @@ impl ComponentState {
                     )?;
                 }
                 ComponentExternalKind::Type => {
+                    let ty = self.type_at(export.index, false, offset)?;
                     insert_export(
                         export.name,
-                        ComponentEntityType::Type(self.type_at(export.index, false, offset)?),
+                        ComponentEntityType::Type {
+                            referenced: ty,
+                            // The created type index here isn't used anywhere
+                            // in index spaces because a "bag of exports"
+                            // doesn't build up its own index spaces. Just fill
+                            // in the same index here in this case as what's
+                            // referenced.
+                            created: ty,
+                        },
                         &mut inst_exports,
                         &mut type_size,
                         offset,
@@ -1501,8 +1513,8 @@ impl ComponentState {
             ComponentExternalKind::Type => {
                 check_max(self.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
                 match self.instance_export(instance_index, name, types, offset)? {
-                    ComponentEntityType::Type(ty) => {
-                        let id = types.with_unique(*ty);
+                    ComponentEntityType::Type { referenced, .. } => {
+                        let id = types.with_unique(*referenced);
                         self.types.push(id);
                         Ok(())
                     }

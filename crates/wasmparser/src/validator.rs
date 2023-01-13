@@ -1171,14 +1171,13 @@ impl Validator {
             },
             |components, types, _, export, offset| {
                 let current = components.last_mut().unwrap();
-                let ty = current.export_to_entity_type(&export, offset)?;
+                let ty = current.export_to_entity_type(&export, types, offset)?;
                 current.add_export(
                     export.name,
                     export.url,
                     ty,
                     offset,
                     false, /* checked above */
-                    types,
                 )
             },
         )

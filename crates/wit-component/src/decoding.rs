@@ -377,8 +377,11 @@ impl WitPackageDecoder<'_> {
             }
 
             match ty {
-                types::ComponentEntityType::Type(ty) => {
-                    let def = match self.info.types.type_from_id(ty) {
+                types::ComponentEntityType::Type {
+                    referenced,
+                    created,
+                } => {
+                    let def = match self.info.types.type_from_id(referenced) {
                         Some(types::Type::Defined(ty)) => ty,
                         _ => unreachable!(),
                     };
@@ -430,7 +433,7 @@ impl WitPackageDecoder<'_> {
                     // Register the `types::TypeId` with our resolve `TypeId`
                     // for ensuring type information remains correct throughout
                     // decoding.
-                    let prev = self.type_map.insert(ty, Type::Id(id));
+                    let prev = self.type_map.insert(created, Type::Id(id));
                     assert!(prev.is_none());
                     self.type_src_map
                         .entry(PtrHash(def))
@@ -566,17 +569,32 @@ impl WitPackageDecoder<'_> {
             }
 
             match ty {
-                types::ComponentEntityType::Type(id) => {
-                    let ty = match self.info.types.type_from_id(id) {
+                types::ComponentEntityType::Type {
+                    referenced,
+                    created,
+                } => {
+                    let ty = match self.info.types.type_from_id(referenced) {
                         Some(types::Type::Defined(ty)) => ty,
                         _ => unreachable!(),
                     };
                     let key = PtrHash(ty);
-                    let (kind, insert_src) = match self.type_src_map.get(&key) {
+
+                    // Note that first the `type_map` is consulted for the
+                    // referenced type id here, meaning if this is a reexport of
+                    // another type in this interface then we're guaranteed to
+                    // get that precise link.
+                    //
+                    // Failing that, though, the `type_src_map` is consulted to
+                    // find the item, if present, from an alias of an import or
+                    // other export, representing a cross-interface `use`.
+                    let (kind, insert_src) = match self
+                        .type_map
+                        .get(&referenced)
+                        .or_else(|| self.type_src_map.get(&key))
+                    {
                         // If this `TypeId` points to a type which has
-                        // previously been defined then a second `TypeId`
-                        // pointing at it is indicative of an alias. Inject the
-                        // alias here.
+                        // previously been defined, meaning we're aliasing a
+                        // prior definition.
                         Some(prev) => (TypeDefKind::Type(*prev), false),
 
                         // ... or this `TypeId`'s source definition has never
@@ -596,9 +614,10 @@ impl WitPackageDecoder<'_> {
                     });
 
                     if insert_src {
-                        self.type_src_map.insert(key, Type::Id(ty));
+                        let prev = self.type_src_map.insert(key, Type::Id(ty));
+                        assert!(prev.is_none());
                     }
-                    let prev = self.type_map.insert(id, Type::Id(ty));
+                    let prev = self.type_map.insert(created, Type::Id(ty));
                     assert!(prev.is_none());
                     let prev = interface.types.insert(name.to_string(), ty);
                     assert!(prev.is_none());

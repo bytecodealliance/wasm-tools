@@ -21,7 +21,7 @@ pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
         ComponentEntityType::Module(_) => "module",
         ComponentEntityType::Func(_) => "function",
         ComponentEntityType::Value(_) => "value",
-        ComponentEntityType::Type(_) => "type",
+        ComponentEntityType::Type { .. } => "type",
         ComponentEntityType::Component(_) => "component",
     }
 }
