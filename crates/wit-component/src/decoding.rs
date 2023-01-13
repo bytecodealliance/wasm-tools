@@ -707,7 +707,7 @@ impl WitPackageDecoder<'_> {
             .iter()
             .map(|(name, ty)| Ok((name.to_string(), self.convert_valtype(ty)?)))
             .collect::<Result<Vec<_>>>()?;
-        let results = if ty.results.len() == 1 {
+        let results = if ty.results.len() == 1 && ty.results[0].0.is_none() {
             Results::Anon(self.convert_valtype(&ty.results[0].1)?)
         } else {
             Results::Named(

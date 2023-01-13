@@ -122,10 +122,6 @@ impl DocumentPrinter {
         match &func.results {
             Results::Named(rs) => match rs.len() {
                 0 => (),
-                1 => {
-                    self.output.push_str(" -> ");
-                    self.print_type_name(resolve, &rs[0].1)?;
-                }
                 _ => {
                     self.output.push_str(" -> (");
                     for (i, (name, ty)) in rs.iter().enumerate() {
