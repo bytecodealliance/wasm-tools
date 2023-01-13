@@ -16,9 +16,7 @@
 //! per-language-binding-generation and consumed by slurping up all the
 //! sections during the component creation process.
 //!
-//! The custom section here contains `World`, the interpretation of a "world"
-//! of a component, along with how strings are encoded for all the specified
-//! interfaces. Currently the encoding is:
+//! Currently the encoding of this custom section is:
 //!
 //! * First, a version byte (`CURRENT_VERSION`). This is intended to detect
 //!   mismatches between different versions of the binding generator and
@@ -26,8 +24,13 @@
 //!
 //! * Next a string encoding byte.
 //!
-//! * Afterwards a "types only" component encoding of a `World`
-//!   package through the `ComponentEncoder::types_only` configuration.
+//! * Next, three strings are encoded. These are the names of the root package,
+//!   document, and world that the bindings were generated for. These strings
+//!   are used as lookups into the next field.
+//!
+//! * Finally the Wasm-encoded representation of a `Resolve` is included in its
+//!   binary form. This is the encoding of a package into wasm, and the bound
+//!   world for the bindings is specified from the prior strings.
 
 use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};

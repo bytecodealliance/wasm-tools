@@ -432,9 +432,9 @@ impl WitPackageDecoder<'_> {
                     // decoding.
                     let prev = self.type_map.insert(ty, Type::Id(id));
                     assert!(prev.is_none());
-                    if !self.type_src_map.contains_key(&PtrHash(def)) {
-                        self.type_src_map.insert(PtrHash(def), Type::Id(id));
-                    }
+                    self.type_src_map
+                        .entry(PtrHash(def))
+                        .or_insert(Type::Id(id));
                 }
 
                 // This has similar logic to types above where we lazily fill in
@@ -666,7 +666,7 @@ impl WitPackageDecoder<'_> {
                     WorldItem::Function(func)
                 }
 
-                _ => bail!("component import `{name}` is not an instance"),
+                _ => bail!("component import `{name}` is not an instance or function"),
             };
             world.imports.insert(name.to_string(), item);
         }
@@ -694,7 +694,7 @@ impl WitPackageDecoder<'_> {
                     WorldItem::Function(func)
                 }
 
-                _ => bail!("component export `{name}` is not an instance"),
+                _ => bail!("component export `{name}` is not an instance or function"),
             };
             world.exports.insert(name.to_string(), item);
         }
