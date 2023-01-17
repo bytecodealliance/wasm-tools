@@ -551,6 +551,10 @@ mod generate {
             }
 
             *size += 1;
+            if *size >= MAX_SIZE {
+                dst.push_str("bool");
+                return Ok(());
+            }
             loop {
                 break match u.arbitrary()? {
                     Kind::Bool => dst.push_str("bool"),
