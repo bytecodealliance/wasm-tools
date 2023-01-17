@@ -496,22 +496,40 @@ impl Remap {
         // First, connect all references to foreign documents to actual
         // documents within `resolve`, building up the initial entries of
         // the `self.documents` mapping.
+        let mut document_to_package = HashMap::new();
         for (i, (pkg, docs)) in unresolved.foreign_deps.iter().enumerate() {
+            for (doc, unresolved_doc_id) in docs {
+                let prev = document_to_package.insert(
+                    *unresolved_doc_id,
+                    (pkg, doc, unresolved.foreign_dep_spans[i]),
+                );
+                assert!(prev.is_none());
+            }
+        }
+        for (unresolved_doc_id, _doc) in unresolved.documents.iter() {
+            let (pkg, doc, span) = match document_to_package.get(&unresolved_doc_id) {
+                Some(items) => *items,
+                None => break,
+            };
             let pkgid = *deps.get(pkg).ok_or_else(|| Error {
-                span: unresolved.foreign_dep_spans[i],
+                span,
                 msg: format!("no package dependency specified for `{pkg}`"),
             })?;
             let package = &resolve.packages[pkgid];
-            for (doc, unresolved_doc_id) in docs {
-                let span = unresolved.document_spans[unresolved_doc_id.index()];
-                let docid = *package.documents.get(doc).ok_or_else(|| Error {
-                    span,
-                    msg: format!("package `{pkg}` does not define document `{doc}`"),
-                })?;
 
-                assert_eq!(self.documents.len(), unresolved_doc_id.index());
-                self.documents.push(docid);
-            }
+            let docid = *package.documents.get(doc).ok_or_else(|| Error {
+                span: unresolved.document_spans[unresolved_doc_id.index()],
+                msg: format!("package `{pkg}` does not define document `{doc}`"),
+            })?;
+
+            assert_eq!(self.documents.len(), unresolved_doc_id.index());
+            self.documents.push(docid);
+        }
+        for (id, _) in unresolved.documents.iter().skip(self.documents.len()) {
+            assert!(
+                document_to_package.get(&id).is_none(),
+                "found foreign document after local documents"
+            );
         }
 
         // Next, for all documents that are referenced in this `Resolve`
@@ -544,6 +562,12 @@ impl Remap {
             self.interfaces.push(iface_id);
         }
 
+        for (_, iface) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
+            if self.documents.get(iface.document.index()).is_some() {
+                panic!("found foreign interface after local interfaces");
+            }
+        }
+
         // And finally iterate over all foreign-defined types and determine
         // what they map to.
         for (unresolved_type_id, unresolved_ty) in unresolved.types.iter() {
@@ -570,6 +594,12 @@ impl Remap {
                 })?;
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);
+        }
+
+        for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
+            if let TypeDefKind::Unknown = ty.kind {
+                panic!("unknown type after defined type");
+            }
         }
 
         Ok(())
