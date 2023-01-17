@@ -105,6 +105,11 @@ mod generate {
     use wit_parser::*;
 
     const MAX_PARTS: usize = 5;
+    const MAX_PACKAGES: usize = 10;
+    const MAX_DOCUMENTS: usize = 10;
+    const MAX_DOC_ITEMS: usize = 10;
+    const MAX_WORLD_ITEMS: usize = 10;
+    const MAX_INTERFACE_ITEMS: usize = 10;
 
     #[derive(Default)]
     struct Generator {
@@ -138,7 +143,7 @@ mod generate {
         fn gen(&mut self, u: &mut Unstructured<'_>) -> Result<Vec<Package>> {
             let mut packages = Vec::new();
             let mut names = HashSet::new();
-            while packages.len() < 10 && (packages.is_empty() || u.arbitrary()?) {
+            while packages.len() < MAX_PACKAGES && (packages.is_empty() || u.arbitrary()?) {
                 let name = gen_unique_name(u, &mut names)?;
                 let (sources, documents) = self.gen_package(&name, u)?;
                 self.packages.push((name.clone(), documents));
@@ -156,7 +161,7 @@ mod generate {
             let mut count = 0;
             let mut names = HashSet::new();
 
-            while self.documents.len() < 10 && (count == 0 || u.arbitrary()?) {
+            while self.documents.len() < MAX_DOCUMENTS && (count == 0 || u.arbitrary()?) {
                 let name = gen_unique_name(u, &mut names)?;
                 let (doc, interfaces) = self.gen_document(u)?;
                 super::write_file(format!("orig-{pkg}-{name}.wit").as_ref(), &doc);
@@ -180,7 +185,7 @@ mod generate {
             let mut has_default_interface = false;
             let mut has_default_world = false;
             let mut names = HashSet::new();
-            while pieces.len() < 10 && !u.is_empty() {
+            while pieces.len() < MAX_DOC_ITEMS && !u.is_empty() {
                 let name = gen_unique_name(u, &mut names)?;
                 match u.arbitrary()? {
                     Generate::World => {
@@ -241,7 +246,7 @@ mod generate {
             let mut imported_interfaces = HashSet::new();
             let mut exported_interfaces = HashSet::new();
 
-            while parts.len() < 10 && !u.is_empty() && u.arbitrary()? {
+            while parts.len() < MAX_WORLD_ITEMS && !u.is_empty() && u.arbitrary()? {
                 let mut part = String::new();
                 let (desc, names, interfaces) = match u.arbitrary()? {
                     Direction::Import => ("import", &mut imports, &mut imported_interfaces),
@@ -385,7 +390,7 @@ mod generate {
             }
 
             let mut parts = Vec::new();
-            while parts.len() < 20 && u.arbitrary()? {
+            while parts.len() < MAX_INTERFACE_ITEMS && u.arbitrary()? {
                 match u.arbitrary()? {
                     Generate::Use => {
                         let mut path = String::new();
