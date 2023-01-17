@@ -284,7 +284,7 @@ struct WitPackageDecoder<'a> {
     url_to_interface: HashMap<Url, InterfaceId>,
 
     /// A map from a type id to what it's been translated to.
-    type_map: HashMap<types::TypeId, Type>,
+    type_map: HashMap<types::TypeId, TypeId>,
 
     /// A second map, similar to `type_map`, which is keyed off a pointer hash
     /// instead of `TypeId`.
@@ -294,7 +294,7 @@ struct WitPackageDecoder<'a> {
     /// structure, so the second layer of map here ensures that types are
     /// only defined once and the second `TypeId` referring to a type will end
     /// up as an alias and/or import.
-    type_src_map: HashMap<PtrHash<'a, types::ComponentDefinedType>, Type>,
+    type_src_map: HashMap<PtrHash<'a, types::ComponentDefinedType>, TypeId>,
 }
 
 impl WitPackageDecoder<'_> {
@@ -419,7 +419,10 @@ impl WitPackageDecoder<'_> {
                             if url.scheme() == "pkg" {
                                 bail!("instance type export `{name}` not defined in interface");
                             }
-                            let kind = self.convert_defined(def)?;
+                            let kind = match self.type_map.get(&referenced).copied() {
+                                Some(id) => TypeDefKind::Type(Type::Id(id)),
+                                None => self.convert_defined(def)?,
+                            };
                             let id = self.resolve.types.alloc(TypeDef {
                                 name: Some(name.to_string()),
                                 kind,
@@ -437,11 +440,9 @@ impl WitPackageDecoder<'_> {
                     // Register the `types::TypeId` with our resolve `TypeId`
                     // for ensuring type information remains correct throughout
                     // decoding.
-                    let prev = self.type_map.insert(created, Type::Id(id));
+                    let prev = self.type_map.insert(created, id);
                     assert!(prev.is_none());
-                    self.type_src_map
-                        .entry(PtrHash(def))
-                        .or_insert(Type::Id(id));
+                    self.type_src_map.entry(PtrHash(def)).or_insert(id);
                 }
 
                 // This has similar logic to types above where we lazily fill in
@@ -599,7 +600,7 @@ impl WitPackageDecoder<'_> {
                         // If this `TypeId` points to a type which has
                         // previously been defined, meaning we're aliasing a
                         // prior definition.
-                        Some(prev) => (TypeDefKind::Type(*prev), false),
+                        Some(prev) => (TypeDefKind::Type(Type::Id(*prev)), false),
 
                         // ... or this `TypeId`'s source definition has never
                         // been seen before, so declare the full type.
@@ -618,10 +619,10 @@ impl WitPackageDecoder<'_> {
                     });
 
                     if insert_src {
-                        let prev = self.type_src_map.insert(key, Type::Id(ty));
+                        let prev = self.type_src_map.insert(key, ty);
                         assert!(prev.is_none());
                     }
-                    let prev = self.type_map.insert(created, Type::Id(ty));
+                    let prev = self.type_map.insert(created, ty);
                     assert!(prev.is_none());
                     let prev = interface.types.insert(name.to_string(), ty);
                     assert!(prev.is_none());
@@ -768,7 +769,7 @@ impl WitPackageDecoder<'_> {
 
         // Don't create duplicate types for anything previously created.
         if let Some(ret) = self.type_map.get(&id) {
-            return Ok(*ret);
+            return Ok(Type::Id(*ret));
         }
 
         // Otherwise create a new `TypeDef` without a name since this is an
@@ -805,7 +806,7 @@ impl WitPackageDecoder<'_> {
             owner: TypeOwner::None,
             kind,
         });
-        let prev = self.type_map.insert(id, Type::Id(ty));
+        let prev = self.type_map.insert(id, ty);
         assert!(prev.is_none());
         Ok(Type::Id(ty))
     }

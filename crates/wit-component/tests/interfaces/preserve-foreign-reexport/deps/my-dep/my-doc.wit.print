@@ -1,0 +1,8 @@
+interface my-interface {
+  record foo {
+  }
+
+  type bar = foo
+
+}
+
