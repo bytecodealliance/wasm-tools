@@ -63,7 +63,7 @@ impl Resolve {
     /// interpret `path` as a directory where all `*.wit` files in that
     /// directory are members of the package.
     ///
-    /// Dependenies referenced by the WIT package at `path` will be loaded from
+    /// Dependencies referenced by the WIT package at `path` will be loaded from
     /// a `deps/$name` directory under `path` where `$name` is the name of the
     /// dependency loaded. If `deps/$name` does not exist then an error will be
     /// returned indicating that the dependency is not defined. All dependencies
@@ -76,7 +76,7 @@ impl Resolve {
     pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
         // Maintain a `to_parse` stack of packages that have yet to be parsed
         // along with an `enqueued` set of all the prior parsed packages and
-        // packges enqueued to be parsed. These are then used to fill the
+        // packages enqueued to be parsed. These are then used to fill the
         // `packages` map with parsed, but unresolved, packages. The `pkg_deps`
         // map then tracks dependencies between packages.
         let mut to_parse = Vec::new();
@@ -521,7 +521,7 @@ impl Remap {
                 Some(i) => *i,
                 // All foreign interfaces are defined first, so the first one
                 // which is defined in a non-foreign document means that all
-                // futher interfaces will be non-foreign as well.
+                // further interfaces will be non-foreign as well.
                 None => break,
             };
 

@@ -1,4 +1,4 @@
-name imported twice
+name `foo` imported more than once
      --> tests/ui/parse-fail/world-top-level-func.wit:3:10
       |
     3 |   import foo: func()

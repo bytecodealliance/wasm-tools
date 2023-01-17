@@ -7,7 +7,7 @@ world my-world {
   import wasi-fs: wasi.filesystem
   import wasi-clocks: wasi.clocks
 
-  export fastly: fastly.compute-at-edge
+  export saas: corp.saas
 }
 
 interface bar {

@@ -103,7 +103,7 @@ impl NewOpts {
 
         let bytes = encoder
             .encode()
-            .with_context(|| format!("failed to encode a component from module "))?;
+            .context("failed to encode a component from module")?;
 
         self.io.output(Output::Wasm {
             bytes: &bytes,
@@ -259,28 +259,33 @@ pub struct WitOpts {
     /// When printing a WIT package, the default mode, this option is used to
     /// indicate which document is printed within the package if more than one
     /// document is present.
-    #[clap(short, long)]
+    #[clap(short, long, conflicts_with = "wasm", conflicts_with = "wat")]
     document: Option<String>,
 
     /// Emit a full WIT package into the specified directory when printing the
     /// text form.
     ///
     /// This is incompatible with `-o`.
-    #[clap(long)]
+    #[clap(
+        long,
+        conflicts_with = "output",
+        conflicts_with = "wasm",
+        conflicts_with = "wat",
+        conflicts_with = "document"
+    )]
     out_dir: Option<PathBuf>,
 
-    /// Emit the WIT binary format, a WebAssembly component, instead of the WIT
-    /// text format.
-    #[clap(short, long)]
+    /// Emit a WebAssembly binary representation instead of the WIT text format.
+    #[clap(short, long, conflicts_with = "wat")]
     wasm: bool,
 
-    /// When combined with `--wasm` this will print the WebAssembly text format
-    /// instead of the WebAssembly binary format.
-    #[clap(short = 't', long)]
+    /// Emit a WebAssembly textual representation instead of the WIT text
+    /// format.
+    #[clap(short = 't', long, conflicts_with = "wasm")]
     wat: bool,
 
-    /// When specifying `--wasm` the output wasm binary is validated by default,
-    /// and this can be used to skip that step.
+    /// Skips the validation performed when using the `--wasm` and `--wat`
+    /// options.
     #[clap(long)]
     skip_validation: bool,
 }
@@ -351,18 +356,9 @@ impl WitOpts {
         // This interprets all of the output options and performs such a task.
         match &self.out_dir {
             Some(dir) => {
-                if self.output.output_path().is_some() {
-                    bail!("cannot specify both `--out-dir` and `--output`");
-                }
-                if self.wasm {
-                    bail!("cannot specify both `--out-dir` and `--wasm`");
-                }
-                if self.wat {
-                    bail!("cannot specify both `--out-dir` and `--wat`");
-                }
-                if self.document.is_some() {
-                    bail!("cannot specify both `--out-dir` and `--document`");
-                }
+                assert!(self.output.output_path().is_none());
+                assert!(!self.wasm && !self.wat);
+                assert!(self.document.is_none());
                 let package = match &decoded {
                     DecodedWasm::WitPackage(_, package) => *package,
 
@@ -372,15 +368,17 @@ impl WitOpts {
                     }
                 };
                 let resolve = decoded.resolve();
-                std::fs::create_dir_all(&dir).context(format!("failed to create {dir:?}"))?;
+                std::fs::create_dir_all(&dir)
+                    .with_context(|| format!("failed to create {dir:?}"))?;
                 for (name, doc) in resolve.packages[package].documents.iter() {
                     let output = DocumentPrinter::default().print(&resolve, *doc)?;
                     let path = dir.join(format!("{name}.wit"));
-                    std::fs::write(&path, output).context(format!("failed to write {path:?}"))?;
+                    std::fs::write(&path, output)
+                        .with_context(|| format!("failed to write {path:?}"))?;
                 }
             }
             None => {
-                if self.wasm {
+                if self.wasm || self.wat {
                     self.emit_wasm(&decoded)?;
                 } else {
                     self.emit_wit(&decoded)?;
@@ -391,11 +389,9 @@ impl WitOpts {
     }
 
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
-        assert!(self.wasm);
+        assert!(self.wasm || self.wat);
         assert!(self.out_dir.is_none());
-        if self.document.is_some() {
-            bail!("cannot specify `--document` with `--wasm`");
-        }
+        assert!(self.document.is_none());
 
         let pkg = match decoded {
             DecodedWasm::WitPackage(_resolve, pkg) => *pkg,
@@ -422,7 +418,7 @@ impl WitOpts {
     }
 
     fn emit_wit(&self, decoded: &DecodedWasm) -> Result<()> {
-        assert!(!self.wasm);
+        assert!(!self.wasm && !self.wat);
         assert!(self.out_dir.is_none());
         if self.wat {
             bail!("the `--wat` option can only be combined with `--wasm`");

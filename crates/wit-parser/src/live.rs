@@ -56,7 +56,6 @@ impl LiveTypes {
         for ty in func.results.iter_types() {
             self.add_type(resolve, ty);
         }
-        // ..
     }
 
     pub fn add_type_id(&mut self, resolve: &Resolve, ty: TypeId) {

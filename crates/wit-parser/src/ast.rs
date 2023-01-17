@@ -28,7 +28,7 @@ impl<'a> Ast<'a> {
         Ok(Self { items })
     }
 
-    fn foreach_path<'b>(
+    fn for_each_path<'b>(
         &'b self,
         mut f: impl FnMut(Option<&'b Id<'a>>, &'b UsePath<'a>, Option<&[UseName<'a>]>) -> Result<()>,
     ) -> Result<()> {

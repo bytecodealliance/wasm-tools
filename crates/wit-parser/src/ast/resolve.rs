@@ -64,7 +64,7 @@ impl<'a> Resolver<'a> {
 
         let prev = self.asts.insert(name, ast);
         if prev.is_some() {
-            bail!("document `{name}` defined twice");
+            bail!("document `{name}` is defined more than once");
         }
         Ok(())
     }
@@ -78,7 +78,7 @@ impl<'a> Resolver<'a> {
         let mut doc_deps = IndexMap::new();
         for (name, ast) in self.asts.iter() {
             let mut deps = Vec::new();
-            ast.foreach_path(|_, path, _names| {
+            ast.for_each_path(|_, path, _names| {
                 let doc = match path {
                     ast::UsePath::Package { doc, iface: _ } => doc,
                     _ => return Ok(()),
@@ -143,7 +143,7 @@ impl<'a> Resolver<'a> {
     /// `resolve_path`.
     fn populate_foreign_deps(&mut self) {
         for (_, ast) in self.asts.iter() {
-            ast.foreach_path(|_, path, names| {
+            ast.for_each_path(|_, path, names| {
                 let (dep, doc, iface) = match path {
                     ast::UsePath::Dependency { dep, doc, iface } => (dep, doc, iface),
                     _ => return Ok(()),
@@ -265,7 +265,7 @@ impl<'a> Resolver<'a> {
         // Walk all `UsePath` entries in this AST and record dependencies
         // between interfaces. These are dependencies specified via `use
         // self...` or via `use pkg.this-doc...`.
-        ast.foreach_path(|iface, path, _names| {
+        ast.for_each_path(|iface, path, _names| {
             // If this import isn't contained within an interface then it's in a
             // world and it doesn't need to participate in our topo-sort.
             let iface = match iface {
@@ -403,7 +403,10 @@ impl<'a> Resolver<'a> {
                         if imported_interfaces.insert(id, import.name.name).is_some() {
                             return Err(Error {
                                 span: import.name.span,
-                                msg: format!("cannot import same interface twice"),
+                                msg: format!(
+                                    "interface `{name}` imported more than once",
+                                    name = import.name.name
+                                ),
                             }
                             .into());
                         }
@@ -413,7 +416,10 @@ impl<'a> Resolver<'a> {
                     if prev.is_some() {
                         return Err(Error {
                             span: import.name.span,
-                            msg: format!("name imported twice"),
+                            msg: format!(
+                                "name `{name}` imported more than once",
+                                name = import.name.name
+                            ),
                         }
                         .into());
                     }
@@ -425,7 +431,10 @@ impl<'a> Resolver<'a> {
                         if exported_interfaces.insert(id, export.name.name).is_some() {
                             return Err(Error {
                                 span: export.name.span,
-                                msg: format!("cannot export same interface twice"),
+                                msg: format!(
+                                    "interface `{name}` cannot be exported more than once",
+                                    name = export.name.name
+                                ),
                             }
                             .into());
                         }
@@ -435,7 +444,10 @@ impl<'a> Resolver<'a> {
                     if prev.is_some() {
                         return Err(Error {
                             span: export.name.span,
-                            msg: format!("name exported twice"),
+                            msg: format!(
+                                "name `{name}` cannot be exported more than once",
+                                name = export.name.name
+                            ),
                         }
                         .into());
                     }
@@ -708,11 +720,11 @@ impl<'a> Resolver<'a> {
                     Some(InterfaceItem::Type(id)) => *id,
                     Some(InterfaceItem::Func) => bail!(Error {
                         span: name.span,
-                        msg: format!("cannot use a function as a type"),
+                        msg: format!("cannot use function `{name}` as a type", name = name.name),
                     }),
                     None => bail!(Error {
                         span: name.span,
-                        msg: format!("name is not defined"),
+                        msg: format!("name `{name}` is not defined", name = name.name),
                     }),
                 };
                 TypeDefKind::Type(Type::Id(id))
