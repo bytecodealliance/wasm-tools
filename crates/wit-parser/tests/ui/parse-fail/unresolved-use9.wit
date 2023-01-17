@@ -1,0 +1,7 @@
+// parse-fail
+
+world foo {
+  import foo: interface {
+    use self.bar.{i32}
+  }
+}

@@ -1,0 +1,7 @@
+interface foo {
+  log: func(s: string)
+}
+
+default world component {
+  import foo: self.foo
+}

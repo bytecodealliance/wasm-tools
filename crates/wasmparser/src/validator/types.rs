@@ -2,9 +2,8 @@
 
 use super::{component::ComponentState, core::Module};
 use crate::{
-    ComponentExport, ComponentExternalKind, ComponentImport, ComponentTypeRef, Export,
-    ExternalKind, FuncType, GlobalType, Import, MemoryType, PrimitiveValType, TableType, TypeRef,
-    ValType,
+    ComponentExport, ComponentImport, Export, ExternalKind, FuncType, GlobalType, Import,
+    MemoryType, PrimitiveValType, TableType, TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::{
@@ -215,6 +214,12 @@ impl Hash for KebabString {
 impl fmt::Display for KebabString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_kebab_str().fmt(f)
+    }
+}
+
+impl From<KebabString> for String {
+    fn from(s: KebabString) -> String {
+        s.0
     }
 }
 
@@ -734,7 +739,18 @@ pub enum ComponentEntityType {
     /// The entity is a value.
     Value(ComponentValType),
     /// The entity is a type.
-    Type(TypeId),
+    Type {
+        /// This is the identifier of the type that was referenced when this
+        /// entity was created.
+        referenced: TypeId,
+        /// This is the identifier of the type that was created when this type
+        /// was imported or exported from the component.
+        ///
+        /// Note that the underlying type information for the `referenced`
+        /// field and for this `created` field is the same, but these two types
+        /// will hash to different values.
+        created: TypeId,
+    },
     /// The entity is a component instance.
     Instance(TypeId),
     /// The entity is a component.
@@ -764,12 +780,14 @@ impl ComponentEntityType {
             (Self::Value(a), Self::Value(b)) => {
                 ComponentValType::internal_is_subtype_of(a, at, b, bt)
             }
-            (Self::Type(a), Self::Type(b)) => ComponentDefinedType::internal_is_subtype_of(
-                at[*a].as_defined_type().unwrap(),
-                at,
-                bt[*b].as_defined_type().unwrap(),
-                bt,
-            ),
+            (Self::Type { referenced: a, .. }, Self::Type { referenced: b, .. }) => {
+                ComponentDefinedType::internal_is_subtype_of(
+                    at[*a].as_defined_type().unwrap(),
+                    at,
+                    bt[*b].as_defined_type().unwrap(),
+                    bt,
+                )
+            }
             (Self::Instance(a), Self::Instance(b)) => {
                 ComponentInstanceType::internal_is_subtype_of(
                     at[*a].as_component_instance_type().unwrap(),
@@ -793,7 +811,7 @@ impl ComponentEntityType {
             Self::Module(_) => "module",
             Self::Func(_) => "function",
             Self::Value(_) => "value",
-            Self::Type(_) => "type",
+            Self::Type { .. } => "type",
             Self::Instance(_) => "instance",
             Self::Component(_) => "component",
         }
@@ -803,7 +821,7 @@ impl ComponentEntityType {
         match self {
             Self::Module(ty)
             | Self::Func(ty)
-            | Self::Type(ty)
+            | Self::Type { referenced: ty, .. }
             | Self::Instance(ty)
             | Self::Component(ty) => ty.type_size,
             Self::Value(ty) => ty.type_size(),
@@ -1632,29 +1650,10 @@ impl<'a> TypesRef<'a> {
     ) -> Option<ComponentEntityType> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => Some(match import.ty {
-                ComponentTypeRef::Module(idx) => {
-                    ComponentEntityType::Module(*component.core_types.get(idx as usize)?)
-                }
-                ComponentTypeRef::Func(idx) => {
-                    ComponentEntityType::Func(*component.types.get(idx as usize)?)
-                }
-                ComponentTypeRef::Value(ty) => ComponentEntityType::Value(match ty {
-                    crate::ComponentValType::Primitive(ty) => ComponentValType::Primitive(ty),
-                    crate::ComponentValType::Type(idx) => {
-                        ComponentValType::Type(*component.types.get(idx as usize)?)
-                    }
-                }),
-                ComponentTypeRef::Type(_, idx) => {
-                    ComponentEntityType::Type(*component.types.get(idx as usize)?)
-                }
-                ComponentTypeRef::Instance(idx) => {
-                    ComponentEntityType::Instance(*component.types.get(idx as usize)?)
-                }
-                ComponentTypeRef::Component(idx) => {
-                    ComponentEntityType::Component(*component.types.get(idx as usize)?)
-                }
-            }),
+            TypesRefKind::Component(component) => {
+                let key = KebabStr::new(import.name)?;
+                Some(component.imports.get(key)?.1)
+            }
         }
     }
 
@@ -1665,29 +1664,10 @@ impl<'a> TypesRef<'a> {
     ) -> Option<ComponentEntityType> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => Some(match export.kind {
-                ComponentExternalKind::Module => {
-                    ComponentEntityType::Module(*component.core_modules.get(export.index as usize)?)
-                }
-                ComponentExternalKind::Func => {
-                    ComponentEntityType::Func(*component.funcs.get(export.index as usize)?)
-                }
-                ComponentExternalKind::Value => ComponentEntityType::Value(
-                    component
-                        .values
-                        .get(export.index as usize)
-                        .map(|(r, _)| *r)?,
-                ),
-                ComponentExternalKind::Type => {
-                    ComponentEntityType::Type(*component.types.get(export.index as usize)?)
-                }
-                ComponentExternalKind::Instance => {
-                    ComponentEntityType::Instance(*component.instances.get(export.index as usize)?)
-                }
-                ComponentExternalKind::Component => ComponentEntityType::Component(
-                    *component.components.get(export.index as usize)?,
-                ),
-            }),
+            TypesRefKind::Component(component) => {
+                let key = KebabStr::new(export.name)?;
+                Some(component.exports.get(key)?.1)
+            }
         }
     }
 }

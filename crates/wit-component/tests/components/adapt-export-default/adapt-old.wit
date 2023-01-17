@@ -1,0 +1,3 @@
+default world new {
+  export entrypoint: func()
+}

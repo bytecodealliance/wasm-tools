@@ -1,7 +1,0 @@
-interface foo {
-  a: func()
-}
-
-world my-world {
-  import foo: foo
-}

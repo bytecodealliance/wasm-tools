@@ -1,0 +1,9 @@
+// parse-fail
+
+interface foo {
+  use self.bar.{x}
+}
+
+interface bar {
+  x: func()
+}

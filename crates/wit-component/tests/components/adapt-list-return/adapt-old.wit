@@ -1,0 +1,5 @@
+default world brave-new-world {
+  import new: interface {
+    read: func() -> list<u8>
+  }
+}

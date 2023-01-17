@@ -1,0 +1,11 @@
+world foo {
+  import foo: interface {
+    use pkg.shared1.{the-type}
+  }
+  import bar: interface {
+    use pkg.shared2.{the-type}
+  }
+
+  import shared1: pkg.shared1
+  import shared2: pkg.shared2
+}

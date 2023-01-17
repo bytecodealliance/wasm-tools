@@ -1,0 +1,3 @@
+default interface the-default {
+  type some-type = u32
+}

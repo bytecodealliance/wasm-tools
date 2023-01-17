@@ -1,4 +1,4 @@
-use crate::{Document, FlagsRepr, Int, Type, TypeDef, TypeDefKind};
+use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
 
 #[derive(Default)]
 pub struct SizeAlign {
@@ -6,11 +6,11 @@ pub struct SizeAlign {
 }
 
 impl SizeAlign {
-    pub fn fill(&mut self, doc: &Document) {
-        self.map = vec![(0, 0); doc.types.len()];
-        for ty in doc.topological_types() {
-            let pair = self.calculate(&doc.types[ty]);
-            self.map[ty.index()] = pair;
+    pub fn fill(&mut self, resolve: &Resolve) {
+        self.map = Vec::new();
+        for (_, ty) in resolve.types.iter() {
+            let pair = self.calculate(ty);
+            self.map.push(pair);
         }
     }
 
@@ -34,6 +34,7 @@ impl SizeAlign {
             TypeDefKind::Future(_) => (4, 4),
             // A stream is represented as an index.
             TypeDefKind::Stream(_) => (4, 4),
+            TypeDefKind::Unknown => unreachable!(),
         }
     }
 

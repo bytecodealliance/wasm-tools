@@ -1,0 +1,15 @@
+interface foo {
+  type x = u32
+}
+
+default interface something-else {
+  type y = u64
+}
+
+interface bar {
+  use self.foo.{x}
+  use pkg.foo.foo.{x as x2}
+  use pkg.foo.{y}
+  use self.something-else.{y as y2}
+  use pkg.bar.{a-name}
+}

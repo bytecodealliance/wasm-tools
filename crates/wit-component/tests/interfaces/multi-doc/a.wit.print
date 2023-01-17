@@ -1,0 +1,8 @@
+interface b {
+  use pkg.b.b.{the-type}
+}
+
+interface a {
+  use pkg.b.b.{the-type}
+}
+

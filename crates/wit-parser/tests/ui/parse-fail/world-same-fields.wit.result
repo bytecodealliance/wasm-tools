@@ -1,5 +1,5 @@
-duplicate import foo
+name `foo` imported more than once
      --> tests/ui/parse-fail/world-same-fields.wit:8:10
       |
-    8 |   import foo: bar
+    8 |   import foo: self.bar
       |          ^--

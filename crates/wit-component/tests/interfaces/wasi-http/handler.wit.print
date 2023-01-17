@@ -1,0 +1,5 @@
+interface handler {
+  use pkg.types.types.{request, response}
+  handle: func(request: request) -> response
+}
+

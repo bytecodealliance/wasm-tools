@@ -1,0 +1,4 @@
+world foo {
+  import foo: func()
+  import foo: func()
+}

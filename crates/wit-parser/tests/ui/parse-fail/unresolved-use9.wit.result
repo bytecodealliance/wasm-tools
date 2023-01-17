@@ -1,0 +1,5 @@
+interface does not exist
+     --> tests/ui/parse-fail/unresolved-use9.wit:5:14
+      |
+    5 |     use self.bar.{i32}
+      |              ^--

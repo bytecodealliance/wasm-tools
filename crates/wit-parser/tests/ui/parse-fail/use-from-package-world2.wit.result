@@ -1,0 +1,8 @@
+failed to parse package: tests/ui/parse-fail/use-from-package-world2
+
+Caused by:
+    cannot import from world `foo`
+         --> tests/ui/parse-fail/use-from-package-world2/bar.wit:2:15
+          |
+        2 |   use pkg.foo.foo.{thing}
+          |               ^--

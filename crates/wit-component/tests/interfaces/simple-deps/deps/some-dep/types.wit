@@ -1,0 +1,3 @@
+default interface types {
+  type some-type = u8
+}

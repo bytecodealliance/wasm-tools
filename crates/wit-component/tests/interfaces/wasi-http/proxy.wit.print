@@ -1,0 +1,6 @@
+world proxy {
+  import console: wasi-logging.backend.backend
+  import types: pkg.types.types
+  import origin: pkg.handler.handler
+  export handler: pkg.handler.handler
+}

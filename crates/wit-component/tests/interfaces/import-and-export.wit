@@ -1,0 +1,12 @@
+interface foo {
+  foo: func()
+}
+
+interface bar {
+  bar: func()
+}
+
+world import-and-export {
+  import foo: self.foo
+  export bar: self.bar
+}

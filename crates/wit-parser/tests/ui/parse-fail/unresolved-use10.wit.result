@@ -1,0 +1,8 @@
+failed to parse package: tests/ui/parse-fail/unresolved-use10
+
+Caused by:
+    document does not specify a default interface
+         --> tests/ui/parse-fail/unresolved-use10/bar.wit:2:11
+          |
+        2 |   use pkg.foo.{thing}
+          |           ^--

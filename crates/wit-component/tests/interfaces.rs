@@ -2,113 +2,107 @@ use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
-use wit_component::{ComponentEncoder, StringEncoding};
-use wit_parser::Document;
+use wit_component::DocumentPrinter;
+use wit_parser::{Resolve, UnresolvedPackage};
 
-/// Tests the encoding of the "types only" mode of `wit-component`.
+/// Tests the encoding of a WIT package as a WebAssembly binary.
 ///
-/// This test looks in the `interfaces/` directory for test cases in a similar
-/// format to those in the `components/` where there's a `world.wit` which is
-/// encoded as `types_only.wat` and additionally encoded in normal mode with a
-/// dummy module to verify that works as well.
+/// This test looks in the `interfaces/` directory for test cases. Each test
+/// case is a `*.wit` file or a folder which contains `*.wit` files as part of a
+/// multi-file package. Each tests `foo.wit` is accompanied with a `foo.wat` for
+/// the WebAssembly text format encoding of the package. Additionally each test
+/// has a `foo.print.wit` which is the machine-printed version of the WIT
+/// document as decoded from the binary encoded interface.
 ///
 /// Run the test with the environment variable `BLESS` set to update
-/// the wat baseline file.
+/// the baseline files.
 #[test]
 fn interface_encoding() -> Result<()> {
     for entry in fs::read_dir("tests/interfaces")? {
         let path = entry?.path();
-        if !path.is_dir() {
-            continue;
+        let name = match path.file_name().and_then(|s| s.to_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let is_dir = path.is_dir();
+        let is_test = is_dir || name.ends_with(".wit");
+        if is_test {
+            run_test(&path, is_dir).context(format!("failed test `{}`", path.display()))?;
         }
-        run_test(&path).context(format!("failed test `{}`", path.display()))?;
     }
 
     Ok(())
 }
 
-fn run_test(path: &Path) -> Result<()> {
-    let test_case = path.file_stem().unwrap().to_str().unwrap();
-    println!("test {test_case}");
-    let wit_path = path.join("world.wit");
-    let doc = Document::parse_file(&wit_path)?;
-    let world = &doc.worlds[doc.default_world()?];
-    let world_name = world.name.clone();
-
-    let assert_output = |wasm: &[u8], wat: &Path| -> Result<()> {
-        let output = wasmprinter::print_bytes(wasm)?;
-
-        if std::env::var_os("BLESS").is_some() {
-            fs::write(wat, output)?;
-        } else {
-            assert_eq!(
-                fs::read_to_string(wat)?.replace("\r\n", "\n").trim(),
-                output.trim(),
-                "encoding of `{test_case}` did not match the expected wat file `{}`",
-                wat.display(),
-            );
-        }
-
-        let (decoded_doc, decoded_world) = wit_component::decode_world(&world_name, wasm)
-            .context(format!("failed to decode bytes for test `{test_case}`"))?;
-
-        if test_case == "empty" {
-            return Ok(());
-        }
-
-        let decoded_world = &decoded_doc.worlds[decoded_world];
-        assert_eq!(decoded_world.imports.len(), world.imports.len());
-        assert_eq!(decoded_world.exports.len(), world.exports.len());
-        assert_eq!(decoded_world.default.is_some(), world.default.is_some());
-
-        assert_wit(&wit_path, &decoded_doc)?;
-        Ok(())
+fn run_test(path: &Path, is_dir: bool) -> Result<()> {
+    println!("running test at {path:?}");
+    let mut resolve = Resolve::new();
+    let package = if is_dir {
+        resolve.push_dir(path)?.0
+    } else {
+        resolve.push(UnresolvedPackage::parse_file(path)?, &Default::default())?
     };
 
-    // Test a types-only component. This ensures that in "types only" mode we
-    // can recover all the original `*.wit` interfaces from the generated
-    // artifact.
+    let features = wasmparser::WasmFeatures {
+        component_model: true,
+        ..Default::default()
+    };
 
-    println!("testing types only");
-    let bytes = ComponentEncoder::default()
-        .types_only(true)
-        .validate(true)
-        .document(doc.clone(), StringEncoding::UTF8)?
-        .encode()
-        .with_context(|| {
-            format!("failed to encode a types-only component for test case `{test_case}`")
-        })?;
-    assert_output(&bytes, &path.join("types_only.wat"))?;
+    // First convert the WIT package to a binary WebAssembly output, then
+    // convert that binary wasm to textual wasm, then assert it matches the
+    // expectation.
+    let wasm = wit_component::encode(&resolve, package)?;
+    let wat = wasmprinter::print_bytes(&wasm)?;
+    assert_output(&path.with_extension("wat"), &wat)?;
+    wasmparser::Validator::new_with_features(features)
+        .validate_all(&wasm)
+        .context("failed to validate wasm output")?;
 
-    // Test a full component with a dummy module as the implementation. This
-    // tests a different path through `wit-component` to ensure that we can
-    // recover the original `*.wit` interfaces from the component output.
+    // Next decode a fresh WIT package from the WebAssembly generated. Print
+    // this package's documents and assert they all match the expectations.
+    let name = &resolve.packages[package].name;
+    let decoded = wit_component::decode(name, &wasm)?;
+    let resolve = decoded.resolve();
 
-    println!("test dummy module");
-    let module = wit_component::dummy_module(&doc);
-    let bytes = ComponentEncoder::default()
-        .module(&module)?
-        .validate(true)
-        .document(doc.clone(), StringEncoding::UTF8)?
-        .encode()
-        .with_context(|| format!("failed to encode a component for test case `{test_case}`"))?;
-    assert_output(&bytes, &path.join("component.wat"))?;
+    for (id, pkg) in resolve.packages.iter() {
+        for (name, doc) in pkg.documents.iter() {
+            let root = if id == decoded.package() {
+                path.to_path_buf()
+            } else {
+                path.join("deps").join(&pkg.name)
+            };
+            let expected = if is_dir {
+                root.join(format!("{name}.wit.print"))
+            } else {
+                root.with_extension("wit.print")
+            };
+            let output = DocumentPrinter::default().print(&resolve, *doc)?;
+            assert_output(&expected, &output)?;
+        }
+    }
+
+    // Finally convert the decoded package to wasm again and make sure it
+    // matches the prior wasm.
+    let wasm2 = wit_component::encode(resolve, decoded.package())?;
+    if wasm != wasm2 {
+        let wat2 = wasmprinter::print_bytes(&wasm)?;
+        assert_eq!(wat, wat2, "document did not roundtrip correctly");
+    }
 
     Ok(())
 }
 
-fn assert_wit(wit_path: &Path, doc: &Document) -> Result<()> {
-    let mut printer = wit_component::DocumentPrinter::default();
-    let output = printer.print(doc).context("failed to print interface")?;
-
+fn assert_output(expected: &Path, actual: &str) -> Result<()> {
     if std::env::var_os("BLESS").is_some() {
-        fs::write(&wit_path, output)?;
+        fs::write(&expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {
         assert_eq!(
-            fs::read_to_string(&wit_path)?.replace("\r\n", "\n"),
-            output,
-            "encoding of wit file `{}` did not match the the decoded interface",
-            wit_path.display(),
+            fs::read_to_string(&expected)
+                .with_context(|| format!("failed to read {expected:?}"))?
+                .replace("\r\n", "\n"),
+            actual,
+            "expectation `{}` did not match actual",
+            expected.display(),
         );
     }
     Ok(())

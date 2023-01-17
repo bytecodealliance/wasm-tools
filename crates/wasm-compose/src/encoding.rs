@@ -21,7 +21,7 @@ fn type_ref_to_export_kind(ty: wasmparser::ComponentTypeRef) -> ComponentExportK
         wasmparser::ComponentTypeRef::Module(_) => ComponentExportKind::Module,
         wasmparser::ComponentTypeRef::Func(_) => ComponentExportKind::Func,
         wasmparser::ComponentTypeRef::Value(_) => ComponentExportKind::Value,
-        wasmparser::ComponentTypeRef::Type(_, _) => ComponentExportKind::Type,
+        wasmparser::ComponentTypeRef::Type { .. } => ComponentExportKind::Type,
         wasmparser::ComponentTypeRef::Instance(_) => ComponentExportKind::Instance,
         wasmparser::ComponentTypeRef::Component(_) => ComponentExportKind::Component,
     }
@@ -255,8 +255,8 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::ComponentEntityType::Value(ty) => {
                 ComponentTypeRef::Value(self.component_val_type(encodable, types, ty))
             }
-            wasmparser::types::ComponentEntityType::Type(id) => {
-                ComponentTypeRef::Type(TypeBounds::Eq, self.ty(encodable, types, id))
+            wasmparser::types::ComponentEntityType::Type { created, .. } => {
+                ComponentTypeRef::Type(TypeBounds::Eq, self.ty(encodable, types, created))
             }
             wasmparser::types::ComponentEntityType::Instance(id) => {
                 ComponentTypeRef::Instance(self.component_instance_type(encodable, types, id))

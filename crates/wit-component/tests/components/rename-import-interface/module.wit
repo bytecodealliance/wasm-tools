@@ -1,0 +1,7 @@
+interface foo {
+  the-func: func()
+}
+
+default world the-world {
+  import bar: self.foo
+}
