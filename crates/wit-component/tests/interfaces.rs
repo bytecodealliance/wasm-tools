@@ -63,14 +63,22 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let name = &resolve.packages[package].name;
     let decoded = wit_component::decode(name, &wasm)?;
     let resolve = decoded.resolve();
-    for (name, doc) in resolve.packages[decoded.package()].documents.iter() {
-        let expected = if is_dir {
-            path.join(format!("{name}.wit.print"))
-        } else {
-            path.with_extension("wit.print")
-        };
-        let output = DocumentPrinter::default().print(&resolve, *doc)?;
-        assert_output(&expected, &output)?;
+
+    for (id, pkg) in resolve.packages.iter() {
+        for (name, doc) in pkg.documents.iter() {
+            let root = if id == decoded.package() {
+                path.to_path_buf()
+            } else {
+                path.join("deps").join(&pkg.name)
+            };
+            let expected = if is_dir {
+                root.join(format!("{name}.wit.print"))
+            } else {
+                root.with_extension("wit.print")
+            };
+            let output = DocumentPrinter::default().print(&resolve, *doc)?;
+            assert_output(&expected, &output)?;
+        }
     }
 
     // Finally convert the decoded package to wasm again and make sure it
@@ -86,10 +94,12 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 
 fn assert_output(expected: &Path, actual: &str) -> Result<()> {
     if std::env::var_os("BLESS").is_some() {
-        fs::write(&expected, actual)?;
+        fs::write(&expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {
         assert_eq!(
-            fs::read_to_string(&expected)?.replace("\r\n", "\n"),
+            fs::read_to_string(&expected)
+                .with_context(|| format!("failed to read {expected:?}"))?
+                .replace("\r\n", "\n"),
             actual,
             "expectation `{}` did not match actual",
             expected.display(),

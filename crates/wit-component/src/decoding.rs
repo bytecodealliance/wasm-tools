@@ -702,7 +702,13 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let id = match url {
-                        Some(url) => self.extract_url_interface(url)?,
+                        // Note that despite this being an export this is
+                        // calling `register_import`. With a URL this interface
+                        // must have been previously defined so this will
+                        // trigger the logic of either filling in a remotely
+                        // defined interface or connecting items to local
+                        // definitions of our own interface.
+                        Some(url) => self.register_import(url, ty)?,
                         None => self.register_interface(document, None, ty)?,
                     };
                     WorldItem::Interface(id)
