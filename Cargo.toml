@@ -18,7 +18,6 @@ members = [
   'crates/fuzz-stats',
   'crates/wasm-mutate-stats',
   'fuzz',
-  'crates/wit-component/fuzz',
   'crates/wit-parser/fuzz',
 ]
 
