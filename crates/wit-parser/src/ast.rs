@@ -35,25 +35,39 @@ impl<'a> Ast<'a> {
         for item in self.items.iter() {
             match item {
                 AstItem::World(world) => {
+                    // Visit imports here first before exports to help preserve
+                    // round-tripping of documents because printing a world puts
+                    // imports first but textually they can be listed with
+                    // exports first.
+                    let mut imports = Vec::new();
+                    let mut exports = Vec::new();
                     for item in world.items.iter() {
                         match item {
                             // WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
-                            WorldItem::Import(Import { kind, .. })
-                            | WorldItem::Export(Export { kind, .. }) => match kind {
-                                ExternKind::Interface(_, items) => {
-                                    for item in items {
-                                        match item {
-                                            InterfaceItem::Use(u) => {
-                                                f(None, &u.from, Some(&u.names))?
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                                ExternKind::Path(path) => f(None, path, None)?,
-                                ExternKind::Func(_) => {}
-                            },
+                            WorldItem::Import(Import { kind, .. }) => imports.push(kind),
+                            WorldItem::Export(Export { kind, .. }) => exports.push(kind),
                         }
+                    }
+
+                    let mut visit_kind = |kind: &'b ExternKind<'a>| match kind {
+                        ExternKind::Interface(_, items) => {
+                            for item in items {
+                                match item {
+                                    InterfaceItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                                    _ => {}
+                                }
+                            }
+                            Ok(())
+                        }
+                        ExternKind::Path(path) => f(None, path, None),
+                        ExternKind::Func(_) => Ok(()),
+                    };
+
+                    for kind in imports {
+                        visit_kind(kind)?;
+                    }
+                    for kind in exports {
+                        visit_kind(kind)?;
                     }
                 }
                 AstItem::Interface(i) => {

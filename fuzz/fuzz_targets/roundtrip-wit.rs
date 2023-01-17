@@ -18,8 +18,8 @@ fuzz_target!(|data: &[u8]| {
     let mut deps = HashMap::new();
     let mut last = None;
     for pkg in pkgs {
-        let mut unresolved = pkg.sources.parse(&pkg.name, None).unwrap();
-        unresolved.url = Some(format!("my-scheme:/{}", pkg.name));
+        let url = format!("my-scheme:/{}", pkg.name);
+        let unresolved = pkg.sources.parse(&pkg.name, Some(&url)).unwrap();
         let id = resolve.push(unresolved, &deps).unwrap();
         let prev = deps.insert(pkg.name, id);
         assert!(prev.is_none());
@@ -65,8 +65,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId) -> 
             write_file(&format!("{file}-{pkg_name}-{name}.wit"), &doc);
             map.push(format!("{name}.wit").as_ref(), &name, doc);
         }
-        let mut unresolved = map.parse(&pkg.name, None).unwrap();
-        unresolved.url = pkg.url.clone();
+        let unresolved = map.parse(&pkg.name, pkg.url.as_deref()).unwrap();
         let id = new_resolve.push(unresolved, &new_deps).unwrap();
         new_deps.insert(pkg.name.clone(), id);
         last = Some(id);
