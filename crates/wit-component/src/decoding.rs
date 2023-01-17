@@ -89,15 +89,9 @@ impl<'a> ComponentInfo<'a> {
 
     fn decode_wit_package(&self, name: &str) -> Result<(Resolve, PackageId)> {
         assert!(self.is_wit_package());
-        let mut resolve = Resolve::default();
-        let package = resolve.packages.alloc(Package {
-            name: name.to_string(),
-            documents: Default::default(),
-            url: None,
-        });
+        let resolve = Resolve::default();
         let mut decoder = WitPackageDecoder {
             resolve,
-            package,
             info: self,
             url_to_package: HashMap::default(),
             type_map: HashMap::new(),
@@ -105,16 +99,32 @@ impl<'a> ComponentInfo<'a> {
             url_to_interface: HashMap::new(),
         };
 
+        let mut docs = Vec::new();
         for (doc, export) in self.exports.iter() {
             let ty = match self.types.type_at(export.index, false) {
                 Some(types::Type::Component(ty)) => ty,
                 _ => unreachable!(),
             };
-            decoder
+            let id = decoder
                 .decode_document(doc, ty)
                 .with_context(|| format!("failed to decode document `{doc}`"))?;
+            docs.push((doc, id));
         }
-        Ok((decoder.resolve, package))
+
+        let mut resolve = decoder.resolve;
+        let package = resolve.packages.alloc(Package {
+            name: name.to_string(),
+            documents: docs
+                .iter()
+                .map(|(name, d)| (name.to_string(), *d))
+                .collect(),
+            url: None,
+        });
+        for (_, doc) in docs.iter() {
+            resolve.documents[*doc].package = Some(package);
+        }
+
+        Ok((resolve, package))
     }
 
     fn decode_component(&self, name: &str) -> Result<(Resolve, WorldId)> {
@@ -146,7 +156,6 @@ impl<'a> ComponentInfo<'a> {
         resolve.documents[doc].default_world = Some(world);
         let mut decoder = WitPackageDecoder {
             resolve,
-            package,
             info: self,
             url_to_package: HashMap::default(),
             type_map: HashMap::new(),
@@ -271,7 +280,6 @@ pub fn decode(name: &str, bytes: &[u8]) -> Result<DecodedWasm> {
 struct WitPackageDecoder<'a> {
     resolve: Resolve,
     info: &'a ComponentInfo<'a>,
-    package: PackageId,
     url_to_package: HashMap<Url, PackageId>,
     url_to_interface: HashMap<Url, InterfaceId>,
 
@@ -290,7 +298,7 @@ struct WitPackageDecoder<'a> {
 }
 
 impl WitPackageDecoder<'_> {
-    fn decode_document(&mut self, name: &str, ty: &types::ComponentType) -> Result<()> {
+    fn decode_document(&mut self, name: &str, ty: &types::ComponentType) -> Result<DocumentId> {
         // Process all imports for this document first, where imports are either
         // importing interfaces from previously defined documents or from remote
         // packages. Note that the URL must be specified here for these
@@ -319,12 +327,8 @@ impl WitPackageDecoder<'_> {
             worlds: IndexMap::new(),
             default_interface: None,
             default_world: None,
-            package: Some(self.package),
+            package: None,
         });
-        let prev = self.resolve.packages[self.package]
-            .documents
-            .insert(name.to_string(), doc);
-        assert!(prev.is_none());
 
         for (name, (url, ty)) in ty.exports.iter() {
             match ty {
@@ -361,7 +365,7 @@ impl WitPackageDecoder<'_> {
                 _ => bail!("component export `{name}` is not an instance or component"),
             }
         }
-        Ok(())
+        Ok(doc)
     }
 
     fn register_import(
