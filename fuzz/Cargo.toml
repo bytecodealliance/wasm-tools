@@ -22,7 +22,8 @@ wasmtime = { workspace = true, optional = true }
 wast = { path = "../crates/wast" }
 wat = { path = "../crates/wat" }
 wit-parser = { path = "../crates/wit-parser" }
-wit-component = { path = "../crates/wit-component" }
+wit-component = { path = "../crates/wit-component", features = ['dummy-module'] }
+wasm-encoder = { path = "../crates/wasm-encoder" }
 
 [lib]
 test = false

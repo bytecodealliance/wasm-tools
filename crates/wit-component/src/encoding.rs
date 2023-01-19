@@ -333,6 +333,7 @@ pub struct EncodingState<'a> {
 
     /// Imported instances and what index they were imported as.
     imported_instances: IndexMap<InterfaceId, u32>,
+    imported_funcs: IndexMap<&'a str, u32>,
 
     /// Map of types defined within the component's root index space.
     type_map: HashMap<TypeId, u32>,
@@ -375,56 +376,79 @@ impl<'a> EncodingState<'a> {
     }
 
     fn encode_imports(&mut self) -> Result<()> {
-        let resolve = &self.info.encoder.metadata.resolve;
         for (name, info) in self.info.import_map.iter() {
-            let name = match name {
-                Some(name) => name,
-                None => unimplemented!("top-level imports"),
-            };
-            let (interface_id, url) = info.interface.as_ref().unwrap();
-            let interface_id = *interface_id;
-            let interface = &resolve.interfaces[interface_id];
-            log::trace!("encoding imports for `{name}` as {:?}", interface_id);
-            let ty = {
-                let mut encoder = self.instance_type_encoder(interface_id);
+            match name {
+                Some(name) => self.encode_interface_import(name, info)?,
+                None => self.encode_root_import_funcs(info)?,
+            }
+        }
+        Ok(())
+    }
 
-                // Encode all required functions from this imported interface
-                // into the instance type.
-                for (_, func) in interface.functions.iter() {
-                    if !info.required.contains(func.name.as_str()) {
-                        continue;
-                    }
-                    log::trace!("encoding function type for `{}`", func.name);
-                    let idx = encoder.encode_func_type(resolve, func)?;
+    fn encode_interface_import(&mut self, name: &str, info: &ImportedInterface) -> Result<()> {
+        let resolve = &self.info.encoder.metadata.resolve;
+        let (interface_id, url) = info.interface.as_ref().unwrap();
+        let interface_id = *interface_id;
+        let interface = &resolve.interfaces[interface_id];
+        log::trace!("encoding imports for `{name}` as {:?}", interface_id);
+        let mut encoder = self.instance_type_encoder(interface_id);
 
-                    encoder
-                        .ty
-                        .export(&func.name, "", ComponentTypeRef::Func(idx));
-                }
-
-                // If there were any live types from this instance which weren't
-                // otherwise reached through the above function types then this
-                // will forward them through.
-                if let Some(live) = encoder.state.info.live_types.get(&interface_id) {
-                    for ty in live {
-                        log::trace!("encoding extra type {ty:?}");
-                        encoder.encode_valtype(resolve, &Type::Id(*ty))?;
-                    }
-                }
-
-                encoder.ty
-            };
-
-            // Don't encode empty instance types since they're not
-            // meaningful to the runtime of the component anyway.
-            if ty.is_empty() {
+        // Encode all required functions from this imported interface
+        // into the instance type.
+        for (_, func) in interface.functions.iter() {
+            if !info.required.contains(func.name.as_str()) {
                 continue;
             }
-            let instance_type_idx = self.component.instance_type(&ty);
-            let instance_idx =
-                self.component
-                    .import(name, url, ComponentTypeRef::Instance(instance_type_idx));
-            let prev = self.imported_instances.insert(interface_id, instance_idx);
+            log::trace!("encoding function type for `{}`", func.name);
+            let idx = encoder.encode_func_type(resolve, func)?;
+
+            encoder
+                .ty
+                .export(&func.name, "", ComponentTypeRef::Func(idx));
+        }
+
+        // If there were any live types from this instance which weren't
+        // otherwise reached through the above function types then this
+        // will forward them through.
+        if let Some(live) = encoder.state.info.live_types.get(&interface_id) {
+            for ty in live {
+                log::trace!("encoding extra type {ty:?}");
+                encoder.encode_valtype(resolve, &Type::Id(*ty))?;
+            }
+        }
+
+        let ty = encoder.ty;
+        // Don't encode empty instance types since they're not
+        // meaningful to the runtime of the component anyway.
+        if ty.is_empty() {
+            return Ok(());
+        }
+        let instance_type_idx = self.component.instance_type(&ty);
+        let instance_idx =
+            self.component
+                .import(name, url, ComponentTypeRef::Instance(instance_type_idx));
+        let prev = self.imported_instances.insert(interface_id, instance_idx);
+        assert!(prev.is_none());
+        Ok(())
+    }
+
+    fn encode_root_import_funcs(&mut self, info: &ImportedInterface) -> Result<()> {
+        let resolve = &self.info.encoder.metadata.resolve;
+        let world = self.info.encoder.metadata.world;
+        for (name, item) in resolve.worlds[world].imports.iter() {
+            let func = match item {
+                WorldItem::Function(f) => f,
+                WorldItem::Interface(_) => continue,
+            };
+            if !info.required.contains(name.as_str()) {
+                continue;
+            }
+            log::trace!("encoding function type for `{}`", func.name);
+            let mut encoder = self.root_type_encoder(None);
+            let idx = encoder.encode_func_type(resolve, func)?;
+            assert!(encoder.type_exports.is_empty());
+            let func_idx = self.component.import(name, "", ComponentTypeRef::Func(idx));
+            let prev = self.imported_funcs.insert(name, func_idx);
             assert!(prev.is_none());
         }
         Ok(())
@@ -455,14 +479,14 @@ impl<'a> EncodingState<'a> {
         // For each instance import into the main module create a
         // pseudo-core-wasm-module via a bag-of-exports.
         let mut args = Vec::new();
-        for name in info.required_imports.keys() {
+        for core_wasm_name in info.required_imports.keys() {
             let index = self.import_instance_to_lowered_core_instance(
                 CustomModule::Main,
-                *name,
+                *core_wasm_name,
                 &shims,
                 info.metadata,
             );
-            args.push((*name, ModuleArg::Instance(index)));
+            args.push((*core_wasm_name, ModuleArg::Instance(index)));
         }
 
         // For each adapter module instance imported into the core wasm module
@@ -511,26 +535,29 @@ impl<'a> EncodingState<'a> {
     fn import_instance_to_lowered_core_instance(
         &mut self,
         for_module: CustomModule<'_>,
-        name: &str,
+        core_wasm_name: &str,
         shims: &Shims<'_>,
         metadata: &ModuleMetadata,
     ) -> u32 {
-        let import = &self.info.import_map[&Some(name)];
-        let (interface, _url) = import.interface.as_ref().unwrap();
-        let instance_index = self.imported_instances[interface];
+        let interface = if core_wasm_name.is_empty() {
+            None
+        } else {
+            Some(core_wasm_name)
+        };
+        let import = &self.info.import_map[&interface];
         let mut exports = Vec::with_capacity(import.direct.len() + import.indirect.len());
 
         // Add an entry for all indirect lowerings which come as an export of
         // the shim module.
         for (i, lowering) in import.indirect.iter().enumerate() {
             let encoding =
-                metadata.import_encodings[&(name.to_string(), lowering.name.to_string())];
+                metadata.import_encodings[&(core_wasm_name.to_string(), lowering.name.to_string())];
             let index = self.component.alias_core_item(
                 self.shim_instance_index
                     .expect("shim should be instantiated"),
                 ExportKind::Func,
                 &shims.shim_names[&ShimKind::IndirectLowering {
-                    interface: name,
+                    interface,
                     indirect_index: i,
                     realloc: for_module,
                     encoding,
@@ -542,7 +569,13 @@ impl<'a> EncodingState<'a> {
         // All direct lowerings can be `canon lower`'d here immediately and
         // passed as arguments.
         for lowering in &import.direct {
-            let func_index = self.component.alias_func(instance_index, lowering.name);
+            let func_index = match &import.interface {
+                Some((interface, _url)) => {
+                    let instance_index = self.imported_instances[interface];
+                    self.component.alias_func(instance_index, lowering.name)
+                }
+                None => self.imported_funcs[lowering.name],
+            };
             let core_func_index = self.component.lower_func(func_index, []);
             exports.push((lowering.name, ExportKind::Func, core_func_index));
         }
@@ -676,10 +709,15 @@ impl<'a> EncodingState<'a> {
 
         // For all interfaces imported into the main module record all of their
         // indirect lowerings into `Shims`.
-        for name in info.required_imports.keys() {
-            let import = &self.info.import_map[&Some(*name)];
+        for core_wasm_name in info.required_imports.keys() {
+            let import_name = if core_wasm_name.is_empty() {
+                None
+            } else {
+                Some(*core_wasm_name)
+            };
+            let import = &self.info.import_map[&import_name];
             ret.append_indirect(
-                name,
+                core_wasm_name,
                 CustomModule::Main,
                 import,
                 info.metadata,
@@ -873,12 +911,15 @@ impl<'a> EncodingState<'a> {
                     realloc,
                     encoding,
                 } => {
-                    let interface = &self.info.import_map[&Some(*interface)];
-                    let (interface_id, _url) = interface.interface.as_ref().unwrap();
-                    let instance_index = self.imported_instances[interface_id];
-                    let func_index = self
-                        .component
-                        .alias_func(instance_index, interface.indirect[*indirect_index].name);
+                    let interface = &self.info.import_map[interface];
+                    let name = interface.indirect[*indirect_index].name;
+                    let func_index = match &interface.interface {
+                        Some((interface_id, _url)) => {
+                            let instance_index = self.imported_instances[interface_id];
+                            self.component.alias_func(instance_index, name)
+                        }
+                        None => self.imported_funcs[name],
+                    };
 
                     let realloc = match realloc {
                         CustomModule::Main => self.realloc_index,
@@ -1061,7 +1102,7 @@ enum ShimKind<'a> {
     /// instantiated so their memories and functions are available.
     IndirectLowering {
         /// The name of the interface that's being lowered.
-        interface: &'a str,
+        interface: Option<&'a str>,
         /// The index within the `indirect` array of the function being lowered.
         indirect_index: usize,
         /// Which instance to pull the `realloc` function from, if necessary.
@@ -1103,27 +1144,32 @@ impl<'a> Shims<'a> {
     /// over its indirect lowerings and appending a shim per lowering.
     fn append_indirect(
         &mut self,
-        name: &'a str,
+        core_wasm_module: &'a str,
         for_module: CustomModule<'a>,
         import: &ImportedInterface<'a>,
         metadata: &ModuleMetadata,
         sigs: &mut Vec<WasmSignature>,
     ) {
+        let interface = if core_wasm_module.is_empty() {
+            None
+        } else {
+            Some(core_wasm_module)
+        };
         for (indirect_index, lowering) in import.indirect.iter().enumerate() {
             let shim_name = self.list.len().to_string();
             log::debug!(
-                "shim {shim_name} is import `{name}` lowering {indirect_index} `{}`",
+                "shim {shim_name} is import `{core_wasm_module}` lowering {indirect_index} `{}`",
                 lowering.name
             );
             sigs.push(lowering.sig.clone());
-            let encoding =
-                metadata.import_encodings[&(name.to_string(), lowering.name.to_string())];
+            let encoding = metadata.import_encodings
+                [&(core_wasm_module.to_string(), lowering.name.to_string())];
             self.list.push(Shim {
                 name: shim_name,
-                debug_name: format!("indirect-{name}-{}", lowering.name),
+                debug_name: format!("indirect-{core_wasm_module}-{}", lowering.name),
                 options: lowering.options,
                 kind: ShimKind::IndirectLowering {
-                    interface: name,
+                    interface,
                     indirect_index,
                     realloc: for_module,
                     encoding,
@@ -1217,6 +1263,7 @@ impl ComponentEncoder {
             type_map: HashMap::new(),
             func_type_map: HashMap::new(),
             imported_instances: Default::default(),
+            imported_funcs: Default::default(),
             info: &world,
         };
         state.encode_imports()?;
