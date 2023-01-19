@@ -3,6 +3,7 @@
 use libfuzzer_sys::fuzz_target;
 use std::collections::HashMap;
 use std::path::Path;
+use wasm_encoder::{CustomSection, Encode, Section};
 use wit_component::*;
 use wit_parser::{PackageId, Resolve, SourceMap};
 
@@ -38,6 +39,31 @@ fuzz_target!(|data: &[u8]| {
 
     if wasm != wasm2 {
         panic!("roundtrip wasm didn't match");
+    }
+
+    for (id, _world) in resolve.worlds.iter() {
+        let mut dummy = wit_component::dummy_module(&resolve, id);
+        let metadata = wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8).unwrap();
+        let section = CustomSection {
+            name: "component-type",
+            data: &metadata,
+        };
+        dummy.push(section.id());
+        section.encode(&mut dummy);
+
+        write_file("dummy.wasm", &dummy);
+        let wasm = wit_component::ComponentEncoder::default()
+            .module(&dummy)
+            .unwrap()
+            .encode()
+            .unwrap();
+        write_file("dummy.component.wasm", &wasm);
+        wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
+            component_model: true,
+            ..Default::default()
+        })
+        .validate_all(&wasm)
+        .unwrap();
     }
 });
 
