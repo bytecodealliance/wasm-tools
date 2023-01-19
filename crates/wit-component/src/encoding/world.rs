@@ -296,17 +296,17 @@ impl<'a> ComponentWorld<'a> {
                 WorldItem::Function(func) => {
                     let required = match required.get("") {
                         Some(set) => set,
-                        None => return,
+                        None => continue,
                     };
                     if !required.contains(name.as_str()) {
-                        return;
+                        continue;
                     }
                     live.add_func(resolve, func);
                 }
                 WorldItem::Interface(id) => {
                     let required = match required.get(name.as_str()) {
                         Some(set) => set,
-                        None => return,
+                        None => continue,
                     };
                     for (name, func) in resolve.interfaces[*id].functions.iter() {
                         if required.contains(name.as_str()) {
