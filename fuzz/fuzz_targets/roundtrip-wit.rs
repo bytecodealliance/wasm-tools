@@ -64,6 +64,8 @@ fuzz_target!(|data: &[u8]| {
         })
         .validate_all(&wasm)
         .unwrap();
+
+        wit_component::decode(&name, &wasm).unwrap();
     }
 });
 

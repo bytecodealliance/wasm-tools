@@ -623,7 +623,11 @@ impl WitPackageDecoder<'_> {
                         assert!(prev.is_none());
                     }
                     let prev = self.type_map.insert(created, ty);
-                    assert!(prev.is_none());
+                    // FIXME(WebAssembly/component-model#151) this check should
+                    // get executed
+                    if false {
+                        assert!(prev.is_none());
+                    }
                     let prev = interface.types.insert(name.to_string(), ty);
                     assert!(prev.is_none());
                 }
