@@ -136,6 +136,7 @@ mod generate {
     const MAX_DOC_ITEMS: usize = 10;
     const MAX_WORLD_ITEMS: usize = 10;
     const MAX_INTERFACE_ITEMS: usize = 10;
+    const MAX_TYPE_SIZE: usize = 100;
 
     #[derive(Default)]
     struct Generator {
@@ -475,7 +476,7 @@ mod generate {
                 Anonymous,
             }
 
-            let mut size = 1;
+            let mut fuel = MAX_TYPE_SIZE;
             let mut ret = String::new();
             match u.arbitrary()? {
                 Kind::Record => {
@@ -486,7 +487,7 @@ mod generate {
                         ret.push_str("  %");
                         ret.push_str(&self.gen_unique_name(u)?);
                         ret.push_str(": ");
-                        self.gen_type(u, &mut size, &mut ret)?;
+                        self.gen_type(u, &mut fuel, &mut ret)?;
                         ret.push_str(",\n");
                     }
                     ret.push_str("}");
@@ -500,7 +501,7 @@ mod generate {
                         ret.push_str(&self.gen_unique_name(u)?);
                         if u.arbitrary()? {
                             ret.push_str("(");
-                            self.gen_type(u, &mut size, &mut ret)?;
+                            self.gen_type(u, &mut fuel, &mut ret)?;
                             ret.push_str(")");
                         }
                         ret.push_str(",\n");
@@ -513,7 +514,7 @@ mod generate {
                     ret.push_str(" {\n");
                     for _ in 0..u.int_in_range(1..=MAX_PARTS)? {
                         ret.push_str("  ");
-                        self.gen_type(u, &mut size, &mut ret)?;
+                        self.gen_type(u, &mut fuel, &mut ret)?;
                         ret.push_str(",\n");
                     }
                     ret.push_str("}");
@@ -544,21 +545,19 @@ mod generate {
                     ret.push_str("type %");
                     ret.push_str(name);
                     ret.push_str(" = ");
-                    self.gen_type(u, &mut size, &mut ret)?;
+                    self.gen_type(u, &mut fuel, &mut ret)?;
                 }
             }
 
-            Ok((size, ret))
+            Ok((MAX_TYPE_SIZE - fuel, ret))
         }
 
         fn gen_type(
             &mut self,
             u: &mut Unstructured<'_>,
-            size: &mut usize,
+            fuel: &mut usize,
             dst: &mut String,
         ) -> Result<()> {
-            const MAX_SIZE: usize = 100;
-
             #[derive(Arbitrary)]
             enum Kind {
                 Bool,
@@ -581,11 +580,13 @@ mod generate {
                 List,
             }
 
-            *size += 1;
-            if *size >= MAX_SIZE {
-                dst.push_str("bool");
-                return Ok(());
-            }
+            *fuel = match fuel.checked_sub(1) {
+                Some(fuel) => fuel,
+                None => {
+                    dst.push_str("bool");
+                    return Ok(());
+                }
+            };
             loop {
                 break match u.arbitrary()? {
                     Kind::Bool => dst.push_str("bool"),
@@ -606,53 +607,70 @@ mod generate {
                             continue;
                         }
                         let (name, type_size) = u.choose(&self.types_in_interface)?;
-                        if *size + *type_size > MAX_SIZE {
-                            continue;
-                        }
-                        *size += *type_size;
+                        *fuel = match fuel.checked_sub(*type_size) {
+                            Some(fuel) => fuel,
+                            None => continue,
+                        };
                         dst.push_str("%");
                         dst.push_str(name);
                     }
                     Kind::Tuple => {
+                        let fields = u.int_in_range(0..=MAX_PARTS)?;
+                        *fuel = match fuel.checked_sub(fields) {
+                            Some(fuel) => fuel,
+                            None => continue,
+                        };
                         dst.push_str("tuple<");
-                        for i in 0..u.int_in_range(0..=MAX_PARTS)? {
+                        for i in 0..fields {
                             if i > 0 {
                                 dst.push_str(", ");
                             }
-                            self.gen_type(u, size, dst)?;
+                            self.gen_type(u, fuel, dst)?;
                         }
                         dst.push_str(">");
                     }
                     Kind::Option => {
+                        *fuel = match fuel.checked_sub(1) {
+                            Some(fuel) => fuel,
+                            None => continue,
+                        };
                         dst.push_str("option<");
-                        self.gen_type(u, size, dst)?;
+                        self.gen_type(u, fuel, dst)?;
                         dst.push_str(">");
                     }
                     Kind::List => {
+                        *fuel = match fuel.checked_sub(1) {
+                            Some(fuel) => fuel,
+                            None => continue,
+                        };
                         dst.push_str("list<");
-                        self.gen_type(u, size, dst)?;
+                        self.gen_type(u, fuel, dst)?;
                         dst.push_str(">");
                     }
                     Kind::Result => {
+                        *fuel = match fuel.checked_sub(2) {
+                            Some(fuel) => fuel,
+                            None => continue,
+                        };
                         dst.push_str("result");
                         let ok = u.arbitrary()?;
                         let err = u.arbitrary()?;
                         match (ok, err) {
                             (true, true) => {
                                 dst.push_str("<");
-                                self.gen_type(u, size, dst)?;
+                                self.gen_type(u, fuel, dst)?;
                                 dst.push_str(", ");
-                                self.gen_type(u, size, dst)?;
+                                self.gen_type(u, fuel, dst)?;
                                 dst.push_str(">");
                             }
                             (true, false) => {
                                 dst.push_str("<");
-                                self.gen_type(u, size, dst)?;
+                                self.gen_type(u, fuel, dst)?;
                                 dst.push_str(">");
                             }
                             (false, true) => {
                                 dst.push_str("<_, ");
-                                self.gen_type(u, size, dst)?;
+                                self.gen_type(u, fuel, dst)?;
                                 dst.push_str(">");
                             }
                             (false, false) => {}
@@ -680,13 +698,15 @@ mod generate {
                 self.gen_params(u, dst)?;
             } else if u.arbitrary()? {
                 dst.push_str(" -> ");
-                self.gen_type(u, &mut 1, dst)?;
+                let mut fuel = MAX_TYPE_SIZE;
+                self.gen_type(u, &mut fuel, dst)?;
             }
             Ok(())
         }
 
         fn gen_params(&mut self, u: &mut Unstructured<'_>, dst: &mut String) -> Result<()> {
             dst.push_str("(");
+            let mut fuel = MAX_TYPE_SIZE;
             for i in 0..u.int_in_range(0..=MAX_PARTS)? {
                 if i > 0 {
                     dst.push_str(", ");
@@ -694,7 +714,7 @@ mod generate {
                 dst.push_str("%");
                 dst.push_str(&self.gen_unique_name(u)?);
                 dst.push_str(": ");
-                self.gen_type(u, &mut 1, dst)?;
+                self.gen_type(u, &mut fuel, dst)?;
             }
             dst.push_str(")");
             Ok(())
