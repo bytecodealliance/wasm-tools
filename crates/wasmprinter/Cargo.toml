@@ -1,6 +1,6 @@
 [package]
 name = "wasmprinter"
-version = "0.2.47"
+version = "0.2.48"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
