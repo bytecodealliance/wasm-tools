@@ -279,6 +279,12 @@ macro_rules! define_visit {
             $self.memory_index($mem)?;
         }
     );
+    (payload $self:ident MemoryDiscard $mem:ident) => (
+        if $mem != 0 {
+            $self.push_str(" ");
+            $self.memory_index($mem)?;
+        }
+    );
     (payload $self:ident I32Const $val:ident) => (write!($self.result(), " {}", $val)?);
     (payload $self:ident I64Const $val:ident) => (write!($self.result(), " {}", $val)?);
     (payload $self:ident F32Const $val:ident) => (
@@ -362,6 +368,7 @@ macro_rules! define_visit {
     (name MemoryInit) => ("memory.init");
     (name MemoryCopy) => ("memory.copy");
     (name MemoryFill) => ("memory.fill");
+    (name MemoryDiscard) => ("memory.discard");
     (name DataDrop) => ("data.drop");
     (name ElemDrop) => ("elem.drop");
     (name TableInit) => ("table.init");

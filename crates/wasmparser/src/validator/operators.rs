@@ -936,6 +936,7 @@ macro_rules! validate_proposal {
     (desc sign_extension) => ("sign extension operations");
     (desc exceptions) => ("exceptions");
     (desc tail_call) => ("tail calls");
+    (desc memory_control) => ("memory control");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -3015,6 +3016,12 @@ where
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_memory_discard(&mut self, mem: u32) -> Self::Output {
+        let ty = self.check_memory_index(mem)?;
+        self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
         Ok(())
     }

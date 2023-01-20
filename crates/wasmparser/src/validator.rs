@@ -241,6 +241,8 @@ pub struct WasmFeatures {
     pub extended_const: bool,
     /// The WebAssembly component model proposal.
     pub component_model: bool,
+    /// The WebAssembly memory control proposal
+    pub memory_control: bool,
 }
 
 impl WasmFeatures {
@@ -277,6 +279,7 @@ impl Default for WasmFeatures {
             memory64: false,
             extended_const: false,
             component_model: false,
+            memory_control: false,
 
             // on-by-default features
             mutable_global: true,
