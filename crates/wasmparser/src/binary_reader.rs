@@ -1046,6 +1046,11 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_table_fill(table)
             }
 
+            0x12 => {
+                let mem = self.read_var_u32()?;
+                visitor.visit_memory_discard(mem)
+            }
+
             _ => bail!(pos, "unknown 0xfc subopcode: 0x{code:x}"),
         })
     }

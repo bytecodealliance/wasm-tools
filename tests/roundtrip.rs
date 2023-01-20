@@ -537,6 +537,7 @@ impl TestState {
             saturating_float_to_int: true,
             sign_extension: true,
             mutable_global: true,
+            memory_control: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
