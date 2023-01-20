@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.18"
+version = "1.0.17"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
@@ -42,16 +42,16 @@ wasmtime = { version = "3.0.0", default-features = false, features = ['cranelift
 url = "2.3.1"
 
 wasm-encoder = { version = "0.21.0", path = "crates/wasm-encoder"}
-wasm-compose = { version = "0.2.3", path = "crates/wasm-compose"}
-wasm-mutate = { version = "0.2.15", path = "crates/wasm-mutate" }
-wasm-shrink = { version = "0.1.16", path = "crates/wasm-shrink" }
-wasm-smith = { version = "0.11.12", path = "crates/wasm-smith" }
-wasmparser = { version = "0.98.0", path = "crates/wasmparser" }
-wasmparser-dump = { version = "0.1.14", path = "crates/dump" }
-wasmprinter = { version = "0.2.47", path = "crates/wasmprinter" }
-wast = { version = "52.0.0", path = "crates/wast" }
-wat = { version = "1.0.54", path = "crates/wat" }
-wit-component = { version = "0.4.2", path = "crates/wit-component" }
+wasm-compose = { version = "0.2.2", path = "crates/wasm-compose"}
+wasm-mutate = { version = "0.2.14", path = "crates/wasm-mutate" }
+wasm-shrink = { version = "0.1.15", path = "crates/wasm-shrink" }
+wasm-smith = { version = "0.11.11", path = "crates/wasm-smith" }
+wasmparser = { version = "0.97.0", path = "crates/wasmparser" }
+wasmparser-dump = { version = "0.1.13", path = "crates/dump" }
+wasmprinter = { version = "0.2.46", path = "crates/wasmprinter" }
+wast = { version = "51.0.0", path = "crates/wast" }
+wat = { version = "1.0.53", path = "crates/wat" }
+wit-component = { version = "0.4.0", path = "crates/wit-component" }
 wit-parser = { version = "0.4.0", path = "crates/wit-parser" }
 
 [dependencies]
