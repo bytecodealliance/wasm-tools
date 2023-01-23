@@ -175,7 +175,9 @@ mod generate {
             while packages.len() < MAX_PACKAGES && (packages.is_empty() || u.arbitrary()?) {
                 let name = gen_unique_name(u, &mut names)?;
                 let (sources, documents) = self.gen_package(&name, u)?;
-                self.packages.push((name.clone(), documents));
+                if documents.len() > 0 {
+                    self.packages.push((name.clone(), documents));
+                }
                 packages.push(Package { name, sources });
             }
             Ok(packages)
@@ -196,7 +198,9 @@ mod generate {
                 super::write_file(format!("orig-{pkg}-{name}.wit").as_ref(), &doc);
                 map.push(format!("{name}.wit").as_ref(), &name, doc);
                 count += 1;
-                self.documents.push((name, interfaces));
+                if interfaces.len() > 0 {
+                    self.documents.push((name, interfaces));
+                }
             }
 
             Ok((map, mem::take(&mut self.documents)))
@@ -225,8 +229,10 @@ mod generate {
                         self.next_interface_id += 1;
                         let (src, types) =
                             self.gen_interface(u, Some(&name), &mut has_default_interface)?;
-                        self.interfaces
-                            .push((name, id, src.starts_with("default"), types));
+                        if types.len() > 0 {
+                            self.interfaces
+                                .push((name, id, src.starts_with("default"), types));
+                        }
                         pieces.push(src);
                     }
                     Generate::Done => break,
@@ -344,41 +350,61 @@ mod generate {
             u: &mut Unstructured<'_>,
             dst: &mut String,
         ) -> Result<Option<(u32, &TypeList)>> {
-            Ok(if !self.interfaces.is_empty() && u.arbitrary()? {
-                dst.push_str("self.");
-                let (name, id, _default, types) = u.choose(&self.interfaces)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                Some((*id, types))
-            } else if !self.documents.is_empty() && u.arbitrary()? {
-                dst.push_str("pkg.");
-                let (name, ifaces) = u.choose(&self.documents)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                let (name, id, default, types) = u.choose(ifaces)?;
-                if !*default || !u.arbitrary()? {
-                    dst.push_str(".");
+            enum Choice {
+                Interfaces,
+                Documents,
+                Packages,
+            }
+            let mut choices = Vec::new();
+            if !self.interfaces.is_empty() {
+                choices.push(Choice::Interfaces);
+            }
+            if !self.documents.is_empty() {
+                choices.push(Choice::Documents);
+            }
+            if !self.packages.is_empty() {
+                choices.push(Choice::Packages);
+            }
+            if choices.is_empty() {
+                return Ok(None);
+            }
+            Ok(match u.choose(&choices)? {
+                Choice::Interfaces => {
+                    dst.push_str("self.");
+                    let (name, id, _default, types) = u.choose(&self.interfaces)?;
                     dst.push_str("%");
                     dst.push_str(name);
+                    Some((*id, types))
                 }
-                Some((*id, types))
-            } else if !self.packages.is_empty() && u.arbitrary()? {
-                let (name, docs) = u.choose(&self.packages)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                dst.push_str(".");
-                let (name, ifaces) = u.choose(docs)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                let (name, id, default, types) = u.choose(ifaces)?;
-                if !*default || !u.arbitrary()? {
-                    dst.push_str(".");
+                Choice::Documents => {
+                    dst.push_str("pkg.");
+                    let (name, ifaces) = u.choose(&self.documents)?;
                     dst.push_str("%");
                     dst.push_str(name);
+                    let (name, id, default, types) = u.choose(ifaces)?;
+                    if !*default || !u.arbitrary()? {
+                        dst.push_str(".");
+                        dst.push_str("%");
+                        dst.push_str(name);
+                    }
+                    Some((*id, types))
                 }
-                Some((*id, types))
-            } else {
-                None
+                Choice::Packages => {
+                    let (name, docs) = u.choose(&self.packages)?;
+                    dst.push_str("%");
+                    dst.push_str(name);
+                    dst.push_str(".");
+                    let (name, ifaces) = u.choose(docs)?;
+                    dst.push_str("%");
+                    dst.push_str(name);
+                    let (name, id, default, types) = u.choose(ifaces)?;
+                    if !*default || !u.arbitrary()? {
+                        dst.push_str(".");
+                        dst.push_str("%");
+                        dst.push_str(name);
+                    }
+                    Some((*id, types))
+                }
             })
         }
     }
