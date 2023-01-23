@@ -334,6 +334,7 @@ pub struct EncodingState<'a> {
     /// Imported instances and what index they were imported as.
     imported_instances: IndexMap<InterfaceId, u32>,
     imported_funcs: IndexMap<&'a str, u32>,
+    exported_instances: IndexMap<InterfaceId, u32>,
 
     /// Map of types defined within the component's root index space.
     type_map: HashMap<TypeId, u32>,
@@ -467,7 +468,11 @@ impl<'a> EncodingState<'a> {
             .name
             .as_ref()
             .expect("cannot import anonymous type across interfaces");
-        let instance = self.imported_instances[&interface];
+        let instance = self
+            .exported_instances
+            .get(&interface)
+            .copied()
+            .unwrap_or_else(|| self.imported_instances[&interface]);
         self.component.alias_type_export(instance, name)
     }
 
@@ -623,6 +628,12 @@ impl<'a> EncodingState<'a> {
                         ));
                     }
 
+                    if let Some(live) = enc.state.info.live_types.get(export) {
+                        for ty in live {
+                            enc.encode_valtype(resolve, &Type::Id(*ty))?;
+                        }
+                    }
+
                     // Place type imports first for now. The lifted function
                     // types in theory should reference the indices of these
                     // exports but that's not possible in the binary encoding
@@ -640,12 +651,14 @@ impl<'a> EncodingState<'a> {
 
                     let instance_index = self.component.instantiate_exports(interface_exports);
                     let url = resolve.url_of(*export).unwrap_or(String::new());
-                    self.component.export(
+                    let idx = self.component.export(
                         export_name,
                         &url,
                         ComponentExportKind::Instance,
                         instance_index,
                     );
+                    let prev = self.exported_instances.insert(*export, idx);
+                    assert!(prev.is_none());
                 }
             }
         }
@@ -1264,6 +1277,7 @@ impl ComponentEncoder {
             func_type_map: HashMap::new(),
             imported_instances: Default::default(),
             imported_funcs: Default::default(),
+            exported_instances: Default::default(),
             info: &world,
         };
         state.encode_imports()?;
