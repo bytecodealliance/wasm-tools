@@ -1,0 +1,14 @@
+interface foo {
+  type t1 = u8
+  type t2 = u8
+}
+
+interface bar {
+  type u = u8
+}
+
+interface baz {
+  use self.foo.{t1}
+  use self.bar.{u}
+  use self.foo.{t2}
+}

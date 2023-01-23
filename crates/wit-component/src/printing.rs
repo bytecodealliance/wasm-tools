@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use indexmap::IndexMap;
 use std::fmt::{self, Write};
 use wit_parser::*;
 
@@ -51,7 +50,7 @@ impl DocumentPrinter {
         // Partition types defined in this interface into either those imported
         // from foreign interfaces or those defined locally.
         let mut types_to_declare = Vec::new();
-        let mut types_to_import = IndexMap::new();
+        let mut types_to_import: Vec<(_, Vec<_>)> = Vec::new();
         for (name, ty_id) in &interface.types {
             let ty = &resolve.types[*ty_id];
             if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
@@ -62,10 +61,13 @@ impl DocumentPrinter {
                             .name
                             .as_ref()
                             .ok_or_else(|| anyhow!("cannot import unnamed type"))?;
-                        types_to_import
-                            .entry(other_iface)
-                            .or_insert(Vec::new())
-                            .push((name, other_name));
+                        if let Some((id, list)) = types_to_import.last_mut() {
+                            if *id == other_iface {
+                                list.push((name, other_name));
+                                continue;
+                            }
+                        }
+                        types_to_import.push((other_iface, vec![(name, other_name)]));
                         continue;
                     }
                 }
