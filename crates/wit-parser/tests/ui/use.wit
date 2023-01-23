@@ -28,4 +28,6 @@ interface use-multiple {
 
 interface trailing-comma {
   use self.foo.{the-type,}
+
+  record the-foo { a: the-type }
 }

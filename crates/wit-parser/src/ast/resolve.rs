@@ -554,7 +554,7 @@ impl<'a> Resolver<'a> {
         for field in fields {
             match field {
                 ast::InterfaceItem::TypeDef(t) => {
-                    let prev = type_defs.insert(t.name.name, t);
+                    let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
                         return Err(Error {
                             span: t.name.span,
@@ -566,12 +566,22 @@ impl<'a> Resolver<'a> {
                     collect_deps(&t.ty, &mut deps);
                     type_deps.insert(t.name.name, deps);
                 }
-                ast::InterfaceItem::Use(_) | ast::InterfaceItem::Value(_) => {}
+                ast::InterfaceItem::Use(u) => {
+                    for name in u.names.iter() {
+                        let name = name.as_.as_ref().unwrap_or(&name.name);
+                        type_deps.insert(name.name, Vec::new());
+                        type_defs.insert(name.name, None);
+                    }
+                }
+                ast::InterfaceItem::Value(_) => {}
             }
         }
         let order = toposort("type", &type_deps)?;
         for ty in order {
-            let def = type_defs.remove(&ty).unwrap();
+            let def = match type_defs.remove(&ty).unwrap() {
+                Some(def) => def,
+                None => continue,
+            };
             let docs = self.docs(&def.docs);
             let kind = self.resolve_type_def(&def.ty)?;
             let id = self.types.alloc(TypeDef {
