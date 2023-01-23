@@ -488,7 +488,6 @@ mod generate {
                 ret.push_str("\n\n");
             }
 
-            self.types_in_interface.clear();
             ret.push_str("}");
             Ok(ret)
         }
