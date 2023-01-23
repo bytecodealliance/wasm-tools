@@ -21,7 +21,18 @@ fuzz_target!(|data: &[u8]| {
     for pkg in pkgs {
         let url = format!("my-scheme:/{}", pkg.name);
         let unresolved = pkg.sources.parse(&pkg.name, Some(&url)).unwrap();
-        let id = resolve.push(unresolved, &deps).unwrap();
+        let id = match resolve.push(unresolved, &deps) {
+            Ok(id) => id,
+            Err(e) => {
+                let err = e.to_string();
+                if err.contains("conflicts with a previously")
+                    || err.contains("shadows previously imported")
+                {
+                    return;
+                }
+                panic!("bad wit parse: {e:?}")
+            }
+        };
         let prev = deps.insert(pkg.name, id);
         assert!(prev.is_none());
         last = Some(id);
