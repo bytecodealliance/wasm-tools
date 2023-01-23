@@ -448,27 +448,30 @@ mod generate {
             while parts.len() < MAX_INTERFACE_ITEMS && u.arbitrary()? {
                 match u.arbitrary()? {
                     Generate::Use => {
+                        let mut part = String::new();
                         let mut path = String::new();
                         let (_id, types) = match self.gen.gen_path(u, &mut path)? {
                             Some(types) => types,
                             None => continue,
                         };
-                        ret.push_str("use ");
-                        ret.push_str(&path);
-                        ret.push_str(".{");
+                        part.push_str("use ");
+                        part.push_str(&path);
+                        part.push_str(".{");
                         let (name, size) = u.choose(types)?;
-                        ret.push_str("%");
-                        ret.push_str(name);
+                        part.push_str("%");
+                        part.push_str(name);
                         let name = if self.unique_names.contains(name) || u.arbitrary()? {
-                            ret.push_str(" as %");
+                            part.push_str(" as %");
                             let name = self.gen_unique_name(u)?;
-                            ret.push_str(&name);
+                            part.push_str(&name);
                             name
                         } else {
+                            assert!(self.unique_names.insert(name.clone()));
                             name.clone()
                         };
                         self.types_in_interface.push((name, *size));
-                        ret.push_str("}");
+                        part.push_str("}");
+                        parts.push(part);
                     }
                     Generate::Type => {
                         let name = self.gen_unique_name(u)?;
