@@ -1,0 +1,4 @@
+interface foo {
+  use pkg.def.name.{name}
+}
+

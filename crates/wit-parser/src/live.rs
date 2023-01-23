@@ -15,6 +15,10 @@ impl LiveTypes {
         self.set.iter().rev().copied()
     }
 
+    pub fn len(&self) -> usize {
+        self.set.len()
+    }
+
     pub fn add_document(&mut self, resolve: &Resolve, doc: DocumentId) {
         let doc = &resolve.documents[doc];
         for (_, id) in doc.interfaces.iter() {
