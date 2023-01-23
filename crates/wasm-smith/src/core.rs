@@ -239,7 +239,7 @@ pub(crate) enum Type {
 }
 
 /// A function signature.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct FuncType {
     /// Types of the parameter values.
     pub(crate) params: Vec<ValType>,
