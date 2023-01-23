@@ -77,6 +77,7 @@ impl Encoder<'_> {
         }
 
         let mut encoder = InterfaceEncoder::new(self.resolve);
+        let mut import_names = IndexSet::new();
         for owner in imported_interfaces {
             let owner_iface = &self.resolve.interfaces[owner];
             encoder.push_instance();
@@ -90,10 +91,23 @@ impl Encoder<'_> {
             encoder.instances += 1;
 
             let import_name = owner_iface.name.as_ref().unwrap();
+            let import_name = if import_names.insert(import_name.clone()) {
+                import_name.clone()
+            } else {
+                let mut i = 2;
+                loop {
+                    let name = format!("{import_name}{i}");
+                    if import_names.insert(name.clone()) {
+                        break name;
+                    }
+                    i += 1;
+                }
+            };
+
             let url = self.url_of(owner);
             encoder
                 .outer
-                .import(import_name, &url, ComponentTypeRef::Instance(idx));
+                .import(&import_name, &url, ComponentTypeRef::Instance(idx));
         }
 
         let doc = &self.resolve.documents[doc];

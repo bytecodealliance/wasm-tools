@@ -1,0 +1,5 @@
+interface a {
+  use a.the-name.the-iface.{ty}
+  use b.the-name.the-iface.{ty as ty2}
+}
+
