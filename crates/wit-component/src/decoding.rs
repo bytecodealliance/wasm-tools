@@ -419,7 +419,7 @@ impl WitPackageDecoder<'_> {
                             if url.scheme() == "pkg" {
                                 bail!("instance type export `{name}` not defined in interface");
                             }
-                            let kind = match self.type_map.get(&referenced).copied() {
+                            let kind = match self.find_alias(referenced) {
                                 Some(id) => TypeDefKind::Type(Type::Id(id)),
                                 None => self.convert_defined(def)?,
                             };
@@ -476,6 +476,25 @@ impl WitPackageDecoder<'_> {
         }
 
         Ok(interface)
+    }
+
+    fn find_alias(&self, id: types::TypeId) -> Option<TypeId> {
+        // Consult `type_map` for `referenced` or anything in its
+        // chain of aliases to determine what it maps to. This may
+        // bottom out in `None` in the case that this type is
+        // just now being defined, but this should otherwise follow
+        // chains of aliases to determine what exactly this was a
+        // `use` of if it exists.
+        let mut prev = None;
+        let mut cur = id;
+        while prev.is_none() {
+            prev = self.type_map.get(&cur).copied();
+            cur = match self.info.types.peel_alias(cur) {
+                Some(next) => next,
+                None => break,
+            };
+        }
+        prev
     }
 
     fn extract_url_interface(&mut self, url: &Url) -> Result<InterfaceId> {
@@ -583,24 +602,11 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let key = PtrHash(ty);
-
-                    // Note that first the `type_map` is consulted for the
-                    // referenced type id here, meaning if this is a reexport of
-                    // another type in this interface then we're guaranteed to
-                    // get that precise link.
-                    //
-                    // Failing that, though, the `type_src_map` is consulted to
-                    // find the item, if present, from an alias of an import or
-                    // other export, representing a cross-interface `use`.
-                    let (kind, insert_src) = match self
-                        .type_map
-                        .get(&referenced)
-                        .or_else(|| self.type_src_map.get(&key))
-                    {
+                    let (kind, insert_src) = match self.find_alias(referenced) {
                         // If this `TypeId` points to a type which has
                         // previously been defined, meaning we're aliasing a
                         // prior definition.
-                        Some(prev) => (TypeDefKind::Type(Type::Id(*prev)), false),
+                        Some(prev) => (TypeDefKind::Type(Type::Id(prev)), false),
 
                         // ... or this `TypeId`'s source definition has never
                         // been seen before, so declare the full type.

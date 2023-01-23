@@ -6,6 +6,7 @@ use crate::{
     MemoryType, PrimitiveValType, TableType, TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
+use std::collections::HashMap;
 use std::{
     borrow::Borrow,
     fmt,
@@ -1941,6 +1942,13 @@ impl Types {
     ) -> Option<ComponentEntityType> {
         self.as_ref().component_entity_type_from_export(export)
     }
+
+    /// Attempts to lookup the type id that `ty` is an alias of.
+    ///
+    /// Returns `None` if `ty` wasn't listed as aliasing a prior type.
+    pub fn peel_alias(&self, ty: TypeId) -> Option<TypeId> {
+        self.list.peel_alias(ty)
+    }
 }
 
 /// This is a type which mirrors a subset of the `Vec<T>` API, but is intended
@@ -1964,13 +1972,23 @@ pub(crate) struct SnapshotList<T> {
     //
     // Note that this list is sorted least-to-greatest in order of the index for
     // binary searching.
-    snapshots: Vec<(usize, Arc<Vec<T>>)>,
+    snapshots: Vec<Arc<Snapshot<T>>>,
 
     // This is the total length of all lists in the `snapshots` array.
     snapshots_total: usize,
 
     // The current list of types for the current snapshot that are being built.
     cur: Vec<T>,
+
+    unique_mappings: HashMap<u32, u32>,
+    unique_counter: u32,
+}
+
+struct Snapshot<T> {
+    prior_types: usize,
+    unique_counter: u32,
+    unique_mappings: HashMap<u32, u32>,
+    items: Vec<T>,
 }
 
 impl<T> SnapshotList<T> {
@@ -1983,12 +2001,15 @@ impl<T> SnapshotList<T> {
         // ... and failing that we do a binary search to figure out which bucket
         // it's in. Note the `i-1` in the `Err` case because if we don't find an
         // exact match the type is located in the previous bucket.
-        let i = match self.snapshots.binary_search_by_key(&index, |(i, _)| *i) {
+        let i = match self
+            .snapshots
+            .binary_search_by_key(&index, |snapshot| snapshot.prior_types)
+        {
             Ok(i) => i,
             Err(i) => i - 1,
         };
-        let (len, list) = &self.snapshots[i];
-        Some(&list[index - len])
+        let snapshot = &self.snapshots[i];
+        Some(&snapshot.items[index - snapshot.prior_types])
     }
 
     /// Same as `<&mut [T]>::get_mut`, except only works for indexes into the
@@ -2032,19 +2053,70 @@ impl<T> SnapshotList<T> {
         // If the current chunk has new elements, commit them in to an
         // `Arc`-wrapped vector in the snapshots list. Note the `shrink_to_fit`
         // ahead of time to hopefully keep memory usage lower than it would
-        // otherwise be.
+        // otherwise be. Additionally note that the `unique_counter` is bumped
+        // here to ensure that the previous value of the unique counter is
+        // never used for an actual type so it's suitable for lookup via a
+        // binary search.
         let len = self.cur.len();
         if len > 0 {
+            self.unique_counter += 1;
             self.cur.shrink_to_fit();
-            self.snapshots
-                .push((self.snapshots_total, Arc::new(mem::take(&mut self.cur))));
+            self.snapshots.push(Arc::new(Snapshot {
+                prior_types: self.snapshots_total,
+                unique_counter: self.unique_counter - 1,
+                unique_mappings: mem::take(&mut self.unique_mappings),
+                items: mem::take(&mut self.cur),
+            }));
             self.snapshots_total += len;
         }
         SnapshotList {
             snapshots: self.snapshots.clone(),
             snapshots_total: self.snapshots_total,
+            unique_mappings: HashMap::new(),
+            unique_counter: self.unique_counter,
             cur: Vec::new(),
         }
+    }
+
+    /// Modifies a `TypeId` to have the same contents but a fresh new unique id.
+    ///
+    /// This is used during aliasing with components to assign types a unique
+    /// identifier that doesn't has equivalent to anything else but still
+    /// points to the same underlying type.
+    pub fn with_unique(&mut self, mut ty: TypeId) -> TypeId {
+        self.unique_mappings
+            .insert(self.unique_counter, ty.unique_id);
+        ty.unique_id = self.unique_counter;
+        self.unique_counter += 1;
+        ty
+    }
+
+    /// Attempts to lookup the type id that `ty` is an alias of.
+    ///
+    /// Returns `None` if `ty` wasn't listed as aliasing a prior type.
+    pub fn peel_alias(&self, ty: TypeId) -> Option<TypeId> {
+        // The unique counter in each snapshot is the unique counter at the
+        // time of the snapshot so it's guaranteed to never be used, meaning
+        // that `Ok` should never show up here. With an `Err` it's where the
+        // index would be placed meaning that the index in question is the
+        // smallest value over the unique id's value, meaning that slot has the
+        // mapping we're interested in.
+        let i = match self
+            .snapshots
+            .binary_search_by_key(&ty.unique_id, |snapshot| snapshot.unique_counter)
+        {
+            Ok(_) => unreachable!(),
+            Err(i) => i,
+        };
+
+        // If the `i` index is beyond the snapshot array then lookup in the
+        // current mappings instead since it may refer to a type not snapshot
+        // yet.
+        let unique_id = match self.snapshots.get(i) {
+            Some(snapshot) => *snapshot.unique_mappings.get(&ty.unique_id)?,
+            None => *self.unique_mappings.get(&ty.unique_id)?,
+        };
+        Some(TypeId { unique_id, ..ty })
     }
 }
 
@@ -2086,6 +2158,8 @@ impl<T> Default for SnapshotList<T> {
             snapshots: Vec::new(),
             snapshots_total: 0,
             cur: Vec::new(),
+            unique_counter: 1,
+            unique_mappings: HashMap::new(),
         }
     }
 }
@@ -2097,7 +2171,6 @@ pub(crate) type TypeList = SnapshotList<Type>;
 /// types contained within this list.
 pub(crate) struct TypeAlloc {
     list: TypeList,
-    unique_counter: u32,
 }
 
 impl Deref for TypeAlloc {
@@ -2136,24 +2209,12 @@ impl TypeAlloc {
         let id = self.push_anon(ty);
         self.with_unique(id)
     }
-
-    /// Modifies a `TypeId` to have the same contents but a fresh new unique id.
-    ///
-    /// This is used during aliasing with components to assign types a unique
-    /// identifier that doesn't has equivalent to anything else but still
-    /// points to the same underlying type.
-    pub fn with_unique(&mut self, mut ty: TypeId) -> TypeId {
-        ty.unique_id = self.unique_counter;
-        self.unique_counter += 1;
-        ty
-    }
 }
 
 impl Default for TypeAlloc {
     fn default() -> TypeAlloc {
         TypeAlloc {
             list: Default::default(),
-            unique_counter: 1,
         }
     }
 }
