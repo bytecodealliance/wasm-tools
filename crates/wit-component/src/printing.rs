@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use std::fmt::{self, Write};
 use wit_parser::*;
 
@@ -7,7 +7,6 @@ use wit_parser::*;
 #[derive(Default)]
 pub struct DocumentPrinter {
     output: Output,
-    declared: IndexSet<TypeId>,
 }
 
 impl DocumentPrinter {
@@ -42,7 +41,6 @@ impl DocumentPrinter {
             writeln!(&mut self.output, "}}")?;
         }
 
-        self.declared.clear();
         Ok(std::mem::take(&mut self.output).into())
     }
 
@@ -78,6 +76,7 @@ impl DocumentPrinter {
 
         // Generate a `use` statement for all imported types.
         let my_doc = resolve.interfaces[id].document;
+        let amt_to_import = types_to_import.len();
         for (id, tys) in types_to_import {
             write!(&mut self.output, "use ")?;
             self.print_path_to_interface(resolve, id, my_doc)?;
@@ -95,6 +94,10 @@ impl DocumentPrinter {
                 }
             }
             writeln!(&mut self.output, "}}")?;
+        }
+
+        if amt_to_import > 0 && types_to_declare.len() > 0 {
+            self.output.push_str("\n");
         }
 
         // Declare all local types
@@ -350,10 +353,6 @@ impl DocumentPrinter {
             | Type::String => return Ok(()),
 
             Type::Id(id) => {
-                if !self.declared.insert(*id) {
-                    return Ok(());
-                }
-
                 let ty = &resolve.types[*id];
                 match &ty.kind {
                     TypeDefKind::Record(r) => {
@@ -400,10 +399,6 @@ impl DocumentPrinter {
         name: Option<&str>,
         record: &Record,
     ) -> Result<()> {
-        for field in record.fields.iter() {
-            self.declare_type(resolve, &field.ty)?;
-        }
-
         match name {
             Some(name) => {
                 self.output.push_str("record ");
@@ -412,7 +407,6 @@ impl DocumentPrinter {
                 for field in &record.fields {
                     self.print_name(&field.name);
                     self.output.push_str(": ");
-                    self.declare_type(resolve, &field.ty)?;
                     self.print_type_name(resolve, &field.ty)?;
                     self.output.push_str(",\n");
                 }
@@ -429,10 +423,6 @@ impl DocumentPrinter {
         name: Option<&str>,
         tuple: &Tuple,
     ) -> Result<()> {
-        for ty in tuple.types.iter() {
-            self.declare_type(resolve, ty)?;
-        }
-
         if let Some(name) = name {
             self.output.push_str("type ");
             self.print_name(name);
@@ -466,12 +456,6 @@ impl DocumentPrinter {
         name: Option<&str>,
         variant: &Variant,
     ) -> Result<()> {
-        for case in variant.cases.iter() {
-            if let Some(ty) = case.ty {
-                self.declare_type(resolve, &ty)?;
-            }
-        }
-
         let name = match name {
             Some(name) => name,
             None => bail!("document has unnamed union type"),
@@ -498,10 +482,6 @@ impl DocumentPrinter {
         name: Option<&str>,
         union: &Union,
     ) -> Result<()> {
-        for case in union.cases.iter() {
-            self.declare_type(resolve, &case.ty)?;
-        }
-
         let name = match name {
             Some(name) => name,
             None => bail!("document has unnamed union type"),
@@ -524,8 +504,6 @@ impl DocumentPrinter {
         name: Option<&str>,
         payload: &Type,
     ) -> Result<()> {
-        self.declare_type(resolve, payload)?;
-
         if let Some(name) = name {
             self.output.push_str("type ");
             self.print_name(name);
@@ -542,13 +520,6 @@ impl DocumentPrinter {
         name: Option<&str>,
         result: &Result_,
     ) -> Result<()> {
-        if let Some(ok) = result.ok {
-            self.declare_type(resolve, &ok)?;
-        }
-        if let Some(err) = result.err {
-            self.declare_type(resolve, &err)?;
-        }
-
         if let Some(name) = name {
             self.output.push_str("type ");
             self.print_name(name);
@@ -576,8 +547,6 @@ impl DocumentPrinter {
     }
 
     fn declare_list(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
-        self.declare_type(resolve, ty)?;
-
         if let Some(name) = name {
             self.output.push_str("type ");
             self.print_name(name);
