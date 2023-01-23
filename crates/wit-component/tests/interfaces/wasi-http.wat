@@ -18,9 +18,9 @@
       (type (;0;)
         (instance
           (type (;0;) (record))
-          (export (;1;) "response" (type (eq 0)))
+          (export (;1;) "request" (type (eq 0)))
           (type (;2;) (record))
-          (export (;3;) "request" (type (eq 2)))
+          (export (;3;) "response" (type (eq 2)))
         )
       )
       (import "types" "pkg:/types/types" (instance (type 0)))

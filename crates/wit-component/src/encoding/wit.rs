@@ -1,7 +1,7 @@
 use crate::builder::ComponentBuilder;
 use crate::encoding::types::{FunctionKey, ValtypeEncoder};
 use anyhow::Result;
-use indexmap::IndexMap;
+use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
 use url::Url;
@@ -64,7 +64,7 @@ impl Encoder<'_> {
             set.add_interface(self.resolve, *id);
         }
 
-        let mut imported_interfaces = IndexMap::new();
+        let mut imported_interfaces = IndexSet::new();
         for ty in set.iter() {
             let owner = match &self.resolve.types[ty].owner {
                 TypeOwner::Interface(i) => *i,
@@ -73,18 +73,15 @@ impl Encoder<'_> {
             if self.resolve.interfaces[owner].document == doc {
                 continue;
             }
-            imported_interfaces
-                .entry(owner)
-                .or_insert(Vec::new())
-                .push(ty);
+            imported_interfaces.insert(owner);
         }
 
         let mut encoder = InterfaceEncoder::new(self.resolve);
-        for (owner, ids) in imported_interfaces {
+        for owner in imported_interfaces {
             let owner_iface = &self.resolve.interfaces[owner];
             encoder.push_instance();
-            for id in ids {
-                encoder.encode_valtype(self.resolve, &Type::Id(id))?;
+            for (_, id) in owner_iface.types.iter() {
+                encoder.encode_valtype(self.resolve, &Type::Id(*id))?;
             }
             let instance = encoder.pop_instance();
             let idx = encoder.outer.type_count();
