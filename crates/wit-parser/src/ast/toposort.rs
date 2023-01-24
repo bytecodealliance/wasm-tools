@@ -1,60 +1,117 @@
 use crate::ast::{Id, Span};
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
-use std::collections::HashSet;
+use indexmap::IndexMap;
+use std::collections::BinaryHeap;
 use std::fmt;
+use std::mem;
 
+#[derive(Default, Clone)]
+struct State {
+    /// Number of outbound edges from this node which have still not been
+    /// processed into the topological ordering.
+    outbound_remaining: usize,
+
+    /// Indices of nodes that depend on this one, used when this node is added
+    /// to the binary heap to decrement `outbound_remaining`.
+    reverse_deps: Vec<usize>,
+}
+
+/// Performs a topological sort of the `deps` provided, returning the order in
+/// which to visit the nodes in reverse-dep order.
+///
+/// This sort goes one level further as well to produce a stable ordering
+/// regardless of the input edges so long as the structure of the graph has
+/// changed. Notably the nodes are sorted, by name, in the output in addition to
+/// being sorted in dependency order. This is done to assist with round-tripping
+/// documents where new edges are discovered during world elaboration that
+/// doesn't change the dependency graph but can change the dependency listings
+/// between serializations.
+///
+/// The algorithm chosen here to do this is:
+///
+/// * Build some metadata about all nodes including their count of outbound
+///   edges remaining to be added to the order and a reverse dependency list.
+/// * Collect all nodes with 0 outbound edges into a binary heap.
+/// * Pop from the binary heap and decrement outbound edges that depend on
+///   this node.
+/// * Iterate until the dependency ordering is the same size as the dependency
+///   array.
+///
+/// This sort will also detect when dependencies are missing or when cycles are
+/// present and return an error.
 pub fn toposort<'a>(
     kind: &str,
     deps: &IndexMap<&'a str, Vec<Id<'a>>>,
 ) -> Result<Vec<&'a str>, Error> {
-    // First make sure that all dependencies actually point to other valid items
-    // that are known.
-    for (_, names) in deps {
-        for name in names {
-            deps.get(name.name).ok_or_else(|| Error::NonexistentDep {
-                span: name.span,
-                name: name.name.to_string(),
-                kind: kind.to_string(),
-            })?;
+    // Initialize a `State` per-node with the number of outbound edges and
+    // additionally filling out the `reverse_deps` array.
+    let mut states = vec![State::default(); deps.len()];
+    for (i, (_, edges)) in deps.iter().enumerate() {
+        states[i].outbound_remaining = edges.len();
+        for edge in edges {
+            let (j, _, _) = deps
+                .get_full(edge.name)
+                .ok_or_else(|| Error::NonexistentDep {
+                    span: edge.span,
+                    name: edge.name.to_string(),
+                    kind: kind.to_string(),
+                })?;
+            states[j].reverse_deps.push(i);
         }
     }
 
-    // Then recursively visit all dependencies building up the topological order
-    // as we go and guarding against cycles with a separate visitation set.
-    let mut order = IndexSet::new();
-    let mut visiting = HashSet::new();
-    for dep in deps.keys() {
-        visit(dep, deps, &mut order, &mut visiting, kind)?;
-    }
-    Ok(order.into_iter().collect())
-}
+    let mut order = Vec::new();
+    let mut heap = BinaryHeap::new();
 
-fn visit<'a>(
-    dep: &'a str,
-    deps: &IndexMap<&'a str, Vec<Id<'a>>>,
-    order: &mut IndexSet<&'a str>,
-    visiting: &mut HashSet<&'a str>,
-    kind: &str,
-) -> Result<(), Error> {
-    if order.contains(dep) {
-        return Ok(());
+    // Seed the `heap` with edges that have no outbound edges
+    for (i, dep) in deps.keys().enumerate() {
+        if states[i].outbound_remaining == 0 {
+            heap.push((*dep, i));
+        }
     }
 
-    for dep in deps[dep].iter() {
-        if !visiting.insert(dep.name) {
+    // Drain the binary heap which represents all nodes that have had all their
+    // dependencies processed. Iteratively add to the heap as well as nodes are
+    // removed.
+    while let Some((node, i)) = heap.pop() {
+        order.push(node);
+        for i in mem::take(&mut states[i].reverse_deps) {
+            states[i].outbound_remaining -= 1;
+            if states[i].outbound_remaining == 0 {
+                let (dep, _) = deps.get_index(i).unwrap();
+                heap.push((*dep, i));
+            }
+        }
+    }
+
+    // If all nodes are present in order then a topological ordering was
+    // achieved and it can be returned.
+    if order.len() == deps.len() {
+        return Ok(order);
+    }
+
+    // ... otherwise there are still dependencies with remaining edges which
+    // means that a cycle must be present, so find the cycle and report the
+    // error.
+    for (i, state) in states.iter().enumerate() {
+        if state.outbound_remaining == 0 {
+            continue;
+        }
+        let (_, edges) = deps.get_index(i).unwrap();
+        for dep in edges {
+            let (j, _, _) = deps.get_full(dep.name).unwrap();
+            if states[j].outbound_remaining == 0 {
+                continue;
+            }
             return Err(Error::Cycle {
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
             });
         }
-        visit(dep.name, deps, order, visiting, kind)?;
-        assert!(visiting.remove(&dep.name));
     }
 
-    assert!(order.insert(dep));
-    Ok(())
+    unreachable!()
 }
 
 #[derive(Debug)]
@@ -128,8 +185,6 @@ mod tests {
     fn cycles() {
         let mut cycle = IndexMap::new();
         cycle.insert("a", vec![id("a")]);
-        let mut set = IndexSet::new();
-        set.insert("a");
         assert!(matches!(toposort("", &cycle), Err(Error::Cycle { .. })));
 
         let mut cycle = IndexMap::new();
