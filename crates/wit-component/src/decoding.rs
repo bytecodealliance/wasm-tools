@@ -387,7 +387,11 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
 
-                    let id = match self.resolve.interfaces[interface].types.get(name.as_str()) {
+                    let id = match self.resolve.interfaces[interface]
+                        .types
+                        .get(name.as_str())
+                        .copied()
+                    {
                         // If this name is already defined as a type in the
                         // specified interface then that's ok. For package-local
                         // interfaces that's expected since the interface was
@@ -395,9 +399,20 @@ impl WitPackageDecoder<'_> {
                         // using something that was already used elsewhere. In
                         // both cases continue along.
                         //
-                        // TODO: ideally this would verify that `def` matches
-                        // the structure of `id`.
-                        Some(id) => *id,
+                        // Notably for the remotely defined case this will also
+                        // walk over the structure of the type and register
+                        // internal wasmparser ids with wit-parser ids. This is
+                        // necessary to ensure that anonymous types like
+                        // `list<u8>` defined in original definitions are
+                        // unified with anonymous types when duplicated inside
+                        // of worlds. Overall this prevents, for example, extra
+                        // `list<u8>` types from popping up when decoding. This
+                        // is not strictly necessary but assists with
+                        // roundtripping assertions during fuzzing.
+                        Some(id) => {
+                            self.register_defined(id, def)?;
+                            id
+                        }
 
                         // If the name is not defined, however, then there's two
                         // possibilities:
@@ -785,11 +800,11 @@ impl WitPackageDecoder<'_> {
         // errors on those types, but eventually the `bail!` here  is
         // more-or-less unreachable due to expected validation to be added to
         // the component model binary format itself.
-        let ty = match self.info.types.type_from_id(id) {
+        let def = match self.info.types.type_from_id(id) {
             Some(types::Type::Defined(ty)) => ty,
             _ => unreachable!(),
         };
-        let kind = self.convert_defined(ty)?;
+        let kind = self.convert_defined(def)?;
         match &kind {
             TypeDefKind::Type(_)
             | TypeDefKind::List(_)
@@ -952,6 +967,15 @@ impl WitPackageDecoder<'_> {
         }
     }
 
+    fn register_defined(&mut self, id: TypeId, def: &types::ComponentDefinedType) -> Result<()> {
+        Registrar {
+            types: &self.info.types,
+            type_map: &mut self.type_map,
+            resolve: &self.resolve,
+        }
+        .defined(id, def)
+    }
+
     /// Completes the decoding of this resolve by finalizing all packages into
     /// their topological ordering within the returned `Resolve`.
     ///
@@ -1068,5 +1092,169 @@ impl<T> Eq for PtrHash<'_, T> {}
 impl<T> Hash for PtrHash<'_, T> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         std::ptr::hash(self.0, hasher)
+    }
+}
+
+/// Helper type to register the structure of a wasm-defined type against a
+/// wit-defined type.
+struct Registrar<'a> {
+    types: &'a types::Types,
+    type_map: &'a mut HashMap<types::TypeId, TypeId>,
+    resolve: &'a Resolve,
+}
+
+impl Registrar<'_> {
+    /// Verifies that the wasm structure of `def` matches the wit structure of
+    /// `id` and recursively registers types.
+    fn defined(&mut self, id: TypeId, def: &types::ComponentDefinedType) -> Result<()> {
+        match def {
+            types::ComponentDefinedType::Primitive(_) => Ok(()),
+
+            types::ComponentDefinedType::List(t) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::List(r) => r,
+                    // Note that all cases below have this match and the general
+                    // idea is that once a type is named or otherwise identified
+                    // here there's no need to recurse. The purpose of this
+                    // registrar is to build connections for anonymous types
+                    // that don't otherwise have a name to ensure that they're
+                    // decoded to reuse the same constructs consistently. For
+                    // that reason once something is named we can bail out.
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a list"),
+                };
+                self.valtype(t, ty)
+            }
+
+            types::ComponentDefinedType::Tuple(t) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Tuple(r) => r,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a tuple"),
+                };
+                if ty.types.len() != t.types.len() {
+                    bail!("mismatched number of tuple fields");
+                }
+                for (a, b) in t.types.iter().zip(ty.types.iter()) {
+                    self.valtype(a, b)?;
+                }
+                Ok(())
+            }
+
+            types::ComponentDefinedType::Option(t) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Option(r) => r,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected an option"),
+                };
+                self.valtype(t, ty)
+            }
+
+            types::ComponentDefinedType::Result { ok, err } => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Result(r) => r,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a result"),
+                };
+                match (ok, &ty.ok) {
+                    (Some(a), Some(b)) => self.valtype(a, b)?,
+                    (None, None) => {}
+                    _ => bail!("disagreement on result structure"),
+                }
+                match (err, &ty.err) {
+                    (Some(a), Some(b)) => self.valtype(a, b)?,
+                    (None, None) => {}
+                    _ => bail!("disagreement on result structure"),
+                }
+                Ok(())
+            }
+
+            types::ComponentDefinedType::Record(def) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Record(r) => r,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a record"),
+                };
+                if def.fields.len() != ty.fields.len() {
+                    bail!("mismatched number of record fields");
+                }
+                for ((name, ty), field) in def.fields.iter().zip(&ty.fields) {
+                    if name.as_str() != field.name {
+                        bail!("mismatched field order");
+                    }
+                    self.valtype(ty, &field.ty)?;
+                }
+                Ok(())
+            }
+
+            types::ComponentDefinedType::Variant(def) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Variant(r) => r,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a variant"),
+                };
+                if def.cases.len() != ty.cases.len() {
+                    bail!("mismatched number of variant cases");
+                }
+                for ((name, ty), case) in def.cases.iter().zip(&ty.cases) {
+                    if name.as_str() != case.name {
+                        bail!("mismatched case order");
+                    }
+                    match (&ty.ty, &case.ty) {
+                        (Some(a), Some(b)) => self.valtype(a, b)?,
+                        (None, None) => {}
+                        _ => bail!("disagreement on case type"),
+                    }
+                }
+                Ok(())
+            }
+
+            types::ComponentDefinedType::Union(t) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Union(r) => r,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a union"),
+                };
+                if ty.cases.len() != t.types.len() {
+                    bail!("mismatched number of tuple fields");
+                }
+                for (a, b) in t.types.iter().zip(ty.cases.iter()) {
+                    self.valtype(a, &b.ty)?;
+                }
+                Ok(())
+            }
+
+            // These have no recursive structure so they can bail out.
+            types::ComponentDefinedType::Flags(_) => Ok(()),
+            types::ComponentDefinedType::Enum(_) => Ok(()),
+        }
+    }
+
+    fn valtype(&mut self, wasm: &types::ComponentValType, wit: &Type) -> Result<()> {
+        match wasm {
+            types::ComponentValType::Primitive(_wasm) => {
+                assert!(!matches!(wit, Type::Id(_)));
+                Ok(())
+            }
+            types::ComponentValType::Type(wasm) => {
+                let wit = match wit {
+                    Type::Id(id) => *id,
+                    _ => bail!("expected id-based type"),
+                };
+                match self.type_map.insert(*wasm, wit) {
+                    Some(prev) => {
+                        assert_eq!(prev, wit);
+                        Ok(())
+                    }
+                    None => {
+                        let wasm = match self.types.type_from_id(*wasm) {
+                            Some(types::Type::Defined(ty)) => ty,
+                            _ => unreachable!(),
+                        };
+                        self.defined(wit, wasm)
+                    }
+                }
+            }
+        }
     }
 }
