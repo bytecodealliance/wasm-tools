@@ -270,10 +270,9 @@ impl WasmFeatures {
 impl Default for WasmFeatures {
     fn default() -> WasmFeatures {
         WasmFeatures {
-            // off-by-default features
+            // Off-by-default features.
             relaxed_simd: false,
             threads: false,
-            tail_call: false,
             multi_memory: false,
             exceptions: false,
             memory64: false,
@@ -281,13 +280,14 @@ impl Default for WasmFeatures {
             component_model: false,
             memory_control: false,
 
-            // on-by-default features
+            // On-by-default features (phase 4 or greater).
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,
             bulk_memory: true,
             multi_value: true,
             reference_types: true,
+            tail_call: true,
             simd: true,
             floats: true,
         }

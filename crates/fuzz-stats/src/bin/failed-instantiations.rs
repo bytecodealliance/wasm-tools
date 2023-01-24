@@ -103,9 +103,8 @@ impl State {
         let mut config = SwarmConfig::arbitrary(&mut u)?;
         config.allow_start_export = false;
 
-        // Temporarily disable the multi-memory proposal until the updated
-        // encoding of multi-memory has made its way into Wasmtime.
-        config.max_memories = config.max_memories.min(1);
+        // Wasmtime doesn't support this proposal yet.
+        config.tail_call_enabled = false;
 
         let mut wasm = wasm_smith::Module::new(config, &mut u)?;
         wasm.ensure_termination(10_000);
