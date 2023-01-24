@@ -991,7 +991,7 @@ impl WitPackageDecoder<'_> {
             }
         }
 
-        // Using the above map a topological odering is then calculated by
+        // Using the above map a topological ordering is then calculated by
         // visiting all the transitive dependencies of packages.
         let mut order = IndexSet::new();
         for i in 0..self.url_to_package.len() {
