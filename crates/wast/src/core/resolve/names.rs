@@ -413,7 +413,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         }
 
         match instr {
-            MemorySize(i) | MemoryGrow(i) | MemoryFill(i) => {
+            MemorySize(i) | MemoryGrow(i) | MemoryFill(i) | MemoryDiscard(i) => {
                 self.resolver.resolve(&mut i.mem, Ns::Memory)?;
             }
             MemoryInit(i) => {
