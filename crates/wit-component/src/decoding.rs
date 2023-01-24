@@ -1,7 +1,8 @@
 use anyhow::{anyhow, bail, Context, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::mem;
 use url::Url;
 use wasmparser::{
     types, ComponentExport, ComponentExternalKind, ComponentImport, ComponentTypeRef, Parser,
@@ -93,7 +94,7 @@ impl<'a> ComponentInfo<'a> {
         let mut decoder = WitPackageDecoder {
             resolve,
             info: self,
-            url_to_package: HashMap::default(),
+            url_to_package: IndexMap::default(),
             type_map: HashMap::new(),
             type_src_map: HashMap::new(),
             url_to_interface: HashMap::new(),
@@ -111,8 +112,7 @@ impl<'a> ComponentInfo<'a> {
             docs.push((doc, id));
         }
 
-        let mut resolve = decoder.resolve;
-        let package = resolve.packages.alloc(Package {
+        let (resolve, package) = decoder.finish(Package {
             name: name.to_string(),
             documents: docs
                 .iter()
@@ -120,9 +120,6 @@ impl<'a> ComponentInfo<'a> {
                 .collect(),
             url: None,
         });
-        for (_, doc) in docs.iter() {
-            resolve.documents[*doc].package = Some(package);
-        }
 
         Ok((resolve, package))
     }
@@ -130,18 +127,13 @@ impl<'a> ComponentInfo<'a> {
     fn decode_component(&self, name: &str) -> Result<(Resolve, WorldId)> {
         assert!(!self.is_wit_package());
         let mut resolve = Resolve::default();
-        let package = resolve.packages.alloc(Package {
-            name: name.to_string(),
-            documents: Default::default(),
-            url: None,
-        });
         let doc = resolve.documents.alloc(Document {
             name: "root".to_string(),
             interfaces: Default::default(),
             worlds: Default::default(),
             default_interface: None,
             default_world: None,
-            package: Some(package),
+            package: None,
         });
         let world = resolve.worlds.alloc(World {
             name: name.to_string(),
@@ -157,7 +149,7 @@ impl<'a> ComponentInfo<'a> {
         let mut decoder = WitPackageDecoder {
             resolve,
             info: self,
-            url_to_package: HashMap::default(),
+            url_to_package: IndexMap::default(),
             type_map: HashMap::new(),
             type_src_map: HashMap::new(),
             url_to_interface: HashMap::new(),
@@ -220,7 +212,12 @@ impl<'a> ComponentInfo<'a> {
                 .exports
                 .insert(name.to_string(), item);
         }
-        Ok((decoder.resolve, world))
+        let (resolve, _) = decoder.finish(Package {
+            name: name.to_string(),
+            documents: [("root".to_string(), doc)].into_iter().collect(),
+            url: None,
+        });
+        Ok((resolve, world))
     }
 }
 
@@ -280,7 +277,7 @@ pub fn decode(name: &str, bytes: &[u8]) -> Result<DecodedWasm> {
 struct WitPackageDecoder<'a> {
     resolve: Resolve,
     info: &'a ComponentInfo<'a>,
-    url_to_package: HashMap<Url, PackageId>,
+    url_to_package: IndexMap<Url, Package>,
     url_to_interface: HashMap<Url, InterfaceId>,
 
     /// A map from a type id to what it's been translated to.
@@ -538,14 +535,15 @@ impl WitPackageDecoder<'_> {
 
         // Lazily create a `Package` as necessary, along with the document and
         // interface.
-        let package = *self.url_to_package.entry(url.clone()).or_insert_with(|| {
-            self.resolve.packages.alloc(Package {
+        let package = self
+            .url_to_package
+            .entry(url.clone())
+            .or_insert_with(|| Package {
                 name: package_name.to_string(),
                 documents: Default::default(),
                 url: Some(url.to_string()),
-            })
-        });
-        let doc = *self.resolve.packages[package]
+            });
+        let doc = *package
             .documents
             .entry(document.to_string())
             .or_insert_with(|| {
@@ -555,7 +553,7 @@ impl WitPackageDecoder<'_> {
                     worlds: IndexMap::new(),
                     default_interface: None,
                     default_world: None,
-                    package: Some(package),
+                    package: None,
                 })
             });
         let interface = *self.resolve.documents[doc]
@@ -952,6 +950,108 @@ impl WitPackageDecoder<'_> {
             PrimitiveValType::Float32 => Type::Float32,
             PrimitiveValType::Float64 => Type::Float64,
         }
+    }
+
+    /// Completes the decoding of this resolve by finalizing all packages into
+    /// their topological ordering within the returned `Resolve`.
+    ///
+    /// Takes the root package as an argument to insert.
+    fn finish(mut self, package: Package) -> (Resolve, PackageId) {
+        // First build a map from all documents to what index their package
+        // resides at in the `url_to_package` array.
+        let mut doc_to_package_index = HashMap::new();
+        for (i, (_url, pkg)) in self.url_to_package.iter().enumerate() {
+            for (_, doc) in pkg.documents.iter() {
+                let prev = doc_to_package_index.insert(*doc, i);
+                assert!(prev.is_none());
+            }
+        }
+
+        // Using the above map a topological odering is then calculated by
+        // visiting all the transitive dependencies of packages.
+        let mut order = IndexSet::new();
+        for i in 0..self.url_to_package.len() {
+            self.visit_package(&doc_to_package_index, i, &mut order);
+        }
+
+        // Using the topological ordering create a temporary map from
+        // index-in-`url_to_package` to index-in-`order`
+        let mut idx_to_pos = vec![0; self.url_to_package.len()];
+        for (pos, idx) in order.iter().enumerate() {
+            idx_to_pos[*idx] = pos;
+        }
+        // .. and then using `idx_to_pos` sort the `url_to_package` array based
+        // on the position it's at in the topological ordering
+        let mut deps = mem::take(&mut self.url_to_package)
+            .into_iter()
+            .enumerate()
+            .collect::<Vec<_>>();
+        deps.sort_by_key(|(idx, _)| idx_to_pos[*idx]);
+
+        // .. and finally insert the packages, in their final topological
+        // ordering, into the returned array.
+        for (_idx, (_url, pkg)) in deps {
+            self.insert_package(pkg);
+        }
+
+        let id = self.insert_package(package);
+        (self.resolve, id)
+    }
+
+    fn insert_package(&mut self, package: Package) -> PackageId {
+        let id = self.resolve.packages.alloc(package);
+        for (_, doc) in self.resolve.packages[id].documents.iter() {
+            self.resolve.documents[*doc].package = Some(id);
+        }
+        id
+    }
+
+    fn visit_package(
+        &self,
+        doc_to_package_index: &HashMap<DocumentId, usize>,
+        idx: usize,
+        order: &mut IndexSet<usize>,
+    ) {
+        if order.contains(&idx) {
+            return;
+        }
+
+        let (_url, pkg) = self.url_to_package.get_index(idx).unwrap();
+        for (_, id) in pkg.documents.iter() {
+            let doc = &self.resolve.documents[*id];
+
+            let interfaces = doc.interfaces.values().copied().chain(
+                doc.worlds
+                    .values()
+                    .flat_map(|w| {
+                        let world = &self.resolve.worlds[*w];
+                        world.imports.values().chain(world.exports.values())
+                    })
+                    .filter_map(|item| match item {
+                        WorldItem::Interface(id) => Some(*id),
+                        WorldItem::Function(_) => None,
+                    }),
+            );
+            for iface in interfaces {
+                for ty in self.resolve.interfaces[iface].types.values() {
+                    let id = match self.resolve.types[*ty].kind {
+                        TypeDefKind::Type(Type::Id(id)) => id,
+                        _ => continue,
+                    };
+                    let owner = match self.resolve.types[id].owner {
+                        TypeOwner::Interface(i) => i,
+                        _ => continue,
+                    };
+                    let doc = self.resolve.interfaces[owner].document;
+                    let owner_idx = doc_to_package_index[&doc];
+                    if owner_idx != idx {
+                        self.visit_package(doc_to_package_index, owner_idx, order);
+                    }
+                }
+            }
+        }
+
+        assert!(order.insert(idx));
     }
 }
 
