@@ -2081,7 +2081,7 @@ impl<T> SnapshotList<T> {
     /// Modifies a `TypeId` to have the same contents but a fresh new unique id.
     ///
     /// This is used during aliasing with components to assign types a unique
-    /// identifier that doesn't has equivalent to anything else but still
+    /// identifier that isn't equivalent to anything else but still
     /// points to the same underlying type.
     pub fn with_unique(&mut self, mut ty: TypeId) -> TypeId {
         self.unique_mappings
