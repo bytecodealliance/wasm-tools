@@ -1,14 +1,19 @@
 interface variants {
-  enum e1 {
-    a,
-  }
-
   union u1 {
     u32,
     float32,
   }
 
+  enum my-errno {
+    bad1,
+    bad2,
+  }
+
   record empty {
+  }
+
+  enum e1 {
+    a,
   }
 
   variant v1 {
@@ -21,24 +26,9 @@ interface variants {
     g(u32),
   }
 
-  variant casts1 {
-    a(s32),
-    b(float32),
-  }
-
-  variant casts2 {
-    a(float64),
-    b(float32),
-  }
-
-  variant casts3 {
-    a(float64),
-    b(u64),
-  }
-
-  variant casts4 {
-    a(u32),
-    b(s64),
+  variant casts6 {
+    a(tuple<float32, u32>),
+    b(tuple<u32, u32>),
   }
 
   variant casts5 {
@@ -46,14 +36,24 @@ interface variants {
     b(s64),
   }
 
-  variant casts6 {
-    a(tuple<float32, u32>),
-    b(tuple<u32, u32>),
+  variant casts4 {
+    a(u32),
+    b(s64),
   }
 
-  enum my-errno {
-    bad1,
-    bad2,
+  variant casts3 {
+    a(float64),
+    b(u64),
+  }
+
+  variant casts2 {
+    a(float64),
+    b(float32),
+  }
+
+  variant casts1 {
+    a(s32),
+    b(float32),
   }
 
   e1-arg: func(x: e1)

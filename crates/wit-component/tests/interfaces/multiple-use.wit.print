@@ -1,7 +1,7 @@
 interface foo {
-  type t1 = u8
-
   type t2 = u8
+
+  type t1 = u8
 
 }
 

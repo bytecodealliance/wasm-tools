@@ -1,9 +1,9 @@
 interface foo {
-  enum a {
-    b,
+  record ty {
   }
 
-  record ty {
+  enum a {
+    b,
   }
 
 }
