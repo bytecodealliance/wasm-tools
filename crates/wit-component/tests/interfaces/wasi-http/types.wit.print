@@ -1,8 +1,8 @@
 interface types {
-  record request {
+  record response {
   }
 
-  record response {
+  record request {
   }
 
 }

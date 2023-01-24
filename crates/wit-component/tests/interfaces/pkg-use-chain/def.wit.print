@@ -1,0 +1,14 @@
+interface a {
+  type a = u8
+
+}
+
+interface name {
+  use self.a.{a}
+
+  enum name {
+    other,
+  }
+
+}
+

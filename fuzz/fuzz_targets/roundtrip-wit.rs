@@ -21,7 +21,18 @@ fuzz_target!(|data: &[u8]| {
     for pkg in pkgs {
         let url = format!("my-scheme:/{}", pkg.name);
         let unresolved = pkg.sources.parse(&pkg.name, Some(&url)).unwrap();
-        let id = resolve.push(unresolved, &deps).unwrap();
+        let id = match resolve.push(unresolved, &deps) {
+            Ok(id) => id,
+            Err(e) => {
+                let err = e.to_string();
+                if err.contains("conflicts with a previously")
+                    || err.contains("shadows previously imported")
+                {
+                    return;
+                }
+                panic!("bad wit parse: {e:?}")
+            }
+        };
         let prev = deps.insert(pkg.name, id);
         assert!(prev.is_none());
         last = Some(id);
@@ -175,7 +186,9 @@ mod generate {
             while packages.len() < MAX_PACKAGES && (packages.is_empty() || u.arbitrary()?) {
                 let name = gen_unique_name(u, &mut names)?;
                 let (sources, documents) = self.gen_package(&name, u)?;
-                self.packages.push((name.clone(), documents));
+                if documents.len() > 0 {
+                    self.packages.push((name.clone(), documents));
+                }
                 packages.push(Package { name, sources });
             }
             Ok(packages)
@@ -196,7 +209,9 @@ mod generate {
                 super::write_file(format!("orig-{pkg}-{name}.wit").as_ref(), &doc);
                 map.push(format!("{name}.wit").as_ref(), &name, doc);
                 count += 1;
-                self.documents.push((name, interfaces));
+                if interfaces.len() > 0 {
+                    self.documents.push((name, interfaces));
+                }
             }
 
             Ok((map, mem::take(&mut self.documents)))
@@ -225,8 +240,10 @@ mod generate {
                         self.next_interface_id += 1;
                         let (src, types) =
                             self.gen_interface(u, Some(&name), &mut has_default_interface)?;
-                        self.interfaces
-                            .push((name, id, src.starts_with("default"), types));
+                        if types.len() > 0 {
+                            self.interfaces
+                                .push((name, id, src.starts_with("default"), types));
+                        }
                         pieces.push(src);
                     }
                     Generate::Done => break,
@@ -344,41 +361,61 @@ mod generate {
             u: &mut Unstructured<'_>,
             dst: &mut String,
         ) -> Result<Option<(u32, &TypeList)>> {
-            Ok(if !self.interfaces.is_empty() && u.arbitrary()? {
-                dst.push_str("self.");
-                let (name, id, _default, types) = u.choose(&self.interfaces)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                Some((*id, types))
-            } else if !self.documents.is_empty() && u.arbitrary()? {
-                dst.push_str("pkg.");
-                let (name, ifaces) = u.choose(&self.documents)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                let (name, id, default, types) = u.choose(ifaces)?;
-                if !*default || !u.arbitrary()? {
-                    dst.push_str(".");
+            enum Choice {
+                Interfaces,
+                Documents,
+                Packages,
+            }
+            let mut choices = Vec::new();
+            if !self.interfaces.is_empty() {
+                choices.push(Choice::Interfaces);
+            }
+            if !self.documents.is_empty() {
+                choices.push(Choice::Documents);
+            }
+            if !self.packages.is_empty() {
+                choices.push(Choice::Packages);
+            }
+            if choices.is_empty() {
+                return Ok(None);
+            }
+            Ok(match u.choose(&choices)? {
+                Choice::Interfaces => {
+                    dst.push_str("self.");
+                    let (name, id, _default, types) = u.choose(&self.interfaces)?;
                     dst.push_str("%");
                     dst.push_str(name);
+                    Some((*id, types))
                 }
-                Some((*id, types))
-            } else if !self.packages.is_empty() && u.arbitrary()? {
-                let (name, docs) = u.choose(&self.packages)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                dst.push_str(".");
-                let (name, ifaces) = u.choose(docs)?;
-                dst.push_str("%");
-                dst.push_str(name);
-                let (name, id, default, types) = u.choose(ifaces)?;
-                if !*default || !u.arbitrary()? {
-                    dst.push_str(".");
+                Choice::Documents => {
+                    dst.push_str("pkg.");
+                    let (name, ifaces) = u.choose(&self.documents)?;
                     dst.push_str("%");
                     dst.push_str(name);
+                    let (name, id, default, types) = u.choose(ifaces)?;
+                    if !*default || !u.arbitrary()? {
+                        dst.push_str(".");
+                        dst.push_str("%");
+                        dst.push_str(name);
+                    }
+                    Some((*id, types))
                 }
-                Some((*id, types))
-            } else {
-                None
+                Choice::Packages => {
+                    let (name, docs) = u.choose(&self.packages)?;
+                    dst.push_str("%");
+                    dst.push_str(name);
+                    dst.push_str(".");
+                    let (name, ifaces) = u.choose(docs)?;
+                    dst.push_str("%");
+                    dst.push_str(name);
+                    let (name, id, default, types) = u.choose(ifaces)?;
+                    if !*default || !u.arbitrary()? {
+                        dst.push_str(".");
+                        dst.push_str("%");
+                        dst.push_str(name);
+                    }
+                    Some((*id, types))
+                }
             })
         }
     }
@@ -422,27 +459,30 @@ mod generate {
             while parts.len() < MAX_INTERFACE_ITEMS && u.arbitrary()? {
                 match u.arbitrary()? {
                     Generate::Use => {
+                        let mut part = String::new();
                         let mut path = String::new();
                         let (_id, types) = match self.gen.gen_path(u, &mut path)? {
                             Some(types) => types,
                             None => continue,
                         };
-                        ret.push_str("use ");
-                        ret.push_str(&path);
-                        ret.push_str(".{");
+                        part.push_str("use ");
+                        part.push_str(&path);
+                        part.push_str(".{");
                         let (name, size) = u.choose(types)?;
-                        ret.push_str("%");
-                        ret.push_str(name);
+                        part.push_str("%");
+                        part.push_str(name);
                         let name = if self.unique_names.contains(name) || u.arbitrary()? {
-                            ret.push_str(" as %");
+                            part.push_str(" as %");
                             let name = self.gen_unique_name(u)?;
-                            ret.push_str(&name);
+                            part.push_str(&name);
                             name
                         } else {
+                            assert!(self.unique_names.insert(name.clone()));
                             name.clone()
                         };
                         self.types_in_interface.push((name, *size));
-                        ret.push_str("}");
+                        part.push_str("}");
+                        parts.push(part);
                     }
                     Generate::Type => {
                         let name = self.gen_unique_name(u)?;
@@ -462,7 +502,6 @@ mod generate {
                 ret.push_str("\n\n");
             }
 
-            self.types_in_interface.clear();
             ret.push_str("}");
             Ok(ret)
         }

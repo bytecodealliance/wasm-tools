@@ -1,8 +1,8 @@
 interface b {
-  use pkg.b.b.{the-type}
+  use pkg.b.a.{the-type}
 }
 
 interface a {
-  use pkg.b.b.{the-type}
+  use self.b.{the-type}
 }
 

@@ -1,0 +1,10 @@
+interface foo {
+  record ty {
+  }
+
+  enum a {
+    b,
+  }
+
+}
+

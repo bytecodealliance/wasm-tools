@@ -1,7 +1,7 @@
 use crate::builder::ComponentBuilder;
 use crate::encoding::types::{FunctionKey, ValtypeEncoder};
 use anyhow::Result;
-use indexmap::IndexMap;
+use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
 use url::Url;
@@ -54,60 +54,66 @@ impl Encoder<'_> {
     }
 
     fn encode_document(&mut self, doc: DocumentId) -> Result<u32> {
-        let mut set = LiveTypes::default();
-
-        // Note that worlds within `doc` are explicitly excluded here since
-        // worlds have their own scope and import everything themselves, this
-        // transitive import set is only required for the interfaces defined in
-        // the document.
+        // Build a set of interfaces reachable from this document, including the
+        // interfaces in the document itself. This is used to import instances
+        // into the component type we're encoding. Note that entire interfaces
+        // are imported with all their types as opposed to just the needed types
+        // in an interface for this document. That's done to assist with the
+        // decoding process where everyone's view of a foreign document agrees
+        // notably on the order that types are defined in to assist with
+        // roundtripping.
+        let mut interfaces = IndexSet::new();
         for (_, id) in self.resolve.documents[doc].interfaces.iter() {
-            set.add_interface(self.resolve, *id);
+            self.add_live_interfaces(&mut interfaces, *id);
         }
 
-        let mut imported_interfaces = IndexMap::new();
-        for ty in set.iter() {
-            let owner = match &self.resolve.types[ty].owner {
-                TypeOwner::Interface(i) => *i,
-                _ => continue,
-            };
-            if self.resolve.interfaces[owner].document == doc {
-                continue;
-            }
-            imported_interfaces
-                .entry(owner)
-                .or_insert(Vec::new())
-                .push(ty);
-        }
-
+        // Encode all interfaces, foreign and local, into this component type.
+        // Local interfaces get their functions defined as well and are
+        // exported. Foreign interfaces are imported and only have their types
+        // encoded.
         let mut encoder = InterfaceEncoder::new(self.resolve);
-        for (owner, ids) in imported_interfaces {
-            let owner_iface = &self.resolve.interfaces[owner];
-            encoder.push_instance();
-            for id in ids {
-                encoder.encode_valtype(self.resolve, &Type::Id(id))?;
-            }
-            let instance = encoder.pop_instance();
-            let idx = encoder.outer.type_count();
-            encoder.outer.ty().instance(&instance);
-            encoder.import_map.insert(owner, encoder.instances);
-            encoder.instances += 1;
+        let mut import_names = IndexSet::new();
+        for interface in interfaces {
+            let iface = &self.resolve.interfaces[interface];
+            let name = iface.name.as_ref().unwrap();
+            if iface.document == doc {
+                let idx = encoder.encode_instance(interface)?;
+                let url = format!("pkg:/{}/{name}", self.resolve.documents[doc].name);
+                encoder
+                    .outer
+                    .export(name, &url, ComponentTypeRef::Instance(idx));
+            } else {
+                encoder.push_instance();
+                for (_, id) in iface.types.iter() {
+                    encoder.encode_valtype(self.resolve, &Type::Id(*id))?;
+                }
+                let instance = encoder.pop_instance();
+                let idx = encoder.outer.type_count();
+                encoder.outer.ty().instance(&instance);
+                encoder.import_map.insert(interface, encoder.instances);
+                encoder.instances += 1;
 
-            let import_name = owner_iface.name.as_ref().unwrap();
-            let url = self.url_of(owner);
-            encoder
-                .outer
-                .import(import_name, &url, ComponentTypeRef::Instance(idx));
+                let import_name = if import_names.insert(name.clone()) {
+                    name.clone()
+                } else {
+                    let mut i = 2;
+                    loop {
+                        let name = format!("{name}{i}");
+                        if import_names.insert(name.clone()) {
+                            break name;
+                        }
+                        i += 1;
+                    }
+                };
+
+                let url = self.url_of(interface);
+                encoder
+                    .outer
+                    .import(&import_name, &url, ComponentTypeRef::Instance(idx));
+            }
         }
 
         let doc = &self.resolve.documents[doc];
-        for (name, interface) in doc.interfaces.iter() {
-            let idx = encoder.encode_instance(*interface)?;
-            let url = format!("pkg:/{}/{name}", doc.name);
-            encoder
-                .outer
-                .export(name, &url, ComponentTypeRef::Instance(idx));
-        }
-
         for (name, world) in doc.worlds.iter() {
             let world = &self.resolve.worlds[*world];
             let mut component = InterfaceEncoder::new(self.resolve);
@@ -146,6 +152,33 @@ impl Encoder<'_> {
         }
 
         Ok(self.component.component_type(&encoder.outer))
+    }
+
+    /// Recursively add all live interfaces reachable from `id` into the
+    /// `interfaces` set, and then add `id` to the set.
+    fn add_live_interfaces(&self, interfaces: &mut IndexSet<InterfaceId>, id: InterfaceId) {
+        if interfaces.contains(&id) {
+            return;
+        }
+
+        // Other interfaces reachable from `id` are only reachable from defined
+        // types, and only when the defined type points to another `Type::Id`.
+        // Use this knowledge to filter over all types find find types of this
+        // pattern.
+        for (_, ty) in self.resolve.interfaces[id].types.iter() {
+            let ty = match self.resolve.types[*ty].kind {
+                TypeDefKind::Type(Type::Id(id)) => id,
+                _ => continue,
+            };
+            let owner = match self.resolve.types[ty].owner {
+                TypeOwner::Interface(id) => id,
+                _ => continue,
+            };
+            if owner != id {
+                self.add_live_interfaces(interfaces, owner);
+            }
+        }
+        assert!(interfaces.insert(id));
     }
 
     fn url_of(&self, interface: InterfaceId) -> String {

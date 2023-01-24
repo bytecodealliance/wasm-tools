@@ -7,3 +7,11 @@ interface foo {
 
 }
 
+interface bar {
+  use self.foo.{c}
+}
+
+interface baz {
+  use self.bar.{c}
+}
+

@@ -1512,9 +1512,9 @@ impl ComponentState {
             }
             ComponentExternalKind::Type => {
                 check_max(self.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
-                match self.instance_export(instance_index, name, types, offset)? {
-                    ComponentEntityType::Type { referenced, .. } => {
-                        let id = types.with_unique(*referenced);
+                match *self.instance_export(instance_index, name, types, offset)? {
+                    ComponentEntityType::Type { created, .. } => {
+                        let id = types.with_unique(created);
                         self.types.push(id);
                         Ok(())
                     }

@@ -4,25 +4,25 @@
       (type (;0;)
         (instance
           (type (;0;) u8)
-          (export (;1;) "t1" (type (eq 0)))
-        )
-      )
-      (export (;0;) "shared" "pkg:/shared1/shared" (instance (type 0)))
-    )
-  )
-  (export (;1;) "shared1" "pkg:/shared1" (type 0))
-  (type (;2;)
-    (component
-      (type (;0;)
-        (instance
-          (type (;0;) u8)
           (export (;1;) "t2" (type (eq 0)))
         )
       )
       (export (;0;) "shared" "pkg:/shared2/shared" (instance (type 0)))
     )
   )
-  (export (;3;) "shared2" "pkg:/shared2" (type 2))
+  (export (;1;) "shared2" "pkg:/shared2" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
+        (instance
+          (type (;0;) u8)
+          (export (;1;) "t1" (type (eq 0)))
+        )
+      )
+      (export (;0;) "shared" "pkg:/shared1/shared" (instance (type 0)))
+    )
+  )
+  (export (;3;) "shared1" "pkg:/shared1" (type 2))
   (type (;4;)
     (component
       (type (;0;)

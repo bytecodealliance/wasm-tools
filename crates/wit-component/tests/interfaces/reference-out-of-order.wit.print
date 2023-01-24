@@ -1,6 +1,6 @@
 interface foo {
-  record r {
-    s: string,
+  variant v-no-string {
+    s(u32),
   }
 
   variant v {
@@ -11,8 +11,8 @@ interface foo {
     s: u32,
   }
 
-  variant v-no-string {
-    s(u32),
+  record r {
+    s: string,
   }
 
   a: func(x: r)

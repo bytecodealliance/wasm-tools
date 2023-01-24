@@ -1,0 +1,15 @@
+interface other {
+  record name {
+  }
+
+}
+
+interface d {
+  use self.other.{name as the-name}
+
+  enum name {
+    a,
+  }
+
+}
+

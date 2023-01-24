@@ -1,0 +1,4 @@
+interface foo {
+  use pkg.bar.d.{the-name}
+}
+
