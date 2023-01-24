@@ -8,6 +8,8 @@ fuzz_target!(|data: &[u8]| {
         Ok(s) => s,
         Err(_) => return,
     };
+    drop(env_logger::try_init());
+    write_file("wasm1.wat", &string);
     // Weed out `(module binary ...)` because when we print the bytes and
     // convert it back to binary it's not guaranteed to be exactly the same.
     // (think of something like an over-long LEB encoding)
@@ -24,6 +26,7 @@ fuzz_target!(|data: &[u8]| {
         Ok(bytes) => bytes,
         Err(_) => return,
     };
+    write_file("wasm1.wasm", &wasm);
 
     // Only roundtrip valid modules for now since invalid modules can often have
     // bizarre structures which aren't intended to print correctly or roundtrip
@@ -44,18 +47,24 @@ fuzz_target!(|data: &[u8]| {
         Ok(s) => s,
         Err(_) => return,
     };
+    write_file("wasm2.wat", &string2);
 
     let wasm2 = wat::parse_str(&string2).unwrap();
+    write_file("wasm2.wasm", &wasm2);
     if wasm == wasm2 {
         return;
     }
 
-    std::fs::write("wasm1.wasm", &wasm).unwrap();
-    std::fs::write("wasm1.wat", &string).unwrap();
-    std::fs::write("wasm2.wasm", &wasm2).unwrap();
-    std::fs::write("wasm2.wat", &string2).unwrap();
     panic!("wasm bytes differ on roundtrip");
 });
+
+fn write_file(path: &str, contents: impl AsRef<[u8]>) {
+    if !log::log_enabled!(log::Level::Debug) {
+        return;
+    }
+    log::debug!("writing file {path}");
+    std::fs::write(path, contents.as_ref()).unwrap();
+}
 
 fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
     use wasmparser::*;
