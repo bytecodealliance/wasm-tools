@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::mem;
 use url::Url;
 use wasmparser::{
@@ -96,7 +95,6 @@ impl<'a> ComponentInfo<'a> {
             info: self,
             url_to_package: IndexMap::default(),
             type_map: HashMap::new(),
-            type_src_map: HashMap::new(),
             url_to_interface: HashMap::new(),
         };
 
@@ -151,7 +149,6 @@ impl<'a> ComponentInfo<'a> {
             info: self,
             url_to_package: IndexMap::default(),
             type_map: HashMap::new(),
-            type_src_map: HashMap::new(),
             url_to_interface: HashMap::new(),
         };
 
@@ -282,16 +279,6 @@ struct WitPackageDecoder<'a> {
 
     /// A map from a type id to what it's been translated to.
     type_map: HashMap<types::TypeId, TypeId>,
-
-    /// A second map, similar to `type_map`, which is keyed off a pointer hash
-    /// instead of `TypeId`.
-    ///
-    /// The purpose of this is to detect when a type is aliased as there will
-    /// be two unique `TypeId` structures pointing at the same `types::Type`
-    /// structure, so the second layer of map here ensures that types are
-    /// only defined once and the second `TypeId` referring to a type will end
-    /// up as an alias and/or import.
-    type_src_map: HashMap<PtrHash<'a, types::ComponentDefinedType>, TypeId>,
 }
 
 impl WitPackageDecoder<'_> {
@@ -454,7 +441,6 @@ impl WitPackageDecoder<'_> {
                     // decoding.
                     let prev = self.type_map.insert(created, id);
                     assert!(prev.is_none());
-                    self.type_src_map.entry(PtrHash(def)).or_insert(id);
                 }
 
                 // This has similar logic to types above where we lazily fill in
@@ -614,21 +600,17 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::Defined(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let key = PtrHash(ty);
-                    let (kind, insert_src) = match self.find_alias(referenced) {
+                    let kind = match self.find_alias(referenced) {
                         // If this `TypeId` points to a type which has
                         // previously been defined, meaning we're aliasing a
                         // prior definition.
-                        Some(prev) => (TypeDefKind::Type(Type::Id(prev)), false),
+                        Some(prev) => TypeDefKind::Type(Type::Id(prev)),
 
                         // ... or this `TypeId`'s source definition has never
                         // been seen before, so declare the full type.
-                        None => {
-                            let ty = self
-                                .convert_defined(ty)
-                                .with_context(|| format!("failed to decode type `{name}`"))?;
-                            (ty, true)
-                        }
+                        None => self
+                            .convert_defined(ty)
+                            .with_context(|| format!("failed to decode type `{name}`"))?,
                     };
                     let ty = self.resolve.types.alloc(TypeDef {
                         docs: Default::default(),
@@ -637,10 +619,6 @@ impl WitPackageDecoder<'_> {
                         owner: TypeOwner::Interface(self.resolve.interfaces.next_id()),
                     });
 
-                    if insert_src {
-                        let prev = self.type_src_map.insert(key, ty);
-                        assert!(prev.is_none());
-                    }
                     let prev = self.type_map.insert(created, ty);
                     // FIXME(WebAssembly/component-model#151) this check should
                     // get executed
@@ -1076,22 +1054,6 @@ impl WitPackageDecoder<'_> {
         }
 
         assert!(order.insert(idx));
-    }
-}
-
-struct PtrHash<'a, T>(&'a T);
-
-impl<T> PartialEq for PtrHash<'_, T> {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0, other.0)
-    }
-}
-
-impl<T> Eq for PtrHash<'_, T> {}
-
-impl<T> Hash for PtrHash<'_, T> {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        std::ptr::hash(self.0, hasher)
     }
 }
 
