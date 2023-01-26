@@ -1,6 +1,7 @@
 use super::{ComponentEncoder, RequiredOptions};
 use crate::validation::{
     validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule,
+    BARE_FUNC_MODULE_NAME,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -189,7 +190,7 @@ impl<'a> ComponentWorld<'a> {
             let empty = IndexSet::new();
             match item {
                 WorldItem::Function(func) => {
-                    let required = required.get("").unwrap_or(&empty);
+                    let required = required.get(BARE_FUNC_MODULE_NAME).unwrap_or(&empty);
                     // If this function isn't actually required then skip it
                     if !required.contains(name) {
                         return Ok(());
@@ -294,7 +295,7 @@ impl<'a> ComponentWorld<'a> {
         for (name, item) in resolve.worlds[world].imports.iter() {
             match item {
                 WorldItem::Function(func) => {
-                    let required = match required.get("") {
+                    let required = match required.get(BARE_FUNC_MODULE_NAME) {
                         Some(set) => set,
                         None => continue,
                     };

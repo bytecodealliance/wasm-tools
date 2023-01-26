@@ -120,12 +120,19 @@ fn assert_output(contents: &str, path: &Path) -> Result<()> {
     if std::env::var_os("BLESS").is_some() {
         fs::write(path, contents)?;
     } else {
-        assert_eq!(
-            fs::read_to_string(path)?.replace("\r\n", "\n").trim(),
-            contents.trim(),
-            "failed baseline comparison ({})",
-            path.display(),
-        );
+        match fs::read_to_string(path) {
+            Ok(expected) => {
+                assert_eq!(
+                    expected.replace("\r\n", "\n").trim(),
+                    contents.trim(),
+                    "failed baseline comparison ({})",
+                    path.display(),
+                );
+            }
+            Err(_) => {
+                panic!("expected {path:?} to contain\n{contents}");
+            }
+        }
     }
     Ok(())
 }

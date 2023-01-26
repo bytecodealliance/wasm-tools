@@ -32,6 +32,13 @@ fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
 
 pub const MAIN_MODULE_IMPORT_NAME: &str = "__main_module__";
 
+/// The module name used when a top-level function in a world is imported into a
+/// core wasm module. Note that this is not a valid WIT identifier to avoid
+/// clashes with valid WIT interfaces. This is also not empty because LLVM
+/// interprets an empty module import string as "not specified" which means it
+/// turns into `env`.
+pub const BARE_FUNC_MODULE_NAME: &str = "$root";
+
 /// Metadata about a validated module and what was found internally.
 ///
 /// All imports to the module are described by the union of `required_imports`
@@ -159,10 +166,10 @@ pub fn validate_module<'a>(
     for (name, funcs) in &import_funcs {
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
-        if name.is_empty() {
+        if *name == "$root" {
             validate_imports_top_level(&metadata.resolve, metadata.world, funcs, &types)?;
             let funcs = funcs.keys().cloned().collect();
-            let prev = ret.required_imports.insert("", funcs);
+            let prev = ret.required_imports.insert(BARE_FUNC_MODULE_NAME, funcs);
             assert!(prev.is_none());
             continue;
         }
@@ -345,7 +352,7 @@ pub fn validate_adapter_module<'a>(
 
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
-        if name.is_empty() {
+        if name == BARE_FUNC_MODULE_NAME {
             validate_imports_top_level(&resolve, world, &funcs, &types)?;
             let funcs = resolve.worlds[world]
                 .imports
@@ -357,7 +364,7 @@ pub fn validate_adapter_module<'a>(
                     _ => None,
                 })
                 .collect();
-            ret.required_imports.insert("", funcs);
+            ret.required_imports.insert(BARE_FUNC_MODULE_NAME, funcs);
             continue;
         }
 

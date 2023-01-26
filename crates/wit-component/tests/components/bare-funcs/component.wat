@@ -8,8 +8,8 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (param i32 i32) (result i32)))
     (type (;3;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "" "foo" (func (;0;) (type 0)))
-    (import "" "bar" (func (;1;) (type 1)))
+    (import "$root" "foo" (func (;0;) (type 0)))
+    (import "$root" "bar" (func (;1;) (type 1)))
     (func (;2;) (type 0))
     (func (;3;) (type 2) (param i32 i32) (result i32)
       unreachable
@@ -29,13 +29,13 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
-    (func $indirect--bar (;0;) (type 0) (param i32)
+    (func $indirect-$root-bar (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
     (table (;0;) 1 1 funcref)
-    (export "0" (func $indirect--bar))
+    (export "0" (func $indirect-$root-bar))
     (export "$imports" (table 0))
   )
   (core module (;2;)
@@ -52,7 +52,7 @@
     (export "foo" (func 1))
   )
   (core instance (;2;) (instantiate 0
-      (with "" (instance 1))
+      (with "$root" (instance 1))
     )
   )
   (alias core export 2 "memory" (core memory (;0;)))

@@ -32,6 +32,7 @@
 //!   binary form. This is the encoding of a package into wasm, and the bound
 //!   world for the bindings is specified from the prior strings.
 
+use crate::validation::BARE_FUNC_MODULE_NAME;
 use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
@@ -265,7 +266,7 @@ impl ModuleMetadata {
                 WorldItem::Function(_) => {
                     let prev = ret
                         .import_encodings
-                        .insert((String::new(), name.clone()), encoding);
+                        .insert((BARE_FUNC_MODULE_NAME.to_string(), name.clone()), encoding);
                     assert!(prev.is_none());
                 }
                 WorldItem::Interface(i) => {

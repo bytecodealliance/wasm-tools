@@ -54,7 +54,7 @@
 
 use crate::builder::ComponentBuilder;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
-use crate::validation::{ValidatedModule, MAIN_MODULE_IMPORT_NAME};
+use crate::validation::{ValidatedModule, BARE_FUNC_MODULE_NAME, MAIN_MODULE_IMPORT_NAME};
 use crate::StringEncoding;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::IndexMap;
@@ -544,7 +544,7 @@ impl<'a> EncodingState<'a> {
         shims: &Shims<'_>,
         metadata: &ModuleMetadata,
     ) -> u32 {
-        let interface = if core_wasm_name.is_empty() {
+        let interface = if core_wasm_name == BARE_FUNC_MODULE_NAME {
             None
         } else {
             Some(core_wasm_name)
@@ -723,7 +723,7 @@ impl<'a> EncodingState<'a> {
         // For all interfaces imported into the main module record all of their
         // indirect lowerings into `Shims`.
         for core_wasm_name in info.required_imports.keys() {
-            let import_name = if core_wasm_name.is_empty() {
+            let import_name = if *core_wasm_name == BARE_FUNC_MODULE_NAME {
                 None
             } else {
                 Some(*core_wasm_name)
@@ -1163,7 +1163,7 @@ impl<'a> Shims<'a> {
         metadata: &ModuleMetadata,
         sigs: &mut Vec<WasmSignature>,
     ) {
-        let interface = if core_wasm_module.is_empty() {
+        let interface = if core_wasm_module == BARE_FUNC_MODULE_NAME {
             None
         } else {
             Some(core_wasm_module)
