@@ -741,8 +741,7 @@ impl<'a> EncodingState<'a> {
         // For all required adapter modules a shim is created for each required
         // function and additionally a set of shims are created for the
         // interface imported into the shim module itself.
-        for (adapter, funcs) in info.adapters_required.iter() {
-            let (info, _wasm) = &self.info.adapters[adapter];
+        for (adapter, (info, _wasm)) in self.info.adapters.iter() {
             for (name, _) in info.required_imports.iter() {
                 let import = &self.info.import_map[&Some(*name)];
                 ret.append_indirect(
@@ -753,6 +752,10 @@ impl<'a> EncodingState<'a> {
                     &mut signatures,
                 );
             }
+            let funcs = match self.info.info.adapters_required.get(adapter) {
+                Some(funcs) => funcs,
+                None => continue,
+            };
             for (func, ty) in funcs {
                 let name = ret.list.len().to_string();
                 log::debug!("shim {name} is adapter `{adapter}::{func}`");
