@@ -1,6 +1,6 @@
 (module
-  (import "" "foo" (func))
-  (import "" "bar" (func (param i32)))
+  (import "$root" "foo" (func))
+  (import "$root" "bar" (func (param i32)))
 
   (func (export "baz"))
 

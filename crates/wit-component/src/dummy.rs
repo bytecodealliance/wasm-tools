@@ -11,7 +11,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
             WorldItem::Function(func) => {
                 let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
 
-                wat.push_str(&format!("(import \"\" \"{}\" (func", func.name));
+                wat.push_str(&format!("(import \"$root\" \"{}\" (func", func.name));
                 push_tys(&mut wat, "param", &sig.params);
                 push_tys(&mut wat, "result", &sig.results);
                 wat.push_str("))\n");
