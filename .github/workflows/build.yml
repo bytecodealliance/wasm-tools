@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   build:
-    name: Build wasmtime
+    name: Build wasm-tools
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
