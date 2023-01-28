@@ -132,6 +132,7 @@ default = [
   'compose',
   'demangle',
   'component',
+  'producers',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -147,3 +148,4 @@ strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']
 component = ['wit-component', 'wit-parser', 'wast', 'wasm-encoder', 'wasmparser']
+producers = ['wasmparser']

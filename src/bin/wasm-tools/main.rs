@@ -51,6 +51,7 @@ subcommands! {
     (demangle, "demangle")
     #[command(subcommand)]
     (component, "component")
+    (producers, "producers")
 }
 
 fn main() -> ExitCode {
