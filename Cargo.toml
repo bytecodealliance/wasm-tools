@@ -102,7 +102,7 @@ wit-component = { workspace = true, optional = true, features = ['dummy-module']
 wit-parser = { workspace = true, optional = true }
 wast = { workspace = true, optional = true }
 
-# Dependencies of `producers`
+# Dependencies of `metadata`
 indexmap = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -135,7 +135,7 @@ default = [
   'compose',
   'demangle',
   'component',
-  'producers',
+  'metadata',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -151,4 +151,4 @@ strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']
 component = ['wit-component', 'wit-parser', 'wast', 'wasm-encoder', 'wasmparser']
-producers = ['wasmparser', 'indexmap']
+metadata = ['wasmparser', 'indexmap', 'serde', 'serde_json']

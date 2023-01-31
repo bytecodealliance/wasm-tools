@@ -52,7 +52,7 @@ subcommands! {
     #[command(subcommand)]
     (component, "component")
     #[command(subcommand)]
-    (producers, "producers")
+    (metadata, "metadata")
 }
 
 fn main() -> ExitCode {
