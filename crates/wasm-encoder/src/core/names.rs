@@ -149,15 +149,19 @@ impl NameSection {
         self.bytes.push(id as u8);
         len.encode(&mut self.bytes);
     }
-}
 
-impl Encode for NameSection {
-    fn encode(&self, sink: &mut Vec<u8>) {
+    /// View the encoded section as a CustomSection.
+    pub fn as_custom<'a>(&'a self) -> CustomSection<'a> {
         CustomSection {
             name: "name",
             data: &self.bytes,
         }
-        .encode(sink);
+    }
+}
+
+impl Encode for NameSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.as_custom().encode(sink);
     }
 }
 
