@@ -102,6 +102,9 @@ wit-component = { workspace = true, optional = true, features = ['dummy-module']
 wit-parser = { workspace = true, optional = true }
 wast = { workspace = true, optional = true }
 
+# Dependencies of `producers`
+indexmap = { workspace = true, optional = true }
+
 [dev-dependencies]
 serde_json = "1.0"
 tempfile = "3.1"
@@ -148,4 +151,4 @@ strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']
 component = ['wit-component', 'wit-parser', 'wast', 'wasm-encoder', 'wasmparser']
-producers = ['wasmparser']
+producers = ['wasmparser', 'indexmap']
