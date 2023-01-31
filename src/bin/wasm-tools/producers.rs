@@ -7,6 +7,9 @@ use wasmparser::{Parser, Payload::*, ProducersSectionReader};
 struct Producers(IndexMap<String, IndexMap<String, String>>);
 
 impl Producers {
+    fn empty() -> Self {
+        Producers(IndexMap::new())
+    }
     fn from_reader(section: ProducersSectionReader) -> Result<Self> {
         let mut fields = IndexMap::new();
         for field in section.into_iter() {
@@ -32,7 +35,18 @@ impl Producers {
             }
         }
     }
-    fn into_encoder(self) -> wasm_encoder::ProducersSection {
+    fn add_opts(&mut self, opts: &AddOpts) {
+        for lang in opts.language.iter() {
+            self.add("language", &lang, "");
+        }
+        for (name, version) in opts.processed_by.iter() {
+            self.add("processed-by", &name, &version);
+        }
+        for (name, version) in opts.sdk.iter() {
+            self.add("sdk", &name, &version);
+        }
+    }
+    fn into_section(self) -> wasm_encoder::ProducersSection {
         let mut section = wasm_encoder::ProducersSection::new();
         for (fieldname, fieldvalues) in self.0 {
             let mut field = wasm_encoder::ProducersField::new();
@@ -139,6 +153,7 @@ impl AddOpts {
         let input = self.io.parse_input_wasm()?;
         let mut module = wasm_encoder::Module::new();
 
+        let mut found = false;
         let mut depth = 0;
         for payload in Parser::new(0).parse_all(&input) {
             let payload = payload?;
@@ -154,21 +169,13 @@ impl AddOpts {
             match payload {
                 // Only rewrite the outermost producers section:
                 CustomSection(c) if c.name() == "producers" && depth == 0 => {
+                    found = true;
                     let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
                     let mut producers = Producers::from_reader(section)?;
                     // Add to the section according to the command line flags:
-                    for lang in self.language.iter() {
-                        producers.add("language", &lang, "");
-                    }
-                    for (name, version) in self.processed_by.iter() {
-                        producers.add("processed-by", &name, &version);
-                    }
-                    for (name, version) in self.sdk.iter() {
-                        producers.add("sdk", &name, &version);
-                    }
+                    producers.add_opts(&self);
                     // Encode into output:
-                    let encoder = producers.into_encoder();
-                    module.section(&encoder);
+                    module.section(&producers.into_section());
                 }
 
                 // All other sections get passed through unmodified:
@@ -181,6 +188,13 @@ impl AddOpts {
                     }
                 }
             }
+        }
+        if !found {
+            let mut producers = Producers::empty();
+            // Add to the section according to the command line flags:
+            producers.add_opts(&self);
+            // Encode into output:
+            module.section(&producers.into_section());
         }
         self.io.output(wasm_tools::Output::Wasm {
             bytes: module.as_slice(),
