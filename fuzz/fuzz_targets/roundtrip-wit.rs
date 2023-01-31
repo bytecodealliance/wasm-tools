@@ -203,7 +203,7 @@ mod generate {
             let mut count = 0;
             let mut names = HashSet::new();
 
-            while self.documents.len() < MAX_DOCUMENTS && (count == 0 || u.arbitrary()?) {
+            while count < MAX_DOCUMENTS && (count == 0 || u.arbitrary()?) {
                 let name = gen_unique_name(u, &mut names)?;
                 let (doc, interfaces) = self.gen_document(u)?;
                 super::write_file(format!("orig-{pkg}-{name}.wit").as_ref(), &doc);
