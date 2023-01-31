@@ -2,8 +2,9 @@ use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
 use std::fmt;
 use std::io::Write;
-use wasmparser::{Parser, Payload::*, ProducersSectionReader};
+use wasmparser::{NameSectionReader, Parser, Payload::*, ProducersSectionReader};
 
+#[derive(Debug)]
 struct Producers(IndexMap<String, IndexMap<String, String>>);
 
 impl Producers {
@@ -59,6 +60,53 @@ impl Producers {
     }
 }
 
+#[derive(Debug)]
+enum ProducersReport {
+    Component {
+        name: Option<String>,
+        producers: Option<Producers>,
+        children: Vec<Box<ProducersReport>>,
+    },
+    Module {
+        name: Option<String>,
+        producers: Option<Producers>,
+    },
+}
+
+impl ProducersReport {
+    fn component() -> Self {
+        ProducersReport::Component {
+            name: None,
+            producers: None,
+            children: Vec::new(),
+        }
+    }
+    fn module() -> Self {
+        ProducersReport::Module {
+            name: None,
+            producers: None,
+        }
+    }
+    fn set_name(&mut self, n: &str) {
+        match self {
+            ProducersReport::Module { name, .. } => *name = Some(n.to_owned()),
+            ProducersReport::Component { name, .. } => *name = Some(n.to_owned()),
+        }
+    }
+    fn set_producers(&mut self, p: Producers) {
+        match self {
+            ProducersReport::Module { producers, .. } => *producers = Some(p),
+            ProducersReport::Component { producers, .. } => *producers = Some(p),
+        }
+    }
+    fn push_child(&mut self, child: Self) {
+        match self {
+            ProducersReport::Module { .. } => panic!("module shouldnt have children"),
+            ProducersReport::Component { children, .. } => children.push(Box::new(child)),
+        }
+    }
+}
+
 impl fmt::Display for Producers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (fieldname, fieldvalues) in self.0.iter() {
@@ -104,12 +152,53 @@ impl ShowOpts {
         let input = self.io.parse_input_wasm()?;
         let mut output = self.io.output_writer()?;
 
+        let mut report_stack = Vec::new();
+
         for payload in Parser::new(0).parse_all(&input) {
             match payload? {
+                Version { encoding, .. } => {
+                    if report_stack.is_empty() {
+                        match encoding {
+                            wasmparser::Encoding::Module => {
+                                report_stack.push(ProducersReport::module())
+                            }
+                            wasmparser::Encoding::Component => {
+                                report_stack.push(ProducersReport::component())
+                            }
+                        }
+                    }
+                }
+                ModuleSection { .. } => report_stack.push(ProducersReport::module()),
+                ComponentSection { .. } => report_stack.push(ProducersReport::component()),
+                End { .. } => {
+                    let finished = report_stack.pop().expect("non-empty report stack");
+                    if report_stack.is_empty() {
+                        write!(output, "report: {finished:?}")?;
+                    } else {
+                        report_stack.last_mut().unwrap().push_child(finished);
+                    }
+                }
+                CustomSection(c) if c.name() == "name" => {
+                    let section = NameSectionReader::new(c.data(), c.data_offset());
+                    for name in section.into_iter() {
+                        let name = name?;
+                        match name {
+                            wasmparser::Name::Module { name, .. } => report_stack
+                                .last_mut()
+                                .expect("non-empty report stack")
+                                .set_name(name),
+                            _ => {}
+                        }
+                    }
+                }
                 CustomSection(c) if c.name() == "producers" => {
                     let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
                     let producers = Producers::from_reader(section)?;
                     write!(output, "{producers}")?;
+                    report_stack
+                        .last_mut()
+                        .expect("non-empty report stack")
+                        .set_producers(producers);
                 }
 
                 _ => {}
