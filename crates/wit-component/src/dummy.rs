@@ -26,6 +26,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
                     wat.push_str("))\n");
                 }
             }
+            WorldItem::Type(_) => {}
         }
     }
 
@@ -40,6 +41,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
                     push_func(&mut wat, &name, resolve, func);
                 }
             }
+            WorldItem::Type(_) => {}
         }
     }
 

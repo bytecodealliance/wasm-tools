@@ -1,0 +1,32 @@
+world foo {
+  type a = u32
+  type b = a
+
+  export c: func(a: a) -> b
+}
+
+
+interface disambiguate {
+  type t = u32
+}
+
+world bar {
+  import disambiguate2: self.disambiguate
+
+  use self.disambiguate.{t}
+
+  export foo: func() -> t
+}
+
+world the-test {
+  record a {
+    x: u32,
+  }
+
+  variant b {
+    c(a),
+  }
+
+  import foo: func(a: a) -> b
+  export foo: func(a: a) -> b
+}

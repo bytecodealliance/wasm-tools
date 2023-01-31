@@ -189,7 +189,7 @@ pub fn validate_module<'a>(
                     map.insert(func, ty.clone());
                 }
             }
-            None | Some(WorldItem::Function(_)) => {
+            None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
                 bail!("module requires an import interface named `{}`", name)
             }
         }
@@ -381,7 +381,7 @@ pub fn validate_adapter_module<'a>(
                 let prev = ret.required_imports.insert(name, funcs);
                 assert!(prev.is_none());
             }
-            None | Some((_, _, WorldItem::Function(_))) => {
+            None | Some((_, _, WorldItem::Function(_) | WorldItem::Type(_))) => {
                 bail!(
                     "adapter module requires an import interface named `{}`",
                     name
@@ -511,6 +511,8 @@ fn validate_exported_item(
                 })?;
             }
         }
+        // not required to have anything exported in the core wasm module
+        WorldItem::Type(_) => {}
     }
 
     Ok(())

@@ -261,6 +261,11 @@ pub enum WorldItem {
 
     /// A function is being directly imported or exported from this world.
     Function(Function),
+
+    /// A type is being exported from this world.
+    ///
+    /// Note that types are never imported into worlds at this time.
+    Type(TypeId),
 }
 
 #[derive(Debug, Clone)]

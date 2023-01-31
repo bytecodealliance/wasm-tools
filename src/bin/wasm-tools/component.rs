@@ -455,8 +455,27 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
     let id = if path.is_dir() {
         resolve.push_dir(&path)?.0
     } else {
-        let pkg = UnresolvedPackage::parse_file(&path)?;
-        resolve.push(pkg, &Default::default())?
+        let contents =
+            std::fs::read(&path).with_context(|| format!("failed to read file {path:?}"))?;
+        if is_wasm(&contents) {
+            let bytes = wat::parse_bytes(&contents).map_err(|mut e| {
+                e.set_path(path);
+                e
+            })?;
+            match wit_component::decode("root-package-name", &bytes)? {
+                DecodedWasm::Component(..) => {
+                    bail!("specified path is a component, not a wit package")
+                }
+                DecodedWasm::WitPackage(resolve, pkg) => return Ok((resolve, pkg)),
+            }
+        } else {
+            let text = match std::str::from_utf8(&contents) {
+                Ok(s) => s,
+                Err(_) => bail!("input file is not valid utf-8"),
+            };
+            let pkg = UnresolvedPackage::parse(&path, text)?;
+            resolve.push(pkg, &Default::default())?
+        }
     };
     Ok((resolve, id))
 }
