@@ -88,6 +88,7 @@ jobs:
       - run: cargo check --no-default-features --features compose
       - run: cargo check --no-default-features --features demangle
       - run: cargo check --no-default-features --features component
+      - run: cargo check --no-default-features --features metadata
 
   doc:
     runs-on: ubuntu-latest
