@@ -163,9 +163,12 @@ impl<'a> WorldItem<'a> {
             }
             Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
-            other => {
-                Err(err_expected(tokens, "`import`, `export`, `use`, or type definition", other).into())
-            }
+            other => Err(err_expected(
+                tokens,
+                "`import`, `export`, `use`, or type definition",
+                other,
+            )
+            .into()),
         }
     }
 }

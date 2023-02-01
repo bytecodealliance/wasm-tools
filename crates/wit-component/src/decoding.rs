@@ -246,7 +246,9 @@ impl<'a> ComponentInfo<'a> {
                                 })?;
                             WorldItem::Type(id)
                         }
-                        _ => bail!("component export `{name}` was not a function, instance, or type"),
+                        _ => {
+                            bail!("component export `{name}` was not a function, instance, or type")
+                        }
                     };
                     decoder.resolve.worlds[world]
                         .exports
