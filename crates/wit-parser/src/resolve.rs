@@ -263,6 +263,7 @@ impl Resolve {
                 match item {
                     WorldItem::Function(f) => remap.update_function(f),
                     WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
+                    WorldItem::Type(i) => *i = remap.types[i.index()],
                 }
             }
             let new_id = self.worlds.alloc(world);
@@ -428,8 +429,7 @@ impl Remap {
         for id in self.types.iter().skip(foreign_types) {
             match &mut resolve.types[*id].owner {
                 TypeOwner::Interface(id) => *id = self.interfaces[id.index()],
-                TypeOwner::World(_) => unimplemented!(),
-                TypeOwner::None => {}
+                TypeOwner::World(_) | TypeOwner::None => {}
             }
         }
 
@@ -451,6 +451,14 @@ impl Remap {
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(new_id);
+        }
+
+        // As with interfaces, now update the ids of world-owned types.
+        for id in self.types.iter().skip(foreign_types) {
+            match &mut resolve.types[*id].owner {
+                TypeOwner::World(id) => *id = self.worlds[id.index()],
+                TypeOwner::Interface(_) | TypeOwner::None => {}
+            }
         }
 
         // And the final major step is transferring documents to `Resolve`
@@ -720,6 +728,7 @@ impl Remap {
         let mut exports = Vec::new();
         let mut import_funcs = Vec::new();
         let mut export_funcs = Vec::new();
+        let mut export_types = Vec::new();
         for ((name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans) {
             match item {
                 WorldItem::Interface(id) => {
@@ -730,8 +739,9 @@ impl Remap {
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
-                    import_funcs.push((name, f));
+                    import_funcs.push((name, f, *span));
                 }
+                WorldItem::Type(_) => unreachable!(),
             }
         }
         for ((name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans) {
@@ -744,7 +754,11 @@ impl Remap {
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
-                    export_funcs.push((name, f));
+                    export_funcs.push((name, f, *span));
+                }
+                WorldItem::Type(id) => {
+                    let id = self.types[id.index()];
+                    export_types.push((name, id, *span));
                 }
             }
         }
@@ -766,24 +780,53 @@ impl Remap {
         for (id, span) in imports {
             elaborate.import(id, span)?;
         }
+
         for (id, span) in exports {
             elaborate.export(id, span)?;
         }
 
-        for (name, func) in import_funcs {
+        for (_name, id, span) in export_types.iter() {
+            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
+                if let TypeOwner::Interface(owner) = resolve.types[other].owner {
+                    elaborate.import(owner, *span)?;
+                }
+            }
+        }
+
+        for (name, id, span) in export_types {
+            let prev = world.exports.insert(name.clone(), WorldItem::Type(id));
+            if prev.is_some() {
+                bail!(Error {
+                    msg: format!("export of type `{name}` shadows previously imported interface"),
+                    span,
+                })
+            }
+        }
+
+        for (name, func, span) in import_funcs {
             let prev = world
                 .imports
                 .insert(name.clone(), WorldItem::Function(func));
             if prev.is_some() {
-                bail!("import of function `{name}` shadows previously imported interface");
+                bail!(Error {
+                    msg: format!(
+                        "import of function `{name}` shadows previously imported interface"
+                    ),
+                    span,
+                })
             }
         }
-        for (name, func) in export_funcs {
+        for (name, func, span) in export_funcs {
             let prev = world
                 .exports
                 .insert(name.clone(), WorldItem::Function(func));
             if prev.is_some() {
-                bail!("export of function `{name}` shadows previously exported interface");
+                bail!(Error {
+                    msg: format!(
+                        "export of function `{name}` shadows previously exported interface"
+                    ),
+                    span,
+                })
             }
         }
 

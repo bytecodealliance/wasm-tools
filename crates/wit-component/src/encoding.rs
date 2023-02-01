@@ -363,6 +363,8 @@ impl<'a> EncodingState<'a> {
             state: self,
             type_exports: Vec::new(),
             interface,
+            type_map: Default::default(),
+            func_type_map: Default::default(),
         }
     }
 
@@ -439,7 +441,7 @@ impl<'a> EncodingState<'a> {
         for (name, item) in resolve.worlds[world].imports.iter() {
             let func = match item {
                 WorldItem::Function(f) => f,
-                WorldItem::Interface(_) => continue,
+                WorldItem::Interface(_) | WorldItem::Type(_) => continue,
             };
             if !info.required.contains(name.as_str()) {
                 continue;
@@ -597,6 +599,11 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[world];
         for (export_name, export) in world.exports.iter() {
             match export {
+                WorldItem::Type(ty) => {
+                    let mut enc = self.root_type_encoder(None);
+                    enc.encode_valtype(resolve, &Type::Id(*ty))?;
+                    assert!(enc.type_exports.is_empty());
+                }
                 WorldItem::Function(func) => {
                     let mut enc = self.root_type_encoder(None);
                     let ty = enc.encode_func_type(resolve, func)?;

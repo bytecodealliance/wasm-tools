@@ -1,0 +1,19 @@
+interface i1 {
+  record some-type {
+  }
+
+  the-func: func() -> some-type
+}
+
+interface i2 {
+  record some-type {
+  }
+
+  the-func: func() -> some-type
+}
+
+default world component {
+  use self.i1.{some-type as other-name}
+  import i1: self.i1
+  export i2: self.i2
+}

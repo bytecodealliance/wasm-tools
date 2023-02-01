@@ -282,6 +282,11 @@ pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
     pub type_exports: Vec<(u32, &'a str)>,
     pub interface: Option<InterfaceId>,
+
+    // These maps are used when `interface` is set to `Some` as all the type
+    // information will be per-interface.
+    pub type_map: HashMap<TypeId, u32>,
+    pub func_type_map: HashMap<FunctionKey<'a>, u32>,
 }
 
 impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
@@ -292,11 +297,21 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         self.state.component.function_type()
     }
     fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
-        self.type_exports.push((idx, name));
-        None
-    }
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-        &mut self.state.type_map
+        // When encoding types for the root the root component will export
+        // this type, but when encoding types for a targeted interface then we
+        // can't export types just yet. Interfaces will be created as an
+        // instance with a bag-of-exports construction which can't refer to its
+        // own types.
+        if self.interface.is_none() {
+            Some(
+                self.state
+                    .component
+                    .export(name, "", ComponentExportKind::Type, idx),
+            )
+        } else {
+            self.type_exports.push((idx, name));
+            None
+        }
     }
     fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
         // If this `id` is anonymous or belongs to this interface there's
@@ -313,8 +328,19 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         // just trips an assertion here.
         Some(self.state.index_of_type_export(id))
     }
+    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
+        if self.interface.is_some() {
+            &mut self.type_map
+        } else {
+            &mut self.state.type_map
+        }
+    }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        &mut self.state.func_type_map
+        if self.interface.is_some() {
+            &mut self.func_type_map
+        } else {
+            &mut self.state.func_type_map
+        }
     }
 }
 

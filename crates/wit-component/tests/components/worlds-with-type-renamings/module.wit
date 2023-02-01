@@ -1,0 +1,14 @@
+interface i {
+  record some-type {
+  }
+
+  the-func: func() -> some-type
+}
+
+
+default world the-world {
+  use self.i.{some-type as other-name}
+
+  import i1: self.i
+  export i2: self.i
+}

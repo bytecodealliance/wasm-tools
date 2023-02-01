@@ -27,16 +27,10 @@ impl DocumentPrinter {
             if Some(*id) == doc.default_world {
                 self.output.push_str("default ");
             }
-            let world = &resolve.worlds[*id];
             self.output.push_str("world ");
             self.print_name(name);
             self.output.push_str(" {\n");
-            for (name, import) in world.imports.iter() {
-                self.print_world_item(resolve, name, import, docid, "import")?;
-            }
-            for (name, export) in world.exports.iter() {
-                self.print_world_item(resolve, name, export, docid, "export")?;
-            }
+            self.print_world(resolve, *id)?;
             writeln!(&mut self.output, "}}")?;
         }
 
@@ -47,40 +41,80 @@ impl DocumentPrinter {
     fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
         let interface = &resolve.interfaces[id];
 
+        self.print_types(
+            resolve,
+            TypeOwner::Interface(id),
+            interface
+                .types
+                .iter()
+                .map(|(name, id)| (name.as_str(), *id)),
+        )?;
+
+        for (i, (name, func)) in interface.functions.iter().enumerate() {
+            if i > 0 {
+                self.output.push_str("\n");
+            }
+            self.print_name(name);
+            self.output.push_str(": ");
+            self.print_function(resolve, func)?;
+            self.output.push_str("\n");
+        }
+
+        Ok(())
+    }
+
+    fn print_types<'a>(
+        &mut self,
+        resolve: &Resolve,
+        owner: TypeOwner,
+        types: impl Iterator<Item = (&'a str, TypeId)>,
+    ) -> Result<()> {
         // Partition types defined in this interface into either those imported
         // from foreign interfaces or those defined locally.
         let mut types_to_declare = Vec::new();
         let mut types_to_import: Vec<(_, Vec<_>)> = Vec::new();
-        for (name, ty_id) in &interface.types {
-            let ty = &resolve.types[*ty_id];
+        for (name, ty_id) in types {
+            let ty = &resolve.types[ty_id];
             if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
                 let other = &resolve.types[other];
-                if let TypeOwner::Interface(other_iface) = other.owner {
-                    if other_iface != id {
+                match other.owner {
+                    TypeOwner::None => {}
+                    other_owner if owner != other_owner => {
                         let other_name = other
                             .name
                             .as_ref()
                             .ok_or_else(|| anyhow!("cannot import unnamed type"))?;
-                        if let Some((id, list)) = types_to_import.last_mut() {
-                            if *id == other_iface {
+                        if let Some((owner, list)) = types_to_import.last_mut() {
+                            if *owner == other_owner {
                                 list.push((name, other_name));
                                 continue;
                             }
                         }
-                        types_to_import.push((other_iface, vec![(name, other_name)]));
+                        types_to_import.push((other_owner, vec![(name, other_name)]));
                         continue;
                     }
+                    _ => {}
                 }
             }
 
-            types_to_declare.push(*ty_id);
+            types_to_declare.push(ty_id);
         }
 
         // Generate a `use` statement for all imported types.
-        let my_doc = resolve.interfaces[id].document;
+        let my_doc = match owner {
+            TypeOwner::Interface(id) => resolve.interfaces[id].document,
+            TypeOwner::World(id) => resolve.worlds[id].document,
+            TypeOwner::None => unreachable!(),
+        };
         let amt_to_import = types_to_import.len();
-        for (id, tys) in types_to_import {
+        for (owner, tys) in types_to_import {
             write!(&mut self.output, "use ")?;
+            let id = match owner {
+                TypeOwner::Interface(id) => id,
+                // it's only possible to import types from interfaces at
+                // this time.
+                _ => unreachable!(),
+            };
             self.print_path_to_interface(resolve, id, my_doc)?;
             write!(&mut self.output, ".{{")?;
             for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
@@ -102,19 +136,8 @@ impl DocumentPrinter {
             self.output.push_str("\n");
         }
 
-        // Declare all local types
         for id in types_to_declare {
             self.declare_type(resolve, &Type::Id(id))?;
-        }
-
-        for (i, (name, func)) in interface.functions.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str("\n");
-            }
-            self.print_name(name);
-            self.output.push_str(": ");
-            self.print_function(resolve, func)?;
-            self.output.push_str("\n");
         }
 
         Ok(())
@@ -156,6 +179,30 @@ impl DocumentPrinter {
         Ok(())
     }
 
+    fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
+        let world = &resolve.worlds[id];
+        let docid = world.document;
+        self.print_types(
+            resolve,
+            TypeOwner::World(id),
+            world.exports.iter().filter_map(|(name, item)| match item {
+                WorldItem::Type(t) => Some((name.as_str(), *t)),
+                _ => None,
+            }),
+        )?;
+        for (name, import) in world.imports.iter() {
+            self.print_world_item(resolve, name, import, docid, "import")?;
+        }
+        for (name, export) in world.exports.iter() {
+            // Types are handled above with `print_types`.
+            if let WorldItem::Type(_) = export {
+                continue;
+            }
+            self.print_world_item(resolve, name, export, docid, "export")?;
+        }
+        Ok(())
+    }
+
     fn print_world_item(
         &mut self,
         resolve: &Resolve,
@@ -183,6 +230,8 @@ impl DocumentPrinter {
                 self.print_function(resolve, f)?;
                 self.output.push_str("\n");
             }
+            // Types are handled separately
+            WorldItem::Type(_) => unreachable!(),
         }
         Ok(())
     }

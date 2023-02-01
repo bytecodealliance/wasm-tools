@@ -16,8 +16,9 @@ pub struct Resolver<'a> {
     worlds: Arena<World>,
     document_lookup: IndexMap<&'a str, DocumentId>,
     document_interfaces: Vec<IndexMap<&'a str, DocumentItem>>,
-    interface_types: Vec<IndexMap<&'a str, InterfaceItem>>,
+    interface_types: Vec<IndexMap<&'a str, (TypeOrItem, Span)>>,
     foreign_deps: IndexMap<&'a str, IndexMap<&'a str, DocumentId>>,
+    type_lookup: IndexMap<&'a str, (TypeOrItem, Span)>,
 
     unknown_type_spans: Vec<Span>,
     world_spans: Vec<(Vec<Span>, Vec<Span>)>,
@@ -30,12 +31,6 @@ pub struct Resolver<'a> {
 enum DocumentItem {
     Interface(InterfaceId),
     World(WorldId),
-}
-
-#[derive(Copy, Clone)]
-enum InterfaceItem {
-    Type(TypeId),
-    Func,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -51,6 +46,16 @@ enum Key {
     Union(Vec<Type>),
     Future(Option<Type>),
     Stream(Option<Type>, Option<Type>),
+}
+
+enum TypeItem<'a, 'b> {
+    Use(&'b ast::Use<'a>),
+    Def(&'b ast::TypeDef<'a>),
+}
+
+enum TypeOrItem {
+    Type(TypeId),
+    Item(&'static str),
 }
 
 impl<'a> Resolver<'a> {
@@ -223,7 +228,7 @@ impl<'a> Resolver<'a> {
                         owner: TypeOwner::Interface(iface),
                     });
                     self.unknown_type_spans.push(name.name.span);
-                    lookup.insert(name.name.name, InterfaceItem::Type(id));
+                    lookup.insert(name.name.name, (TypeOrItem::Type(id), name.name.span));
                     self.interfaces[iface]
                         .types
                         .insert(name.name.name.to_string(), id);
@@ -390,13 +395,36 @@ impl<'a> Resolver<'a> {
         self.document_interfaces[document.index()]
             .insert(world.name.name, DocumentItem::World(world_id));
 
+        self.resolve_types(
+            TypeOwner::World(world_id),
+            world.items.iter().filter_map(|i| match i {
+                ast::WorldItem::Use(u) => Some(TypeItem::Use(u)),
+                ast::WorldItem::Type(t) => Some(TypeItem::Def(t)),
+                ast::WorldItem::Import(_) | ast::WorldItem::Export(_) => None,
+            }),
+        )?;
+
+        let mut export_spans = Vec::new();
+        for (name, (item, span)) in self.type_lookup.iter() {
+            match *item {
+                TypeOrItem::Type(id) => {
+                    self.worlds[world_id]
+                        .exports
+                        .insert(name.to_string(), WorldItem::Type(id));
+                    export_spans.push(*span);
+                }
+                TypeOrItem::Item(_) => unreachable!(),
+            }
+        }
+
         let mut imported_interfaces = HashMap::new();
         let mut exported_interfaces = HashMap::new();
         let mut import_spans = Vec::new();
-        let mut export_spans = Vec::new();
         for item in world.items.iter() {
             match item {
-                // ast::WorldItem::Use(_) => todo!(),
+                // handled in `resolve_types`
+                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) => {}
+
                 ast::WorldItem::Import(import) => {
                     let item = self.resolve_world_item(import.name.name, document, &import.kind)?;
                     if let WorldItem::Interface(id) = item {
@@ -426,6 +454,16 @@ impl<'a> Resolver<'a> {
                     import_spans.push(import.name.span);
                 }
                 ast::WorldItem::Export(export) => {
+                    self.define_interface_name(
+                        &export.name,
+                        TypeOrItem::Item(match &export.kind {
+                            ast::ExternKind::Interface(..) | ast::ExternKind::Path(..) => {
+                                "interface"
+                            }
+                            ast::ExternKind::Func(..) => "function",
+                        }),
+                    )?;
+
                     let item = self.resolve_world_item(export.name.name, document, &export.kind)?;
                     if let WorldItem::Interface(id) = item {
                         if exported_interfaces.insert(id, export.name.name).is_some() {
@@ -441,21 +479,13 @@ impl<'a> Resolver<'a> {
                     }
                     let exports = &mut self.worlds[world_id].exports;
                     let prev = exports.insert(export.name.name.to_string(), item);
-                    if prev.is_some() {
-                        return Err(Error {
-                            span: export.name.span,
-                            msg: format!(
-                                "name `{name}` cannot be exported more than once",
-                                name = export.name.name
-                            ),
-                        }
-                        .into());
-                    }
+                    assert!(prev.is_none());
                     export_spans.push(export.name.span);
                 }
             }
         }
         self.world_spans.push((import_spans, export_spans));
+        self.type_lookup.clear();
 
         Ok(world_id)
     }
@@ -468,7 +498,9 @@ impl<'a> Resolver<'a> {
     ) -> Result<WorldItem> {
         match kind {
             ast::ExternKind::Interface(_span, items) => {
+                let prev = mem::take(&mut self.type_lookup);
                 let id = self.resolve_interface(document, None, items, &Default::default())?;
+                self.type_lookup = prev;
                 Ok(WorldItem::Interface(id))
             }
             ast::ExternKind::Path(path) => {
@@ -476,11 +508,7 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface(id))
             }
             ast::ExternKind::Func(func) => {
-                // Push a dummy type lookup which will get used during type
-                // resolution which is empty.
-                self.interface_types.push(IndexMap::default());
                 let func = self.resolve_function(Docs::default(), name, func)?;
-                self.interface_types.pop();
                 Ok(WorldItem::Function(func))
             }
         }
@@ -501,47 +529,76 @@ impl<'a> Resolver<'a> {
             functions: IndexMap::new(),
             types: IndexMap::new(),
         });
-        assert_eq!(interface_id.index(), self.interface_types.len());
-        self.interface_types.push(IndexMap::new());
         if let Some(name) = name {
             self.document_interfaces[document.index()]
                 .insert(name, DocumentItem::Interface(interface_id));
         }
 
-        // First, populate our namespace with `use` statements
+        self.resolve_types(
+            TypeOwner::Interface(interface_id),
+            fields.iter().filter_map(|i| match i {
+                ast::InterfaceItem::Use(u) => Some(TypeItem::Use(u)),
+                ast::InterfaceItem::TypeDef(t) => Some(TypeItem::Def(t)),
+                ast::InterfaceItem::Value(_) => None,
+            }),
+        )?;
+
+        for (name, (ty, _)) in self.type_lookup.iter() {
+            match *ty {
+                TypeOrItem::Type(id) => {
+                    self.interfaces[interface_id]
+                        .types
+                        .insert(name.to_string(), id);
+                }
+                TypeOrItem::Item(_) => unreachable!(),
+            }
+        }
+
+        // Finally process all function definitions now that all types are
+        // defined.
         for field in fields {
             match field {
-                ast::InterfaceItem::Use(u) => {
-                    let use_from = self.resolve_path(&u.from)?;
-                    for name in u.names.iter() {
-                        let lookup = &self.interface_types[use_from.index()];
-                        let id = match lookup.get(name.name.name) {
-                            Some(InterfaceItem::Type(id)) => *id,
-                            Some(InterfaceItem::Func) => {
-                                bail!(Error {
-                                    span: name.name.span,
-                                    msg: format!("cannot import function `{}`", name.name.name),
-                                })
-                            }
-                            None => bail!(Error {
-                                span: name.name.span,
-                                msg: format!("name `{}` is not defined", name.name.name),
-                            }),
-                        };
-                        let name = name.as_.as_ref().unwrap_or(&name.name);
-                        let id = self.types.alloc(TypeDef {
-                            docs: Docs::default(),
-                            kind: TypeDefKind::Type(Type::Id(id)),
-                            name: Some(name.name.to_string()),
-                            owner: TypeOwner::Interface(interface_id),
-                        });
-                        self.define_interface_name(name, InterfaceItem::Type(id))?;
-                        self.interfaces[interface_id]
-                            .types
-                            .insert(name.name.to_string(), id);
+                ast::InterfaceItem::Value(value) => {
+                    let docs = self.docs(&value.docs);
+                    match &value.kind {
+                        ValueKind::Func(func) => {
+                            self.define_interface_name(&value.name, TypeOrItem::Item("function"))?;
+                            let func = self.resolve_function(docs, value.name.name, func)?;
+                            let prev = self.interfaces[interface_id]
+                                .functions
+                                .insert(value.name.name.to_string(), func);
+                            assert!(prev.is_none());
+                        }
                     }
                 }
-                ast::InterfaceItem::TypeDef(_) | ast::InterfaceItem::Value(_) => {}
+                ast::InterfaceItem::Use(_) | ast::InterfaceItem::TypeDef(_) => {}
+            }
+        }
+
+        let lookup = mem::take(&mut self.type_lookup);
+        assert_eq!(interface_id.index(), self.interface_types.len());
+        self.interface_types.push(lookup);
+
+        Ok(interface_id)
+    }
+
+    fn resolve_types<'b>(
+        &mut self,
+        owner: TypeOwner,
+        fields: impl Iterator<Item = TypeItem<'a, 'b>> + Clone,
+    ) -> Result<()>
+    where
+        'a: 'b,
+    {
+        assert!(self.type_lookup.is_empty());
+
+        // First, populate our namespace with `use` statements
+        for field in fields.clone() {
+            match field {
+                TypeItem::Use(u) => {
+                    self.resolve_use(owner, u)?;
+                }
+                TypeItem::Def(_) => {}
             }
         }
 
@@ -553,7 +610,7 @@ impl<'a> Resolver<'a> {
         let mut type_defs = IndexMap::new();
         for field in fields {
             match field {
-                ast::InterfaceItem::TypeDef(t) => {
+                TypeItem::Def(t) => {
                     let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
                         return Err(Error {
@@ -566,14 +623,13 @@ impl<'a> Resolver<'a> {
                     collect_deps(&t.ty, &mut deps);
                     type_deps.insert(t.name.name, deps);
                 }
-                ast::InterfaceItem::Use(u) => {
+                TypeItem::Use(u) => {
                     for name in u.names.iter() {
                         let name = name.as_.as_ref().unwrap_or(&name.name);
                         type_deps.insert(name.name, Vec::new());
                         type_defs.insert(name.name, None);
                     }
                 }
-                ast::InterfaceItem::Value(_) => {}
             }
         }
         let order = toposort("type", &type_deps)?;
@@ -588,36 +644,40 @@ impl<'a> Resolver<'a> {
                 docs,
                 kind,
                 name: Some(def.name.name.to_string()),
-                owner: TypeOwner::Interface(interface_id),
+                owner,
             });
-            self.define_interface_name(&def.name, InterfaceItem::Type(id))?;
-            self.interfaces[interface_id]
-                .types
-                .insert(def.name.name.to_string(), id);
+            self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
         }
+        Ok(())
+    }
 
-        // Finally process all function definitions now that all types are
-        // defined.
-        for field in fields {
-            match field {
-                ast::InterfaceItem::Value(value) => {
-                    let docs = self.docs(&value.docs);
-                    match &value.kind {
-                        ValueKind::Func(func) => {
-                            self.define_interface_name(&value.name, InterfaceItem::Func)?;
-                            let func = self.resolve_function(docs, value.name.name, func)?;
-                            let prev = self.interfaces[interface_id]
-                                .functions
-                                .insert(value.name.name.to_string(), func);
-                            assert!(prev.is_none());
-                        }
-                    }
+    fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<()> {
+        let use_from = self.resolve_path(&u.from)?;
+        for name in u.names.iter() {
+            let lookup = &self.interface_types[use_from.index()];
+            let id = match lookup.get(name.name.name) {
+                Some((TypeOrItem::Type(id), _)) => *id,
+                Some((TypeOrItem::Item(s), _)) => {
+                    bail!(Error {
+                        span: name.name.span,
+                        msg: format!("cannot import {s} `{}`", name.name.name),
+                    })
                 }
-                ast::InterfaceItem::Use(_) | ast::InterfaceItem::TypeDef(_) => {}
-            }
+                None => bail!(Error {
+                    span: name.name.span,
+                    msg: format!("name `{}` is not defined", name.name.name),
+                }),
+            };
+            let name = name.as_.as_ref().unwrap_or(&name.name);
+            let id = self.types.alloc(TypeDef {
+                docs: Docs::default(),
+                kind: TypeDefKind::Type(Type::Id(id)),
+                name: Some(name.name.to_string()),
+                owner,
+            });
+            self.define_interface_name(name, TypeOrItem::Type(id))?;
         }
-
-        Ok(interface_id)
+        Ok(())
     }
 
     fn resolve_function(&mut self, docs: Docs, name: &str, func: &ast::Func) -> Result<Function> {
@@ -692,12 +752,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn define_interface_name(&mut self, name: &ast::Id<'a>, item: InterfaceItem) -> Result<()> {
-        let prev = self
-            .interface_types
-            .last_mut()
-            .unwrap()
-            .insert(name.name, item);
+    fn define_interface_name(&mut self, name: &ast::Id<'a>, item: TypeOrItem) -> Result<()> {
+        let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
             Err(Error {
                 span: name.span,
@@ -725,12 +781,11 @@ impl<'a> Resolver<'a> {
             ast::Type::Char => TypeDefKind::Type(Type::Char),
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
-                let interface_types = self.interface_types.last().unwrap();
-                let id = match interface_types.get(name.name) {
-                    Some(InterfaceItem::Type(id)) => *id,
-                    Some(InterfaceItem::Func) => bail!(Error {
+                let id = match self.type_lookup.get(name.name) {
+                    Some((TypeOrItem::Type(id), _)) => *id,
+                    Some((TypeOrItem::Item(s), _)) => bail!(Error {
                         span: name.span,
-                        msg: format!("cannot use function `{name}` as a type", name = name.name),
+                        msg: format!("cannot use {s} `{name}` as a type", name = name.name),
                     }),
                     None => bail!(Error {
                         span: name.span,

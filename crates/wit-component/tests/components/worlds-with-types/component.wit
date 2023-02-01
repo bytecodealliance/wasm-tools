@@ -1,0 +1,5 @@
+default world component {
+  type t = u32
+
+  export a: func() -> t
+}

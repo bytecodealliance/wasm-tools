@@ -43,7 +43,8 @@ impl<'a> Ast<'a> {
                     let mut exports = Vec::new();
                     for item in world.items.iter() {
                         match item {
-                            // WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                            WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                            WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
                         }
@@ -129,10 +130,11 @@ impl<'a> World<'a> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
+            let docs = parse_docs(tokens)?;
             if tokens.eat(Token::RightBrace)? {
                 break;
             }
-            items.push(WorldItem::parse(tokens)?);
+            items.push(WorldItem::parse(tokens, docs)?);
         }
         Ok(items)
     }
@@ -141,17 +143,32 @@ impl<'a> World<'a> {
 pub enum WorldItem<'a> {
     Import(Import<'a>),
     Export(Export<'a>),
-    // Use(Use<'a>),
+    Use(Use<'a>),
+    Type(TypeDef<'a>),
 }
 
 impl<'a> WorldItem<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<WorldItem<'a>> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<WorldItem<'a>> {
         match tokens.clone().next()? {
             Some((_span, Token::Import)) => Import::parse(tokens).map(WorldItem::Import),
             Some((_span, Token::Export)) => Export::parse(tokens).map(WorldItem::Export),
-            // TODO: should parse this when it's implemented
-            // Some((_span, Token::Use)) => Use::parse(tokens).map(WorldItem::Use),
-            other => Err(err_expected(tokens, "`import` or `export`", other).into()),
+            Some((_span, Token::Use)) => Use::parse(tokens).map(WorldItem::Use),
+            Some((_span, Token::Type)) => TypeDef::parse(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Flags)) => TypeDef::parse_flags(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Record)) => {
+                TypeDef::parse_record(tokens, docs).map(WorldItem::Type)
+            }
+            Some((_span, Token::Variant)) => {
+                TypeDef::parse_variant(tokens, docs).map(WorldItem::Type)
+            }
+            Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
+            other => Err(err_expected(
+                tokens,
+                "`import`, `export`, `use`, or type definition",
+                other,
+            )
+            .into()),
         }
     }
 }

@@ -277,6 +277,7 @@ impl ModuleMetadata {
                         assert!(prev.is_none());
                     }
                 }
+                WorldItem::Type(_) => {}
             }
         }
 
@@ -294,6 +295,7 @@ impl ModuleMetadata {
                         assert!(prev.is_none());
                     }
                 }
+                WorldItem::Type(_) => {}
             }
         }
 

@@ -137,6 +137,7 @@ impl<'a> ComponentWorld<'a> {
                         add_func(func, Some(name));
                     }
                 }
+                WorldItem::Type(_) => {}
             }
         }
         return required;
@@ -223,6 +224,8 @@ impl<'a> ComponentWorld<'a> {
                     }
                     Ok(())
                 }
+                // Types aren't imported at this time
+                WorldItem::Type(_) => unreachable!(),
             }
         }
 
@@ -315,6 +318,8 @@ impl<'a> ComponentWorld<'a> {
                         }
                     }
                 }
+                // Types aren't imported at this time
+                WorldItem::Type(_) => unreachable!(),
             }
         }
     }
