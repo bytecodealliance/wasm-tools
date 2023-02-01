@@ -53,7 +53,7 @@ impl AddOpts {
     pub fn run(&self) -> Result<()> {
         let input = self.io.parse_input_wasm()?;
 
-        let output = self.add_metadata.run(&input)?;
+        let output = self.add_metadata.to_wasm(&input)?;
 
         self.io.output(wasm_tools::Output::Wasm {
             bytes: output.as_slice(),

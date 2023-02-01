@@ -5,13 +5,18 @@ use wasmparser::{
     ComponentNameSectionReader, NameSectionReader, Parser, Payload::*, ProducersSectionReader,
 };
 
+/// A representation of a WebAssembly producers section.
+///
+/// Spec: https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md
 #[derive(Debug)]
 pub struct Producers(IndexMap<String, IndexMap<String, String>>);
 
 impl Producers {
+    /// Creates an empty producers section
     pub fn empty() -> Self {
         Producers(IndexMap::new())
     }
+    /// Read the producers section from a Wasm binary.
     pub fn from_reader(section: ProducersSectionReader) -> Result<Self> {
         let mut fields = IndexMap::new();
         for field in section.into_iter() {
@@ -25,6 +30,10 @@ impl Producers {
         }
         Ok(Producers(fields))
     }
+    /// Add a name & version value to a field.
+    ///
+    /// The spec says expected field names are "language", "processed-by", and "sdk".
+    /// The version value should be left blank for languages.
     pub fn add(&mut self, field: &str, name: &str, version: &str) {
         match self.0.entry(field.to_string()) {
             Entry::Occupied(e) => {
@@ -37,6 +46,7 @@ impl Producers {
             }
         }
     }
+    /// Add the fields specified by [`AddMetadata`]
     pub fn add_meta(&mut self, add: &AddMetadata) {
         for lang in add.language.iter() {
             self.add("language", &lang, "");
@@ -48,6 +58,7 @@ impl Producers {
             self.add("sdk", &name, &version);
         }
     }
+    /// Serialize into binary, by way of [`wasm_encoder::ProducersSection`].
     pub fn into_section(self) -> wasm_encoder::ProducersSection {
         let mut section = wasm_encoder::ProducersSection::new();
         for (fieldname, fieldvalues) in self.0 {
@@ -61,7 +72,10 @@ impl Producers {
     }
 }
 
-/// Add metadata (module name, producers) to a WebAssembly file
+/// Add metadata (module name, producers) to a WebAssembly file.
+///
+/// Supports both core WebAssembly modules and components. In components,
+/// metadata will be added to the outermost component.
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
 #[derive(Debug, Clone)]
 pub struct AddMetadata {
@@ -82,6 +96,7 @@ pub struct AddMetadata {
     pub sdk: Vec<(String, String)>,
 }
 
+#[cfg(feature = "clap")]
 fn parse_key_value(s: &str) -> Result<(String, String)> {
     s.split_once('=')
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
@@ -89,7 +104,10 @@ fn parse_key_value(s: &str) -> Result<(String, String)> {
 }
 
 impl AddMetadata {
-    pub fn run(&self, input: &[u8]) -> Result<Vec<u8>> {
+    /// Process a WebAssembly binary. Supports both core WebAssembly modules, and WebAssembly
+    /// components. The module and component will have, at very least, an empty name and producers
+    /// section created.
+    pub fn to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
         let mut parser = Parser::new(0).parse_all(&input);
 
         enum Output {
@@ -214,20 +232,30 @@ impl AddMetadata {
     }
 }
 
+/// A tree of the metadata found in a WebAssembly binary.
 #[derive(Debug)]
 pub enum Metadata {
+    /// Metadata found inside a WebAssembly component.
     Component {
+        /// The component name, if any. Found in the component-name section.
         name: Option<String>,
+        /// The component's producers section, if any.
         producers: Option<Producers>,
+        /// All child modules and components inside the component.
         children: Vec<Box<Metadata>>,
     },
+    /// Metadata found inside a WebAssembly module.
     Module {
+        /// The module name, if any. Found in the name section.
         name: Option<String>,
+        /// The module's producers section, if any.
         producers: Option<Producers>,
     },
 }
 
 impl Metadata {
+    /// Parse metadata from a WebAssembly binary. Supports both core WebAssembly modules, and
+    /// WebAssembly components.
     pub fn from_binary(input: &[u8]) -> Result<Self> {
         let mut metadata = Vec::new();
 
@@ -340,18 +368,22 @@ impl fmt::Display for Producers {
     }
 }
 
-struct ModuleNames<'a> {
+/// Helper for rewriting a module's name section with a new module name.
+pub struct ModuleNames<'a> {
     module_name: Option<String>,
     names: Vec<wasmparser::Name<'a>>,
 }
 
 impl<'a> ModuleNames<'a> {
+    /// Create an empty name section.
     pub fn empty() -> Self {
         ModuleNames {
             module_name: None,
             names: Vec::new(),
         }
     }
+    /// Read a name section from a WebAssembly binary. Records the module name, and all other
+    /// contents of name section, for later serialization.
     pub fn from_reader(section: NameSectionReader<'a>) -> Result<ModuleNames<'a>> {
         let mut s = Self::empty();
         for name in section.into_iter() {
@@ -363,12 +395,19 @@ impl<'a> ModuleNames<'a> {
         }
         Ok(s)
     }
+    /// Update module section according to [`AddMetadata`]
     fn add_meta(&mut self, add: &AddMetadata) {
         self.module_name = add.name.clone();
     }
+    /// Set module name
+    pub fn set_name(&mut self, name: &str) {
+        self.module_name = Some(name.to_owned())
+    }
+    /// Get module name
     pub fn get_name(&self) -> Option<&String> {
         self.module_name.as_ref()
     }
+    /// Serialize name section to binary, by way of [`wasm_encoder::NameSection`].
     pub fn into_section(self) -> Result<wasm_encoder::NameSection> {
         let mut section = wasm_encoder::NameSection::new();
         if let Some(module_name) = self.module_name {
@@ -393,18 +432,22 @@ impl<'a> ModuleNames<'a> {
     }
 }
 
-struct ComponentNames<'a> {
+/// Helper for rewriting a component's component-name section with a new component name.
+pub struct ComponentNames<'a> {
     component_name: Option<String>,
     names: Vec<wasmparser::ComponentName<'a>>,
 }
 
 impl<'a> ComponentNames<'a> {
+    /// Create an empty component-name section.
     pub fn empty() -> Self {
         ComponentNames {
             component_name: None,
             names: Vec::new(),
         }
     }
+    /// Read a component-name section from a WebAssembly binary. Records the component name, as
+    /// well as all other component name fields for later serialization.
     pub fn from_reader(section: ComponentNameSectionReader<'a>) -> Result<ComponentNames<'a>> {
         let mut s = Self::empty();
         for name in section.into_iter() {
@@ -418,9 +461,15 @@ impl<'a> ComponentNames<'a> {
         }
         Ok(s)
     }
+    /// Set component name according to [`AddMetadata`]
     fn add_meta(&mut self, add: &AddMetadata) {
         self.component_name = add.name.clone();
     }
+    /// Set component name
+    pub fn set_name(&mut self, name: &str) {
+        self.component_name = Some(name.to_owned())
+    }
+    /// Get component name
     pub fn get_name(&self) -> Option<&String> {
         self.component_name.as_ref()
     }
