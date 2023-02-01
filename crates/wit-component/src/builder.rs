@@ -32,16 +32,7 @@ pub struct ComponentBuilder {
 
 impl ComponentBuilder {
     pub fn finish(mut self) -> Vec<u8> {
-        let mut field = ProducersField::new();
-        field.value("wit-component", env!("CARGO_PKG_VERSION"));
-        let mut section = ProducersSection::new();
-        section.field("processed-by", &field);
-        let mut producers = Vec::new();
-        section.encode(&mut producers);
-        self.component.section(&CustomSection {
-            name: "producers",
-            data: &producers,
-        });
+        self.component.section(&crate::producer_section());
         self.flush();
         self.component.finish()
     }

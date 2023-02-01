@@ -352,7 +352,14 @@ impl<'a> EncodingState<'a> {
         self.module_index = Some(idx);
 
         for (name, (_, wasm)) in self.info.adapters.iter() {
-            let idx = self.component.core_module_raw(wasm);
+            let add_meta = wasm_metadata::AddMetadata {
+                name: Some(format!("wit-component:adapter:{name}")),
+                ..Default::default()
+            };
+            let wasm = add_meta
+                .to_wasm(wasm)
+                .expect("core wasm can get name added");
+            let idx = self.component.core_module_raw(&wasm);
             let prev = self.adapter_modules.insert(name, idx);
             assert!(prev.is_none());
         }
@@ -833,6 +840,7 @@ impl<'a> EncodingState<'a> {
             func_names.append(i, &shim.debug_name);
         }
         let mut names = NameSection::new();
+        names.module("wit-component:shim");
         names.functions(&func_names);
 
         let table_type = TableType {
@@ -859,12 +867,17 @@ impl<'a> EncodingState<'a> {
         shim.section(&tables);
         shim.section(&exports);
         shim.section(&code);
+        shim.section(&crate::producer_section());
         shim.section(&names);
 
         let mut fixups = Module::default();
         fixups.section(&types);
         fixups.section(&imports_section);
         fixups.section(&elements);
+        fixups.section(&crate::producer_section());
+        let mut names = NameSection::new();
+        names.module("wit-component:fixups");
+        fixups.section(&names);
 
         let shim_module_index = self.component.core_module(&shim);
         self.fixups_module_index = Some(self.component.core_module(&fixups));
