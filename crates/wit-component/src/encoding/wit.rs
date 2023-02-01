@@ -133,7 +133,7 @@ impl Encoder<'_> {
             //    other but are otherwise standalone.
             // 2. Next exported types are encoded which can use types from
             //    imported interfaces.
-            // 3. All remaining imports are nexted, just functions for now.
+            // 3. All remaining imports are next, just functions for now.
             // 4. All remaining exports are next, both interfaces and functions
             //    for now.
             //
