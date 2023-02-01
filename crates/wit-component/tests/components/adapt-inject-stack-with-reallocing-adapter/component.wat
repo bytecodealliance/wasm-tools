@@ -53,7 +53,7 @@
     (type (;3;) (func))
     (import "env" "memory" (memory (;0;) 0))
     (import "new" "get-two" (func $get_two (;0;) (type 0)))
-    (import "__main_module__" "cabi_realloc" (func (;1;) (type 2)))
+    (import "__main_module__" "cabi_realloc" (func $cabi_realloc (;1;) (type 2)))
     (func (;2;) (type 1) (result i32)
       (local i32 i32)
       global.get $__stack_pointer
@@ -79,7 +79,7 @@
       i32.const 0
       i32.const 8
       i32.const 65536
-      call 1
+      call $cabi_realloc
       i32.const 65536
       i32.add
       global.set $__stack_pointer

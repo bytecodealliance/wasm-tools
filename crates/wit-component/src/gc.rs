@@ -567,6 +567,8 @@ impl<'a> Module<'a> {
 
         let sp = self.find_stack_pointer()?;
 
+        let mut func_names = Vec::new();
+
         if let (Some(realloc), Some(_), None) = (main_module_realloc, sp, realloc_index) {
             // The main module exports a realloc function, and although the adapter doesn't import it, we're going
             // to add a function which calls it to allocate some stack space, so let's add an import now.
@@ -580,6 +582,7 @@ impl<'a> Module<'a> {
                 realloc,
                 EntityType::Function(add_realloc_type(&mut types)),
             );
+            func_names.push((num_func_imports, realloc));
             num_func_imports += 1;
         }
 
@@ -590,7 +593,7 @@ impl<'a> Module<'a> {
                 Definition::Import(_, _) => {
                     // The adapter is importing `cabi_realloc` from the main module, but the main module isn't
                     // exporting it.  In this case, we need to define a local function it can call instead.
-                    realloc_index = Some(funcs.len());
+                    realloc_index = Some(num_func_imports + funcs.len());
                     funcs.function(ty);
                     code.function(&realloc_via_memory_grow());
                 }
@@ -620,23 +623,10 @@ impl<'a> Module<'a> {
         if sp.is_some() && realloc_index.is_none() {
             // The main module does _not_ export a realloc function, nor does the adapter import it, but we need a
             // function to allocate some stack space, so we'll add one here.
-            realloc_index = Some(funcs.len());
+            realloc_index = Some(num_func_imports + funcs.len());
             funcs.function(add_realloc_type(&mut types));
             code.function(&realloc_via_memory_grow());
         }
-
-        // Now that we know how many function imports there are, we can compute the final index of our realloc
-        // function.
-        let realloc_index = realloc_index.map(|index| {
-            index
-                + if main_module_realloc.is_some() {
-                    0
-                } else {
-                    num_func_imports
-                }
-        });
-
-        let mut func_names = Vec::new();
 
         // Inject a start function to initialize the stack pointer which will be
         // local to this module. This only happens if a memory is preserved and
