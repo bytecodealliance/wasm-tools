@@ -77,7 +77,7 @@ impl Producers {
 /// Supports both core WebAssembly modules and components. In components,
 /// metadata will be added to the outermost component.
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AddMetadata {
     /// Add a module or component name to the names section
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
@@ -207,7 +207,7 @@ impl AddMetadata {
                 }
             }
         }
-        if !names_found {
+        if !names_found && self.name.is_some() {
             match &mut output {
                 Output::Component(c) => {
                     let mut names = ComponentNames::empty();
@@ -221,7 +221,9 @@ impl AddMetadata {
                 }
             }
         }
-        if !producers_found {
+        if !producers_found
+            && (!self.language.is_empty() || !self.processed_by.is_empty() || !self.sdk.is_empty())
+        {
             let mut producers = Producers::empty();
             // Add to the section according to the command line flags:
             producers.add_meta(&self);
