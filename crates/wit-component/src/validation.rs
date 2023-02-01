@@ -11,7 +11,7 @@ use wit_parser::{
 };
 
 fn is_canonical_function(name: &str) -> bool {
-    name.starts_with("cabi_")
+    name.starts_with("cabi_") || name.starts_with("canonical_abi_")
 }
 
 fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
@@ -139,7 +139,9 @@ pub fn validate_module<'a>(
                             if is_canonical_function(export.name) {
                                 // TODO: validate that the cabi_realloc
                                 // function is [i32, i32, i32, i32] -> [i32]
-                                if export.name == "cabi_realloc" {
+                                if export.name == "cabi_realloc"
+                                    || export.name == "canonical_abi_realloc"
+                                {
                                     ret.realloc = Some(export.name);
                                 }
                                 continue;
