@@ -198,6 +198,11 @@ where
         self.remaining -= 1;
         Some(result)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.remaining as usize;
+        (remaining, Some(remaining))
+    }
 }
 
 /// An iterator over a limited section iterator.
