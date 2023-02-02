@@ -198,7 +198,14 @@ where
         self.remaining -= 1;
         Some(result)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.remaining as usize;
+        (remaining, Some(remaining))
+    }
 }
+
+impl<'a, T> ExactSizeIterator for SectionLimitedIntoIter<'a, T> where T: FromReader<'a> {}
 
 /// An iterator over a limited section iterator.
 pub struct SectionLimitedIntoIterWithOffsets<'a, T> {
@@ -220,6 +227,8 @@ where
         self.iter.size_hint()
     }
 }
+
+impl<'a, T> ExactSizeIterator for SectionLimitedIntoIterWithOffsets<'a, T> where T: FromReader<'a> {}
 
 /// A trait implemented for subsections of another outer section.
 ///
