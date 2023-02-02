@@ -214,7 +214,7 @@ impl ModuleState {
                 {
                     return Err(BinaryReaderError::new(
                         format!(
-                            "invalid element type `{}` for table type `{}`",
+                            "type mismatch: invalid element type `{}` for table type `{}`",
                             ty_to_str(e.ty.into()),
                             ty_to_str(table.element_type.into()),
                         ),
