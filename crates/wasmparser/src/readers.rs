@@ -205,10 +205,7 @@ where
     }
 }
 
-impl<'a, T> ExactSizeIterator for SectionLimitedIntoIter<'a, T>
-where
-    T: FromReader<'a>,
-{}
+impl<'a, T> ExactSizeIterator for SectionLimitedIntoIter<'a, T> where T: FromReader<'a> {}
 
 /// An iterator over a limited section iterator.
 pub struct SectionLimitedIntoIterWithOffsets<'a, T> {
@@ -231,10 +228,7 @@ where
     }
 }
 
-impl<'a, T> ExactSizeIterator for SectionLimitedIntoIterWithOffsets<'a, T>
-where
-    T: FromReader<'a>,
-{}
+impl<'a, T> ExactSizeIterator for SectionLimitedIntoIterWithOffsets<'a, T> where T: FromReader<'a> {}
 
 /// A trait implemented for subsections of another outer section.
 ///
