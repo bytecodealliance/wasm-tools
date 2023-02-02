@@ -70,6 +70,27 @@ impl Producers {
         }
         section
     }
+
+    fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
+        let indent = std::iter::repeat(" ").take(indent).collect::<String>();
+        for (fieldname, fieldvalues) in self.0.iter() {
+            writeln!(f, "{indent}{fieldname}:")?;
+            for (name, version) in fieldvalues {
+                if version.is_empty() {
+                    writeln!(f, "{indent}    {name}")?;
+                } else {
+                    writeln!(f, "{indent}    {name}: {version}")?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for Producers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.display(f, 0)
+    }
 }
 
 /// Add metadata (module name, producers) to a WebAssembly file.
@@ -352,21 +373,49 @@ impl Metadata {
             Metadata::Component { children, .. } => children.push(Box::new(child)),
         }
     }
-}
 
-impl fmt::Display for Producers {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (fieldname, fieldvalues) in self.0.iter() {
-            writeln!(f, "{fieldname}:")?;
-            for (name, version) in fieldvalues {
-                if version.is_empty() {
-                    writeln!(f, "    {name}")?;
+    fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
+        let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
+        match self {
+            Metadata::Module { name, producers } => {
+                if let Some(name) = name {
+                    writeln!(f, "{spaces}module {name}:")?;
                 } else {
-                    writeln!(f, "    {name}: {version}")?;
+                    writeln!(f, "{spaces}module:")?;
                 }
+                if let Some(producers) = producers {
+                    producers.display(f, indent + 4)?;
+                }
+                Ok(())
+            }
+            Metadata::Component {
+                name,
+                producers,
+                children,
+            } => {
+                if let Some(name) = name {
+                    writeln!(f, "{spaces}component {name}:")?;
+                } else {
+                    writeln!(f, "{spaces}component:")?;
+                }
+                if let Some(producers) = producers {
+                    producers.display(f, indent + 4)?;
+                }
+                if !children.is_empty() {
+                    writeln!(f, "{spaces}    children:")?;
+                    for c in children {
+                        c.display(f, indent + 8)?;
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
+    }
+}
+
+impl fmt::Display for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.display(f, 0)
     }
 }
 

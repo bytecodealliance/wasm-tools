@@ -30,7 +30,7 @@ impl ShowOpts {
         let mut output = self.io.output_writer()?;
 
         let metadata = wasm_metadata::Metadata::from_binary(&input)?;
-        write!(output, "{metadata:?}")?;
+        write!(output, "{metadata}")?;
         Ok(())
     }
 }
