@@ -16,6 +16,11 @@ This project can be installed and compiled from source with this Cargo command:
 $ cargo install wasm-tools
 ```
 
+Additionally there are [precompiled artifacts built on CI][artifacts] which are
+available for download as well.
+
+[artifacts]: https://github.com/bytecodealliance/wasm-tools/releases
+
 Installation can be confirmed with:
 
 ```
@@ -49,6 +54,7 @@ programmatically as well:
 | `wasm-tools compose` | [wasm-compose] | Compose wasm components together |
 | `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
 | `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
+| `wasm-tools component embed` |  | Embed a `component-type` custom section in a core wasm binary |
 | `wasm-tools metadata show` |  | Show name and producer metadata in a component or module |
 | `wasm-tools metadata add` |  | Add name or producer metadata to a component or module |
 
