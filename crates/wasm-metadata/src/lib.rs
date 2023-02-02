@@ -58,10 +58,10 @@ impl Producers {
             self.add("sdk", &name, &version);
         }
     }
-    /// Serialize into binary, by way of [`wasm_encoder::ProducersSection`].
-    pub fn into_section(self) -> wasm_encoder::ProducersSection {
+    /// Serialize into [`wasm_encoder::ProducersSection`].
+    pub fn section(&self) -> wasm_encoder::ProducersSection {
         let mut section = wasm_encoder::ProducersSection::new();
-        for (fieldname, fieldvalues) in self.0 {
+        for (fieldname, fieldvalues) in self.0.iter() {
             let mut field = wasm_encoder::ProducersField::new();
             for (name, version) in fieldvalues {
                 field.value(&name, &version);
@@ -197,7 +197,7 @@ impl AddMetadata {
                     // Add to the section according to the command line flags:
                     producers.add_meta(&self);
                     // Encode into output:
-                    output.section(&producers.into_section());
+                    output.section(&producers.section());
                 }
 
                 CustomSection(c) if c.name() == "name" && depth == 0 => {
@@ -206,7 +206,7 @@ impl AddMetadata {
                     let mut names = ModuleNames::from_reader(section)?;
                     names.add_meta(&self);
 
-                    output.section(&names.into_section()?.as_custom());
+                    output.section(&names.section()?.as_custom());
                 }
 
                 CustomSection(c) if c.name() == "component-name" && depth == 0 => {
@@ -214,7 +214,7 @@ impl AddMetadata {
                     let section = ComponentNameSectionReader::new(c.data(), c.data_offset());
                     let mut names = ComponentNames::from_reader(section)?;
                     names.add_meta(&self);
-                    output.section(&names.into_section()?.as_custom());
+                    output.section(&names.section()?.as_custom());
                 }
 
                 // All other sections get passed through unmodified:
@@ -233,12 +233,12 @@ impl AddMetadata {
                 Output::Component(c) => {
                     let mut names = ComponentNames::empty();
                     names.add_meta(&self);
-                    c.section(&names.into_section()?);
+                    c.section(&names.section()?);
                 }
                 Output::Module(m) => {
                     let mut names = ModuleNames::empty();
                     names.add_meta(&self);
-                    m.section(&names.into_section()?);
+                    m.section(&names.section()?);
                 }
             }
         }
@@ -249,7 +249,7 @@ impl AddMetadata {
             // Add to the section according to the command line flags:
             producers.add_meta(&self);
             // Encode into output:
-            output.section(&producers.into_section());
+            output.section(&producers.section());
         }
         Ok(output.finish())
     }
@@ -401,11 +401,8 @@ impl Metadata {
                 if let Some(producers) = producers {
                     producers.display(f, indent + 4)?;
                 }
-                if !children.is_empty() {
-                    writeln!(f, "{spaces}    children:")?;
-                    for c in children {
-                        c.display(f, indent + 8)?;
-                    }
+                for c in children {
+                    c.display(f, indent + 4)?;
                 }
                 Ok(())
             }
@@ -458,24 +455,24 @@ impl<'a> ModuleNames<'a> {
     pub fn get_name(&self) -> Option<&String> {
         self.module_name.as_ref()
     }
-    /// Serialize name section to binary, by way of [`wasm_encoder::NameSection`].
-    pub fn into_section(self) -> Result<wasm_encoder::NameSection> {
+    /// Serialize into [`wasm_encoder::NameSection`].
+    pub fn section(&self) -> Result<wasm_encoder::NameSection> {
         let mut section = wasm_encoder::NameSection::new();
-        if let Some(module_name) = self.module_name {
+        if let Some(module_name) = &self.module_name {
             section.module(&module_name);
         }
-        for n in self.names {
+        for n in self.names.iter() {
             match n {
                 wasmparser::Name::Module { .. } => unreachable!(),
-                wasmparser::Name::Function(m) => section.functions(&name_map(m)?),
-                wasmparser::Name::Local(m) => section.locals(&indirect_name_map(m)?),
-                wasmparser::Name::Label(m) => section.labels(&indirect_name_map(m)?),
-                wasmparser::Name::Type(m) => section.types(&name_map(m)?),
-                wasmparser::Name::Table(m) => section.tables(&name_map(m)?),
-                wasmparser::Name::Memory(m) => section.memories(&name_map(m)?),
-                wasmparser::Name::Global(m) => section.globals(&name_map(m)?),
-                wasmparser::Name::Element(m) => section.elements(&name_map(m)?),
-                wasmparser::Name::Data(m) => section.types(&name_map(m)?),
+                wasmparser::Name::Function(m) => section.functions(&name_map(&m)?),
+                wasmparser::Name::Local(m) => section.locals(&indirect_name_map(&m)?),
+                wasmparser::Name::Label(m) => section.labels(&indirect_name_map(&m)?),
+                wasmparser::Name::Type(m) => section.types(&name_map(&m)?),
+                wasmparser::Name::Table(m) => section.tables(&name_map(&m)?),
+                wasmparser::Name::Memory(m) => section.memories(&name_map(&m)?),
+                wasmparser::Name::Global(m) => section.globals(&name_map(&m)?),
+                wasmparser::Name::Element(m) => section.elements(&name_map(&m)?),
+                wasmparser::Name::Data(m) => section.types(&name_map(&m)?),
                 wasmparser::Name::Unknown { .. } => {} // wasm-encoder doesn't support it
             }
         }
@@ -524,28 +521,29 @@ impl<'a> ComponentNames<'a> {
     pub fn get_name(&self) -> Option<&String> {
         self.component_name.as_ref()
     }
-    pub fn into_section(self) -> Result<wasm_encoder::ComponentNameSection> {
+    /// Serialize into [`wasm_encoder::ComponentNameSection`]
+    pub fn section(&self) -> Result<wasm_encoder::ComponentNameSection> {
         let mut section = wasm_encoder::ComponentNameSection::new();
-        if let Some(component_name) = self.component_name {
+        if let Some(component_name) = &self.component_name {
             section.component(&component_name);
         }
-        for n in self.names {
+        for n in self.names.iter() {
             match n {
                 wasmparser::ComponentName::Component { .. } => unreachable!(),
-                wasmparser::ComponentName::CoreFuncs(m) => section.core_funcs(&name_map(m)?),
-                wasmparser::ComponentName::CoreGlobals(m) => section.core_globals(&name_map(m)?),
-                wasmparser::ComponentName::CoreMemories(m) => section.core_memories(&name_map(m)?),
-                wasmparser::ComponentName::CoreTables(m) => section.core_tables(&name_map(m)?),
-                wasmparser::ComponentName::CoreModules(m) => section.core_modules(&name_map(m)?),
+                wasmparser::ComponentName::CoreFuncs(m) => section.core_funcs(&name_map(&m)?),
+                wasmparser::ComponentName::CoreGlobals(m) => section.core_globals(&name_map(&m)?),
+                wasmparser::ComponentName::CoreMemories(m) => section.core_memories(&name_map(&m)?),
+                wasmparser::ComponentName::CoreTables(m) => section.core_tables(&name_map(&m)?),
+                wasmparser::ComponentName::CoreModules(m) => section.core_modules(&name_map(&m)?),
                 wasmparser::ComponentName::CoreInstances(m) => {
-                    section.core_instances(&name_map(m)?)
+                    section.core_instances(&name_map(&m)?)
                 }
-                wasmparser::ComponentName::CoreTypes(m) => section.core_types(&name_map(m)?),
-                wasmparser::ComponentName::Types(m) => section.types(&name_map(m)?),
-                wasmparser::ComponentName::Instances(m) => section.instances(&name_map(m)?),
-                wasmparser::ComponentName::Components(m) => section.components(&name_map(m)?),
-                wasmparser::ComponentName::Funcs(m) => section.funcs(&name_map(m)?),
-                wasmparser::ComponentName::Values(m) => section.values(&name_map(m)?),
+                wasmparser::ComponentName::CoreTypes(m) => section.core_types(&name_map(&m)?),
+                wasmparser::ComponentName::Types(m) => section.types(&name_map(&m)?),
+                wasmparser::ComponentName::Instances(m) => section.instances(&name_map(&m)?),
+                wasmparser::ComponentName::Components(m) => section.components(&name_map(&m)?),
+                wasmparser::ComponentName::Funcs(m) => section.funcs(&name_map(&m)?),
+                wasmparser::ComponentName::Values(m) => section.values(&name_map(&m)?),
                 wasmparser::ComponentName::Unknown { .. } => {} // wasm-encoder doesn't support it
             }
         }
@@ -553,9 +551,9 @@ impl<'a> ComponentNames<'a> {
     }
 }
 
-fn name_map(map: wasmparser::NameMap<'_>) -> Result<wasm_encoder::NameMap> {
+fn name_map(map: &wasmparser::NameMap<'_>) -> Result<wasm_encoder::NameMap> {
     let mut out = wasm_encoder::NameMap::new();
-    for m in map.into_iter() {
+    for m in map.clone().into_iter() {
         let m = m?;
         out.append(m.index, m.name);
     }
@@ -563,12 +561,12 @@ fn name_map(map: wasmparser::NameMap<'_>) -> Result<wasm_encoder::NameMap> {
 }
 
 fn indirect_name_map(
-    map: wasmparser::IndirectNameMap<'_>,
+    map: &wasmparser::IndirectNameMap<'_>,
 ) -> Result<wasm_encoder::IndirectNameMap> {
     let mut out = wasm_encoder::IndirectNameMap::new();
-    for m in map.into_iter() {
+    for m in map.clone().into_iter() {
         let m = m?;
-        out.append(m.index, &name_map(m.names)?);
+        out.append(m.index, &name_map(&m.names)?);
     }
     Ok(out)
 }
