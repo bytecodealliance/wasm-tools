@@ -22,6 +22,10 @@ impl Opts {
 pub struct ShowOpts {
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
+
+    /// Output in JSON encoding
+    #[clap(long)]
+    json: bool,
 }
 
 impl ShowOpts {
@@ -30,7 +34,11 @@ impl ShowOpts {
         let mut output = self.io.output_writer()?;
 
         let metadata = wasm_metadata::Metadata::from_binary(&input)?;
-        write!(output, "{metadata}")?;
+        if self.json {
+            write!(output, "{}", serde_json::to_string(&metadata)?)?;
+        } else {
+            write!(output, "{metadata}")?;
+        }
         Ok(())
     }
 }

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
+use serde::Serialize;
 use std::fmt;
 use wasmparser::{
     ComponentNameSectionReader, NameSectionReader, Parser, Payload::*, ProducersSectionReader,
@@ -8,8 +9,11 @@ use wasmparser::{
 /// A representation of a WebAssembly producers section.
 ///
 /// Spec: https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md
-#[derive(Debug)]
-pub struct Producers(IndexMap<String, IndexMap<String, String>>);
+#[derive(Debug, Serialize)]
+pub struct Producers(
+    #[serde(serialize_with = "indexmap::serde_seq::serialize")]
+    IndexMap<String, IndexMap<String, String>>,
+);
 
 impl Producers {
     /// Creates an empty producers section
@@ -256,7 +260,8 @@ impl AddMetadata {
 }
 
 /// A tree of the metadata found in a WebAssembly binary.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Metadata {
     /// Metadata found inside a WebAssembly component.
     Component {
