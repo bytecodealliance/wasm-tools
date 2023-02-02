@@ -126,6 +126,7 @@ struct Module<'a> {
     exports: IndexMap<&'a str, Export<'a>>,
     func_names: HashMap<u32, &'a str>,
     global_names: HashMap<u32, &'a str>,
+    producers: Option<wasm_metadata::Producers>,
 
     // Known-live sets of indices after the `liveness` pass has run.
     live_types: BitVec,
@@ -264,11 +265,14 @@ impl<'a> Module<'a> {
                     next_code_index += 1;
                 }
 
-                // Ignore all custom sections except for the `name` section
-                // which we parse, but ignore errors within.
+                // Ignore all custom sections except for the `name` and
+                // `producers` sections which we parse, but ignore errors within.
                 Payload::CustomSection(s) => {
                     if s.name() == "name" {
                         drop(self.parse_name_section(&s));
+                    }
+                    if s.name() == "producers" {
+                        drop(self.parse_producers_section(&s));
                     }
                 }
 
@@ -322,6 +326,13 @@ impl<'a> Module<'a> {
                 _ => {}
             }
         }
+        Ok(())
+    }
+
+    fn parse_producers_section(&mut self, section: &CustomSectionReader<'a>) -> Result<()> {
+        let section = ProducersSectionReader::new(section.data(), section.data_offset())?;
+        let producers = wasm_metadata::Producers::from_reader(section)?;
+        self.producers = Some(producers);
         Ok(())
     }
 
@@ -787,6 +798,9 @@ impl<'a> Module<'a> {
                 name: "name",
                 data: &section,
             });
+        }
+        if let Some(producers) = &self.producers {
+            ret.section(&producers.section());
         }
 
         Ok(ret.finish())
