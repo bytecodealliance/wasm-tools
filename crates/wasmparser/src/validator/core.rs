@@ -2,7 +2,7 @@
 //!
 use super::{
     check_max, combine_type_sizes,
-    operators::{OperatorValidator, OperatorValidatorAllocations},
+    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
 use crate::limits::*;
@@ -214,8 +214,9 @@ impl ModuleState {
                 {
                     return Err(BinaryReaderError::new(
                         format!(
-                            "invalid element type {:?} for table type {:?}",
-                            e.ty, table.element_type
+                            "invalid element type `{}` for table type `{}`",
+                            ty_to_str(e.ty.into()),
+                            ty_to_str(table.element_type.into()),
                         ),
                         offset,
                     ));

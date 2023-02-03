@@ -942,7 +942,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     }
 }
 
-fn ty_to_str(ty: ValType) -> &'static str {
+pub fn ty_to_str(ty: ValType) -> &'static str {
     match ty {
         ValType::I32 => "i32",
         ValType::I64 => "i64",
