@@ -23,8 +23,8 @@ impl AddTypeMutator {
             2 => wasm_encoder::ValType::F32,
             3 => wasm_encoder::ValType::F64,
             4 => wasm_encoder::ValType::V128,
-            5 => wasm_encoder::ValType::ExternRef,
-            6 => wasm_encoder::ValType::FuncRef,
+            5 => wasm_encoder::ValType::EXTERNREF,
+            6 => wasm_encoder::ValType::FUNCREF,
             _ => unreachable!(),
         }
     }

@@ -158,11 +158,13 @@ struct Global<'a> {
     ty: GlobalType,
 }
 
+#[derive(Clone)]
 struct Func<'a> {
     def: Definition<'a, FunctionBody<'a>>,
     ty: u32,
 }
 
+#[derive(Clone)]
 enum Definition<'a, T> {
     Import(&'a str, &'a str),
     Local(T),
@@ -212,11 +214,11 @@ impl<'a> Module<'a> {
                     }
                 }
                 Payload::TableSection(s) => {
-                    for ty in s {
-                        let ty = ty?;
+                    for table in s {
+                        let table = table?;
                         self.tables.push(Table {
                             def: Definition::Local(()),
-                            ty,
+                            ty: table.ty,
                         });
                     }
                 }
@@ -362,8 +364,8 @@ impl<'a> Module<'a> {
             return;
         }
         self.worklist.push((func, |me, func| {
-            let func = &me.funcs[func as usize];
-            me.live_types.insert(func.ty);
+            let func = me.funcs[func as usize].clone();
+            me.ty(func.ty);
             let mut body = match &func.def {
                 Definition::Import(..) => return Ok(()),
                 Definition::Local(e) => e.get_binary_reader(),
@@ -391,7 +393,14 @@ impl<'a> Module<'a> {
     }
 
     fn table(&mut self, table: u32) {
-        self.live_tables.insert(table);
+        if !self.live_tables.insert(table) {
+            return;
+        }
+        self.worklist.push((table, |me, table| {
+            let ty = me.tables[table as usize].ty.element_type;
+            me.valty(ty.into());
+            Ok(())
+        }));
     }
 
     fn memory(&mut self, memory: u32) {
@@ -400,8 +409,38 @@ impl<'a> Module<'a> {
 
     fn blockty(&mut self, ty: BlockType) {
         if let BlockType::FuncType(ty) = ty {
-            self.live_types.insert(ty);
+            self.ty(ty);
         }
+    }
+
+    fn valty(&mut self, ty: ValType) {
+        match ty {
+            ValType::Ref(r) => self.heapty(r.heap_type),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+        }
+    }
+
+    fn heapty(&mut self, ty: HeapType) {
+        match ty {
+            HeapType::Func | HeapType::Extern => {}
+            HeapType::TypedFunc(i) => self.ty(i.into()),
+            HeapType::Bot => unreachable!(),
+        }
+    }
+
+    fn ty(&mut self, ty: u32) {
+        if !self.live_types.insert(ty) {
+            return;
+        }
+        self.worklist.push((ty, |me, ty| {
+            let ty = match me.types[ty as usize].clone() {
+                wasmparser::Type::Func(f) => f,
+            };
+            for param in ty.params().iter().chain(ty.results()) {
+                me.valty(*param);
+            }
+            Ok(())
+        }));
     }
 
     fn operators(&mut self, mut reader: BinaryReader<'a>) -> Result<()> {
@@ -454,8 +493,8 @@ impl<'a> Module<'a> {
             match ty {
                 Type::Func(ty) => {
                     types.function(
-                        ty.params().iter().copied().map(valty),
-                        ty.results().iter().copied().map(valty),
+                        ty.params().iter().copied().map(|t| map.valty(t)),
+                        ty.results().iter().copied().map(|t| map.valty(t)),
                     );
 
                     // Keep track of the "empty type" to see if we can reuse an
@@ -493,7 +532,7 @@ impl<'a> Module<'a> {
             let ty = wasm_encoder::TableType {
                 minimum: table.ty.initial,
                 maximum: table.ty.maximum,
-                element_type: wasm_encoder::ValType::Ref(refty(table.ty.element_type)),
+                element_type: map.refty(table.ty.element_type),
             };
             match &table.def {
                 Definition::Import(m, n) => {
@@ -509,7 +548,7 @@ impl<'a> Module<'a> {
             map.globals.push(i);
             let ty = wasm_encoder::GlobalType {
                 mutable: global.ty.mutable,
-                val_type: valty(global.ty.content_type),
+                val_type: map.valty(global.ty.content_type),
             };
             match &global.def {
                 Definition::Import(m, n) => {
@@ -623,7 +662,7 @@ impl<'a> Module<'a> {
             for _ in 0..body.read_var_u32()? {
                 let cnt = body.read_var_u32()?;
                 let ty = body.read()?;
-                locals.push((cnt, valty(ty)));
+                locals.push((cnt, map.valty(ty)));
             }
             let mut func = wasm_encoder::Function::new(locals);
             let bytes = map.operators(body)?;
@@ -862,7 +901,7 @@ macro_rules! define_visit {
         )*
     };
 
-    (mark_live $self:ident $arg:ident type_index) => {$self.live_types.insert($arg);};
+    (mark_live $self:ident $arg:ident type_index) => {$self.ty($arg);};
     (mark_live $self:ident $arg:ident src_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident dst_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident table_index) => {$self.table($arg);};
@@ -875,6 +914,8 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident dst_mem) => {$self.memory($arg);};
     (mark_live $self:ident $arg:ident memarg) => {$self.memory($arg.memory);};
     (mark_live $self:ident $arg:ident blockty) => {$self.blockty($arg);};
+    (mark_live $self:ident $arg:ident ty) => {$self.valty($arg)};
+    (mark_live $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (mark_live $self:ident $arg:ident lane) => {};
     (mark_live $self:ident $arg:ident lanes) => {};
     (mark_live $self:ident $arg:ident flags) => {};
@@ -885,8 +926,6 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident relative_depth) => {};
     (mark_live $self:ident $arg:ident tag_index) => {};
     (mark_live $self:ident $arg:ident targets) => {};
-    (mark_live $self:ident $arg:ident ty) => {};
-    (mark_live $self:ident $arg:ident hty) => {};
     (mark_live $self:ident $arg:ident data_index) => {};
     (mark_live $self:ident $arg:ident elem_index) => {};
 }
@@ -943,8 +982,37 @@ impl Encoder {
     fn blockty(&self, ty: BlockType) -> wasm_encoder::BlockType {
         match ty {
             BlockType::Empty => wasm_encoder::BlockType::Empty,
-            BlockType::Type(ty) => wasm_encoder::BlockType::Result(valty(ty)),
+            BlockType::Type(ty) => wasm_encoder::BlockType::Result(self.valty(ty)),
             BlockType::FuncType(ty) => wasm_encoder::BlockType::FunctionType(self.types.remap(ty)),
+        }
+    }
+
+    fn valty(&self, ty: wasmparser::ValType) -> wasm_encoder::ValType {
+        match ty {
+            wasmparser::ValType::I32 => wasm_encoder::ValType::I32,
+            wasmparser::ValType::I64 => wasm_encoder::ValType::I64,
+            wasmparser::ValType::F32 => wasm_encoder::ValType::F32,
+            wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
+            wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
+            wasmparser::ValType::Ref(rt) => wasm_encoder::ValType::Ref(self.refty(rt)),
+        }
+    }
+
+    fn refty(&self, rt: wasmparser::RefType) -> wasm_encoder::RefType {
+        wasm_encoder::RefType {
+            nullable: rt.nullable,
+            heap_type: self.heapty(rt.heap_type),
+        }
+    }
+
+    fn heapty(&self, ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
+        match ht {
+            wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
+            wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
+            wasmparser::HeapType::TypedFunc(idx) => {
+                wasm_encoder::HeapType::TypedFunc(self.types.remap(idx.into()).try_into().unwrap())
+            }
+            wasmparser::HeapType::Bot => unimplemented!(),
         }
     }
 }
@@ -1016,6 +1084,7 @@ macro_rules! define_encode {
     // `define_visit` macro above.
     (map $self:ident $arg:ident memarg) => {$self.memarg($arg)};
     (map $self:ident $arg:ident blockty) => {$self.blockty($arg)};
+    (map $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (map $self:ident $arg:ident tag_index) => {$arg};
     (map $self:ident $arg:ident relative_depth) => {$arg};
     (map $self:ident $arg:ident function_index) => {$self.funcs.remap($arg)};
@@ -1028,7 +1097,7 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident src_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident dst_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident type_index) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident ty) => {valty($arg)};
+    (map $self:ident $arg:ident ty) => {$self.valty($arg)};
     (map $self:ident $arg:ident local_index) => {$arg};
     (map $self:ident $arg:ident lane) => {$arg};
     (map $self:ident $arg:ident lanes) => {$arg};
@@ -1041,39 +1110,12 @@ macro_rules! define_encode {
         $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
         $arg.default(),
     ));
-    (map $self:ident $arg:ident hty) => {unimplemented!()}; // TODO(dhil): revisit this later.
 }
 
 impl<'a> VisitOperator<'a> for Encoder {
     type Output = ();
 
     wasmparser::for_each_operator!(define_encode);
-}
-
-fn valty(ty: wasmparser::ValType) -> wasm_encoder::ValType {
-    match ty {
-        wasmparser::ValType::I32 => wasm_encoder::ValType::I32,
-        wasmparser::ValType::I64 => wasm_encoder::ValType::I64,
-        wasmparser::ValType::F32 => wasm_encoder::ValType::F32,
-        wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
-        wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
-        wasmparser::ValType::Ref(wasmparser::FUNC_REF) => wasm_encoder::ValType::FuncRef,
-        wasmparser::ValType::Ref(wasmparser::EXTERN_REF) => wasm_encoder::ValType::ExternRef,
-        wasmparser::ValType::Ref(rt) => wasm_encoder::ValType::Ref(refty(rt))
-    }
-}
-
-fn refty(rt: wasmparser::RefType) -> wasm_encoder::RefType {
-    unimplemented!() // TODO(dhil): need to expose `nullable` and `heap_type` from wasm_encoder::RefType
-}
-
-fn heapty(ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
-    match ht {
-        wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
-        wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
-        wasmparser::HeapType::TypedFunc(idx) => wasm_encoder::HeapType::Index(idx.try_into().unwrap()),
-        wasmparser::HeapType::Bot => unimplemented!(),
-    }
 }
 
 // Minimal definition of a bit vector necessary for the liveness calculations

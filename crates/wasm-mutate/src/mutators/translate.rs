@@ -20,6 +20,7 @@ pub enum ConstExprKind {
     ElementOffset,
     ElementFunction,
     DataOffset,
+    TableInit,
 }
 
 pub trait Translator {
@@ -58,11 +59,11 @@ pub trait Translator {
         ty(self.as_obj(), t)
     }
 
-    fn translate_refty(&mut self, t: &wasmparser::RefType) -> Result<ValType> {
+    fn translate_refty(&mut self, t: &wasmparser::RefType) -> Result<RefType> {
         refty(self.as_obj(), t)
     }
 
-    fn translate_heapty(&mut self, t: &wasmparser::HeapType) -> Result<ValType> {
+    fn translate_heapty(&mut self, t: &wasmparser::HeapType) -> Result<HeapType> {
         heapty(self.as_obj(), t)
     }
 
@@ -179,19 +180,32 @@ pub fn tag_type(t: &mut dyn Translator, ty: &wasmparser::TagType) -> Result<wasm
     })
 }
 
-pub fn ty(_t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> {
-    crate::module::map_type(*ty)
-}
-
-pub fn refty(_t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<ValType> {
-    crate::module::map_ref_type(*ty)
-}
-
-pub fn heapty(_t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<ValType> {
+pub fn ty(t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> {
     match ty {
-        wasmparser::HeapType::Func => Ok(ValType::FuncRef),
-        wasmparser::HeapType::Extern => Ok(ValType::ExternRef),
-        _ => unimplemented!(),
+        wasmparser::ValType::I32 => Ok(ValType::I32),
+        wasmparser::ValType::I64 => Ok(ValType::I64),
+        wasmparser::ValType::F32 => Ok(ValType::F32),
+        wasmparser::ValType::F64 => Ok(ValType::F64),
+        wasmparser::ValType::V128 => Ok(ValType::V128),
+        wasmparser::ValType::Ref(ty) => Ok(ValType::Ref(t.translate_refty(ty)?)),
+    }
+}
+
+pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType> {
+    Ok(RefType {
+        nullable: ty.nullable,
+        heap_type: t.translate_heapty(&ty.heap_type)?,
+    })
+}
+
+pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapType> {
+    match ty {
+        wasmparser::HeapType::Func => Ok(HeapType::Func),
+        wasmparser::HeapType::Extern => Ok(HeapType::Extern),
+        wasmparser::HeapType::TypedFunc(i) => {
+            Ok(HeapType::TypedFunc(t.remap(Item::Type, (*i).into())?))
+        }
+        wasmparser::HeapType::Bot => unreachable!(),
     }
 }
 
@@ -271,7 +285,13 @@ pub fn element(
         wasmparser::ElementItems::Expressions(reader) => {
             exprs = reader
                 .into_iter()
-                .map(|f| t.translate_const_expr(&f?, &wasmparser::ValType::Ref(element.ty), ConstExprKind::ElementFunction))
+                .map(|f| {
+                    t.translate_const_expr(
+                        &f?,
+                        &wasmparser::ValType::Ref(element.ty),
+                        ConstExprKind::ElementFunction,
+                    )
+                })
                 .collect::<Result<Vec<_>, _>>()?;
             Elements::Expressions(&exprs)
         }

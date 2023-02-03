@@ -145,7 +145,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for table in reader {
                         let table = table?;
-                        let ty = PrimitiveTypeInfo::try_from(table.element_type).unwrap();
+                        let ty = PrimitiveTypeInfo::try_from(table.ty.element_type).unwrap();
                         info.table_elem_types.push(ty);
                     }
                 }

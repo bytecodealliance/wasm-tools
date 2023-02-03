@@ -832,7 +832,14 @@ impl Printer {
         for table in parser.into_iter_with_offsets() {
             let (offset, table) = table?;
             self.newline(offset);
-            self.print_table_type(state, &table, true)?;
+            self.print_table_type(state, &table.ty, true)?;
+            match &table.init {
+                TableInit::RefNull => {}
+                TableInit::Expr(expr) => {
+                    self.result.push_str(" ");
+                    self.print_const_expr(state, expr)?;
+                }
+            }
             self.end_group();
             state.core.tables += 1;
         }

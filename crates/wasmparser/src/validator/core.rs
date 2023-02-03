@@ -151,19 +151,9 @@ impl ModuleState {
             .check_table_type(&table.ty, features, types, offset)?;
 
         match &table.init {
-            TableInit::RefNull(ty) => {
+            TableInit::RefNull => {
                 if !table.ty.element_type.nullable {
                     bail!(offset, "non-defaultable element type",);
-                }
-                let reftype = RefType {
-                    nullable: true,
-                    heap_type: *ty,
-                };
-                if !self
-                    .module
-                    .matches(table.ty.element_type.into(), reftype.into(), types)
-                {
-                    bail!(offset, "table initializer does not match table type");
                 }
             }
             TableInit::Expr(expr) => {

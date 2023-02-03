@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, ConstExpr, FromReader, HeapType, Result, SectionLimited, TableType};
+use crate::{BinaryReader, ConstExpr, FromReader, Result, SectionLimited, TableType};
 
 /// A reader for the table section of a WebAssembly module.
 pub type TableSectionReader<'a> = SectionLimited<'a, Table<'a>>;
@@ -32,7 +32,7 @@ pub struct Table<'a> {
 #[derive(Debug)]
 pub enum TableInit<'a> {
     /// The table is initialized to all null elements.
-    RefNull(HeapType),
+    RefNull,
     /// Each element in the table is initialized with the specified constant
     /// expression.
     Expr(ConstExpr<'a>),
@@ -57,7 +57,7 @@ impl<'a> FromReader<'a> for Table<'a> {
         let init = if has_init_expr {
             TableInit::Expr(reader.read()?)
         } else {
-            TableInit::RefNull(ty.element_type.heap_type)
+            TableInit::RefNull
         };
         Ok(Table { ty, init })
     }

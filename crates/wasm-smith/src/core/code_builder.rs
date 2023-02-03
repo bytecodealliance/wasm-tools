@@ -6,7 +6,7 @@ use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
-use wasm_encoder::{BlockType, MemArg};
+use wasm_encoder::{BlockType, MemArg, RefType};
 mod no_traps;
 
 macro_rules! instructions {
@@ -694,7 +694,7 @@ impl CodeBuilderAllocations {
         let mut table_tys = Vec::new();
         for (i, table) in module.tables.iter().enumerate() {
             table_tys.push(table.element_type);
-            if table.element_type == ValType::FuncRef {
+            if table.element_type == RefType::FUNCREF {
                 funcref_tables.push(i as u32);
             }
         }
@@ -1107,9 +1107,10 @@ fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
         ValType::F32 => Instruction::F32Const(u.arbitrary().unwrap_or(0.0)),
         ValType::F64 => Instruction::F64Const(u.arbitrary().unwrap_or(0.0)),
         ValType::V128 => Instruction::V128Const(u.arbitrary().unwrap_or(0)),
-        ValType::ExternRef => Instruction::RefNull(ValType::ExternRef),
-        ValType::FuncRef => Instruction::RefNull(ValType::FuncRef),
-        ValType::Ref(_) => unimplemented!(),
+        ValType::Ref(ty) => {
+            assert!(ty.nullable);
+            Instruction::RefNull(ty.heap_type)
+        }
     }
 }
 
@@ -1790,12 +1791,9 @@ fn select(
     let ty = t.or(u);
     builder.allocs.operands.push(ty);
     match ty {
-        Some(ty @ (ValType::ExternRef | ValType::FuncRef)) => {
-            instructions.push(Instruction::TypedSelect(ty))
-        }
+        Some(ty @ ValType::Ref(_)) => instructions.push(Instruction::TypedSelect(ty)),
         Some(ValType::I32) | Some(ValType::I64) | Some(ValType::F32) | Some(ValType::F64)
         | Some(ValType::V128) | None => instructions.push(Instruction::Select),
-        Some(ValType::Ref(_)) => unimplemented!(),
     }
     Ok(())
 }
@@ -4512,9 +4510,9 @@ fn ref_null(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let ty = *u.choose(&[ValType::ExternRef, ValType::FuncRef])?;
-    builder.push_operands(&[ty]);
-    instructions.push(Instruction::RefNull(ty));
+    let ty = *u.choose(&[RefType::EXTERNREF, RefType::FUNCREF])?;
+    builder.push_operands(&[ty.into()]);
+    instructions.push(Instruction::RefNull(ty.heap_type));
     Ok(())
 }
 
@@ -4530,7 +4528,7 @@ fn ref_func(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     let i = *u.choose(&builder.allocs.referenced_functions)?;
-    builder.push_operands(&[ValType::FuncRef]);
+    builder.push_operands(&[ValType::FUNCREF]);
     instructions.push(Instruction::RefFunc(i));
     Ok(())
 }
@@ -4538,7 +4536,7 @@ fn ref_func(
 #[inline]
 fn ref_is_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
-        && (builder.type_on_stack(ValType::ExternRef) || builder.type_on_stack(ValType::FuncRef))
+        && (builder.type_on_stack(ValType::EXTERNREF) || builder.type_on_stack(ValType::FUNCREF))
 }
 
 fn ref_is_null(
@@ -4558,9 +4556,9 @@ fn table_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
         && module.config.bulk_memory_enabled()
         && !module.config.disallow_traps() // Non-trapping table fill generation not yet implemented
-        && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
+        && [ValType::EXTERNREF, ValType::FUNCREF].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty, ValType::I32])
-                && module.tables.iter().any(|t| t.element_type == *ty)
+                && module.tables.iter().any(|t| *ty == t.element_type.into())
         })
 }
 
@@ -4582,9 +4580,9 @@ fn table_fill(
 fn table_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
     && !module.config.disallow_traps() // Non-trapping table.set generation not yet implemented
-        && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
+        && [ValType::EXTERNREF, ValType::FUNCREF].iter().any(|ty| {
             builder.types_on_stack(&[ValType::I32, *ty])
-                && module.tables.iter().any(|t| t.element_type == *ty)
+                && module.tables.iter().any(|t| *ty == t.element_type.into())
         })
 }
 
@@ -4618,7 +4616,7 @@ fn table_get(
     builder.pop_operands(&[ValType::I32]);
     let idx = u.int_in_range(0..=module.tables.len() - 1)?;
     let ty = module.tables[idx].element_type;
-    builder.push_operands(&[ty]);
+    builder.push_operands(&[ty.into()]);
     instructions.push(Instruction::TableGet(idx as u32));
     Ok(())
 }
@@ -4643,9 +4641,9 @@ fn table_size(
 #[inline]
 fn table_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
-        && [ValType::ExternRef, ValType::FuncRef].iter().any(|ty| {
+        && [ValType::EXTERNREF, ValType::FUNCREF].iter().any(|ty| {
             builder.types_on_stack(&[*ty, ValType::I32])
-                && module.tables.iter().any(|t| t.element_type == *ty)
+                && module.tables.iter().any(|t| *ty == t.element_type.into())
         })
 }
 
@@ -4734,17 +4732,17 @@ fn elem_drop(
     Ok(())
 }
 
-fn pop_reference_type(builder: &mut CodeBuilder) -> ValType {
-    if builder.type_on_stack(ValType::ExternRef) {
-        builder.pop_operands(&[ValType::ExternRef]);
-        ValType::ExternRef
+fn pop_reference_type(builder: &mut CodeBuilder) -> RefType {
+    if builder.type_on_stack(ValType::EXTERNREF) {
+        builder.pop_operands(&[ValType::EXTERNREF]);
+        RefType::EXTERNREF
     } else {
-        builder.pop_operands(&[ValType::FuncRef]);
-        ValType::FuncRef
+        builder.pop_operands(&[ValType::FUNCREF]);
+        RefType::FUNCREF
     }
 }
 
-fn table_index(ty: ValType, u: &mut Unstructured, module: &Module) -> Result<u32> {
+fn table_index(ty: RefType, u: &mut Unstructured, module: &Module) -> Result<u32> {
     let tables = module
         .tables
         .iter()
