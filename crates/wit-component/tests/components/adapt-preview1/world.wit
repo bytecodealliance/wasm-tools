@@ -1,5 +1,0 @@
-world my-world {
-  import foo: interface {
-    foo: func()
-  }
-}

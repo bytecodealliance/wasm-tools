@@ -2,15 +2,15 @@
 //!
 use super::{
     check_max, combine_type_sizes,
-    operators::{OperatorValidator, OperatorValidatorAllocations},
+    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
 use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType, FUNC_REF,
-    Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType, TagType, TypeRef, ValType, VisitOperator,
-    WasmFeatures, WasmFuncType, WasmModuleResources,
+    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
+    Global, GlobalType, HeapType, MemoryType, RefType, Result, Table, TableInit, TableType,
+    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -139,6 +139,37 @@ impl ModuleState {
         Ok(())
     }
 
+    pub fn add_table(
+        &mut self,
+        table: Table<'_>,
+        features: &WasmFeatures,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<()> {
+        self.module
+            .check_table_type(&table.ty, features, types, offset)?;
+
+        match &table.init {
+            TableInit::RefNull => {
+                if !table.ty.element_type.nullable {
+                    bail!(offset, "non-defaultable element type",);
+                }
+            }
+            TableInit::Expr(expr) => {
+                if !features.function_references {
+                    bail!(
+                        offset,
+                        "tables with expression initializers require \
+                         the function-references proposal"
+                    );
+                }
+                self.check_const_expr(expr, table.ty.element_type.into(), features, types)?;
+            }
+        }
+        self.module.assert_mut().tables.push(table.ty);
+        Ok(())
+    }
+
     pub fn add_data_segment(
         &mut self,
         data: Data,
@@ -167,7 +198,7 @@ impl ModuleState {
     ) -> Result<()> {
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
-        if e.ty != FUNC_REF {
+        if e.ty != RefType::FUNCREF {
             self.module
                 .check_value_type(ValType::Ref(e.ty), features, types, offset)?;
         }
@@ -183,8 +214,9 @@ impl ModuleState {
                 {
                     return Err(BinaryReaderError::new(
                         format!(
-                            "invalid element type {:?} for table type {:?}",
-                            e.ty, table.element_type
+                            "invalid element type `{}` for table type `{}`",
+                            ty_to_str(e.ty.into()),
+                            ty_to_str(table.element_type.into()),
                         ),
                         offset,
                     ));
@@ -226,7 +258,7 @@ impl ModuleState {
                 validate_count(count)?;
                 for f in reader.into_iter_with_offsets() {
                     let (offset, f) = f?;
-                    if e.ty != FUNC_REF {
+                    if e.ty != RefType::FUNCREF {
                         return Err(BinaryReaderError::new(
                             "type mismatch: segment does not have funcref type",
                             offset,
@@ -592,18 +624,6 @@ impl Module {
         Ok(())
     }
 
-    pub fn add_table(
-        &mut self,
-        ty: TableType,
-        features: &WasmFeatures,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
-        self.check_table_type(&ty, features, types, offset)?;
-        self.tables.push(ty);
-        Ok(())
-    }
-
     pub fn add_memory(
         &mut self,
         ty: MemoryType,
@@ -683,15 +703,9 @@ impl Module {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        if !ty.element_type.nullable {
-            return Err(BinaryReaderError::new(
-                "non-defaultable element type",
-                offset,
-            ));
-        }
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
-        if ty.element_type != FUNC_REF {
+        if ty.element_type != RefType::FUNCREF {
             self.check_value_type(ValType::Ref(ty.element_type), features, types, offset)?
         }
 

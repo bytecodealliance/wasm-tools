@@ -1,0 +1,11 @@
+interface foo {
+  type a = u8
+  type b = a
+
+  f: func(a: a) -> b
+}
+
+world my-world {
+  import foo: self.foo
+  export foo: self.foo
+}

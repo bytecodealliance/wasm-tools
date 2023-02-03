@@ -1,6 +1,6 @@
 [package]
 name = "wasmparser"
-version = "0.96.0"
+version = "0.99.0"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
@@ -14,7 +14,7 @@ exclude = ["benches/*.wasm"]
 
 [dependencies]
 indexmap = { workspace = true }
-url = "2.3.1"
+url = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

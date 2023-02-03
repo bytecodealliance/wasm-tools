@@ -1,0 +1,7 @@
+interface new {
+  entrypoint: func()
+}
+
+default world component {
+  export new: self.new
+}

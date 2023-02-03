@@ -1,0 +1,5 @@
+type `x` does not exist
+     --> tests/ui/parse-fail/invalid-type-reference.wit:6:8
+      |
+    6 |     a: x
+      |        ^

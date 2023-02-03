@@ -15,23 +15,19 @@ pub enum ValType {
     ///
     /// Part of the SIMD proposal.
     V128,
-    /// The `funcref` type.
+    /// A reference type.
     ///
-    /// Part of the reference types proposal when used anywhere other than a
-    /// table's element type.
-    FuncRef,
-    /// The `externref` type.
-    ///
-    /// Part of the reference types proposal.
-    ExternRef,
-    /// A reference type from typed function references. In the proposal
-    /// `funcref` and `externref` are generalized to a reference type with the heap
-    /// type `func` or `extern.` This crate draws a distinction between `funcref`
-    /// and `(ref null func)` (similarly for extern) because the latter cannot be read by an
-    /// implementation that implements reference types but not function
-    /// references. When function references are enabled, there is no
-    /// difference, but the distinction is maintained.
+    /// The `funcref` and `externref` type fall into this category and the full
+    /// generalization here is due to the implementation of the
+    /// function-references proposal.
     Ref(RefType),
+}
+
+impl ValType {
+    /// Alias for the `funcref` type in WebAssembly
+    pub const FUNCREF: ValType = ValType::Ref(RefType::FUNCREF);
+    /// Alias for the `externref` type in WebAssembly
+    pub const EXTERNREF: ValType = ValType::Ref(RefType::EXTERNREF);
 }
 
 impl Encode for ValType {
@@ -42,30 +38,61 @@ impl Encode for ValType {
             ValType::F32 => sink.push(0x7D),
             ValType::F64 => sink.push(0x7C),
             ValType::V128 => sink.push(0x7B),
-            ValType::FuncRef => sink.push(0x70),
-            ValType::ExternRef => sink.push(0x6F),
             ValType::Ref(rt) => rt.encode(sink),
         }
     }
 }
 
-/// Part of the function references proposal. These types are only produced
-/// when the feature is enabled, despite sometimes being equivalent to FuncRef,
-/// because they're encoded differently.
+/// A reference type.
+///
+/// This is largely part of the function references proposal for WebAssembly but
+/// additionally is used by the `funcref` and `externref` types. The full
+/// generality of this type is only exercised with function-references.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[allow(missing_docs)]
 pub struct RefType {
-    nullable: bool,
-    heap_type: HeapType,
+    pub nullable: bool,
+    pub heap_type: HeapType,
+}
+
+impl RefType {
+    /// Alias for the `funcref` type in WebAssembly
+    pub const FUNCREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Func,
+    };
+
+    /// Alias for the `externref` type in WebAssembly
+    pub const EXTERNREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Extern,
+    };
 }
 
 impl Encode for RefType {
     fn encode(&self, sink: &mut Vec<u8>) {
+        if self.nullable {
+            // Favor the original encodings of `funcref` and `externref` where
+            // possible
+            match self.heap_type {
+                HeapType::Func => return sink.push(0x70),
+                HeapType::Extern => return sink.push(0x6f),
+                _ => {}
+            }
+        }
+
         if self.nullable {
             sink.push(0x6C);
         } else {
             sink.push(0x6B);
         }
         self.heap_type.encode(sink);
+    }
+}
+
+impl From<RefType> for ValType {
+    fn from(ty: RefType) -> ValType {
+        ValType::Ref(ty)
     }
 }
 
@@ -77,7 +104,7 @@ pub enum HeapType {
     /// An extern reference. When nullable, equivalent to `externref`
     Extern,
     /// A reference to a particular index in a table.
-    Index(u32),
+    TypedFunc(u32),
 }
 
 impl Encode for HeapType {
@@ -85,8 +112,7 @@ impl Encode for HeapType {
         match self {
             HeapType::Func => sink.push(0x70),
             HeapType::Extern => sink.push(0x6F),
-            HeapType::Index(i) if i & 0x80 != 0 => i.encode(sink),
-            _ => panic!("invalid heap_type"),
+            HeapType::TypedFunc(i) => i.encode(sink),
         }
     }
 }

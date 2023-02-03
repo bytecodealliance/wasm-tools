@@ -1,0 +1,13 @@
+interface foo {
+  flags a {
+    b,
+  }
+
+  type b = a
+
+  f: func() -> b
+}
+
+world my-world {
+  export foo: self.foo
+}

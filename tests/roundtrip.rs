@@ -69,7 +69,7 @@ fn main() {
 
     if !errors.is_empty() {
         for msg in errors.iter() {
-            eprintln!("{:?}\n", msg);
+            eprintln!("{:?}", msg);
         }
 
         panic!("{} tests failed", errors.len())
@@ -203,13 +203,11 @@ impl TestState {
         // If we can, convert the string back to bytes and assert it has the
         // same binary representation.
         if test_roundtrip {
-            let binary2 = wat::parse_str(&string)
-                .context("failed to parse `wat` from `wasmprinter`")
-                .context(format!("text:\n{}", string))?;
+            let binary2 =
+                wat::parse_str(&string).context("failed to parse `wat` from `wasmprinter`")?;
             self.bump_ntests();
             self.binary_compare(&binary2, contents)
-                .context("failed to compare original `wat` with roundtrip `wat`")
-                .context(format!("as parsed:\n{}", string))?;
+                .context("failed to compare original `wat` with roundtrip `wat`")?;
         }
 
         // Test that the `wasmprinter`-printed bytes have "pretty" whitespace
@@ -295,17 +293,19 @@ impl TestState {
         // Only test parsing and encoding of modules which wasmparser doesn't
         // support test (basically just test `wast`, nothing else)
         let skip_verify = test.iter().any(|t| t == "gc")
-            || (test.iter().any(|t| t == "function-references")
-                && test.iter().any(|t| {
-                    // These shouldn't pass (we don't plan to support them as
-                    // they are in spec limbo)
-                    t == "let.wast"
-                        || t == "let-bad.wast"
-                        || t == "func_bind.wast"
-                        // I think this test may be broken or out of sync with the spec
-                        // https://bytecodealliance.zulipchat.com/#narrow/stream/329587-wasmfx/topic/br_table.2Ewast.20.2F.20.28table.20.2E.2E.2E.20.28elem.20.2E.2E.2E.29.29.20issue/near/290806324
-                        || t == "br_table.wast"
-                }));
+            // This specific test contains a module along the lines of:
+            //
+            //  (module
+            //   (type $t (func))
+            //   (func $tf)
+            //   (table $t (ref null $t) (elem $tf))
+            //  )
+            //
+            // which doesn't currently validate since the injected element
+            // segment has a type of `funcref` which isn't compatible with the
+            // table's type. The spec interpreter thinks this should validate,
+            // however, and I'm not entirely sure why.
+            || test.ends_with("function-references/br_table.wast");
 
         match directive {
             WastDirective::Wat(mut module) => {
@@ -547,6 +547,7 @@ impl TestState {
             sign_extension: true,
             mutable_global: true,
             function_references: true,
+            memory_control: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -578,9 +579,6 @@ impl TestState {
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 "function-references" => features.function_references = true,
-                // function-references has tests for return_call_ref which
-                // depend on tail calls
-                "return_call_ref.wast" => features.tail_call = true,
                 "relaxed-simd" => features.relaxed_simd = true,
                 "reference-types" => features.reference_types = true,
                 _ => {}

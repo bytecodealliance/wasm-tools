@@ -6,12 +6,18 @@ use std::mem;
 use wasm_encoder::{Encode, EntityType};
 use wasmparser::*;
 
+const PAGE_SIZE: i32 = 64 * 1024;
+
 /// This function will reduce the input core `wasm` module to only the set of
 /// exports `required`.
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
-pub fn run(wasm: &[u8], required: &IndexMap<String, FuncType>) -> Result<Vec<u8>> {
+pub fn run(
+    wasm: &[u8],
+    required: &IndexMap<String, FuncType>,
+    main_module_realloc: Option<&str>,
+) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
     let mut module = Module::default();
@@ -35,7 +41,7 @@ pub fn run(wasm: &[u8], required: &IndexMap<String, FuncType>) -> Result<Vec<u8>
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
-    module.encode()
+    module.encode(main_module_realloc)
 }
 
 fn always_keep(name: &str) -> bool {
@@ -45,6 +51,58 @@ fn always_keep(name: &str) -> bool {
         "cabi_realloc" | "cabi_import_realloc" | "cabi_export_realloc" => true,
         _ => false,
     }
+}
+
+/// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
+/// only accepts new, page-sized allocations.
+fn realloc_via_memory_grow() -> wasm_encoder::Function {
+    use wasm_encoder::Instruction::*;
+
+    let mut func = wasm_encoder::Function::new([(1, wasm_encoder::ValType::I32)]);
+
+    // Assert `old_ptr` is null.
+    func.instruction(&I32Const(0));
+    func.instruction(&LocalGet(0));
+    func.instruction(&I32Ne);
+    func.instruction(&If(wasm_encoder::BlockType::Empty));
+    func.instruction(&Unreachable);
+    func.instruction(&End);
+
+    // Assert `old_len` is zero.
+    func.instruction(&I32Const(0));
+    func.instruction(&LocalGet(1));
+    func.instruction(&I32Ne);
+    func.instruction(&If(wasm_encoder::BlockType::Empty));
+    func.instruction(&Unreachable);
+    func.instruction(&End);
+
+    // Assert `new_len` is equal to the page size (which is the only value we currently support)
+    // Note: we could easily support arbitrary multiples of PAGE_SIZE here if the need arises.
+    func.instruction(&I32Const(PAGE_SIZE));
+    func.instruction(&LocalGet(3));
+    func.instruction(&I32Ne);
+    func.instruction(&If(wasm_encoder::BlockType::Empty));
+    func.instruction(&Unreachable);
+    func.instruction(&End);
+
+    // Grow the memory by 1 page.
+    func.instruction(&I32Const(1));
+    func.instruction(&MemoryGrow(0));
+    func.instruction(&LocalTee(4));
+
+    // Test if the return value of the growth was -1 and, if so, trap due to a failed allocation.
+    func.instruction(&I32Const(-1));
+    func.instruction(&I32Eq);
+    func.instruction(&If(wasm_encoder::BlockType::Empty));
+    func.instruction(&Unreachable);
+    func.instruction(&End);
+
+    func.instruction(&LocalGet(4));
+    func.instruction(&I32Const(16));
+    func.instruction(&I32Shl);
+    func.instruction(&End);
+
+    func
 }
 
 // Represents a function called while processing a module work list.
@@ -68,6 +126,7 @@ struct Module<'a> {
     exports: IndexMap<&'a str, Export<'a>>,
     func_names: HashMap<u32, &'a str>,
     global_names: HashMap<u32, &'a str>,
+    producers: Option<wasm_metadata::Producers>,
 
     // Known-live sets of indices after the `liveness` pass has run.
     live_types: BitVec,
@@ -99,11 +158,13 @@ struct Global<'a> {
     ty: GlobalType,
 }
 
+#[derive(Clone)]
 struct Func<'a> {
     def: Definition<'a, FunctionBody<'a>>,
     ty: u32,
 }
 
+#[derive(Clone)]
 enum Definition<'a, T> {
     Import(&'a str, &'a str),
     Local(T),
@@ -153,11 +214,11 @@ impl<'a> Module<'a> {
                     }
                 }
                 Payload::TableSection(s) => {
-                    for ty in s {
-                        let ty = ty?;
+                    for table in s {
+                        let table = table?;
                         self.tables.push(Table {
                             def: Definition::Local(()),
-                            ty,
+                            ty: table.ty,
                         });
                     }
                 }
@@ -206,11 +267,14 @@ impl<'a> Module<'a> {
                     next_code_index += 1;
                 }
 
-                // Ignore all custom sections except for the `name` section
-                // which we parse, but ignore errors within.
+                // Ignore all custom sections except for the `name` and
+                // `producers` sections which we parse, but ignore errors within.
                 Payload::CustomSection(s) => {
                     if s.name() == "name" {
                         drop(self.parse_name_section(&s));
+                    }
+                    if s.name() == "producers" {
+                        drop(self.parse_producers_section(&s));
                     }
                 }
 
@@ -267,6 +331,13 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
+    fn parse_producers_section(&mut self, section: &CustomSectionReader<'a>) -> Result<()> {
+        let section = ProducersSectionReader::new(section.data(), section.data_offset())?;
+        let producers = wasm_metadata::Producers::from_reader(section)?;
+        self.producers = Some(producers);
+        Ok(())
+    }
+
     /// Iteratively calculates the set of live items within this module
     /// considering all exports as the root of live functions.
     fn liveness(&mut self) -> Result<()> {
@@ -293,8 +364,8 @@ impl<'a> Module<'a> {
             return;
         }
         self.worklist.push((func, |me, func| {
-            let func = &me.funcs[func as usize];
-            me.live_types.insert(func.ty);
+            let func = me.funcs[func as usize].clone();
+            me.ty(func.ty);
             let mut body = match &func.def {
                 Definition::Import(..) => return Ok(()),
                 Definition::Local(e) => e.get_binary_reader(),
@@ -322,7 +393,14 @@ impl<'a> Module<'a> {
     }
 
     fn table(&mut self, table: u32) {
-        self.live_tables.insert(table);
+        if !self.live_tables.insert(table) {
+            return;
+        }
+        self.worklist.push((table, |me, table| {
+            let ty = me.tables[table as usize].ty.element_type;
+            me.valty(ty.into());
+            Ok(())
+        }));
     }
 
     fn memory(&mut self, memory: u32) {
@@ -331,8 +409,38 @@ impl<'a> Module<'a> {
 
     fn blockty(&mut self, ty: BlockType) {
         if let BlockType::FuncType(ty) = ty {
-            self.live_types.insert(ty);
+            self.ty(ty);
         }
+    }
+
+    fn valty(&mut self, ty: ValType) {
+        match ty {
+            ValType::Ref(r) => self.heapty(r.heap_type),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+        }
+    }
+
+    fn heapty(&mut self, ty: HeapType) {
+        match ty {
+            HeapType::Func | HeapType::Extern => {}
+            HeapType::TypedFunc(i) => self.ty(i.into()),
+            HeapType::Bot => unreachable!(),
+        }
+    }
+
+    fn ty(&mut self, ty: u32) {
+        if !self.live_types.insert(ty) {
+            return;
+        }
+        self.worklist.push((ty, |me, ty| {
+            let ty = match me.types[ty as usize].clone() {
+                wasmparser::Type::Func(f) => f,
+            };
+            for param in ty.params().iter().chain(ty.results()) {
+                me.valty(*param);
+            }
+            Ok(())
+        }));
     }
 
     fn operators(&mut self, mut reader: BinaryReader<'a>) -> Result<()> {
@@ -364,7 +472,7 @@ impl<'a> Module<'a> {
 
     /// Encodes this `Module` to a new wasm module which is gc'd and only
     /// contains the items that are live as calculated by the `liveness` pass.
-    fn encode(&mut self) -> Result<Vec<u8>> {
+    fn encode(&mut self, main_module_realloc: Option<&str>) -> Result<Vec<u8>> {
         // Data structure used to track the mapping of old index to new index
         // for all live items.
         let mut map = Encoder::default();
@@ -385,8 +493,8 @@ impl<'a> Module<'a> {
             match ty {
                 Type::Func(ty) => {
                     types.function(
-                        ty.params().iter().copied().map(valty),
-                        ty.results().iter().copied().map(valty),
+                        ty.params().iter().copied().map(|t| map.valty(t)),
+                        ty.results().iter().copied().map(|t| map.valty(t)),
                     );
 
                     // Keep track of the "empty type" to see if we can reuse an
@@ -424,7 +532,7 @@ impl<'a> Module<'a> {
             let ty = wasm_encoder::TableType {
                 minimum: table.ty.initial,
                 maximum: table.ty.maximum,
-                element_type: wasm_encoder::ValType::Ref(refty(table.ty.element_type)),
+                element_type: map.refty(table.ty.element_type),
             };
             match &table.def {
                 Definition::Import(m, n) => {
@@ -440,7 +548,7 @@ impl<'a> Module<'a> {
             map.globals.push(i);
             let ty = wasm_encoder::GlobalType {
                 mutable: global.ty.mutable,
-                val_type: valty(global.ty.content_type),
+                val_type: map.valty(global.ty.content_type),
             };
             match &global.def {
                 Definition::Import(m, n) => {
@@ -454,22 +562,95 @@ impl<'a> Module<'a> {
             }
         }
 
+        let mut realloc_index = None;
+        let mut num_func_imports = 0;
+
         // For functions first assign a new index to all functions and then
         // afterwards actually map the body of all functions so the `map` of all
         // index mappings is fully populated before instructions are mapped.
-        let mut num_funcs = 0;
-        for (i, func) in self.live_funcs() {
+
+        let is_realloc = |m, n| m == "__main_module__" && n == "cabi_realloc";
+
+        let (imported, local) =
+            self.live_funcs()
+                .partition::<Vec<_>, _>(|(_, func)| match &func.def {
+                    Definition::Import(m, n) => {
+                        !is_realloc(*m, *n) || main_module_realloc.is_some()
+                    }
+                    Definition::Local(_) => false,
+                });
+
+        for (i, func) in imported {
             map.funcs.push(i);
             let ty = map.types.remap(func.ty);
             match &func.def {
                 Definition::Import(m, n) => {
-                    imports.import(m, n, EntityType::Function(ty));
+                    let name = if is_realloc(*m, *n) {
+                        // The adapter is importing `cabi_realloc` from the main module, and the main module
+                        // exports that function, but possibly using a different name
+                        // (e.g. `canonical_abi_realloc`).  Update the name to match if necessary.
+                        realloc_index = Some(num_func_imports);
+                        main_module_realloc.unwrap_or(n)
+                    } else {
+                        n
+                    };
+                    imports.import(m, name, EntityType::Function(ty));
+                    num_func_imports += 1;
+                }
+                Definition::Local(_) => unreachable!(),
+            }
+        }
+
+        let add_realloc_type = |types: &mut wasm_encoder::TypeSection| {
+            let type_index = types.len();
+            types.function(
+                [
+                    wasm_encoder::ValType::I32,
+                    wasm_encoder::ValType::I32,
+                    wasm_encoder::ValType::I32,
+                    wasm_encoder::ValType::I32,
+                ],
+                [wasm_encoder::ValType::I32],
+            );
+            type_index
+        };
+
+        let sp = self.find_stack_pointer()?;
+
+        let mut func_names = Vec::new();
+
+        if let (Some(realloc), Some(_), None) = (main_module_realloc, sp, realloc_index) {
+            // The main module exports a realloc function, and although the adapter doesn't import it, we're going
+            // to add a function which calls it to allocate some stack space, so let's add an import now.
+
+            // Tell the function remapper we're reserving a slot for our extra import:
+            map.funcs.next += 1;
+
+            realloc_index = Some(num_func_imports);
+            imports.import(
+                "__main_module__",
+                realloc,
+                EntityType::Function(add_realloc_type(&mut types)),
+            );
+            func_names.push((num_func_imports, realloc));
+            num_func_imports += 1;
+        }
+
+        for (i, func) in local {
+            map.funcs.push(i);
+            let ty = map.types.remap(func.ty);
+            match &func.def {
+                Definition::Import(_, _) => {
+                    // The adapter is importing `cabi_realloc` from the main module, but the main module isn't
+                    // exporting it.  In this case, we need to define a local function it can call instead.
+                    realloc_index = Some(num_func_imports + funcs.len());
+                    funcs.function(ty);
+                    code.function(&realloc_via_memory_grow());
                 }
                 Definition::Local(_) => {
                     funcs.function(ty);
                 }
             }
-            num_funcs += 1;
         }
 
         for (_, func) in self.live_funcs() {
@@ -481,7 +662,7 @@ impl<'a> Module<'a> {
             for _ in 0..body.read_var_u32()? {
                 let cnt = body.read_var_u32()?;
                 let ty = body.read()?;
-                locals.push((cnt, valty(ty)));
+                locals.push((cnt, map.valty(ty)));
             }
             let mut func = wasm_encoder::Function::new(locals);
             let bytes = map.operators(body)?;
@@ -489,11 +670,18 @@ impl<'a> Module<'a> {
             code.function(&func);
         }
 
+        if sp.is_some() && realloc_index.is_none() {
+            // The main module does _not_ export a realloc function, nor does the adapter import it, but we need a
+            // function to allocate some stack space, so we'll add one here.
+            realloc_index = Some(num_func_imports + funcs.len());
+            funcs.function(add_realloc_type(&mut types));
+            code.function(&realloc_via_memory_grow());
+        }
+
         // Inject a start function to initialize the stack pointer which will be
         // local to this module. This only happens if a memory is preserved and
         // a stack pointer global is found.
         let mut start = None;
-        let sp = self.find_stack_pointer()?;
         if let Some(sp) = sp {
             if num_memories > 0 {
                 use wasm_encoder::Instruction::*;
@@ -507,6 +695,8 @@ impl<'a> Module<'a> {
 
                 let sp = map.globals.remap(sp);
 
+                let function_index = num_func_imports + funcs.len();
+
                 // Generate a function type for this start function, adding a new
                 // function type to the module if necessary.
                 let empty_type = empty_type.unwrap_or_else(|| {
@@ -514,35 +704,21 @@ impl<'a> Module<'a> {
                     types.len() - 1
                 });
                 funcs.function(empty_type);
+                func_names.push((function_index, "initialize_stack_pointer"));
 
-                let mut func = wasm_encoder::Function::new([(1, wasm_encoder::ValType::I32)]);
-                // Grow the memory by 1 page to allocate ourselves some stack space.
-                func.instruction(&I32Const(1));
-                func.instruction(&MemoryGrow(0));
-                func.instruction(&LocalTee(0));
-
-                // Test if the return value of the growth was -1 and trap if so
-                // since we don't have a stack page.
-                func.instruction(&I32Const(-1));
-                func.instruction(&I32Eq);
-                func.instruction(&If(wasm_encoder::BlockType::Empty));
-                func.instruction(&Unreachable);
-                func.instruction(&End);
-
-                // Set our stack pointer to the top of the page we were given, which
-                // is the page index times the page size plus the size of a page.
-                func.instruction(&LocalGet(0));
-                func.instruction(&I32Const(1));
+                let mut func = wasm_encoder::Function::new([]);
+                func.instruction(&I32Const(0));
+                func.instruction(&I32Const(0));
+                func.instruction(&I32Const(8));
+                func.instruction(&I32Const(PAGE_SIZE));
+                func.instruction(&Call(realloc_index.unwrap()));
+                func.instruction(&I32Const(PAGE_SIZE));
                 func.instruction(&I32Add);
-                func.instruction(&I32Const(16));
-                func.instruction(&I32Shl);
                 func.instruction(&GlobalSet(sp));
                 func.instruction(&End);
                 code.function(&func);
 
-                start = Some(wasm_encoder::StartSection {
-                    function_index: num_funcs,
-                });
+                start = Some(wasm_encoder::StartSection { function_index });
             }
         }
 
@@ -622,7 +798,6 @@ impl<'a> Module<'a> {
 
         // Append a custom `name` section using the names of the functions that
         // were found prior to the GC pass in the original module.
-        let mut func_names = Vec::new();
         let mut global_names = Vec::new();
         for (i, _func) in self.live_funcs() {
             let name = match self.func_names.get(&i) {
@@ -630,9 +805,6 @@ impl<'a> Module<'a> {
                 None => continue,
             };
             func_names.push((map.funcs.remap(i), *name));
-        }
-        if start.is_some() {
-            func_names.push((num_funcs, "initialize_stack_pointer"));
         }
         for (i, _global) in self.live_globals() {
             let name = match self.global_names.get(&i) {
@@ -655,6 +827,9 @@ impl<'a> Module<'a> {
             section.push(code);
             subsection.encode(&mut section);
         };
+        if let (Some(realloc_index), None) = (realloc_index, main_module_realloc) {
+            func_names.push((realloc_index, "realloc_via_memory_grow"));
+        }
         encode_subsection(0x01, &func_names);
         encode_subsection(0x07, &global_names);
         if !section.is_empty() {
@@ -662,6 +837,9 @@ impl<'a> Module<'a> {
                 name: "name",
                 data: &section,
             });
+        }
+        if let Some(producers) = &self.producers {
+            ret.section(&producers.section());
         }
 
         Ok(ret.finish())
@@ -723,7 +901,7 @@ macro_rules! define_visit {
         )*
     };
 
-    (mark_live $self:ident $arg:ident type_index) => {$self.live_types.insert($arg);};
+    (mark_live $self:ident $arg:ident type_index) => {$self.ty($arg);};
     (mark_live $self:ident $arg:ident src_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident dst_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident table_index) => {$self.table($arg);};
@@ -736,6 +914,8 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident dst_mem) => {$self.memory($arg);};
     (mark_live $self:ident $arg:ident memarg) => {$self.memory($arg.memory);};
     (mark_live $self:ident $arg:ident blockty) => {$self.blockty($arg);};
+    (mark_live $self:ident $arg:ident ty) => {$self.valty($arg)};
+    (mark_live $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (mark_live $self:ident $arg:ident lane) => {};
     (mark_live $self:ident $arg:ident lanes) => {};
     (mark_live $self:ident $arg:ident flags) => {};
@@ -746,8 +926,6 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident relative_depth) => {};
     (mark_live $self:ident $arg:ident tag_index) => {};
     (mark_live $self:ident $arg:ident targets) => {};
-    (mark_live $self:ident $arg:ident ty) => {};
-    (mark_live $self:ident $arg:ident hty) => {};
     (mark_live $self:ident $arg:ident data_index) => {};
     (mark_live $self:ident $arg:ident elem_index) => {};
 }
@@ -804,8 +982,37 @@ impl Encoder {
     fn blockty(&self, ty: BlockType) -> wasm_encoder::BlockType {
         match ty {
             BlockType::Empty => wasm_encoder::BlockType::Empty,
-            BlockType::Type(ty) => wasm_encoder::BlockType::Result(valty(ty)),
+            BlockType::Type(ty) => wasm_encoder::BlockType::Result(self.valty(ty)),
             BlockType::FuncType(ty) => wasm_encoder::BlockType::FunctionType(self.types.remap(ty)),
+        }
+    }
+
+    fn valty(&self, ty: wasmparser::ValType) -> wasm_encoder::ValType {
+        match ty {
+            wasmparser::ValType::I32 => wasm_encoder::ValType::I32,
+            wasmparser::ValType::I64 => wasm_encoder::ValType::I64,
+            wasmparser::ValType::F32 => wasm_encoder::ValType::F32,
+            wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
+            wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
+            wasmparser::ValType::Ref(rt) => wasm_encoder::ValType::Ref(self.refty(rt)),
+        }
+    }
+
+    fn refty(&self, rt: wasmparser::RefType) -> wasm_encoder::RefType {
+        wasm_encoder::RefType {
+            nullable: rt.nullable,
+            heap_type: self.heapty(rt.heap_type),
+        }
+    }
+
+    fn heapty(&self, ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
+        match ht {
+            wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
+            wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
+            wasmparser::HeapType::TypedFunc(idx) => {
+                wasm_encoder::HeapType::TypedFunc(self.types.remap(idx.into()).try_into().unwrap())
+            }
+            wasmparser::HeapType::Bot => unimplemented!(),
         }
     }
 }
@@ -877,6 +1084,7 @@ macro_rules! define_encode {
     // `define_visit` macro above.
     (map $self:ident $arg:ident memarg) => {$self.memarg($arg)};
     (map $self:ident $arg:ident blockty) => {$self.blockty($arg)};
+    (map $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (map $self:ident $arg:ident tag_index) => {$arg};
     (map $self:ident $arg:ident relative_depth) => {$arg};
     (map $self:ident $arg:ident function_index) => {$self.funcs.remap($arg)};
@@ -889,7 +1097,7 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident src_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident dst_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident type_index) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident ty) => {valty($arg)};
+    (map $self:ident $arg:ident ty) => {$self.valty($arg)};
     (map $self:ident $arg:ident local_index) => {$arg};
     (map $self:ident $arg:ident lane) => {$arg};
     (map $self:ident $arg:ident lanes) => {$arg};
@@ -902,39 +1110,12 @@ macro_rules! define_encode {
         $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
         $arg.default(),
     ));
-    (map $self:ident $arg:ident hty) => {unimplemented!()}; // TODO(dhil): revisit this later.
 }
 
 impl<'a> VisitOperator<'a> for Encoder {
     type Output = ();
 
     wasmparser::for_each_operator!(define_encode);
-}
-
-fn valty(ty: wasmparser::ValType) -> wasm_encoder::ValType {
-    match ty {
-        wasmparser::ValType::I32 => wasm_encoder::ValType::I32,
-        wasmparser::ValType::I64 => wasm_encoder::ValType::I64,
-        wasmparser::ValType::F32 => wasm_encoder::ValType::F32,
-        wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
-        wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
-        wasmparser::ValType::Ref(wasmparser::FUNC_REF) => wasm_encoder::ValType::FuncRef,
-        wasmparser::ValType::Ref(wasmparser::EXTERN_REF) => wasm_encoder::ValType::ExternRef,
-        wasmparser::ValType::Ref(rt) => wasm_encoder::ValType::Ref(refty(rt))
-    }
-}
-
-fn refty(rt: wasmparser::RefType) -> wasm_encoder::RefType {
-    unimplemented!() // TODO(dhil): need to expose `nullable` and `heap_type` from wasm_encoder::RefType
-}
-
-fn heapty(ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
-    match ht {
-        wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
-        wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
-        wasmparser::HeapType::TypedFunc(idx) => wasm_encoder::HeapType::Index(idx.try_into().unwrap()),
-        wasmparser::HeapType::Bot => unimplemented!(),
-    }
 }
 
 // Minimal definition of a bit vector necessary for the liveness calculations
@@ -993,10 +1174,7 @@ mod bitvec {
 #[derive(Default)]
 struct Remap {
     /// Map, indexed by the old index set, to the new index set.
-    ///
-    /// Placeholders of `u32::MAX` means that the old index is not present in
-    /// the new index space.
-    map: Vec<u32>,
+    map: HashMap<u32, u32>,
     /// The next available index in the new index space.
     next: u32,
 }
@@ -1004,11 +1182,9 @@ struct Remap {
 impl Remap {
     /// Appends a new live "old index" into this remapping structure.
     ///
-    /// This will assign a new index for the old index provided. This method
-    /// must be called in increasing order of old indexes.
+    /// This will assign a new index for the old index provided.
     fn push(&mut self, old: u32) {
-        self.map.resize(old as usize, u32::MAX);
-        self.map.push(self.next);
+        self.map.insert(old, self.next);
         self.next += 1;
     }
 
@@ -1016,8 +1192,9 @@ impl Remap {
     ///
     /// Panics if the `old` index was not added via `push` above.
     fn remap(&self, old: u32) -> u32 {
-        let ret = self.map[old as usize];
-        assert!(ret != u32::MAX);
-        ret
+        *self
+            .map
+            .get(&old)
+            .unwrap_or_else(|| panic!("can't map {old} to a new index"))
     }
 }

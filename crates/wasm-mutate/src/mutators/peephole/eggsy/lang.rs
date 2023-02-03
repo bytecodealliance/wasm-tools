@@ -4,7 +4,7 @@ use egg::Id;
 use std::convert::TryInto;
 use std::fmt::{self, Display};
 use std::str::FromStr;
-use wasm_encoder::ValType;
+use wasm_encoder::HeapType;
 
 /// This is a macro used to define the `Lang` enum.
 ///
@@ -1070,11 +1070,11 @@ pub enum RefType {
     Extern,
 }
 
-impl From<RefType> for ValType {
+impl From<RefType> for HeapType {
     fn from(rt: RefType) -> Self {
         match rt {
-            RefType::Func => ValType::FuncRef,
-            RefType::Extern => ValType::ExternRef,
+            RefType::Func => HeapType::Func,
+            RefType::Extern => HeapType::Extern,
         }
     }
 }

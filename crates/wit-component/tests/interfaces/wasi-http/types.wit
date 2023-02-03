@@ -1,0 +1,4 @@
+default interface types {
+  record request {  }
+  record response {  }
+}

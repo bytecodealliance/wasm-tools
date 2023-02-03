@@ -693,9 +693,9 @@ impl Printer {
     }
 
     fn print_reftype(&mut self, ty: RefType) -> Result<()> {
-        if ty == FUNC_REF {
+        if ty == RefType::FUNCREF {
             self.result.push_str("funcref");
-        } else if ty == EXTERN_REF {
+        } else if ty == RefType::EXTERNREF {
             self.result.push_str("externref");
         } else {
             self.result.push_str("(ref ");
@@ -832,7 +832,14 @@ impl Printer {
         for table in parser.into_iter_with_offsets() {
             let (offset, table) = table?;
             self.newline(offset);
-            self.print_table_type(state, &table, true)?;
+            self.print_table_type(state, &table.ty, true)?;
+            match &table.init {
+                TableInit::RefNull => {}
+                TableInit::Expr(expr) => {
+                    self.result.push_str(" ");
+                    self.print_const_expr(state, expr)?;
+                }
+            }
             self.end_group();
             state.core.tables += 1;
         }
@@ -1139,23 +1146,8 @@ impl Printer {
             }
             self.result.push(' ');
 
-            // TODO(dhil): clean up
-            // if items_reader.uses_exprs() {
-            //     self.print_reftype(elem.ty)?;
-            // } else {
-            //     // This is semantically different from funcref in that
-            //     // it allows and forces index abbreviations rather than full
-            //     // reference expressions
-            //     self.result.push_str("func");
-            // }
-            // for _ in 0..items_reader.get_count() {
-            //     self.result.push(' ');
-            //     match items_reader.read()? {
-            //         ElementItem::Expr(expr) => self.print_const_expr_sugar(state, &expr, "item")?,
-            //         ElementItem::Func(idx) => self.print_idx(&state.core.func_names, idx)?,
             match elem.items {
                 ElementItems::Functions(reader) => {
-                    // self.print_reftype(elem.ty)?;
                     self.result.push_str("func");
                     for idx in reader {
                         self.result.push(' ');
@@ -1485,6 +1477,7 @@ impl Printer {
                 }
                 ComponentTypeDeclaration::Export { name, url, ty } => {
                     self.start_group("export ");
+                    self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
                     self.print_str(name)?;
                     if !url.is_empty() {
                         self.result.push(' ');
@@ -1522,6 +1515,7 @@ impl Printer {
                 }
                 InstanceTypeDeclaration::Export { name, url, ty } => {
                     self.start_group("export ");
+                    self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
                     self.print_str(name)?;
                     if !url.is_empty() {
                         self.result.push(' ');
@@ -1793,33 +1787,7 @@ impl Printer {
     ) -> Result<()> {
         self.start_group("export ");
         if named {
-            match &export.kind {
-                ComponentExternalKind::Func => {
-                    self.print_name(&state.component.func_names, state.component.funcs)?;
-                    state.component.funcs += 1;
-                }
-                ComponentExternalKind::Module => {
-                    self.print_name(&state.core.module_names, state.core.modules)?;
-                    state.core.modules += 1;
-                }
-                ComponentExternalKind::Value => {
-                    self.print_name(&state.component.value_names, state.component.values)?;
-                    state.component.values += 1;
-                }
-                ComponentExternalKind::Type => {
-                    self.print_name(&state.component.type_names, state.component.types)?;
-                    state.component.types += 1;
-                }
-                ComponentExternalKind::Instance => {
-                    self.print_name(&state.component.instance_names, state.component.instances)?;
-                    state.component.instances += 1;
-                }
-                ComponentExternalKind::Component => {
-                    self.print_name(&state.component.component_names, state.component.components)?;
-                    state.component.components += 1;
-                }
-            }
-            self.result.push(' ');
+            self.print_component_kind_name(state, export.kind)?;
         }
         self.print_str(export.name)?;
         if !export.url.is_empty() {
@@ -1829,6 +1797,41 @@ impl Printer {
         self.result.push(' ');
         self.print_component_external_kind(state, export.kind, export.index)?;
         self.end_group();
+        Ok(())
+    }
+
+    fn print_component_kind_name(
+        &mut self,
+        state: &mut State,
+        kind: ComponentExternalKind,
+    ) -> Result<()> {
+        match kind {
+            ComponentExternalKind::Func => {
+                self.print_name(&state.component.func_names, state.component.funcs)?;
+                state.component.funcs += 1;
+            }
+            ComponentExternalKind::Module => {
+                self.print_name(&state.core.module_names, state.core.modules)?;
+                state.core.modules += 1;
+            }
+            ComponentExternalKind::Value => {
+                self.print_name(&state.component.value_names, state.component.values)?;
+                state.component.values += 1;
+            }
+            ComponentExternalKind::Type => {
+                self.print_name(&state.component.type_names, state.component.types)?;
+                state.component.types += 1;
+            }
+            ComponentExternalKind::Instance => {
+                self.print_name(&state.component.instance_names, state.component.instances)?;
+                state.component.instances += 1;
+            }
+            ComponentExternalKind::Component => {
+                self.print_name(&state.component.component_names, state.component.components)?;
+                state.component.components += 1;
+            }
+        }
+        self.result.push(' ');
         Ok(())
     }
 

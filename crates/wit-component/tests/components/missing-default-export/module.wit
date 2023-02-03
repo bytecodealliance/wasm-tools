@@ -1,0 +1,3 @@
+default world my-world {
+  export a: func()
+}

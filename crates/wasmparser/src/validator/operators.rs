@@ -25,7 +25,7 @@
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, HeapType, Ieee32,
     Ieee64, MemArg, RefType, Result, ValType, VisitOperator, WasmFeatures, WasmFuncType,
-    WasmModuleResources, EXTERN_REF, FUNC_REF, V128,
+    WasmModuleResources, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -636,11 +636,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_block_type(&self, ty: BlockType) -> Result<()> {
         match ty {
             BlockType::Empty => Ok(()),
-            BlockType::Type(t) => self.resources.check_value_type(t, &self.features, self.offset),
-            // BlockType::Type(ty) => self
-            //     .features
-            //     .check_value_type(ty)
-            //     .map_err(|e| BinaryReaderError::new(e, self.offset)),
+            BlockType::Type(t) => self
+                .resources
+                .check_value_type(t, &self.features, self.offset),
             BlockType::FuncType(idx) => {
                 if !self.features.multi_value {
                     bail!(
@@ -698,7 +696,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             Some(tab) => {
                 if !self
                     .resources
-                    .matches(ValType::Ref(tab.element_type), ValType::Ref(FUNC_REF))
+                    .matches(ValType::Ref(tab.element_type), ValType::FUNCREF)
                 {
                     bail!(
                         self.offset,
@@ -944,15 +942,15 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     }
 }
 
-fn ty_to_str(ty: ValType) -> &'static str {
+pub fn ty_to_str(ty: ValType) -> &'static str {
     match ty {
         ValType::I32 => "i32",
         ValType::I64 => "i64",
         ValType::F32 => "f32",
         ValType::F64 => "f64",
         ValType::V128 => "v128",
-        ValType::Ref(FUNC_REF) => "funcref",
-        ValType::Ref(EXTERN_REF) => "externref",
+        ValType::FUNCREF => "funcref",
+        ValType::EXTERNREF => "externref",
         ValType::Ref(RefType {
             nullable: false,
             heap_type: HeapType::Func,
@@ -1026,6 +1024,7 @@ macro_rules! validate_proposal {
     (desc exceptions) => ("exceptions");
     (desc tail_call) => ("tail calls");
     (desc function_references) => ("function references");
+    (desc memory_control) => ("memory control");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -1339,11 +1338,8 @@ where
         Ok(())
     }
     fn visit_typed_select(&mut self, ty: ValType) -> Self::Output {
-            self.resources
+        self.resources
             .check_value_type(ty, &self.features, self.offset)?;
-        // self.features
-        //     .check_value_type(ty)
-        //     .map_err(|e| BinaryReaderError::new(e, self.offset))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
@@ -2186,10 +2182,15 @@ where
         Ok(())
     }
     fn visit_ref_null(&mut self, heap_type: HeapType) -> Self::Output {
-        match heap_type {
-            HeapType::Extern | HeapType::Func | HeapType::Bot => {}
-            HeapType::TypedFunc(_) => {} // TODO(dhil): check validity of function index?
-        }
+        self.resources.check_value_type(
+            RefType {
+                nullable: true,
+                heap_type,
+            }
+            .into(),
+            &self.features,
+            self.offset,
+        )?;
         self.push_operand(ValType::Ref(RefType {
             nullable: true,
             heap_type,
@@ -2276,9 +2277,15 @@ where
         if !self.resources.is_function_referenced(function_index) {
             bail!(self.offset, "undeclared function reference");
         }
+        let heap_type = HeapType::TypedFunc(match type_index.try_into() {
+            Ok(packed) => packed,
+            Err(_) => {
+                bail!(self.offset, "type index of `ref.func` target too large")
+            }
+        });
         self.push_operand(ValType::Ref(RefType {
             nullable: false,
-            heap_type: type_index.try_into().expect("ref.func on function > 2^16"),
+            heap_type,
         }))?;
         Ok(())
     }
@@ -3210,6 +3217,12 @@ where
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_memory_discard(&mut self, mem: u32) -> Self::Output {
+        let ty = self.check_memory_index(mem)?;
+        self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
         Ok(())
     }

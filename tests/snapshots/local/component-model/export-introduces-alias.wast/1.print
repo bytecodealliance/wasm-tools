@@ -5,7 +5,7 @@
       (type (;1;)
         (instance
           (alias outer 1 0 (type (;0;)))
-          (export "t" (type (eq 0)))
+          (export (;1;) "t" (type (eq 0)))
         )
       )
       (import "x" (instance (type 1)))

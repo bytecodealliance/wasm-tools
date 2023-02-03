@@ -1,4 +1,4 @@
-use crate::{encode_section, Encode, Section, SectionId, ValType};
+use crate::{encode_section, Encode, HeapType, Section, SectionId, ValType};
 use std::borrow::Cow;
 
 /// An encoder for the code section.
@@ -322,9 +322,9 @@ pub enum Instruction<'a> {
     BrOnNonNull(u32),
     Return,
     Call(u32),
-    CallRef(ValType),
+    CallRef(HeapType),
     CallIndirect { ty: u32, table: u32 },
-    ReturnCallRef(ValType),
+    ReturnCallRef(HeapType),
     ReturnCall(u32),
     ReturnCallIndirect { ty: u32, table: u32 },
     Throw(u32),
@@ -371,6 +371,7 @@ pub enum Instruction<'a> {
     DataDrop(u32),
     MemoryCopy { src_mem: u32, dst_mem: u32 },
     MemoryFill(u32),
+    MemoryDiscard(u32),
 
     // Numeric instructions.
     I32Const(i32),
@@ -516,7 +517,7 @@ pub enum Instruction<'a> {
 
     // Reference types instructions.
     TypedSelect(ValType),
-    RefNull(ValType),
+    RefNull(HeapType),
     RefIsNull,
     RefFunc(u32),
     RefAsNonNull,
@@ -1112,6 +1113,11 @@ impl Encode for Instruction<'_> {
             Instruction::MemoryFill(mem) => {
                 sink.push(0xfc);
                 sink.push(0x0b);
+                mem.encode(sink);
+            }
+            Instruction::MemoryDiscard(mem) => {
+                sink.push(0xfc);
+                sink.push(0x12);
                 mem.encode(sink);
             }
 
@@ -2818,7 +2824,7 @@ impl ConstExpr {
     }
 
     /// Create a constant expression containing a single `ref.null` instruction.
-    pub fn ref_null(ty: ValType) -> Self {
+    pub fn ref_null(ty: HeapType) -> Self {
         Self::new_insn(Instruction::RefNull(ty))
     }
 

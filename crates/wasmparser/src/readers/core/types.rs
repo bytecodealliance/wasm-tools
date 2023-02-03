@@ -49,6 +49,25 @@ pub struct RefType {
     pub heap_type: HeapType,
 }
 
+impl RefType {
+    /// Alias for the wasm `funcref` type.
+    pub const FUNCREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Func,
+    };
+    /// Alias for the wasm `externref` type.
+    pub const EXTERNREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Extern,
+    };
+}
+
+impl From<RefType> for ValType {
+    fn from(ty: RefType) -> ValType {
+        ValType::Ref(ty)
+    }
+}
+
 /// Used as a performance optimization in HeapType. Call `.into()` to get the u32
 // A u16 forces 2-byte alignment, which forces HeapType to be 4 bytes,
 // which forces ValType to 5 bytes. This newtype is annotated as unaligned to
@@ -57,15 +76,17 @@ pub struct RefType {
 #[repr(packed)]
 pub struct PackedIndex(u16);
 
+impl TryFrom<u32> for PackedIndex {
+    type Error = ();
+
+    fn try_from(idx: u32) -> Result<PackedIndex, ()> {
+        idx.try_into().map(PackedIndex).map_err(|_| ())
+    }
+}
+
 impl From<PackedIndex> for u32 {
     fn from(x: PackedIndex) -> u32 {
         x.0 as u32
-    }
-}
-impl TryFrom<u32> for HeapType {
-    type Error = <u16 as TryFrom<u32>>::Error;
-    fn try_from(x: u32) -> Result<HeapType, Self::Error> {
-        Ok(HeapType::TypedFunc(PackedIndex(x.try_into()?)))
     }
 }
 
@@ -84,20 +105,12 @@ pub enum HeapType {
     Bot,
 }
 
-/// funcref, in both reference types and function references, represented
-/// using the general ref syntax
-pub const FUNC_REF: RefType = RefType {
-    nullable: true,
-    heap_type: HeapType::Func,
-};
-/// externref, in both reference types and function references, represented
-/// using the general ref syntax
-pub const EXTERN_REF: RefType = RefType {
-    nullable: true,
-    heap_type: HeapType::Extern,
-};
-
 impl ValType {
+    /// Alias for the wasm `funcref` type.
+    pub const FUNCREF: ValType = ValType::Ref(RefType::FUNCREF);
+    /// Alias for the wasm `externref` type.
+    pub const EXTERNREF: ValType = ValType::Ref(RefType::EXTERNREF);
+
     /// Returns whether this value type is a "reference type".
     ///
     /// Only reference types are allowed in tables, for example, and with some
@@ -117,19 +130,6 @@ impl ValType {
         )
     }
 
-    pub(crate) fn numeric_from_byte(byte: u8) -> Option<ValType> {
-        match byte {
-            0x7F => Some(ValType::I32),
-            0x7E => Some(ValType::I64),
-            0x7D => Some(ValType::F32),
-            0x7C => Some(ValType::F64),
-            0x7B => Some(ValType::V128),
-            // 0x70 => Some(ValType::Ref(FUNC_REF)),
-            // 0x6F => Some(ValType::Ref(EXTERN_REF)),
-            _ => None,
-        }
-    }
-
     pub(crate) fn is_valtype_byte(byte: u8) -> bool {
         match byte {
             0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x6B | 0x6C => true,
@@ -141,37 +141,41 @@ impl ValType {
 impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
-            0x70 | 0x6F | 0x6B | 0x6C => Ok(ValType::Ref(reader.read()?)),
-            byte => {
-                match ValType::numeric_from_byte(byte) {
-                    Some(ty) => {
-                        reader.position += 1;
-                        Ok(ty)
-                    }
-                    None => bail!(reader.original_position(), "invalid value type"),
-                }
+            0x7F => {
+                reader.position += 1;
+                Ok(ValType::I32)
             }
+            0x7E => {
+                reader.position += 1;
+                Ok(ValType::I64)
+            }
+            0x7D => {
+                reader.position += 1;
+                Ok(ValType::F32)
+            }
+            0x7C => {
+                reader.position += 1;
+                Ok(ValType::F64)
+            }
+            0x7B => {
+                reader.position += 1;
+                Ok(ValType::V128)
+            }
+            0x70 | 0x6F | 0x6B | 0x6C => Ok(ValType::Ref(reader.read()?)),
+            _ => bail!(reader.original_position(), "invalid value type"),
         }
     }
 }
 
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        match reader.peek()? {
-            0x70 => {
-                reader.position += 1;
-                Ok(FUNC_REF)
-            }
-            0x6F => {
-                reader.position += 1;
-                Ok(EXTERN_REF)
-            }
-            byte @ (0x6B | 0x6C) => {
-                Ok(RefType {
-                    nullable: byte == 0x6C,
-                    heap_type: reader.read()?
-                })
-            }
+        match reader.read()? {
+            0x70 => Ok(RefType::FUNCREF),
+            0x6F => Ok(RefType::EXTERNREF),
+            byte @ (0x6B | 0x6C) => Ok(RefType {
+                nullable: byte == 0x6C,
+                heap_type: reader.read()?,
+            }),
             _ => bail!(reader.original_position(), "malformed reference type"),
         }
     }
@@ -188,16 +192,20 @@ impl<'a> FromReader<'a> for HeapType {
                 reader.position += 1;
                 Ok(HeapType::Extern)
             }
-            x if 0x80 & x == 0 => {
-                let idx = reader.read_var_s33()?;
-                if idx < 0 || idx > (std::u16::MAX as i64) {
-                    bail!(reader.original_position(),
-                          "invalid function heap type");
-                } else {
-                    Ok((idx as u32).try_into().unwrap())
+            _ => {
+                let idx = match u32::try_from(reader.read_var_s33()?) {
+                    Ok(idx) => idx,
+                    Err(_) => {
+                        bail!(reader.original_position(), "invalid function heap type",);
+                    }
+                };
+                match idx.try_into() {
+                    Ok(packed) => Ok(HeapType::TypedFunc(packed)),
+                    Err(_) => {
+                        bail!(reader.original_position(), "function index too large");
+                    }
                 }
             }
-            x => bail!(reader.original_position(), "{}", format!("unknown heap type subopcode: 0x{:x}", x)),
         }
     }
 }

@@ -1,0 +1,11 @@
+interface shared {
+  type a = u32
+}
+
+world foo {
+  import shared: interface {}
+  export a-name: interface {
+    use self.shared.{a}
+  }
+}
+

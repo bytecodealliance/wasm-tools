@@ -17,7 +17,7 @@
           (export "j" (memory 1 2 shared))
         )
       )
-      (export "a" (core module (type 0)))
+      (export (;0;) "a" (core module (type 0)))
     )
   )
 )

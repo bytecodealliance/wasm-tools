@@ -1,0 +1,5 @@
+package `bar` does not define document `nonexistent`
+     --> tests/ui/parse-fail/bad-pkg2/root.wit:2:11
+      |
+    2 |   use bar.nonexistent.{}
+      |           ^----------

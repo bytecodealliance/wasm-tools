@@ -91,7 +91,7 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
             // as other values may not necessarily be valid (e.g. maximum table size is limited)
             let is_element_offset = matches!(kind, ConstExprKind::ElementOffset);
             let should_zero = is_element_offset || self.config.rng().gen::<u8>() & 0b11 == 0;
-            match ty {
+            match *ty {
                 T::I32 if should_zero => CE::i32_const(0),
                 T::I64 if should_zero => CE::i64_const(0),
                 T::V128 if should_zero => CE::v128_const(0),
@@ -124,8 +124,8 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
                 } else {
                     f64::from_bits(self.config.rng().gen())
                 }),
-                T::Ref(wasmparser::FUNC_REF) => CE::ref_null(wasm_encoder::ValType::FuncRef),
-                T::Ref(wasmparser::EXTERN_REF) => CE::ref_null(wasm_encoder::ValType::ExternRef),
+                T::FUNCREF => CE::ref_null(wasm_encoder::HeapType::Func),
+                T::EXTERNREF => CE::ref_null(wasm_encoder::HeapType::Extern),
                 T::Ref(_) => unimplemented!(),
             }
         } else {

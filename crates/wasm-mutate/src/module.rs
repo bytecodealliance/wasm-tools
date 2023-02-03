@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use std::convert::TryFrom;
-use wasm_encoder::{BlockType, ValType};
+use wasm_encoder::{BlockType, HeapType, RefType, ValType};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
@@ -42,8 +42,8 @@ impl From<wasmparser::ValType> for PrimitiveTypeInfo {
 impl From<wasmparser::RefType> for PrimitiveTypeInfo {
     fn from(value: wasmparser::RefType) -> Self {
         match value {
-            wasmparser::FUNC_REF => PrimitiveTypeInfo::FuncRef,
-            wasmparser::EXTERN_REF => PrimitiveTypeInfo::ExternRef,
+            wasmparser::RefType::FUNCREF => PrimitiveTypeInfo::FuncRef,
+            wasmparser::RefType::EXTERNREF => PrimitiveTypeInfo::ExternRef,
             _ => unimplemented!(),
         }
     }
@@ -77,16 +77,20 @@ pub fn map_type(tpe: wasmparser::ValType) -> Result<ValType> {
         wasmparser::ValType::F32 => Ok(ValType::F32),
         wasmparser::ValType::F64 => Ok(ValType::F64),
         wasmparser::ValType::V128 => Ok(ValType::V128),
-        wasmparser::ValType::Ref(t) => map_ref_type(t),
+        wasmparser::ValType::Ref(t) => Ok(ValType::Ref(map_ref_type(t)?)),
     }
 }
 
-pub fn map_ref_type(tpe: wasmparser::RefType) -> Result<ValType> {
-    match tpe {
-        wasmparser::FUNC_REF => Ok(ValType::FuncRef),
-        wasmparser::EXTERN_REF => Ok(ValType::ExternRef),
-        _ => unimplemented!(),
-    }
+pub fn map_ref_type(tpe: wasmparser::RefType) -> Result<RefType> {
+    Ok(RefType {
+        nullable: tpe.nullable,
+        heap_type: match tpe.heap_type {
+            wasmparser::HeapType::Func => HeapType::Func,
+            wasmparser::HeapType::Extern => HeapType::Extern,
+            wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
+            wasmparser::HeapType::Bot => unreachable!(),
+        },
+    })
 }
 
 pub fn map_block_type(ty: wasmparser::BlockType) -> Result<BlockType> {

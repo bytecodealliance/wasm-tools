@@ -1,0 +1,33 @@
+interface foo {
+  use self.bar.{the-type}
+}
+
+interface bar {
+  type the-type = u32
+}
+
+interface baz {
+  use self.foo.{the-type}
+  use self.bar.{the-type as test}
+}
+
+interface empty {
+}
+
+interface use-from-empty {
+  use self.empty.{}
+  use pkg.%use.empty.{}
+}
+
+
+interface use-multiple {
+  use self.baz.{the-type, test}
+
+  some-function: func(x: the-type) -> test
+}
+
+interface trailing-comma {
+  use self.foo.{the-type,}
+
+  record the-foo { a: the-type }
+}

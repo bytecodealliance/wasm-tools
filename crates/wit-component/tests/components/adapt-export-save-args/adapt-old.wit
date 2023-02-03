@@ -1,0 +1,3 @@
+default world brave-new-world {
+  export entrypoint: func(nargs: u32)
+}

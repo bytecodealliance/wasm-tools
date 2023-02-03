@@ -1,0 +1,19 @@
+default interface irrelevant-name {
+  record a-name {}
+}
+
+interface depends-on-later-item {
+  use self.depend-on-me.{x}
+}
+
+interface depend-on-me {
+  type x = u32
+}
+
+world more-depends-on-later-things {
+  import foo: self.later-interface
+  export bar: self.later-interface
+}
+
+interface later-interface {
+}

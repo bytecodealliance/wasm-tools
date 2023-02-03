@@ -1,0 +1,9 @@
+interface the-interface {
+  type the-type = u8
+
+}
+
+interface the-name {
+  use self.the-interface.{the-type as bar}
+}
+

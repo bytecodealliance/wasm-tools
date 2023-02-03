@@ -326,3 +326,29 @@ pub trait VisitOperator<'a> {
 
     for_each_operator!(define_visit_operator);
 }
+
+macro_rules! define_visit_operator_delegate {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+        $(
+            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
+                V::$visit(&mut *self, $($($arg),*)?)
+            }
+        )*
+    }
+}
+
+impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
+    type Output = V::Output;
+    fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
+        V::visit_operator(*self, op)
+    }
+    for_each_operator!(define_visit_operator_delegate);
+}
+
+impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
+    type Output = V::Output;
+    fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
+        V::visit_operator(&mut *self, op)
+    }
+    for_each_operator!(define_visit_operator_delegate);
+}

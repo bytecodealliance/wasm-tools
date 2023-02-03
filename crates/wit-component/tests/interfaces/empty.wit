@@ -1,0 +1,8 @@
+interface empty {}
+
+world empty-world {
+  import empty: self.empty
+  export empty: self.empty
+}
+
+world actually-empty-world {}

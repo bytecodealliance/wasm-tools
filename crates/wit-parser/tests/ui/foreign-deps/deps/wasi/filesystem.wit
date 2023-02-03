@@ -1,0 +1,5 @@
+default interface wasi-filesystem {
+  record stat {
+    ino: u64
+  }
+}

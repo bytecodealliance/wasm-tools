@@ -1,0 +1,7 @@
+default interface a {
+  use self.b.{the-type}
+}
+
+interface b {
+  use pkg.b.{the-type}
+}

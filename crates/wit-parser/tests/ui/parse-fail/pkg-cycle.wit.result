@@ -1,0 +1,5 @@
+package depends on itself
+     --> tests/ui/parse-fail/pkg-cycle/deps/a1/root.wit:2:7
+      |
+    2 |   use a1.foo.{}
+      |       ^-

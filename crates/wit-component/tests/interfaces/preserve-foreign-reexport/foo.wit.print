@@ -1,0 +1,3 @@
+world foo {
+  export foo: my-dep.my-doc.my-interface
+}

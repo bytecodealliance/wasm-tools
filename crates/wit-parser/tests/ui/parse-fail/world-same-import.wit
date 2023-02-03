@@ -1,0 +1,6 @@
+interface foo {}
+
+world bar {
+  import foo: self.foo
+  import bar: self.foo
+}

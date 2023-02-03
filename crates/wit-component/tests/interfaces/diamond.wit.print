@@ -1,0 +1,31 @@
+interface shared {
+  enum the-enum {
+    a,
+  }
+
+}
+
+world w3 {
+  import shared: self.shared
+  export bar: interface {
+    use self.shared.{the-enum}
+  }
+}
+world w2 {
+  import shared: self.shared
+  import foo: interface {
+    use self.shared.{the-enum}
+  }
+  export bar: interface {
+    use self.shared.{the-enum}
+  }
+}
+world w1 {
+  import shared: self.shared
+  import foo: interface {
+    use self.shared.{the-enum}
+  }
+  import bar: interface {
+    use self.shared.{the-enum}
+  }
+}

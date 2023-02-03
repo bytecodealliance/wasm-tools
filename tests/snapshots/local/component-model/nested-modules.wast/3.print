@@ -20,7 +20,7 @@
       (core type (;0;)
         (module)
       )
-      (export "a" (core module (type 0)))
+      (export (;0;) "a" (core module (type 0)))
     )
   )
   (import "b" (instance (;0;) (type 0)))

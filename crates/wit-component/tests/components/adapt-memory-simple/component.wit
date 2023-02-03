@@ -1,0 +1,7 @@
+interface new {
+  log: func(s: string)
+}
+
+default world component {
+  import new: self.new
+}

@@ -1,0 +1,6 @@
+default world component {
+  import foo: func()
+  import bar: func() -> string
+  export baz: func()
+  export foo: func(x: string) -> option<list<u8>>
+}

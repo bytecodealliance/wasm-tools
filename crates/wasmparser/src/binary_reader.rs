@@ -687,22 +687,20 @@ impl<'a> BinaryReader<'a> {
 
         // Check for a block type of form [] -> [t].
         if ValType::is_valtype_byte(b) {
-            // TODO(dhil): refactor `maybe_read_val_type` into the `from_byte` logic.
-            // if let Some(ty) = ValType::from_byte(b) {
-            //     self.position += 1;
             return Ok(BlockType::Type(self.read()?));
         }
 
         // Not empty or a singular type, so read the function type index
         let idx = self.read_var_s33()?;
-        if idx < 0 || idx > (std::u32::MAX as i64) {
-            return Err(BinaryReaderError::new(
-                "invalid function type",
-                self.original_position(),
-            ));
+        match u32::try_from(idx) {
+            Ok(idx) => Ok(BlockType::FuncType(idx)),
+            Err(_) => {
+                return Err(BinaryReaderError::new(
+                    "invalid function type",
+                    self.original_position(),
+                ));
+            }
         }
-
-        Ok(BlockType::FuncType(idx as u32))
     }
 
     /// Visit the next available operator with the specified [`VisitOperator`] instance.
@@ -979,7 +977,6 @@ impl<'a> BinaryReader<'a> {
             0xd4 => visitor.visit_br_on_null(self.read_var_u32()?),
             0xd6 => visitor.visit_br_on_non_null(self.read_var_u32()?),
 
-
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
             0xfd => self.visit_0xfd_operator(pos, visitor)?,
             0xfe => self.visit_0xfe_operator(pos, visitor)?,
@@ -1052,6 +1049,11 @@ impl<'a> BinaryReader<'a> {
             0x11 => {
                 let table = self.read_var_u32()?;
                 visitor.visit_table_fill(table)
+            }
+
+            0x12 => {
+                let mem = self.read_var_u32()?;
+                visitor.visit_memory_discard(mem)
             }
 
             _ => bail!(pos, "unknown 0xfc subopcode: 0x{code:x}"),

@@ -21,7 +21,7 @@ fn type_ref_to_export_kind(ty: wasmparser::ComponentTypeRef) -> ComponentExportK
         wasmparser::ComponentTypeRef::Module(_) => ComponentExportKind::Module,
         wasmparser::ComponentTypeRef::Func(_) => ComponentExportKind::Func,
         wasmparser::ComponentTypeRef::Value(_) => ComponentExportKind::Value,
-        wasmparser::ComponentTypeRef::Type(_, _) => ComponentExportKind::Type,
+        wasmparser::ComponentTypeRef::Type { .. } => ComponentExportKind::Type,
         wasmparser::ComponentTypeRef::Instance(_) => ComponentExportKind::Instance,
         wasmparser::ComponentTypeRef::Component(_) => ComponentExportKind::Component,
     }
@@ -255,8 +255,8 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::ComponentEntityType::Value(ty) => {
                 ComponentTypeRef::Value(self.component_val_type(encodable, types, ty))
             }
-            wasmparser::types::ComponentEntityType::Type(id) => {
-                ComponentTypeRef::Type(TypeBounds::Eq, self.ty(encodable, types, id))
+            wasmparser::types::ComponentEntityType::Type { created, .. } => {
+                ComponentTypeRef::Type(TypeBounds::Eq, self.ty(encodable, types, created))
             }
             wasmparser::types::ComponentEntityType::Instance(id) => {
                 ComponentTypeRef::Instance(self.component_instance_type(encodable, types, id))
@@ -274,15 +274,19 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::ValType::F32 => ValType::F32,
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::Ref(ty) => Self::ref_type(ty),
+            wasmparser::ValType::Ref(ty) => ValType::Ref(Self::ref_type(ty)),
         }
     }
 
-    fn ref_type(ty: wasmparser::RefType) -> ValType {
-        match ty {
-            wasmparser::FUNC_REF => ValType::FuncRef,
-            wasmparser::EXTERN_REF => ValType::ExternRef,
-            _ => unimplemented!(),
+    fn ref_type(ty: wasmparser::RefType) -> RefType {
+        RefType {
+            nullable: ty.nullable,
+            heap_type: match ty.heap_type {
+                wasmparser::HeapType::Func => HeapType::Func,
+                wasmparser::HeapType::Extern => HeapType::Extern,
+                wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
+                wasmparser::HeapType::Bot => unreachable!(),
+            },
         }
     }
 

@@ -7,6 +7,7 @@
 //! mutator largely translates between `wasmparser` structures and
 //! `wasm_encoder` structures.
 
+use crate::mutators::translate::ConstExprKind;
 use crate::mutators::{translate, Item, Mutator, Translator};
 use crate::Error;
 use crate::{ModuleInfo, Result, WasmMutate};
@@ -16,7 +17,7 @@ use wasm_encoder::*;
 use wasmparser::{
     BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
     ExternalKind, FromReader, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    MemorySectionReader, Operator, SectionLimited, TableSectionReader, TagSectionReader,
+    MemorySectionReader, Operator, SectionLimited, TableInit, TableSectionReader, TagSectionReader,
     TypeSectionReader,
 };
 
@@ -216,9 +217,21 @@ impl RemoveItem {
                         info.num_imported_tables(),
                         TableSectionReader::new(section.data, 0)?,
                         Item::Table,
-                        |me, ty, section: &mut TableSection| {
-                            let ty = me.translate_table_type(&ty)?;
-                            section.table(ty);
+                        |me, table, section: &mut TableSection| {
+                            let ty = me.translate_table_type(&table.ty)?;
+                            match &table.init {
+                                TableInit::RefNull => {
+                                    section.table(ty);
+                                }
+                                TableInit::Expr(expr) => {
+                                    let init = me.translate_const_expr(
+                                        expr,
+                                        &table.ty.element_type.into(),
+                                        ConstExprKind::TableInit,
+                                    )?;
+                                    section.table_with_init(ty, &init);
+                                }
+                            }
                             Ok(())
                         },
                     )?;

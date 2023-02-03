@@ -16,6 +16,11 @@ This project can be installed and compiled from source with this Cargo command:
 $ cargo install wasm-tools
 ```
 
+Additionally there are [precompiled artifacts built on CI][artifacts] which are
+available for download as well.
+
+[artifacts]: https://github.com/bytecodealliance/wasm-tools/releases
+
 Installation can be confirmed with:
 
 ```
@@ -49,6 +54,9 @@ programmatically as well:
 | `wasm-tools compose` | [wasm-compose] | Compose wasm components together |
 | `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
 | `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
+| `wasm-tools component embed` |  | Embed a `component-type` custom section in a core wasm binary |
+| `wasm-tools metadata show` |  [wasm-metadata] | Show name and producer metadata in a component or module |
+| `wasm-tools metadata add` |  | Add name or producer metadata to a component or module |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat
@@ -59,6 +67,7 @@ programmatically as well:
 [wasm-shrink]: https://crates.io/crates/wasm-shrink
 [wit-component]: https://crates.io/crates/wit-component
 [wasm-compose]: https://crates.io/crates/wasm-compose
+[wasm-metadata]: https://crates.io/crates/wasm-metadata
 
 The `wasm-tools` CLI is primarily intended to be a debugging aid. The various
 subcommands all have `--help` explainer texts to describe more about their
@@ -83,6 +92,8 @@ implemented in this repository as well. These libraries are:
   files and interfaces.
 * [**`wit-component`**](crates/wit-component) - a crate to create components
   from core wasm modules.
+* [**`wasm-metadata`**](crates/wasm-metadata) - a crate to manipulate name and
+  producer metadata (custom sections) in a wasm module or component.
 
 It's recommended to use the libraries directly rather than the CLI tooling when
 embedding into a separate project.

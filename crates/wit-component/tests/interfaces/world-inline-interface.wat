@@ -1,0 +1,20 @@
+(component
+  (type (;0;)
+    (component
+      (type (;0;)
+        (component
+          (type (;0;)
+            (instance)
+          )
+          (import "foo" (instance (type 0)))
+          (type (;1;)
+            (instance)
+          )
+          (export (;0;) "bar" (instance (type 1)))
+        )
+      )
+      (export (;0;) "has-inline" "pkg:/world-inline-interface/has-inline" (component (type 0)))
+    )
+  )
+  (export (;1;) "world-inline-interface" "pkg:/world-inline-interface" (type 0))
+)

@@ -1,3 +1,3 @@
 (module
-  (import "" "foo" (func))
+  (import "$root" "foo" (func))
 )

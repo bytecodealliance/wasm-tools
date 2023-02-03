@@ -1,0 +1,3 @@
+default world component {
+  export entrypoint: func()
+}

@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload, Result,
-    SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload,
+    Result, SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
 use std::ops::Range;
@@ -243,6 +243,8 @@ pub struct WasmFeatures {
     pub component_model: bool,
     /// The WebAssembly typed function references proposal
     pub function_references: bool,
+    /// The WebAssembly memory control proposal
+    pub memory_control: bool,
 }
 
 impl WasmFeatures {
@@ -286,24 +288,25 @@ impl WasmFeatures {
 impl Default for WasmFeatures {
     fn default() -> WasmFeatures {
         WasmFeatures {
-            // off-by-default features
+            // Off-by-default features.
             relaxed_simd: false,
             threads: false,
-            tail_call: false,
             multi_memory: false,
             exceptions: false,
             memory64: false,
             extended_const: false,
             component_model: false,
             function_references: false,
+            memory_control: false,
 
-            // on-by-default features
+            // On-by-default features (phase 4 or greater).
             mutable_global: true,
             saturating_float_to_int: true,
             sign_extension: true,
             bulk_memory: true,
             multi_value: true,
             reference_types: true,
+            tail_call: true,
             simd: true,
             floats: true,
         }
@@ -633,12 +636,7 @@ impl Validator {
                 state.module.assert_mut().tables.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, ty, offset| {
-                state
-                    .module
-                    .assert_mut()
-                    .add_table(ty, features, types, offset)
-            },
+            |state, features, types, table, offset| state.add_table(table, features, types, offset),
         )
     }
 
@@ -1191,9 +1189,9 @@ impl Validator {
                 current.exports.reserve(count as usize);
                 Ok(())
             },
-            |components, _, _, export, offset| {
+            |components, types, _, export, offset| {
                 let current = components.last_mut().unwrap();
-                let ty = current.export_to_entity_type(&export, offset)?;
+                let ty = current.export_to_entity_type(&export, types, offset)?;
                 current.add_export(
                     export.name,
                     export.url,
@@ -1364,7 +1362,7 @@ impl Validator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{GlobalType, MemoryType, TableType, ValType, Validator, WasmFeatures, FUNC_REF};
+    use crate::{GlobalType, MemoryType, RefType, TableType, ValType, Validator, WasmFeatures};
     use anyhow::Result;
 
     #[test]
@@ -1433,7 +1431,7 @@ mod tests {
             Some(TableType {
                 initial: 10,
                 maximum: None,
-                element_type: FUNC_REF,
+                element_type: RefType::FUNCREF,
             })
         );
 
@@ -1461,7 +1459,7 @@ mod tests {
             _ => unreachable!(),
         }
 
-        assert_eq!(types.element_at(0), Some(FUNC_REF));
+        assert_eq!(types.element_at(0), Some(RefType::FUNCREF));
 
         Ok(())
     }

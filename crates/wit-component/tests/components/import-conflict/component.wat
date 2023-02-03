@@ -2,7 +2,7 @@
   (type (;0;)
     (instance
       (type (;0;) (func (param "x" u64) (param "y" string)))
-      (export "a" (func (type 0)))
+      (export (;0;) "a" (func (type 0)))
     )
   )
   (import "bar" (instance (;0;) (type 0)))
@@ -10,14 +10,14 @@
     (instance
       (type (;0;) (list u8))
       (type (;1;) (func (param "x" 0) (result 0)))
-      (export "baz" (func (type 1)))
+      (export (;0;) "baz" (func (type 1)))
     )
   )
   (import "baz" (instance (;1;) (type 1)))
   (type (;2;)
     (instance
       (type (;0;) (func))
-      (export "a" (func (type 0)))
+      (export (;0;) "a" (func (type 0)))
     )
   )
   (import "foo" (instance (;2;) (type 2)))

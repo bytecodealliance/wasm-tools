@@ -51,7 +51,7 @@ impl<'a> FunctionBody<'a> {
         let count = reader.read_var_u32()?;
         for _ in 0..count {
             reader.read_var_u32()?;
-            let _ : ValType = reader.read()?; // TODO(dhil): how can I guarantee that this always selects the ValType reader?
+            reader.read::<ValType>()?;
         }
         Ok(())
     }

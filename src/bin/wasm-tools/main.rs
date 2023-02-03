@@ -14,7 +14,7 @@ macro_rules! subcommands {
         )*
 
         #[derive(Parser)]
-        #[clap(version)]
+        #[clap(version = version())]
         #[allow(non_camel_case_types)]
         enum WasmTools {
             $(
@@ -51,6 +51,8 @@ subcommands! {
     (demangle, "demangle")
     #[command(subcommand)]
     (component, "component")
+    #[command(subcommand)]
+    (metadata, "metadata")
 }
 
 fn main() -> ExitCode {
@@ -70,6 +72,11 @@ fn main() -> ExitCode {
     }
     eprintln!("Error: {:?}", err);
     ExitCode::FAILURE
+}
+
+/// If CARGO_VERSION_INFO is set, use it, otherwise use CARGO_PKG_VERSION.
+fn version() -> &'static str {
+    option_env!("CARGO_VERSION_INFO").unwrap_or(env!("CARGO_PKG_VERSION"))
 }
 
 #[test]
