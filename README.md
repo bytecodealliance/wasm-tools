@@ -55,8 +55,8 @@ programmatically as well:
 | `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
 | `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
 | `wasm-tools component embed` |  | Embed a `component-type` custom section in a core wasm binary |
-| `wasm-tools metadata show` |  | Show name and producer metadata in a component or module |
-| `wasm-tools metadata add` | [wasm-metadata] | Add name or producer metadata to a component or module |
+| `wasm-tools metadata show` |  [wasm-metadata] | Show name and producer metadata in a component or module |
+| `wasm-tools metadata add` |  | Add name or producer metadata to a component or module |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat
