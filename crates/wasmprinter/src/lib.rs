@@ -1155,7 +1155,8 @@ impl Printer {
             //         ElementItem::Func(idx) => self.print_idx(&state.core.func_names, idx)?,
             match elem.items {
                 ElementItems::Functions(reader) => {
-                    self.print_reftype(elem.ty)?;
+                    // self.print_reftype(elem.ty)?;
+                    self.result.push_str("func");
                     for idx in reader {
                         self.result.push(' ');
                         self.print_idx(&state.core.func_names, idx?)?
