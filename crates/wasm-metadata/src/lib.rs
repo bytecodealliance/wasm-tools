@@ -50,8 +50,21 @@ impl Producers {
             }
         }
     }
+
+    /// Get the contents of a field
+    pub fn get<'a>(&'a self, field: &str) -> Option<ProducersField<'a>> {
+        self.0.get(&field.to_owned()).map(ProducersField)
+    }
+
+    /// Iterate through all fields
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a String, ProducersField<'a>)> + 'a {
+        self.0
+            .iter()
+            .map(|(name, field)| (name, ProducersField(field)))
+    }
+
     /// Add the fields specified by [`AddMetadata`]
-    pub fn add_meta(&mut self, add: &AddMetadata) {
+    fn add_meta(&mut self, add: &AddMetadata) {
         for lang in add.language.iter() {
             self.add("language", &lang, "");
         }
@@ -94,6 +107,20 @@ impl Producers {
 impl fmt::Display for Producers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.display(f, 0)
+    }
+}
+
+/// Contents of a producers field
+pub struct ProducersField<'a>(&'a IndexMap<String, String>);
+
+impl<'a> ProducersField<'a> {
+    /// Get the version associated with a name in the field
+    pub fn get(&self, name: &str) -> Option<&'a String> {
+        self.0.get(&name.to_owned())
+    }
+    /// Iterate through all name-version pairs in the field
+    pub fn iter(&self) -> impl Iterator<Item = (&'a String, &'a String)> + 'a {
+        self.0.iter()
     }
 }
 
@@ -574,4 +601,130 @@ fn indirect_name_map(
         out.append(m.index, &name_map(&m.names)?);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn add_to_empty_module() {
+        let wat = "(module)";
+        let module = wat::parse_str(wat).unwrap();
+        let add = AddMetadata {
+            name: Some("foo".to_owned()),
+            language: vec!["bar".to_owned()],
+            processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
+            sdk: vec![],
+        };
+        let module = add.to_wasm(&module).unwrap();
+
+        let metadata = Metadata::from_binary(&module).unwrap();
+        match metadata {
+            Metadata::Module { name, producers } => {
+                assert_eq!(name, Some("foo".to_owned()));
+                let producers = producers.expect("some producers");
+                assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+                assert_eq!(
+                    producers.get("processed-by").unwrap().get("baz").unwrap(),
+                    "1.0"
+                );
+            }
+            _ => panic!("metadata should be module"),
+        }
+    }
+
+    #[test]
+    fn add_to_empty_component() {
+        let wat = "(component)";
+        let component = wat::parse_str(wat).unwrap();
+        let add = AddMetadata {
+            name: Some("foo".to_owned()),
+            language: vec!["bar".to_owned()],
+            processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
+            sdk: vec![],
+        };
+        let component = add.to_wasm(&component).unwrap();
+
+        let metadata = Metadata::from_binary(&component).unwrap();
+        match metadata {
+            Metadata::Component {
+                name,
+                producers,
+                children,
+            } => {
+                assert!(children.is_empty());
+                assert_eq!(name, Some("foo".to_owned()));
+                let producers = producers.expect("some producers");
+                assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+                assert_eq!(
+                    producers.get("processed-by").unwrap().get("baz").unwrap(),
+                    "1.0"
+                );
+            }
+            _ => panic!("metadata should be component"),
+        }
+    }
+
+    #[test]
+    fn add_to_nested_component() {
+        // Create the same old module, stick some metadata into it
+        let wat = "(module)";
+        let module = wat::parse_str(wat).unwrap();
+        let add = AddMetadata {
+            name: Some("foo".to_owned()),
+            language: vec!["bar".to_owned()],
+            processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
+            sdk: vec![],
+        };
+        let module = add.to_wasm(&module).unwrap();
+
+        // Stick that module inside a component.
+        let mut component = wasm_encoder::Component::new();
+        component.section(&wasm_encoder::RawSection {
+            id: wasm_encoder::ComponentSectionId::CoreModule.into(),
+            data: &module,
+        });
+        let component = component.finish();
+
+        // Add some different metadata to the component.
+        let add = AddMetadata {
+            name: Some("gussie".to_owned()),
+            sdk: vec![("willa".to_owned(), "sparky".to_owned())],
+            ..Default::default()
+        };
+        let component = add.to_wasm(&component).unwrap();
+
+        let metadata = Metadata::from_binary(&component).unwrap();
+        match metadata {
+            Metadata::Component {
+                name,
+                producers,
+                children,
+            } => {
+                // Check that the component metadata is in the component
+                assert_eq!(name, Some("gussie".to_owned()));
+                let producers = producers.as_ref().expect("some producers");
+                assert_eq!(
+                    producers.get("sdk").unwrap().get("willa").unwrap(),
+                    &"sparky".to_owned()
+                );
+                // Check that there is a single child with the metadata set for the module
+                assert_eq!(children.len(), 1);
+                let child = children.get(0).unwrap();
+                match &**child {
+                    Metadata::Module { name, producers } => {
+                        assert_eq!(name, &Some("foo".to_owned()));
+                        let producers = producers.as_ref().expect("some producers");
+                        assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+                        assert_eq!(
+                            producers.get("processed-by").unwrap().get("baz").unwrap(),
+                            "1.0"
+                        );
+                    }
+                    _ => panic!("child is a module"),
+                }
+            }
+            _ => panic!("root should be component"),
+        }
+    }
 }

@@ -13,3 +13,6 @@ wasmparser = { workspace = true }
 wasm-encoder = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
+
+[dev-dependencies]
+wat = { workspace = true }
