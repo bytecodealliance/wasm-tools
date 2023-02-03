@@ -37,8 +37,8 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wasm-shrink",
     "wasm-compose",
     "wit-parser",
-    "wit-component",
     "wasm-metadata",
+    "wit-component",
     "wasm-tools",
 ];
 
