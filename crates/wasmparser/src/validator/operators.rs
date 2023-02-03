@@ -25,7 +25,7 @@
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, HeapType, Ieee32,
     Ieee64, MemArg, RefType, Result, ValType, VisitOperator, WasmFeatures, WasmFuncType,
-    WasmModuleResources, EXTERN_REF, FUNC_REF, V128,
+    WasmModuleResources, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -700,7 +700,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             Some(tab) => {
                 if !self
                     .resources
-                    .matches(ValType::Ref(tab.element_type), ValType::Ref(FUNC_REF))
+                    .matches(ValType::Ref(tab.element_type), ValType::FUNCREF)
                 {
                     bail!(
                         self.offset,
@@ -953,8 +953,8 @@ fn ty_to_str(ty: ValType) -> &'static str {
         ValType::F32 => "f32",
         ValType::F64 => "f64",
         ValType::V128 => "v128",
-        ValType::Ref(FUNC_REF) => "funcref",
-        ValType::Ref(EXTERN_REF) => "externref",
+        ValType::FUNCREF => "funcref",
+        ValType::EXTERNREF => "externref",
         ValType::Ref(RefType {
             nullable: false,
             heap_type: HeapType::Func,

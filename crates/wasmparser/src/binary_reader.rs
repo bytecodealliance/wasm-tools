@@ -687,22 +687,20 @@ impl<'a> BinaryReader<'a> {
 
         // Check for a block type of form [] -> [t].
         if ValType::is_valtype_byte(b) {
-            // TODO(dhil): refactor `maybe_read_val_type` into the `from_byte` logic.
-            // if let Some(ty) = ValType::from_byte(b) {
-            //     self.position += 1;
             return Ok(BlockType::Type(self.read()?));
         }
 
         // Not empty or a singular type, so read the function type index
         let idx = self.read_var_s33()?;
-        if idx < 0 || idx > i64::from(std::u32::MAX) {
-            return Err(BinaryReaderError::new(
-                "invalid function type",
-                self.original_position(),
-            ));
+        match u32::try_from(idx) {
+            Ok(idx) => Ok(BlockType::FuncType(idx)),
+            Err(_) => {
+                return Err(BinaryReaderError::new(
+                    "invalid function type",
+                    self.original_position(),
+                ));
+            }
         }
-
-        Ok(BlockType::FuncType(idx as u32))
     }
 
     /// Visit the next available operator with the specified [`VisitOperator`] instance.

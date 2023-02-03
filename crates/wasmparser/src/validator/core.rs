@@ -11,7 +11,6 @@ use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
     Global, GlobalType, HeapType, MemoryType, RefType, Result, Table, TableInit, TableType,
     TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources,
-    FUNC_REF,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -157,6 +156,13 @@ impl ModuleState {
                 }
             }
             TableInit::Expr(expr) => {
+                if !features.function_references {
+                    bail!(
+                        offset,
+                        "tables with expression initializers require \
+                         the function-references proposal"
+                    );
+                }
                 self.check_const_expr(expr, table.ty.element_type.into(), features, types)?;
             }
         }
@@ -192,7 +198,7 @@ impl ModuleState {
     ) -> Result<()> {
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
-        if e.ty != FUNC_REF {
+        if e.ty != RefType::FUNCREF {
             self.module
                 .check_value_type(ValType::Ref(e.ty), features, types, offset)?;
         }
@@ -251,7 +257,7 @@ impl ModuleState {
                 validate_count(count)?;
                 for f in reader.into_iter_with_offsets() {
                     let (offset, f) = f?;
-                    if e.ty != FUNC_REF {
+                    if e.ty != RefType::FUNCREF {
                         return Err(BinaryReaderError::new(
                             "type mismatch: segment does not have funcref type",
                             offset,
@@ -698,7 +704,7 @@ impl Module {
     ) -> Result<()> {
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
-        if ty.element_type != FUNC_REF {
+        if ty.element_type != RefType::FUNCREF {
             self.check_value_type(ValType::Ref(ty.element_type), features, types, offset)?
         }
 

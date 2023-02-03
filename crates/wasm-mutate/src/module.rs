@@ -42,8 +42,8 @@ impl From<wasmparser::ValType> for PrimitiveTypeInfo {
 impl From<wasmparser::RefType> for PrimitiveTypeInfo {
     fn from(value: wasmparser::RefType) -> Self {
         match value {
-            wasmparser::FUNC_REF => PrimitiveTypeInfo::FuncRef,
-            wasmparser::EXTERN_REF => PrimitiveTypeInfo::ExternRef,
+            wasmparser::RefType::FUNCREF => PrimitiveTypeInfo::FuncRef,
+            wasmparser::RefType::EXTERNREF => PrimitiveTypeInfo::ExternRef,
             _ => unimplemented!(),
         }
     }

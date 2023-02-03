@@ -15,13 +15,11 @@ pub enum ValType {
     ///
     /// Part of the SIMD proposal.
     V128,
-    /// A reference type from typed function references. In the proposal
-    /// `funcref` and `externref` are generalized to a reference type with the heap
-    /// type `func` or `extern.` This crate draws a distinction between `funcref`
-    /// and `(ref null func)` (similarly for extern) because the latter cannot be read by an
-    /// implementation that implements reference types but not function
-    /// references. When function references are enabled, there is no
-    /// difference, but the distinction is maintained.
+    /// A reference type.
+    ///
+    /// The `funcref` and `externref` type fall into this category and the full
+    /// generalization here is due to the implementation of the
+    /// function-references proposal.
     Ref(RefType),
 }
 
@@ -45,9 +43,11 @@ impl Encode for ValType {
     }
 }
 
-/// Part of the function references proposal. These types are only produced
-/// when the feature is enabled, despite sometimes being equivalent to FuncRef,
-/// because they're encoded differently.
+/// A reference type.
+///
+/// This is largely part of the function references proposal for WebAssembly but
+/// additionally is used by the `funcref` and `externref` types. The full
+/// generality of this type is only exercised with function-references.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[allow(missing_docs)]
 pub struct RefType {

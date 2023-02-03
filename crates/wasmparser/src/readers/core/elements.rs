@@ -14,7 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, FromReader, FUNC_REF, RefType, Result, SectionLimited,
+    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, FromReader, RefType, Result,
+    SectionLimited,
 };
 use std::ops::Range;
 
@@ -106,7 +107,7 @@ impl<'a> FromReader<'a> for Element<'a> {
                 reader.read()?
             } else {
                 match reader.read()? {
-                    ExternalKind::Func => FUNC_REF,
+                    ExternalKind::Func => RefType::FUNCREF,
                     _ => {
                         return Err(BinaryReaderError::new(
                             "only the function external type is supported in elem segment",
@@ -116,7 +117,7 @@ impl<'a> FromReader<'a> for Element<'a> {
                 }
             }
         } else {
-            FUNC_REF
+            RefType::FUNCREF
         };
         // FIXME(#188) ideally wouldn't have to do skips here
         let data = reader.skip(|reader| {

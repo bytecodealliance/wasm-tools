@@ -49,6 +49,19 @@ pub struct RefType {
     pub heap_type: HeapType,
 }
 
+impl RefType {
+    /// Alias for the wasm `funcref` type.
+    pub const FUNCREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Func,
+    };
+    /// Alias for the wasm `externref` type.
+    pub const EXTERNREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Extern,
+    };
+}
+
 impl From<RefType> for ValType {
     fn from(ty: RefType) -> ValType {
         ValType::Ref(ty)
@@ -92,20 +105,12 @@ pub enum HeapType {
     Bot,
 }
 
-/// funcref, in both reference types and function references, represented
-/// using the general ref syntax
-pub const FUNC_REF: RefType = RefType {
-    nullable: true,
-    heap_type: HeapType::Func,
-};
-/// externref, in both reference types and function references, represented
-/// using the general ref syntax
-pub const EXTERN_REF: RefType = RefType {
-    nullable: true,
-    heap_type: HeapType::Extern,
-};
-
 impl ValType {
+    /// Alias for the wasm `funcref` type.
+    pub const FUNCREF: ValType = ValType::Ref(RefType::FUNCREF);
+    /// Alias for the wasm `externref` type.
+    pub const EXTERNREF: ValType = ValType::Ref(RefType::EXTERNREF);
+
     /// Returns whether this value type is a "reference type".
     ///
     /// Only reference types are allowed in tables, for example, and with some
@@ -165,8 +170,8 @@ impl<'a> FromReader<'a> for ValType {
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read()? {
-            0x70 => Ok(FUNC_REF),
-            0x6F => Ok(EXTERN_REF),
+            0x70 => Ok(RefType::FUNCREF),
+            0x6F => Ok(RefType::EXTERNREF),
             byte @ (0x6B | 0x6C) => Ok(RefType {
                 nullable: byte == 0x6C,
                 heap_type: reader.read()?,

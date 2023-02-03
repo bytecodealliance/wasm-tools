@@ -693,9 +693,9 @@ impl Printer {
     }
 
     fn print_reftype(&mut self, ty: RefType) -> Result<()> {
-        if ty == FUNC_REF {
+        if ty == RefType::FUNCREF {
             self.result.push_str("funcref");
-        } else if ty == EXTERN_REF {
+        } else if ty == RefType::EXTERNREF {
             self.result.push_str("externref");
         } else {
             self.result.push_str("(ref ");

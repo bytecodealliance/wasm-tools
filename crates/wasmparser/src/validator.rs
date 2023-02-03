@@ -1362,7 +1362,7 @@ impl Validator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{GlobalType, MemoryType, TableType, ValType, Validator, WasmFeatures, FUNC_REF};
+    use crate::{GlobalType, MemoryType, RefType, TableType, ValType, Validator, WasmFeatures};
     use anyhow::Result;
 
     #[test]
@@ -1431,7 +1431,7 @@ mod tests {
             Some(TableType {
                 initial: 10,
                 maximum: None,
-                element_type: FUNC_REF,
+                element_type: RefType::FUNCREF,
             })
         );
 
@@ -1459,7 +1459,7 @@ mod tests {
             _ => unreachable!(),
         }
 
-        assert_eq!(types.element_at(0), Some(FUNC_REF));
+        assert_eq!(types.element_at(0), Some(RefType::FUNCREF));
 
         Ok(())
     }

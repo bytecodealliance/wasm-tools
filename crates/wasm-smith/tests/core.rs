@@ -253,7 +253,7 @@ fn import_config(
             ("env", "pipo", Func(&[I32], &[I32])),
             ("env", "popo", Func(&[], &[I32, I32])),
             ("env", "mem", Memory),
-            ("env", "tbl", Table(Ref(wasmparser::FUNC_REF))),
+            ("env", "tbl", Table(ValType::FUNCREF)),
             ("vars", "g", Global(I64)),
             ("tags", "tag1", Tag(&[I32])),
         ]
