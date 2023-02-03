@@ -35,11 +35,11 @@
  0x42 | 41 03       | i32_const value:3
  0x44 | 0b          | end
  0x45 | 01          | 1 items
- 0x46 | 00          | item Func(0)
+ 0x46 | 00          | item 0
  0x47 | 01 00 01    | element RefType { nullable: true, heap_type: Func } passive, 1 items
- 0x4a | 00          | item Func(0)
+ 0x4a | 00          | item 0
  0x4b | 03 00 01    | element RefType { nullable: true, heap_type: Func } declared 1 items
- 0x4e | 00          | item Func(0)
+ 0x4e | 00          | item 0
  0x4f | 0a 10       | code section
  0x51 | 03          | 3 count
 ============== func 1 ====================
