@@ -2,4 +2,4 @@
   (module
     (func let)
   )
-  "fill me in once wasmparser implements validation")
+  "illegal opcode: 0x17")
