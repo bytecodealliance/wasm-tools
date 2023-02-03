@@ -143,9 +143,9 @@ impl<'a> ModuleInfo<'a> {
                     info.table_count += reader.count();
                     info.section(SectionId::Table.into(), reader.range(), input_wasm);
 
-                    for ty in reader {
-                        let ty = ty?;
-                        let ty = PrimitiveTypeInfo::try_from(ty.element_type).unwrap();
+                    for table in reader {
+                        let table = table?;
+                        let ty = PrimitiveTypeInfo::try_from(table.element_type).unwrap();
                         info.table_elem_types.push(ty);
                     }
                 }
