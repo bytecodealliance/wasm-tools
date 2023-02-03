@@ -15,6 +15,7 @@ Tooling for working with `*.wit` and component files together.
 [dependencies]
 wasmparser = { workspace = true }
 wasm-encoder = { workspace = true }
+wasm-metadata = { workspace = true }
 wit-parser = { workspace = true }
 anyhow = { workspace = true }
 log = "0.4.17"

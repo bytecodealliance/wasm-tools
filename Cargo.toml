@@ -43,6 +43,7 @@ url = "2.3.1"
 
 wasm-encoder = { version = "0.22.0", path = "crates/wasm-encoder"}
 wasm-compose = { version = "0.2.5", path = "crates/wasm-compose"}
+wasm-metadata = { version = "0.1.0", path = "crates/wasm-metadata" }
 wasm-mutate = { version = "0.2.16", path = "crates/wasm-mutate" }
 wasm-shrink = { version = "0.1.17", path = "crates/wasm-shrink" }
 wasm-smith = { version = "0.12.0", path = "crates/wasm-smith" }
@@ -102,6 +103,9 @@ wit-component = { workspace = true, optional = true, features = ['dummy-module']
 wit-parser = { workspace = true, optional = true }
 wast = { workspace = true, optional = true }
 
+# Dependencies of `metadata`
+wasm-metadata = { workspace = true, features = ["clap"], optional = true }
+
 [dev-dependencies]
 serde_json = "1.0"
 tempfile = "3.1"
@@ -132,6 +136,7 @@ default = [
   'compose',
   'demangle',
   'component',
+  'metadata',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -147,3 +152,4 @@ strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']
 component = ['wit-component', 'wit-parser', 'wast', 'wasm-encoder', 'wasmparser']
+metadata = ['wasmparser', 'wasm-metadata', 'serde_json' ]

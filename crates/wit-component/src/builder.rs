@@ -32,6 +32,7 @@ pub struct ComponentBuilder {
 
 impl ComponentBuilder {
     pub fn finish(mut self) -> Vec<u8> {
+        self.component.section(&crate::producer_section());
         self.flush();
         self.component.finish()
     }

@@ -74,3 +74,11 @@ impl From<StringEncoding> for wasm_encoder::CanonicalOption {
         }
     }
 }
+
+/// A producer section to be added to all modules and components synthesized by
+/// this crate
+pub(crate) fn producer_section() -> wasm_encoder::ProducersSection {
+    let mut producer = wasm_metadata::Producers::empty();
+    producer.add("processed-by", "wit-component", env!("CARGO_PKG_VERSION"));
+    producer.section()
+}
