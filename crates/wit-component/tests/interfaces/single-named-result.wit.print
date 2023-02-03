@@ -1,0 +1,4 @@
+interface foo {
+  a: func() -> (a: u32)
+}
+

@@ -568,6 +568,7 @@ instructions! {
         MemoryInit(MemoryInit<'a>) : [0xfc, 0x08] : "memory.init",
         MemoryCopy(MemoryCopy<'a>) : [0xfc, 0x0a] : "memory.copy",
         MemoryFill(MemoryArg<'a>) : [0xfc, 0x0b] : "memory.fill",
+        MemoryDiscard(MemoryArg<'a>) : [0xfc, 0x12] : "memory.discard",
         DataDrop(Index<'a>) : [0xfc, 0x09] : "data.drop",
         ElemDrop(Index<'a>) : [0xfc, 0x0d] : "elem.drop",
         TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",

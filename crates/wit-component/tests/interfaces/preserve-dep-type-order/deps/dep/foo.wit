@@ -1,0 +1,8 @@
+default interface foo {
+  enum a {
+    b
+  }
+
+  record ty {
+  }
+}

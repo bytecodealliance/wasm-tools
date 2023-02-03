@@ -1,0 +1,5 @@
+interface not defined in document
+     --> tests/ui/parse-fail/bad-pkg6/root.wit:2:15
+      |
+    2 |   use bar.baz.nonexistent.{}
+      |               ^----------

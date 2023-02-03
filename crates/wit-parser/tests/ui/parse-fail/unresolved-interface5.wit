@@ -1,0 +1,5 @@
+// parse-fail
+
+world foo {
+  import foo: pkg.unresolved-interface5.bar
+}

@@ -1,8 +1,0 @@
-world new-foo-world {
-  import other1: interface {
-    foo: func()
-  }
-  import other2: interface {
-    bar: func()
-  }
-}

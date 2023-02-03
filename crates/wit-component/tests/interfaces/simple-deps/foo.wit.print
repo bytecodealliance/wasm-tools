@@ -1,0 +1,4 @@
+interface foo {
+  use some-dep.types.types.{some-type}
+}
+

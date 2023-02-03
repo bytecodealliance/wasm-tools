@@ -1,0 +1,9 @@
+interface shared {
+  type foo = u32
+}
+
+default interface a {
+  use self.shared.{foo}
+
+  a: func() -> foo
+}

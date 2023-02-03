@@ -1,0 +1,8 @@
+// parse-fail
+
+world foo {
+}
+
+interface bar {
+  use pkg.use-from-package-world.foo.{x}
+}

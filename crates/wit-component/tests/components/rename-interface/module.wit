@@ -1,0 +1,14 @@
+interface foo {
+  record bar {}
+
+  a: func() -> bar
+}
+
+default world the-world {
+  import different-name: self.foo
+  import other-name: interface {
+    use self.foo.{bar}
+
+    a: func() -> bar
+  }
+}

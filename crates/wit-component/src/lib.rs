@@ -14,11 +14,16 @@ mod gc;
 mod printing;
 mod validation;
 
-pub use decoding::decode_world;
-pub use encoding::ComponentEncoder;
+pub use decoding::{decode, DecodedWasm};
+pub use encoding::{encode, ComponentEncoder};
 pub use printing::*;
 
 pub mod metadata;
+
+#[cfg(feature = "dummy-module")]
+pub use dummy::dummy_module;
+#[cfg(feature = "dummy-module")]
+mod dummy;
 
 /// Supported string encoding formats.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -68,4 +73,12 @@ impl From<StringEncoding> for wasm_encoder::CanonicalOption {
             StringEncoding::CompactUTF16 => CanonicalOption::CompactUTF16,
         }
     }
+}
+
+/// A producer section to be added to all modules and components synthesized by
+/// this crate
+pub(crate) fn producer_section() -> wasm_encoder::ProducersSection {
+    let mut producer = wasm_metadata::Producers::empty();
+    producer.add("processed-by", "wit-component", env!("CARGO_PKG_VERSION"));
+    producer.section()
 }

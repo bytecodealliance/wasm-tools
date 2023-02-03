@@ -1,0 +1,5 @@
+cannot use function `x` as a type
+     --> tests/ui/parse-fail/invalid-type-reference2.wit:3:16
+      |
+    3 |   y: func() -> x
+      |                ^

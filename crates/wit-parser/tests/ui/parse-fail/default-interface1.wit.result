@@ -1,0 +1,5 @@
+cannot specify more than one `default` interface
+     --> tests/ui/parse-fail/default-interface1.wit:3:19
+      |
+    3 | default interface bar {}
+      |                   ^--

@@ -1,0 +1,17 @@
+interface foo {
+  type a = u32
+
+  type b = a
+
+  type c = b
+
+}
+
+interface bar {
+  use self.foo.{c}
+}
+
+interface baz {
+  use self.bar.{c}
+}
+

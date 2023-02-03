@@ -4,7 +4,7 @@
       (type (;0;)
         (instance)
       )
-      (export "a" (instance (type 0)))
+      (export (;0;) "a" (instance (type 0)))
     )
   )
 )

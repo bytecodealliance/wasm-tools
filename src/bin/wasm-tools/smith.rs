@@ -146,6 +146,9 @@ struct Config {
     #[clap(long = "reference-types")]
     #[serde(rename = "reference-types")]
     reference_types_enabled: Option<bool>,
+    #[clap(long = "tail-call")]
+    #[serde(rename = "tail-call")]
+    tail_call_enabled: Option<bool>,
     #[clap(long = "simd")]
     #[serde(rename = "simd")]
     simd_enabled: Option<bool>,
@@ -297,6 +300,7 @@ impl wasm_smith::Config for CliAndJsonConfig {
         (min_uleb_size, u8, 1),
         (bulk_memory_enabled, bool, true),
         (reference_types_enabled, bool, true),
+        (tail_call_enabled, bool, true),
         (simd_enabled, bool, true),
         (relaxed_simd_enabled, bool, false),
         (exceptions_enabled, bool, false),

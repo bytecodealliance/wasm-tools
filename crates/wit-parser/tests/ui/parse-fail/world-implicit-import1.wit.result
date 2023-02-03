@@ -1,0 +1,6 @@
+import of `foo` conflicts with a previously imported interface using the name `foo`
+
+     --> tests/ui/parse-fail/world-implicit-import1.wit:9:10
+      |
+    9 |   import foo: interface {}
+      |          ^--

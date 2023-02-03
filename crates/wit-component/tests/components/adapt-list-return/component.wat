@@ -3,7 +3,7 @@
     (instance
       (type (;0;) (list u8))
       (type (;1;) (func (result 0)))
-      (export "read" (func (type 1)))
+      (export (;0;) "read" (func (type 1)))
     )
   )
   (import "new" (instance (;0;) (type 0)))

@@ -21,8 +21,7 @@ $ wasm-tools component wit component.wasm
 * Creates WebAssembly [component binaries][model] from input core WebAssembly
   modules. Input modules communicate with the [canonical ABI] to imported and
   exported interfaces described with [`*.wit` files][wit]. The wit interface is
-  either embedded directly in the core wasm binary if it was generated with
-  [`wit-bindgen`] or it can be manually specified with a `--wit` flag.
+  either embedded directly in the core wasm binary.
 
 * Supports "adapters" which can be used to bridge legacy core WebAssembly
   imported functions into [component model][model] functions. Adapters are
@@ -36,7 +35,6 @@ $ wasm-tools component wit component.wasm
 [model]: https://github.com/webassembly/component-model
 [canonical ABI]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md
 [wit]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md
-[`wit-bindgen`]: https://github.com/bytecodealliance/wit-bindgen
 
 ## Usage
 
@@ -46,20 +44,18 @@ day-to-day, instead using wrappers such as
 [`cargo-component`](https://github.com/bytecodealliance/cargo-component) which
 will automatically execute `wit-component` to produce component binaries.
 
-First `wit-component` supports a "types only" mode where a core wasm input is
-not necessary. This mode is used when embedding type information in a core wasm
-binary, for example:
+First `wit-component` supports the wasm-based encoding of a WIT package:
 
 ```sh
 $ cat demo.wit
 interface host {
   hello: func()
 }
-world demo {
-  import host: host
+default world demo {
+  import host: self.host
 }
 
-$ wasm-tools component new --types-only --wit demo.wit -o demo.wasm
+$ wasm-tools component wit demo.wit -o demo.wasm --wasm
 
 # The output `demo.wasm` is a valid component binary
 $ wasm-tools validate --features component-model demo.wasm
@@ -69,7 +65,7 @@ $ wasm-tools print demo.wasm
 $ wasm-tools component wit demo.wasm
 ```
 
-Toolchain authors can use `wit-component` to embed this "types only" section
+Toolchain authors can use `wit-component` to embed this component types section
 into a core wasm binary. For a small demo here a raw `*.wat` wasm text file will
 be used where the `demo.wit` argument is specified manually, however.
 
@@ -79,15 +75,21 @@ $ cat demo.core.wat
   (import "host" "hello" (func))
 )
 
-$ wasm-tools component new --wit demo.wit demo.core.wat -o demo.wasm
+$ wasm-tools component embed demo.wit --world demo demo.core.wat -o demo.wasm
+
+# See that there's a new `component-type` custom section
+$ wasm-tools objdump demo.wasm
+
+# Convert the core wasm into a component now
+$ wasm-tools component new demo.wasm -o demo.component.wasm
 
 # Like before the output `demo.wasm` is a valid component binary
-$ wasm-tools validate --features component-model demo.wasm
-$ wasm-tools print demo.wasm
+$ wasm-tools validate --features component-model demo.component.wasm
+$ wasm-tools print demo.component.wasm
 
 # Additionally like before the `*.wit` interface can still be extracted
-$ wasm-tools component wit demo.wasm
+$ wasm-tools component wit demo.component.wasm
 ```
 
-Here the `demo.wasm` can now be shipped to a component runtime or embedded into
-hosts.
+Here the `demo.component.wasm` can now be shipped to a component runtime or
+embedded into hosts.

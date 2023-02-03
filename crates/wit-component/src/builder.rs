@@ -32,6 +32,7 @@ pub struct ComponentBuilder {
 
 impl ComponentBuilder {
     pub fn finish(mut self) -> Vec<u8> {
+        self.component.section(&crate::producer_section());
         self.flush();
         self.component.finish()
     }
@@ -147,6 +148,12 @@ impl ComponentBuilder {
         ret
     }
 
+    pub fn component_type(&mut self, ty: &ComponentType) -> u32 {
+        let ret = inc(&mut self.types);
+        self.types().component(ty);
+        ret
+    }
+
     pub fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
         (inc(&mut self.types), self.types().defined_type())
     }
@@ -160,15 +167,6 @@ impl ComponentBuilder {
             instance,
             kind: ComponentExportKind::Type,
             name,
-        });
-        inc(&mut self.types)
-    }
-
-    pub fn alias_outer_type(&mut self, count: u32, index: u32) -> u32 {
-        self.aliases().alias(Alias::Outer {
-            count,
-            kind: ComponentOuterAliasKind::Type,
-            index,
         });
         inc(&mut self.types)
     }

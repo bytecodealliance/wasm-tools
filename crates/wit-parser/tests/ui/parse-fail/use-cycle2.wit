@@ -1,0 +1,5 @@
+// parse-fail
+
+interface foo {
+  use pkg.use-cycle2.foo.{bar}
+}

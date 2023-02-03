@@ -142,15 +142,13 @@ impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
             0x70 | 0x6F | 0x6B | 0x6C => Ok(ValType::Ref(reader.read()?)),
-            byte => {
-                match ValType::numeric_from_byte(byte) {
-                    Some(ty) => {
-                        reader.position += 1;
-                        Ok(ty)
-                    }
-                    None => bail!(reader.original_position(), "invalid value type"),
+            byte => match ValType::numeric_from_byte(byte) {
+                Some(ty) => {
+                    reader.position += 1;
+                    Ok(ty)
                 }
-            }
+                None => bail!(reader.original_position(), "invalid value type"),
+            },
         }
     }
 }
@@ -166,12 +164,10 @@ impl<'a> FromReader<'a> for RefType {
                 reader.position += 1;
                 Ok(EXTERN_REF)
             }
-            byte @ (0x6B | 0x6C) => {
-                Ok(RefType {
-                    nullable: byte == 0x6C,
-                    heap_type: reader.read()?
-                })
-            }
+            byte @ (0x6B | 0x6C) => Ok(RefType {
+                nullable: byte == 0x6C,
+                heap_type: reader.read()?,
+            }),
             _ => bail!(reader.original_position(), "malformed reference type"),
         }
     }
@@ -191,13 +187,16 @@ impl<'a> FromReader<'a> for HeapType {
             x if 0x80 & x == 0 => {
                 let idx = reader.read_var_s33()?;
                 if idx < 0 || idx > (std::u16::MAX as i64) {
-                    bail!(reader.original_position(),
-                          "invalid function heap type");
+                    bail!(reader.original_position(), "invalid function heap type");
                 } else {
                     Ok((idx as u32).try_into().unwrap())
                 }
             }
-            x => bail!(reader.original_position(), "{}", format!("unknown heap type subopcode: 0x{:x}", x)),
+            x => bail!(
+                reader.original_position(),
+                "{}",
+                format!("unknown heap type subopcode: 0x{:x}", x)
+            ),
         }
     }
 }

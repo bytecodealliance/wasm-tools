@@ -1,0 +1,10 @@
+interface b {
+  record the-type {
+  }
+
+}
+
+interface a {
+  use self.b.{the-type}
+}
+

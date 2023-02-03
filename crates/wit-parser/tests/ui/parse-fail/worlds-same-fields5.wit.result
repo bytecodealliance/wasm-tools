@@ -1,0 +1,9 @@
+import of `i1`
+  .. which is depended on by import `i2`
+  .. which is depended on by export `i3`
+conflicts with a previously imported interface using the name `i1`
+
+     --> tests/ui/parse-fail/worlds-same-fields5.wit:15:10
+      |
+   15 |   export i3: self.i3
+      |          ^-

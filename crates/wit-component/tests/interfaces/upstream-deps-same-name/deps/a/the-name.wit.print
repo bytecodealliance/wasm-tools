@@ -1,0 +1,5 @@
+interface the-iface {
+  type ty = u8
+
+}
+

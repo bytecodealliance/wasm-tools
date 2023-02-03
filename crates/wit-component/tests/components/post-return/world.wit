@@ -1,5 +1,0 @@
-world foo {
-  default export interface {
-    a: func() -> string
-  }
-}

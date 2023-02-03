@@ -1,0 +1,11 @@
+interface types {
+  enum level {
+    info,
+    debug,
+  }
+}
+
+interface console {
+  use self.types.{level}
+  log: func(level: level, msg: string)
+}

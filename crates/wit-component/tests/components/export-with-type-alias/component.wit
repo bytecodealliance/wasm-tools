@@ -1,0 +1,11 @@
+interface foo {
+  type a = u8
+
+  type b = a
+
+  c: func(a: b) -> b
+}
+
+default world component {
+  export foo: self.foo
+}

@@ -1,0 +1,5 @@
+name `x` is not defined
+     --> tests/ui/parse-fail/unresolved-use2.wit:4:17
+      |
+    4 |   use self.bar.{x}
+      |                 ^

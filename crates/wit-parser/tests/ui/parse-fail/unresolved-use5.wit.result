@@ -1,0 +1,5 @@
+no `default` interface in document to use from
+     --> tests/ui/parse-fail/unresolved-use5.wit:4:11
+      |
+    4 |   use pkg.unresolved-use5.{x}
+      |           ^--------------

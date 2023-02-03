@@ -2,14 +2,14 @@
   (type (;0;)
     (instance
       (type (;0;) (func))
-      (export "foo" (func (type 0)))
+      (export (;0;) "foo" (func (type 0)))
     )
   )
   (import "foo" (instance (;0;) (type 0)))
   (type (;1;)
     (instance
       (type (;0;) (func (param "code" u32)))
-      (export "proc-exit" (func (type 0)))
+      (export (;0;) "proc-exit" (func (type 0)))
     )
   )
   (import "my-wasi" (instance (;1;) (type 1)))
@@ -18,8 +18,8 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (param i32 i32) (result i32)))
     (import "foo" "foo" (func (;0;) (type 0)))
-    (import "wasi_snapshot_preview1" "proc_exit" (func (;1;) (type 1)))
-    (import "wasi_snapshot_preview1" "random_get" (func (;2;) (type 2)))
+    (import "wasi-snapshot-preview1" "proc_exit" (func (;1;) (type 1)))
+    (import "wasi-snapshot-preview1" "random_get" (func (;2;) (type 2)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
   )
@@ -40,20 +40,20 @@
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32) (result i32)))
-    (func $adapt-wasi_snapshot_preview1-proc_exit (;0;) (type 0) (param i32)
+    (func $adapt-wasi-snapshot-preview1-proc_exit (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (func $adapt-wasi_snapshot_preview1-random_get (;1;) (type 1) (param i32 i32) (result i32)
+    (func $adapt-wasi-snapshot-preview1-random_get (;1;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 1
       call_indirect (type 1)
     )
     (table (;0;) 2 2 funcref)
-    (export "0" (func $adapt-wasi_snapshot_preview1-proc_exit))
-    (export "1" (func $adapt-wasi_snapshot_preview1-random_get))
+    (export "0" (func $adapt-wasi-snapshot-preview1-proc_exit))
+    (export "1" (func $adapt-wasi-snapshot-preview1-random_get))
     (export "$imports" (table 0))
   )
   (core module (;3;)
@@ -78,7 +78,7 @@
   )
   (core instance (;3;) (instantiate 0
       (with "foo" (instance 1))
-      (with "wasi_snapshot_preview1" (instance 2))
+      (with "wasi-snapshot-preview1" (instance 2))
     )
   )
   (alias core export 3 "memory" (core memory (;0;)))

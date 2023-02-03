@@ -221,6 +221,7 @@ fn wasm_features() -> WasmFeatures {
         relaxed_simd: true,
         memory64: true,
         exceptions: true,
+        tail_call: true,
         ..WasmFeatures::default()
     }
 }
@@ -293,13 +294,14 @@ fn parser_features_from_config(config: &impl Config) -> WasmFeatures {
         multi_memory: config.max_memories() > 1,
         exceptions: config.exceptions_enabled(),
         memory64: config.memory64_enabled(),
+        tail_call: config.tail_call_enabled(),
 
         threads: false,
-        tail_call: false,
         floats: true,
         extended_const: false,
         component_model: false,
         function_references: false,
+        memory_control: false,
     }
 }
 

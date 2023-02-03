@@ -1,0 +1,5 @@
+dependency on `nonexistent` doesn't exist at: tests/ui/parse-fail/bad-pkg1/deps/nonexistent
+     --> tests/ui/parse-fail/bad-pkg1/root.wit:2:7
+      |
+    2 |   use nonexistent.foo.{}
+      |       ^----------

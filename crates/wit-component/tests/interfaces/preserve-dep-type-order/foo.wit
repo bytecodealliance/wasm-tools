@@ -1,0 +1,7 @@
+interface foo {
+  use dep.foo.{ty}
+}
+
+world bar {
+  import foo: dep.foo
+}

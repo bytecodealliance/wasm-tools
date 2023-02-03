@@ -1,0 +1,5 @@
+name `foo` is defined as a world, not an interface
+     --> tests/ui/parse-fail/unresolved-interface1.wit:4:20
+      |
+    4 |   import foo: self.foo
+      |                    ^--

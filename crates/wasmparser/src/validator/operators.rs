@@ -636,7 +636,9 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn check_block_type(&self, ty: BlockType) -> Result<()> {
         match ty {
             BlockType::Empty => Ok(()),
-            BlockType::Type(t) => self.resources.check_value_type(t, &self.features, self.offset),
+            BlockType::Type(t) => self
+                .resources
+                .check_value_type(t, &self.features, self.offset),
             // BlockType::Type(ty) => self
             //     .features
             //     .check_value_type(ty)
@@ -1026,6 +1028,7 @@ macro_rules! validate_proposal {
     (desc exceptions) => ("exceptions");
     (desc tail_call) => ("tail calls");
     (desc function_references) => ("function references");
+    (desc memory_control) => ("memory control");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -1339,7 +1342,7 @@ where
         Ok(())
     }
     fn visit_typed_select(&mut self, ty: ValType) -> Self::Output {
-            self.resources
+        self.resources
             .check_value_type(ty, &self.features, self.offset)?;
         // self.features
         //     .check_value_type(ty)
@@ -3210,6 +3213,12 @@ where
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ty))?;
+        Ok(())
+    }
+    fn visit_memory_discard(&mut self, mem: u32) -> Self::Output {
+        let ty = self.check_memory_index(mem)?;
+        self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
         Ok(())
     }

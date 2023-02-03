@@ -1,0 +1,7 @@
+interface console {
+  log: func(arg: string)
+}
+
+world the-world {
+  import console: self.console
+}

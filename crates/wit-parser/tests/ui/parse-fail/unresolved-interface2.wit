@@ -1,0 +1,6 @@
+// parse-fail
+
+world foo {
+  import foo: self.bar
+}
+

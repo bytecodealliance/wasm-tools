@@ -1,0 +1,10 @@
+interface bar {}
+
+interface foo {
+  name: func(x: bool)
+}
+
+default world my-world {
+  import unused: self.bar
+  import foo: self.foo
+}

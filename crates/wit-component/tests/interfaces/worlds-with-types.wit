@@ -1,0 +1,20 @@
+world simple {
+  record foo {
+  }
+
+  type bar = foo
+
+  import a: func(a: foo) -> bar
+  export a: func(a: foo) -> bar
+}
+
+interface import-me {
+  type foo = u32
+}
+
+world with-imports {
+  use self.import-me.{foo}
+
+  import a: func(a: foo)
+  export a: func(a: foo)
+}

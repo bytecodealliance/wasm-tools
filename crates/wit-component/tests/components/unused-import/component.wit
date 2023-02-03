@@ -1,0 +1,7 @@
+interface foo {
+  name: func(x: bool)
+}
+
+default world component {
+  import foo: self.foo
+}

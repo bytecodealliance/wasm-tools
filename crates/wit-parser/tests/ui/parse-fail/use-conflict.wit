@@ -1,0 +1,9 @@
+// parse-fail
+
+interface foo {
+  type x = u32
+}
+
+interface bar {
+  use self.foo.{x, x}
+}
