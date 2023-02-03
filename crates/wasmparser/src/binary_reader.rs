@@ -695,7 +695,7 @@ impl<'a> BinaryReader<'a> {
 
         // Not empty or a singular type, so read the function type index
         let idx = self.read_var_s33()?;
-        if idx < 0 || idx > (std::u32::MAX as i64) {
+        if idx < 0 || idx > i64::from(std::u32::MAX) {
             return Err(BinaryReaderError::new(
                 "invalid function type",
                 self.original_position(),
@@ -978,7 +978,6 @@ impl<'a> BinaryReader<'a> {
             0xd3 => visitor.visit_ref_as_non_null(),
             0xd4 => visitor.visit_br_on_null(self.read_var_u32()?),
             0xd6 => visitor.visit_br_on_non_null(self.read_var_u32()?),
-
 
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
             0xfd => self.visit_0xfd_operator(pos, visitor)?,

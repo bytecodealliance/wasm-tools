@@ -85,8 +85,7 @@ impl Encode for HeapType {
         match self {
             HeapType::Func => sink.push(0x70),
             HeapType::Extern => sink.push(0x6F),
-            HeapType::Index(i) if i & 0x80 != 0 => i.encode(sink),
-            _ => panic!("invalid heap_type"),
+            HeapType::Index(i) => i.encode(sink),
         }
     }
 }

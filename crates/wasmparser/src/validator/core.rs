@@ -8,9 +8,10 @@ use super::{
 use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType, FUNC_REF,
-    Global, GlobalType, HeapType, MemoryType, RefType, Result, TableType, TagType, TypeRef, ValType, VisitOperator,
-    WasmFeatures, WasmFuncType, WasmModuleResources,
+    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
+    Global, GlobalType, HeapType, MemoryType, RefType, Result, Table, TableInit, TableType,
+    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources,
+    FUNC_REF,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -136,6 +137,40 @@ impl ModuleState {
             .check_global_type(&global.ty, features, types, offset)?;
         self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
+        Ok(())
+    }
+
+    pub fn add_table(
+        &mut self,
+        table: Table<'_>,
+        features: &WasmFeatures,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<()> {
+        self.module
+            .check_table_type(&table.ty, features, types, offset)?;
+
+        match &table.init {
+            TableInit::RefNull(ty) => {
+                if !table.ty.element_type.nullable {
+                    bail!(offset, "non-defaultable element type",);
+                }
+                let reftype = RefType {
+                    nullable: true,
+                    heap_type: *ty,
+                };
+                if !self
+                    .module
+                    .matches(table.ty.element_type.into(), reftype.into(), types)
+                {
+                    bail!(offset, "table initializer does not match table type");
+                }
+            }
+            TableInit::Expr(expr) => {
+                self.check_const_expr(expr, table.ty.element_type.into(), features, types)?;
+            }
+        }
+        self.module.assert_mut().tables.push(table.ty);
         Ok(())
     }
 
@@ -592,18 +627,6 @@ impl Module {
         Ok(())
     }
 
-    pub fn add_table(
-        &mut self,
-        ty: TableType,
-        features: &WasmFeatures,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
-        self.check_table_type(&ty, features, types, offset)?;
-        self.tables.push(ty);
-        Ok(())
-    }
-
     pub fn add_memory(
         &mut self,
         ty: MemoryType,
@@ -683,12 +706,6 @@ impl Module {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        if !ty.element_type.nullable {
-            return Err(BinaryReaderError::new(
-                "non-defaultable element type",
-                offset,
-            ));
-        }
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
         if ty.element_type != FUNC_REF {

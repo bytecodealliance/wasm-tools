@@ -1,0 +1,30 @@
+(module
+  (type $t (;0;) (func))
+  (type (;1;) (func (param (ref null 0))))
+  (type (;2;) (func (param funcref)))
+  (type (;3;) (func (param externref)))
+  (func (;0;) (type 1) (param $r (ref null 0))
+    block (result (ref 0)) ;; label = @1
+      local.get $r
+      br_on_non_null 0 (;@1;)
+      unreachable
+    end
+    drop
+  )
+  (func (;1;) (type 2) (param $r funcref)
+    block (result (ref func)) ;; label = @1
+      local.get $r
+      br_on_non_null 0 (;@1;)
+      unreachable
+    end
+    drop
+  )
+  (func (;2;) (type 3) (param $r externref)
+    block (result (ref extern)) ;; label = @1
+      local.get $r
+      br_on_non_null 0 (;@1;)
+      unreachable
+    end
+    drop
+  )
+)
