@@ -639,10 +639,6 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             BlockType::Type(t) => self
                 .resources
                 .check_value_type(t, &self.features, self.offset),
-            // BlockType::Type(ty) => self
-            //     .features
-            //     .check_value_type(ty)
-            //     .map_err(|e| BinaryReaderError::new(e, self.offset)),
             BlockType::FuncType(idx) => {
                 if !self.features.multi_value {
                     bail!(
@@ -1344,9 +1340,6 @@ where
     fn visit_typed_select(&mut self, ty: ValType) -> Self::Output {
         self.resources
             .check_value_type(ty, &self.features, self.offset)?;
-        // self.features
-        //     .check_value_type(ty)
-        //     .map_err(|e| BinaryReaderError::new(e, self.offset))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
@@ -2189,10 +2182,15 @@ where
         Ok(())
     }
     fn visit_ref_null(&mut self, heap_type: HeapType) -> Self::Output {
-        match heap_type {
-            HeapType::Extern | HeapType::Func | HeapType::Bot => {}
-            HeapType::TypedFunc(_) => {} // TODO(dhil): check validity of function index?
-        }
+        self.resources.check_value_type(
+            RefType {
+                nullable: true,
+                heap_type,
+            }
+            .into(),
+            &self.features,
+            self.offset,
+        )?;
         self.push_operand(ValType::Ref(RefType {
             nullable: true,
             heap_type,
