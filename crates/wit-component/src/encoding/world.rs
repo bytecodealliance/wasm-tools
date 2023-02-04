@@ -119,7 +119,7 @@ impl<'a> ComponentWorld<'a> {
         }
         let mut add_func = |func: &Function, name: Option<&str>| {
             let name = func.core_export_name(name);
-            let ty = resolve.wasm_signature(AbiVariant::GuestExport, func);
+            let ty = resolve.wasm_signature(Some(AbiVariant::GuestExport), func);
             let prev = required.insert(
                 name.into_owned(),
                 wasmparser::FuncType::new(
@@ -241,7 +241,7 @@ impl<'a> ComponentWorld<'a> {
             if options.is_empty() {
                 interface.direct.push(DirectLowering { name: &func.name });
             } else {
-                let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+                let sig = resolve.wasm_signature(Some(AbiVariant::GuestImport), func);
                 interface.indirect.push(IndirectLowering {
                     name: &func.name,
                     sig,

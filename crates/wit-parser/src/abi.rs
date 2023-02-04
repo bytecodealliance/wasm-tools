@@ -700,19 +700,23 @@ pub trait Bindgen {
 impl Resolve {
     /// Get the WebAssembly type signature for this interface function
     ///
+    /// The ABI variant determines the use of indirect params and a retptr.
+    /// If passing no variant, the full signature will be provided without
+    /// the use of indirect params or a retptr.
+    ///
     /// The first entry returned is the list of parameters and the second entry
     /// is the list of results for the wasm function signature.
-    pub fn wasm_signature(&self, variant: AbiVariant, func: &Function) -> WasmSignature {
+    pub fn wasm_signature(&self, variant: Option<AbiVariant>, func: &Function) -> WasmSignature {
         const MAX_FLAT_PARAMS: usize = 16;
         const MAX_FLAT_RESULTS: usize = 1;
 
         let mut params = Vec::new();
         let mut indirect_params = false;
         for (_, param) in func.params.iter() {
-            self.push_wasm(variant, param, &mut params);
+            self.push_wasm(param, &mut params);
         }
 
-        if params.len() > MAX_FLAT_PARAMS {
+        if variant.is_some() && params.len() > MAX_FLAT_PARAMS {
             params.truncate(0);
             params.push(WasmType::I32);
             indirect_params = true;
@@ -720,7 +724,7 @@ impl Resolve {
 
         let mut results = Vec::new();
         for ty in func.results.iter_types() {
-            self.push_wasm(variant, ty, &mut results)
+            self.push_wasm(ty, &mut results)
         }
 
         let mut retptr = false;
@@ -729,10 +733,10 @@ impl Resolve {
         // would have multiple results then instead truncate it. Imports take a
         // return pointer to write into and exports return a pointer they wrote
         // into.
-        if results.len() > MAX_FLAT_RESULTS {
+        if variant.is_some() && results.len() > MAX_FLAT_RESULTS {
             retptr = true;
             results.truncate(0);
-            match variant {
+            match variant.unwrap() {
                 AbiVariant::GuestImport => {
                     params.push(WasmType::I32);
                 }
@@ -750,7 +754,7 @@ impl Resolve {
         }
     }
 
-    fn push_wasm(&self, variant: AbiVariant, ty: &Type, result: &mut Vec<WasmType>) {
+    fn push_wasm(&self, ty: &Type, result: &mut Vec<WasmType>) {
         match ty {
             Type::Bool
             | Type::S8
@@ -770,17 +774,17 @@ impl Resolve {
             }
 
             Type::Id(id) => match &self.types[*id].kind {
-                TypeDefKind::Type(t) => self.push_wasm(variant, t, result),
+                TypeDefKind::Type(t) => self.push_wasm(t, result),
 
                 TypeDefKind::Record(r) => {
                     for field in r.fields.iter() {
-                        self.push_wasm(variant, &field.ty, result);
+                        self.push_wasm(&field.ty, result);
                     }
                 }
 
                 TypeDefKind::Tuple(t) => {
                     for ty in t.types.iter() {
-                        self.push_wasm(variant, ty, result);
+                        self.push_wasm(ty, result);
                     }
                 }
 
@@ -797,24 +801,24 @@ impl Resolve {
 
                 TypeDefKind::Variant(v) => {
                     result.push(v.tag().into());
-                    self.push_wasm_variants(variant, v.cases.iter().map(|c| c.ty.as_ref()), result);
+                    self.push_wasm_variants(v.cases.iter().map(|c| c.ty.as_ref()), result);
                 }
 
                 TypeDefKind::Enum(e) => result.push(e.tag().into()),
 
                 TypeDefKind::Option(t) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, [None, Some(t)], result);
+                    self.push_wasm_variants([None, Some(t)], result);
                 }
 
                 TypeDefKind::Result(r) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, [r.ok.as_ref(), r.err.as_ref()], result);
+                    self.push_wasm_variants([r.ok.as_ref(), r.err.as_ref()], result);
                 }
 
                 TypeDefKind::Union(u) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, u.cases.iter().map(|c| Some(&c.ty)), result);
+                    self.push_wasm_variants(u.cases.iter().map(|c| Some(&c.ty)), result);
                 }
 
                 TypeDefKind::Future(_) => {
@@ -832,7 +836,6 @@ impl Resolve {
 
     fn push_wasm_variants<'a>(
         &self,
-        variant: AbiVariant,
         tys: impl IntoIterator<Item = Option<&'a Type>>,
         result: &mut Vec<WasmType>,
     ) {
@@ -847,7 +850,7 @@ impl Resolve {
         // `i32` might be the `f32` bitcasted.
         for ty in tys {
             if let Some(ty) = ty {
-                self.push_wasm(variant, ty, &mut temp);
+                self.push_wasm(ty, &mut temp);
 
                 for (i, ty) in temp.drain(..).enumerate() {
                     match result.get_mut(start + i) {
@@ -980,7 +983,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
     }
 
     fn call(&mut self, func: &Function) {
-        let sig = self.resolve.wasm_signature(self.variant, func);
+        let sig = self.resolve.wasm_signature(Some(self.variant), func);
 
         match self.lift_lower {
             LiftLower::LowerArgsLiftResults => {
@@ -1085,7 +1088,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     let mut temp = Vec::new();
                     for (_, ty) in func.params.iter() {
                         temp.truncate(0);
-                        self.resolve.push_wasm(self.variant, ty, &mut temp);
+                        self.resolve.push_wasm(ty, &mut temp);
                         for _ in 0..temp.len() {
                             self.emit(&Instruction::GetArg { nth: offset });
                             offset += 1;
@@ -1179,7 +1182,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
     }
 
     fn post_return(&mut self, func: &Function) {
-        let sig = self.resolve.wasm_signature(self.variant, func);
+        let sig = self.resolve.wasm_signature(Some(self.variant), func);
 
         // Currently post-return is only used for lists and lists are always
         // returned indirectly through memory due to their flat representation
@@ -1379,7 +1382,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         let mut results = Vec::new();
         let mut temp = Vec::new();
         let mut casts = Vec::new();
-        self.resolve.push_wasm(self.variant, ty, &mut results);
+        self.resolve.push_wasm(ty, &mut results);
         for (i, ty) in cases.into_iter().enumerate() {
             self.push_block();
             self.emit(&VariantPayloadName);
@@ -1396,7 +1399,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // pushed, and record how many. If we pushed too few
                 // then we'll need to push some zeros after this.
                 temp.truncate(0);
-                self.resolve.push_wasm(self.variant, ty, &mut temp);
+                self.resolve.push_wasm(ty, &mut temp);
                 pushed += temp.len();
 
                 // For all the types pushed we may need to insert some
@@ -1472,14 +1475,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 }
                 TypeDefKind::Record(record) => {
                     let mut temp = Vec::new();
-                    self.resolve.push_wasm(self.variant, ty, &mut temp);
+                    self.resolve.push_wasm(ty, &mut temp);
                     let mut args = self
                         .stack
                         .drain(self.stack.len() - temp.len()..)
                         .collect::<Vec<_>>();
                     for field in record.fields.iter() {
                         temp.truncate(0);
-                        self.resolve.push_wasm(self.variant, &field.ty, &mut temp);
+                        self.resolve.push_wasm(&field.ty, &mut temp);
                         self.stack.extend(args.drain(..temp.len()));
                         self.lift(&field.ty);
                     }
@@ -1491,14 +1494,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 }
                 TypeDefKind::Tuple(tuple) => {
                     let mut temp = Vec::new();
-                    self.resolve.push_wasm(self.variant, ty, &mut temp);
+                    self.resolve.push_wasm(ty, &mut temp);
                     let mut args = self
                         .stack
                         .drain(self.stack.len() - temp.len()..)
                         .collect::<Vec<_>>();
                     for ty in tuple.types.iter() {
                         temp.truncate(0);
-                        self.resolve.push_wasm(self.variant, ty, &mut temp);
+                        self.resolve.push_wasm(ty, &mut temp);
                         self.stack.extend(args.drain(..temp.len()));
                         self.lift(ty);
                     }
@@ -1563,7 +1566,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
         let mut params = Vec::new();
         let mut temp = Vec::new();
         let mut casts = Vec::new();
-        self.resolve.push_wasm(self.variant, ty, &mut params);
+        self.resolve.push_wasm(ty, &mut params);
         let block_inputs = self
             .stack
             .drain(self.stack.len() + 1 - params.len()..)
@@ -1574,7 +1577,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // Push only the values we need for this variant onto
                 // the stack.
                 temp.truncate(0);
-                self.resolve.push_wasm(self.variant, ty, &mut temp);
+                self.resolve.push_wasm(ty, &mut temp);
                 self.stack
                     .extend(block_inputs[..temp.len()].iter().cloned());
 

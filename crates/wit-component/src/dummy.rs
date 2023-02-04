@@ -9,7 +9,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
     for (name, import) in world.imports.iter() {
         match import {
             WorldItem::Function(func) => {
-                let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+                let sig = resolve.wasm_signature(Some(AbiVariant::GuestImport), func);
 
                 wat.push_str(&format!("(import \"$root\" \"{}\" (func", func.name));
                 push_tys(&mut wat, "param", &sig.params);
@@ -18,7 +18,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
             }
             WorldItem::Interface(import) => {
                 for (_, func) in resolve.interfaces[*import].functions.iter() {
-                    let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+                    let sig = resolve.wasm_signature(Some(AbiVariant::GuestImport), func);
 
                     wat.push_str(&format!("(import \"{name}\" \"{}\" (func", func.name));
                     push_tys(&mut wat, "param", &sig.params);
@@ -54,7 +54,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
     return wat::parse_str(&wat).unwrap();
 
     fn push_func(wat: &mut String, name: &str, resolve: &Resolve, func: &Function) {
-        let sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
+        let sig = resolve.wasm_signature(Some(AbiVariant::GuestExport), func);
         wat.push_str(&format!("(func (export \"{name}\")"));
         push_tys(wat, "param", &sig.params);
         push_tys(wat, "result", &sig.results);

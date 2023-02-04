@@ -469,7 +469,7 @@ fn validate_func(
     func: &Function,
     abi: AbiVariant,
 ) -> Result<()> {
-    let expected = wasm_sig_to_func_type(resolve.wasm_signature(abi, func));
+    let expected = wasm_sig_to_func_type(resolve.wasm_signature(Some(abi), func));
     if ty != &expected {
         bail!(
             "type mismatch for function `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",

@@ -104,7 +104,7 @@ bitflags::bitflags! {
 
 impl RequiredOptions {
     fn for_import(resolve: &Resolve, func: &Function) -> RequiredOptions {
-        let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+        let sig = resolve.wasm_signature(Some(AbiVariant::GuestImport), func);
         let mut ret = RequiredOptions::empty();
         // Lift the params and lower the results for imports
         ret.add_lift(TypeContents::for_types(
@@ -122,7 +122,7 @@ impl RequiredOptions {
     }
 
     fn for_export(resolve: &Resolve, func: &Function) -> RequiredOptions {
-        let sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
+        let sig = resolve.wasm_signature(Some(AbiVariant::GuestExport), func);
         let mut ret = RequiredOptions::empty();
         // Lower the params and lift the results for exports
         ret.add_lower(TypeContents::for_types(
