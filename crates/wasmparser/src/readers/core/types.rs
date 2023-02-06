@@ -101,8 +101,6 @@ pub enum HeapType {
     Func,
     /// From reference types
     Extern,
-    /// Special bottom heap type
-    Bot,
 }
 
 impl ValType {

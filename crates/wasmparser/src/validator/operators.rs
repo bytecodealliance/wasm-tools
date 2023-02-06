@@ -38,12 +38,12 @@ pub(crate) struct OperatorValidator {
     pub(crate) features: WasmFeatures,
 
     // Temporary storage used during the validation of `br_table`.
-    br_table_tmp: Vec<Option<ValType>>,
+    br_table_tmp: Vec<MaybeType>,
 
     /// The `control` list is the list of blocks that we're currently in.
     control: Vec<Frame>,
     /// The `operands` is the current type stack.
-    operands: Vec<Option<ValType>>,
+    operands: Vec<MaybeType>,
     /// When local_inits is modified, the relevant index is recorded here to be
     /// undone when control pops
     inits: Vec<u32>,
@@ -140,13 +140,37 @@ struct OperatorValidatorTemp<'validator, 'resources, T> {
 
 #[derive(Default)]
 pub struct OperatorValidatorAllocations {
-    br_table_tmp: Vec<Option<ValType>>,
+    br_table_tmp: Vec<MaybeType>,
     control: Vec<Frame>,
-    operands: Vec<Option<ValType>>,
+    operands: Vec<MaybeType>,
     local_inits: Vec<bool>,
     inits: Vec<u32>,
     locals_first: Vec<ValType>,
     locals_all: Vec<(u32, ValType)>,
+}
+
+/// Type storage within the validator.
+///
+/// This is used to manage the operand stack and notably isn't just `ValType` to
+/// handle unreachable code and the "bottom" type.
+#[derive(Copy, Clone)]
+enum MaybeType {
+    Bot,
+    HeapBot,
+    Type(ValType),
+}
+
+// The validator is pretty performance-sensitive and `MaybeType` is the main
+// unit of storage, so assert that it doesn't exceed 4 bytes which is the
+// current expected size.
+const _: () = {
+    assert!(std::mem::size_of::<MaybeType>() == 4);
+};
+
+impl From<ValType> for MaybeType {
+    fn from(ty: ValType) -> MaybeType {
+        MaybeType::Type(ty)
+    }
 }
 
 impl OperatorValidator {
@@ -278,7 +302,10 @@ impl OperatorValidator {
     ///
     /// A `depth` of 0 will refer to the last operand on the stack.
     pub fn peek_operand_at(&self, depth: usize) -> Option<Option<ValType>> {
-        self.operands.iter().rev().nth(depth).copied()
+        Some(match self.operands.iter().rev().nth(depth)? {
+            MaybeType::Type(t) => Some(*t),
+            MaybeType::Bot | MaybeType::HeapBot => None,
+        })
     }
 
     /// Returns the number of frames on the control flow stack.
@@ -367,7 +394,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// Otherwise the push operation always succeeds.
     fn push_operand<T>(&mut self, ty: T) -> Result<()>
     where
-        T: Into<Option<ValType>>,
+        T: Into<MaybeType>,
     {
         let maybe_ty = ty.into();
         self.operands.push(maybe_ty);
@@ -392,7 +419,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     /// matches `expected`. If `None` is returned then it means that `None` was
     /// expected and a type was successfully popped, but its exact type is
     /// indeterminate because the current block is unreachable.
-    fn pop_operand(&mut self, expected: Option<ValType>) -> Result<Option<ValType>> {
+    fn pop_operand(&mut self, expected: Option<ValType>) -> Result<MaybeType> {
         // This method is one of the hottest methods in the validator so to
         // improve codegen this method contains a fast-path success case where
         // if the top operand on the stack is as expected it's returned
@@ -404,15 +431,15 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         // matched against the state of the world to see if we could actually
         // pop it. If we shouldn't have popped it then it's passed to the slow
         // path to get pushed back onto the stack.
-        let popped = if let Some(actual_ty) = self.operands.pop() {
-            if actual_ty == expected {
+        let popped = if let Some(MaybeType::Type(actual_ty)) = self.operands.pop() {
+            if Some(actual_ty) == expected {
                 if let Some(control) = self.control.last() {
                     if self.operands.len() >= control.height {
-                        return Ok(actual_ty);
+                        return Ok(MaybeType::Type(actual_ty));
                     }
                 }
             }
-            Some(actual_ty)
+            Some(MaybeType::Type(actual_ty))
         } else {
             None
         };
@@ -427,15 +454,15 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn _pop_operand(
         &mut self,
         expected: Option<ValType>,
-        popped: Option<Option<ValType>>,
-    ) -> Result<Option<ValType>> {
+        popped: Option<MaybeType>,
+    ) -> Result<MaybeType> {
         self.operands.extend(popped);
         let control = match self.control.last() {
             Some(c) => c,
             None => return Err(self.err_beyond_end(self.offset)),
         };
         let actual = if self.operands.len() == control.height && control.unreachable {
-            None
+            MaybeType::Bot
         } else {
             if self.operands.len() == control.height {
                 let desc = match expected {
@@ -450,27 +477,48 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 self.operands.pop().unwrap()
             }
         };
-        if let (Some(actual_ty), Some(expected_ty)) = (actual, expected) {
-            if !self.resources.matches(actual_ty, expected_ty) {
-                bail!(
-                    self.offset,
-                    "type mismatch: expected {}, found {}",
-                    ty_to_str(expected_ty),
-                    ty_to_str(actual_ty)
-                );
+        if let Some(expected) = expected {
+            match (actual, expected) {
+                // The bottom type matches all expectations
+                (MaybeType::Bot, _)
+                // The "heap bottom" type only matches other references types,
+                // but not any integer types.
+                | (MaybeType::HeapBot, ValType::Ref(_)) => {}
+
+                // Use the `matches` predicate to test if a found type matches
+                // the expectation.
+                (MaybeType::Type(actual), expected) => {
+                    if !self.resources.matches(actual, expected) {
+                        bail!(
+                            self.offset,
+                            "type mismatch: expected {}, found {}",
+                            ty_to_str(expected),
+                            ty_to_str(actual)
+                        );
+                    }
+                }
+
+                // A "heap bottom" type cannot match any numeric types.
+                (
+                    MaybeType::HeapBot,
+                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
+                ) => {
+                    bail!(
+                        self.offset,
+                        "type mismatche: expected {}, found heap type",
+                        ty_to_str(expected)
+                    )
+                }
             }
         }
         Ok(actual)
     }
 
-    fn pop_ref(&mut self) -> Result<RefType> {
+    fn pop_ref(&mut self) -> Result<Option<RefType>> {
         match self.pop_operand(None)? {
-            None => Ok(RefType {
-                nullable: false,
-                heap_type: HeapType::Bot,
-            }),
-            Some(ValType::Ref(rt)) => Ok(rt),
-            Some(ty) => bail!(
+            MaybeType::Bot | MaybeType::HeapBot => Ok(None),
+            MaybeType::Type(ValType::Ref(rt)) => Ok(Some(rt)),
+            MaybeType::Type(ty) => bail!(
                 self.offset,
                 "type mismatch: expected ref but found {}",
                 ty_to_str(ty)
@@ -967,14 +1015,6 @@ pub fn ty_to_str(ty: ValType) -> &'static str {
             nullable: true,
             heap_type: HeapType::TypedFunc(_),
         }) => "(ref null $type)",
-        ValType::Ref(RefType {
-            nullable: true,
-            heap_type: HeapType::Bot,
-        }) => "(ref null bot)",
-        ValType::Ref(RefType {
-            nullable: false,
-            heap_type: HeapType::Bot,
-        }) => "(ref bot)",
     }
 }
 
@@ -1255,23 +1295,25 @@ where
         Ok(())
     }
     fn visit_call_ref(&mut self, hty: HeapType) -> Self::Output {
-        let rt = self.pop_ref()?;
-        let expected = RefType {
-            nullable: true,
-            heap_type: hty,
-        };
-        if !self
-            .resources
-            .matches(ValType::Ref(rt), ValType::Ref(expected))
-        {
-            bail!(
-                self.offset,
-                "type mismatch: funcref on stack does not match specified type",
-            );
+        // If `None` is popped then that means a "bottom" type was popped which
+        // is always considered equivalent to the `hty` tag.
+        if let Some(rt) = self.pop_ref()? {
+            let expected = RefType {
+                nullable: true,
+                heap_type: hty,
+            };
+            if !self
+                .resources
+                .matches(ValType::Ref(rt), ValType::Ref(expected))
+            {
+                bail!(
+                    self.offset,
+                    "type mismatch: funcref on stack does not match specified type",
+                );
+            }
         }
         match hty {
             HeapType::TypedFunc(type_index) => self.check_call_ty(type_index.into())?,
-            HeapType::Bot => (),
             _ => bail!(
                 self.offset,
                 "type mismatch: instruction requires function reference type",
@@ -1311,30 +1353,37 @@ where
         self.pop_operand(Some(ValType::I32))?;
         let ty1 = self.pop_operand(None)?;
         let ty2 = self.pop_operand(None)?;
-        fn is_num(ty: Option<ValType>) -> bool {
-            matches!(
-                ty,
-                Some(ValType::I32)
-                    | Some(ValType::I64)
-                    | Some(ValType::F32)
-                    | Some(ValType::F64)
-                    | Some(ValType::V128)
-                    | None
-            )
-        }
-        if !is_num(ty1) || !is_num(ty2) {
-            bail!(
-                self.offset,
-                "type mismatch: select only takes integral types"
-            )
-        }
-        if ty1 != ty2 && ty1.is_some() && ty2.is_some() {
-            bail!(
-                self.offset,
-                "type mismatch: select operands have different types"
-            );
-        }
-        self.push_operand(ty1.or(ty2))?;
+
+        let ty = match (ty1, ty2) {
+            // All heap-related types aren't allowed with the `select`
+            // instruction
+            (MaybeType::HeapBot, _)
+            | (_, MaybeType::HeapBot)
+            | (MaybeType::Type(ValType::Ref(_)), _)
+            | (_, MaybeType::Type(ValType::Ref(_))) => {
+                bail!(
+                    self.offset,
+                    "type mismatch: select only takes integral types"
+                )
+            }
+
+            // If one operand is the "bottom" type then whatever the other
+            // operand is is the result of the `select`
+            (MaybeType::Bot, t) | (t, MaybeType::Bot) => t,
+
+            // Otherwise these are two integral types and they must match for
+            // `select` to typecheck.
+            (t @ MaybeType::Type(t1), MaybeType::Type(t2)) => {
+                if t1 != t2 {
+                    bail!(
+                        self.offset,
+                        "type mismatch: select operands have different types"
+                    );
+                }
+                t
+            }
+        };
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_typed_select(&mut self, ty: ValType) -> Self::Output {
@@ -2199,15 +2248,24 @@ where
     }
 
     fn visit_ref_as_non_null(&mut self) -> Self::Output {
-        let rt = self.pop_ref()?;
-        self.push_operand(ValType::Ref(RefType {
-            nullable: false,
-            heap_type: rt.heap_type,
-        }))?;
+        let ty = match self.pop_ref()? {
+            Some(ty) => MaybeType::Type(ValType::Ref(RefType {
+                nullable: false,
+                heap_type: ty.heap_type,
+            })),
+            None => MaybeType::HeapBot,
+        };
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_br_on_null(&mut self, relative_depth: u32) -> Self::Output {
-        let rt = self.pop_ref()?;
+        let ty = match self.pop_ref()? {
+            None => MaybeType::HeapBot,
+            Some(ty) => MaybeType::Type(ValType::Ref(RefType {
+                nullable: false,
+                heap_type: ty.heap_type,
+            })),
+        };
         let (ft, kind) = self.jump(relative_depth)?;
         for ty in self.label_types(ft, kind)?.rev() {
             self.pop_operand(Some(ty))?;
@@ -2215,41 +2273,39 @@ where
         for ty in self.label_types(ft, kind)? {
             self.push_operand(ty)?;
         }
-        self.push_operand(ValType::Ref(RefType {
-            nullable: false,
-            heap_type: rt.heap_type,
-        }))?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_br_on_non_null(&mut self, relative_depth: u32) -> Self::Output {
-        let RefType { heap_type, .. } = self.pop_ref()?;
-        let rt0 = ValType::Ref(RefType {
-            nullable: false,
-            heap_type: heap_type,
-        });
+        let ty = self.pop_ref()?;
         let (ft, kind) = self.jump(relative_depth)?;
         let mut lts = self.label_types(ft, kind)?;
-        match lts.next_back() {
-            None => bail!(
+        match (lts.next_back(), ty) {
+            (None, _) => bail!(
                 self.offset,
-                "type mismatch: expected {} but stack has nothing",
-                ty_to_str(rt0)
+                "type mismatch: br_on_non_null target has no label types",
             ),
-            Some(rt1 @ ValType::Ref(_)) => {
-                if !self.resources.matches(rt0, rt1) {
+            (Some(ValType::Ref(_)), None) => {}
+            (Some(rt1 @ ValType::Ref(_)), Some(rt0)) => {
+                // Switch rt0, our popped type, to a non-nullable type and
+                // perform the match because if the branch is taken it's a
+                // non-null value.
+                let ty = RefType {
+                    nullable: false,
+                    heap_type: rt0.heap_type,
+                };
+                if !self.resources.matches(ty.into(), rt1) {
                     bail!(
                         self.offset,
                         "type mismatch: expected {} but found {}",
-                        ty_to_str(rt0),
+                        ty_to_str(rt0.into()),
                         ty_to_str(rt1)
                     )
                 }
             }
-            Some(ty) => bail!(
+            (Some(_), _) => bail!(
                 self.offset,
-                "type mismatch: expected {} but found {}",
-                ty_to_str(rt0),
-                ty_to_str(ty)
+                "type mismatch: br_on_non_null target does not end with heap type",
             ),
         }
         for ty in self.label_types(ft, kind)?.rev().skip(1) {
