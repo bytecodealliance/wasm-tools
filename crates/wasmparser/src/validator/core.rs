@@ -247,23 +247,15 @@ impl ModuleState {
         match e.items {
             crate::ElementItems::Functions(reader) => {
                 let count = reader.count();
-                if let HeapType::TypedFunc(_) = e.ty.heap_type {
-                    if !e.ty.nullable && count <= 0 {
-                        return Err(BinaryReaderError::new(
-                            "a non-nullable element must come with an initialization expression",
-                            offset,
-                        ));
-                    }
+                if !e.ty.nullable && count <= 0 {
+                    return Err(BinaryReaderError::new(
+                        "a non-nullable element must come with an initialization expression",
+                        offset,
+                    ));
                 }
                 validate_count(count)?;
                 for f in reader.into_iter_with_offsets() {
                     let (offset, f) = f?;
-                    if e.ty != RefType::FUNCREF {
-                        return Err(BinaryReaderError::new(
-                            "type mismatch: segment does not have funcref type",
-                            offset,
-                        ));
-                    }
                     self.module.get_func_type(f, types, offset)?;
                     self.module.assert_mut().function_references.insert(f);
                 }
@@ -833,8 +825,7 @@ impl Module {
                         (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
                             let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
                             let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
-                            self.eq_fns(n1, n2, types)
-                        }
+                            self.eq_fns(n1, n2, types) }
                         (_, _) => false,
                     }
             }
@@ -865,8 +856,7 @@ impl Module {
                     // Check whether the defined types are (structurally) equivalent.
                     let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
                     let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
-                    self.eq_fns(n1, n2, types)
-                }
+                    self.eq_fns(n1, n2, types) }
                 (HeapType::TypedFunc(_), HeapType::Func) => true,
                 (HeapType::Bot, _) => true,
                 (_, _) => ty1 == ty2,
