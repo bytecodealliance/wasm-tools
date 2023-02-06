@@ -164,7 +164,12 @@ impl<'a> Resolver<'a> {
             ComponentField::Func(_) => unreachable!("should be expanded already"),
             ComponentField::Start(s) => self.start(s),
             ComponentField::Import(i) => self.item_sig(&mut i.item),
-            ComponentField::Export(e) => self.export(&mut e.kind),
+            ComponentField::Export(e) => {
+                if let Some(ty) = &mut e.ty {
+                    self.item_sig(&mut ty.0)?;
+                }
+                self.export(&mut e.kind)
+            }
             ComponentField::Custom(_) => Ok(()),
         }
     }

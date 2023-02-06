@@ -144,6 +144,7 @@ impl<'a> FromReader<'a> for ComponentInstance<'a> {
                             url: "",
                             kind: reader.read()?,
                             index: reader.read()?,
+                            ty: None,
                         })
                     })
                     .collect::<Result<_>>()?,

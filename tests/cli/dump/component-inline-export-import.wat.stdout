@@ -1,5 +1,5 @@
-  0x0 | 00 61 73 6d | version 11 (Component)
-      | 0b 00 01 00
+  0x0 | 00 61 73 6d | version 12 (Component)
+      | 0c 00 01 00
   0x8 | 07 03       | component type section
   0xa | 01          | 1 count
   0xb | 41 00       | [type 0] Component([])
@@ -13,8 +13,9 @@
  0x1b | 01          | 1 count
  0x1c | 01 61 00 00 | [module 0] ComponentImport { name: "a", url: "", ty: Module(0) }
       | 11 00      
- 0x22 | 0b 0b       | component export section
+ 0x22 | 0b 0d       | component export section
  0x24 | 02          | 2 count
- 0x25 | 00 00 04 00 | export ComponentExport { name: "", url: "", kind: Component, index: 0 }
- 0x29 | 01 61 00 00 | export ComponentExport { name: "a", url: "", kind: Module, index: 0 }
-      | 11 00      
+ 0x25 | 00 00 04 00 | export ComponentExport { name: "", url: "", kind: Component, index: 0, ty: None }
+      | 00         
+ 0x2a | 01 61 00 00 | export ComponentExport { name: "a", url: "", kind: Module, index: 0, ty: None }
+      | 11 00 00   

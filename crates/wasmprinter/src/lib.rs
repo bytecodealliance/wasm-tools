@@ -1772,6 +1772,10 @@ impl Printer {
         }
         self.result.push(' ');
         self.print_component_external_kind(state, export.kind, export.index)?;
+        if let Some(ty) = &export.ty {
+            self.result.push(' ');
+            self.print_component_import_ty(state, &ty, false)?;
+        }
         self.end_group();
         Ok(())
     }

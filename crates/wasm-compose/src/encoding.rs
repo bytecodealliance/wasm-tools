@@ -1225,7 +1225,7 @@ impl<'a> CompositionGraphEncoder<'a> {
                 }
             };
 
-            export_section.export(export_name, export_url, kind, index);
+            export_section.export(export_name, export_url, kind, index, None);
         }
 
         if !alias_section.is_empty() {

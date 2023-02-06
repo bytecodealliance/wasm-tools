@@ -121,10 +121,13 @@ impl<'a> Expander<'a> {
                 self.expand_item_sig(&mut i.item);
                 None
             }
-            ComponentField::Start(_)
-            | ComponentField::Alias(_)
-            | ComponentField::Export(_)
-            | ComponentField::Custom(_) => None,
+            ComponentField::Export(e) => {
+                if let Some(sig) = &mut e.ty {
+                    self.expand_item_sig(&mut sig.0);
+                }
+                None
+            }
+            ComponentField::Start(_) | ComponentField::Alias(_) | ComponentField::Custom(_) => None,
         };
 
         if let Some(expanded) = expanded {
@@ -143,6 +146,7 @@ impl<'a> Expander<'a> {
                     name,
                     url,
                     kind: ComponentExportKind::module(module.span, id),
+                    ty: None,
                 }));
         }
         match &mut module.kind {
@@ -190,6 +194,7 @@ impl<'a> Expander<'a> {
                     name,
                     url,
                     kind: ComponentExportKind::component(component.span, id),
+                    ty: None,
                 }));
         }
         match &mut component.kind {
@@ -225,6 +230,7 @@ impl<'a> Expander<'a> {
                     name,
                     url,
                     kind: ComponentExportKind::instance(instance.span, id),
+                    ty: None,
                 }));
         }
         match &mut instance.kind {
@@ -293,6 +299,7 @@ impl<'a> Expander<'a> {
                     name,
                     url,
                     kind: ComponentExportKind::func(func.span, id),
+                    ty: None,
                 }));
         }
         match &mut func.kind {
@@ -374,6 +381,7 @@ impl<'a> Expander<'a> {
                     name,
                     url,
                     kind: ComponentExportKind::ty(field.span, id),
+                    ty: None,
                 }));
         }
     }

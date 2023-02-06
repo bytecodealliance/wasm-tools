@@ -1,5 +1,5 @@
-  0x0 | 00 61 73 6d | version 11 (Component)
-      | 0b 00 01 00
+  0x0 | 00 61 73 6d | version 12 (Component)
+      | 0c 00 01 00
   0x8 | 03 0d       | core type section
   0xa | 01          | 1 count
   0xb | 50 02 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) })])

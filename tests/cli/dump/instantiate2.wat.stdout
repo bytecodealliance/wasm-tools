@@ -1,5 +1,5 @@
-  0x0 | 00 61 73 6d | version 11 (Component)
-      | 0b 00 01 00
+  0x0 | 00 61 73 6d | version 12 (Component)
+      | 0c 00 01 00
   0x8 | 07 0e       | component type section
   0xa | 01          | 1 count
   0xb | 41 02 01 40 | [type 0] Component([Type(Func(ComponentFuncType { params: [], results: Named([]) })), Import(ComponentImport { name: "a", url: "", ty: Func(0) })])

@@ -19,7 +19,8 @@ pub(crate) const WASM_MODULE_VERSION: u16 = 0x1;
 //
 // * [????-??-??] 0xa - original version
 // * [2022-01-05] 0xb - `export` introduces an alias
-pub(crate) const WASM_COMPONENT_VERSION: u16 = 0xb;
+// * [2022-02-06] 0xc - `export` has an optional type ascribed to it
+pub(crate) const WASM_COMPONENT_VERSION: u16 = 0xc;
 
 /// The supported encoding formats for the parser.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -1166,7 +1167,7 @@ mod tests {
     fn parser_after_component_header() -> Parser {
         let mut p = Parser::default();
         assert_matches!(
-            p.parse(b"\0asm\x0b\0\x01\0", false),
+            p.parse(b"\0asm\x0c\0\x01\0", false),
             Ok(Chunk::Parsed {
                 consumed: 8,
                 payload: Payload::Version {

@@ -715,7 +715,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
-        Ok(match export.kind {
+        let actual = match export.kind {
             ComponentExternalKind::Module => {
                 ComponentEntityType::Module(self.module_at(export.index, offset)?)
             }
@@ -739,7 +739,21 @@ impl ComponentState {
             ComponentExternalKind::Component => {
                 ComponentEntityType::Component(self.component_at(export.index, offset)?)
             }
-        })
+        };
+
+        let ascribed = match &export.ty {
+            Some(ty) => self.check_type_ref(ty, types, offset)?,
+            None => return Ok(actual),
+        };
+
+        if !ComponentEntityType::internal_is_subtype_of(&actual, types, &ascribed, types) {
+            bail!(
+                offset,
+                "ascribed type of export is not compatible with item's type"
+            );
+        }
+
+        Ok(ascribed)
     }
 
     fn create_module_type(
@@ -1206,6 +1220,7 @@ impl ComponentState {
         let mut type_size = 1;
         let mut inst_exports = IndexMap::new();
         for export in exports {
+            assert!(export.ty.is_none());
             match export.kind {
                 ComponentExternalKind::Module => {
                     insert_export(
