@@ -825,7 +825,8 @@ impl Module {
                         (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
                             let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
                             let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
-                            self.eq_fns(n1, n2, types) }
+                            self.eq_fns(n1, n2, types)
+                        }
                         (_, _) => false,
                     }
             }
@@ -856,7 +857,8 @@ impl Module {
                     // Check whether the defined types are (structurally) equivalent.
                     let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
                     let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
-                    self.eq_fns(n1, n2, types) }
+                    self.eq_fns(n1, n2, types)
+                }
                 (HeapType::TypedFunc(_), HeapType::Func) => true,
                 (HeapType::Bot, _) => true,
                 (_, _) => ty1 == ty2,
