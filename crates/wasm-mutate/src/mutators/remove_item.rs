@@ -31,12 +31,9 @@ impl Mutator for RemoveItemMutator {
     }
 
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
-    ) -> Result<Box<dyn Iterator<Item = Result<wasm_encoder::Module>> + 'a>>
-    where
-        Self: Copy,
-    {
+    ) -> Result<Box<dyn Iterator<Item = Result<wasm_encoder::Module>> + 'a>> {
         let idx = self.0.choose_removal_index(config);
         log::trace!("attempting to remove {:?} index {}", self.0, idx);
 

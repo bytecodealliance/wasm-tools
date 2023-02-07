@@ -14,12 +14,9 @@ impl Mutator for RemoveStartSection {
     }
 
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
-    ) -> Result<Box<dyn Iterator<Item = crate::Result<Module>> + 'a>>
-    where
-        Self: Copy,
-    {
+    ) -> Result<Box<dyn Iterator<Item = crate::Result<Module>> + 'a>> {
         let mut module = Module::new();
         let start_section_index = config.info().start.unwrap();
 

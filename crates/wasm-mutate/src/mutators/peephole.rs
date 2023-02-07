@@ -56,7 +56,7 @@ type EG = egg::EGraph<Lang, PeepholeMutationAnalysis>;
 
 impl PeepholeMutator {
     /// Initializes a new PeepholeMutator with fuel
-    pub fn new(max_depth: u32) -> Self {
+    pub const fn new(max_depth: u32) -> Self {
         PeepholeMutator {
             max_tree_depth: max_depth,
             rules: None,
@@ -102,24 +102,8 @@ impl PeepholeMutator {
         }
     }
 
-    fn copy_locals(&self, reader: FunctionBody) -> Result<Function> {
-        // Create the new function
-        let mut localreader = reader.get_locals_reader()?;
-        // Get current locals and map to encoder types
-        let mut local_count = 0;
-        let current_locals = (0..localreader.get_count())
-            .map(|_| {
-                let (count, ty) = localreader.read().unwrap();
-                local_count += count;
-                (count, map_type(ty).unwrap())
-            })
-            .collect::<Vec<(u32, ValType)>>();
-
-        Ok(Function::new(current_locals /*copy locals here*/))
-    }
-
     fn random_mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
@@ -272,7 +256,7 @@ impl PeepholeMutator {
 
                         config.consume_fuel(1)?;
 
-                        let mut newfunc = self.copy_locals(reader.clone())?;
+                        let mut newfunc = copy_locals(reader.clone())?;
                         let needed_resources = Encoder::build_function(
                             config,
                             opcode_to_mutate,
@@ -412,11 +396,27 @@ impl PeepholeMutator {
             function_to_mutate = (function_to_mutate + 1) % function_count;
             visited_functions += 1;
         }
+
+        fn copy_locals(reader: FunctionBody) -> Result<Function> {
+            // Create the new function
+            let mut localreader = reader.get_locals_reader()?;
+            // Get current locals and map to encoder types
+            let mut local_count = 0;
+            let current_locals = (0..localreader.get_count())
+                .map(|_| {
+                    let (count, ty) = localreader.read().unwrap();
+                    local_count += count;
+                    (count, map_type(ty).unwrap())
+                })
+                .collect::<Vec<(u32, ValType)>>();
+
+            Ok(Function::new(current_locals /*copy locals here*/))
+        }
     }
 
     /// To separate the methods will allow us to test rule by rule
     fn mutate_with_rules<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
@@ -427,7 +427,7 @@ impl PeepholeMutator {
 /// Meta mutator for peephole
 impl Mutator for PeepholeMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut crate::WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let rules = match self.rules.clone() {

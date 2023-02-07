@@ -15,7 +15,7 @@ impl Mutator for AddCustomSectionMutator {
     }
 
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut crate::WasmMutate,
     ) -> crate::Result<Box<dyn Iterator<Item = crate::Result<wasm_encoder::Module>> + 'a>> {
         let num_sections = config.info().raw_sections.len();

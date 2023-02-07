@@ -139,7 +139,7 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
 
 impl Mutator for ConstExpressionMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut crate::WasmMutate,
     ) -> crate::Result<Box<dyn Iterator<Item = crate::Result<wasm_encoder::Module>> + 'a>> {
         let translator_kind = match self {

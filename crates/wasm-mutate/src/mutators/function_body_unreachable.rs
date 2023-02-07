@@ -14,7 +14,7 @@ pub struct FunctionBodyUnreachable;
 
 impl Mutator for FunctionBodyUnreachable {
     fn mutate<'a>(
-        self,
+        &self,
         config: &mut WasmMutate<'a>,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();
