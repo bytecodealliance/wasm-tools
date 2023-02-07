@@ -15,6 +15,13 @@
 //! additionally contains `*.stdout` and `*.stderr` files to assert the output
 //! of the subcommand. Files are not present if the stdout/stderr are empty.
 //!
+//! This also supports a limited form of piping along the lines of:
+//!
+//!     ;; RUN: strip % | objdump
+//!
+//! where a `|` will execute the first subcommand and pipe its stdout into the
+//! stdin of the next command.
+//!
 //! Use `BLESS=1` in the environment to auto-update expectation files. Be sure
 //! to look at the diff!
 
@@ -22,8 +29,9 @@ use anyhow::{anyhow, bail, Context, Result};
 use pretty_assertions::StrComparison;
 use rayon::prelude::*;
 use std::env;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
 
 fn main() {
     let mut tests = Vec::new();
@@ -67,8 +75,11 @@ fn main() {
     println!("test result: ok. {} passed\n", tests.len());
 }
 
+fn wasm_tools_exe() -> Command {
+    Command::new(env!("CARGO_BIN_EXE_wasm-tools"))
+}
+
 fn run_test(test: &Path, bless: bool) -> Result<()> {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_wasm-tools"));
     let contents = std::fs::read_to_string(test)?;
     let line = contents
         .lines()
@@ -76,15 +87,43 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
         .next()
         .ok_or_else(|| anyhow!("no line found with `;; RUN: ` directive"))?;
 
+    let mut cmd = wasm_tools_exe();
+    let mut stdin = None;
     for arg in line.split_whitespace() {
-        if arg == "%" {
+        if arg == "|" {
+            let output = execute(&mut cmd, stdin.as_deref())?;
+            stdin = Some(output.stdout);
+            cmd = wasm_tools_exe();
+        } else if arg == "%" {
             cmd.arg(test);
         } else {
             cmd.arg(arg);
         }
     }
 
-    let output = cmd.output()?;
+    let output = execute(&mut cmd, stdin.as_deref())?;
+    assert_output(bless, &output.stdout, &test.with_extension("wat.stdout"))
+        .context("failed to check stdout expectation (auto-update with BLESS=1)")?;
+    assert_output(bless, &output.stderr, &test.with_extension("wat.stderr"))
+        .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
+    Ok(())
+}
+
+fn execute(cmd: &mut Command, stdin: Option<&[u8]>) -> Result<Output> {
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let mut p = cmd
+        .spawn()
+        .with_context(|| format!("failed to spawn {cmd:?}"))?;
+
+    let mut io = p.stdin.take().unwrap();
+    if let Some(stdin) = stdin {
+        io.write_all(stdin)?;
+    }
+    drop(io);
+
+    let output = p.wait_with_output()?;
 
     if !output.status.success() {
         bail!(
@@ -97,12 +136,7 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-
-    assert_output(bless, &output.stdout, &test.with_extension("wat.stdout"))
-        .context("failed to check stdout expectation (auto-update with BLESS=1)")?;
-    assert_output(bless, &output.stderr, &test.with_extension("wat.stderr"))
-        .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
-    Ok(())
+    Ok(output)
 }
 
 fn assert_output(bless: bool, output: &[u8], path: &Path) -> Result<()> {
