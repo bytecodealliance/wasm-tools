@@ -118,63 +118,26 @@ impl Encoder<'_> {
             let world = &self.resolve.worlds[*world];
             let mut component = InterfaceEncoder::new(self.resolve);
 
-            // Encode the contents of this world. Note that the encoding here
-            // must be done in a topological fashion to ensure all dependencies
-            // of an encoding are present before the next item is encoded. This
-            // is a bit wonky due to how imports and exports are separated at
-            // this time. The notable exception here is that an imported
-            // interface could influence an exported type which is then used by
-            // an imported function.
-            //
-            // To help resolve this the items are encoded in a specific order at
-            // this time:
-            //
-            // 1. First are all imported interfaces which can import from each
-            //    other but are otherwise standalone.
-            // 2. Next exported types are encoded which can use types from
-            //    imported interfaces.
-            // 3. All remaining imports are next, just functions for now.
-            // 4. All remaining exports are next, both interfaces and functions
-            //    for now.
-            //
-            // Note that the `imports` and `exports` lists are already
-            // topologically sorted internally there's just no current ordering
-            // between the two lists.
-            //
-            // TODO: this iteration order may wish to be exposed from the
-            // `wit-parser` crate directly or similar.
             for (name, import) in world.imports.iter() {
                 let (url, ty) = match import {
                     WorldItem::Interface(i) => {
                         let idx = component.encode_instance(*i)?;
                         (self.url_of(*i), ComponentTypeRef::Instance(idx))
                     }
-                    _ => continue,
-                };
-                component.outer.import(name, &url, ty);
-            }
-
-            for (_name, export) in world.exports.iter() {
-                match export {
-                    WorldItem::Type(t) => {
-                        component.encode_valtype(self.resolve, &Type::Id(*t))?;
-                    }
-                    _ => continue,
-                }
-            }
-
-            for (name, import) in world.imports.iter() {
-                let (url, ty) = match import {
-                    WorldItem::Interface(_) => continue, // handled above
                     WorldItem::Function(f) => {
                         let idx = component.encode_func_type(self.resolve, f)?;
                         (String::new(), ComponentTypeRef::Func(idx))
                     }
-                    // Types aren't in imports at this time
-                    WorldItem::Type(_) => unreachable!(),
+                    WorldItem::Type(t) => {
+                        component.import_types = true;
+                        component.encode_valtype(self.resolve, &Type::Id(*t))?;
+                        component.import_types = false;
+                        continue;
+                    }
                 };
                 component.outer.import(name, &url, ty);
             }
+
             for (name, export) in world.exports.iter() {
                 let (url, ty) = match export {
                     WorldItem::Interface(i) => {
@@ -185,7 +148,7 @@ impl Encoder<'_> {
                         let idx = component.encode_func_type(self.resolve, f)?;
                         (String::new(), ComponentTypeRef::Func(idx))
                     }
-                    WorldItem::Type(_) => continue, // handled above
+                    WorldItem::Type(_) => unreachable!(),
                 };
                 component.outer.export(name, &url, ty);
             }
@@ -259,6 +222,7 @@ struct InterfaceEncoder<'a> {
     import_map: HashMap<InterfaceId, u32>,
     outer_type_map: HashMap<TypeId, u32>,
     instances: u32,
+    import_types: bool,
 }
 
 impl InterfaceEncoder<'_> {
@@ -273,6 +237,7 @@ impl InterfaceEncoder<'_> {
             outer_type_map: Default::default(),
             instances: 0,
             saved_types: None,
+            import_types: false,
         }
     }
 
@@ -331,14 +296,20 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32> {
         match &mut self.ty {
             Some(ty) => {
+                assert!(!self.import_types);
                 let ret = ty.type_count();
                 ty.export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
                 Some(ret)
             }
             None => {
                 let ret = self.outer.type_count();
-                self.outer
-                    .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                if self.import_types {
+                    self.outer
+                        .import(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                } else {
+                    self.outer
+                        .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                }
                 Some(ret)
             }
         }

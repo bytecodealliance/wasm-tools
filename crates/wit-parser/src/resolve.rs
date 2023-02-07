@@ -728,7 +728,7 @@ impl Remap {
         let mut exports = Vec::new();
         let mut import_funcs = Vec::new();
         let mut export_funcs = Vec::new();
-        let mut export_types = Vec::new();
+        let mut import_types = Vec::new();
         for ((name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans) {
             match item {
                 WorldItem::Interface(id) => {
@@ -741,7 +741,10 @@ impl Remap {
                     self.update_function(&mut f);
                     import_funcs.push((name, f, *span));
                 }
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type(id) => {
+                    let id = self.types[id.index()];
+                    import_types.push((name, id, *span));
+                }
             }
         }
         for ((name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans) {
@@ -756,10 +759,7 @@ impl Remap {
                     self.update_function(&mut f);
                     export_funcs.push((name, f, *span));
                 }
-                WorldItem::Type(id) => {
-                    let id = self.types[id.index()];
-                    export_types.push((name, id, *span));
-                }
+                WorldItem::Type(_) => unreachable!(),
             }
         }
 
@@ -780,27 +780,25 @@ impl Remap {
         for (id, span) in imports {
             elaborate.import(id, span)?;
         }
-
-        for (id, span) in exports {
-            elaborate.export(id, span)?;
-        }
-
-        for (_name, id, span) in export_types.iter() {
-            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
+        for (name, id, span) in import_types {
+            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[id].kind {
                 if let TypeOwner::Interface(owner) = resolve.types[other].owner {
-                    elaborate.import(owner, *span)?;
+                    elaborate.import(owner, span)?;
                 }
             }
-        }
-
-        for (name, id, span) in export_types {
-            let prev = world.exports.insert(name.clone(), WorldItem::Type(id));
+            let prev = elaborate
+                .world
+                .imports
+                .insert(name.clone(), WorldItem::Type(id));
             if prev.is_some() {
                 bail!(Error {
                     msg: format!("export of type `{name}` shadows previously imported interface"),
                     span,
                 })
             }
+        }
+        for (id, span) in exports {
+            elaborate.export(id, span)?;
         }
 
         for (name, func, span) in import_funcs {

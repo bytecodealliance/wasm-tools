@@ -405,13 +405,14 @@ impl<'a> Resolver<'a> {
         )?;
 
         let mut export_spans = Vec::new();
+        let mut import_spans = Vec::new();
         for (name, (item, span)) in self.type_lookup.iter() {
             match *item {
                 TypeOrItem::Type(id) => {
                     self.worlds[world_id]
-                        .exports
+                        .imports
                         .insert(name.to_string(), WorldItem::Type(id));
-                    export_spans.push(*span);
+                    import_spans.push(*span);
                 }
                 TypeOrItem::Item(_) => unreachable!(),
             }
@@ -419,7 +420,6 @@ impl<'a> Resolver<'a> {
 
         let mut imported_interfaces = HashMap::new();
         let mut exported_interfaces = HashMap::new();
-        let mut import_spans = Vec::new();
         for item in world.items.iter() {
             match item {
                 // handled in `resolve_types`
@@ -454,16 +454,6 @@ impl<'a> Resolver<'a> {
                     import_spans.push(import.name.span);
                 }
                 ast::WorldItem::Export(export) => {
-                    self.define_interface_name(
-                        &export.name,
-                        TypeOrItem::Item(match &export.kind {
-                            ast::ExternKind::Interface(..) | ast::ExternKind::Path(..) => {
-                                "interface"
-                            }
-                            ast::ExternKind::Func(..) => "function",
-                        }),
-                    )?;
-
                     let item = self.resolve_world_item(export.name.name, document, &export.kind)?;
                     if let WorldItem::Interface(id) = item {
                         if exported_interfaces.insert(id, export.name.name).is_some() {
@@ -479,7 +469,16 @@ impl<'a> Resolver<'a> {
                     }
                     let exports = &mut self.worlds[world_id].exports;
                     let prev = exports.insert(export.name.name.to_string(), item);
-                    assert!(prev.is_none());
+                    if prev.is_some() {
+                        return Err(Error {
+                            span: export.name.span,
+                            msg: format!(
+                                "name `{name}` exported more than once",
+                                name = export.name.name
+                            ),
+                        }
+                        .into());
+                    }
                     export_spans.push(export.name.span);
                 }
             }

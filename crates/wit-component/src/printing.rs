@@ -185,19 +185,19 @@ impl DocumentPrinter {
         self.print_types(
             resolve,
             TypeOwner::World(id),
-            world.exports.iter().filter_map(|(name, item)| match item {
+            world.imports.iter().filter_map(|(name, item)| match item {
                 WorldItem::Type(t) => Some((name.as_str(), *t)),
                 _ => None,
             }),
         )?;
         for (name, import) in world.imports.iter() {
+            // Types are handled above with `print_types`.
+            if let WorldItem::Type(_) = import {
+                continue;
+            }
             self.print_world_item(resolve, name, import, docid, "import")?;
         }
         for (name, export) in world.exports.iter() {
-            // Types are handled above with `print_types`.
-            if let WorldItem::Type(_) = export {
-                continue;
-            }
             self.print_world_item(resolve, name, export, docid, "export")?;
         }
         Ok(())

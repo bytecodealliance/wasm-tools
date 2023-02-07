@@ -136,6 +136,7 @@ impl ComponentBuilder {
         let ret = match &ty {
             ComponentTypeRef::Instance(_) => inc(&mut self.instances),
             ComponentTypeRef::Func(_) => inc(&mut self.funcs),
+            ComponentTypeRef::Type(..) => inc(&mut self.types),
             _ => unimplemented!(),
         };
         self.imports().import(name, url, ty);
