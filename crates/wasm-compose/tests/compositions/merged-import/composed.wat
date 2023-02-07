@@ -3,7 +3,7 @@
     (instance
       (type (;0;) (func))
       (export (;0;) "b" (func (type 0)))
-      (type (;1;) (func (param "y" u64)))
+      (type (;1;) (func (param "y" u32)))
       (export (;1;) "c" (func (type 1)))
       (type (;2;) (func (param "x" string)))
       (export (;2;) "a" (func (type 2)))
@@ -30,7 +30,7 @@
       (instance
         (type (;0;) (func (param "x" string)))
         (export (;0;) "a" (func (type 0)))
-        (type (;1;) (func (param "y" u64)))
+        (type (;1;) (func (param "y" u32)))
         (export (;1;) "c" (func (type 1)))
       )
     )
