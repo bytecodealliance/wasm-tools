@@ -1,3 +1,4 @@
+;; RUN: dump %
 
 (component
   (component (import "a"))

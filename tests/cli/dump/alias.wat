@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (component
   (import "i" (instance $i
     (export "f1" (func))

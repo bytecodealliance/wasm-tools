@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (component
   (type $i (instance
     (export "" (func))

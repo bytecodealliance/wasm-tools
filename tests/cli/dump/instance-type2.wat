@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (component
   (type (instance))
   (type (instance (export "" (instance (type 0)))))

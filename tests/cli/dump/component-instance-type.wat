@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 ;; instances
 (component
   (type $outer (instance

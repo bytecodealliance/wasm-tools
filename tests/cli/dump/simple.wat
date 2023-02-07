@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (module
   (import "m" "n" (func (param i32)))
   (table 1 funcref)

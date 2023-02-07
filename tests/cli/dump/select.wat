@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (module
     (func
         select

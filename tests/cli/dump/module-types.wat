@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (component
   (import "a" (core module $m
     (import "" "f" (func))

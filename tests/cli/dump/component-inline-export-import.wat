@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (component
   (component
     (export "")

@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (component
   (type $WasiFile (instance
       (export "read" (func (param "len" u32) (result (list u8))))

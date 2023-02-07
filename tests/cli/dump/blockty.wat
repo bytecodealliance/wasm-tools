@@ -1,3 +1,5 @@
+;; RUN: dump %
+
 (module
   (type $empty (func))
   (type $t (func (result i32)))
