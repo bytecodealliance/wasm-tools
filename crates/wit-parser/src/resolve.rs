@@ -780,12 +780,18 @@ impl Remap {
         for (id, span) in imports {
             elaborate.import(id, span)?;
         }
-        for (name, id, span) in import_types {
-            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[id].kind {
+        for (_name, id, span) in import_types.iter() {
+            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
                 if let TypeOwner::Interface(owner) = resolve.types[other].owner {
-                    elaborate.import(owner, span)?;
+                    elaborate.import(owner, *span)?;
                 }
             }
+        }
+        for (id, span) in exports {
+            elaborate.export(id, span)?;
+        }
+
+        for (name, id, span) in import_types {
             let prev = elaborate
                 .world
                 .imports
@@ -796,9 +802,6 @@ impl Remap {
                     span,
                 })
             }
-        }
-        for (id, span) in exports {
-            elaborate.export(id, span)?;
         }
 
         for (name, func, span) in import_funcs {

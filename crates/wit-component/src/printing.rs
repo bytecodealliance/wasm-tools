@@ -182,21 +182,16 @@ impl DocumentPrinter {
     fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
         let world = &resolve.worlds[id];
         let docid = world.document;
-        self.print_types(
-            resolve,
-            TypeOwner::World(id),
-            world.imports.iter().filter_map(|(name, item)| match item {
-                WorldItem::Type(t) => Some((name.as_str(), *t)),
-                _ => None,
-            }),
-        )?;
+        let mut types = Vec::new();
         for (name, import) in world.imports.iter() {
-            // Types are handled above with `print_types`.
-            if let WorldItem::Type(_) = import {
-                continue;
+            match import {
+                WorldItem::Type(t) => types.push((name.as_str(), *t)),
+                _ => {
+                    self.print_world_item(resolve, name, import, docid, "import")?;
+                }
             }
-            self.print_world_item(resolve, name, import, docid, "import")?;
         }
+        self.print_types(resolve, TypeOwner::World(id), types.into_iter())?;
         for (name, export) in world.exports.iter() {
             self.print_world_item(resolve, name, export, docid, "export")?;
         }
