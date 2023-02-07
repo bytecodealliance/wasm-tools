@@ -1,5 +1,5 @@
-   0x0 | 00 61 73 6d | version 11 (Component)
-       | 0b 00 01 00
+   0x0 | 00 61 73 6d | version 12 (Component)
+       | 0c 00 01 00
    0x8 | 07 30       | component type section
    0xa | 01          | 1 count
    0xb | 42 06 01 70 | [type 0] Instance([Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("len", Primitive(U32))], results: Unnamed(Type(0)) })), Export { name: "read", url: "", ty: Func(1) }, Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("buf", Type(2))], results: Unnamed(Primitive(U32)) })), Export { name: "write", url: "", ty: Func(3) }])
@@ -187,46 +187,47 @@
  0x1d7 | 00 00 02 02 | [func 1] Lift { core_func_index: 2, type_index: 1, options: [Memory(1), Realloc(3)] }
        | 03 01 04 03
        | 01         
- 0x1e0 | 0b 09       | component export section
+ 0x1e0 | 0b 0a       | component export section
  0x1e2 | 01          | 1 count
- 0x1e3 | 04 77 6f 72 | export ComponentExport { name: "work", url: "", kind: Func, index: 1 }
+ 0x1e3 | 04 77 6f 72 | export ComponentExport { name: "work", url: "", kind: Func, index: 1, ty: None }
        | 6b 00 01 01
- 0x1eb | 00 7c       | custom section
- 0x1ed | 0e 63 6f 6d | name: "component-name"
+       | 00         
+ 0x1ec | 00 7c       | custom section
+ 0x1ee | 0e 63 6f 6d | name: "component-name"
        | 70 6f 6e 65
        | 6e 74 2d 6e
        | 61 6d 65   
- 0x1fc | 01 13 00 00 | core func section
- 0x200 | 01          | 1 count
- 0x201 | 01 0e 72 65 | Naming { index: 1, name: "real-wasi-read" }
+ 0x1fd | 01 13 00 00 | core func section
+ 0x201 | 01          | 1 count
+ 0x202 | 01 0e 72 65 | Naming { index: 1, name: "real-wasi-read" }
        | 61 6c 2d 77
        | 61 73 69 2d
        | 72 65 61 64
- 0x211 | 01 1c 00 11 | core module section
- 0x215 | 03          | 3 count
- 0x216 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
+ 0x212 | 01 1c 00 11 | core module section
+ 0x216 | 03          | 3 count
+ 0x217 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
        | 62 63      
- 0x21c | 01 05 43 48 | Naming { index: 1, name: "CHILD" }
+ 0x21d | 01 05 43 48 | Naming { index: 1, name: "CHILD" }
        | 49 4c 44   
- 0x223 | 02 0a 56 49 | Naming { index: 2, name: "VIRTUALIZE" }
+ 0x224 | 02 0a 56 49 | Naming { index: 2, name: "VIRTUALIZE" }
        | 52 54 55 41
        | 4c 49 5a 45
- 0x22f | 01 1b 00 12 | core instance section
- 0x233 | 03          | 3 count
- 0x234 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
+ 0x230 | 01 1b 00 12 | core instance section
+ 0x234 | 03          | 3 count
+ 0x235 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
        | 62 63      
- 0x23a | 02 09 76 69 | Naming { index: 2, name: "virt-wasi" }
+ 0x23b | 02 09 76 69 | Naming { index: 2, name: "virt-wasi" }
        | 72 74 2d 77
        | 61 73 69   
- 0x245 | 03 05 63 68 | Naming { index: 3, name: "child" }
+ 0x246 | 03 05 63 68 | Naming { index: 3, name: "child" }
        | 69 6c 64   
- 0x24c | 01 0c 03    | type section
- 0x24f | 01          | 1 count
- 0x250 | 00 08 57 61 | Naming { index: 0, name: "WasiFile" }
+ 0x24d | 01 0c 03    | type section
+ 0x250 | 01          | 1 count
+ 0x251 | 00 08 57 61 | Naming { index: 0, name: "WasiFile" }
        | 73 69 46 69
        | 6c 65      
- 0x25a | 01 0d 05    | instance section
- 0x25d | 01          | 1 count
- 0x25e | 00 09 72 65 | Naming { index: 0, name: "real-wasi" }
+ 0x25b | 01 0d 05    | instance section
+ 0x25e | 01          | 1 count
+ 0x25f | 00 09 72 65 | Naming { index: 0, name: "real-wasi" }
        | 61 6c 2d 77
        | 61 73 69   

@@ -122,7 +122,7 @@ impl ComponentBuilder {
     }
 
     pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) -> u32 {
-        self.exports().export(name, url, kind, idx);
+        self.exports().export(name, url, kind, idx, None);
         match kind {
             ComponentExportKind::Type => inc(&mut self.types),
             ComponentExportKind::Func => inc(&mut self.funcs),

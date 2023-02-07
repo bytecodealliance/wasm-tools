@@ -1,4 +1,4 @@
-use crate::{BinaryReader, FromReader, Result, SectionLimited};
+use crate::{BinaryReader, ComponentTypeRef, FromReader, Result, SectionLimited};
 
 /// Represents the kind of an external items of a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -61,6 +61,8 @@ pub struct ComponentExport<'a> {
     pub kind: ComponentExternalKind,
     /// The index of the exported item.
     pub index: u32,
+    /// An optionally specified type ascribed to this export.
+    pub ty: Option<ComponentTypeRef>,
 }
 
 /// A reader for the export section of a WebAssembly component.
@@ -73,6 +75,17 @@ impl<'a> FromReader<'a> for ComponentExport<'a> {
             url: reader.read()?,
             kind: reader.read()?,
             index: reader.read()?,
+            ty: match reader.read_u8()? {
+                0x00 => None,
+                0x01 => Some(reader.read()?),
+                other => {
+                    return Err(BinaryReader::invalid_leading_byte_error(
+                        other,
+                        "optional component export type",
+                        reader.original_position() - 1,
+                    ))
+                }
+            },
         })
     }
 }

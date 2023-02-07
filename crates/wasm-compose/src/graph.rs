@@ -272,6 +272,7 @@ impl<'a> Component<'a> {
                     url,
                     kind,
                     index,
+                    ty: None,
                 })?,
         ))
     }

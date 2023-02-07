@@ -1,4 +1,4 @@
-use super::ItemRef;
+use super::{ItemRef, ItemSigNoName};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
@@ -18,6 +18,8 @@ pub struct ComponentExport<'a> {
     pub url: Option<&'a str>,
     /// The kind of export.
     pub kind: ComponentExportKind<'a>,
+    /// The kind of export.
+    pub ty: Option<ItemSigNoName<'a>>,
 }
 
 impl<'a> Parse<'a> for ComponentExport<'a> {
@@ -28,6 +30,11 @@ impl<'a> Parse<'a> for ComponentExport<'a> {
         let name = parser.parse()?;
         let url = parser.parse()?;
         let kind = parser.parse()?;
+        let ty = if !parser.is_empty() {
+            Some(parser.parens(|p| p.parse())?)
+        } else {
+            None
+        };
         Ok(ComponentExport {
             span,
             id,
@@ -35,6 +42,7 @@ impl<'a> Parse<'a> for ComponentExport<'a> {
             name,
             url,
             kind,
+            ty,
         })
     }
 }
