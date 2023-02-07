@@ -157,8 +157,9 @@ fn assert_output(bless: bool, output: &[u8], path: &Path) -> Result<()> {
         }
     } else {
         let output = std::str::from_utf8(output)?;
-        let contents =
-            std::fs::read_to_string(path).with_context(|| format!("failed to read {path:?}"))?;
+        let contents = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read {path:?}"))?
+            .replace("\r\n", "\n");
         if output != contents {
             bail!(
                 "failed test: result is not as expected:{}",
