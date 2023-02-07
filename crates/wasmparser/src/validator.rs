@@ -222,8 +222,7 @@ pub struct WasmFeatures {
     /// Whether or not floating-point instructions are enabled.
     ///
     /// This is enabled by default can be used to disallow floating-point
-    /// operators. Note that disabling this does not disable the `f32` and
-    /// `f64` wasm types, only the operators that work on them.
+    /// operators and types.
     ///
     /// This does not correspond to a WebAssembly proposal but is instead
     /// intended for embeddings which have stricter-than-usual requirements
@@ -254,7 +253,14 @@ impl WasmFeatures {
     /// types. Use module.check_value_type.
     pub(crate) fn check_value_type(&self, ty: ValType) -> Result<(), &'static str> {
         match ty {
-            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 => Ok(()),
+            ValType::I32 | ValType::I64 => Ok(()),
+            ValType::F32 | ValType::F64 => {
+                if self.floats {
+                    Ok(())
+                } else {
+                    Err("floating-point support is disabled")
+                }
+            }
             ValType::Ref(r) => {
                 if self.reference_types {
                     if !self.function_references {

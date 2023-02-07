@@ -563,6 +563,7 @@ impl TestState {
                     features.bulk_memory = false;
                     features.function_references = false;
                 }
+                "floats-disabled.wast" => features.floats = false,
                 "threads" => {
                     features.threads = true;
                     features.bulk_memory = false;
