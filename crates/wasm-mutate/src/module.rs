@@ -88,7 +88,6 @@ pub fn map_ref_type(tpe: wasmparser::RefType) -> Result<RefType> {
             wasmparser::HeapType::Func => HeapType::Func,
             wasmparser::HeapType::Extern => HeapType::Extern,
             wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
-            wasmparser::HeapType::Bot => unreachable!(),
         },
     })
 }

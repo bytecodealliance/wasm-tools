@@ -424,7 +424,6 @@ impl<'a> Module<'a> {
         match ty {
             HeapType::Func | HeapType::Extern => {}
             HeapType::TypedFunc(i) => self.ty(i.into()),
-            HeapType::Bot => unreachable!(),
         }
     }
 
@@ -1012,7 +1011,6 @@ impl Encoder {
             wasmparser::HeapType::TypedFunc(idx) => {
                 wasm_encoder::HeapType::TypedFunc(self.types.remap(idx.into()).try_into().unwrap())
             }
-            wasmparser::HeapType::Bot => unimplemented!(),
         }
     }
 }

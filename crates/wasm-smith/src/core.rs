@@ -1644,7 +1644,6 @@ fn convert_reftype(ty: wasmparser::RefType) -> RefType {
             wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
             wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
             wasmparser::HeapType::TypedFunc(i) => wasm_encoder::HeapType::TypedFunc(i.into()),
-            wasmparser::HeapType::Bot => unreachable!(),
         },
     }
 }

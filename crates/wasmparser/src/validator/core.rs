@@ -810,7 +810,6 @@ impl Module {
                 // Just check that the index is valid
                 self.func_type_at(type_index.into(), types, offset)?;
             }
-            HeapType::Bot => (),
         }
         Ok(())
     }
@@ -860,7 +859,6 @@ impl Module {
                     self.eq_fns(n1, n2, types)
                 }
                 (HeapType::TypedFunc(_), HeapType::Func) => true,
-                (HeapType::Bot, _) => true,
                 (_, _) => ty1 == ty2,
             }
         };

@@ -285,7 +285,6 @@ impl<'a> TypeEncoder<'a> {
                 wasmparser::HeapType::Func => HeapType::Func,
                 wasmparser::HeapType::Extern => HeapType::Extern,
                 wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
-                wasmparser::HeapType::Bot => unreachable!(),
             },
         }
     }
