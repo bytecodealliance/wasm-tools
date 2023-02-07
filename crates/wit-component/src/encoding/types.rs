@@ -282,6 +282,7 @@ pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
     pub type_exports: Vec<(u32, &'a str)>,
     pub interface: Option<InterfaceId>,
+    pub import_types: bool,
 
     // These maps are used when `interface` is set to `Some` as all the type
     // information will be per-interface.
@@ -303,12 +304,17 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         // instance with a bag-of-exports construction which can't refer to its
         // own types.
         if self.interface.is_none() {
-            Some(
+            Some(if self.import_types {
                 self.state
                     .component
-                    .export(name, "", ComponentExportKind::Type, idx),
-            )
+                    .import(name, "", ComponentTypeRef::Type(TypeBounds::Eq, idx))
+            } else {
+                self.state
+                    .component
+                    .export(name, "", ComponentExportKind::Type, idx)
+            })
         } else {
+            assert!(!self.import_types);
             self.type_exports.push((idx, name));
             None
         }

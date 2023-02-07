@@ -191,7 +191,25 @@ impl<'a> ComponentInfo<'a> {
                             })?;
                             WorldItem::Function(func)
                         }
-                        _ => bail!("component import `{name}` was neither a function nor instance"),
+                        types::ComponentEntityType::Type {
+                            referenced,
+                            created,
+                        } => {
+                            let id = decoder
+                                .register_type_export(
+                                    name,
+                                    TypeOwner::World(world),
+                                    referenced,
+                                    created,
+                                )
+                                .with_context(|| {
+                                    format!("failed to decode type from export `{name}`")
+                                })?;
+                            WorldItem::Type(id)
+                        }
+                        _ => {
+                            bail!("component import `{name}` was not a function, instance, or type")
+                        }
                     };
                     decoder.resolve.worlds[world]
                         .imports
@@ -230,24 +248,8 @@ impl<'a> ComponentInfo<'a> {
                                 .insert(name.to_string(), id);
                             WorldItem::Interface(id)
                         }
-                        types::ComponentEntityType::Type {
-                            referenced,
-                            created,
-                        } => {
-                            let id = decoder
-                                .register_type_export(
-                                    name,
-                                    TypeOwner::World(world),
-                                    referenced,
-                                    created,
-                                )
-                                .with_context(|| {
-                                    format!("failed to decode type from export `{name}`")
-                                })?;
-                            WorldItem::Type(id)
-                        }
                         _ => {
-                            bail!("component export `{name}` was not a function, instance, or type")
+                            bail!("component export `{name}` was not a function or instance")
                         }
                     };
                     decoder.resolve.worlds[world]
@@ -710,14 +712,6 @@ impl WitPackageDecoder<'_> {
             document,
         };
 
-        // TODO: this sequence of loops would be simpler if the wasmparser
-        // representation of a world reflected the interleaved order of imports
-        // and exports. At this time it doesn't so items are explicitly visited
-        // in order.
-
-        // First, process all imported instances which are imported interfaces
-        // into the world. This is done first since each instance is standalone
-        // but other items in the world may refer to these instances.
         for (name, (url, ty)) in ty.imports.iter() {
             let item = match ty {
                 types::ComponentEntityType::Instance(idx) => {
@@ -739,16 +733,6 @@ impl WitPackageDecoder<'_> {
                     };
                     WorldItem::Interface(id)
                 }
-                _ => continue,
-            };
-            world.imports.insert(name.to_string(), item);
-        }
-
-        // Next, process type exports. These types may refer to the prior
-        // instances and may additionally be used by subsequent exports, so
-        // register their information here.
-        for (name, (_url, ty)) in ty.exports.iter() {
-            let item = match ty {
                 types::ComponentEntityType::Type {
                     created,
                     referenced,
@@ -761,17 +745,6 @@ impl WitPackageDecoder<'_> {
                     )?;
                     WorldItem::Type(ty)
                 }
-                _ => continue,
-            };
-            world.exports.insert(name.to_string(), item);
-        }
-
-        // Now handle all other non-instance imports, which at this time is only
-        // functions.
-        for (name, (_url, ty)) in ty.imports.iter() {
-            let item = match ty {
-                types::ComponentEntityType::Instance(_) => continue,
-
                 types::ComponentEntityType::Func(idx) => {
                     let ty = match self.info.types.type_from_id(*idx) {
                         Some(types::Type::ComponentFunc(ty)) => ty,
@@ -780,17 +753,13 @@ impl WitPackageDecoder<'_> {
                     let func = self.convert_function(name, ty)?;
                     WorldItem::Function(func)
                 }
-
-                _ => bail!("component import `{name}` is not an instance or function"),
+                _ => bail!("component import `{name}` is not an instance, func, or type"),
             };
             world.imports.insert(name.to_string(), item);
         }
 
-        // And finally handle all non-type exports.
         for (name, (url, ty)) in ty.exports.iter() {
             let item = match ty {
-                types::ComponentEntityType::Type { .. } => continue,
-
                 types::ComponentEntityType::Instance(idx) => {
                     let ty = match self.info.types.type_from_id(*idx) {
                         Some(types::Type::ComponentInstance(ty)) => ty,

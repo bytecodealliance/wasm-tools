@@ -1,5 +1,5 @@
-name `a` is defined more than once
+name `a` imported more than once
      --> tests/ui/parse-fail/bad-world-type1.wit:3:10
       |
-    3 |   export a: func()
+    3 |   import a: func()
       |          ^

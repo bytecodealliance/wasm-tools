@@ -224,8 +224,7 @@ impl<'a> ComponentWorld<'a> {
                     }
                     Ok(())
                 }
-                // Types aren't imported at this time
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type(_) => Ok(()),
             }
         }
 
@@ -318,8 +317,7 @@ impl<'a> ComponentWorld<'a> {
                         }
                     }
                 }
-                // Types aren't imported at this time
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type(id) => live.add_type_id(resolve, *id),
             }
         }
     }

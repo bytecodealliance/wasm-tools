@@ -372,6 +372,7 @@ impl<'a> EncodingState<'a> {
             interface,
             type_map: Default::default(),
             func_type_map: Default::default(),
+            import_types: false,
         }
     }
 
@@ -386,11 +387,28 @@ impl<'a> EncodingState<'a> {
     }
 
     fn encode_imports(&mut self) -> Result<()> {
+        let mut has_funcs = false;
         for (name, info) in self.info.import_map.iter() {
             match name {
                 Some(name) => self.encode_interface_import(name, info)?,
-                None => self.encode_root_import_funcs(info)?,
+                None => has_funcs = true,
             }
+        }
+
+        let resolve = &self.info.encoder.metadata.resolve;
+        let world = &resolve.worlds[self.info.encoder.metadata.world];
+        for (_name, item) in world.imports.iter() {
+            if let WorldItem::Type(ty) = item {
+                let mut enc = self.root_type_encoder(None);
+                enc.import_types = true;
+                enc.encode_valtype(resolve, &Type::Id(*ty))?;
+                assert!(enc.type_exports.is_empty());
+            }
+        }
+
+        if has_funcs {
+            let info = &self.info.import_map[&None];
+            self.encode_root_import_funcs(info)?;
         }
         Ok(())
     }
@@ -606,11 +624,6 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[world];
         for (export_name, export) in world.exports.iter() {
             match export {
-                WorldItem::Type(ty) => {
-                    let mut enc = self.root_type_encoder(None);
-                    enc.encode_valtype(resolve, &Type::Id(*ty))?;
-                    assert!(enc.type_exports.is_empty());
-                }
                 WorldItem::Function(func) => {
                     let mut enc = self.root_type_encoder(None);
                     let ty = enc.encode_func_type(resolve, func)?;
@@ -674,6 +687,7 @@ impl<'a> EncodingState<'a> {
                     let prev = self.exported_instances.insert(*export, idx);
                     assert!(prev.is_none());
                 }
+                WorldItem::Type(_) => unreachable!(),
             }
         }
 
