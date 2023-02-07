@@ -19,7 +19,6 @@ doctest = false
 
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
-wasmparser-dump = { workspace = true }
 wasm-mutate = { workspace = true }
 wasm-shrink = { workspace = true }
 wasm-smith = { workspace = true }

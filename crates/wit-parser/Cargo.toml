@@ -24,7 +24,7 @@ url = { workspace = true }
 [dev-dependencies]
 rayon = "1"
 env_logger = { workspace = true }
-pretty_assertions = "1.3.0"
+pretty_assertions = { workspace = true }
 
 [[test]]
 name = "all"

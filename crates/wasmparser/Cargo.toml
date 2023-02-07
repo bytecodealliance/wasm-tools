@@ -22,7 +22,6 @@ criterion = { workspace = true }
 wat = { path = "../wat" }
 wast = { path = "../wast" }
 rayon = { workspace = true }
-wasmparser-dump = { path = "../dump" }
 once_cell = "1.13.0"
 
 [[bench]]
