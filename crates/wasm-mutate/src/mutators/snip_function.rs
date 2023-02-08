@@ -14,7 +14,7 @@ pub struct SnipMutator;
 
 impl Mutator for SnipMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();

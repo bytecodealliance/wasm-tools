@@ -92,7 +92,7 @@ pub trait Mutator {
     /// `std::iter::once`, to give the fuzzer a chance to choose a new kind of
     /// mutation.
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>>;
 

@@ -50,12 +50,9 @@ impl Mutator for RemoveSection {
     }
 
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
-    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>>
-    where
-        Self: Copy,
-    {
+    ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let removal_candidates = config
             .info()
             .raw_sections

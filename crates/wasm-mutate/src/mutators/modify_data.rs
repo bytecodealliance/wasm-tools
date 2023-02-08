@@ -14,7 +14,7 @@ pub struct ModifyDataMutator {
 
 impl Mutator for ModifyDataMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut new_section = DataSection::new();

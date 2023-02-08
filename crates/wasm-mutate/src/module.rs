@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use std::convert::TryFrom;
 use wasm_encoder::{BlockType, ValType};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
     I32,
     I64,
