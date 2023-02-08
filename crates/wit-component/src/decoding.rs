@@ -690,11 +690,7 @@ impl WitPackageDecoder<'_> {
         });
 
         let prev = self.type_map.insert(created, ty);
-        // FIXME(WebAssembly/component-model#151) this check should
-        // get executed
-        if false {
-            assert!(prev.is_none());
-        }
+        assert!(prev.is_none());
         Ok(ty)
     }
 

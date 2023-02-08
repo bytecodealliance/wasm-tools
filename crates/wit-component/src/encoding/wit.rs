@@ -48,7 +48,7 @@ impl Encoder<'_> {
             let ty = self.encode_document(*doc)?;
             let url = format!("pkg:/{name}");
             self.component
-                .export(name, &url, ComponentExportKind::Type, ty);
+                .export(name, &url, ComponentExportKind::Type, ty, None);
         }
         Ok(())
     }
@@ -74,6 +74,7 @@ impl Encoder<'_> {
         let mut encoder = InterfaceEncoder::new(self.resolve);
         let mut import_names = IndexSet::new();
         for interface in interfaces {
+            encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
             let name = iface.name.as_ref().unwrap();
             if iface.document == doc {
@@ -112,6 +113,7 @@ impl Encoder<'_> {
                     .import(&import_name, &url, ComponentTypeRef::Instance(idx));
             }
         }
+        encoder.interface = None;
 
         let doc = &self.resolve.documents[doc];
         for (name, world) in doc.worlds.iter() {
@@ -121,14 +123,17 @@ impl Encoder<'_> {
             for (name, import) in world.imports.iter() {
                 let (url, ty) = match import {
                     WorldItem::Interface(i) => {
+                        component.interface = Some(*i);
                         let idx = component.encode_instance(*i)?;
                         (self.url_of(*i), ComponentTypeRef::Instance(idx))
                     }
                     WorldItem::Function(f) => {
+                        component.interface = None;
                         let idx = component.encode_func_type(self.resolve, f)?;
                         (String::new(), ComponentTypeRef::Func(idx))
                     }
                     WorldItem::Type(t) => {
+                        component.interface = None;
                         component.import_types = true;
                         component.encode_valtype(self.resolve, &Type::Id(*t))?;
                         component.import_types = false;
@@ -141,10 +146,12 @@ impl Encoder<'_> {
             for (name, export) in world.exports.iter() {
                 let (url, ty) = match export {
                     WorldItem::Interface(i) => {
+                        component.interface = Some(*i);
                         let idx = component.encode_instance(*i)?;
                         (self.url_of(*i), ComponentTypeRef::Instance(idx))
                     }
                     WorldItem::Function(f) => {
+                        component.interface = None;
                         let idx = component.encode_func_type(self.resolve, f)?;
                         (String::new(), ComponentTypeRef::Func(idx))
                     }
@@ -223,6 +230,7 @@ struct InterfaceEncoder<'a> {
     outer_type_map: HashMap<TypeId, u32>,
     instances: u32,
     import_types: bool,
+    interface: Option<InterfaceId>,
 }
 
 impl InterfaceEncoder<'_> {
@@ -238,6 +246,7 @@ impl InterfaceEncoder<'_> {
             instances: 0,
             saved_types: None,
             import_types: false,
+            interface: None,
         }
     }
 
@@ -317,13 +326,12 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
         &mut self.type_map
     }
-    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
+    fn interface(&self) -> Option<InterfaceId> {
+        self.interface
+    }
+    fn import_type(&mut self, owner: InterfaceId, id: TypeId) -> u32 {
         let ty = &self.resolve.types[id];
-        let owner = match ty.owner {
-            TypeOwner::Interface(i) => i,
-            _ => return None,
-        };
-        let instance = *self.import_map.get(&owner)?;
+        let instance = self.import_map[&owner];
         let outer_idx = *self.outer_type_map.entry(id).or_insert_with(|| {
             let ret = self.outer.type_count();
             self.outer.alias(Alias::InstanceExport {
@@ -341,9 +349,9 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
                     index: outer_idx,
                     kind: ComponentOuterAliasKind::Type,
                 });
-                Some(ret)
+                ret
             }
-            None => Some(outer_idx),
+            None => outer_idx,
         }
     }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {

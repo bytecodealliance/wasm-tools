@@ -3,7 +3,7 @@ interface foo {
 
   type b = a
 
-  c: func(a: b) -> b
+  c: func(a: a) -> b
 }
 
 default world component {

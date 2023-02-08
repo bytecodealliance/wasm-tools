@@ -39,11 +39,12 @@ pub trait ValtypeEncoder<'a> {
     /// Returns a map of all types previously defined in this type index space.
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32>;
 
-    /// Optionally imports `id` from a different interface, returning the index
-    /// of the imported type into this index space.
-    ///
-    /// Returns `None` if `id can't be imported.
-    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32>;
+    /// Imports `id` from a different interface, returning the index of the
+    /// imported type into this index space.
+    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32;
+
+    /// Returns the identifier of the interface that generation is for.
+    fn interface(&self) -> Option<InterfaceId>;
 
     /// Returns the map of already-defined function types in this type index
     /// space.
@@ -125,13 +126,13 @@ pub trait ValtypeEncoder<'a> {
 
                 // If this type is imported from another interface then return
                 // it as it was bound here with an alias.
-                if let Some(index) = self.maybe_import_type(id) {
+                let ty = &resolve.types[id];
+                if let Some(index) = self.maybe_import_type(resolve, id) {
                     self.type_map().insert(id, index);
                     return Ok(ComponentValType::Type(index));
                 }
 
                 // ... and failing all that insert the type export.
-                let ty = &resolve.types[id];
                 let mut encoded = match &ty.kind {
                     TypeDefKind::Record(r) => self.encode_record(resolve, r)?,
                     TypeDefKind::Tuple(t) => self.encode_tuple(resolve, t)?,
@@ -176,6 +177,22 @@ pub trait ValtypeEncoder<'a> {
                 encoded
             }
         })
+    }
+
+    /// Optionally imports `id` from a different interface, returning the index
+    /// of the imported type into this index space.
+    ///
+    /// Returns `None` if `id can't be imported.
+    fn maybe_import_type(&mut self, resolve: &Resolve, id: TypeId) -> Option<u32> {
+        let ty = &resolve.types[id];
+        let owner = match ty.owner {
+            TypeOwner::Interface(i) => i,
+            _ => return None,
+        };
+        if Some(owner) == self.interface() {
+            return None;
+        }
+        Some(self.import_type(owner, id))
     }
 
     fn encode_optional_valtype(
@@ -280,7 +297,6 @@ pub trait ValtypeEncoder<'a> {
 
 pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
-    pub type_exports: Vec<(u32, &'a str)>,
     pub interface: Option<InterfaceId>,
     pub import_types: bool,
 
@@ -297,6 +313,9 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
         self.state.component.function_type()
     }
+    fn interface(&self) -> Option<InterfaceId> {
+        self.interface
+    }
     fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
         // When encoding types for the root the root component will export
         // this type, but when encoding types for a targeted interface then we
@@ -311,28 +330,15 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
             } else {
                 self.state
                     .component
-                    .export(name, "", ComponentExportKind::Type, idx)
+                    .export(name, "", ComponentExportKind::Type, idx, None)
             })
         } else {
             assert!(!self.import_types);
-            self.type_exports.push((idx, name));
             None
         }
     }
-    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
-        // If this `id` is anonymous or belongs to this interface there's
-        // nothing to import, it needs defining. Otherwise alias the type from
-        // an import into this component's root namespace.
-        let other = match self.state.info.encoder.metadata.resolve.types[id].owner {
-            TypeOwner::Interface(id) => id,
-            _ => return None,
-        };
-        if Some(other) == self.interface {
-            return None;
-        }
-        // TODO: this doesn't work for importing types from other exports. That
-        // just trips an assertion here.
-        Some(self.state.index_of_type_export(id))
+    fn import_type(&mut self, _: InterfaceId, id: TypeId) -> u32 {
+        self.state.index_of_type_export(id)
     }
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
         if self.interface.is_some() {
@@ -374,28 +380,16 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
         &mut self.type_map
     }
-    fn maybe_import_type(&mut self, id: TypeId) -> Option<u32> {
-        // If this `id` is anonymous or belongs to this interface
-        // there's nothing to import, it needs defining. Otherwise
-        // perform the importing process with an outer alias to the
-        // parent component.
-        let other = match self.state.info.encoder.metadata.resolve.types[id].owner {
-            TypeOwner::Interface(id) => id,
-            _ => return None,
-        };
-        if other == self.interface {
-            return None;
-        }
-
-        let outer_idx = self.state.index_of_type_export(id);
-        let ret = self.ty.type_count();
-        self.type_map.insert(id, ret);
+    fn interface(&self) -> Option<InterfaceId> {
+        Some(self.interface)
+    }
+    fn import_type(&mut self, _: InterfaceId, id: TypeId) -> u32 {
         self.ty.alias(Alias::Outer {
             count: 1,
-            index: outer_idx,
+            index: self.state.index_of_type_export(id),
             kind: ComponentOuterAliasKind::Type,
         });
-        Some(ret)
+        self.ty.type_count() - 1
     }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
         &mut self.func_type_map
