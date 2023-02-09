@@ -28,6 +28,7 @@ pub struct ComponentBuilder {
     funcs: u32,
     instances: u32,
     types: u32,
+    components: u32,
 }
 
 impl ComponentBuilder {
@@ -83,15 +84,6 @@ impl ComponentBuilder {
         inc(&mut self.core_instances)
     }
 
-    pub fn instantiate_exports<'a, E>(&mut self, exports: E) -> u32
-    where
-        E: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
-        E::IntoIter: ExactSizeIterator,
-    {
-        self.component_instances().export_items(exports);
-        inc(&mut self.instances)
-    }
-
     pub fn core_module(&mut self, module: &Module) -> u32 {
         self.flush();
         self.component.section(&ModuleSection(module));
@@ -121,8 +113,15 @@ impl ComponentBuilder {
         }
     }
 
-    pub fn export(&mut self, name: &str, url: &str, kind: ComponentExportKind, idx: u32) -> u32 {
-        self.exports().export(name, url, kind, idx, None);
+    pub fn export(
+        &mut self,
+        name: &str,
+        url: &str,
+        kind: ComponentExportKind,
+        idx: u32,
+        ty: Option<ComponentTypeRef>,
+    ) -> u32 {
+        self.exports().export(name, url, kind, idx, ty);
         match kind {
             ComponentExportKind::Type => inc(&mut self.types),
             ComponentExportKind::Func => inc(&mut self.funcs),
@@ -170,6 +169,33 @@ impl ComponentBuilder {
             name,
         });
         inc(&mut self.types)
+    }
+
+    pub fn alias_outer_type(&mut self, count: u32, index: u32) -> u32 {
+        self.aliases().alias(Alias::Outer {
+            count,
+            index,
+            kind: ComponentOuterAliasKind::Type,
+        });
+        inc(&mut self.types)
+    }
+
+    pub fn component(&mut self, mut builder: ComponentBuilder) -> u32 {
+        builder.flush();
+        self.flush();
+        self.component
+            .section(&NestedComponentSection(&builder.component));
+        inc(&mut self.components)
+    }
+
+    pub fn instantiate_component<'a, A>(&mut self, component_index: u32, args: A) -> u32
+    where
+        A: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
+        A::IntoIter: ExactSizeIterator,
+    {
+        self.component_instances()
+            .instantiate(component_index, args);
+        inc(&mut self.instances)
     }
 }
 
