@@ -40,11 +40,30 @@
 //! * They cannot define any `elem` or `data` segments since otherwise there's
 //!   no knowledge ahead-of-time of where their data or element segments could
 //!   go. This means things like no panics, no indirect calls, etc.
-//! * Only one mutable global is allowed and it's assumed to be the stack
-//!   pointer. This stack pointer is automatically configured with an injected
-//!   `start` function that is allocated with `memory.grow (i32.const 1)`,
-//!   meaning that the shim module has 64k of stack space and no protection if
-//!   that overflows.
+//! * If the adapter uses a shadow stack, the global that points to it must be a
+//!   mutable `i32` named `__stack_pointer`. This stack is automatically
+//!   allocated with an injected `allocate_stack` function that will either use
+//!   the main module's `cabi_realloc` export (if present) or `memory.grow`. It
+//!   allocates only 64KB of stack space, and there is no protection if that
+//!   overflows.
+//! * If the adapter has a global, mutable `i32` named `allocation_state`, it
+//!   will be used to keep track of stack allocation status and avoid infinite
+//!   recursion if the main module's `cabi_realloc` function calls back into the
+//!   adapter.  `allocate_stack` will check this global on entry; if it is zero,
+//!   it will set it to one, then allocate the stack, and finally set it to two.
+//!   If it is non-zero, `allocate_stack` will do nothing and return immediately
+//!   (because either the stack has already been allocated or is in the process
+//!   of being allocated).  If the adapter does not have an `allocation_state`,
+//!   `allocate_stack` will use `memory.grow` to allocate the stack; it will
+//!   _not_ use the main module's `cabi_realloc` even if it's available.
+//! * If the adapter imports a `cabi_realloc` function, and the main module
+//!   exports one, they'll be linked together via an alias. If the adapter
+//!   imports such a function but the main module does _not_ export one, we'll
+//!   synthesize one based on `memory.grow` (which will trap for any size other
+//!   than 64KB). Note that the main module's `cabi_realloc` function may call
+//!   back into the adapter before the shadow stack has been allocated. In this
+//!   case (when `allocation_state` is zero or one), the adapter should return
+//!   whatever dummy value(s) it can immediately without touching the stack.
 //!
 //! This means that adapter modules are not meant to be written by everyone.
 //! It's assumed that these will be relatively few and far between yet still a
