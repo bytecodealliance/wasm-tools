@@ -1,13 +1,10 @@
 (module
   (import "new" "get-two" (func $get_two (param i32)))
+  (import "__main_module__" "cabi_realloc" (func $cabi_realloc (param i32 i32 i32 i32) (result i32)))
   (import "env" "memory" (memory 0))
 
   (global $__stack_pointer (mut i32) i32.const 0)
   (global $some_other_mutable_global (mut i32) i32.const 0)
-
-  ;; `wit-component` should use this to track the status of a lazy stack
-  ;; allocation:
-  (global $allocation_state (mut i32) i32.const 0)
 
   ;; This is a sample adapter which is adapting between ABI. This exact function
   ;; signature is imported by `module.wat` and we're implementing it here with a
@@ -22,9 +19,18 @@
   (func (export "get_sum") (result i32)
     (local i32 i32)
 
-    ;; `wit-component` should have injected a call to a function that allocates
-    ;; the stack and sets $allocation_state to 2
-    (if (i32.ne (global.get $allocation_state) (i32.const 2)) (unreachable))
+    ;; First, allocate a page using $cabi_realloc and write to it.  This tests
+    ;; that we can use the main module's allocator if present (or else a
+    ;; substitute synthesized by `wit-component`).
+    (local.set 0
+      (call $cabi_realloc
+        (i32.const 0)
+        (i32.const 0)
+        (i32.const 8)
+        (i32.const 65536)))
+
+    (i32.store (local.get 0) (i32.const 42))
+    (i32.store offset=65532 (local.get 0) (i32.const 42))
 
     ;; Allocate 8 bytes of stack space for the two u32 return values. The
     ;; original stack pointer is saved in local 0 and the stack frame for this
