@@ -182,7 +182,7 @@ pub trait ValtypeEncoder<'a> {
     /// Optionally imports `id` from a different interface, returning the index
     /// of the imported type into this index space.
     ///
-    /// Returns `None` if `id can't be imported.
+    /// Returns `None` if `id` can't be imported.
     fn maybe_import_type(&mut self, resolve: &Resolve, id: TypeId) -> Option<u32> {
         let ty = &resolve.types[id];
         let owner = match ty.owner {
