@@ -130,13 +130,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/try_delegate.wast",
         "exception-handling/try_catch.wast",
         "exception-handling/throw.wast",
-        // TODO: Initialization checking
-        "function-references/func.wast",
-        // TODO: Initialization checking
-        "function-references/local_get.wast",
-        // TODO: new syntax for table types has been added with an optional
-        // initializer which needs parsing in the text format.
-        "function-references/table.wast",
         // TODO: This references an instruction which has since been removed
         // from the proposal so the test needs an update.
         "relaxed-simd/relaxed_fma_fms.wast",
