@@ -102,7 +102,7 @@ impl ElementSection {
     }
 
     /// Define an element segment.
-    pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> &mut Self {
+    pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> u32 {
         let expr_bit = match segment.elements {
             Elements::Expressions(_) => 0b100u32,
             Elements::Functions(_) => 0b000u32,
@@ -158,8 +158,9 @@ impl ElementSection {
             }
         }
 
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Define an active element segment.
@@ -173,7 +174,7 @@ impl ElementSection {
         offset: &ConstExpr,
         element_type: ValType,
         elements: Elements<'_>,
-    ) -> &mut Self {
+    ) -> u32 {
         self.segment(ElementSegment {
             mode: ElementMode::Active {
                 table: table_index,
@@ -187,7 +188,7 @@ impl ElementSection {
     /// Encode a passive element segment.
     ///
     /// Passive segments are part of the bulk memory proposal.
-    pub fn passive<'a>(&mut self, element_type: ValType, elements: Elements<'a>) -> &mut Self {
+    pub fn passive<'a>(&mut self, element_type: ValType, elements: Elements<'a>) -> u32 {
         self.segment(ElementSegment {
             mode: ElementMode::Passive,
             element_type,
@@ -198,7 +199,7 @@ impl ElementSection {
     /// Encode a declared element segment.
     ///
     /// Declared segments are part of the bulk memory proposal.
-    pub fn declared<'a>(&mut self, element_type: ValType, elements: Elements<'a>) -> &mut Self {
+    pub fn declared<'a>(&mut self, element_type: ValType, elements: Elements<'a>) -> u32 {
         self.segment(ElementSegment {
             mode: ElementMode::Declared,
             element_type,
@@ -207,10 +208,11 @@ impl ElementSection {
     }
 
     /// Copy a raw, already-encoded element segment into this elements section.
-    pub fn raw(&mut self, raw_bytes: &[u8]) -> &mut Self {
+    pub fn raw(&mut self, raw_bytes: &[u8]) -> u32 {
         self.bytes.extend_from_slice(raw_bytes);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

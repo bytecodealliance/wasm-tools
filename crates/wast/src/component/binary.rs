@@ -95,7 +95,9 @@ fn encode_type(encoder: ComponentTypeEncoder, ty: &TypeDef) {
 
 fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefinedType) {
     match ty {
-        ComponentDefinedType::Primitive(p) => encoder.primitive((*p).into()),
+        ComponentDefinedType::Primitive(p) => {
+            encoder.primitive((*p).into());
+        },
         ComponentDefinedType::Record(r) => {
             encoder.record(r.fields.iter().map(|f| (f.name, &f.ty)));
         }
@@ -120,7 +122,9 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
         ComponentDefinedType::Enum(e) => {
             encoder.enum_type(e.names.iter().copied());
         }
-        ComponentDefinedType::Union(u) => encoder.union(u.types.iter()),
+        ComponentDefinedType::Union(u) => {
+            encoder.union(u.types.iter());
+        },
         ComponentDefinedType::Option(o) => {
             encoder.option(o.element.as_ref());
         }
@@ -825,10 +829,12 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
         for decl in &ty.decls {
             match decl {
                 ModuleTypeDecl::Type(t) => match &t.def {
-                    core::TypeDef::Func(f) => encoded.ty().function(
-                        f.params.iter().map(|(_, _, ty)| (*ty).into()),
-                        f.results.iter().copied().map(Into::into),
-                    ),
+                    core::TypeDef::Func(f) => {
+                        encoded.ty().function(
+                            f.params.iter().map(|(_, _, ty)| (*ty).into()),
+                            f.results.iter().copied().map(Into::into),
+                        );
+                    },
                     core::TypeDef::Struct(_) | core::TypeDef::Array(_) => {
                         todo!("encoding of GC proposal types not yet implemented")
                     }

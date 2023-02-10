@@ -81,7 +81,7 @@ impl DataSection {
     }
 
     /// Define a data segment.
-    pub fn segment<D>(&mut self, segment: DataSegment<D>) -> &mut Self
+    pub fn segment<D>(&mut self, segment: DataSegment<D>) -> u32
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
@@ -111,12 +111,13 @@ impl DataSection {
         data.len().encode(&mut self.bytes);
         self.bytes.extend(data);
 
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 
     /// Define an active data segment.
-    pub fn active<D>(&mut self, memory_index: u32, offset: &ConstExpr, data: D) -> &mut Self
+    pub fn active<D>(&mut self, memory_index: u32, offset: &ConstExpr, data: D) -> u32
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
@@ -133,7 +134,7 @@ impl DataSection {
     /// Define a passive data segment.
     ///
     /// Passive data segments are part of the bulk memory proposal.
-    pub fn passive<D>(&mut self, data: D) -> &mut Self
+    pub fn passive<D>(&mut self, data: D) -> u32
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
@@ -145,10 +146,11 @@ impl DataSection {
     }
 
     /// Copy an already-encoded data segment into this data section.
-    pub fn raw(&mut self, already_encoded_data_segment: &[u8]) -> &mut Self {
+    pub fn raw(&mut self, already_encoded_data_segment: &[u8]) -> u32 {
         self.bytes.extend_from_slice(already_encoded_data_segment);
+        let index = self.num_added;
         self.num_added += 1;
-        self
+        index
     }
 }
 

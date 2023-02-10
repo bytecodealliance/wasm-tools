@@ -223,7 +223,9 @@ impl Type {
 impl DefinedType {
     fn encode(&self, enc: wasm_encoder::ComponentDefinedTypeEncoder<'_>) {
         match self {
-            Self::Primitive(ty) => enc.primitive(*ty),
+            Self::Primitive(ty) => {
+                enc.primitive(*ty);
+            }
             Self::Record(ty) => {
                 enc.record(ty.fields.iter().map(|(name, ty)| (name.as_str(), *ty)));
             }
