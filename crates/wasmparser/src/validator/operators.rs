@@ -2333,16 +2333,23 @@ where
         if !self.resources.is_function_referenced(function_index) {
             bail!(self.offset, "undeclared function reference");
         }
-        let heap_type = HeapType::TypedFunc(match type_index.try_into() {
-            Ok(packed) => packed,
-            Err(_) => {
-                bail!(self.offset, "type index of `ref.func` target too large")
-            }
-        });
-        self.push_operand(ValType::Ref(RefType {
-            nullable: false,
-            heap_type,
-        }))?;
+
+        // FIXME(#924) this should not be conditional based on enabled
+        // proposals.
+        if self.features.function_references {
+            let heap_type = HeapType::TypedFunc(match type_index.try_into() {
+                Ok(packed) => packed,
+                Err(_) => {
+                    bail!(self.offset, "type index of `ref.func` target too large")
+                }
+            });
+            self.push_operand(ValType::Ref(RefType {
+                nullable: false,
+                heap_type,
+            }))?;
+        } else {
+            self.push_operand(ValType::FUNCREF)?;
+        }
         Ok(())
     }
     fn visit_v128_load(&mut self, memarg: MemArg) -> Self::Output {
