@@ -32,81 +32,6 @@ use std::sync::Arc;
 #[cfg(feature = "clap")]
 use clap::Parser;
 
-macro_rules! define_mutators {
-    (@count) => {0};
-    (@count $first: expr , $( $tail: expr ,) *) => { 1 + define_mutators!(@count $($tail , )*) };
-    (@expand $self:ident, $discriminator: ident, $start: expr, . , $( $rest: expr ,)*) => {};
-    // The dot (.) is the mark to avoid infinite recursion , something like and
-    // LR parser
-    (@expand $self:ident, $discriminator: ident, $start: expr, $first: expr , $( $head: expr ,)*  . , $( $rest: expr ,)*) => {
-        if $discriminator == $start {
-            // Start by the current node
-            let m = $first;
-
-            let can_mutate = m.can_mutate($self);
-            log::trace!("Can `{}` mutate? {}", m.name(), can_mutate);
-            if can_mutate {
-                log::debug!("attempting to mutate with `{}`", m.name());
-                match m.clone().mutate($self) {
-                    Ok(iter) => {
-                        log::debug!("mutator `{}` succeeded", m.name());
-                        return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                    }
-                    Err(e) => {
-                        log::debug!("mutator `{}` failed: {}", m.name(), e);
-                        return Err(e);
-                    }
-                }
-            }
-            // Follow the tail
-            $(
-                let m = $rest;
-
-                let can_mutate = m.can_mutate($self);
-                log::trace!("Can `{}` mutate? {}", m.name(), can_mutate);
-                if can_mutate {
-                    log::debug!("attempting to mutate with `{}`", m.name());
-                    match m.clone().mutate($self) {
-                        Ok(iter) => {
-                            log::debug!("mutator `{}` succeeded", m.name());
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::debug!("mutator {} failed: {}", m.name(), e);
-                            return Err(e);
-                        }
-                    }
-                }
-            )*
-            // Follow the head
-            $(
-                let m = $head;
-
-                if m.can_mutate($self) {
-                    match m.clone().mutate($self) {
-                        Ok(iter) => {
-                            return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))))
-                        }
-                        Err(e) => {
-                            log::debug!("mutator {} failed: {}; will try again", m.name(), e);
-                            return Err(e);
-                        }
-                    }
-                }
-            )*
-        };
-
-        define_mutators!(@expand $self, $discriminator, ($start + 1), $($head ,)* ., $($rest ,)* $first, )
-    };
-    ( $self: ident , ($first: expr , $( $tail: expr ,)* ) ) => {
-        {
-            let count = define_mutators!(@count $first , $($tail ,)*);
-            let discriminator:u32 = $self.rng().gen_range(0..count);
-            define_mutators!(@expand $self, discriminator , 0 , $first , $($tail ,)*  . , );
-        }
-    };
-}
-
 // NB: only add this doc comment if we are not building the CLI, since otherwise
 // it will override the main CLI's about text.
 #[cfg_attr(
@@ -280,46 +205,57 @@ impl<'wasm> WasmMutate<'wasm> {
     ) -> Result<Box<dyn Iterator<Item = Result<Vec<u8>>> + 'a>> {
         self.setup(input_wasm)?;
 
-        // This macro just expands the logic to return an iterator form the
-        // mutators
-        // It simulates a circular checking of the mutators starting by a random
-        // one, returning the first one that can provides a mutation.
-        // All possible start indexes are calculated at compilation time, if N
-        // is the number of mutataros, N possible starting indexes are injected
-        // and compiled to the final code
-        define_mutators!(
-            self,
-            (
-                PeepholeMutator::new(2),
-                RemoveExportMutator,
-                RenameExportMutator { max_name_size: 100 },
-                SnipMutator,
-                CodemotionMutator,
-                FunctionBodyUnreachable,
-                AddCustomSectionMutator,
-                AddTypeMutator {
-                    max_params: 20,
-                    max_results: 20,
-                },
-                AddFunctionMutator,
-                RemoveSection::Custom,
-                RemoveSection::Empty,
-                ConstExpressionMutator::Global,
-                ConstExpressionMutator::ElementOffset,
-                ConstExpressionMutator::ElementFunc,
-                RemoveItemMutator(Item::Function),
-                RemoveItemMutator(Item::Global),
-                RemoveItemMutator(Item::Memory),
-                RemoveItemMutator(Item::Table),
-                RemoveItemMutator(Item::Type),
-                RemoveItemMutator(Item::Data),
-                RemoveItemMutator(Item::Element),
-                RemoveItemMutator(Item::Tag),
-                ModifyDataMutator {
-                    max_data_size: 10 << 20, // 10MB
-                },
-            )
-        );
+        const MUTATORS: &[&dyn Mutator] = &[
+            &PeepholeMutator::new(2),
+            &RemoveExportMutator,
+            &RenameExportMutator { max_name_size: 100 },
+            &SnipMutator,
+            &CodemotionMutator,
+            &FunctionBodyUnreachable,
+            &AddCustomSectionMutator,
+            &AddTypeMutator {
+                max_params: 20,
+                max_results: 20,
+            },
+            &AddFunctionMutator,
+            &RemoveSection::Custom,
+            &RemoveSection::Empty,
+            &ConstExpressionMutator::Global,
+            &ConstExpressionMutator::ElementOffset,
+            &ConstExpressionMutator::ElementFunc,
+            &RemoveItemMutator(Item::Function),
+            &RemoveItemMutator(Item::Global),
+            &RemoveItemMutator(Item::Memory),
+            &RemoveItemMutator(Item::Table),
+            &RemoveItemMutator(Item::Type),
+            &RemoveItemMutator(Item::Data),
+            &RemoveItemMutator(Item::Element),
+            &RemoveItemMutator(Item::Tag),
+            &ModifyDataMutator {
+                max_data_size: 10 << 20, // 10MB
+            },
+        ];
+
+        // Attempt all mutators, but start at an arbitrary index.
+        let start = self.rng().gen_range(0..MUTATORS.len());
+        for m in MUTATORS.iter().cycle().skip(start).take(MUTATORS.len()) {
+            let can_mutate = m.can_mutate(self);
+            log::trace!("Can `{}` mutate? {}", m.name(), can_mutate);
+            if !can_mutate {
+                continue;
+            }
+            log::debug!("attempting to mutate with `{}`", m.name());
+            match m.mutate(self) {
+                Ok(iter) => {
+                    log::debug!("mutator `{}` succeeded", m.name());
+                    return Ok(Box::new(iter.into_iter().map(|r| r.map(|m| m.finish()))));
+                }
+                Err(e) => {
+                    log::debug!("mutator `{}` failed: {}", m.name(), e);
+                    return Err(e);
+                }
+            }
+        }
 
         Err(Error::no_mutations_applicable())
     }

@@ -131,7 +131,7 @@ pub trait AstMutator {
 /// Meta mutator for peephole
 impl Mutator for CodemotionMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &mut WasmMutate<'a>,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         // Initialize mutators

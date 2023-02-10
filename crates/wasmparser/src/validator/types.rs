@@ -473,18 +473,6 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn is_optional(&self, types: &TypeList) -> bool {
-        match self {
-            ComponentValType::Primitive(_) => false,
-            ComponentValType::Type(ty) => {
-                matches!(
-                    types[*ty].as_defined_type().unwrap(),
-                    ComponentDefinedType::Option(_)
-                )
-            }
-        }
-    }
-
     /// Determines if component value type `a` is a subtype of `b`.
     pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
         Self::internal_is_subtype_of(a, at.list, b, bt.list)
@@ -946,54 +934,46 @@ impl ComponentFuncType {
     }
 
     pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
-        // Subtyping rules:
-        // https://github.com/WebAssembly/component-model/blob/main/design/mvp/Subtyping.md
-
-        // The subtype cannot have more parameters than the supertype
-        if b.params.len() < a.params.len() {
-            return false;
-        }
-
-        // The supertype cannot have more results than the subtype
-        if a.results.len() < b.results.len() {
-            return false;
-        }
-
-        for ((an, a), (bn, b)) in a.params.iter().zip(b.params.iter()) {
-            // All overlapping parameters must have the same name
-            if an != bn {
-                return false;
-            }
-
-            // Contravariant on parameters
-            if !ComponentValType::internal_is_subtype_of(b, bt, a, at) {
-                return false;
-            }
-        }
-
-        // All remaining parameters in the supertype must be optional
-        if !b
-            .params
-            .iter()
-            .skip(a.params.len())
-            .all(|(_, b)| b.is_optional(bt))
-        {
-            return false;
-        }
-
-        for ((an, a), (bn, b)) in a.results.iter().zip(b.results.iter()) {
-            // All overlapping results must have the same name
-            if an != bn {
-                return false;
-            }
-
-            // Covariant on results
-            if !ComponentValType::internal_is_subtype_of(a, at, b, bt) {
-                return false;
-            }
-        }
-
-        true
+        // Note that this intentionally diverges from the upstream specification
+        // in terms of subtyping. This is a full type-equality check which
+        // ensures that the structure of `a` exactly matches the structure of
+        // `b`. The rationale for this is:
+        //
+        // * Primarily in Wasmtime subtyping based on function types is not
+        //   implemented. This includes both subtyping a host import and
+        //   additionally handling subtyping as functions cross component
+        //   boundaries. The host import subtyping (or component export
+        //   subtyping) is not clear how to handle at all at this time. The
+        //   subtyping of functions between components can more easily be
+        //   handled by extending the `fact` compiler, but that hasn't been done
+        //   yet.
+        //
+        // * The upstream specification is currently pretty intentionally vague
+        //   precisely what subtyping is allowed. Implementing a strict check
+        //   here is intended to be a conservative starting point for the
+        //   component model which can be extended in the future if necessary.
+        //
+        // * The interaction with subtyping on bindings generation, for example,
+        //   is a tricky problem that doesn't have a clear answer at this time.
+        //   Effectively this is more rationale for being conservative in the
+        //   first pass of the component model.
+        //
+        // So, in conclusion, the test here (and other places that reference
+        // this comment) is for exact type equality with no differences.
+        a.params.len() == b.params.len()
+            && a.results.len() == b.results.len()
+            && a.params
+                .iter()
+                .zip(b.params.iter())
+                .all(|((an, a), (bn, b))| {
+                    an == bn && ComponentValType::internal_is_subtype_of(a, at, b, bt)
+                })
+            && a.results
+                .iter()
+                .zip(b.results.iter())
+                .all(|((an, a), (bn, b))| {
+                    an == bn && ComponentValType::internal_is_subtype_of(a, at, b, bt)
+                })
     }
 
     /// Lowers the component function type to core parameter and result types for the
@@ -1156,47 +1136,35 @@ impl ComponentDefinedType {
     }
 
     pub(crate) fn internal_is_subtype_of(a: &Self, at: &TypeList, b: &Self, bt: &TypeList) -> bool {
-        // Subtyping rules according to
-        // https://github.com/WebAssembly/component-model/blob/main/design/mvp/Subtyping.md
+        // Note that the implementation of subtyping here diverges from the
+        // upstream specification intentionally, see the documentation on
+        // function subtyping for more information.
         match (a, b) {
             (Self::Primitive(a), Self::Primitive(b)) => PrimitiveValType::is_subtype_of(*a, *b),
             (Self::Record(a), Self::Record(b)) => {
-                for (name, a) in a.fields.iter() {
-                    if let Some(b) = b.fields.get(name) {
-                        if !ComponentValType::internal_is_subtype_of(a, at, b, bt) {
-                            return false;
-                        }
-                    } else {
-                        // Superfluous fields can be ignored in the subtype
-                    }
-                }
-                // Check for missing required fields in the supertype
-                for (name, b) in b.fields.iter() {
-                    if !b.is_optional(bt) && !a.fields.contains_key(name) {
-                        return false;
-                    }
-                }
-                true
+                a.fields.len() == b.fields.len()
+                    && a.fields
+                        .iter()
+                        .zip(b.fields.iter())
+                        .all(|((aname, a), (bname, b))| {
+                            aname == bname && ComponentValType::internal_is_subtype_of(a, at, b, bt)
+                        })
             }
             (Self::Variant(a), Self::Variant(b)) => {
-                for (name, a) in a.cases.iter() {
-                    if let Some(b) = b.cases.get(name) {
-                        // Covariant subtype on the case type
-                        if !Self::is_optional_subtype_of(a.ty, at, b.ty, bt) {
-                            return false;
-                        }
-                    } else if let Some(refines) = &a.refines {
-                        if !b.cases.contains_key(refines) {
-                            // The refinement case is not in the supertype
-                            return false;
-                        }
-                    } else {
-                        // This case is not in the supertype and there is no
-                        // default
-                        return false;
-                    }
-                }
-                true
+                a.cases.len() == b.cases.len()
+                    && a.cases
+                        .iter()
+                        .zip(b.cases.iter())
+                        .all(|((aname, a), (bname, b))| {
+                            aname == bname
+                                && match (&a.ty, &b.ty) {
+                                    (Some(a), Some(b)) => {
+                                        ComponentValType::internal_is_subtype_of(a, at, b, bt)
+                                    }
+                                    (None, None) => true,
+                                    _ => false,
+                                }
+                        })
             }
             (Self::List(a), Self::List(b)) | (Self::Option(a), Self::Option(b)) => {
                 ComponentValType::internal_is_subtype_of(a, at, b, bt)
@@ -1219,7 +1187,9 @@ impl ComponentDefinedType {
                     .zip(b.types.iter())
                     .all(|(a, b)| ComponentValType::internal_is_subtype_of(a, at, b, bt))
             }
-            (Self::Flags(a), Self::Flags(b)) | (Self::Enum(a), Self::Enum(b)) => a.is_subset(b),
+            (Self::Flags(a), Self::Flags(b)) | (Self::Enum(a), Self::Enum(b)) => {
+                a.len() == b.len() && a.iter().eq(b.iter())
+            }
             (Self::Result { ok: ao, err: ae }, Self::Result { ok: bo, err: be }) => {
                 Self::is_optional_subtype_of(*ao, at, *bo, bt)
                     && Self::is_optional_subtype_of(*ae, at, *be, bt)
@@ -1250,9 +1220,9 @@ impl ComponentDefinedType {
         bt: &TypeList,
     ) -> bool {
         match (a, b) {
-            (None, None) | (Some(_), None) => true,
-            (None, Some(_)) => false,
+            (None, None) => true,
             (Some(a), Some(b)) => ComponentValType::internal_is_subtype_of(&a, at, &b, bt),
+            _ => false,
         }
     }
     fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {

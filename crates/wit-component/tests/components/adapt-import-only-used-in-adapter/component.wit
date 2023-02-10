@@ -3,8 +3,8 @@ interface adapter-imports {
 }
 
 default world component {
-  import foo: func(x: string)
   import adapter-imports: self.adapter-imports
+  import foo: func(x: string)
   export bar: func()
   export adapter-bar: func(x: string)
 }

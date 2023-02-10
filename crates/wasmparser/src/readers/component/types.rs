@@ -191,31 +191,13 @@ impl PrimitiveValType {
 
     /// Determines if primitive value type `a` is a subtype of `b`.
     pub fn is_subtype_of(a: Self, b: Self) -> bool {
-        // Subtyping rules according to
-        // https://github.com/WebAssembly/component-model/blob/17f94ed1270a98218e0e796ca1dad1feb7e5c507/design/mvp/Subtyping.md
+        // Note that this intentionally diverges from the upstream specification
+        // at this time and only considers exact equality for subtyping
+        // relationships.
+        //
+        // More information can be found in the subtyping implementation for
+        // component functions.
         a == b
-            || matches!(
-                (a, b),
-                (Self::S8, Self::S16)
-                    | (Self::S8, Self::S32)
-                    | (Self::S8, Self::S64)
-                    | (Self::U8, Self::U16)
-                    | (Self::U8, Self::U32)
-                    | (Self::U8, Self::U64)
-                    | (Self::U8, Self::S16)
-                    | (Self::U8, Self::S32)
-                    | (Self::U8, Self::S64)
-                    | (Self::S16, Self::S32)
-                    | (Self::S16, Self::S64)
-                    | (Self::U16, Self::U32)
-                    | (Self::U16, Self::U64)
-                    | (Self::U16, Self::S32)
-                    | (Self::U16, Self::S64)
-                    | (Self::S32, Self::S64)
-                    | (Self::U32, Self::U64)
-                    | (Self::U32, Self::S64)
-                    | (Self::Float32, Self::Float64)
-            )
     }
 }
 

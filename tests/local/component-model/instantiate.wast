@@ -122,7 +122,7 @@
 
   (core instance $c (instantiate $m))
   (core instance (instantiate $m))
-  
+
   ;; inline exports/imports
   (type $empty (instance))
   (instance $d (import "g") (type $empty))
@@ -177,13 +177,15 @@
   )
   "to be of type `function`")
 
-(component
-  (import "a" (component $m
-    (import "a" (func))
-  ))
-  (import "b" (func $f (result string)))
-  (instance $i (instantiate $m (with "a" (func $f))))
-)
+(assert_invalid
+  (component
+    (import "a" (component $m
+      (import "a" (func))
+    ))
+    (import "b" (func $f (result string)))
+    (instance $i (instantiate $m (with "a" (func $f))))
+  )
+  "function type mismatch")
 
 (assert_invalid
   (component

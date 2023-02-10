@@ -71,7 +71,7 @@
       i32.const 16
       i32.shl
     )
-    (func $initialize_stack_pointer (;3;) (type 3)
+    (func $allocate_stack (;3;) (type 3)
       i32.const 0
       i32.const 0
       i32.const 8
@@ -84,7 +84,7 @@
     (global $__stack_pointer (;0;) (mut i32) i32.const 0)
     (global $some_other_mutable_global (;1;) (mut i32) i32.const 0)
     (export "get_sum" (func 1))
-    (start $initialize_stack_pointer)
+    (start $allocate_stack)
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))

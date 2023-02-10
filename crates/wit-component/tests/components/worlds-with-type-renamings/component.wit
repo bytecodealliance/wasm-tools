@@ -13,7 +13,7 @@ interface i2 {
 }
 
 default world component {
-  use self.i1.{some-type as other-name}
   import i1: self.i1
+  use self.i1.{some-type as other-name}
   export i2: self.i2
 }

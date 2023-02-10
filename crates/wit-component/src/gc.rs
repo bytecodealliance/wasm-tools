@@ -1,9 +1,12 @@
 use self::bitvec::BitVec;
 use anyhow::{bail, Result};
 use indexmap::{IndexMap, IndexSet};
-use std::collections::HashMap;
-use std::mem;
-use wasm_encoder::{Encode, EntityType};
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+    ops::Deref,
+};
+use wasm_encoder::{Encode, EntityType, Instruction};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -100,6 +103,55 @@ fn realloc_via_memory_grow() -> wasm_encoder::Function {
     func.instruction(&LocalGet(4));
     func.instruction(&I32Const(16));
     func.instruction(&I32Shl);
+    func.instruction(&End);
+
+    func
+}
+
+#[repr(i32)]
+#[non_exhaustive]
+enum AllocationState {
+    StackUnallocated,
+    StackAllocating,
+    StackAllocated,
+}
+
+fn allocate_stack_via_realloc(
+    realloc_index: u32,
+    sp: u32,
+    allocation_state: Option<u32>,
+) -> wasm_encoder::Function {
+    use wasm_encoder::Instruction::*;
+
+    let mut func = wasm_encoder::Function::new([]);
+
+    if let Some(allocation_state) = allocation_state {
+        // This means we're lazily allocating the stack, keeping track of state via `$allocation_state`
+        func.instruction(&GlobalGet(allocation_state));
+        func.instruction(&I32Const(AllocationState::StackUnallocated as _));
+        func.instruction(&I32Eq);
+        func.instruction(&If(wasm_encoder::BlockType::Empty));
+        func.instruction(&I32Const(AllocationState::StackAllocating as _));
+        func.instruction(&GlobalSet(allocation_state));
+        // We could also set `sp` to zero here to ensure the yet-to-be-allocated stack is empty.  However, we
+        // assume it defaults to zero anyway, in which case setting it would be redundant.
+    }
+
+    func.instruction(&I32Const(0));
+    func.instruction(&I32Const(0));
+    func.instruction(&I32Const(8));
+    func.instruction(&I32Const(PAGE_SIZE));
+    func.instruction(&Call(realloc_index));
+    func.instruction(&I32Const(PAGE_SIZE));
+    func.instruction(&I32Add);
+    func.instruction(&GlobalSet(sp));
+
+    if let Some(allocation_state) = allocation_state {
+        func.instruction(&I32Const(AllocationState::StackAllocated as _));
+        func.instruction(&GlobalSet(allocation_state));
+        func.instruction(&End);
+    }
+
     func.instruction(&End);
 
     func
@@ -614,7 +666,14 @@ impl<'a> Module<'a> {
             type_index
         };
 
-        let sp = self.find_stack_pointer()?;
+        let add_empty_type = |types: &mut wasm_encoder::TypeSection| {
+            let type_index = types.len();
+            types.function([], []);
+            type_index
+        };
+
+        let sp = self.find_mut_i32_global("__stack_pointer")?;
+        let allocation_state = self.find_mut_i32_global("allocation_state")?;
 
         let mut func_names = Vec::new();
 
@@ -652,7 +711,33 @@ impl<'a> Module<'a> {
             }
         }
 
-        for (_, func) in self.live_funcs() {
+        let lazy_stack_init_index =
+            if sp.is_some() && allocation_state.is_some() && main_module_realloc.is_some() {
+                // We have a stack pointer, a `cabi_realloc` function from the main module, and a global variable for
+                // keeping track of (and short-circuiting) reentrance.  That means we can (and should) do lazy stack
+                // allocation.
+                let index = num_func_imports + funcs.len();
+
+                // Tell the function remapper we're reserving a slot for our extra function:
+                map.funcs.next += 1;
+
+                funcs.function(add_empty_type(&mut types));
+
+                Some(index)
+            } else {
+                None
+            };
+
+        let exported_funcs = self
+            .exports
+            .values()
+            .filter_map(|export| match export.kind {
+                ExternalKind::Func => Some(export.index),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+
+        for (i, func) in self.live_funcs() {
             let mut body = match &func.def {
                 Definition::Import(..) => continue,
                 Definition::Local(body) => body.get_binary_reader(),
@@ -663,28 +748,40 @@ impl<'a> Module<'a> {
                 let ty = body.read()?;
                 locals.push((cnt, map.valty(ty)));
             }
-            let mut func = wasm_encoder::Function::new(locals);
+            // Prepend an `allocate_stack` call to all exports if we're lazily allocating the stack.
+            if let (Some(lazy_stack_init_index), true) =
+                (lazy_stack_init_index, exported_funcs.contains(&i))
+            {
+                Instruction::Call(lazy_stack_init_index).encode(&mut map.buf);
+            }
             let bytes = map.operators(body)?;
+            let mut func = wasm_encoder::Function::new(locals);
             func.raw(bytes);
             code.function(&func);
         }
 
-        if sp.is_some() && realloc_index.is_none() {
-            // The main module does _not_ export a realloc function, nor does the adapter import it, but we need a
-            // function to allocate some stack space, so we'll add one here.
+        if lazy_stack_init_index.is_some() {
+            code.function(&allocate_stack_via_realloc(
+                realloc_index.unwrap(),
+                sp.unwrap(),
+                allocation_state,
+            ));
+        }
+
+        if sp.is_some() && (realloc_index.is_none() || allocation_state.is_none()) {
+            // Either the main module does _not_ export a realloc function, or it is not safe to use for stack
+            // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
             realloc_index = Some(num_func_imports + funcs.len());
             funcs.function(add_realloc_type(&mut types));
             code.function(&realloc_via_memory_grow());
         }
 
-        // Inject a start function to initialize the stack pointer which will be
-        // local to this module. This only happens if a memory is preserved and
-        // a stack pointer global is found.
+        // Inject a start function to initialize the stack pointer which will be local to this module. This only
+        // happens if a memory is preserved, a stack pointer global is found, and we're not doing lazy stack
+        // allocation.
         let mut start = None;
-        if let Some(sp) = sp {
+        if let (Some(sp), None) = (sp, lazy_stack_init_index) {
             if num_memories > 0 {
-                use wasm_encoder::Instruction::*;
-
                 // If there are any memories or any mutable globals there must be
                 // precisely one of each as otherwise we don't know how to filter
                 // down to the right one.
@@ -703,19 +800,12 @@ impl<'a> Module<'a> {
                     types.len() - 1
                 });
                 funcs.function(empty_type);
-                func_names.push((function_index, "initialize_stack_pointer"));
-
-                let mut func = wasm_encoder::Function::new([]);
-                func.instruction(&I32Const(0));
-                func.instruction(&I32Const(0));
-                func.instruction(&I32Const(8));
-                func.instruction(&I32Const(PAGE_SIZE));
-                func.instruction(&Call(realloc_index.unwrap()));
-                func.instruction(&I32Const(PAGE_SIZE));
-                func.instruction(&I32Add);
-                func.instruction(&GlobalSet(sp));
-                func.instruction(&End);
-                code.function(&func);
+                func_names.push((function_index, "allocate_stack"));
+                code.function(&allocate_stack_via_realloc(
+                    realloc_index.unwrap(),
+                    sp,
+                    allocation_state,
+                ));
 
                 start = Some(wasm_encoder::StartSection { function_index });
             }
@@ -826,8 +916,14 @@ impl<'a> Module<'a> {
             section.push(code);
             subsection.encode(&mut section);
         };
-        if let (Some(realloc_index), None) = (realloc_index, main_module_realloc) {
+        if let (Some(realloc_index), true) = (
+            realloc_index,
+            main_module_realloc.is_none() || allocation_state.is_none(),
+        ) {
             func_names.push((realloc_index, "realloc_via_memory_grow"));
+        }
+        if let Some(lazy_stack_init_index) = lazy_stack_init_index {
+            func_names.push((lazy_stack_init_index, "allocate_stack"));
         }
         encode_subsection(0x01, &func_names);
         encode_subsection(0x07, &global_names);
@@ -844,38 +940,28 @@ impl<'a> Module<'a> {
         Ok(ret.finish())
     }
 
-    fn find_stack_pointer(&self) -> Result<Option<u32>> {
-        let mutable_i32_globals = self
+    fn find_mut_i32_global(&self, name: &str) -> Result<Option<u32>> {
+        let matches = &self
             .live_globals()
-            .filter(|(_, g)| g.ty.mutable && g.ty.content_type == ValType::I32)
-            .collect::<Vec<_>>();
-
-        // If there are no 32-bit mutable globals then there's definitely no
-        // stack pointer in this module
-        if mutable_i32_globals.is_empty() {
-            return Ok(None);
-        }
-
-        // If there are some mutable 32-bit globals then there's currently no
-        // great way of determining which is the stack pointer. For now a hack
-        // is used where we use the name section to find the name that LLVM
-        // injects. This hopefully can be improved in the future.
-        let stack_pointers = mutable_i32_globals
-            .iter()
-            .filter_map(|(i, _)| {
-                let name = *self.global_names.get(i)?;
-                if name == "__stack_pointer" {
-                    Some(*i)
+            .filter_map(|(i, g)| {
+                if g.ty.mutable
+                    && g.ty.content_type == ValType::I32
+                    && *self.global_names.get(&i)? == name
+                {
+                    Some(i)
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>();
 
-        match stack_pointers.len() {
-            0 => Ok(None),
-            1 => Ok(Some(stack_pointers[0])),
-            n => bail!("found {n} globals that look like the stack pointer"),
+        match matches.deref() {
+            [] => Ok(None),
+            [i] => Ok(Some(*i)),
+            _ => bail!(
+                "found {} mutable i32 globals with name {name}",
+                matches.len()
+            ),
         }
     }
 }
@@ -963,7 +1049,6 @@ struct Encoder {
 
 impl Encoder {
     fn operators(&mut self, mut reader: BinaryReader<'_>) -> Result<Vec<u8>> {
-        assert!(self.buf.is_empty());
         while !reader.eof() {
             reader.visit_operator(self)?;
         }

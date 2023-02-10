@@ -12,7 +12,7 @@ impl Mutator for CustomSectionMutator {
     }
 
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut crate::WasmMutate,
     ) -> crate::Result<Box<dyn Iterator<Item = crate::Result<wasm_encoder::Module>> + 'a>> {
         let custom_section_indices: Vec<_> = config

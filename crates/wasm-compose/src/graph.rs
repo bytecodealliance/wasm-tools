@@ -272,6 +272,7 @@ impl<'a> Component<'a> {
                     url,
                     kind,
                     index,
+                    ty: None,
                 })?,
         ))
     }
@@ -1221,7 +1222,7 @@ mod test {
         let b = graph.add_component(Component::from_bytes(
             "b",
             b"(component
-  (import \"i1\" (instance (export \"e2\" (func)) (export \"e3\" (func (param \"a\" u64)))))
+  (import \"i1\" (instance (export \"e2\" (func)) (export \"e3\" (func (param \"a\" u32)))))
   (import \"i2\" (func))
   (import \"i3\" (component))
   (import \"i4\" (core module))
@@ -1257,7 +1258,7 @@ mod test {
     (instance
       (type (;0;) (func))
       (export (;0;) "e1" (func (type 0)))
-      (type (;1;) (func (param "a" u64)))
+      (type (;1;) (func (param "a" u32)))
       (export (;1;) "e3" (func (type 1)))
       (type (;2;) (func))
       (export (;2;) "e2" (func (type 2)))
@@ -1301,7 +1302,7 @@ mod test {
       (instance
         (type (;0;) (func))
         (export (;0;) "e2" (func (type 0)))
-        (type (;1;) (func (param "a" u64)))
+        (type (;1;) (func (param "a" u32)))
         (export (;1;) "e3" (func (type 1)))
       )
     )

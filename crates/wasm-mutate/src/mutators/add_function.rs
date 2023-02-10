@@ -13,7 +13,7 @@ pub struct AddFunctionMutator;
 
 impl Mutator for AddFunctionMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let max_ty_idx = config.info().num_types() - 1;

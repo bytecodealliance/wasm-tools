@@ -334,8 +334,13 @@ impl<'a> Encoder<'a> {
     fn encode_export(&mut self, export: &ComponentExport<'a>) {
         let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
-        self.exports
-            .export(export.name, export.url.unwrap_or(""), kind, index);
+        self.exports.export(
+            export.name,
+            export.url.unwrap_or(""),
+            kind,
+            index,
+            export.ty.as_ref().map(|ty| (&ty.0.kind).into()),
+        );
         match &export.kind {
             ComponentExportKind::CoreModule(_) => self.core_module_names.push(name),
             ComponentExportKind::Func(_) => self.func_names.push(name),

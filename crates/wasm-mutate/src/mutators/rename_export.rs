@@ -44,7 +44,7 @@ impl RenameExportMutator {
 
 impl Mutator for RenameExportMutator {
     fn mutate<'a>(
-        self,
+        &self,
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut exports = ExportSection::new();

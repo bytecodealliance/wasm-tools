@@ -6,6 +6,10 @@
   (global $__stack_pointer (mut i32) i32.const 0)
   (global $some_other_mutable_global (mut i32) i32.const 0)
 
+  ;; `wit-component` should use this to track the status of a lazy stack
+  ;; allocation:
+  (global $allocation_state (mut i32) i32.const 0)
+
   ;; This is a sample adapter which is adapting between ABI. This exact function
   ;; signature is imported by `module.wat` and we're implementing it here with a
   ;; canonical-abi function that returns two integers. The canonical ABI for
@@ -18,6 +22,10 @@
   ;; this adapter module when it's bundled into a component.
   (func (export "get_sum") (result i32)
     (local i32 i32)
+
+    ;; `wit-component` should have injected a call to a function that allocates
+    ;; the stack and sets $allocation_state to 2
+    (if (i32.ne (global.get $allocation_state) (i32.const 2)) (unreachable))
 
     ;; First, allocate a page using $cabi_realloc and write to it.  This tests
     ;; that we can use the main module's allocator if present (or else a

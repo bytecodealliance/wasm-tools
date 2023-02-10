@@ -56,6 +56,13 @@
     (import "__main_module__" "cabi_realloc" (func $cabi_realloc (;1;) (type 1)))
     (func (;2;) (type 2) (result i32)
       (local i32 i32)
+      call $allocate_stack
+      global.get $allocation_state
+      i32.const 2
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
       i32.const 0
       i32.const 0
       i32.const 8
@@ -86,20 +93,29 @@
       local.get 0
       global.set $__stack_pointer
     )
-    (func $initialize_stack_pointer (;3;) (type 3)
+    (func $allocate_stack (;3;) (type 3)
+      global.get $allocation_state
       i32.const 0
-      i32.const 0
-      i32.const 8
-      i32.const 65536
-      call $cabi_realloc
-      i32.const 65536
-      i32.add
-      global.set $__stack_pointer
+      i32.eq
+      if ;; label = @1
+        i32.const 1
+        global.set $allocation_state
+        i32.const 0
+        i32.const 0
+        i32.const 8
+        i32.const 65536
+        call $cabi_realloc
+        i32.const 65536
+        i32.add
+        global.set $__stack_pointer
+        i32.const 2
+        global.set $allocation_state
+      end
     )
     (global $__stack_pointer (;0;) (mut i32) i32.const 0)
     (global $some_other_mutable_global (;1;) (mut i32) i32.const 0)
+    (global $allocation_state (;2;) (mut i32) i32.const 0)
     (export "get_sum" (func 2))
-    (start $initialize_stack_pointer)
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))

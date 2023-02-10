@@ -4,17 +4,17 @@ interface import-me {
 }
 
 world with-imports {
-  use self.import-me.{foo}
   import import-me: self.import-me
   import a: func(a: foo)
+  use self.import-me.{foo}
   export a: func(a: foo)
 }
 world simple {
+  import a: func(a: foo) -> bar
   record foo {
   }
 
   type bar = foo
 
-  import a: func(a: foo) -> bar
   export a: func(a: foo) -> bar
 }

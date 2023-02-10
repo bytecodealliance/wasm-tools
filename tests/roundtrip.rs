@@ -23,7 +23,9 @@
 
 use anyhow::{bail, Context, Result};
 use rayon::prelude::*;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wasmparser::*;
@@ -490,8 +492,8 @@ impl TestState {
             msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
         }
 
-        if let Ok(actual) = wasmparser_dump::dump_wasm(&actual) {
-            if let Ok(expected) = wasmparser_dump::dump_wasm(&expected) {
+        if let Ok(actual) = self.dump(&actual) {
+            if let Ok(expected) = self.dump(&expected) {
                 let mut actual = actual.lines();
                 let mut expected = expected.lines();
                 let mut differences = 0;
@@ -526,6 +528,21 @@ impl TestState {
         }
 
         bail!("{}", msg);
+    }
+
+    fn dump(&self, bytes: &[u8]) -> Result<String> {
+        let mut dump = Command::new(env!("CARGO_BIN_EXE_wasm-tools"))
+            .arg("dump")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()?;
+        dump.stdin.take().unwrap().write_all(bytes)?;
+        let mut stdout = String::new();
+        dump.stdout.take().unwrap().read_to_string(&mut stdout)?;
+        if dump.wait()?.success() {
+            bail!("dump subcommand failed");
+        }
+        Ok(stdout)
     }
 
     fn wasmparser_validator_for(&self, test: &Path) -> Validator {

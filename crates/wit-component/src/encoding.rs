@@ -40,11 +40,30 @@
 //! * They cannot define any `elem` or `data` segments since otherwise there's
 //!   no knowledge ahead-of-time of where their data or element segments could
 //!   go. This means things like no panics, no indirect calls, etc.
-//! * Only one mutable global is allowed and it's assumed to be the stack
-//!   pointer. This stack pointer is automatically configured with an injected
-//!   `start` function that is allocated with `memory.grow (i32.const 1)`,
-//!   meaning that the shim module has 64k of stack space and no protection if
-//!   that overflows.
+//! * If the adapter uses a shadow stack, the global that points to it must be a
+//!   mutable `i32` named `__stack_pointer`. This stack is automatically
+//!   allocated with an injected `allocate_stack` function that will either use
+//!   the main module's `cabi_realloc` export (if present) or `memory.grow`. It
+//!   allocates only 64KB of stack space, and there is no protection if that
+//!   overflows.
+//! * If the adapter has a global, mutable `i32` named `allocation_state`, it
+//!   will be used to keep track of stack allocation status and avoid infinite
+//!   recursion if the main module's `cabi_realloc` function calls back into the
+//!   adapter.  `allocate_stack` will check this global on entry; if it is zero,
+//!   it will set it to one, then allocate the stack, and finally set it to two.
+//!   If it is non-zero, `allocate_stack` will do nothing and return immediately
+//!   (because either the stack has already been allocated or is in the process
+//!   of being allocated).  If the adapter does not have an `allocation_state`,
+//!   `allocate_stack` will use `memory.grow` to allocate the stack; it will
+//!   _not_ use the main module's `cabi_realloc` even if it's available.
+//! * If the adapter imports a `cabi_realloc` function, and the main module
+//!   exports one, they'll be linked together via an alias. If the adapter
+//!   imports such a function but the main module does _not_ export one, we'll
+//!   synthesize one based on `memory.grow` (which will trap for any size other
+//!   than 64KB). Note that the main module's `cabi_realloc` function may call
+//!   back into the adapter before the shadow stack has been allocated. In this
+//!   case (when `allocation_state` is zero or one), the adapter should return
+//!   whatever dummy value(s) it can immediately without touching the stack.
 //!
 //! This means that adapter modules are not meant to be written by everyone.
 //! It's assumed that these will be relatively few and far between yet still a
@@ -368,10 +387,10 @@ impl<'a> EncodingState<'a> {
     fn root_type_encoder(&mut self, interface: Option<InterfaceId>) -> RootTypeEncoder<'_, 'a> {
         RootTypeEncoder {
             state: self,
-            type_exports: Vec::new(),
             interface,
             type_map: Default::default(),
             func_type_map: Default::default(),
+            import_types: false,
         }
     }
 
@@ -386,11 +405,27 @@ impl<'a> EncodingState<'a> {
     }
 
     fn encode_imports(&mut self) -> Result<()> {
+        let mut has_funcs = false;
         for (name, info) in self.info.import_map.iter() {
             match name {
                 Some(name) => self.encode_interface_import(name, info)?,
-                None => self.encode_root_import_funcs(info)?,
+                None => has_funcs = true,
             }
+        }
+
+        let resolve = &self.info.encoder.metadata.resolve;
+        let world = &resolve.worlds[self.info.encoder.metadata.world];
+        for (_name, item) in world.imports.iter() {
+            if let WorldItem::Type(ty) = item {
+                let mut enc = self.root_type_encoder(None);
+                enc.import_types = true;
+                enc.encode_valtype(resolve, &Type::Id(*ty))?;
+            }
+        }
+
+        if has_funcs {
+            let info = &self.info.import_map[&None];
+            self.encode_root_import_funcs(info)?;
         }
         Ok(())
     }
@@ -456,7 +491,6 @@ impl<'a> EncodingState<'a> {
             log::trace!("encoding function type for `{}`", func.name);
             let mut encoder = self.root_type_encoder(None);
             let idx = encoder.encode_func_type(resolve, func)?;
-            assert!(encoder.type_exports.is_empty());
             let func_idx = self.component.import(name, "", ComponentTypeRef::Func(idx));
             let prev = self.imported_funcs.insert(name, func_idx);
             assert!(prev.is_none());
@@ -597,101 +631,182 @@ impl<'a> EncodingState<'a> {
         self.component.instantiate_core_exports(exports)
     }
 
-    fn encode_exports(&mut self, opts: &'a ComponentEncoder, module: CustomModule) -> Result<()> {
-        let resolve = &opts.metadata.resolve;
+    fn encode_exports(&mut self, module: CustomModule) -> Result<()> {
+        let resolve = &self.info.encoder.metadata.resolve;
         let world = match module {
-            CustomModule::Main => opts.metadata.world,
-            CustomModule::Adapter(name) => opts.adapters[name].2,
+            CustomModule::Main => self.info.encoder.metadata.world,
+            CustomModule::Adapter(name) => self.info.encoder.adapters[name].2,
         };
         let world = &resolve.worlds[world];
         for (export_name, export) in world.exports.iter() {
             match export {
-                WorldItem::Type(ty) => {
-                    let mut enc = self.root_type_encoder(None);
-                    enc.encode_valtype(resolve, &Type::Id(*ty))?;
-                    assert!(enc.type_exports.is_empty());
-                }
                 WorldItem::Function(func) => {
                     let mut enc = self.root_type_encoder(None);
                     let ty = enc.encode_func_type(resolve, func)?;
-                    for (idx, name) in enc.type_exports {
-                        self.component
-                            .export(name, "", ComponentExportKind::Type, idx);
-                    }
                     let core_name = func.core_export_name(None);
-                    let idx = self.encode_lift(opts, module, &core_name, func, ty)?;
+                    let idx = self.encode_lift(module, &core_name, func, ty)?;
                     self.component
-                        .export(export_name, "", ComponentExportKind::Func, idx);
+                        .export(export_name, "", ComponentExportKind::Func, idx, None);
                 }
                 WorldItem::Interface(export) => {
-                    let mut interface_exports = Vec::new();
-
-                    // All types are encoded into the root component here using this
-                    // encoder which keeps track of type exports to determine how to
-                    // export them later as well.
-                    let mut enc = self.root_type_encoder(Some(*export));
-                    for (_, func) in &resolve.interfaces[*export].functions {
-                        let core_name = func.core_export_name(Some(export_name));
-                        let ty = enc.encode_func_type(resolve, func)?;
-                        let func_index =
-                            enc.state.encode_lift(opts, module, &core_name, func, ty)?;
-                        interface_exports.push((
-                            func.name.as_str(),
-                            ComponentExportKind::Func,
-                            func_index,
-                        ));
-                    }
-
-                    if let Some(live) = enc.state.info.live_types.get(export) {
-                        for ty in live {
-                            enc.encode_valtype(resolve, &Type::Id(*ty))?;
-                        }
-                    }
-
-                    // Place type imports first for now. The lifted function
-                    // types in theory should reference the indices of these
-                    // exports but that's not possible in the binary encoding
-                    // right now.
-                    interface_exports.splice(
-                        0..0,
-                        enc.type_exports
-                            .into_iter()
-                            .map(|(idx, name)| (name, ComponentExportKind::Type, idx)),
-                    );
-
-                    if export_name.is_empty() {
-                        bail!("cannot export an unnamed interface");
-                    }
-
-                    let instance_index = self.component.instantiate_exports(interface_exports);
-                    let url = resolve.url_of(*export).unwrap_or(String::new());
-                    let idx = self.component.export(
-                        export_name,
-                        &url,
-                        ComponentExportKind::Instance,
-                        instance_index,
-                    );
-                    let prev = self.exported_instances.insert(*export, idx);
-                    assert!(prev.is_none());
+                    self.encode_interface_export(export_name, module, *export)?;
                 }
+                WorldItem::Type(_) => unreachable!(),
             }
         }
 
         Ok(())
     }
 
+    fn encode_interface_export(
+        &mut self,
+        export_name: &str,
+        module: CustomModule<'_>,
+        export: InterfaceId,
+    ) -> Result<()> {
+        let resolve = &self.info.encoder.metadata.resolve;
+
+        // First execute a `canon lift` for all the functions in this interface
+        // from the core wasm export. This requires type information but notably
+        // not exported type information since we don't want to export this
+        // interface's types from the root of the component. Each lifted
+        // function is saved off into an `imports` array to get imported into
+        // the nested component synthesized below.
+        let mut imports = Vec::new();
+        let mut root = self.root_type_encoder(Some(export));
+        let mut func_types = Vec::new();
+        for (_, func) in &resolve.interfaces[export].functions {
+            let core_name = func.core_export_name(Some(export_name));
+            let ty = root.encode_func_type(resolve, func)?;
+            let func_index = root.state.encode_lift(module, &core_name, func, ty)?;
+            func_types.push(ty);
+            imports.push((func.name.as_str(), ComponentExportKind::Func, func_index));
+        }
+
+        // Next a nested component is created which will import the functions
+        // above and then reexport them. The purpose of them is to "re-type" the
+        // functions through type ascription on each `func` item.
+        let mut nested = NestedComponentTypeEncoder {
+            component: ComponentBuilder::default(),
+            type_map: Default::default(),
+            func_type_map: Default::default(),
+            export_types: false,
+            interface: export,
+            state: self,
+        };
+
+        // Our nested component starts off by importing each function of this
+        // interface. Note that the type used here is the same type that was
+        // used to execute the `canon lift`, so the type is aliased from the
+        // outer component.
+        for ((_, func), ty) in resolve.interfaces[export].functions.iter().zip(func_types) {
+            let ty = nested.component.alias_outer_type(1, ty);
+            nested
+                .component
+                .import(&func.name, "", ComponentTypeRef::Func(ty));
+        }
+
+        // Next the component reexports all of its imports, but notably uses the
+        // type ascription feature to change the type of the function. Note that
+        // no structural change is happening to the types here but instead types
+        // are getting proper names and such now that this nested component is a
+        // new type index space. Hence the `export_types = true` flag here which
+        // flows through the type encoding and when types are emitted.
+        nested.export_types = true;
+        nested.type_map.clear();
+        nested.func_type_map.clear();
+        for (i, (_, func)) in resolve.interfaces[export].functions.iter().enumerate() {
+            let ty = nested.encode_func_type(resolve, func)?;
+            nested.component.export(
+                &func.name,
+                "",
+                ComponentExportKind::Func,
+                i as u32,
+                Some(ComponentTypeRef::Func(ty)),
+            );
+        }
+        // Be sure that if any live types are needed from this interface that
+        // they're encoded. This will pick up any stragglers that weren't
+        // already encoded through exported functions.
+        if let Some(live) = nested.state.info.live_types.get(&export) {
+            for ty in live {
+                nested.encode_valtype(resolve, &Type::Id(*ty))?;
+            }
+        }
+
+        // Embed the component within our component and then instantiate it with
+        // the lifted functions. That final instance is then exported under the
+        // appropriate name as the final typed export of this component.
+        let component = nested.component;
+        let component_index = self.component.component(component);
+        let instance_index = self
+            .component
+            .instantiate_component(component_index, imports);
+        let url = resolve.url_of(export).unwrap_or(String::new());
+        let idx = self.component.export(
+            export_name,
+            &url,
+            ComponentExportKind::Instance,
+            instance_index,
+            None,
+        );
+        let prev = self.exported_instances.insert(export, idx);
+        assert!(prev.is_none());
+        return Ok(());
+
+        struct NestedComponentTypeEncoder<'state, 'a> {
+            component: ComponentBuilder,
+            type_map: HashMap<TypeId, u32>,
+            func_type_map: HashMap<types::FunctionKey<'a>, u32>,
+            export_types: bool,
+            interface: InterfaceId,
+            state: &'state mut EncodingState<'a>,
+        }
+
+        impl<'a> ValtypeEncoder<'a> for NestedComponentTypeEncoder<'_, 'a> {
+            fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+                self.component.defined_type()
+            }
+            fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+                self.component.function_type()
+            }
+            fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
+                if self.export_types {
+                    Some(
+                        self.component
+                            .export(name, "", ComponentExportKind::Type, idx, None),
+                    )
+                } else {
+                    None
+                }
+            }
+            fn import_type(&mut self, _: InterfaceId, id: TypeId) -> u32 {
+                self.component
+                    .alias_outer_type(1, self.state.index_of_type_export(id))
+            }
+            fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
+                &mut self.type_map
+            }
+            fn func_type_map(&mut self) -> &mut HashMap<types::FunctionKey<'a>, u32> {
+                &mut self.func_type_map
+            }
+            fn interface(&self) -> Option<InterfaceId> {
+                Some(self.interface)
+            }
+        }
+    }
+
     fn encode_lift(
         &mut self,
-        opts: &'a ComponentEncoder,
         module: CustomModule<'_>,
         core_name: &str,
         func: &Function,
         ty: u32,
     ) -> Result<u32> {
-        let resolve = &opts.metadata.resolve;
+        let resolve = &self.info.encoder.metadata.resolve;
         let metadata = match module {
-            CustomModule::Main => &opts.metadata.metadata,
-            CustomModule::Adapter(name) => &opts.adapters[name].1,
+            CustomModule::Main => &self.info.encoder.metadata.metadata,
+            CustomModule::Adapter(name) => &self.info.encoder.adapters[name].1,
         };
         let instance_index = match module {
             CustomModule::Main => self.instance_index.expect("instantiated by now"),
@@ -1306,9 +1421,9 @@ impl ComponentEncoder {
         state.encode_imports()?;
         state.encode_core_modules();
         state.encode_core_instantiation()?;
-        state.encode_exports(self, CustomModule::Main)?;
+        state.encode_exports(CustomModule::Main)?;
         for name in self.adapters.keys() {
-            state.encode_exports(self, CustomModule::Adapter(name))?;
+            state.encode_exports(CustomModule::Adapter(name))?;
         }
         let bytes = state.component.finish();
 

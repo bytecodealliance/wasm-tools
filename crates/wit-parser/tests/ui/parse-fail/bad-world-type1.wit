@@ -1,4 +1,4 @@
 world a {
   type a = u32
-  export a: func()
+  import a: func()
 }

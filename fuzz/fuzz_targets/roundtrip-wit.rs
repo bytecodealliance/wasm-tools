@@ -439,7 +439,7 @@ mod generate {
             }
 
             let mut parts = Vec::new();
-            let mut imports = HashSet::new();
+            let mut exports = HashSet::new();
             let mut imported_interfaces = HashSet::new();
             let mut exported_interfaces = HashSet::new();
 
@@ -454,8 +454,8 @@ mod generate {
 
                 let mut part = String::new();
                 let name = match direction {
-                    Some(Direction::Import) => gen_unique_name(u, &mut imports)?,
-                    Some(Direction::Export) | None => gen_unique_name(u, &mut self.unique_names)?,
+                    Some(Direction::Import) | None => gen_unique_name(u, &mut self.unique_names)?,
+                    Some(Direction::Export) => gen_unique_name(u, &mut exports)?,
                 };
                 if let Some(dir) = direction {
                     part.push_str(match dir {
