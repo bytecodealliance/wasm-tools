@@ -686,21 +686,21 @@ impl<'a> BinaryReader<'a> {
         }
 
         // Check for a block type of form [] -> [t].
-        if let Some(ty) = ValType::from_byte(b) {
-            self.position += 1;
-            return Ok(BlockType::Type(ty));
+        if ValType::is_valtype_byte(b) {
+            return Ok(BlockType::Type(self.read()?));
         }
 
         // Not empty or a singular type, so read the function type index
         let idx = self.read_var_s33()?;
-        if idx < 0 || idx > (std::u32::MAX as i64) {
-            return Err(BinaryReaderError::new(
-                "invalid function type",
-                self.original_position(),
-            ));
+        match u32::try_from(idx) {
+            Ok(idx) => Ok(BlockType::FuncType(idx)),
+            Err(_) => {
+                return Err(BinaryReaderError::new(
+                    "invalid function type",
+                    self.original_position(),
+                ));
+            }
         }
-
-        Ok(BlockType::FuncType(idx as u32))
     }
 
     /// Visit the next available operator with the specified [`VisitOperator`] instance.
@@ -778,6 +778,8 @@ impl<'a> BinaryReader<'a> {
             }
             0x12 => visitor.visit_return_call(self.read_var_u32()?),
             0x13 => visitor.visit_return_call_indirect(self.read_var_u32()?, self.read_var_u32()?),
+            0x14 => visitor.visit_call_ref(self.read()?),
+            0x15 => visitor.visit_return_call_ref(self.read()?),
             0x18 => visitor.visit_delegate(self.read_var_u32()?),
             0x19 => visitor.visit_catch_all(),
             0x1a => visitor.visit_drop(),
@@ -971,6 +973,9 @@ impl<'a> BinaryReader<'a> {
             0xd0 => visitor.visit_ref_null(self.read()?),
             0xd1 => visitor.visit_ref_is_null(),
             0xd2 => visitor.visit_ref_func(self.read_var_u32()?),
+            0xd3 => visitor.visit_ref_as_non_null(),
+            0xd4 => visitor.visit_br_on_null(self.read_var_u32()?),
+            0xd6 => visitor.visit_br_on_non_null(self.read_var_u32()?),
 
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
             0xfd => self.visit_0xfd_operator(pos, visitor)?,

@@ -1,4 +1,4 @@
-use crate::{encode_section, Encode, Section, SectionId, ValType};
+use crate::{encode_section, Encode, HeapType, Section, SectionId, ValType};
 use std::borrow::Cow;
 
 /// An encoder for the code section.
@@ -318,9 +318,13 @@ pub enum Instruction<'a> {
     Br(u32),
     BrIf(u32),
     BrTable(Cow<'a, [u32]>, u32),
+    BrOnNull(u32),
+    BrOnNonNull(u32),
     Return,
     Call(u32),
+    CallRef(HeapType),
     CallIndirect { ty: u32, table: u32 },
+    ReturnCallRef(HeapType),
     ReturnCall(u32),
     ReturnCallIndirect { ty: u32, table: u32 },
     Throw(u32),
@@ -513,9 +517,10 @@ pub enum Instruction<'a> {
 
     // Reference types instructions.
     TypedSelect(ValType),
-    RefNull(ValType),
+    RefNull(HeapType),
     RefIsNull,
     RefFunc(u32),
+    RefAsNonNull,
 
     // Bulk memory instructions.
     TableInit { elem_index: u32, table: u32 },
@@ -905,16 +910,33 @@ impl Encode for Instruction<'_> {
                 ls.encode(sink);
                 l.encode(sink);
             }
+            Instruction::BrOnNull(l) => {
+                sink.push(0xD4);
+                l.encode(sink);
+            }
+            Instruction::BrOnNonNull(l) => {
+                sink.push(0xD6);
+                l.encode(sink);
+            }
             Instruction::Return => sink.push(0x0F),
             Instruction::Call(f) => {
                 sink.push(0x10);
                 f.encode(sink);
+            }
+            Instruction::CallRef(ty) => {
+                sink.push(0x14);
+                ty.encode(sink);
             }
             Instruction::CallIndirect { ty, table } => {
                 sink.push(0x11);
                 ty.encode(sink);
                 table.encode(sink);
             }
+            Instruction::ReturnCallRef(ty) => {
+                sink.push(0x15);
+                ty.encode(sink);
+            }
+
             Instruction::ReturnCall(f) => {
                 sink.push(0x12);
                 f.encode(sink);
@@ -1290,6 +1312,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xd2);
                 f.encode(sink);
             }
+            Instruction::RefAsNonNull => sink.push(0xD3),
 
             // Bulk memory instructions.
             Instruction::TableInit { elem_index, table } => {
@@ -2801,7 +2824,7 @@ impl ConstExpr {
     }
 
     /// Create a constant expression containing a single `ref.null` instruction.
-    pub fn ref_null(ty: ValType) -> Self {
+    pub fn ref_null(ty: HeapType) -> Self {
         Self::new_insn(Instruction::RefNull(ty))
     }
 

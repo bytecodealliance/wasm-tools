@@ -15,7 +15,7 @@
  0x20 | 01          | [func 3] type 1
  0x21 | 04 04       | table section
  0x23 | 01          | 1 count
- 0x24 | 70 00 01    | [table 0] TableType { element_type: FuncRef, initial: 1, maximum: None }
+ 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }, init: RefNull }
  0x27 | 05 03       | memory section
  0x29 | 01          | 1 count
  0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
@@ -31,14 +31,14 @@
  0x3d | 00          | start function 0
  0x3e | 09 0f       | element section
  0x40 | 03          | 3 count
- 0x41 | 00          | element FuncRef table[0]
+ 0x41 | 00          | element RefType { nullable: true, heap_type: Func } table[0]
  0x42 | 41 03       | i32_const value:3
  0x44 | 0b          | end
  0x45 | 01          | 1 items
  0x46 | 00          | item 0
- 0x47 | 01 00 01    | element FuncRef passive, 1 items
+ 0x47 | 01 00 01    | element RefType { nullable: true, heap_type: Func } passive, 1 items
  0x4a | 00          | item 0
- 0x4b | 03 00 01    | element FuncRef declared 1 items
+ 0x4b | 03 00 01    | element RefType { nullable: true, heap_type: Func } declared 1 items
  0x4e | 00          | item 0
  0x4f | 0a 10       | code section
  0x51 | 03          | 3 count

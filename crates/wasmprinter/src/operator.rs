@@ -1,7 +1,7 @@
 use super::{Printer, State};
 use anyhow::{bail, Result};
 use std::fmt::Write;
-use wasmparser::{BlockType, BrTable, MemArg, VisitOperator};
+use wasmparser::{BlockType, BrTable, HeapType, MemArg, VisitOperator};
 
 pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
@@ -166,6 +166,10 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         }
         Ok(())
     }
+
+    fn hty(&mut self, hty: HeapType) -> Result<()> {
+        self.printer.print_heaptype(hty)
+    }
 }
 
 pub enum OpKind {
@@ -231,9 +235,9 @@ macro_rules! define_visit {
         $self.printer.print_valtype($ty)?;
         $self.push_str(")")
     );
-    (payload $self:ident RefNull $ty:ident) => (
+    (payload $self:ident RefNull $hty:ident) => (
         $self.push_str(" ");
-        $self.printer.print_reftype($ty)?;
+        $self.printer.print_heaptype($hty)?;
     );
     (payload $self:ident TableInit $segment:ident $table:ident) => (
         $self.push_str(" ");
@@ -324,12 +328,16 @@ macro_rules! define_visit {
     (name Nop) => ("nop");
     (name Br) => ("br");
     (name BrIf) => ("br_if");
+    (name BrOnNull) => ("br_on_null");
+    (name BrOnNonNull) => ("br_on_non_null");
     (name BrTable) => ("br_table");
     (name Return) => ("return");
     (name Call) => ("call");
     (name CallIndirect) => ("call_indirect");
+    (name CallRef) => ("call_ref");
     (name ReturnCall) => ("return_call");
     (name ReturnCallIndirect) => ("return_call_indirect");
+    (name ReturnCallRef) => ("return_call_ref");
     (name Drop) => ("drop");
     (name Select) => ("select");
     (name TypedSelect) => ("select");
@@ -376,6 +384,7 @@ macro_rules! define_visit {
     (name TableFill) => ("table.fill");
     (name TableSize) => ("table.size");
     (name TableGrow) => ("table.grow");
+    (name RefAsNonNull) => ("ref.as_non_null");
     (name RefNull) => ("ref.null");
     (name RefIsNull) => ("ref.is_null");
     (name RefFunc) => ("ref.func");

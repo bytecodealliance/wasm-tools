@@ -3,7 +3,7 @@
 use super::{component::ComponentState, core::Module};
 use crate::{
     ComponentExport, ComponentImport, Export, ExternalKind, FuncType, GlobalType, Import,
-    MemoryType, PrimitiveValType, TableType, TypeRef, ValType,
+    MemoryType, PrimitiveValType, RefType, TableType, TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -1477,7 +1477,7 @@ impl<'a> TypesRef<'a> {
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
     /// been parsed yet.
-    pub fn element_at(&self, index: u32) -> Option<ValType> {
+    pub fn element_at(&self, index: u32) -> Option<RefType> {
         match &self.kind {
             TypesRefKind::Module(module) => module.element_types.get(index as usize).copied(),
             TypesRefKind::Component(_) => None,
@@ -1785,8 +1785,11 @@ impl Types {
     /// Gets the type of an element segment at the given element segment index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn element_at(&self, index: u32) -> Option<ValType> {
-        self.as_ref().element_at(index)
+    pub fn element_at(&self, index: u32) -> Option<RefType> {
+        match &self.kind {
+            TypesKind::Module(module) => module.element_types.get(index as usize).copied(),
+            TypesKind::Component(_) => None,
+        }
     }
 
     /// Gets the count of element segments.

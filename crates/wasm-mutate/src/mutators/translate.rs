@@ -20,6 +20,7 @@ pub enum ConstExprKind {
     ElementOffset,
     ElementFunction,
     DataOffset,
+    TableInit,
 }
 
 pub trait Translator {
@@ -56,6 +57,14 @@ pub trait Translator {
 
     fn translate_ty(&mut self, t: &wasmparser::ValType) -> Result<ValType> {
         ty(self.as_obj(), t)
+    }
+
+    fn translate_refty(&mut self, t: &wasmparser::RefType) -> Result<RefType> {
+        refty(self.as_obj(), t)
+    }
+
+    fn translate_heapty(&mut self, t: &wasmparser::HeapType) -> Result<HeapType> {
+        heapty(self.as_obj(), t)
     }
 
     fn translate_global(&mut self, g: Global, s: &mut GlobalSection) -> Result<()> {
@@ -136,7 +145,7 @@ pub fn table_type(
     ty: &wasmparser::TableType,
 ) -> Result<wasm_encoder::TableType> {
     Ok(wasm_encoder::TableType {
-        element_type: t.translate_ty(&ty.element_type)?,
+        element_type: t.translate_refty(&ty.element_type)?,
         minimum: ty.initial,
         maximum: ty.maximum,
     })
@@ -171,15 +180,31 @@ pub fn tag_type(t: &mut dyn Translator, ty: &wasmparser::TagType) -> Result<wasm
     })
 }
 
-pub fn ty(_t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> {
+pub fn ty(t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> {
     match ty {
         wasmparser::ValType::I32 => Ok(ValType::I32),
         wasmparser::ValType::I64 => Ok(ValType::I64),
         wasmparser::ValType::F32 => Ok(ValType::F32),
         wasmparser::ValType::F64 => Ok(ValType::F64),
         wasmparser::ValType::V128 => Ok(ValType::V128),
-        wasmparser::ValType::FuncRef => Ok(ValType::FuncRef),
-        wasmparser::ValType::ExternRef => Ok(ValType::ExternRef),
+        wasmparser::ValType::Ref(ty) => Ok(ValType::Ref(t.translate_refty(ty)?)),
+    }
+}
+
+pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType> {
+    Ok(RefType {
+        nullable: ty.nullable,
+        heap_type: t.translate_heapty(&ty.heap_type)?,
+    })
+}
+
+pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapType> {
+    match ty {
+        wasmparser::HeapType::Func => Ok(HeapType::Func),
+        wasmparser::HeapType::Extern => Ok(HeapType::Extern),
+        wasmparser::HeapType::TypedFunc(i) => {
+            Ok(HeapType::TypedFunc(t.remap(Item::Type, (*i).into())?))
+        }
     }
 }
 
@@ -206,7 +231,7 @@ pub fn const_expr(
         match op {
             Operator::RefFunc { .. }
             | Operator::RefNull {
-                ty: wasmparser::ValType::FuncRef,
+                hty: wasmparser::HeapType::Func,
                 ..
             }
             | Operator::GlobalGet { .. } => {}
@@ -245,7 +270,7 @@ pub fn element(
         ElementKind::Passive => ElementMode::Passive,
         ElementKind::Declared => ElementMode::Declared,
     };
-    let element_type = t.translate_ty(&element.ty)?;
+    let element_type = t.translate_refty(&element.ty)?;
     let functions;
     let exprs;
     let elements = match element.items {
@@ -259,7 +284,13 @@ pub fn element(
         wasmparser::ElementItems::Expressions(reader) => {
             exprs = reader
                 .into_iter()
-                .map(|f| t.translate_const_expr(&f?, &element.ty, ConstExprKind::ElementFunction))
+                .map(|f| {
+                    t.translate_const_expr(
+                        &f?,
+                        &wasmparser::ValType::Ref(element.ty),
+                        ConstExprKind::ElementFunction,
+                    )
+                })
                 .collect::<Result<Vec<_>, _>>()?;
             Elements::Expressions(&exprs)
         }
@@ -320,6 +351,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident mem_byte) => (());
         (map $arg:ident flags) => (());
         (map $arg:ident ty) => (t.translate_ty($arg)?);
+        (map $arg:ident hty) => (t.translate_heapty($arg)?);
         (map $arg:ident memarg) => (t.translate_memarg($arg)?);
         (map $arg:ident local_index) => (*$arg);
         (map $arg:ident value) => ($arg);

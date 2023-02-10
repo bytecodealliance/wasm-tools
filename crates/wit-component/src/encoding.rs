@@ -959,7 +959,7 @@ impl<'a> EncodingState<'a> {
         names.functions(&func_names);
 
         let table_type = TableType {
-            element_type: ValType::FuncRef,
+            element_type: RefType::FUNCREF,
             minimum: signatures.len() as u32,
             maximum: Some(signatures.len() as u32),
         };
@@ -972,7 +972,7 @@ impl<'a> EncodingState<'a> {
         elements.active(
             None,
             &ConstExpr::i32_const(0),
-            ValType::FuncRef,
+            RefType::FUNCREF,
             Elements::Functions(&func_indexes),
         );
 

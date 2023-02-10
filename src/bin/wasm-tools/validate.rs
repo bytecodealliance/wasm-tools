@@ -89,6 +89,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
 
     const FEATURES: &[(&str, fn(&mut WasmFeatures) -> &mut bool)] = &[
         ("reference-types", |f| &mut f.reference_types),
+        ("function-references", |f| &mut f.function_references),
         ("simd", |f| &mut f.simd),
         ("threads", |f| &mut f.threads),
         ("bulk-memory", |f| &mut f.bulk_memory),

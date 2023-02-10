@@ -130,14 +130,10 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/try_delegate.wast",
         "exception-handling/try_catch.wast",
         "exception-handling/throw.wast",
-        // TODO: The call_ref instructions formats changed: the testsuite needs
-        // to be updated. Remove local/function-references/call_ref/ as well.
-        "function-references/br_on_non_null.wast",
-        "function-references/br_on_null.wast",
-        "function-references/call_ref.wast",
-        "function-references/func_bind.wast",
-        "function-references/ref_as_non_null.wast",
-        "function-references/return_call_ref.wast",
+        // TODO: Initialization checking
+        "function-references/func.wast",
+        // TODO: Initialization checking
+        "function-references/local_get.wast",
         // TODO: new syntax for table types has been added with an optional
         // initializer which needs parsing in the text format.
         "function-references/table.wast",
@@ -298,7 +294,20 @@ impl TestState {
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
         // Only test parsing and encoding of modules which wasmparser doesn't
         // support test (basically just test `wast`, nothing else)
-        let skip_verify = test.iter().any(|t| t == "function-references" || t == "gc");
+        let skip_verify = test.iter().any(|t| t == "gc")
+            // This specific test contains a module along the lines of:
+            //
+            //  (module
+            //   (type $t (func))
+            //   (func $tf)
+            //   (table $t (ref null $t) (elem $tf))
+            //  )
+            //
+            // which doesn't currently validate since the injected element
+            // segment has a type of `funcref` which isn't compatible with the
+            // table's type. The spec interpreter thinks this should validate,
+            // however, and I'm not entirely sure why.
+            || test.ends_with("function-references/br_table.wast");
 
         match directive {
             WastDirective::Wat(mut module) => {
@@ -362,7 +371,7 @@ impl TestState {
                 }
                 match result {
                     Ok(_) => bail!(
-                        "parsed successfully but should have failed with: {}",
+                        "encoded and validated successfully but should have failed with: {}",
                         message,
                     ),
                     Err(e) => {
@@ -554,6 +563,7 @@ impl TestState {
             saturating_float_to_int: true,
             sign_extension: true,
             mutable_global: true,
+            function_references: true,
             memory_control: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
@@ -568,6 +578,7 @@ impl TestState {
                     features.saturating_float_to_int = false;
                     features.mutable_global = false;
                     features.bulk_memory = false;
+                    features.function_references = false;
                 }
                 "floats-disabled.wast" => features.floats = false,
                 "threads" => {
@@ -585,6 +596,7 @@ impl TestState {
                 "component-model" => features.component_model = true,
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
+                "function-references" => features.function_references = true,
                 "relaxed-simd" => features.relaxed_simd = true,
                 "reference-types" => features.reference_types = true,
                 _ => {}
@@ -697,10 +709,16 @@ fn error_matches(error: &str, message: &str) -> bool {
     // section counts/lengths.
     if message == "length out of bounds" || message == "unexpected end of section or function" {
         return error.contains("unexpected end-of-file")
-            || error.contains("control frames remain at end of function");
+            || error.contains("control frames remain at end of function")
+            // This is the same case as "unexpected end" (below) but in
+            // function-references fsr it includes "of section or function"
+            || error.contains("type index out of bounds");
     }
 
-    // this feels like a busted test in the spec suite
+    // binary.wast includes a test in which a 0b (End) is eaten by a botched
+    // br_table.  The test assumes that the parser (not the validator) errors on
+    // a missing End before failing to validate the botched instruction.  However
+    // wasmparser fails to validate the botched instruction first
     if message == "unexpected end" {
         return error.contains("type index out of bounds");
     }
@@ -729,8 +747,18 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("invalid u32 number: constant out of range");
     }
 
+    // The test suite includes "bad opcodes" that later became valid opcodes
+    // (0xd3, function references proposal). However, they are still not constant
+    // expressions, so we can sidestep by checking for that error instead
+    if message == "illegal opcode" {
+        return error.contains("constant expression required");
+    }
     if message == "unknown global" {
         return error.contains("global.get of locally defined global");
+    }
+
+    if message == "immutable global" {
+        return error.contains("global is immutable");
     }
 
     return false;

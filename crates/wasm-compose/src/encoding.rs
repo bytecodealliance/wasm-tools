@@ -274,14 +274,24 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::ValType::F32 => ValType::F32,
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::FuncRef => ValType::FuncRef,
-            wasmparser::ValType::ExternRef => ValType::ExternRef,
+            wasmparser::ValType::Ref(ty) => ValType::Ref(Self::ref_type(ty)),
+        }
+    }
+
+    fn ref_type(ty: wasmparser::RefType) -> RefType {
+        RefType {
+            nullable: ty.nullable,
+            heap_type: match ty.heap_type {
+                wasmparser::HeapType::Func => HeapType::Func,
+                wasmparser::HeapType::Extern => HeapType::Extern,
+                wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
+            },
         }
     }
 
     fn table_type(ty: wasmparser::TableType) -> TableType {
         TableType {
-            element_type: Self::val_type(ty.element_type),
+            element_type: Self::ref_type(ty.element_type),
             minimum: ty.initial,
             maximum: ty.maximum,
         }

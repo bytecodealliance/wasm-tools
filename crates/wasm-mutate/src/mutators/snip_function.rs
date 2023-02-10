@@ -3,9 +3,8 @@
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
-
 use rand::Rng;
-use wasm_encoder::{CodeSection, Function, Instruction, Module, ValType};
+use wasm_encoder::{CodeSection, Function, HeapType, Instruction, Module};
 use wasmparser::CodeSectionReader;
 
 /// Mutator that replaces the body of a function with an empty body
@@ -61,10 +60,10 @@ impl Mutator for SnipMutator {
                                 f.instruction(&Instruction::V128Const(0));
                             }
                             PrimitiveTypeInfo::FuncRef => {
-                                f.instruction(&Instruction::RefNull(ValType::FuncRef));
+                                f.instruction(&Instruction::RefNull(HeapType::Func));
                             }
                             PrimitiveTypeInfo::ExternRef => {
-                                f.instruction(&Instruction::RefNull(ValType::ExternRef));
+                                f.instruction(&Instruction::RefNull(HeapType::Extern));
                             }
                             PrimitiveTypeInfo::Empty => {
                                 unreachable!()
