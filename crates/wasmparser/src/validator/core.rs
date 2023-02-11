@@ -152,7 +152,7 @@ impl ModuleState {
         match &table.init {
             TableInit::RefNull => {
                 if !table.ty.element_type.nullable {
-                    bail!(offset, "non-defaultable element type",);
+                    bail!(offset, "type mismatch: non-defaultable element type");
                 }
             }
             TableInit::Expr(expr) => {
