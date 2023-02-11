@@ -153,7 +153,7 @@ pub struct OperatorValidatorAllocations {
 ///
 /// This is used to manage the operand stack and notably isn't just `ValType` to
 /// handle unreachable code and the "bottom" type.
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum MaybeType {
     Bot,
     HeapBot,
@@ -431,17 +431,18 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         // matched against the state of the world to see if we could actually
         // pop it. If we shouldn't have popped it then it's passed to the slow
         // path to get pushed back onto the stack.
-        let popped = if let Some(MaybeType::Type(actual_ty)) = self.operands.pop() {
-            if Some(actual_ty) == expected {
-                if let Some(control) = self.control.last() {
-                    if self.operands.len() >= control.height {
-                        return Ok(MaybeType::Type(actual_ty));
+        let popped = match self.operands.pop() {
+            Some(MaybeType::Type(actual_ty)) => {
+                if Some(actual_ty) == expected {
+                    if let Some(control) = self.control.last() {
+                        if self.operands.len() >= control.height {
+                            return Ok(MaybeType::Type(actual_ty));
+                        }
                     }
                 }
+                Some(MaybeType::Type(actual_ty))
             }
-            Some(MaybeType::Type(actual_ty))
-        } else {
-            None
+            other => other,
         };
 
         self._pop_operand(expected, popped)
