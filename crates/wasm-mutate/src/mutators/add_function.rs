@@ -67,7 +67,7 @@ impl Mutator for AddFunctionMutator {
                     func.instruction(&Instruction::RefNull(HeapType::Func));
                 }
                 PrimitiveTypeInfo::ExternRef => {
-                    func.instruction(&Instruction::RefNull(HeapType::Func));
+                    func.instruction(&Instruction::RefNull(HeapType::Extern));
                 }
                 PrimitiveTypeInfo::Empty => unreachable!(),
             }
