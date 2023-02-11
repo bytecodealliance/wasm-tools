@@ -42,16 +42,15 @@ fuzz_target!(|data: &[u8]| {
     let use_maybe_invalid = byte3 & 0b0000_0100 != 0;
 
     let wasm = &data[3..];
-    if log::log_enabled!(log::Level::Debug) {
-        log::debug!("writing input to `test.wasm`");
-        std::fs::write("test.wasm", wasm).unwrap();
-    }
     if use_maybe_invalid {
         let mut u = Unstructured::new(wasm);
         if let Ok(module) = MaybeInvalidModule::arbitrary(&mut u) {
-            drop(validator.validate_all(&module.to_bytes()));
+            let wasm = module.to_bytes();
+            wasm_tools_fuzz::log_wasm(&wasm, "");
+            drop(validator.validate_all(&wasm));
         }
     } else {
+        wasm_tools_fuzz::log_wasm(wasm, "");
         drop(validator.validate_all(wasm));
     }
 });
