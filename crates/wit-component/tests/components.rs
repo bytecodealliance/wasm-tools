@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
 use wasm_encoder::{Encode, Section};
@@ -99,11 +99,7 @@ fn read_core_module(path: &Path) -> Result<Vec<u8>> {
         UnresolvedPackage::parse_file(&interface)?,
         &Default::default(),
     )?;
-    let doc = *resolve.packages[pkg].documents.iter().next().unwrap().1;
-    let doc = &resolve.documents[doc];
-    let world = doc
-        .default_world
-        .ok_or_else(|| anyhow!("no default world specified"))?;
+    let world = resolve.select_world(pkg, None)?;
     let encoded = wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8)?;
 
     let section = wasm_encoder::CustomSection {

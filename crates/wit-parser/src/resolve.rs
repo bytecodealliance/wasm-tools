@@ -3,7 +3,7 @@ use crate::{
     Document, DocumentId, Error, Function, Interface, InterfaceId, Results, Type, TypeDef,
     TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -375,6 +375,65 @@ impl Resolve {
             .push(&doc.name)
             .push(interface.name.as_ref()?);
         Some(base.to_string())
+    }
+
+    /// Attempts to locate a default world for the `pkg` specified within this
+    /// [`Resolve`]. Optionally takes a string-based `world` "specifier" to
+    /// resolve the world.
+    ///
+    /// This is intended for use by bindings generators and such as the default
+    /// logic for locating a world within a package used for binding. The
+    /// `world` argument is typically a user-specified argument (which again is
+    /// optional and not required) where the `pkg` is determined ambiently by
+    /// the integration.
+    ///
+    /// If `world` is `None` (e.g. not specified by a user) then the package
+    /// must have exactly one `default world` within its documents, otherwise an
+    /// error will be returned. If `world` is `Some` then it's a `.`-separated
+    /// name where the first element is the name of the document and the second,
+    /// optional, element is the name of the `world`. For example the name `foo`
+    /// would mean the `default world` of the `foo` document. The name `foo.bar`
+    /// would mean the world named `bar` in the `foo` document.
+    pub fn select_world(&self, pkg: PackageId, world: Option<&str>) -> Result<WorldId> {
+        match world {
+            Some(world) => {
+                let mut parts = world.splitn(2, '.');
+                let doc = parts.next().unwrap();
+                let world = parts.next();
+                let doc = *self.packages[pkg]
+                    .documents
+                    .get(doc)
+                    .ok_or_else(|| anyhow!("no document named `{doc}` in package"))?;
+                match world {
+                    Some(name) => self.documents[doc]
+                        .worlds
+                        .get(name)
+                        .copied()
+                        .ok_or_else(|| anyhow!("no world named `{name}` in document")),
+                    None => self.documents[doc]
+                        .default_world
+                        .ok_or_else(|| anyhow!("no default world in document")),
+                }
+            }
+            None => {
+                if self.packages[pkg].documents.is_empty() {
+                    bail!("no documents found in package")
+                }
+
+                let mut unique_default_world = None;
+                for (_name, doc) in &self.documents {
+                    if let Some(default_world) = doc.default_world {
+                        if unique_default_world.is_some() {
+                            bail!("multiple default worlds found in package, one must be specified")
+                        } else {
+                            unique_default_world = Some(default_world);
+                        }
+                    }
+                }
+
+                unique_default_world.ok_or_else(|| anyhow!("no default world in package"))
+            }
+        }
     }
 }
 
