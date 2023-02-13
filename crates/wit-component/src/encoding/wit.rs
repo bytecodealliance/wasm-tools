@@ -27,13 +27,19 @@ use wit_parser::*;
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
 pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
+    Ok(encode_component(resolve, package)?.finish())
+}
+
+/// Exactly like `encode`, except gives an unfinished `ComponentBuilder` in case you need
+/// to append anything else before finishing.
+pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<ComponentBuilder> {
     let mut encoder = Encoder {
         component: ComponentBuilder::default(),
         resolve,
         package,
     };
     encoder.run()?;
-    Ok(encoder.component.finish())
+    Ok(encoder.component)
 }
 
 struct Encoder<'a> {

@@ -1,5 +1,6 @@
 use std::mem;
 use wasm_encoder::*;
+use wasm_metadata::Producers;
 
 /// Helper type used when encoding a component to have helpers that
 /// simultaneously encode an item while returning its corresponding index in the
@@ -29,11 +30,18 @@ pub struct ComponentBuilder {
     instances: u32,
     types: u32,
     components: u32,
+
+    producers: Producers,
 }
 
 impl ComponentBuilder {
     pub fn finish(mut self) -> Vec<u8> {
-        self.component.section(&crate::producer_section());
+        // Ideally the Default for self.producers would be crate::base_producers,
+        // but in lieu we stick it in now:
+        let mut base = crate::base_producers();
+        base.merge(&self.producers);
+        // Write producers section as last section:
+        self.component.section(&base.section());
         self.flush();
         self.component.finish()
     }
@@ -196,6 +204,10 @@ impl ComponentBuilder {
         self.component_instances()
             .instantiate(component_index, args);
         inc(&mut self.instances)
+    }
+
+    pub fn add_producers(&mut self, producers: &Producers) {
+        self.producers.merge(producers)
     }
 }
 

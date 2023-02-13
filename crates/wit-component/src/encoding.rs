@@ -89,7 +89,7 @@ use wit_parser::{
 const INDIRECT_TABLE_NAME: &str = "$imports";
 
 mod wit;
-pub use wit::encode;
+pub use wit::{encode, encode_component};
 
 mod types;
 use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
@@ -982,14 +982,14 @@ impl<'a> EncodingState<'a> {
         shim.section(&tables);
         shim.section(&exports);
         shim.section(&code);
-        shim.section(&crate::producer_section());
+        shim.section(&crate::base_producers().section());
         shim.section(&names);
 
         let mut fixups = Module::default();
         fixups.section(&types);
         fixups.section(&imports_section);
         fixups.section(&elements);
-        fixups.section(&crate::producer_section());
+        fixups.section(&crate::base_producers().section());
         let mut names = NameSection::new();
         names.module("wit-component:fixups");
         fixups.section(&names);
@@ -1351,10 +1351,16 @@ impl ComponentEncoder {
     /// Set the core module to encode as a component.
     /// This method will also parse any component type information stored in custom sections
     /// inside the module, and add them as the interface, imports, and exports.
+    /// It will also add any producers information inside the component type information to the
+    /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(module)?;
-        self.module = wasm;
         self.metadata.merge(metadata)?;
+        self.module = if let Some(producers) = &self.metadata.producers {
+            producers.add_to_wasm(&wasm)?
+        } else {
+            wasm
+        };
         Ok(self)
     }
 

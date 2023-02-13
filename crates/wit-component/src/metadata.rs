@@ -37,6 +37,7 @@ use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use wasm_encoder::Encode;
+use wasm_metadata::Producers;
 use wasmparser::BinaryReader;
 use wit_parser::{Document, Package, Resolve, World, WorldId, WorldItem};
 
@@ -53,6 +54,8 @@ pub struct Bindgen {
     pub world: WorldId,
     /// Metadata about this specific module that was bound.
     pub metadata: ModuleMetadata,
+    /// Producer information about tools used to produce this specific module.
+    pub producers: Option<Producers>,
 }
 
 impl Default for Bindgen {
@@ -82,6 +85,7 @@ impl Default for Bindgen {
             resolve,
             world,
             metadata: ModuleMetadata::default(),
+            producers: None,
         }
     }
 }
@@ -143,7 +147,12 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
 /// into the final core wasm binary. The core wasm binary is later fed
 /// through `wit-component` to produce the actual component where this returned
 /// section will be decoded.
-pub fn encode(resolve: &Resolve, world: WorldId, encoding: StringEncoding) -> Result<Vec<u8>> {
+pub fn encode(
+    resolve: &Resolve,
+    world: WorldId,
+    encoding: StringEncoding,
+    producers: Option<&Producers>,
+) -> Result<Vec<u8>> {
     let world = &resolve.worlds[world];
     let doc = &resolve.documents[world.document];
     let pkg = &resolve.packages[doc.package.unwrap()];
@@ -167,7 +176,13 @@ pub fn encode(resolve: &Resolve, world: WorldId, encoding: StringEncoding) -> Re
     pkg.name.encode(&mut ret);
     doc.name.encode(&mut ret);
     world.name.encode(&mut ret);
-    ret.extend(crate::encoding::encode(resolve, doc.package.unwrap())?);
+    // This appends a wasm binary encoded Component to the ret:
+    let mut component_builder = crate::encoding::encode_component(resolve, doc.package.unwrap())?;
+
+    if let Some(p) = producers {
+        component_builder.add_producers(p);
+    }
+    ret.extend(component_builder.finish());
     Ok(ret)
 }
 
@@ -195,10 +210,12 @@ impl Bindgen {
         let doc = resolve.packages[pkg].documents[doc_name];
         let world = resolve.documents[doc].worlds[world_name];
         let metadata = ModuleMetadata::new(&resolve, world, encoding);
+        let producers = wasm_metadata::Producers::from_wasm(&data[reader.original_position()..])?;
         Ok(Bindgen {
             resolve,
             world,
             metadata,
+            producers,
         })
     }
 
@@ -220,6 +237,7 @@ impl Bindgen {
                     import_encodings,
                     export_encodings,
                 },
+            producers,
         } = other;
 
         let world = self.resolve.merge(resolve).worlds[world.index()];
@@ -247,6 +265,13 @@ impl Bindgen {
                 if prev != encoding {
                     bail!("conflicting string encodings specified for import `{module}::{name}`");
                 }
+            }
+        }
+        if let Some(producers) = producers {
+            if let Some(mine) = &mut self.producers {
+                mine.merge(&producers);
+            } else {
+                self.producers = Some(producers);
             }
         }
 

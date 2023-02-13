@@ -186,6 +186,7 @@ impl EmbedOpts {
             &resolve,
             world,
             self.encoding.unwrap_or(StringEncoding::UTF8),
+            None,
         )?;
 
         let section = wasm_encoder::CustomSection {

@@ -63,6 +63,7 @@ fn component_encoding_via_flags() -> Result<()> {
                 continue;
             }
         };
+
         let wat = wasmprinter::print_bytes(&bytes)?;
         assert_output(&wat, &component_path)?;
         let (doc, resolve) = match wit_component::decode("component", &bytes)? {
@@ -71,6 +72,34 @@ fn component_encoding_via_flags() -> Result<()> {
         };
         let wit = DocumentPrinter::default().print(&resolve, doc)?;
         assert_output(&wit, &component_wit_path)?;
+
+        // Check that the producer data got piped through properly
+        let metadata = wasm_metadata::Metadata::from_binary(&bytes)?;
+        match metadata {
+            // Depends on the ComponentEncoder always putting the first module as the 0th child:
+            wasm_metadata::Metadata::Component { children, .. } => match children[0].as_ref() {
+                wasm_metadata::Metadata::Module { producers, .. } => {
+                    let producers = producers.as_ref().expect("child module has producers");
+                    let processed_by = producers
+                        .get("processed-by")
+                        .expect("child has processed-by section");
+                    assert_eq!(
+                        processed_by
+                            .get("wit-component")
+                            .expect("wit-component producer present"),
+                        env!("CARGO_PKG_VERSION")
+                    );
+                    assert_eq!(
+                        processed_by
+                            .get("my-fake-bindgen")
+                            .expect("added bindgen field present"),
+                        "123.45"
+                    );
+                }
+                _ => panic!("expected child to be a module"),
+            },
+            _ => panic!("expected top level metadata of component"),
+        }
     }
 
     Ok(())
@@ -100,7 +129,14 @@ fn read_core_module(path: &Path) -> Result<Vec<u8>> {
         &Default::default(),
     )?;
     let world = resolve.select_world(pkg, None)?;
-    let encoded = wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8)?;
+
+    // Add this producer data to the wit-component metadata so we can make sure it gets through the
+    // translation:
+    let mut producers = wasm_metadata::Producers::empty();
+    producers.add("processed-by", "my-fake-bindgen", "123.45");
+
+    let encoded =
+        wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8, Some(&producers))?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type",
