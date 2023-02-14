@@ -1,0 +1,4 @@
+component foo:
+    language:
+        foo
+    module:
