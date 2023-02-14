@@ -53,7 +53,7 @@ wasmprinter = { version = "0.2.51", path = "crates/wasmprinter" }
 wast = { version = "54.0.0", path = "crates/wast" }
 wat = { version = "1.0.59", path = "crates/wat" }
 wit-component = { version = "0.7.0", path = "crates/wit-component" }
-wit-parser = { version = "0.6.0", path = "crates/wit-parser" }
+wit-parser = { version = "0.6.1", path = "crates/wit-parser" }
 
 [dependencies]
 anyhow = { workspace = true }
