@@ -815,7 +815,7 @@ mod test {
         producers.add("language", "bar", "");
         producers.add("processed-by", "baz", "1.0");
 
-        let module = producers.merge_into_module(&module).unwrap();
+        let module = producers.add_to_wasm(&module).unwrap();
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
@@ -839,11 +839,11 @@ mod test {
         let mut producers = Producers::empty();
         producers.add("language", "bar", "");
         producers.add("processed-by", "baz", "1.0");
-        let module = producers.merge_into_module(&module).unwrap();
+        let module = producers.add_to_wasm(&module).unwrap();
 
         let mut producers = Producers::empty();
         producers.add("language", "waaat", "");
-        let module = producers.merge_into_module(&module).unwrap();
+        let module = producers.add_to_wasm(&module).unwrap();
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
@@ -867,11 +867,11 @@ mod test {
         let module = wat::parse_str(wat).unwrap();
         let mut producers = Producers::empty();
         producers.add("processed-by", "baz", "1.0");
-        let module = producers.merge_into_module(&module).unwrap();
+        let module = producers.add_to_wasm(&module).unwrap();
 
         let mut producers = Producers::empty();
         producers.add("processed-by", "baz", "420");
-        let module = producers.merge_into_module(&module).unwrap();
+        let module = producers.add_to_wasm(&module).unwrap();
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
