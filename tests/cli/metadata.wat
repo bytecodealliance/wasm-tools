@@ -1,0 +1,2 @@
+;; RUN: metadata show %
+(module)
