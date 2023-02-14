@@ -54,7 +54,8 @@ fuzz_target!(|data: &[u8]| {
 
     for (id, _world) in resolve.worlds.iter() {
         let mut dummy = wit_component::dummy_module(&resolve, id);
-        let metadata = wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8).unwrap();
+        let metadata =
+            wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8, None).unwrap();
         let section = CustomSection {
             name: "component-type",
             data: &metadata,
