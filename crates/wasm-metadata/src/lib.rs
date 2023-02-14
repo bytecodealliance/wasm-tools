@@ -15,10 +15,44 @@ pub struct Producers(
     IndexMap<String, IndexMap<String, String>>,
 );
 
+impl Default for Producers {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl Producers {
     /// Creates an empty producers section
     pub fn empty() -> Self {
         Producers(IndexMap::new())
+    }
+
+    /// Indicates if section is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Read the producers section from a Wasm binary. Supports both core
+    /// Modules and Components. In the component case, only returns the
+    /// producers section in the outer component, ignoring all interior
+    /// components and modules.
+    pub fn from_wasm(bytes: &[u8]) -> Result<Option<Self>> {
+        let mut depth = 0;
+        for payload in Parser::new(0).parse_all(bytes) {
+            let payload = payload?;
+            use wasmparser::Payload::*;
+            match payload {
+                ModuleSection { .. } | ComponentSection { .. } => depth += 1,
+                End { .. } => depth -= 1,
+                CustomSection(c) if c.name() == "producers" && depth == 0 => {
+                    let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
+                    let producers = Self::from_reader(section)?;
+                    return Ok(Some(producers));
+                }
+                _ => {}
+            }
+        }
+        Ok(None)
     }
     /// Read the producers section from a Wasm binary.
     pub fn from_reader(section: ProducersSectionReader) -> Result<Self> {
@@ -51,6 +85,16 @@ impl Producers {
         }
     }
 
+    /// Add all values found in another `Producers` section. Values in `other` take
+    /// precedence.
+    pub fn merge(&mut self, other: &Self) {
+        for (field, values) in other.iter() {
+            for (name, version) in values.iter() {
+                self.add(field, name, version);
+            }
+        }
+    }
+
     /// Get the contents of a field
     pub fn get<'a>(&'a self, field: &str) -> Option<ProducersField<'a>> {
         self.0.get(&field.to_owned()).map(ProducersField)
@@ -63,18 +107,21 @@ impl Producers {
             .map(|(name, field)| (name, ProducersField(field)))
     }
 
-    /// Add the fields specified by [`AddMetadata`]
-    fn add_meta(&mut self, add: &AddMetadata) {
+    /// Construct the fields specified by [`AddMetadata`]
+    fn from_meta(add: &AddMetadata) -> Self {
+        let mut s = Self::empty();
         for lang in add.language.iter() {
-            self.add("language", &lang, "");
+            s.add("language", &lang, "");
         }
         for (name, version) in add.processed_by.iter() {
-            self.add("processed-by", &name, &version);
+            s.add("processed-by", &name, &version);
         }
         for (name, version) in add.sdk.iter() {
-            self.add("sdk", &name, &version);
+            s.add("sdk", &name, &version);
         }
+        s
     }
+
     /// Serialize into [`wasm_encoder::ProducersSection`].
     pub fn section(&self) -> wasm_encoder::ProducersSection {
         let mut section = wasm_encoder::ProducersSection::new();
@@ -86,6 +133,12 @@ impl Producers {
             section.field(&fieldname, &field);
         }
         section
+    }
+
+    /// Merge into an existing wasm module. Rewrites the module with this producers section
+    /// merged into its existing one, or adds this producers section if none is present.
+    pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
+        rewrite_wasm(&None, self, input)
     }
 
     fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
@@ -160,130 +213,134 @@ impl AddMetadata {
     /// components. The module and component will have, at very least, an empty name and producers
     /// section created.
     pub fn to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        let mut parser = Parser::new(0).parse_all(&input);
+        rewrite_wasm(&self.name, &Producers::from_meta(self), input)
+    }
+}
 
-        enum Output {
-            Component(wasm_encoder::Component),
-            Module(wasm_encoder::Module),
-        }
-        impl Output {
-            fn section(
-                &mut self,
-                section: &(impl wasm_encoder::Section + wasm_encoder::ComponentSection),
-            ) {
-                match self {
-                    Output::Component(c) => {
-                        c.section(section);
-                    }
-                    Output::Module(m) => {
-                        m.section(section);
-                    }
-                }
-            }
-            fn finish(self) -> Vec<u8> {
-                match self {
-                    Output::Component(c) => c.finish(),
-                    Output::Module(m) => m.finish(),
-                }
-            }
-        }
+fn rewrite_wasm(
+    add_name: &Option<String>,
+    add_producers: &Producers,
+    input: &[u8],
+) -> Result<Vec<u8>> {
+    let mut parser = Parser::new(0).parse_all(&input);
 
-        let mut output = match parser
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("at least a version tag on binary"))??
-        {
-            Version {
-                encoding: wasmparser::Encoding::Component,
-                ..
-            } => Output::Component(wasm_encoder::Component::new()),
-            Version {
-                encoding: wasmparser::Encoding::Module,
-                ..
-            } => Output::Module(wasm_encoder::Module::new()),
-            _ => {
-                panic!("first item from parser must be a Version tag")
-            }
-        };
-
-        let mut producers_found = false;
-        let mut names_found = false;
-        let mut depth = 0;
-        for payload in parser {
-            let payload = payload?;
-
-            // Track nesting depth, so that we don't mess with inner producer sections:
-            match payload {
-                ModuleSection { .. } | ComponentSection { .. } => depth += 1,
-                End { .. } => depth -= 1,
-                _ => {}
-            }
-
-            // Process the wasm sections:
-            match payload {
-                // Only rewrite the outermost producers section:
-                CustomSection(c) if c.name() == "producers" && depth == 0 => {
-                    producers_found = true;
-                    let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
-                    let mut producers = Producers::from_reader(section)?;
-                    // Add to the section according to the command line flags:
-                    producers.add_meta(&self);
-                    // Encode into output:
-                    output.section(&producers.section());
-                }
-
-                CustomSection(c) if c.name() == "name" && depth == 0 => {
-                    names_found = true;
-                    let section = NameSectionReader::new(c.data(), c.data_offset());
-                    let mut names = ModuleNames::from_reader(section)?;
-                    names.add_meta(&self);
-
-                    output.section(&names.section()?.as_custom());
-                }
-
-                CustomSection(c) if c.name() == "component-name" && depth == 0 => {
-                    names_found = true;
-                    let section = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                    let mut names = ComponentNames::from_reader(section)?;
-                    names.add_meta(&self);
-                    output.section(&names.section()?.as_custom());
-                }
-
-                // All other sections get passed through unmodified:
-                _ => {
-                    if let Some((id, range)) = payload.as_section() {
-                        output.section(&wasm_encoder::RawSection {
-                            id,
-                            data: &input[range],
-                        });
-                    }
-                }
-            }
-        }
-        if !names_found && self.name.is_some() {
-            match &mut output {
+    enum Output {
+        Component(wasm_encoder::Component),
+        Module(wasm_encoder::Module),
+    }
+    impl Output {
+        fn section(
+            &mut self,
+            section: &(impl wasm_encoder::Section + wasm_encoder::ComponentSection),
+        ) {
+            match self {
                 Output::Component(c) => {
-                    let mut names = ComponentNames::empty();
-                    names.add_meta(&self);
-                    c.section(&names.section()?);
+                    c.section(section);
                 }
                 Output::Module(m) => {
-                    let mut names = ModuleNames::empty();
-                    names.add_meta(&self);
-                    m.section(&names.section()?);
+                    m.section(section);
                 }
             }
         }
-        if !producers_found
-            && (!self.language.is_empty() || !self.processed_by.is_empty() || !self.sdk.is_empty())
-        {
-            let mut producers = Producers::empty();
-            // Add to the section according to the command line flags:
-            producers.add_meta(&self);
-            // Encode into output:
-            output.section(&producers.section());
+        fn finish(self) -> Vec<u8> {
+            match self {
+                Output::Component(c) => c.finish(),
+                Output::Module(m) => m.finish(),
+            }
         }
-        Ok(output.finish())
     }
+
+    let mut output = match parser
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("at least a version tag on binary"))??
+    {
+        Version {
+            encoding: wasmparser::Encoding::Component,
+            ..
+        } => Output::Component(wasm_encoder::Component::new()),
+        Version {
+            encoding: wasmparser::Encoding::Module,
+            ..
+        } => Output::Module(wasm_encoder::Module::new()),
+        _ => {
+            panic!("first item from parser must be a Version tag")
+        }
+    };
+
+    let mut producers_found = false;
+    let mut names_found = false;
+    let mut depth = 0;
+    for payload in parser {
+        let payload = payload?;
+
+        // Track nesting depth, so that we don't mess with inner producer sections:
+        match payload {
+            ModuleSection { .. } | ComponentSection { .. } => depth += 1,
+            End { .. } => depth -= 1,
+            _ => {}
+        }
+
+        // Process the wasm sections:
+        match payload {
+            // Only rewrite the outermost producers section:
+            CustomSection(c) if c.name() == "producers" && depth == 0 => {
+                producers_found = true;
+                let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
+                let mut producers = Producers::from_reader(section)?;
+                // Add to the section according to the command line flags:
+                producers.merge(&add_producers);
+                // Encode into output:
+                output.section(&producers.section());
+            }
+
+            CustomSection(c) if c.name() == "name" && depth == 0 => {
+                names_found = true;
+                let section = NameSectionReader::new(c.data(), c.data_offset());
+                let mut names = ModuleNames::from_reader(section)?;
+                names.merge(&ModuleNames::from_name(add_name));
+
+                output.section(&names.section()?.as_custom());
+            }
+
+            CustomSection(c) if c.name() == "component-name" && depth == 0 => {
+                names_found = true;
+                let section = ComponentNameSectionReader::new(c.data(), c.data_offset());
+                let mut names = ComponentNames::from_reader(section)?;
+                names.merge(&ComponentNames::from_name(add_name));
+                output.section(&names.section()?.as_custom());
+            }
+
+            // All other sections get passed through unmodified:
+            _ => {
+                if let Some((id, range)) = payload.as_section() {
+                    output.section(&wasm_encoder::RawSection {
+                        id,
+                        data: &input[range],
+                    });
+                }
+            }
+        }
+    }
+    if !names_found && add_name.is_some() {
+        match &mut output {
+            Output::Component(c) => {
+                let names = ComponentNames::from_name(add_name);
+                c.section(&names.section()?);
+            }
+            Output::Module(m) => {
+                let names = ModuleNames::from_name(add_name);
+                m.section(&names.section()?);
+            }
+        }
+    }
+    if !producers_found && !add_producers.is_empty() {
+        let mut producers = Producers::empty();
+        // Add to the section according to the command line flags:
+        producers.merge(add_producers);
+        // Encode into output:
+        output.section(&producers.section());
+    }
+    Ok(output.finish())
 }
 
 /// A tree of the metadata found in a WebAssembly binary.
@@ -476,9 +533,20 @@ impl<'a> ModuleNames<'a> {
         Ok(s)
     }
     /// Update module section according to [`AddMetadata`]
-    fn add_meta(&mut self, add: &AddMetadata) {
-        self.module_name = add.name.clone();
+    fn from_name(name: &Option<String>) -> Self {
+        let mut s = Self::empty();
+        s.module_name = name.clone();
+        s
     }
+
+    /// Merge with another section
+    fn merge(&mut self, other: &Self) {
+        if other.module_name.is_some() {
+            self.module_name = other.module_name.clone();
+        }
+        self.names.extend_from_slice(&other.names);
+    }
+
     /// Set module name
     pub fn set_name(&mut self, name: &str) {
         self.module_name = Some(name.to_owned())
@@ -542,9 +610,20 @@ impl<'a> ComponentNames<'a> {
         Ok(s)
     }
     /// Set component name according to [`AddMetadata`]
-    fn add_meta(&mut self, add: &AddMetadata) {
-        self.component_name = add.name.clone();
+    fn from_name(name: &Option<String>) -> Self {
+        let mut s = Self::empty();
+        s.component_name = name.clone();
+        s
     }
+
+    /// Merge with another section
+    fn merge(&mut self, other: &Self) {
+        if other.component_name.is_some() {
+            self.component_name = other.component_name.clone();
+        }
+        self.names.extend_from_slice(&other.names);
+    }
+
     /// Set component name
     pub fn set_name(&mut self, name: &str) {
         self.component_name = Some(name.to_owned())
@@ -725,6 +804,85 @@ mod test {
                 }
             }
             _ => panic!("root should be component"),
+        }
+    }
+
+    #[test]
+    fn producers_empty_module() {
+        let wat = "(module)";
+        let module = wat::parse_str(wat).unwrap();
+        let mut producers = Producers::empty();
+        producers.add("language", "bar", "");
+        producers.add("processed-by", "baz", "1.0");
+
+        let module = producers.add_to_wasm(&module).unwrap();
+
+        let metadata = Metadata::from_binary(&module).unwrap();
+        match metadata {
+            Metadata::Module { name, producers } => {
+                assert_eq!(name, None);
+                let producers = producers.expect("some producers");
+                assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+                assert_eq!(
+                    producers.get("processed-by").unwrap().get("baz").unwrap(),
+                    "1.0"
+                );
+            }
+            _ => panic!("metadata should be module"),
+        }
+    }
+
+    #[test]
+    fn producers_add_another_field() {
+        let wat = "(module)";
+        let module = wat::parse_str(wat).unwrap();
+        let mut producers = Producers::empty();
+        producers.add("language", "bar", "");
+        producers.add("processed-by", "baz", "1.0");
+        let module = producers.add_to_wasm(&module).unwrap();
+
+        let mut producers = Producers::empty();
+        producers.add("language", "waaat", "");
+        let module = producers.add_to_wasm(&module).unwrap();
+
+        let metadata = Metadata::from_binary(&module).unwrap();
+        match metadata {
+            Metadata::Module { name, producers } => {
+                assert_eq!(name, None);
+                let producers = producers.expect("some producers");
+                assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+                assert_eq!(producers.get("language").unwrap().get("waaat").unwrap(), "");
+                assert_eq!(
+                    producers.get("processed-by").unwrap().get("baz").unwrap(),
+                    "1.0"
+                );
+            }
+            _ => panic!("metadata should be module"),
+        }
+    }
+
+    #[test]
+    fn producers_overwrite_field() {
+        let wat = "(module)";
+        let module = wat::parse_str(wat).unwrap();
+        let mut producers = Producers::empty();
+        producers.add("processed-by", "baz", "1.0");
+        let module = producers.add_to_wasm(&module).unwrap();
+
+        let mut producers = Producers::empty();
+        producers.add("processed-by", "baz", "420");
+        let module = producers.add_to_wasm(&module).unwrap();
+
+        let metadata = Metadata::from_binary(&module).unwrap();
+        match metadata {
+            Metadata::Module { producers, .. } => {
+                let producers = producers.expect("some producers");
+                assert_eq!(
+                    producers.get("processed-by").unwrap().get("baz").unwrap(),
+                    "420"
+                );
+            }
+            _ => panic!("metadata should be module"),
         }
     }
 }
