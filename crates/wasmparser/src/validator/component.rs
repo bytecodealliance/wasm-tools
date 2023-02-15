@@ -4,22 +4,23 @@ use super::{
     check_max, combine_type_sizes,
     core::Module,
     types::{
-        ComponentFuncType, ComponentInstanceType, ComponentInstanceTypeKind, ComponentType,
-        ComponentValType, EntityType, InstanceType, KebabString, ModuleType, RecordType, Type,
-        TypeAlloc, TypeId, TypeList, VariantCase,
+        ComponentFuncType, ComponentInstanceType, ComponentType, ComponentValType, EntityType,
+        InstanceType, KebabString, ModuleType, RecordType, ResourceId, Type, TypeAlloc, TypeId,
+        TypeList, VariantCase,
     },
 };
 use crate::{
     limits::*,
     types::{
-        ComponentDefinedType, ComponentEntityType, InstanceTypeKind, KebabStr, LoweringInfo,
-        TupleType, UnionType, VariantType,
+        ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, KebabStr,
+        LoweringInfo, Remap, SubtypeCx, TupleType, UnionType, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExternalKind, ComponentOuterAliasKind,
     ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, Result,
     TableType, TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
+use std::collections::HashMap;
 use std::{collections::HashSet, mem};
 use url::Url;
 
@@ -66,6 +67,8 @@ pub(crate) struct ComponentState {
 
     /// A set of all imports and exports since they share the same namespace.
     pub externs: IndexMap<KebabString, (Option<Url>, ComponentEntityType, ExternKind)>,
+    next_import_index: usize,
+    next_export_index: usize,
 
     // Note: URL validation requires unique URLs by byte comparison, so
     // strings are used here and the URLs are not normalized.
@@ -74,15 +77,86 @@ pub(crate) struct ComponentState {
 
     has_start: bool,
     type_size: u32,
+
+    // Whether or not this state is for a component or instance type definition,
+    // not for an actual component itself.
+    is_type: bool,
+
+    /// A mapping of "universal" resources in this component, or those which
+    /// are imported into the component.
+    ///
+    /// This mapping represents all "type variables" imported into the
+    /// component, or resources. This could be resources imported directly as
+    /// a top-level type import or additionally transitively through other
+    /// imported instances.
+    ///
+    /// The mapping element here is a "path" which is a list of indexes into
+    /// the import map that will be generated for this component. Each index
+    /// is an index into an `IndexMap`, and each list is guaranteed to have at
+    /// least one element.
+    ///
+    /// An example of this map is:
+    ///
+    /// ```wasm
+    /// (component
+    ///     ;; [0] - the first import
+    ///     (import "r" (type (sub resource)))
+    ///
+    ///     ;; [1] - the second import
+    ///     (import "r2" (type (sub resource)))
+    ///
+    ///     (import "i" (instance
+    ///         ;; [2, 0] - the third import, and the first export the instance
+    ///         (export "r3" (type (sub resource)))
+    ///         ;; [2, 1] - the third import, and the second export the instance
+    ///         (export "r4" (type (sub resource)))
+    ///     ))
+    ///
+    ///     ;; ...
+    /// )
+    /// ```
+    ///
+    /// The `Vec<usize>` here can be thought of as `Vec<String>` but a
+    /// (hopefully) more efficient representation.
+    //
+    // TODO: make these `SkolemResourceId` and then go fix all the compile
+    // errors, don't add skolem things into the type area
+    universal_resources: IndexMap<ResourceId, Vec<usize>>,
+
+    /// A mapping of "existential" resources in this component, or those which
+    /// are defined within the instantiation of this component.
+    ///
+    /// Existential resources can sort of be thought of as "these are defined
+    /// within the component". Note though that the means by which a local
+    /// definition can occur are not simply those defined in the component but
+    /// also in its transitively instantiated components internally. This
+    /// means that this set closes over many transitive internal items in
+    /// addition to those defined immediately in the component itself.
+    ///
+    /// The `Option<ValType>` in this mapping is whether or not the underlying
+    /// reprsentation of the resource is known to this component. Immediately
+    /// defined resources, for example, will have `Some(I32)` here. Resources
+    /// that come from transitively defined components, for example, will have
+    /// `None`. In the type context all entries here are `None`.
+    existential_resources: IndexMap<ResourceId, Option<ValType>>,
+
+    /// A mapping of explicitly exported resources from this component in
+    /// addition to the path that they're exported at.
+    ///
+    /// For more information on the path here see the documentation for
+    /// `universal_resources`. Note that the indexes here index into the
+    /// list of exports of this component.
+    explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
+#[derive(Copy, Clone)]
 pub enum ExternKind {
     Import,
     Export,
 }
 
 impl ExternKind {
-    fn desc(&self) -> &'static str {
+    pub fn desc(&self) -> &'static str {
         match self {
             ExternKind::Import => "import",
             ExternKind::Export => "export",
@@ -91,6 +165,41 @@ impl ExternKind {
 }
 
 impl ComponentState {
+    pub fn new() -> Self {
+        Self {
+            is_type: false,
+            core_types: Default::default(),
+            core_modules: Default::default(),
+            core_instances: Default::default(),
+            core_funcs: Default::default(),
+            core_memories: Default::default(),
+            core_tables: Default::default(),
+            core_globals: Default::default(),
+            core_tags: Default::default(),
+            types: Default::default(),
+            funcs: Default::default(),
+            values: Default::default(),
+            instances: Default::default(),
+            components: Default::default(),
+            externs: Default::default(),
+            import_urls: Default::default(),
+            export_urls: Default::default(),
+            has_start: Default::default(),
+            type_size: 1,
+            universal_resources: Default::default(),
+            existential_resources: Default::default(),
+            explicit_resources: Default::default(),
+            next_import_index: 0,
+            next_export_index: 0,
+        }
+    }
+
+    pub fn new_type() -> Self {
+        let mut ret = Self::new();
+        ret.is_type = true;
+        ret
+    }
+
     pub fn type_count(&self) -> usize {
         self.core_types.len() + self.types.len()
     }
@@ -205,6 +314,45 @@ impl ComponentState {
             crate::ComponentType::Instance(decls) => Type::ComponentInstance(Box::new(
                 Self::create_instance_type(components, decls.into_vec(), features, types, offset)?,
             )),
+            crate::ComponentType::Resource { rep, dtor } => {
+                let component = components.last_mut().unwrap();
+
+                // Resource types cannot be declared in a type context, only
+                // within a component context.
+                if component.is_type {
+                    bail!(
+                        offset,
+                        "resources can only be defined within a concrete component"
+                    );
+                }
+
+                // Current MVP restriction of the component model.
+                if rep != ValType::I32 {
+                    bail!(offset, "resources can only be represented by `i32`");
+                }
+
+                // If specified validate that the destructor is both a valid
+                // function and has the correct signature.
+                if let Some(dtor) = dtor {
+                    let ty = component.core_function_at(dtor, offset)?;
+                    let ty = types[ty].as_func_type().unwrap();
+                    if ty.params() != [rep] || ty.results() != [] {
+                        bail!(
+                            offset,
+                            "core function {dtor} has wrong signature for a destructor"
+                        );
+                    }
+                }
+
+                // As this is the introduction of a resource create a fresh new
+                // identifier for the resource. This is then added into the
+                // list of existentials for this component, notably with a
+                // rep listed to enable getting access to various intrinsics
+                // such as `resource.rep`.
+                let id = types.alloc_resource_id();
+                component.existential_resources.insert(id, Some(rep));
+                Type::Resource(id)
+            }
         };
 
         let current = components.last_mut().unwrap();
@@ -224,8 +372,8 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let entity = self.check_type_ref(&import.ty, types, offset)?;
-        self.add_entity(entity, false, offset)?;
+        let mut entity = self.check_type_ref(&import.ty, ExternKind::Import, types, offset)?;
+        self.add_entity(&mut entity, ExternKind::Import, types, offset)?;
         let name = to_kebab_str(import.name, "import", offset)?;
 
         match self.externs.entry(name.to_owned()) {
@@ -248,6 +396,7 @@ impl ComponentState {
 
                 self.type_size = combine_type_sizes(self.type_size, entity.type_size(), offset)?;
                 e.insert((url, entity, ExternKind::Import));
+                self.next_import_index += 1;
             }
         }
 
@@ -256,33 +405,100 @@ impl ComponentState {
 
     fn add_entity(
         &mut self,
-        ty: ComponentEntityType,
-        value_used: bool,
+        ty: &mut ComponentEntityType,
+        kind: ExternKind,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let (len, max, desc) = match ty {
             ComponentEntityType::Module(id) => {
-                self.core_modules.push(id);
+                self.core_modules.push(*id);
                 (self.core_modules.len(), MAX_WASM_MODULES, "modules")
             }
             ComponentEntityType::Component(id) => {
-                self.components.push(id);
+                self.components.push(*id);
                 (self.components.len(), MAX_WASM_COMPONENTS, "components")
             }
             ComponentEntityType::Instance(id) => {
-                self.instances.push(id);
+                match kind {
+                    // The bulk of the logic of handling this is deferred for
+                    // improts to `prepare_instance_import`.
+                    ExternKind::Import => {
+                        self.prepare_instance_import(id, types);
+                    }
+
+                    // Exports of an instance mean that the enclosing context
+                    // is inheriting the resources that the instance
+                    // encapsulates. This means that the instance type
+                    // recorded for this export will itself have no
+                    // existentials.
+                    ExternKind::Export => {
+                        let ty = types[*id].as_component_instance_type().unwrap();
+
+                        // Any explicit resources in the instance are now
+                        // additionally explicit in this component since it's
+                        // exported.
+                        //
+                        // The path to each explicit resources gets one element
+                        // prepended which is `self.next_export_index`, the
+                        // index of the export about to be generated.
+                        //
+                        // Finally as part of this operation the
+                        // `self.existential_resources` list is additionally
+                        // updated, if necessary, with paths to those resources.
+                        // For example if the instance exported ends up
+                        // exporting one of our existential resources then the
+                        // path to that export is recorded.
+                        for (id, path) in ty.explicit_resources.iter() {
+                            let mut new_path = vec![self.next_export_index];
+                            new_path.extend(path);
+                            self.explicit_resources.insert(*id, new_path);
+                        }
+
+                        // If this instance type has any of its own existential
+                        // resources then by exporting it we're inheriting the
+                        // existentials. This block will update `id` to a new
+                        // type which has no `resources` internally.
+                        //
+                        // All resources are appended to our own list of
+                        // existentials with an updated path to their location
+                        // which has `self.next_export_index` prepended.
+                        if !ty.existential_resources.is_empty() {
+                            let mut new_ty = ty.clone();
+                            let resources = mem::take(&mut new_ty.existential_resources);
+                            self.existential_resources
+                                .extend(resources.into_iter().map(|id| (id, None)));
+                            *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
+                        }
+                    }
+                }
+                self.instances.push(*id);
                 (self.instance_count(), MAX_WASM_INSTANCES, "instances")
             }
             ComponentEntityType::Func(id) => {
-                self.funcs.push(id);
+                self.funcs.push(*id);
                 (self.function_count(), MAX_WASM_FUNCTIONS, "functions")
             }
             ComponentEntityType::Value(ty) => {
-                self.values.push((ty, value_used));
+                let value_used = match kind {
+                    ExternKind::Import => false,
+                    ExternKind::Export => true,
+                };
+                self.values.push((*ty, value_used));
                 (self.values.len(), MAX_WASM_VALUES, "values")
             }
             ComponentEntityType::Type { created, .. } => {
-                self.types.push(created);
+                self.types.push(*created);
+
+                // If this is a type export of a resource type then update the
+                // `explicit_resources` list. A new export path is about to be
+                // created for this resource and this keeps track of that.
+                if let ExternKind::Export = kind {
+                    if let Type::Resource(id) = &types[*created] {
+                        self.explicit_resources
+                            .insert(*id, vec![self.next_export_index]);
+                    }
+                }
                 (self.types.len(), MAX_WASM_TYPES, "types")
             }
         };
@@ -291,11 +507,86 @@ impl ComponentState {
         Ok(())
     }
 
+    /// Updates the type `id` specified, an identifier for a component instance
+    /// type, to be imported into this component.
+    ///
+    /// Importing an instance type into a component specially handles the
+    /// existential resources registered in the instance type. Notably all
+    /// existentials are "freshened" into brand new type variables and these
+    /// new variables are substituted within the type. This is what creates
+    /// a new `TypeId` and may update the `id` specified.
+    ///
+    /// One side effect of this operation, for example, is that if an instance
+    /// type is used twice to import two different instances then the instances
+    /// instances do not share resource types despite sharing the same original
+    /// instance type.
+    fn prepare_instance_import(&mut self, id: &mut TypeId, types: &mut TypeAlloc) {
+        let ty = types[*id].as_component_instance_type().unwrap();
+
+        // No special treatment for imports of instances which themselves have
+        // no existential resources
+        if ty.existential_resources.is_empty() {
+            return;
+        }
+
+        let mut new_ty = ComponentInstanceType {
+            // Copied from the input verbatim
+            type_size: ty.type_size,
+
+            // Copied over as temporary storage for now, and both of these are
+            // filled out and expanded below.
+            exports: ty.exports.clone(),
+            explicit_resources: ty.explicit_resources.clone(),
+
+            // Explicitly discard this field since the
+            // existential resources are lifted into `self`
+            existential_resources: Default::default(),
+        };
+
+        // Create brand new resources for all existentials in the instance.
+        let resources = (0..ty.existential_resources.len())
+            .map(|_| types.alloc_resource_id())
+            .collect::<IndexSet<_>>();
+
+        // Build a map from the existentials in `ty` to the existentials in
+        // `new_ty`.
+        //
+        // As aprt of this same loop the new resources, which were previously
+        // existential in `ty`, now become universal variables in `self`. Their
+        // path for where they're imported is updated as well with
+        // `self.next_import_index` as the import-to-be soon.
+        let mut mapping = HashMap::new();
+        let ty = types[*id].as_component_instance_type().unwrap();
+        for (old, new) in ty.existential_resources.iter().zip(&resources) {
+            let prev = mapping.insert(*old, *new);
+            assert!(prev.is_none());
+
+            let mut base = vec![self.next_import_index];
+            base.extend(ty.explicit_resources[old].iter().copied());
+            self.universal_resources.insert(*new, base);
+        }
+
+        // Using the old-to-new resource mapping perform a substitution on
+        // the `exports` and `explicit_resources` fields of `new_ty`
+        for (_, ty) in new_ty.exports.values_mut() {
+            types.remap_component_entity(ty, &mapping);
+        }
+        for (id, path) in mem::take(&mut new_ty.explicit_resources) {
+            let id = *mapping.get(&id).unwrap_or(&id);
+            new_ty.explicit_resources.insert(id, path);
+        }
+
+        // Now that `new_ty` is complete finish its registration and then
+        // update `id` on the way out.
+        *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
+    }
+
     pub fn add_export(
         &mut self,
         name: &str,
         url: &str,
-        ty: ComponentEntityType,
+        mut ty: ComponentEntityType,
+        types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
@@ -308,7 +599,7 @@ impl ComponentState {
                 offset,
             )?;
         }
-        self.add_entity(ty, true, offset)?;
+        self.add_entity(&mut ty, ExternKind::Export, types, offset)?;
 
         let name = to_kebab_str(name, "export", offset)?;
 
@@ -331,6 +622,7 @@ impl ComponentState {
 
                 self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
                 e.insert((url, ty, ExternKind::Export));
+                self.next_export_index += 1;
             }
         }
 
@@ -405,10 +697,78 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn add_component(&mut self, component: &mut Self, types: &mut TypeAlloc) {
-        let ty = Type::Component(Box::new(component.take_component_type()));
+    pub fn resource_new(
+        &mut self,
+        resource: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        let rep = self.check_local_resource(resource, types, offset)?;
+        let core_ty = Type::Func(FuncType::new([rep], [ValType::I32]));
+        self.core_funcs.push(types.push_ty(core_ty));
+        Ok(())
+    }
+
+    pub fn resource_drop(
+        &mut self,
+        ty: crate::ComponentValType,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        let idx = match ty {
+            crate::ComponentValType::Primitive(_) => {
+                bail!(offset, "type-to-drop must be an own or borrow type")
+            }
+            crate::ComponentValType::Type(idx) => idx,
+        };
+        let ty = self.defined_type_at(idx, types, offset)?;
+        match types[ty].as_defined_type().unwrap() {
+            ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {}
+            _ => bail!(offset, "type-to-drop must be an own or borrow type"),
+        }
+        let core_ty = Type::Func(FuncType::new([ValType::I32], []));
+        self.core_funcs.push(types.push_ty(core_ty));
+        Ok(())
+    }
+
+    pub fn resource_rep(
+        &mut self,
+        resource: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        let rep = self.check_local_resource(resource, types, offset)?;
+        let core_ty = Type::Func(FuncType::new([ValType::I32], [rep]));
+        self.core_funcs.push(types.push_ty(core_ty));
+        Ok(())
+    }
+
+    fn check_local_resource(&self, idx: u32, types: &TypeList, offset: usize) -> Result<ValType> {
+        let id = self.resource_at(idx, types, offset)?;
+        let resource = types[id].as_resource().unwrap();
+        match self
+            .existential_resources
+            .get(&resource)
+            .and_then(|rep| *rep)
+        {
+            Some(ty) => Ok(ty),
+            None => bail!(offset, "type {idx} is not a local resource"),
+        }
+    }
+
+    fn resource_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<TypeId> {
+        let id = self.type_at(idx, false, offset)?;
+        match &types[id] {
+            Type::Resource(_) => Ok(id),
+            _ => bail!(offset, "type index {} is not a resource type", idx),
+        }
+    }
+
+    pub fn add_component(&mut self, component: ComponentType, types: &mut TypeAlloc) -> Result<()> {
+        let ty = Type::Component(Box::new(component));
         let id = types.push_ty(ty);
         self.components.push(id);
+        Ok(())
     }
 
     pub fn add_instance(
@@ -515,19 +875,13 @@ impl ComponentState {
             );
         }
 
+        let cx = SubtypeCx::new(types, types);
         for (i, ((_, ty), arg)) in ft.params.iter().zip(args).enumerate() {
             // Ensure the value's type is a subtype of the parameter type
-            if !ComponentValType::internal_is_subtype_of(
-                self.value_at(*arg, offset)?,
-                types,
-                ty,
-                types,
-            ) {
-                bail!(
-                    offset,
-                    "value type mismatch for component start function argument {i}"
-                );
-            }
+            cx.component_val_type(self.value_at(*arg, offset)?, ty, offset)
+                .with_context(|| {
+                    format!("value type mismatch for component start function argument {i}")
+                })?;
         }
 
         for (_, ty) in ft.results.iter() {
@@ -668,8 +1022,9 @@ impl ComponentState {
     }
 
     fn check_type_ref(
-        &self,
+        &mut self,
         ty: &ComponentTypeRef,
+        kind: ExternKind,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
@@ -697,12 +1052,47 @@ impl ComponentState {
                 };
                 ComponentEntityType::Value(ty)
             }
-            ComponentTypeRef::Type(TypeBounds::Eq, index) => {
+            ComponentTypeRef::Type(TypeBounds::Eq(index)) => {
                 let referenced = self.type_at(*index, false, offset)?;
                 let created = types.with_unique(referenced);
                 ComponentEntityType::Type {
                     referenced,
                     created,
+                }
+            }
+            ComponentTypeRef::Type(TypeBounds::SubResource) => {
+                let id = types.alloc_resource_id();
+                match kind {
+                    // A fresh new resource is being imported into a component.
+                    // This arises from the import section of a component or
+                    // from the import declaration in a component type. In both
+                    // cases a new universal resource is injected with a fresh
+                    // new identifier into our state.
+                    ExternKind::Import => {
+                        self.universal_resources
+                            .insert(id, vec![self.next_import_index]);
+                    }
+
+                    // A fresh resource is being exported from this component.
+                    // This arises as part of the declaration of a component
+                    // type, for example. In this situation brand new resource
+                    // identifier is allocated and an existential is added,
+                    // unlike the import case where a universal is added.
+                    // Notably the representation of this new resource is
+                    // unknown so it's listed as `None`.
+                    //
+                    // TODO: this can additionally arise as part of export type
+                    // ascription where the fresh new identifier basically
+                    // guarantees that the subtype check won't work. That's
+                    // probably not intended.
+                    ExternKind::Export => {
+                        self.existential_resources.insert(id, None);
+                    }
+                }
+                let id = types.push_ty(Type::Resource(id));
+                ComponentEntityType::Type {
+                    referenced: id,
+                    created: id,
                 }
             }
             ComponentTypeRef::Instance(index) => {
@@ -755,16 +1145,13 @@ impl ComponentState {
         };
 
         let ascribed = match &export.ty {
-            Some(ty) => self.check_type_ref(ty, types, offset)?,
+            Some(ty) => self.check_type_ref(ty, ExternKind::Export, types, offset)?,
             None => return Ok(actual),
         };
 
-        if !ComponentEntityType::internal_is_subtype_of(&actual, types, &ascribed, types) {
-            bail!(
-                offset,
-                "ascribed type of export is not compatible with item's type"
-            );
-        }
+        SubtypeCx::new(types, types)
+            .component_entity_type(&actual, &ascribed, offset)
+            .with_context(|| "ascribed type of export is not compatible with item's type")?;
 
         Ok(ascribed)
     }
@@ -834,7 +1221,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentType> {
-        components.push(ComponentState::default());
+        components.push(ComponentState::new_type());
 
         for decl in decls {
             match decl {
@@ -846,8 +1233,8 @@ impl ComponentState {
                 }
                 crate::ComponentTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
-                    let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, offset, true)?;
+                    let ty = current.check_type_ref(&ty, ExternKind::Export, types, offset)?;
+                    current.add_export(name, url, ty, types, offset, true)?;
                 }
                 crate::ComponentTypeDeclaration::Import(import) => {
                     components
@@ -861,9 +1248,7 @@ impl ComponentState {
             };
         }
 
-        let mut state = components.pop().unwrap();
-
-        Ok(state.take_component_type())
+        components.pop().unwrap().finish(types, offset)
     }
 
     fn create_instance_type(
@@ -873,7 +1258,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentInstanceType> {
-        components.push(ComponentState::default());
+        components.push(ComponentState::new_type());
 
         for decl in decls {
             match decl {
@@ -885,8 +1270,8 @@ impl ComponentState {
                 }
                 crate::InstanceTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
-                    let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, offset, true)?;
+                    let ty = current.check_type_ref(&ty, ExternKind::Export, types, offset)?;
+                    current.add_export(name, url, ty, types, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Alias(alias) => {
                     Self::add_alias(components, alias, types, offset)?;
@@ -894,20 +1279,44 @@ impl ComponentState {
             };
         }
 
-        let state = components.pop().unwrap();
+        let mut state = components.pop().unwrap();
+
+        assert!(state.universal_resources.is_empty());
 
         Ok(ComponentInstanceType {
             type_size: state.type_size,
-            kind: ComponentInstanceTypeKind::Defined(
-                state
-                    .externs
-                    .into_iter()
-                    .filter_map(|(name, (url, ty, kind))| match kind {
-                        ExternKind::Export => Some((name, (url, ty))),
-                        ExternKind::Import => None,
-                    })
-                    .collect(),
-            ),
+
+            // The existential resources for this instance type are those
+            // listed on the component state. The path to each existential
+            // resource is guaranteed to live within the `explicit_resources`
+            // map since, when in the type context, the introduction of any
+            // existential must have been done with `(export "x" (type (sub
+            // resource)))` which, in a sense, "fuses" the introduction of the
+            // variable with the export. This means that all existentials, if
+            // any, should be guaranteed to have an `explicit_resources` path
+            // listed.
+            existential_resources: mem::take(&mut state.existential_resources)
+                .into_iter()
+                .map(|(id, rep)| {
+                    assert!(rep.is_none());
+                    id
+                })
+                .collect(),
+
+            // The map of what resources are explicitly exported and where
+            // they're exported is plumbed through as-is.
+            explicit_resources: mem::take(&mut state.explicit_resources),
+
+            // Transform the fused list of imports and exports into just exports
+            // since instance types can only declare exports.
+            exports: state
+                .externs
+                .into_iter()
+                .map(|(name, (url, ty, kind))| match kind {
+                    ExternKind::Export => (name, (url, ty)),
+                    ExternKind::Import => unreachable!(),
+                })
+                .collect(),
         })
     }
 
@@ -1015,6 +1424,7 @@ impl ComponentState {
 
         // Validate the arguments
         let module_type = types[module_type_id].as_module_type().unwrap();
+        let cx = SubtypeCx::new(types, types);
         for ((module, name), expected) in module_type.imports.iter() {
             let instance = args.get(module.as_str()).ok_or_else(|| {
                 format_err!(
@@ -1034,30 +1444,12 @@ impl ComponentState {
                     )
                 })?;
 
-            match (arg, expected) {
-                (EntityType::Func(_), EntityType::Func(_))
-                | (EntityType::Table(_), EntityType::Table(_))
-                | (EntityType::Memory(_), EntityType::Memory(_))
-                | (EntityType::Global(_), EntityType::Global(_))
-                | (EntityType::Tag(_), EntityType::Tag(_)) => {}
-                _ => {
-                    bail!(
-                        offset,
-                        "module instantiation argument `{module}` exports \
-                         an item named `{name}` but it is not a {}",
-                        expected.desc()
-                    )
-                }
-            }
-
-            if !EntityType::internal_is_subtype_of(arg, types, expected, types) {
-                bail!(
-                    offset,
-                    "{} type mismatch for export `{name}` of module \
-                     instantiation argument `{module}`",
-                    expected.desc(),
-                );
-            }
+            cx.entity_type(arg, expected, offset).with_context(|| {
+                format!(
+                    "type mismatch for export `{name}` of module \
+                         instantiation argument `{module}`"
+                )
+            })?;
         }
 
         let ty = Type::Instance(Box::new(InstanceType {
@@ -1081,11 +1473,11 @@ impl ComponentState {
         fn insert_arg<'a>(
             name: &'a str,
             arg: ComponentEntityType,
-            args: &mut IndexMap<&'a KebabStr, ComponentEntityType>,
+            args: &mut IndexMap<KebabString, ComponentEntityType>,
             offset: usize,
         ) -> Result<()> {
             let name = to_kebab_str(name, "instantiation argument", offset)?;
-            match args.entry(name) {
+            match args.entry(name.to_owned()) {
                 Entry::Occupied(e) => {
                     bail!(
                         offset,
@@ -1166,51 +1558,216 @@ impl ComponentState {
             }
         }
 
-        // Validate the arguments
-        let component_type = types[component_type_id].as_component_type().unwrap();
-        for (name, (_, expected)) in component_type.imports.iter() {
-            match args.get(&name.as_kebab_str()) {
-                Some(arg) => {
-                    match (arg, expected) {
-                        (ComponentEntityType::Module(_), ComponentEntityType::Module(_))
-                        | (ComponentEntityType::Component(_), ComponentEntityType::Component(_))
-                        | (ComponentEntityType::Instance(_), ComponentEntityType::Instance(_))
-                        | (ComponentEntityType::Func(_), ComponentEntityType::Func(_))
-                        | (ComponentEntityType::Value(_), ComponentEntityType::Value(_))
-                        | (ComponentEntityType::Type { .. }, ComponentEntityType::Type { .. }) => {}
-                        _ => {
-                            bail!(
-                                offset,
-                                "expected component instantiation argument `{name}` to be a {desc}",
-                                desc = expected.desc()
-                            )
-                        }
-                    };
+        // Here comes the fun part of the component model, we're instantiating
+        // the component with type `component_type_id` with the `args`
+        // specified. Easy enough!
+        //
+        // This operation, however, is one of the lynchpins of safety in the
+        // component model. Additionally what this ends up implementing ranges
+        // from "well just check the types are equal" to "let's have a
+        // full-blown ML-style module type system in the component model". There
+        // are primarily two major tricky pieces to the component model which
+        // make this operation, instantiating components, hard:
+        //
+        // 1. Components can import and exports other components. This means
+        //    that arguments to instantiation are along the lines of functions
+        //    being passed to functions or similar. Effectively this means that
+        //    the term "variance" comes into play with either contravariance
+        //    or covariance depending on where you are in typechecking. This is
+        //    one of the main rationales, however, that this check below is a
+        //    check for subtyping as opposed to exact type equivalence. For
+        //    example an instance that exports something is a subtype of an
+        //    instance that exports nothing. Components get a bit trick since
+        //    they both have imports and exports. My way of thinking about it
+        //    is "who's asking for what". If you're asking for imports then
+        //    I need to at least supply those imports, but I can possibly
+        //    supply more. If you're asking for a thing which you'll give a set
+        //    of imports, then I can give you something which takes less imports
+        //    because what you give still suffices. (things like that). The
+        //    real complication with components, however, comes with...
+        //
+        // 2. Resources. Resources in the component model are akin to "abstract
+        //    types". They're not abstract in the sense that they have no
+        //    representation, they're always backed by a 32-bit integer right
+        //    now. Instead they're abstract in the sense that some components
+        //    aren't allowed to understand the representation of a resource.
+        //    For example if you import a resource you can't get the underlying
+        //    internals of it. Furthermore the resource is strictly tracked
+        //    within the component with `own` and `borrow` runtime semantics.
+        //    The hardest part about resources, though, is handling them as
+        //    part of instantiation and subtyping.
+        //
+        //    For example one major aspect of resources is that if a component
+        //    exports a resource then each instantiation of the component
+        //    produces a fresh resource type. This means that the type recorded
+        //    for the instantiation here can't simply be "I instantiated
+        //    component X" since in such a situation the type of all
+        //    instantiations would be the same, which they aren't.
+        //
+        //    This sort of subtelty comes up quite frequently for resources.
+        //    This file contains references to `universal_resources` and
+        //    `existential_resources` for example which refer to the formal
+        //    nature of components and their abstract variables. Specifically
+        //    for instantiation though we're eventually faced with the problem
+        //    of subtype checks where resource subtyping is defined as "does
+        //    your id equal mine". Naively implemented that means anything with
+        //    resources isn't subtypes of anything else since resource ids are
+        //    unique between components. Instead what actually needs to happen
+        //    is types need to be subsituted.
+        //
+        // Much of the complexity here is not actually apparent here in this
+        // literal one function. Instead it's spread out across validation
+        // in this file and type-checking in the `types.rs` module. Note that
+        // the "spread out" nature isn't because we're bad maintainers
+        // (hopefully), but rather it's quite infectious how many parts need
+        // to handle resources and account for existential/universal variables.
+        //
+        // For example only one subtyping method is called here where `args` is
+        // passed in. This method is quite recursive in its nature though and
+        // will internally touch all the fields that this file maintains to
+        // end up putting into various bits and pieces of type information.
+        //
+        // Unfortunately there's probably not really a succinct way to read
+        // this method and understand everything. If you've written ML module
+        // type systems this will probably look quite familiar, but otherwise
+        // the whole system is not really easily approachable at this time. It's
+        // hoped in the future that there's a formalism to refer to which will
+        // make things more clear as the code would be able to reference this
+        // hypothetical formalism. Until that's the case, though, these
+        // comments are hopefully enough when augmented with communication with
+        // the authors.
 
-                    if !ComponentEntityType::internal_is_subtype_of(arg, types, expected, types) {
-                        bail!(
-                            offset,
-                            "type mismatch for component instantiation argument `{name}`"
-                        );
-                    }
-                }
-                None => {
-                    bail!(
-                        offset,
-                        "missing component instantiation argument named `{name}`"
-                    );
-                }
+        let component_type = types[component_type_id].as_component_type().unwrap();
+        let mut exports = component_type.exports.clone();
+        let type_size = component_type
+            .exports
+            .iter()
+            .fold(1, |acc, (_, (_, ty))| acc + ty.type_size());
+
+        // Perform the subtype check that `args` matches the imports of
+        // `component_type_id`. The result of this subtype check is the
+        // production of a mapping of resource types from the imports to the
+        // arguments provided. This is a substitution map which is then used
+        // below to perform a substitution into the exports of the instance
+        // since the types of the exports are now in terms of whatever was
+        // supplied as imports.
+        let mut mapping = SubtypeCx::new(types, types).open_instance_type(
+            &args,
+            component_type_id,
+            ExternKind::Import,
+            offset,
+        )?;
+
+        // Part of the instantiation of a component is that all of its
+        // existential resources become "fresh" on each instantiation. This
+        // means that each instantiation of a component gets brand new type
+        // variables representing its existential resources, modeling that each
+        // instantiation produces distinct types. The freshening is performed
+        // here by allocating new ids and inserting them into `mapping`.
+        //
+        // Note that technically the `mapping` from subtyping should be applied
+        // first and then the mapping for freshing should be applied afterwards.
+        // The keys of the map from subtyping are the universals from this
+        // component which are disjoint from its existentials. That means it
+        // should be possible to place everything into one large map which maps
+        // from:
+        //
+        // * the component's universals go to whatever was explicitly supplied
+        //   in the import map
+        // * the component's existentials go to fresh new resources
+        //
+        // These two remapping operations can then get folded into one by
+        // placing everything in the same `mapping` and using that for a remap
+        // only once.
+        let fresh_existential_resources = (0..component_type.existential_resources.len())
+            .map(|_| types.alloc_resource_id())
+            .collect::<IndexSet<_>>();
+        let component_type = types[component_type_id].as_component_type().unwrap();
+        for ((old, _path), new) in component_type
+            .existential_resources
+            .iter()
+            .zip(&fresh_existential_resources)
+        {
+            let prev = mapping.insert(*old, *new);
+            assert!(prev.is_none());
+        }
+
+        // Perform the remapping operation over all the exports that will be
+        // listed for the final instance type. Note that this is performed
+        // both for all the export types in addition to the explicitly exported
+        // resources list.
+        //
+        // Note that this is a crucial step of the instantiation process which
+        // is intentionally transforming the type of a component based on the
+        // variables provided by imports and additionally ensuring that all
+        // references to the component's existentials are rebound to the fresh
+        // existentials introduced just above.
+        for (_, entity) in exports.values_mut() {
+            types.remap_component_entity(entity, &mapping);
+        }
+        let component_type = types[component_type_id].as_component_type().unwrap();
+        let explicit_resources = component_type
+            .explicit_resources
+            .iter()
+            .map(|(id, path)| (mapping.get(id).copied().unwrap_or(*id), path.clone()))
+            .collect::<IndexMap<_, _>>();
+
+        // Technically in the last formalism that was consulted in writing this
+        // implementation there are two further steps that are part of the
+        // instantiation process:
+        //
+        // 1. The set of existentials from the instance created, which are
+        //    added to the outer component, is the subset of the instance's
+        //    original existentials and the free variables of the exports.
+        //
+        // 2. Each element of this subset is required to be "explicit in" the
+        //    instance, or otherwise explicitly exported somewhere within the
+        //    instance.
+        //
+        // With the syntactic structure of the component model, however, neither
+        // of these conditions should be necessary. The main reason for this is
+        // that this function is specifically dealing with instantiation of
+        // components which should already have these properties validated
+        // about them. Subsequently we shouldn't have to re-check them.
+        //
+        // In debug mode, however, do a sanity check.
+        if cfg!(debug_assertions) {
+            let mut free = IndexSet::new();
+            for (_, ty) in exports.values() {
+                types.free_variables_component_entity(ty, &mut free);
+            }
+            assert!(fresh_existential_resources.is_subset(&free));
+            for resource in fresh_existential_resources.iter() {
+                assert!(explicit_resources.contains_key(resource));
             }
         }
 
-        let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
-            type_size: component_type
-                .exports
-                .iter()
-                .fold(1, |acc, (_, (_, ty))| acc + ty.type_size()),
-            kind: ComponentInstanceTypeKind::Instantiated(component_type_id),
-        }));
+        // And as the final step of the instantiation process all of the
+        // new existential resources from this component instantiation are moved
+        // onto `self`. Note that concrete instances never have existential
+        // resources (see more comments in `instantiate_exports`) so the
+        // `resources` listing in the final type is always empty. This
+        // represents how by having a concrete instance the existentials
+        // referred to in that instance are now problems for the outer
+        // component rather than the inner instance since the instance is bound
+        // to the component.
+        //
+        // All existentials here have no known representation, so they're all
+        // listed with `None`. Also note that none of the existentials were
+        // exported yet so `self.explicit_resources` is not updated yet. If
+        // this instance is exported, however, it'll consult the type's
+        // `explicit_resources` array and use that appropriately.
+        for resource in fresh_existential_resources {
+            let prev = self.existential_resources.insert(resource, None);
+            assert!(prev.is_none());
+        }
 
+        let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
+            type_size,
+            existential_resources: Default::default(),
+            explicit_resources,
+            exports,
+        }));
         Ok(types.push_ty(ty))
     }
 
@@ -1245,6 +1802,7 @@ impl ComponentState {
 
         let mut type_size = 1;
         let mut inst_exports = IndexMap::new();
+        let mut explicit_resources = IndexMap::new();
         for export in exports {
             assert!(export.ty.is_none());
             match export.kind {
@@ -1267,9 +1825,27 @@ impl ComponentState {
                     )?;
                 }
                 ComponentExternalKind::Instance => {
+                    let ty = self.instance_at(export.index, offset)?;
+
+                    // When an instance is exported from an instance then
+                    // all explicitly exported resources on the sub-instance are
+                    // now also listed as exported resources on the outer
+                    // instance, just with one more element in their path.
+                    explicit_resources.extend(
+                        types[ty]
+                            .as_component_instance_type()
+                            .unwrap()
+                            .explicit_resources
+                            .iter()
+                            .map(|(id, path)| {
+                                let mut new_path = vec![inst_exports.len()];
+                                new_path.extend(path);
+                                (*id, new_path)
+                            }),
+                    );
                     insert_export(
                         export.name,
-                        ComponentEntityType::Instance(self.instance_at(export.index, offset)?),
+                        ComponentEntityType::Instance(ty),
                         &mut inst_exports,
                         &mut type_size,
                         offset,
@@ -1295,6 +1871,13 @@ impl ComponentState {
                 }
                 ComponentExternalKind::Type => {
                     let ty = self.type_at(export.index, false, offset)?;
+                    // If this is an export of a resource type be sure to
+                    // record that in the explicit list with the appropriate
+                    // path because if this instance ends up getting used
+                    // it'll count towards the "explicit in" check.
+                    if let Type::Resource(id) = &types[ty] {
+                        explicit_resources.insert(*id, vec![inst_exports.len()]);
+                    }
                     insert_export(
                         export.name,
                         ComponentEntityType::Type {
@@ -1316,7 +1899,38 @@ impl ComponentState {
 
         let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
             type_size,
-            kind: ComponentInstanceTypeKind::Exports(inst_exports),
+            explicit_resources,
+            exports: inst_exports,
+
+            // NB: the list of existential resources for this instance itself
+            // is always empty. Even if this instance exports resources,
+            // it's empty.
+            //
+            // The reason for this is a bit subtle. The general idea, though,
+            // is that the existential list here is only used for instance types
+            // that are sort of "floating around" and haven't actually been
+            // attached to something yet. For example when an instance type is
+            // simply declared it can have existentials introduced through
+            // `(export "name" (type (sub resource)))`. These existentials,
+            // however, are local to the instance itself and aren't defined
+            // elsewhere.
+            //
+            // Here, though, no new existentials were introduced. The instance
+            // created here is a "bag of exports" which could only refer to
+            // preexisting items. This means that inherently no new
+            // existentials were created so there's nothing to put in this
+            // list. Any resources referenced by the instance must be bound
+            // by the outer component context or further above.
+            //
+            // Furthermore, however, actual instances of instances, which this
+            // is, aren't allowed to have existentials. Instead the existential
+            // would have to be injected into the outer component enclosing the
+            // instance. That means that even if bag-of-exports could declare
+            // a new resource then the existential would be moved from here
+            // to `self.existential_resources`. This doesn't exist at this
+            // time, though, so this still remains empty and
+            // `self.existential_resources` remains unperturbed.
+            existential_resources: Default::default(),
         }));
 
         Ok(types.push_ty(ty))
@@ -1696,6 +2310,12 @@ impl ComponentState {
                     .map(|ty| self.create_component_val_type(ty, types, offset))
                     .transpose()?,
             }),
+            crate::ComponentDefinedType::Own(idx) => Ok(ComponentDefinedType::Own(
+                self.resource_at(idx, types, offset)?,
+            )),
+            crate::ComponentDefinedType::Borrow(idx) => Ok(ComponentDefinedType::Borrow(
+                self.resource_at(idx, types, offset)?,
+            )),
         }
     }
 
@@ -1952,7 +2572,7 @@ impl ComponentState {
         match types[self.instance_at(instance_index, offset)?]
             .as_component_instance_type()
             .unwrap()
-            .internal_exports(types)
+            .exports
             .get(name)
         {
             Some((_, ty)) => Ok(ty),
@@ -2051,47 +2671,110 @@ impl ComponentState {
         }
     }
 
-    fn take_component_type(&mut self) -> ComponentType {
-        let mut ty = ComponentType {
-            type_size: self.type_size,
-            imports: Default::default(),
-            exports: Default::default(),
-        };
-
-        for (name, (url, t, kind)) in mem::take(&mut self.externs) {
+    /// Completes the translation of this component, performing final
+    /// validation of its structure.
+    ///
+    /// This method is required to be called for translating all components.
+    /// Internally this will convert local data structures into a
+    /// `ComponentType` which is suitable to use to describe the type of this
+    /// component.
+    pub fn finish(&mut self, types: &TypeAlloc, offset: usize) -> Result<ComponentType> {
+        // Partition `self.externs` into `imports` and `exports.
+        let mut imports = IndexMap::with_capacity(self.next_import_index);
+        let mut exports = IndexMap::with_capacity(self.next_export_index);
+        for (name, (url, t, kind)) in self.externs.iter() {
             let map = match kind {
-                ExternKind::Import => &mut ty.imports,
-                ExternKind::Export => &mut ty.exports,
+                ExternKind::Import => &mut imports,
+                ExternKind::Export => &mut exports,
             };
-            let prev = map.insert(name, (url, t));
+            let prev = map.insert(name.clone(), (url.clone(), *t));
             assert!(prev.is_none());
         }
 
-        ty
-    }
-}
+        let mut ty = ComponentType {
+            // Inherit some fields based on translation of the component.
+            type_size: self.type_size,
+            imports,
+            exports,
 
-impl Default for ComponentState {
-    fn default() -> Self {
-        Self {
-            core_types: Default::default(),
-            core_modules: Default::default(),
-            core_instances: Default::default(),
-            core_funcs: Default::default(),
-            core_memories: Default::default(),
-            core_tables: Default::default(),
-            core_globals: Default::default(),
-            core_tags: Default::default(),
-            types: Default::default(),
-            funcs: Default::default(),
-            values: Default::default(),
-            instances: Default::default(),
-            components: Default::default(),
-            externs: Default::default(),
-            export_urls: Default::default(),
-            import_urls: Default::default(),
-            has_start: Default::default(),
-            type_size: 1,
+            // This is filled in as a subset of `self.existential_resources`
+            // depending on what's actually used by the exports. See the
+            // bottom of this function.
+            existential_resources: Default::default(),
+
+            // These are inherited directly from what was calculated for this
+            // component.
+            universal_resources: mem::take(&mut self.universal_resources)
+                .into_iter()
+                .collect(),
+            explicit_resources: mem::take(&mut self.explicit_resources),
+        };
+
+        // Collect all "free variables", or resources, from the imports of this
+        // component. None of the resources defined within this component can
+        // be used as part of the exports. This set is then used to reject any
+        // of `self.existential_resources` which show up.
+        let mut free = IndexSet::default();
+        for (_, ty) in ty.imports.values() {
+            types.free_variables_component_entity(ty, &mut free);
         }
+        for (resource, _path) in self.existential_resources.iter() {
+            // FIXME: this error message is quite opaque and doesn't indicate
+            // more contextual information such as:
+            //
+            // * what was the exported resource found in the imports
+            // * which import was the resource found within
+            //
+            // These are possible to calculate here if necessary, however.
+            if free.contains(resource) {
+                bail!(offset, "local resource type found in imports");
+            }
+        }
+
+        // The next step in validation a component, with respect to resources,
+        // is to minimize the set of existential resources to only those that
+        // are actually used by the exports. This weed out resources that are
+        // defined, used within a component, and never exported, for example.
+        //
+        // The free variables of all exported are inserted into the `free` set
+        // (which is reused from the imports after clearing it). The existential
+        // resources calculated for this component are then inserted into this
+        // type's list of existential resources if it's contained somewhere in
+        // the free variables.
+        //
+        // Note that at the same time all existentials must be exported,
+        // somehow, transitively from this component. The `explicit_resources`
+        // map is consulted for this purpose which lists all explicitly
+        // exported resources in the component, regardless from whence they
+        // came. If not present in this map then it's not exported and an error
+        // is returned.
+        free.clear();
+        for (_, ty) in ty.exports.values() {
+            types.free_variables_component_entity(ty, &mut free);
+        }
+        for (id, _rep) in mem::take(&mut self.existential_resources) {
+            if !free.contains(&id) {
+                continue;
+            }
+
+            let path = match ty.explicit_resources.get(&id).cloned() {
+                Some(path) => path,
+                // FIXME: this error message is quite opaque and doesn't
+                // indicate more contextual information such as:
+                //
+                // * which resource wasn't found in an export
+                // * which export has a reference to the resource
+                //
+                // These are possible to calculate here if necessary, however.
+                None => bail!(
+                    offset,
+                    "local resource type found in export but not exported itself"
+                ),
+            };
+
+            ty.existential_resources.push((id, path));
+        }
+
+        Ok(ty)
     }
 }

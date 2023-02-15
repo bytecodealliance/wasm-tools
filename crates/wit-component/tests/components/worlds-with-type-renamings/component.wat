@@ -9,7 +9,7 @@
   )
   (import "i1" (instance (;0;) (type 0)))
   (alias export 0 "some-type" (type (;1;)))
-  (import "other-name" (type (eq 1)))
+  (import "other-name" (type (;2;) (eq 1)))
   (core module (;0;)
     (type (;0;) (func (param i32 i64 i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))

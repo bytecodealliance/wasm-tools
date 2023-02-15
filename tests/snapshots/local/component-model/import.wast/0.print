@@ -24,5 +24,5 @@
   )
   (import "d" (component (;0;) (type 3)))
   (type $t (;4;) (func))
-  (import "e" (type (eq $t)))
+  (import "e" (type (;5;) (eq $t)))
 )

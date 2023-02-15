@@ -1,0 +1,3 @@
+(component
+  (type $x (;0;) (resource (rep i32)))
+)

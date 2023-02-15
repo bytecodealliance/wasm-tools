@@ -408,12 +408,12 @@ impl WitPackageDecoder<'_> {
     ) -> Result<InterfaceId> {
         let interface = self.extract_url_interface(url)?;
 
-        for (name, export_url, ty) in ty.exports(self.info.types.as_ref()) {
+        for (name, (export_url, ty)) in ty.exports.iter() {
             if export_url.is_some() {
                 bail!("instance type export `{name}` should not have a url")
             }
 
-            match ty {
+            match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
@@ -625,12 +625,12 @@ impl WitPackageDecoder<'_> {
             document: doc,
         };
 
-        for (name, export_url, ty) in ty.exports(self.info.types.as_ref()) {
+        for (name, (export_url, ty)) in ty.exports.iter() {
             if export_url.is_some() {
                 bail!("instance type export `{name}` should not have a url")
             }
 
-            match ty {
+            match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
@@ -994,6 +994,9 @@ impl WitPackageDecoder<'_> {
                     .collect();
                 Ok(TypeDefKind::Enum(Enum { cases }))
             }
+
+            types::ComponentDefinedType::Own(_) => unimplemented!(),
+            types::ComponentDefinedType::Borrow(_) => unimplemented!(),
         }
     }
 
@@ -1257,8 +1260,10 @@ impl Registrar<'_> {
             }
 
             // These have no recursive structure so they can bail out.
-            types::ComponentDefinedType::Flags(_) => Ok(()),
-            types::ComponentDefinedType::Enum(_) => Ok(()),
+            types::ComponentDefinedType::Flags(_)
+            | types::ComponentDefinedType::Enum(_)
+            | types::ComponentDefinedType::Own(_)
+            | types::ComponentDefinedType::Borrow(_) => Ok(()),
         }
     }
 

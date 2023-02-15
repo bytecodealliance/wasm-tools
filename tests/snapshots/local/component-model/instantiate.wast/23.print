@@ -3,8 +3,9 @@
     (component
       (core type (;0;)
         (module
+          (import "" "" (global i32))
           (type (;0;) (func))
-          (export "" (func (type 0)))
+          (import "" "f" (func (type 0)))
         )
       )
       (import "a" (core module (type 0)))
@@ -13,10 +14,7 @@
   (import "a" (component $m (;0;) (type 0)))
   (core type (;0;)
     (module
-      (type (;0;) (func))
-      (export "" (func (type 0)))
-      (type (;1;) (func))
-      (export "a" (func (type 1)))
+      (import "" "" (global i32))
     )
   )
   (import "b" (core module $i (;0;) (type 0)))

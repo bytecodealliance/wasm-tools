@@ -10,7 +10,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
-    types::{ComponentEntityType, ComponentInstanceType, Types, TypesRef},
+    types::{ComponentEntityType, TypeId, Types, TypesRef},
     Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
     Validator, WasmFeatures,
 };
@@ -277,7 +277,7 @@ impl<'a> Component<'a> {
     /// Finds a compatible instance export on the component for the given instance type.
     pub(crate) fn find_compatible_export(
         &self,
-        ty: &ComponentInstanceType,
+        ty: TypeId,
         types: TypesRef,
     ) -> Option<ExportIndex> {
         self.exports
@@ -286,10 +286,12 @@ impl<'a> Component<'a> {
                 if *kind != ComponentExternalKind::Instance {
                     return false;
                 }
-                ComponentInstanceType::is_subtype_of(
-                    self.types.component_instance_at(*index).unwrap(),
+                ComponentEntityType::is_subtype_of(
+                    &ComponentEntityType::Instance(
+                        self.types.component_instance_at(*index).unwrap(),
+                    ),
                     self.types.as_ref(),
-                    ty,
+                    &ComponentEntityType::Instance(ty),
                     types,
                 )
             })
@@ -298,18 +300,20 @@ impl<'a> Component<'a> {
 
     /// Checks to see if an instance of this component would be a
     /// subtype of the given instance type.
-    pub(crate) fn is_instance_subtype_of(
-        &self,
-        ty: &ComponentInstanceType,
-        types: TypesRef,
-    ) -> bool {
-        let exports = ty.exports(types);
+    pub(crate) fn is_instance_subtype_of(&self, ty: TypeId, types: TypesRef) -> bool {
+        let exports = types
+            .type_from_id(ty)
+            .unwrap()
+            .as_component_instance_type()
+            .unwrap()
+            .exports
+            .iter();
 
-        for (k, _, b) in exports {
+        for (k, (_, b)) in exports {
             match self.exports.get_full(k.as_str()) {
                 Some((ai, _, _)) => {
                     let (_, _, a) = self.export_entity_type(ExportIndex(ai)).unwrap();
-                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), &b, types) {
+                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), b, types) {
                         return false;
                     }
                 }
@@ -761,12 +765,7 @@ impl<'a> CompositionGraph<'a> {
             }
         } else {
             let ty = match import_ty {
-                ComponentEntityType::Instance(id) => target_component
-                    .types
-                    .type_from_id(id)
-                    .unwrap()
-                    .as_component_instance_type()
-                    .unwrap(),
+                ComponentEntityType::Instance(id) => id,
                 _ => bail!(
                     "source instance is not compatible with target {import_ty} import `{import_name}`",
                     import_ty = type_desc(import_ty)
@@ -1262,7 +1261,7 @@ mod test {
   )
   (import "i4" (core module (;0;) (type 0)))
   (type (;3;) (tuple u32 u32))
-  (import "i5" (type (eq 3)))
+  (import "i5" (type (;4;) (eq 3)))
   (component (;1;)
     (type (;0;) (tuple u32 u32))
     (type (;1;)
@@ -1284,7 +1283,7 @@ mod test {
       (module)
     )
     (import "i4" (core module (;0;) (type 0)))
-    (import "i5" (type (eq 0)))
+    (import "i5" (type (;4;) (eq 0)))
     (export (;1;) "e1" (instance 0))
     (export (;1;) "e2" (func 0))
     (export (;1;) "e3" (component 0))
@@ -1312,7 +1311,7 @@ mod test {
       (module)
     )
     (import "i4" (core module (;0;) (type 0)))
-    (import "i5" (type (eq 0)))
+    (import "i5" (type (;4;) (eq 0)))
   )
   (instance (;1;) (instantiate 1
       (with "i1" (instance 0))

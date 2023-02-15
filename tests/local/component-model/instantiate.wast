@@ -165,7 +165,7 @@
     (import "a" (component $m (import "a" (func))))
     (instance (instantiate $m))
   )
-  "missing component instantiation argument")
+  "missing import named `a`")
 
 (assert_invalid
   (component
@@ -175,7 +175,7 @@
     (import "b" (component $c))
     (instance $i (instantiate $m (with "a" (component $c))))
   )
-  "to be a function")
+  "expected func, found component")
 
 (assert_invalid
   (component
@@ -185,7 +185,7 @@
     (import "b" (func $f (result string)))
     (instance $i (instantiate $m (with "a" (func $f))))
   )
-  "type mismatch for component instantiation argument `a`")
+  "expected 0 results, found 1")
 
 (assert_invalid
   (component
@@ -195,7 +195,7 @@
     (import "b" (func (param "i" string)))
     (instance $i (instantiate $m (with "a" (func 0))))
   )
-  "type mismatch for component instantiation argument `a`")
+  "expected 0 parameters, found 1")
 
 (assert_invalid
   (component
@@ -209,7 +209,7 @@
     ))
     (instance $i (instantiate $m (with "a" (core module $i))))
   )
-  "type mismatch for component instantiation argument `a`")
+  "type mismatch in import `::`")
 
 (assert_invalid
   (component
@@ -221,7 +221,16 @@
     ))
     (instance $i (instantiate $m (with "a" (core module $i))))
   )
-  "type mismatch for component instantiation argument `a`")
+  "missing expected import `::foobar`")
+(assert_invalid
+  (component
+    (import "a" (component $m
+      (import "a" (core module (export "x" (func))))
+    ))
+    (import "b" (core module $i))
+    (instance $i (instantiate $m (with "a" (core module $i))))
+  )
+  "missing expected export `x`")
 
 ;; it's ok to give a module with fewer imports
 (component
@@ -274,7 +283,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "function type mismatch")
+  "expected: [] -> []")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (func))))
@@ -282,7 +291,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "function type mismatch")
+  "expected: [] -> []")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (global i32))))
@@ -290,7 +299,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "global type mismatch")
+  "expected global type i32, found i64")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (table 1 funcref))))
@@ -298,7 +307,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "table type mismatch")
+  "expected table element type funcref, found externref")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (table 1 2 funcref))))
@@ -306,7 +315,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "table type mismatch")
+  "mismatch in table limits")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (table 2 2 funcref))))
@@ -314,7 +323,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "table type mismatch")
+  "mismatch in table limits")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (table 2 2 funcref))))
@@ -322,7 +331,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "table type mismatch")
+  "mismatch in table limits")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (memory 1 2 shared))))
@@ -330,7 +339,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "memory type mismatch")
+  "mismatch in the shared flag for memories")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (memory 1))))
@@ -338,7 +347,16 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "memory type mismatch")
+  "mismatch in memory limits")
+(assert_invalid
+  (component
+    (import "m1" (core module $m1 (export "g" (func))))
+    (component $c
+      (import "m" (core module (export "g" (global i32))))
+    )
+    (instance (instantiate $c (with "m" (core module $m1))))
+  )
+  "type mismatch in export `g`")
 
 (assert_invalid
   (component
@@ -436,7 +454,7 @@
       (with "" (instance $i))
     ))
   )
-  "module instantiation argument `` exports an item named `` but it is not a global")
+  "expected global, found func")
 
 (assert_invalid
   (component
@@ -456,7 +474,7 @@
       (with "a" (component $c))
     ))
   )
-  "expected component instantiation argument `a` to be a function")
+  "expected func, found component")
 
 (assert_invalid
   (component
@@ -617,15 +635,359 @@
 
 (assert_invalid
   (component
-    (type (tuple string string))
-    (import "a" (type (eq 0)))
-    (component
-      (type (tuple u32 u32))
-      (import "a" (type (eq 0)))
+    (type $t (tuple string string))
+    (import "a" (type $a (eq $t)))
+    (component $c
+      (type $t (tuple u32 u32))
+      (import "a" (type (eq $t)))
     )
-    (instance (instantiate 0
-        (with "a" (type 1))
+    (instance (instantiate $c
+        (with "a" (type $a))
       )
     )
   )
-  "type mismatch for component instantiation argument `a`")
+  "expected primitive `u32` found primitive `string`")
+
+
+;; subtyping for module imports reverses order of imports/exports for the
+;; subtyping check
+;;
+;; Here `C` imports a module, and the module itself imports a table of min size
+;; 1. A module import which imports a min-size table of 0, however, is valid to
+;; supply for this since it'll already be given at least 1 anyway.
+;;
+;; Similarly for exports `C` imports a module that exports a table of at least
+;; size 1. If it's given a module that exports a larger table that's ok too.
+(component
+  (core module $a
+    (import "" "" (table 0 funcref))
+    (table (export "x") 2 funcref)
+  )
+  (component $C
+    (import "a" (core module
+      (import "" "" (table 1 funcref))
+      (export "x" (table 1 funcref))
+    ))
+  )
+  (instance (instantiate $C (with "a" (core module $a))))
+)
+
+;; same as above but for memories
+(component
+  (core module $a1 (import "" "" (memory 0)))
+  (core module $a2 (memory (export "x") 2))
+  (component $C
+    (import "a1" (core module (import "" "" (memory 1))))
+    (import "a2" (core module (export "x" (memory 1))))
+  )
+  (instance (instantiate $C
+    (with "a1" (core module $a1))
+    (with "a2" (core module $a2))
+  ))
+)
+
+(assert_invalid
+  (component
+    (import "x" (func $x (param "x" u32)))
+    (import "y" (component $c
+      (import "x" (func (param "y" u32)))
+    ))
+
+    (instance (instantiate $c (with "x" (func $x))))
+  )
+  "expected parameter named `y`, found `x`")
+(assert_invalid
+  (component
+    (import "x" (func $x (param "x" u32)))
+    (import "y" (component $c
+      (import "x" (func (param "x" s32)))
+    ))
+
+    (instance (instantiate $c (with "x" (func $x))))
+  )
+  "type mismatch in function parameter `x`")
+(assert_invalid
+  (component
+    (import "x" (func $x (result "x" u32)))
+    (import "y" (component $c
+      (import "x" (func (result "y" u32)))
+    ))
+
+    (instance (instantiate $c (with "x" (func $x))))
+  )
+  "mismatched result names")
+(assert_invalid
+  (component
+    (import "x" (func $x (result "x" u32)))
+    (import "y" (component $c
+      (import "x" (func (result "x" s32)))
+    ))
+
+    (instance (instantiate $c (with "x" (func $x))))
+  )
+  "type mismatch with result type")
+
+(assert_invalid
+  (component
+    (import "x" (instance $x (export "a" (func))))
+    (import "y" (component $c
+      (import "x" (instance $x (export "a" (component))))
+    ))
+
+    (instance (instantiate $c (with "x" (instance $x))))
+  )
+  "type mismatch in instance export `a`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t u32)
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (record))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected primitive, found record")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (record))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x u32)
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected record, found u32")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (record (field "x" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $f (record))
+    (type $x (record (field "x" $f)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected u32, found record")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $f (record))
+      (type $t (record (field "x" $f)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (record (field "x" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch in record field `x`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (record (field "x" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (record))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected 1 fields, found 0")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (record (field "a" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (record (field "b" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected field name `a`, found `b`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (variant (case "x" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (variant (case "x" u32) (case "y" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected 1 cases, found 2")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (variant (case "x" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (variant (case "y" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected case named `x`, found `y`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (variant (case "x" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (variant (case "x")))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected case `x` to have a type, found none")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (variant (case "x")))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (variant (case "x" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected case `x` to have no type")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (variant (case "x" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (variant (case "x" s32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch in variant case `x`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (tuple u8))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (tuple))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected 1 types, found 0")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (tuple u8))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (tuple u16))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch in tuple field 0")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (flags))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (flags "x"))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "mismatch in flags elements")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (enum))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (enum "x"))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "mismatch in enum elements")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (result s32))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (result u32))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch in ok variant")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (result (error s32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (result (error u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch in err variant")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (result))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (result u32))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected ok type to not be present")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (result u32))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (result))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected ok type, but found none")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (result))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (result (error u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected err type to not be present")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (result (error u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (result))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected err type, but found none")

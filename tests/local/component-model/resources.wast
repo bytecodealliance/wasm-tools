@@ -1,0 +1,774 @@
+(component
+  (type $x (resource (rep i32)))
+)
+
+(component
+  (type $x (resource (rep i32)))
+
+  (core func (canon resource.new $x))
+  (core func (canon resource.rep $x))
+  (core func (canon resource.drop (own $x)))
+  (core func (canon resource.drop (borrow $x)))
+)
+
+(component
+  (import "x" (type $x (sub resource)))
+
+  (core func (canon resource.drop (own $x)))
+  (core func (canon resource.drop (borrow $x)))
+)
+
+(component
+  (core module $m
+    (func (export "dtor") (param i32))
+  )
+  (core instance $m (instantiate $m))
+  (type $x (resource (rep i32) (dtor (func $m "dtor"))))
+  (core func (canon resource.new $x))
+)
+
+(component
+  (type $x (resource (rep i32)))
+  (core func $f1 (canon resource.new $x))
+  (core func $f2 (canon resource.rep $x))
+  (core func $f3 (canon resource.drop (own $x)))
+  (core func $f4 (canon resource.drop (borrow $x)))
+
+  (core module $m
+    (import "" "f1" (func (param i32) (result i32)))
+    (import "" "f2" (func (param i32) (result i32)))
+    (import "" "f3" (func (param i32)))
+    (import "" "f4" (func (param i32)))
+  )
+
+  (core instance (instantiate $m
+    (with "" (instance
+      (export "f1" (func $f1))
+      (export "f2" (func $f2))
+      (export "f3" (func $f3))
+      (export "f4" (func $f4))
+    ))
+  ))
+)
+
+(assert_invalid
+  (component
+    (type $x (resource (rep i64)))
+  )
+  "resources can only be represented by `i32`")
+
+(assert_invalid
+  (component
+    (type $x (own 100))
+  )
+  "type index out of bounds")
+
+(assert_invalid
+  (component
+    (type $x (borrow 100))
+  )
+  "type index out of bounds")
+
+(assert_invalid
+  (component
+    (type $t u8)
+    (type $x (borrow $t))
+  )
+  "not a resource type")
+
+(assert_invalid
+  (component
+    (type $t u8)
+    (type $x (own $t))
+  )
+  "not a resource type")
+
+(assert_invalid
+  (component
+    (import "x" (type $x (sub resource)))
+    (core func (canon resource.new $x))
+  )
+  "not a local resource")
+
+(assert_invalid
+  (component
+    (import "x" (type $x (sub resource)))
+    (core func (canon resource.rep $x))
+  )
+  "not a local resource")
+
+(assert_invalid
+  (component
+    (core func (canon resource.drop u8))
+  )
+  "must be an own or borrow type")
+
+(assert_invalid
+  (component
+    (type $t (record))
+    (core func (canon resource.drop $t))
+  )
+  "must be an own or borrow type")
+
+(assert_invalid
+  (component
+    (core func (canon resource.drop 100))
+  )
+  "type index out of bounds")
+
+(assert_invalid
+  (component
+    (type (component))
+    (core func (canon resource.drop 0))
+  )
+  "not a defined type")
+
+(assert_invalid
+  (component
+    (type (component))
+    (core func (canon resource.new 0))
+  )
+  "not a resource type")
+
+(assert_invalid
+  (component
+    (core module $m
+      (func (export "dtor"))
+    )
+    (core instance $m (instantiate $m))
+    (type $x (resource (rep i32) (dtor (func $m "dtor"))))
+    (core func (canon resource.new $x))
+  )
+  "wrong signature for a destructor")
+
+(assert_invalid
+  (component
+    (type (resource (rep i32) (dtor (func 100))))
+  )
+  "function index out of bounds")
+
+(assert_invalid
+  (component
+    (import "x" (type $x (sub resource)))
+    (import "y" (type $y (sub resource)))
+    (import "z" (func $z (param "x" (own $x)) (param "y" (own $y))))
+
+    (component $c
+      (import "x" (type $x (sub resource)))
+      (import "z" (func (param "x" (own $x)) (param "y" (own $x))))
+    )
+
+    (instance (instantiate $c (with "x" (type $x)) (with "z" (func $z))))
+  )
+  "resource types are not the same")
+
+(component
+  (type (component
+    (import "x" (type $x (sub resource)))
+    (export "y" (type (eq $x)))
+    (export "z" (type (sub resource)))
+  ))
+)
+
+(assert_invalid
+  (component
+    (type (component
+      (type $x (resource (rep i32)))
+    ))
+  )
+  "resources can only be defined within a concrete component")
+
+(assert_invalid
+  (component
+    (type (instance
+      (type $x (resource (rep i32)))
+    ))
+  )
+  "resources can only be defined within a concrete component")
+
+(component
+  (type (component
+    (import "x" (instance $i
+      (export $t "t" (type (sub resource)))
+      (export "f" (func (result "x" (own $t))))
+    ))
+    (alias export $i "t" (type $t))
+    (export "f" (func (result "x" (own $t))))
+  ))
+)
+
+(component
+  (import "fancy-fs" (instance $fancy-fs
+    (export $fs "fs" (instance
+      (export "file" (type (sub resource)))
+    ))
+    (alias export $fs "file" (type $file))
+    (export "fancy-op" (func (param "f" (borrow $file))))
+  ))
+)
+
+(component $C
+  (type $T (list (tuple string bool)))
+  (type $U (option $T))
+  (type $G (func (param "x" (list $T)) (result $U)))
+  (type $D (component
+    (alias outer $C $T (type $C_T))
+    (type $L (list $C_T))
+    (import "f" (func (param "x" $L) (result (list u8))))
+    (import "g" (func (type $G)))
+    (export "g2" (func (type $G)))
+    (export "h" (func (result $U)))
+    (import "T" (type $T (sub resource)))
+    (import "i" (func (param "x" (list (own $T)))))
+    (export $T' "T2" (type (eq $T)))
+    (export $U' "U" (type (sub resource)))
+    (export "j" (func (param "x" (borrow $T')) (result (own $U'))))
+  ))
+)
+
+(component
+  (import "T1" (type $T1 (sub resource)))
+  (import "T2" (type $T2 (sub resource)))
+)
+
+(component $C
+  (import "T1" (type $T1 (sub resource)))
+  (import "T2" (type $T2 (sub resource)))
+  (import "T3" (type $T3 (eq $T2)))
+  (type $ListT1 (list (own $T1)))
+  (type $ListT2 (list (own $T2)))
+  (type $ListT3 (list (own $T3)))
+)
+
+(component
+  (import "T" (type $T (sub resource)))
+  (import "U" (type $U (sub resource)))
+  (type $Own1 (own $T))
+  (type $Own2 (own $T))
+  (type $Own3 (own $U))
+  (type $ListOwn1 (list $Own1))
+  (type $ListOwn2 (list $Own2))
+  (type $ListOwn3 (list $Own3))
+  (type $Borrow1 (borrow $T))
+  (type $Borrow2 (borrow $T))
+  (type $Borrow3 (borrow $U))
+  (type $ListBorrow1 (list $Borrow1))
+  (type $ListBorrow2 (list $Borrow2))
+  (type $ListBorrow3 (list $Borrow3))
+)
+
+(component
+  (import "C" (component $C
+    (export "T1" (type (sub resource)))
+    (export $T2 "T2" (type (sub resource)))
+    (export "T3" (type (eq $T2)))
+  ))
+  (instance $c (instantiate $C))
+  (alias export $c "T1" (type $T1))
+  (alias export $c "T2" (type $T2))
+  (alias export $c "T3" (type $T3))
+)
+
+(component
+  (component $C
+    (type $r1 (export "r1") (resource (rep i32)))
+    (type $r2 (export "r2") (resource (rep i32)))
+  )
+  (instance $c1 (instantiate $C))
+  (instance $c2 (instantiate $C))
+  (alias export $c1 "r1" (type $c1r1))
+  (alias export $c1 "r2" (type $c1r2))
+  (alias export $c2 "r1" (type $c2r1))
+  (alias export $c2 "r2" (type $c2r2))
+)
+
+(component
+  (type $r (resource (rep i32)))
+  (export "r1" (type $r))
+  (export "r2" (type $r))
+)
+
+(component
+  (type (component
+    (export "r1" (type (sub resource)))
+    (export "r2" (type (sub resource)))
+  ))
+)
+
+(component
+  (type $r (resource (rep i32)))
+  (export $r1 "r1" (type $r))
+  (export "r2" (type $r1))
+)
+
+(component
+  (type (component
+    (export $r1 "r1" (type (sub resource)))
+    (export "r2" (type (eq $r1)))
+  ))
+)
+
+(component $P
+  (import "C1" (component $C1
+    (import "T" (type $T (sub resource)))
+    (export "foo" (func (param "t" (own $T))))
+  ))
+  (import "C2" (component $C2
+    (import "T" (type $T (sub resource)))
+    (import "foo" (func (param "t" (own $T))))
+  ))
+  (type $R (resource (rep i32)))
+  (instance $c1 (instantiate $C1 (with "T" (type $R))))
+  (instance $c2 (instantiate $C2
+    (with "T" (type $R))
+    (with "foo" (func $c1 "foo"))
+  ))
+)
+
+(component
+  (import "C1" (component $C1
+    (import "T1" (type $T1 (sub resource)))
+    (import "T2" (type $T2 (sub resource)))
+    (export "foo" (func (param "t" (tuple (own $T1) (own $T2)))))
+  ))
+  (import "C2" (component $C2
+    (import "T" (type $T (sub resource)))
+    (export "foo" (func (param "t" (tuple (own $T) (own $T)))))
+  ))
+  (type $R (resource (rep i32)))
+  (instance $c1 (instantiate $C1
+    (with "T1" (type $R))
+    (with "T2" (type $R))
+  ))
+  (instance $c2 (instantiate $C2
+    (with "T" (type $R))
+    (with "foo" (func $c1 "foo"))
+  ))
+)
+
+(assert_invalid
+  (component
+    (component $C
+      (type $R (resource (rep i32)))
+      (export "R" (type $R))
+    )
+    (instance $c (instantiate $C))
+    (alias export $c "R" (type $R))
+    (core func (canon resource.rep $R))
+  )
+  "not a local resource")
+
+(component
+  (component $C
+    (type $R (resource (rep i32)))
+    (export "R" (type $R))
+  )
+  (instance $c (instantiate $C))
+  (alias export $c "R" (type $R))
+  (core func (canon resource.drop (own $R)))
+  (core func (canon resource.drop (borrow $R)))
+)
+
+(component
+  (component $C1
+    (import "X" (type (sub resource)))
+  )
+  (component $C2
+    (import "C1" (component
+      (import "X" (type (sub resource)))
+    ))
+  )
+  (instance $c (instantiate $C2 (with "C1" (component $C1))))
+)
+
+(component
+  (component $C1
+    (import "X" (type $X (sub resource)))
+    (import "f" (func $f (result (own $X))))
+    (export "g" (func $f))
+  )
+  (component $C2
+    (import "C1" (component
+      (import "X" (type $X (sub resource)))
+      (import "f" (func (result (own $X))))
+      (export "g" (func (result (own $X))))
+    ))
+  )
+  (instance $c (instantiate $C2 (with "C1" (component $C1))))
+)
+
+(component
+  (component $C1
+    (type $X (resource (rep i32)))
+    (export "X" (type $X))
+
+    (core func $f (canon resource.drop (own $X)))
+    (func (export "f") (param "X" (own $X)) (canon lift (core func $f)))
+  )
+  (instance $c1 (instantiate $C1))
+
+  (component $C2
+    (import "X" (type $X (sub resource)))
+    (import "f" (func (param "X" (own $X))))
+  )
+  (instance $c2 (instantiate $C2
+    (with "X" (type $c1 "X"))
+    (with "f" (func $c1 "f"))
+  ))
+)
+
+(assert_invalid
+  (component
+    (component $C1
+      (type $X (resource (rep i32)))
+      (export "X" (type $X))
+
+      (core func $f (canon resource.drop (own $X)))
+      (func (export "f") (param "X" (own $X)) (canon lift (core func $f)))
+    )
+    (instance $c1 (instantiate $C1))
+    (instance $c2 (instantiate $C1))
+
+    (component $C2
+      (import "X" (type $X (sub resource)))
+      (import "f" (func (param "X" (own $X))))
+    )
+    (instance $c3 (instantiate $C2
+      (with "X" (type $c1 "X"))
+      (with "f" (func $c2 "f"))
+    ))
+  )
+  "resource types are not the same")
+
+(component
+  (component $C1
+    (type $X (resource (rep i32)))
+    (export $X1 "X1" (type $X))
+    (export $X2 "X2" (type $X))
+
+    (core func $f (canon resource.drop (own $X)))
+    (func (export "f1") (param "X" (own $X1)) (canon lift (core func $f)))
+    (func (export "f2") (param "X" (own $X2)) (canon lift (core func $f)))
+  )
+  (instance $c1 (instantiate $C1))
+
+  (component $C2
+    (import "X" (type $X (sub resource)))
+    (import "f" (func (param "X" (own $X))))
+  )
+  (instance $c2 (instantiate $C2
+    (with "X" (type $c1 "X1"))
+    (with "f" (func $c1 "f1"))
+  ))
+  (instance $c3 (instantiate $C2
+    (with "X" (type $c1 "X2"))
+    (with "f" (func $c1 "f2"))
+  ))
+)
+
+(component
+  (component $C1
+    (type $X (resource (rep i32)))
+    (export $X1 "X1" (type $X))
+    (export $X2 "X2" (type $X))
+
+    (core func $f (canon resource.drop (own $X)))
+    (func (export "f1") (param "X" (own $X1)) (canon lift (core func $f)))
+    (func (export "f2") (param "X" (own $X2)) (canon lift (core func $f)))
+  )
+  (instance $c1 (instantiate $C1))
+
+  (component $C2
+    (import "X" (type $X (sub resource)))
+    (import "f" (func (param "X" (own $X))))
+  )
+  (instance $c2 (instantiate $C2
+    (with "X" (type $c1 "X1"))
+    (with "f" (func $c1 "f2"))
+  ))
+  (instance $c3 (instantiate $C2
+    (with "X" (type $c1 "X2"))
+    (with "f" (func $c1 "f1"))
+  ))
+)
+
+(assert_invalid
+  (component
+    (component $c
+      (import "x" (type (sub resource)))
+    )
+    (type $x u32)
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected resource, found type")
+
+(assert_invalid
+  (component
+    (component $c
+      (type $t u32)
+      (import "x" (type (eq $t)))
+    )
+    (type $x (resource (rep i32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected type, found resource")
+
+(assert_invalid
+  (component
+    (component $c
+      (import "x1" (type $x1 (sub resource)))
+      (import "x2" (type $x2 (eq $x1)))
+    )
+    (type $x1 (resource (rep i32)))
+    (type $x2 (resource (rep i32)))
+    (instance (instantiate $c
+      (with "x1" (type $x1))
+      (with "x2" (type $x2))
+    ))
+  )
+  "resource types are not the same")
+
+(component
+  (type $x (resource (rep i32)))
+  (component $c
+    (import "x" (type $t (sub resource)))
+    (export "y" (type $t))
+  )
+  (instance $c (instantiate $c (with "x" (type $x))))
+
+  (alias export $c "y" (type $x2))
+  (core func (canon resource.rep $x2))
+
+)
+
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (import "x" (func (result (own $r))))
+  )
+  "local resource type found in imports")
+
+(assert_invalid
+  (component
+    (type (component
+      (export $x "x" (type (sub resource)))
+      (import "f" (func (result (own $x))))
+    ))
+  )
+  "local resource type found in imports")
+
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+
+    (core func $f (canon resource.drop (own $r)))
+    (func (export "f") (param "x" (own $r))
+      (canon lift (core func $f)))
+  )
+  "local resource type found in export but not exported itself")
+
+;; direct exports count as "explicit in" for resources
+(component
+  (type $r (resource (rep i32)))
+  (export "r" (type $r))
+
+  (core func $f (canon resource.drop (own $r)))
+  (func (export "f") (param "x" (own $r))
+    (canon lift (core func $f)))
+)
+
+;; instances-as-a-bundle count as "explicit in" for resources
+(component
+  (type $r (resource (rep i32)))
+  (instance $i
+    (export "r" (type $r))
+  )
+  (export "i" (instance $i))
+
+  (core func $f (canon resource.drop (own $r)))
+  (func (export "f") (param "x" (own $r))
+    (canon lift (core func $f)))
+)
+
+;; Transitive bundles count for "explicit in"
+(component
+  (type $r (resource (rep i32)))
+  (instance $i
+    (export "r" (type $r))
+  )
+  (instance $i2
+    (export "i" (instance $i))
+  )
+  (export "i2" (instance $i2))
+
+  (core func $f (canon resource.drop (own $r)))
+  (func (export "f") (param "x" (own $r))
+    (canon lift (core func $f)))
+)
+
+;; Component instantiations count for "explicit in"
+(component
+  (type $r (resource (rep i32)))
+  (component $C
+    (import "x" (type $x (sub resource)))
+    (export "y" (type $x))
+  )
+  (instance $c (instantiate $C (with "x" (type $r))))
+  (export "c" (instance $c))
+
+  (core func $f (canon resource.drop (own $r)))
+  (func (export "f") (param "x" (own $r))
+    (canon lift (core func $f)))
+)
+
+;; Make sure threading things around is valid for "explicit in"
+(component
+  (type $r (resource (rep i32)))
+  (component $C
+    (import "x" (type $x (sub resource)))
+    (export "y" (type $x))
+  )
+  (instance $c (instantiate $C (with "x" (type $r))))
+  (instance $i (export "x" (type $c "y")))
+
+  (component $C2
+    (import "x" (instance $i
+      (export "i1" (instance
+        (export "i2" (type (sub resource)))
+      ))
+    ))
+    (export "y" (type $i "i1" "i2"))
+  )
+
+  (instance $i2 (export "i2" (type $i "x")))
+  (instance $i1 (export "i1" (instance $i2)))
+  (instance $c2 (instantiate $C2
+    (with "x" (instance $i1))
+  ))
+  (export "x" (type $c2 "y"))
+
+  (core func $f (canon resource.drop (own $r)))
+  (func (export "f") (param "x" (own $r))
+    (canon lift (core func $f)))
+)
+
+;; Importing-and-exporting instances through instantiation counts for "explicit
+;; in"
+(component
+  (type $r (resource (rep i32)))
+  (component $C
+    (import "x" (instance $x (export "t" (type (sub resource)))))
+    (export "y" (instance $x))
+  )
+  (instance $c (instantiate $C
+    (with "x" (instance
+      (export "t" (type $r))
+    ))
+  ))
+  (export "c" (instance $c))
+
+  (core func $f (canon resource.drop (own $r)))
+  (func (export "f") (param "x" (own $r))
+    (canon lift (core func $f)))
+)
+
+(component
+  (type $i (instance
+    (export $r "r" (type (sub resource)))
+    (export "f" (func (result (own $r))))
+  ))
+  (import "i1" (instance $i1 (type $i)))
+  (import "i2" (instance $i2 (type $i)))
+
+  (component $c
+    (import "r" (type $t (sub resource)))
+    (import "f" (func (result (own $t))))
+  )
+  (instance (instantiate $c
+    (with "r" (type $i1 "r"))
+    (with "f" (func $i1 "f"))
+  ))
+  (instance (instantiate $c
+    (with "r" (type $i2 "r"))
+    (with "f" (func $i2 "f"))
+  ))
+)
+
+
+(assert_invalid
+  (component
+    (type $i (instance
+      (export $r "r" (type (sub resource)))
+      (export "f" (func (result (own $r))))
+    ))
+    (import "i1" (instance $i1 (type $i)))
+    (import "i2" (instance $i2 (type $i)))
+
+    (component $c
+      (import "r" (type $t (sub resource)))
+      (import "f" (func (result (own $t))))
+    )
+    (instance (instantiate $c
+      (with "r" (type $i1 "r"))
+      (with "f" (func $i2 "f"))
+    ))
+  )
+  "resource types are not the same")
+
+;; substitution works
+(component
+  (type $t (resource (rep i32)))
+  (component $c
+    (import "x" (type $t (sub resource)))
+    (export "y" (type $t))
+  )
+  (instance $c1 (instantiate $c (with "x" (type $t))))
+  (instance $c2 (instantiate $c (with "x" (type $t))))
+
+  (component $c2
+    (import "x1" (type $t (sub resource)))
+    (import "x2" (type (eq $t)))
+    (import "x3" (type (eq $t)))
+  )
+  (instance (instantiate $c2
+    (with "x1" (type $t))
+    (with "x2" (type $c1 "y"))
+    (with "x3" (type $c2 "y"))
+  ))
+)
+
+;; must supply a resource to instantiation
+(assert_invalid
+  (component
+    (component $c
+      (import "x" (type (sub resource)))
+    )
+    (instance (instantiate $c))
+  )
+  "missing import named `x`")
+(assert_invalid
+  (component
+    (type $x (resource (rep i32)))
+    (component $c
+      (import "x" (type (sub resource)))
+      (import "y" (type (sub resource)))
+    )
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "missing import named `y`")
+
+;; supply the wrong resource
+(assert_invalid
+  (component
+    (type $x (resource (rep i32)))
+    (type $y (resource (rep i32)))
+    (component $c
+      (import "x" (type $t (sub resource)))
+      (import "y" (type (eq $t)))
+    )
+    (instance (instantiate $c
+      (with "x" (type $x))
+      (with "y" (type $y))
+    ))
+  )
+  "resource types are not the same")

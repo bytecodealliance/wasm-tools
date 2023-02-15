@@ -6,14 +6,20 @@ use crate::{
 /// Represents the possible type bounds for type references.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum TypeBounds {
-    /// The type is bounded by equality.
-    Eq,
+    /// The type is bounded by equality to the type index specified.
+    Eq(u32),
+    /// This type is a fresh resource type,
+    SubResource,
 }
 
 impl Encode for TypeBounds {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            Self::Eq => sink.push(0x00),
+            Self::Eq(i) => {
+                sink.push(0x00);
+                i.encode(sink);
+            }
+            Self::SubResource => sink.push(0x01),
         }
     }
 }
@@ -32,9 +38,7 @@ pub enum ComponentTypeRef {
     /// The reference is to a value type.
     Value(ComponentValType),
     /// The reference is to a bounded type.
-    ///
-    /// The index is expected to be a type index.
-    Type(TypeBounds, u32),
+    Type(TypeBounds),
     /// The reference is to an instance type.
     ///
     /// The index is expected to be a type index to an instance type.
@@ -68,10 +72,7 @@ impl Encode for ComponentTypeRef {
                 idx.encode(sink);
             }
             Self::Value(ty) => ty.encode(sink),
-            Self::Type(bounds, idx) => {
-                bounds.encode(sink);
-                idx.encode(sink);
-            }
+            Self::Type(bounds) => bounds.encode(sink),
         }
     }
 }

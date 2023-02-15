@@ -540,7 +540,7 @@ impl Validator {
                     );
                 }
                 if num == WASM_COMPONENT_VERSION {
-                    self.components.push(ComponentState::default());
+                    self.components.push(ComponentState::new());
                     State::Component
                 } else if num < WASM_COMPONENT_VERSION {
                     bail!(range.start, "unsupported component version: {num:#x}");
@@ -1120,6 +1120,15 @@ impl Validator {
                         func_index,
                         options,
                     } => current.lower_function(func_index, options.into_vec(), types, offset),
+                    crate::CanonicalFunction::ResourceNew { resource } => {
+                        current.resource_new(resource, types, offset)
+                    }
+                    crate::CanonicalFunction::ResourceDrop { ty } => {
+                        current.resource_drop(ty, types, offset)
+                    }
+                    crate::CanonicalFunction::ResourceRep { resource } => {
+                        current.resource_rep(resource, types, offset)
+                    }
                 }
             },
         )
@@ -1134,16 +1143,6 @@ impl Validator {
         range: &Range<usize>,
     ) -> Result<()> {
         self.state.ensure_component("start", range.start)?;
-
-        // let mut section = section.clone();
-        // let f = section.read()?;
-
-        // if !section.eof() {
-        //     return Err(BinaryReaderError::new(
-        //         "trailing data at the end of the start section",
-        //         section.original_position(),
-        //     ));
-        // }
 
         self.components.last_mut().unwrap().add_start(
             f.func_index,
@@ -1203,6 +1202,7 @@ impl Validator {
                     export.name,
                     export.url,
                     ty,
+                    types,
                     offset,
                     false, /* checked above */
                 )
@@ -1251,16 +1251,18 @@ impl Validator {
 
                 // Validate that all values were used for the component
                 if let Some(index) = component.values.iter().position(|(_, used)| !*used) {
-                    return Err(
-                        format_err!(offset,"value index {index} was not used as part of an instantiation, start function, or export"
-                            )
+                    bail!(
+                        offset,
+                        "value index {index} was not used as part of an \
+                         instantiation, start function, or export"
                     );
                 }
 
                 // If there's a parent component, pop the stack, add it to the parent,
                 // and continue to validate the component
+                let ty = component.finish(&mut self.types, offset)?;
                 if let Some(parent) = self.components.last_mut() {
-                    parent.add_component(&mut component, &mut self.types);
+                    parent.add_component(ty, &mut self.types)?;
                     self.state = State::Component;
                 }
 

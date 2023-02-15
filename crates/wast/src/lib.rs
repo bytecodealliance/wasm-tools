@@ -391,6 +391,7 @@ pub mod kw {
     custom_keyword!(before);
     custom_keyword!(binary);
     custom_keyword!(block);
+    custom_keyword!(borrow);
     custom_keyword!(catch);
     custom_keyword!(catch_all);
     custom_keyword!(code);
@@ -399,6 +400,7 @@ pub mod kw {
     custom_keyword!(declare);
     custom_keyword!(delegate);
     custom_keyword!(r#do = "do");
+    custom_keyword!(dtor);
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(tag);
@@ -448,6 +450,7 @@ pub mod kw {
     custom_keyword!(nullref);
     custom_keyword!(offset);
     custom_keyword!(outer);
+    custom_keyword!(own);
     custom_keyword!(param);
     custom_keyword!(parent);
     custom_keyword!(passive);
@@ -462,6 +465,11 @@ pub mod kw {
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(rec);
+    custom_keyword!(rep);
+    custom_keyword!(resource);
+    custom_keyword!(resource_new = "resource.new");
+    custom_keyword!(resource_drop = "resource.drop");
+    custom_keyword!(resource_rep = "resource.rep");
     custom_keyword!(result);
     custom_keyword!(shared);
     custom_keyword!(start);

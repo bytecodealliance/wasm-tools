@@ -57,6 +57,7 @@ enum ComponentTypeKind {
     Component,
     Instance,
     DefinedType,
+    Resource,
 }
 
 const NBYTES: usize = 4;
@@ -363,6 +364,7 @@ impl<'a> Dump<'a> {
                             ComponentType::Func(_) => ComponentTypeKind::Func,
                             ComponentType::Component(_) => ComponentTypeKind::Component,
                             ComponentType::Instance(_) => ComponentTypeKind::Instance,
+                            ComponentType::Resource { .. } => ComponentTypeKind::Resource,
                         });
                         me.print(end)
                     })?
@@ -389,7 +391,12 @@ impl<'a> Dump<'a> {
                     self.section(s, "canonical function", |me, end, f| {
                         let (name, col) = match &f {
                             CanonicalFunction::Lift { .. } => ("func", &mut i.funcs),
-                            CanonicalFunction::Lower { .. } => ("core func", &mut i.core_funcs),
+                            CanonicalFunction::Lower { .. }
+                            | CanonicalFunction::ResourceNew { .. }
+                            | CanonicalFunction::ResourceDrop { .. }
+                            | CanonicalFunction::ResourceRep { .. } => {
+                                ("core func", &mut i.core_funcs)
+                            }
                         };
 
                         write!(me.state, "[{} {}] {:?}", name, inc(col), f)?;
