@@ -454,9 +454,7 @@ impl Metadata {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
         match self {
             Metadata::Module {
-                name,
-                producers,
-                range: _,
+                name, producers, ..
             } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}module {name}:")?;
@@ -472,7 +470,7 @@ impl Metadata {
                 name,
                 producers,
                 children,
-                range: _,
+                ..
             } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}component {name}:")?;
@@ -780,7 +778,7 @@ mod test {
                 name,
                 producers,
                 children,
-                range: _,
+                ..
             } => {
                 // Check that the component metadata is in the component
                 assert_eq!(name, Some("gussie".to_owned()));
@@ -828,9 +826,7 @@ mod test {
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
             Metadata::Module {
-                name,
-                producers,
-                range: _,
+                name, producers, ..
             } => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
@@ -860,9 +856,7 @@ mod test {
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
             Metadata::Module {
-                name,
-                producers,
-                range: _,
+                name, producers, ..
             } => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
