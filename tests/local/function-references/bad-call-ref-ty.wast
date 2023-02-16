@@ -15,3 +15,21 @@
     )
   )
   "expected i32 but nothing on stack")
+
+(assert_invalid
+  (module
+    (type $t (func ))
+    (func (param $f (ref $t))
+      (call_ref 5 (local.get $f))
+    )
+  )
+  "type index out of bounds")
+
+(assert_invalid
+  (module
+    (type $t (func ))
+    (func (param $f (ref $t))
+      (call_ref 100 (local.get $f))
+    )
+  )
+  "type index out of bounds")
