@@ -112,7 +112,9 @@ impl Encode for HeapType {
         match self {
             HeapType::Func => sink.push(0x70),
             HeapType::Extern => sink.push(0x6F),
-            HeapType::TypedFunc(i) => i.encode(sink),
+            // Note that this is encoded as a signed type rather than unsigned
+            // as it's decoded as an s33
+            HeapType::TypedFunc(i) => i64::from(*i).encode(sink),
         }
     }
 }

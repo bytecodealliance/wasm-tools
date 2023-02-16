@@ -1296,6 +1296,8 @@ where
         Ok(())
     }
     fn visit_call_ref(&mut self, hty: HeapType) -> Self::Output {
+        self.resources
+            .check_heap_type(hty, &self.features, self.offset)?;
         // If `None` is popped then that means a "bottom" type was popped which
         // is always considered equivalent to the `hty` tag.
         if let Some(rt) = self.pop_ref()? {
@@ -2232,15 +2234,8 @@ where
         Ok(())
     }
     fn visit_ref_null(&mut self, heap_type: HeapType) -> Self::Output {
-        self.resources.check_value_type(
-            RefType {
-                nullable: true,
-                heap_type,
-            }
-            .into(),
-            &self.features,
-            self.offset,
-        )?;
+        self.resources
+            .check_heap_type(heap_type, &self.features, self.offset)?;
         self.push_operand(ValType::Ref(RefType {
             nullable: true,
             heap_type,
