@@ -344,7 +344,7 @@ pub enum Metadata {
         /// The module's producers section, if any.
         producers: Option<Producers>,
         /// Byte range of the module in the parent binary
-        range: Range<usize>
+        range: Range<usize>,
     },
 }
 
@@ -359,7 +359,9 @@ impl Metadata {
                 Version { encoding, .. } => {
                     if metadata.is_empty() {
                         match encoding {
-                            wasmparser::Encoding::Module => metadata.push(Metadata::empty_module(0..input.len())),
+                            wasmparser::Encoding::Module => {
+                                metadata.push(Metadata::empty_module(0..input.len()))
+                            }
                             wasmparser::Encoding::Component => {
                                 metadata.push(Metadata::empty_component(0..input.len()))
                             }
@@ -418,7 +420,7 @@ impl Metadata {
             name: None,
             producers: None,
             children: Vec::new(),
-            range
+            range,
         }
     }
 
@@ -426,7 +428,7 @@ impl Metadata {
         Metadata::Module {
             name: None,
             producers: None,
-            range
+            range,
         }
     }
     fn set_name(&mut self, n: &str) {
@@ -451,7 +453,11 @@ impl Metadata {
     fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
         match self {
-            Metadata::Module { name, producers, range: _ } => {
+            Metadata::Module {
+                name,
+                producers,
+                range: _,
+            } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}module {name}:")?;
                 } else {
@@ -685,7 +691,11 @@ mod test {
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
-            Metadata::Module { name, producers, range } => {
+            Metadata::Module {
+                name,
+                producers,
+                range,
+            } => {
                 assert_eq!(name, Some("foo".to_owned()));
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -770,7 +780,7 @@ mod test {
                 name,
                 producers,
                 children,
-                range: _
+                range: _,
             } => {
                 // Check that the component metadata is in the component
                 assert_eq!(name, Some("gussie".to_owned()));
@@ -783,7 +793,11 @@ mod test {
                 assert_eq!(children.len(), 1);
                 let child = children.get(0).unwrap();
                 match &**child {
-                    Metadata::Module { name, producers, range } => {
+                    Metadata::Module {
+                        name,
+                        producers,
+                        range,
+                    } => {
                         assert_eq!(name, &Some("foo".to_owned()));
                         let producers = producers.as_ref().expect("some producers");
                         assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -813,7 +827,11 @@ mod test {
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
-            Metadata::Module { name, producers, range: _ } => {
+            Metadata::Module {
+                name,
+                producers,
+                range: _,
+            } => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -841,7 +859,11 @@ mod test {
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
-            Metadata::Module { name, producers, range: _ } => {
+            Metadata::Module {
+                name,
+                producers,
+                range: _,
+            } => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
