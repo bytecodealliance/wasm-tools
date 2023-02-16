@@ -241,7 +241,7 @@ pub trait WasmModuleResources {
         // same validity checks.
         self.check_value_type(
             RefType {
-                nullable: false,
+                nullable: true,
                 heap_type,
             }
             .into(),
