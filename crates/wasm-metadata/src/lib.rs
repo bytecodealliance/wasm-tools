@@ -3,6 +3,7 @@ use indexmap::{map::Entry, IndexMap};
 use serde::Serialize;
 use std::fmt;
 use std::mem;
+use std::ops::Range;
 use wasm_encoder::{ComponentSection as _, ComponentSectionId, Encode, Section};
 use wasmparser::{
     ComponentNameSectionReader, NameSectionReader, Parser, Payload::*, ProducersSectionReader,
@@ -333,6 +334,8 @@ pub enum Metadata {
         producers: Option<Producers>,
         /// All child modules and components inside the component.
         children: Vec<Box<Metadata>>,
+        /// Byte range of the module in the parent binary
+        range: Range<usize>,
     },
     /// Metadata found inside a WebAssembly module.
     Module {
@@ -340,6 +343,8 @@ pub enum Metadata {
         name: Option<String>,
         /// The module's producers section, if any.
         producers: Option<Producers>,
+        /// Byte range of the module in the parent binary
+        range: Range<usize>,
     },
 }
 
@@ -354,15 +359,17 @@ impl Metadata {
                 Version { encoding, .. } => {
                     if metadata.is_empty() {
                         match encoding {
-                            wasmparser::Encoding::Module => metadata.push(Metadata::empty_module()),
+                            wasmparser::Encoding::Module => {
+                                metadata.push(Metadata::empty_module(0..input.len()))
+                            }
                             wasmparser::Encoding::Component => {
-                                metadata.push(Metadata::empty_component())
+                                metadata.push(Metadata::empty_component(0..input.len()))
                             }
                         }
                     }
                 }
-                ModuleSection { .. } => metadata.push(Metadata::empty_module()),
-                ComponentSection { .. } => metadata.push(Metadata::empty_component()),
+                ModuleSection { range, .. } => metadata.push(Metadata::empty_module(range)),
+                ComponentSection { range, .. } => metadata.push(Metadata::empty_component(range)),
                 End { .. } => {
                     let finished = metadata.pop().expect("non-empty metadata stack");
                     if metadata.is_empty() {
@@ -408,18 +415,20 @@ impl Metadata {
         ))
     }
 
-    fn empty_component() -> Self {
+    fn empty_component(range: Range<usize>) -> Self {
         Metadata::Component {
             name: None,
             producers: None,
             children: Vec::new(),
+            range,
         }
     }
 
-    fn empty_module() -> Self {
+    fn empty_module(range: Range<usize>) -> Self {
         Metadata::Module {
             name: None,
             producers: None,
+            range,
         }
     }
     fn set_name(&mut self, n: &str) {
@@ -444,7 +453,9 @@ impl Metadata {
     fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
         match self {
-            Metadata::Module { name, producers } => {
+            Metadata::Module {
+                name, producers, ..
+            } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}module {name}:")?;
                 } else {
@@ -459,6 +470,7 @@ impl Metadata {
                 name,
                 producers,
                 children,
+                ..
             } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}component {name}:")?;
@@ -677,7 +689,11 @@ mod test {
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
-            Metadata::Module { name, producers } => {
+            Metadata::Module {
+                name,
+                producers,
+                range,
+            } => {
                 assert_eq!(name, Some("foo".to_owned()));
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -685,6 +701,8 @@ mod test {
                     producers.get("processed-by").unwrap().get("baz").unwrap(),
                     "1.0"
                 );
+                assert_eq!(range.start, 0);
+                assert_eq!(range.end, 71);
             }
             _ => panic!("metadata should be module"),
         }
@@ -708,6 +726,7 @@ mod test {
                 name,
                 producers,
                 children,
+                range,
             } => {
                 assert!(children.is_empty());
                 assert_eq!(name, Some("foo".to_owned()));
@@ -717,6 +736,8 @@ mod test {
                     producers.get("processed-by").unwrap().get("baz").unwrap(),
                     "1.0"
                 );
+                assert_eq!(range.start, 0);
+                assert_eq!(range.end, 81);
             }
             _ => panic!("metadata should be component"),
         }
@@ -757,6 +778,7 @@ mod test {
                 name,
                 producers,
                 children,
+                ..
             } => {
                 // Check that the component metadata is in the component
                 assert_eq!(name, Some("gussie".to_owned()));
@@ -769,7 +791,11 @@ mod test {
                 assert_eq!(children.len(), 1);
                 let child = children.get(0).unwrap();
                 match &**child {
-                    Metadata::Module { name, producers } => {
+                    Metadata::Module {
+                        name,
+                        producers,
+                        range,
+                    } => {
                         assert_eq!(name, &Some("foo".to_owned()));
                         let producers = producers.as_ref().expect("some producers");
                         assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -777,6 +803,8 @@ mod test {
                             producers.get("processed-by").unwrap().get("baz").unwrap(),
                             "1.0"
                         );
+                        assert_eq!(range.start, 10);
+                        assert_eq!(range.end, 81);
                     }
                     _ => panic!("child is a module"),
                 }
@@ -797,7 +825,9 @@ mod test {
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
-            Metadata::Module { name, producers } => {
+            Metadata::Module {
+                name, producers, ..
+            } => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -825,7 +855,9 @@ mod test {
 
         let metadata = Metadata::from_binary(&module).unwrap();
         match metadata {
-            Metadata::Module { name, producers } => {
+            Metadata::Module {
+                name, producers, ..
+            } => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
