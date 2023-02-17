@@ -14,6 +14,7 @@
       (export (;1;) "m2" (func (type 1)))
     )
   )
+  (import "input" (component (;0;) (type 0)))
   (type (;1;)
     (component
       (type (;0;)
@@ -86,6 +87,7 @@
       (export (;0;) "x" (instance (type 1)))
     )
   )
+  (import "b" (component (;1;) (type 1)))
   (type (;2;)
     (component
       (type (;0;) (record (field "a" s8) (field "b" u8) (field "c" s16) (field "d" u16) (field "e" s32) (field "f" u32) (field "g" s64) (field "h" u64) (field "i" float32) (field "j" float64) (field "k" bool) (field "l" string)))
@@ -146,8 +148,6 @@
       (export (;20;) "u" (func (type 34)))
     )
   )
-  (import "input" (component (;0;) (type 0)))
-  (import "b" (component (;1;) (type 1)))
   (import "a" (component (;2;) (type 2)))
   (instance (;0;) (instantiate 2))
   (instance (;1;) (instantiate 1

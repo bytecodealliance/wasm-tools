@@ -72,21 +72,27 @@ impl Encodable for InstanceType {
     }
 }
 
-impl Encodable for (&mut CoreTypeSection, &mut ComponentTypeSection) {
+struct EncodableEntityType<'a> {
+    start_type_count: u32,
+    core_types: &'a mut CoreTypeSection,
+    component_types: &'a mut ComponentTypeSection,
+}
+
+impl<'a> Encodable for EncodableEntityType<'a> {
     fn type_count(&self) -> u32 {
-        self.1.len()
+        self.start_type_count + self.component_types.len()
     }
 
     fn core_type_count(&self) -> u32 {
-        self.0.len()
+        self.core_types.len()
     }
 
     fn ty(&mut self) -> ComponentTypeEncoder {
-        self.1.ty()
+        self.component_types.ty()
     }
 
     fn core_type(&mut self) -> CoreTypeEncoder {
-        self.0.ty()
+        self.core_types.ty()
     }
 }
 
@@ -132,12 +138,12 @@ impl<'a> TypeEncoder<'a> {
         let mut types = TypeMap::new();
 
         for (name, url, ty) in imports {
-            let ty = self.encodable_component_entity_type(&mut encoded, &mut types, ty);
+            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
             encoded.import(name, url, ty);
         }
 
         for (name, url, ty) in exports {
-            let ty = self.encodable_component_entity_type(&mut encoded, &mut types, ty);
+            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
             encoded.export(name, url, ty);
         }
 
@@ -152,7 +158,7 @@ impl<'a> TypeEncoder<'a> {
         let mut types = TypeMap::new();
 
         for (name, url, ty) in exports {
-            let ty = self.encodable_component_entity_type(&mut encoded, &mut types, ty);
+            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
             encoded.export(name, url, ty);
         }
 
@@ -178,17 +184,6 @@ impl<'a> TypeEncoder<'a> {
         }
 
         encoded
-    }
-
-    pub fn component_entity_type(
-        &self,
-        core_types: &mut CoreTypeSection,
-        component_types: &mut ComponentTypeSection,
-        types: &mut TypeMap<'a>,
-        ty: wasmparser::types::ComponentEntityType,
-    ) -> ComponentTypeRef {
-        let mut encodable = (core_types, component_types);
-        self.encodable_component_entity_type(&mut encodable, types, ty)
     }
 
     fn entity_type(
@@ -239,7 +234,7 @@ impl<'a> TypeEncoder<'a> {
         }
     }
 
-    fn encodable_component_entity_type(
+    fn component_entity_type(
         &self,
         encodable: &mut impl Encodable,
         types: &mut TypeMap<'a>,
@@ -988,14 +983,6 @@ impl<'a> ImportMap<'a> {
     }
 }
 
-#[derive(Default)]
-struct ImportEncodingContext<'a> {
-    types: TypeMap<'a>,
-    import_section: ComponentImportSection,
-    core_type_section: CoreTypeSection,
-    type_section: ComponentTypeSection,
-}
-
 /// Used to encode a composition graph as a new WebAssembly component.
 pub(crate) struct CompositionGraphEncoder<'a> {
     /// The options for the encoding.
@@ -1063,28 +1050,25 @@ impl<'a> CompositionGraphEncoder<'a> {
 
     fn encode_imports(&mut self, encoded: &mut Component) -> Result<()> {
         let imports = ImportMap::new(!self.options.define_components, self.graph)?;
-        let mut context = ImportEncodingContext::default();
-
+        let mut type_map = TypeMap::default();
         for (name, entry) in imports.0 {
             match entry {
                 ImportMapEntry::Component(component) => {
-                    self.encode_component_import(&mut context, name.as_ref(), "", component);
+                    self.encode_component_import(encoded, name.as_ref(), "", component);
                 }
                 ImportMapEntry::Argument(arg) => {
                     let index = match arg.kind {
                         ArgumentImportKind::Item(component, ty) => self.encode_item_import(
-                            &mut context,
+                            encoded,
+                            &mut type_map,
                             name.as_ref(),
                             arg.url,
                             component,
                             ty,
                         ),
-                        ArgumentImportKind::Instance(exports) => self.encode_instance_import(
-                            &mut context,
-                            name.as_ref(),
-                            arg.url,
-                            exports,
-                        ),
+                        ArgumentImportKind::Instance(exports) => {
+                            self.encode_instance_import(encoded, name.as_ref(), arg.url, exports)
+                        }
                     };
 
                     self.imported_args
@@ -1093,35 +1077,18 @@ impl<'a> CompositionGraphEncoder<'a> {
             }
         }
 
-        if !context.core_type_section.is_empty() {
-            encoded.section(&context.core_type_section);
-        }
-
-        if !context.type_section.is_empty() {
-            encoded.section(&context.type_section);
-        }
-
-        if !context.import_section.is_empty() {
-            encoded.section(&context.import_section);
-        }
-
         Ok(())
     }
 
     fn encode_component_import(
         &mut self,
-        context: &mut ImportEncodingContext<'a>,
+        encoded: &mut Component,
         name: &str,
         url: &str,
         component: &'a crate::graph::Component,
     ) -> u32 {
-        let type_index = self.define_component_type(&mut context.type_section, component);
-        let index = self.import(
-            &mut context.import_section,
-            name,
-            url,
-            ComponentTypeRef::Component(type_index),
-        );
+        let type_index = self.define_component_type(encoded, component);
+        let index = self.import(encoded, name, url, ComponentTypeRef::Component(type_index));
 
         assert!(self
             .encoded_components
@@ -1133,29 +1100,40 @@ impl<'a> CompositionGraphEncoder<'a> {
 
     fn encode_item_import(
         &mut self,
-        context: &mut ImportEncodingContext<'a>,
+        encoded: &mut Component,
+        type_map: &mut TypeMap<'a>,
         name: &str,
         url: &str,
         component: &'a crate::graph::Component,
         ty: ComponentEntityType,
     ) -> u32 {
-        let prev_type_count = context.type_section.len();
+        let mut core_type_section = CoreTypeSection::new();
+        let mut type_section = ComponentTypeSection::new();
 
         let encoder = TypeEncoder::new(&component.types);
-        let ty = encoder.component_entity_type(
-            &mut context.core_type_section,
-            &mut context.type_section,
-            &mut context.types,
-            ty,
-        );
 
-        self.types += context.type_section.len() - prev_type_count;
-        self.import(&mut context.import_section, name, url, ty)
+        let mut encodable = EncodableEntityType {
+            start_type_count: self.types,
+            core_types: &mut core_type_section,
+            component_types: &mut type_section,
+        };
+        let ty = encoder.component_entity_type(&mut encodable, type_map, ty);
+
+        if !core_type_section.is_empty() {
+            encoded.section(&core_type_section);
+        }
+
+        if !type_section.is_empty() {
+            encoded.section(&type_section);
+            self.types += type_section.len();
+        }
+
+        self.import(encoded, name, url, ty)
     }
 
     fn encode_instance_import(
         &mut self,
-        context: &mut ImportEncodingContext<'a>,
+        encoded: &mut Component,
         name: &str,
         url: &str,
         exports: IndexMap<&'a str, (&'a str, &'a crate::graph::Component, ComponentEntityType)>,
@@ -1164,20 +1142,17 @@ impl<'a> CompositionGraphEncoder<'a> {
         let mut types = TypeMap::new();
         for (name, (url, component, ty)) in exports {
             let encoder = TypeEncoder::new(&component.types);
-            let ty = encoder.encodable_component_entity_type(&mut instance_type, &mut types, ty);
+            let ty = encoder.component_entity_type(&mut instance_type, &mut types, ty);
             instance_type.export(name, url, ty);
         }
 
         let index = self.types;
-        context.type_section.instance(&instance_type);
+        let mut type_section = ComponentTypeSection::new();
+        type_section.instance(&instance_type);
+        encoded.section(&type_section);
         self.types += 1;
 
-        self.import(
-            &mut context.import_section,
-            name,
-            url,
-            ComponentTypeRef::Instance(index),
-        )
+        self.import(encoded, name, url, ComponentTypeRef::Instance(index))
     }
 
     fn encode_instantiations(&mut self, encoded: &mut Component) -> Result<()> {
@@ -1306,11 +1281,14 @@ impl<'a> CompositionGraphEncoder<'a> {
 
     fn define_component_type(
         &mut self,
-        type_section: &mut ComponentTypeSection,
+        encoded: &mut Component,
         component: &crate::graph::Component,
     ) -> u32 {
-        let type_index = self.types;
+        let mut type_section = ComponentTypeSection::new();
         type_section.component(&component.ty());
+        encoded.section(&type_section);
+
+        let type_index = self.types;
         self.types += 1;
         type_index
     }
@@ -1398,7 +1376,7 @@ impl<'a> CompositionGraphEncoder<'a> {
 
     fn import(
         &mut self,
-        import_section: &mut ComponentImportSection,
+        encoded: &mut Component,
         name: &str,
         url: &str,
         ty: ComponentTypeRef,
@@ -1414,7 +1392,9 @@ impl<'a> CompositionGraphEncoder<'a> {
 
         log::debug!("importing {desc} with `{name}` (encoded index {count}) in composed component");
 
+        let mut import_section = ComponentImportSection::new();
         import_section.import(name, url, ty);
+        encoded.section(&import_section);
 
         let index = *count;
         *count += 1;
