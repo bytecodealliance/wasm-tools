@@ -1134,7 +1134,16 @@ impl ComponentState {
                     )?;
                 }
                 ComponentExternalKind::Type => {
-                    // Type arguments are ignored
+                    let ty = self.type_at(component_arg.index, false, offset)?;
+                    insert_arg(
+                        component_arg.name,
+                        ComponentEntityType::Type {
+                            referenced: ty,
+                            created: ty,
+                        },
+                        &mut args,
+                        offset,
+                    )?;
                 }
             }
         }
@@ -1149,13 +1158,13 @@ impl ComponentState {
                         | (ComponentEntityType::Component(_), ComponentEntityType::Component(_))
                         | (ComponentEntityType::Instance(_), ComponentEntityType::Instance(_))
                         | (ComponentEntityType::Func(_), ComponentEntityType::Func(_))
-                        | (ComponentEntityType::Value(_), ComponentEntityType::Value(_)) => {}
+                        | (ComponentEntityType::Value(_), ComponentEntityType::Value(_))
+                        | (ComponentEntityType::Type { .. }, ComponentEntityType::Type { .. }) => {}
                         _ => {
                             bail!(
                                 offset,
-                                "expected component instantiation argument \
-                                 `{name}` to be of type `{}`",
-                                expected.desc()
+                                "expected component instantiation argument `{name}` to be a {desc}",
+                                desc = expected.desc()
                             )
                         }
                     };
@@ -1163,8 +1172,7 @@ impl ComponentState {
                     if !ComponentEntityType::internal_is_subtype_of(arg, types, expected, types) {
                         bail!(
                             offset,
-                            "{} type mismatch for component instantiation argument `{name}`",
-                            expected.desc(),
+                            "type mismatch for component instantiation argument `{name}`"
                         );
                     }
                 }

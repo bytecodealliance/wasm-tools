@@ -1,0 +1,12 @@
+(component
+  (type (;0;) (tuple u32 u32))
+  (import "a" (type (eq 0)))
+  (component (;0;)
+    (type (;0;) (tuple u32 u32))
+    (import "a" (type (eq 0)))
+  )
+  (instance (;0;) (instantiate 0
+      (with "a" (type 1))
+    )
+  )
+)
