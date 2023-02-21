@@ -1457,9 +1457,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Type::Id(id) => match &self.resolve.types[id].kind {
                 TypeDefKind::Type(t) => self.lift(t),
                 TypeDefKind::List(element) => {
-                    if self.is_char(element)
-                        || self.bindgen.is_list_canonical(self.resolve, element)
-                    {
+                    if self.bindgen.is_list_canonical(self.resolve, element) {
                         self.emit(&ListCanonLift { element, ty: id });
                     } else {
                         self.push_block();
@@ -1981,17 +1979,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
             Int::U16 => Instruction::I32Store16 { offset },
             Int::U8 => Instruction::I32Store8 { offset },
         });
-    }
-
-    fn is_char(&self, ty: &Type) -> bool {
-        match ty {
-            Type::Char => true,
-            Type::Id(id) => match &self.resolve.types[*id].kind {
-                TypeDefKind::Type(t) => self.is_char(t),
-                _ => false,
-            },
-            _ => false,
-        }
     }
 
     fn deallocate(&mut self, ty: &Type, addr: B::Operand, offset: i32) {
