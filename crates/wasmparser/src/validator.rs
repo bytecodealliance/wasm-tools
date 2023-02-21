@@ -534,8 +534,7 @@ impl Validator {
                 if !self.features.component_model {
                     bail!(
                         range.start,
-                        "unknown binary version: {num:#x}, \
-                         note: the WebAssembly component model feature is not enabled",
+                        "encoded as a component but the WebAssembly component model feature is not enabled",
                     );
                 }
                 if num == WASM_COMPONENT_VERSION {
