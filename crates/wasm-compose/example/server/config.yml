@@ -4,4 +4,4 @@ search-paths:
 instantiations:
   $input:
     arguments:
-      backend: svc
+      downstream: svc

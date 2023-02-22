@@ -6,9 +6,10 @@ publish = false
 
 [dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }
-clap = { version = "3.2.16", features = ["derive"] }
+clap = { version = "3.2.23", features = ["derive"] }
 driftwood = "0.0.6"
 tide = "0.16.0"
-wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "b61e678", features = ["component-model"] }
+wasmtime = { version = "6.0.0", features = ["component-model"] }
+wasmtime-component-macro = "6.0.0"
 
 [workspace]
