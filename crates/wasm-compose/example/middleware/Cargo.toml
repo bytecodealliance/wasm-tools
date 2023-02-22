@@ -6,18 +6,12 @@ publish = false
 
 [dependencies]
 flate2 = "1.0.24"
-wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", default_features = false }
+wit-bindgen = { version = "0.3.0", default_features = false }
 
 [lib]
 crate-type = ["cdylib"]
 
 [package.metadata.component]
-direct-export = "service"
-
-[package.metadata.component.imports]
-backend = "../service.wit"
-
-[package.metadata.component.exports]
-service = "../service.wit"
+target = { path = "../service.wit", world = "service.middleware" }
 
 [workspace]

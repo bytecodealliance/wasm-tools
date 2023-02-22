@@ -19,31 +19,33 @@ The server will listen for `POST` requests at `http://localhost:8080`.
 When it receives a request, the server will instantiate a service component
 and forward it the request.
 
-Each component implements a `service` interface defined in `service.wit` as:
+Each service implements a `handler` interface defined in `service.wit` as:
 
 ```wit
-record request {
-    headers: list<tuple<list<u8>, list<u8>>>,
-    body: list<u8>,
-}
+interface handler {
+    record request {
+        headers: list<tuple<list<u8>, list<u8>>>,
+        body: list<u8>,
+    }
 
-record response {
-    headers: list<tuple<list<u8>, list<u8>>>,
-    body: list<u8>
-}
+    record response {
+        headers: list<tuple<list<u8>, list<u8>>>,
+        body: list<u8>
+    }
 
-enum error {
-    bad-request,
-}
+    enum error {
+        bad-request,
+    }
 
-execute: func(req: request) -> expected<response, error>
+    execute: func(req: request) -> result<response, error>
+}
 ```
 
-A service will be passed a `request` containing only the headers and body and
-respond with a `response` containing only the headers and body.
+A service handler will be passed a `request` containing only the headers and 
+body and respond with a `response` containing only the headers and body.
 
-Note that this is an overly-simplistic (and inefficient) interface for describing
-HTTP request processing.
+Note that this is an overly-simplistic (and inefficient) interface for 
+describing HTTP request processing.
 
 ### Execution flow
 
@@ -154,9 +156,9 @@ compressed.
 
 ## Composing with a middleware
 
-If we want to instead compress the response bodies for the service, we can easily
-compose a new component that sends requests through the `middleware` component
-without rebuilding any of the previously built components.
+If we want to instead compress the response bodies for the service, we can 
+easily compose a new component that sends requests through the `middleware` 
+component without rebuilding any of the previously built components.
 
 The `server/config.yml` file contains the configuration needed to compose a new
 component from the `service` and `middleware` components.

@@ -1,9 +1,9 @@
-use bindings::service::{Error, Request, Response, Service};
+use bindings::handler::{Error, Handler, Request, Response};
 use std::str;
 
 struct Component;
 
-impl Service for Component {
+impl Handler for Component {
     fn execute(req: Request) -> Result<Response, Error> {
         // The content should be plain text
         let content_type = req
@@ -11,7 +11,8 @@ impl Service for Component {
             .iter()
             .find(|(k, _)| k == b"content-type")
             .map(|(_, v)| v)
-            .ok_or_else(|| Error::BadRequest)?;
+            .ok_or(Error::BadRequest)?;
+
         if content_type != b"text/plain" {
             return Err(Error::BadRequest);
         }
