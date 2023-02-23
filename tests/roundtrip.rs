@@ -87,7 +87,12 @@ fn main() {
 /// then load up and test in parallel.
 fn find_tests() -> Vec<PathBuf> {
     let mut tests = Vec::new();
-    if !Path::new("tests/testsuite").exists() {
+    let test_suite = Path::new("tests/testsuite");
+    if !test_suite.exists()
+        || std::fs::read_dir(test_suite)
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(true)
+    {
         panic!("submodules need to be checked out");
     }
     find_tests("tests/local".as_ref(), &mut tests);
