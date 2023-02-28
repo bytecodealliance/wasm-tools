@@ -1187,13 +1187,13 @@ impl Validator {
             |components, _, count, offset| {
                 let current = components.last_mut().unwrap();
                 check_max(
-                    current.exports.len(),
+                    current.externs.len(),
                     count,
                     MAX_WASM_EXPORTS,
-                    "exports",
+                    "imports and exports",
                     offset,
                 )?;
-                current.exports.reserve(count as usize);
+                current.externs.reserve(count as usize);
                 Ok(())
             },
             |components, types, _, export, offset| {

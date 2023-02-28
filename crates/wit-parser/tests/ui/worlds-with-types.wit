@@ -28,5 +28,5 @@ world the-test {
   }
 
   import foo: func(a: a) -> b
-  export foo: func(a: a) -> b
+  export bar: func(a: a) -> b
 }

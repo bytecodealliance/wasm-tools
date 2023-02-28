@@ -835,6 +835,7 @@ impl Remap {
             resolving_stack: Default::default(),
             explicit_import_names: &explicit_import_names,
             explicit_export_names: &explicit_export_names,
+            names: Default::default(),
         };
         for (id, span) in imports {
             elaborate.import(id, span)?;
@@ -917,6 +918,7 @@ struct WorldElaborator<'a, 'b> {
     world: &'b mut World,
     explicit_import_names: &'a HashMap<InterfaceId, String>,
     explicit_export_names: &'a HashMap<InterfaceId, String>,
+    names: HashMap<String, bool>,
 
     /// Set of imports which are either imported into the world already or in
     /// the `stack` to get processed, used to ensure the same dependency isn't
@@ -966,13 +968,16 @@ impl<'a> WorldElaborator<'a, '_> {
         assert_eq!(self.resolving_stack.pop(), Some((id, import)));
 
         let name = self.name_of(id, import);
-        let set = if import {
-            &mut self.world.imports
-        } else {
-            &mut self.world.exports
-        };
-        let prev = set.insert(name.clone(), WorldItem::Interface(id));
+        let prev = self.names.insert(name.clone(), import);
+
         if prev.is_none() {
+            let set = if import {
+                &mut self.world.imports
+            } else {
+                &mut self.world.exports
+            };
+            let prev = set.insert(name.clone(), WorldItem::Interface(id));
+            assert!(prev.is_none());
             return Ok(());
         }
 
@@ -1001,8 +1006,7 @@ impl<'a> WorldElaborator<'a, '_> {
         }
         writeln!(
             msg,
-            "conflicts with a previously imported interface \
-                             using the name `{name}`",
+            "conflicts with a previous interface using the name `{name}`",
         )
         .unwrap();
         bail!(Error { span, msg })

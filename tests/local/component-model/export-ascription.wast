@@ -1,19 +1,19 @@
 (component
   (import "f" (func $f))
-  (export "f" (func $f) (func))
+  (export "f2" (func $f) (func))
 )
 
 ;; subtyping works
 (component
   (import "f" (instance $i (export "f" (func))))
-  (export "f" (instance $i) (instance))
+  (export "f2" (instance $i) (instance))
 )
 
 ;; make sure subtyping works in the right direction
 (assert_invalid
   (component
     (import "f" (instance $i))
-    (export "f" (instance $i) (instance (export "f" (func))))
+    (export "f2" (instance $i) (instance (export "f" (func))))
   )
   "ascribed type of export is not compatible")
 
@@ -24,7 +24,7 @@
 
     (component $c
       (import "f" (instance $i (export "f" (func))))
-      (export "f" (instance $i) (instance))
+      (export "f2" (instance $i) (instance))
     )
 
     (instance $c (instantiate $c (with "f" (instance (export "f" (func $f))))))
@@ -33,6 +33,6 @@
       (import "arg" (instance $i (export "f" (func))))
     )
 
-    (instance (instantiate $consume (with "arg" (instance $c "f"))))
+    (instance (instantiate $consume (with "arg" (instance $c "f2"))))
   )
   "type mismatch for component instantiation argument `arg`")

@@ -680,7 +680,11 @@ impl<'a> EncodingState<'a> {
             let ty = root.encode_func_type(resolve, func)?;
             let func_index = root.state.encode_lift(module, &core_name, func, ty)?;
             func_types.push(ty);
-            imports.push((func.name.as_str(), ComponentExportKind::Func, func_index));
+            imports.push((
+                format!("import-{}", func.name),
+                ComponentExportKind::Func,
+                func_index,
+            ));
         }
 
         // Next a nested component is created which will import the functions
@@ -701,9 +705,11 @@ impl<'a> EncodingState<'a> {
         // outer component.
         for ((_, func), ty) in resolve.interfaces[export].functions.iter().zip(func_types) {
             let ty = nested.component.alias_outer_type(1, ty);
-            nested
-                .component
-                .import(&func.name, "", ComponentTypeRef::Func(ty));
+            nested.component.import(
+                &format!("import-{}", func.name),
+                "",
+                ComponentTypeRef::Func(ty),
+            );
         }
 
         // Next the component reexports all of its imports, but notably uses the

@@ -1,3 +1,3 @@
 (component
-  (import "a" (instance (export "a" (func))))
+  (import "b" (instance (export "a" (func))))
 )

@@ -9,7 +9,7 @@
           (export (;3;) "a" (type (eq 2)))
         )
       )
-      (import "foo" "path:/dep/foo/foo" (instance (type 0)))
+      (import "foo2" "path:/dep/foo/foo" (instance (type 0)))
       (alias export 0 "ty" (type (;1;)))
       (type (;2;)
         (instance

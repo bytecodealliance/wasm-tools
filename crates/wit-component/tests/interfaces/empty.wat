@@ -14,7 +14,7 @@
           (type (;1;)
             (instance)
           )
-          (export (;0;) "empty" "pkg:/empty/empty" (instance (type 1)))
+          (export (;0;) "empty2" "pkg:/empty/empty" (instance (type 1)))
         )
       )
       (export (;0;) "empty-world" "pkg:/empty/empty-world" (component (type 1)))

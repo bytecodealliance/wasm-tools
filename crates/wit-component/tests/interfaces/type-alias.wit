@@ -7,5 +7,5 @@ interface foo {
 
 world my-world {
   import foo: self.foo
-  export foo: self.foo
+  export foo2: self.foo
 }

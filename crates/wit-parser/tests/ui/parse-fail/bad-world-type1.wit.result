@@ -1,4 +1,4 @@
-name `a` imported more than once
+import `a` conflicts with prior import of same name
      --> tests/ui/parse-fail/bad-world-type1.wit:3:10
       |
     3 |   import a: func()

@@ -163,7 +163,7 @@ impl<'a> ComponentInfo<'a> {
                 Extern::Import(import) => {
                     let ty = self
                         .types
-                        .component_entity_type_from_import(import)
+                        .component_entity_type_of_extern(import.name)
                         .unwrap();
                     let item = match ty {
                         types::ComponentEntityType::Instance(i) => {
@@ -219,7 +219,7 @@ impl<'a> ComponentInfo<'a> {
                 Extern::Export(export) => {
                     let ty = self
                         .types
-                        .component_entity_type_from_export(export)
+                        .component_entity_type_of_extern(export.name)
                         .unwrap();
                     let item = match ty {
                         types::ComponentEntityType::Func(i) => {

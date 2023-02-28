@@ -196,10 +196,11 @@ impl ComponentBuilder {
         inc(&mut self.components)
     }
 
-    pub fn instantiate_component<'a, A>(&mut self, component_index: u32, args: A) -> u32
+    pub fn instantiate_component<A, S>(&mut self, component_index: u32, args: A) -> u32
     where
-        A: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
+        A: IntoIterator<Item = (S, ComponentExportKind, u32)>,
         A::IntoIter: ExactSizeIterator,
+        S: AsRef<str>,
     {
         self.component_instances()
             .instantiate(component_index, args);

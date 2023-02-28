@@ -122,7 +122,7 @@
               (export (;10;) "typedef-inout" (func (type 23)))
             )
           )
-          (export (;0;) "records" "pkg:/records/records" (instance (type 1)))
+          (export (;0;) "records2" "pkg:/records/records" (instance (type 1)))
         )
       )
       (export (;0;) "records-world" "pkg:/records/records-world" (component (type 1)))

@@ -56,5 +56,5 @@ interface records {
 
 world records-world {
   import records: self.records
-  export records: self.records
+  export records2: self.records
 }

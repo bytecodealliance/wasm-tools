@@ -1,6 +1,6 @@
 import of `shared`
   .. which is depended on by export `a-name`
-conflicts with a previously imported interface using the name `shared`
+conflicts with a previous interface using the name `shared`
 
      --> tests/ui/parse-fail/world-same-fields4.wit:7:10
       |

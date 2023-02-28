@@ -3,7 +3,7 @@ interface empty {
 
 world empty-world {
   import empty: self.empty
-  export empty: self.empty
+  export empty2: self.empty
 }
 world actually-empty-world {
 }

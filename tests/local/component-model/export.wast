@@ -25,37 +25,37 @@
   (import "d" (value $v string))
   (import "e" (func $f))
 
-  (export "a" (instance $i))
-  (export "b" (core module $m))
-  (export "c" (component $c))
-  (export "d" (value $v))
-  (export "e" (func $f))
+  (export "f" (instance $i))
+  (export "g" (core module $m))
+  (export "h" (component $c))
+  (export "i" (value $v))
+  (export "j" (func $f))
 )
 
 (assert_invalid
   (component
     (import "a" (value $v string))
-    (export "a" (value $v))
     (export "b" (value $v))
+    (export "c" (value $v))
   )
   "cannot be used more than once")
 
 
 (component
   (import "a" (func))
-  (export "a" "https://example.com" (func 0))
+  (export "b" "https://example.com" (func 0))
 )
 
 ;; Empty URLs are treated as no URL
 (component
   (import "a" (func))
-  (export "a" "" (func 0))
+  (export "b" "" (func 0))
 )
 
 (assert_invalid
   (component
     (import "a" (func))
-    (export "a" "foo" (func 0))
+    (export "b" "foo" (func 0))
   )
   "relative URL without a base")
 

@@ -155,17 +155,17 @@
       (export "b" (func (param i32)))
     ))
 
-    (export "a" (func))
-    (export "e" (func (type $empty)))
-    (export "f" (func (param "f" s32)))
+    (export "m" (func))
+    (export "n" (func (type $empty)))
+    (export "o" (func (param "f" s32)))
 
-    (export "g" (instance
+    (export "p" (instance
       (export "a" (func))
       (export "b" (func (type $empty)))
       (export "c" (func (param "c" s32)))
     ))
 
-    (export "h" (core module
+    (export "q" (core module
       (type $empty (func))
       (import "" "a" (func (type $empty)))
       (import "" "b" (func (param i32)))

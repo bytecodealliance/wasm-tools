@@ -286,6 +286,6 @@
   (type (component
     (type string)
     (import "a" (type (eq 0)))
-    (export "a" (type (eq 0)))
+    (export "b" (type (eq 0)))
   ))
 )

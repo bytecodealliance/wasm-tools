@@ -1,4 +1,4 @@
-name `foo` imported more than once
+import `foo` conflicts with prior import of same name
      --> tests/ui/parse-fail/world-top-level-func.wit:3:10
       |
     3 |   import foo: func()

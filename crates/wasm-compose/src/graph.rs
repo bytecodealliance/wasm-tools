@@ -11,8 +11,8 @@ use std::{
 };
 use wasmparser::{
     types::{ComponentEntityType, ComponentInstanceType, Types, TypesRef},
-    Chunk, ComponentExport, ComponentExternalKind, ComponentImport, ComponentTypeRef, Encoding,
-    Parser, Payload, ValidPayload, Validator, WasmFeatures,
+    Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
+    Validator, WasmFeatures,
 };
 
 pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
@@ -262,32 +262,16 @@ impl<'a> Component<'a> {
         &self,
         index: ExportIndex,
     ) -> Option<(&str, &str, ComponentEntityType)> {
-        let (name, url, kind, index) = self.export(index)?;
-        Some((
-            name,
-            url,
-            self.types
-                .component_entity_type_from_export(&ComponentExport {
-                    name,
-                    url,
-                    kind,
-                    index,
-                    ty: None,
-                })?,
-        ))
+        let (name, url, _kind, _index) = self.export(index)?;
+        Some((name, url, self.types.component_entity_type_of_extern(name)?))
     }
 
     pub(crate) fn import_entity_type(
         &self,
         index: ImportIndex,
     ) -> Option<(&str, &str, ComponentEntityType)> {
-        let (name, url, ty) = self.import(index)?;
-        Some((
-            name,
-            url,
-            self.types
-                .component_entity_type_from_import(&ComponentImport { name, url, ty })?,
-        ))
+        let (name, url, _ty) = self.import(index)?;
+        Some((name, url, self.types.component_entity_type_of_extern(name)?))
     }
 
     /// Finds a compatible instance export on the component for the given instance type.
@@ -918,7 +902,7 @@ mod test {
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
-            b"(component (import \"x\" (func)) (export \"x\" (func 0)))".as_ref(),
+            b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -951,7 +935,7 @@ mod test {
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
-            b"(component (import \"x\" (func)) (export \"x\" (func 0)))".as_ref(),
+            b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -976,7 +960,7 @@ mod test {
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
-            b"(component (import \"x\" (func)) (export \"x\" (func 0)))".as_ref(),
+            b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1002,7 +986,7 @@ mod test {
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
-            b"(component (import \"x\" (func)) (export \"x\" (func 0)))".as_ref(),
+            b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;

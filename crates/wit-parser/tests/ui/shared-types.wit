@@ -2,7 +2,7 @@ world foo {
   import foo: interface {
     a: func() -> list<u8>
   }
-  export foo: interface {
+  export bar: interface {
     a: func() -> tuple<list<u8>>
   }
 }

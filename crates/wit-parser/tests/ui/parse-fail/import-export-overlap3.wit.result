@@ -1,0 +1,6 @@
+export of `a` conflicts with a previous interface using the name `a`
+
+     --> tests/ui/parse-fail/import-export-overlap3.wit:9:10
+      |
+    9 |   export a: interface {}
+      |          ^

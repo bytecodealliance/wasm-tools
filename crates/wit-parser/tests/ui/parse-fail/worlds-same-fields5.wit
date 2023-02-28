@@ -11,6 +11,6 @@ interface i3 {
 world test {
   import i1: interface {}
 
-  export i1: self.i1
-  export i3: self.i3
+  export i4: self.i1
+  export i5: self.i3
 }
