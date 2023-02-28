@@ -893,14 +893,6 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     }
 
     /// Checks a [`V128`] binary operator.
-    fn check_v128_relaxed_binary_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] binary operator.
     fn check_v128_unary_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::V128)?;
@@ -913,15 +905,8 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         self.check_v128_unary_op()
     }
 
-    /// Checks a [`V128`] binary operator.
-    fn check_v128_relaxed_unary_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
     /// Checks a [`V128`] relaxed ternary operator.
-    fn check_v128_relaxed_ternary_op(&mut self) -> Result<()> {
+    fn check_v128_ternary_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
         self.pop_operand(Some(ValType::V128))?;
         self.pop_operand(Some(ValType::V128))?;
@@ -2556,24 +2541,6 @@ where
     fn visit_f64x2_pmax(&mut self) -> Self::Output {
         self.check_v128_fbinary_op()
     }
-    fn visit_f32x4_relaxed_min(&mut self) -> Self::Output {
-        self.check_v128_relaxed_binary_op()
-    }
-    fn visit_f32x4_relaxed_max(&mut self) -> Self::Output {
-        self.check_v128_relaxed_binary_op()
-    }
-    fn visit_f64x2_relaxed_min(&mut self) -> Self::Output {
-        self.check_v128_relaxed_binary_op()
-    }
-    fn visit_f64x2_relaxed_max(&mut self) -> Self::Output {
-        self.check_v128_relaxed_binary_op()
-    }
-    fn visit_i16x8_relaxed_q15mulr_s(&mut self) -> Self::Output {
-        self.check_v128_relaxed_binary_op()
-    }
-    fn visit_i16x8_dot_i8x16_i7x16_s(&mut self) -> Self::Output {
-        self.check_v128_relaxed_binary_op()
-    }
     fn visit_i8x16_eq(&mut self) -> Self::Output {
         self.check_v128_binary_op()
     }
@@ -2997,18 +2964,6 @@ where
     fn visit_i32x4_extadd_pairwise_i16x8_u(&mut self) -> Self::Output {
         self.check_v128_unary_op()
     }
-    fn visit_i32x4_relaxed_trunc_sat_f32x4_s(&mut self) -> Self::Output {
-        self.check_v128_relaxed_unary_op()
-    }
-    fn visit_i32x4_relaxed_trunc_sat_f32x4_u(&mut self) -> Self::Output {
-        self.check_v128_relaxed_unary_op()
-    }
-    fn visit_i32x4_relaxed_trunc_sat_f64x2_s_zero(&mut self) -> Self::Output {
-        self.check_v128_relaxed_unary_op()
-    }
-    fn visit_i32x4_relaxed_trunc_sat_f64x2_u_zero(&mut self) -> Self::Output {
-        self.check_v128_relaxed_unary_op()
-    }
     fn visit_v128_bitselect(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::V128))?;
         self.pop_operand(Some(ValType::V128))?;
@@ -3016,35 +2971,68 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-    fn visit_f32x4_relaxed_fma(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+    fn visit_i8x16_relaxed_swizzle(&mut self) -> Self::Output {
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
     }
-    fn visit_f32x4_relaxed_fnma(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+    fn visit_i32x4_relaxed_trunc_f32x4_s(&mut self) -> Self::Output {
+        self.check_v128_unary_op()
     }
-    fn visit_f64x2_relaxed_fma(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+    fn visit_i32x4_relaxed_trunc_f32x4_u(&mut self) -> Self::Output {
+        self.check_v128_unary_op()
     }
-    fn visit_f64x2_relaxed_fnma(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+    fn visit_i32x4_relaxed_trunc_f64x2_s_zero(&mut self) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_i32x4_relaxed_trunc_f64x2_u_zero(&mut self) -> Self::Output {
+        self.check_v128_unary_op()
+    }
+    fn visit_f32x4_relaxed_madd(&mut self) -> Self::Output {
+        self.check_v128_ternary_op()
+    }
+    fn visit_f32x4_relaxed_nmadd(&mut self) -> Self::Output {
+        self.check_v128_ternary_op()
+    }
+    fn visit_f64x2_relaxed_madd(&mut self) -> Self::Output {
+        self.check_v128_ternary_op()
+    }
+    fn visit_f64x2_relaxed_nmadd(&mut self) -> Self::Output {
+        self.check_v128_ternary_op()
     }
     fn visit_i8x16_relaxed_laneselect(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+        self.check_v128_ternary_op()
     }
     fn visit_i16x8_relaxed_laneselect(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+        self.check_v128_ternary_op()
     }
     fn visit_i32x4_relaxed_laneselect(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+        self.check_v128_ternary_op()
     }
     fn visit_i64x2_relaxed_laneselect(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+        self.check_v128_ternary_op()
     }
-    fn visit_i32x4_dot_i8x16_i7x16_add_s(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+    fn visit_f32x4_relaxed_min(&mut self) -> Self::Output {
+        self.check_v128_binary_op()
     }
-    fn visit_f32x4_relaxed_dot_bf16x8_add_f32x4(&mut self) -> Self::Output {
-        self.check_v128_relaxed_ternary_op()
+    fn visit_f32x4_relaxed_max(&mut self) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_f64x2_relaxed_min(&mut self) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_f64x2_relaxed_max(&mut self) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_relaxed_q15mulr_s(&mut self) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i16x8_relaxed_dot_i8x16_i7x16_s(&mut self) -> Self::Output {
+        self.check_v128_binary_op()
+    }
+    fn visit_i32x4_relaxed_dot_i8x16_i7x16_add_s(&mut self) -> Self::Output {
+        self.check_v128_ternary_op()
     }
     fn visit_v128_any_true(&mut self) -> Self::Output {
         self.check_v128_bitmask_op()
@@ -3110,12 +3098,6 @@ where
         self.check_v128_shift_op()
     }
     fn visit_i8x16_swizzle(&mut self) -> Self::Output {
-        self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-    fn visit_i8x16_relaxed_swizzle(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::V128))?;
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::V128)?;

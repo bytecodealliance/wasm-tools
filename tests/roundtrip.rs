@@ -135,9 +135,8 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/try_delegate.wast",
         "exception-handling/try_catch.wast",
         "exception-handling/throw.wast",
-        // TODO: This references an instruction which has since been removed
-        // from the proposal so the test needs an update.
-        "relaxed-simd/relaxed_fma_fms.wast",
+        // Blocked on WebAssembly/testsuite being updated
+        "relaxed-simd/relaxed_dot_product.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;

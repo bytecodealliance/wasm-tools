@@ -1,0 +1,4 @@
+(module
+  (import "exporter" "table" (table $t (;0;) 2 externref))
+  (elem (;0;) (i32.const 0) externref (ref.null extern))
+)
