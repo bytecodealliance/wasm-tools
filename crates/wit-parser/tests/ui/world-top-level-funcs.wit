@@ -1,6 +1,6 @@
 world foo {
   import foo: func()
-  export foo: func()
+  export foo2: func()
 
   import bar: func(arg: list<u32>)
   export some-name: func() -> list<option<u32>>

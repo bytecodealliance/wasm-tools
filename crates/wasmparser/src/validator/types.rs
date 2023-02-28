@@ -2,8 +2,8 @@
 
 use super::{component::ComponentState, core::Module};
 use crate::{
-    ComponentExport, ComponentImport, Export, ExternalKind, FuncType, GlobalType, Import,
-    MemoryType, PrimitiveValType, RefType, TableType, TypeRef, ValType,
+    Export, ExternalKind, FuncType, GlobalType, Import, MemoryType, PrimitiveValType, RefType,
+    TableType, TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -1615,29 +1615,12 @@ impl<'a> TypesRef<'a> {
     }
 
     /// Gets the component entity type for the given component import.
-    pub fn component_entity_type_from_import(
-        &self,
-        import: &ComponentImport,
-    ) -> Option<ComponentEntityType> {
+    pub fn component_entity_type_of_extern(&self, name: &str) -> Option<ComponentEntityType> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => {
-                let key = KebabStr::new(import.name)?;
-                Some(component.imports.get(key)?.1)
-            }
-        }
-    }
-
-    /// Gets the component entity type from the given component export.
-    pub fn component_entity_type_from_export(
-        &self,
-        export: &ComponentExport,
-    ) -> Option<ComponentEntityType> {
-        match &self.kind {
-            TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => {
-                let key = KebabStr::new(export.name)?;
-                Some(component.exports.get(key)?.1)
+                let key = KebabStr::new(name)?;
+                Some(component.externs.get(key)?.1)
             }
         }
     }
@@ -1900,20 +1883,10 @@ impl Types {
         self.as_ref().entity_type_from_export(export)
     }
 
-    /// Gets the component entity type for the given component import.
-    pub fn component_entity_type_from_import(
-        &self,
-        import: &ComponentImport,
-    ) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_from_import(import)
-    }
-
-    /// Gets the component entity type from the given component export.
-    pub fn component_entity_type_from_export(
-        &self,
-        export: &ComponentExport,
-    ) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_from_export(export)
+    /// Gets the component entity type for the given component import or export
+    /// name.
+    pub fn component_entity_type_of_extern(&self, name: &str) -> Option<ComponentEntityType> {
+        self.as_ref().component_entity_type_of_extern(name)
     }
 
     /// Attempts to lookup the type id that `ty` is an alias of.

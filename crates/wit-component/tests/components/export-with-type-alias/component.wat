@@ -13,7 +13,7 @@
   (func (;0;) (type 1) (canon lift (core func 0)))
   (component (;0;)
     (alias outer 1 1 (type (;0;)))
-    (import "c" (func (;0;) (type 0)))
+    (import "import-c" (func (;0;) (type 0)))
     (type (;1;) u8)
     (export (;2;) "a" (type 1))
     (export (;3;) "b" (type 2))
@@ -21,7 +21,7 @@
     (export (;1;) "c" (func 0) (func (type 4)))
   )
   (instance (;0;) (instantiate 0
-      (with "c" (func 0))
+      (with "import-c" (func 0))
     )
   )
   (export (;1;) "foo" (instance 0))

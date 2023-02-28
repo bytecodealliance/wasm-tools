@@ -1,9 +1,9 @@
 world foo {
   import foo: func()
-  export foo: func()
+  export foo2: func()
 
   import bar: func(arg: u32)
-  export bar: func() -> u32
+  export bar2: func() -> u32
 
   import some-interface: interface {}
   export another-interface: interface {}

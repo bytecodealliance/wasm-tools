@@ -65,9 +65,9 @@
     (export "b" (core module))
     (export "c" (instance))
   ))
-  (export "a" (func $i "a"))
-  (export "b" (core module $i "b"))
-  (export "c" (instance $i "c"))
+  (export "b" (func $i "a"))
+  (export "c" (core module $i "b"))
+  (export "d" (instance $i "c"))
 )
 
 (component

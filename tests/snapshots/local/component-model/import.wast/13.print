@@ -1,4 +1,4 @@
 (component
   (import "a" (value (;0;) string))
-  (export (;1;) "a" (value 0))
+  (export (;1;) "b" (value 0))
 )

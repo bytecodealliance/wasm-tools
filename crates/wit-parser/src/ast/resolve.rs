@@ -406,9 +406,20 @@ impl<'a> Resolver<'a> {
 
         let mut export_spans = Vec::new();
         let mut import_spans = Vec::new();
+        let mut used_names = HashMap::new();
         for (name, (item, span)) in self.type_lookup.iter() {
             match *item {
                 TypeOrItem::Type(id) => {
+                    let prev = used_names.insert(*name, "import");
+                    if let Some(prev) = prev {
+                        return Err(Error {
+                            span: *span,
+                            msg: format!(
+                                "import `{name}` conflicts with prior {prev} of same name",
+                            ),
+                        }
+                        .into());
+                    }
                     self.worlds[world_id]
                         .imports
                         .insert(name.to_string(), WorldItem::Type(id));
@@ -421,67 +432,57 @@ impl<'a> Resolver<'a> {
         let mut imported_interfaces = HashMap::new();
         let mut exported_interfaces = HashMap::new();
         for item in world.items.iter() {
-            match item {
+            let (name, kind, desc, spans, interfaces) = match item {
                 // handled in `resolve_types`
-                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) => {}
+                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) => continue,
 
-                ast::WorldItem::Import(import) => {
-                    let item = self.resolve_world_item(import.name.name, document, &import.kind)?;
-                    if let WorldItem::Interface(id) = item {
-                        if imported_interfaces.insert(id, import.name.name).is_some() {
-                            return Err(Error {
-                                span: import.name.span,
-                                msg: format!(
-                                    "interface `{name}` imported more than once",
-                                    name = import.name.name
-                                ),
-                            }
-                            .into());
-                        }
-                    }
-                    let imports = &mut self.worlds[world_id].imports;
-                    let prev = imports.insert(import.name.name.to_string(), item);
-                    if prev.is_some() {
-                        return Err(Error {
-                            span: import.name.span,
-                            msg: format!(
-                                "name `{name}` imported more than once",
-                                name = import.name.name
-                            ),
-                        }
-                        .into());
-                    }
-                    import_spans.push(import.name.span);
+                ast::WorldItem::Import(import) => (
+                    &import.name,
+                    &import.kind,
+                    "import",
+                    &mut import_spans,
+                    &mut imported_interfaces,
+                ),
+                ast::WorldItem::Export(export) => (
+                    &export.name,
+                    &export.kind,
+                    "export",
+                    &mut export_spans,
+                    &mut exported_interfaces,
+                ),
+            };
+            let prev = used_names.insert(name.name, desc);
+            if let Some(prev) = prev {
+                return Err(Error {
+                    span: name.span,
+                    msg: format!(
+                        "{desc} `{name}` conflicts with prior {prev} of same name",
+                        name = name.name
+                    ),
                 }
-                ast::WorldItem::Export(export) => {
-                    let item = self.resolve_world_item(export.name.name, document, &export.kind)?;
-                    if let WorldItem::Interface(id) = item {
-                        if exported_interfaces.insert(id, export.name.name).is_some() {
-                            return Err(Error {
-                                span: export.name.span,
-                                msg: format!(
-                                    "interface `{name}` cannot be exported more than once",
-                                    name = export.name.name
-                                ),
-                            }
-                            .into());
-                        }
+                .into());
+            }
+            let world_item = self.resolve_world_item(name.name, document, kind)?;
+            if let WorldItem::Interface(id) = world_item {
+                if interfaces.insert(id, name.name).is_some() {
+                    return Err(Error {
+                        span: name.span,
+                        msg: format!(
+                            "interface `{name}` cannot be {desc}ed more than once",
+                            name = name.name
+                        ),
                     }
-                    let exports = &mut self.worlds[world_id].exports;
-                    let prev = exports.insert(export.name.name.to_string(), item);
-                    if prev.is_some() {
-                        return Err(Error {
-                            span: export.name.span,
-                            msg: format!(
-                                "name `{name}` exported more than once",
-                                name = export.name.name
-                            ),
-                        }
-                        .into());
-                    }
-                    export_spans.push(export.name.span);
+                    .into());
                 }
             }
+            let dst = if desc == "import" {
+                &mut self.worlds[world_id].imports
+            } else {
+                &mut self.worlds[world_id].exports
+            };
+            let prev = dst.insert(name.name.to_string(), world_item);
+            assert!(prev.is_none());
+            spans.push(name.span);
         }
         self.world_spans.push((import_spans, export_spans));
         self.type_lookup.clear();

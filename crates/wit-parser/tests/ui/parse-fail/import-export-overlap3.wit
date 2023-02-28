@@ -1,0 +1,11 @@
+interface a {
+  type t = u32
+}
+
+world foo {
+  import b: interface {
+    use self.a.{t}
+  }
+  export a: interface {}
+}
+

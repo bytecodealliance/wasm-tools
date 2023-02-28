@@ -9,5 +9,5 @@
   (type (;1;)
     (instance)
   )
-  (export (;1;) "f" (instance $i) (instance (type 1)))
+  (export (;1;) "f2" (instance $i) (instance (type 1)))
 )

@@ -27,7 +27,7 @@
           (export (;1;) "the-type" (type (eq 0)))
         )
       )
-      (import "b" "pkg:/b/b" (instance (type 0)))
+      (import "b2" "pkg:/b/b" (instance (type 0)))
       (alias export 0 "the-type" (type (;1;)))
       (type (;2;)
         (instance
@@ -35,7 +35,7 @@
           (export (;1;) "the-type" (type (eq 0)))
         )
       )
-      (import "a" "pkg:/b/a" (instance (type 2)))
+      (import "a2" "pkg:/b/a" (instance (type 2)))
       (alias export 1 "the-type" (type (;3;)))
       (type (;4;)
         (instance

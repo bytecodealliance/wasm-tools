@@ -63,6 +63,6 @@
     (instance)
   )
   (import "x" (instance (;5;) (type 7)))
-  (export (;6;) "c" (instance 5))
-  (export (;7;) "d" (instance 5))
+  (export (;6;) "j" (instance 5))
+  (export (;7;) "k" (instance 5))
 )

@@ -3,7 +3,7 @@
   (import "a" (value (;0;) (type $t)))
   (component $c (;0;)
     (import "a" (value (;0;) string))
-    (export (;1;) "a" (value 0))
+    (export (;1;) "b" (value 0))
   )
   (instance (;0;) (instantiate $c
       (with "a" (value 0))

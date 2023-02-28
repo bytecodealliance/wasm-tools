@@ -1,6 +1,6 @@
 import of `shared`
   .. which is depended on by import `b`
-conflicts with a previously imported interface using the name `shared`
+conflicts with a previous interface using the name `shared`
 
      --> tests/ui/parse-fail/bad-diamond/join.wit:3:10
       |

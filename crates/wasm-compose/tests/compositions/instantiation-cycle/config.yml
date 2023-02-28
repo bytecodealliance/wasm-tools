@@ -1,12 +1,12 @@
 instantiations:
   $input:
     arguments:
-      a: a1
+      b: a1
   a1:
     dependency: a
     arguments:
-      a: a2
+      b: a2
   a2:
     dependency: a
     arguments:
-      a: a1
+      b: a1

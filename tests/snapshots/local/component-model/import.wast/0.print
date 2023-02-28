@@ -19,7 +19,7 @@
       )
       (import "a" (core module (type 0)))
       (type (;0;) (func))
-      (export (;0;) "a" (func (type 0)))
+      (export (;0;) "b" (func (type 0)))
     )
   )
   (import "d" (component (;0;) (type 3)))

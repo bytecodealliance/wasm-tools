@@ -14,6 +14,6 @@
     ))
   ))
 
-  (export "one" (value $v))
+  (export "four" (value $v))
   ;; ...
 )

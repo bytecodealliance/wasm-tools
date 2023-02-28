@@ -3,7 +3,7 @@
     (component
       (type (;0;) string)
       (import "a" (type (eq 0)))
-      (export (;1;) "a" (type (eq 0)))
+      (export (;1;) "b" (type (eq 0)))
     )
   )
 )

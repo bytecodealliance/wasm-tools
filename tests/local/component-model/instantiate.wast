@@ -76,7 +76,7 @@
 (component
   (type $t string)
   (import "a" (value (type $t)))
-  (component $c (import "a" (value string)) (export "a" (value 0)))
+  (component $c (import "a" (value string)) (export "b" (value 0)))
   (instance (instantiate $c (with "a" (value 0))))
 )
 
@@ -129,7 +129,7 @@
   (instance (import "h"))
   (instance (import "i")
     (export "x" (func)))
-  (instance (export "c") (export "d") (import "x"))
+  (instance (export "j") (export "k") (import "x"))
 )
 
 (assert_invalid

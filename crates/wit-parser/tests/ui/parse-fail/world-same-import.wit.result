@@ -1,4 +1,4 @@
-interface `bar` imported more than once
+interface `bar` cannot be imported more than once
      --> tests/ui/parse-fail/world-same-import.wit:5:10
       |
     5 |   import bar: self.foo

@@ -41,7 +41,7 @@
 (component
   (import "a" (func $f (result string)))
   (start $f (result (value $a)))
-  (export "a" (value $a))
+  (export "b" (value $a))
 )
 
 (component
@@ -49,8 +49,8 @@
   (import "b" (value $v string))
   (import "c" (value $v2 string))
   (start $f (value $v) (value $v2) (result (value $c)) (result (value $d)))
-  (export "a" (value $c))
-  (export "b" (value $d))
+  (export "d" (value $c))
+  (export "e" (value $d))
 )
 
 (assert_invalid

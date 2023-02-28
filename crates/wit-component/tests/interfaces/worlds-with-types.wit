@@ -5,7 +5,7 @@ world simple {
   type bar = foo
 
   import a: func(a: foo) -> bar
-  export a: func(a: foo) -> bar
+  export b: func(a: foo) -> bar
 }
 
 interface import-me {
@@ -16,5 +16,5 @@ world with-imports {
   use self.import-me.{foo}
 
   import a: func(a: foo)
-  export a: func(a: foo)
+  export b: func(a: foo)
 }

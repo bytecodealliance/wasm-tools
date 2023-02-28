@@ -11,6 +11,6 @@ world foo {
   import bar: func(arg: u32)
   export another-interface: interface {
   }
-  export foo: func()
-  export bar: func() -> u32
+  export foo2: func()
+  export bar2: func() -> u32
 }

@@ -6,7 +6,7 @@
   ))
   (import "d" (component
     (import "a" (core module))
-    (export "a" (func))
+    (export "b" (func))
   ))
   (type $t (func))
   (import "e" (type (eq $t)))
@@ -105,7 +105,7 @@
 
 (component
   (import "a" (value string))
-  (export "a" (value 0))
+  (export "b" (value 0))
 )
 
 (component
@@ -129,3 +129,10 @@
     (import "b" "https://example.com" (func))
   )
   "duplicate import URL `https://example.com/`")
+
+(assert_invalid
+  (component
+    (import "a" (func $a))
+    (export "a" (func $a))
+  )
+  "export name `a` conflicts with previous import name `a`")

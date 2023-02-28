@@ -1,4 +1,4 @@
-name `foo` imported more than once
+import `foo` conflicts with prior import of same name
      --> tests/ui/parse-fail/world-same-fields2.wit:5:10
       |
     5 |   import foo: interface {}

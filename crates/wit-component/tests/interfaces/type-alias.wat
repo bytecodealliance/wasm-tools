@@ -32,7 +32,7 @@
               (export (;0;) "f" (func (type 3)))
             )
           )
-          (export (;0;) "foo" "pkg:/type-alias/foo" (instance (type 1)))
+          (export (;0;) "foo2" "pkg:/type-alias/foo" (instance (type 1)))
         )
       )
       (export (;0;) "my-world" "pkg:/type-alias/my-world" (component (type 1)))

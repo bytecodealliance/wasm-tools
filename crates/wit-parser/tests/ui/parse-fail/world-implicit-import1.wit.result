@@ -1,4 +1,4 @@
-import of `foo` conflicts with a previously imported interface using the name `foo`
+import of `foo` conflicts with a previous interface using the name `foo`
 
      --> tests/ui/parse-fail/world-implicit-import1.wit:9:10
       |

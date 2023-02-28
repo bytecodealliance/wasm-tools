@@ -73,12 +73,23 @@ impl Encoder<'_> {
             self.add_live_interfaces(&mut interfaces, *id);
         }
 
+        // Seed the set of used names with all exported interfaces to ensure
+        // that imported interfaces choose different names as the import names
+        // aren't used during decoding.
+        let mut used_names = IndexSet::new();
+        for id in interfaces.iter() {
+            let iface = &self.resolve.interfaces[*id];
+            if iface.document == doc {
+                let first = used_names.insert(iface.name.as_ref().unwrap().clone());
+                assert!(first);
+            }
+        }
+
         // Encode all interfaces, foreign and local, into this component type.
         // Local interfaces get their functions defined as well and are
         // exported. Foreign interfaces are imported and only have their types
         // encoded.
         let mut encoder = InterfaceEncoder::new(self.resolve);
-        let mut import_names = IndexSet::new();
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
@@ -100,13 +111,13 @@ impl Encoder<'_> {
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
 
-                let import_name = if import_names.insert(name.clone()) {
+                let import_name = if used_names.insert(name.clone()) {
                     name.clone()
                 } else {
                     let mut i = 2;
                     loop {
                         let name = format!("{name}{i}");
-                        if import_names.insert(name.clone()) {
+                        if used_names.insert(name.clone()) {
                             break name;
                         }
                         i += 1;

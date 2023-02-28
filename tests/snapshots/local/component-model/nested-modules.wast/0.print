@@ -13,7 +13,7 @@
     (core module $m (;0;))
     (type (;0;) (func (param "p" string)))
     (import "a" (func (;0;) (type 0)))
-    (export (;1;) "a" (core module $m))
+    (export (;1;) "b" (core module $m))
   )
   (export (;4;) "x" (core module 3))
 )

@@ -1,4 +1,4 @@
-name `foo` exported more than once
+export `foo` conflicts with prior export of same name
      --> tests/ui/parse-fail/world-same-fields3.wit:5:10
       |
     5 |   export foo: interface {}

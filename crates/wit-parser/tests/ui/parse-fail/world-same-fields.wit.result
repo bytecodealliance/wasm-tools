@@ -1,4 +1,4 @@
-name `foo` imported more than once
+import `foo` conflicts with prior import of same name
      --> tests/ui/parse-fail/world-same-fields.wit:8:10
       |
     8 |   import foo: self.bar
