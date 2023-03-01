@@ -560,13 +560,15 @@ impl<'a> Resolver<'a> {
             match field {
                 ast::InterfaceItem::Value(value) => {
                     let docs = self.docs(&value.docs);
+                    let name = value.name();
+                    let span = value.span();
                     match &value.kind {
                         ValueKind::Func(func) => {
-                            self.define_interface_name(&value.name, TypeOrItem::Item("function"))?;
-                            let func = self.resolve_function(docs, value.name.name, func)?;
+                            self.define_interface_name(name, span, TypeOrItem::Item("function"))?;
+                            let func = self.resolve_function(docs, name, func)?;
                             let prev = self.interfaces[interface_id]
                                 .functions
-                                .insert(value.name.name.to_string(), func);
+                                .insert(name.to_string(), func);
                             assert!(prev.is_none());
                         }
                     }
@@ -646,7 +648,9 @@ impl<'a> Resolver<'a> {
                 name: Some(def.name.name.to_string()),
                 owner,
             });
-            self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
+            let name = def.name.name;
+            let span = def.name.span;
+            self.define_interface_name(name, span, TypeOrItem::Type(id))?;
         }
         Ok(())
     }
@@ -675,7 +679,7 @@ impl<'a> Resolver<'a> {
                 name: Some(name.name.to_string()),
                 owner,
             });
-            self.define_interface_name(name, TypeOrItem::Type(id))?;
+            self.define_interface_name(name.name, name.span, TypeOrItem::Type(id))?;
         }
         Ok(())
     }
@@ -752,12 +756,12 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn define_interface_name(&mut self, name: &ast::Id<'a>, item: TypeOrItem) -> Result<()> {
-        let prev = self.type_lookup.insert(name.name, (item, name.span));
+    fn define_interface_name(&mut self, name: &'a str, span: Span, item: TypeOrItem) -> Result<()> {
+        let prev = self.type_lookup.insert(name, (item, span));
         if prev.is_some() {
             Err(Error {
-                span: name.span,
-                msg: format!("name `{}` is defined more than once", name.name),
+                span,
+                msg: format!("name `{}` is defined more than once", name),
             }
             .into())
         } else {
