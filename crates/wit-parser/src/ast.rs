@@ -8,6 +8,9 @@ use std::path::{Path, PathBuf};
 
 pub mod lex;
 
+pub use expand::expand;
+mod expand;
+
 pub use resolve::Resolver;
 mod resolve;
 pub mod toposort;
