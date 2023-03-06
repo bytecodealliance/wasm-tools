@@ -111,7 +111,7 @@ impl SizeAlign {
     ) -> (usize, usize) {
         let (discrim_size, discrim_align) = int_size_align(tag);
         let mut case_size = 0;
-        let mut case_align = 0;
+        let mut case_align = 1;
         for ty in types {
             if let Some(ty) = ty {
                 case_size = case_size.max(self.size(ty));
