@@ -69,7 +69,24 @@ impl<'a> Parse<'a> for Table<'a> {
                 } else {
                     None
                 };
-                ElemPayload::parse_tail(parser, ty)
+                // TODO(dhil): document this hack.
+                let payload = ElemPayload::parse_tail(parser, ty);
+                match elem {
+                    rt @ RefType { heap: HeapType::Index(_), .. } => {
+                        match payload? {
+                            ElemPayload::Indices(indices) if indices.len() == 1 => {
+                                Ok(ElemPayload::Exprs {
+                                    ty: rt,
+                                    exprs: vec![Expression {
+                                        instrs: Box::new([Instruction::RefFunc(*indices.get(0).unwrap())]),
+                                    }]
+                                })
+                            }
+                            payload => Ok(payload),
+                        }
+                    }
+                    _ => payload
+                }
             })?;
             TableKind::Inline { elem, payload }
         } else if l.peek::<u32>() {
