@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.26"
+version = "1.0.27"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
@@ -52,8 +52,8 @@ wasmparser = { version = "0.102.0", path = "crates/wasmparser" }
 wasmprinter = { version = "0.2.53", path = "crates/wasmprinter" }
 wast = { version = "55.0.0", path = "crates/wast" }
 wat = { version = "1.0.61", path = "crates/wat" }
-wit-component = { version = "0.7.2", path = "crates/wit-component" }
-wit-parser = { version = "0.6.3", path = "crates/wit-parser" }
+wit-component = { version = "0.7.3", path = "crates/wit-component" }
+wit-parser = { version = "0.6.4", path = "crates/wit-parser" }
 
 [dependencies]
 anyhow = { workspace = true }
