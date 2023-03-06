@@ -25,7 +25,7 @@ fuzz_target!(|data: &[u8]| {
             Ok(id) => id,
             Err(e) => {
                 let err = e.to_string();
-                if err.contains("conflicts with a previously")
+                if err.contains("conflicts with a previous")
                     || err.contains("shadows previously imported")
                 {
                     return;
@@ -440,7 +440,6 @@ mod generate {
             }
 
             let mut parts = Vec::new();
-            let mut exports = HashSet::new();
             let mut imported_interfaces = HashSet::new();
             let mut exported_interfaces = HashSet::new();
 
@@ -456,7 +455,7 @@ mod generate {
                 let mut part = String::new();
                 let name = match direction {
                     Some(Direction::Import) | None => gen_unique_name(u, &mut self.unique_names)?,
-                    Some(Direction::Export) => gen_unique_name(u, &mut exports)?,
+                    Some(Direction::Export) => gen_unique_name(u, &mut self.unique_names)?,
                 };
                 if let Some(dir) = direction {
                     part.push_str(match dir {
