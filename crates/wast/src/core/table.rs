@@ -47,6 +47,27 @@ pub enum TableKind<'a> {
     },
 }
 
+fn possibly_backpatch<'a>(payload: ElemPayload<'a>, elem: RefType<'a>) -> ElemPayload<'a> {
+    // TODO(dhil): document this hack.
+    match elem {
+        rt @ RefType { heap: HeapType::Index(_), .. } => {
+            match payload {
+                ElemPayload::Indices(indices) => {
+                    let instrs = indices.iter().map(|i| { Instruction::RefFunc(*i) }).collect();
+                    ElemPayload::Exprs {
+                        ty: rt,
+                        exprs: vec![Expression {
+                            instrs,
+                        }]
+                    }
+                }
+                payload => payload,
+            }
+        }
+        _ => payload
+    }
+}
+
 impl<'a> Parse<'a> for Table<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::table>()?.0;
@@ -69,24 +90,8 @@ impl<'a> Parse<'a> for Table<'a> {
                 } else {
                     None
                 };
-                // TODO(dhil): document this hack.
-                let payload = ElemPayload::parse_tail(parser, ty);
-                match elem {
-                    rt @ RefType { heap: HeapType::Index(_), .. } => {
-                        match payload? {
-                            ElemPayload::Indices(indices) if indices.len() == 1 => {
-                                Ok(ElemPayload::Exprs {
-                                    ty: rt,
-                                    exprs: vec![Expression {
-                                        instrs: Box::new([Instruction::RefFunc(*indices.get(0).unwrap())]),
-                                    }]
-                                })
-                            }
-                            payload => Ok(payload),
-                        }
-                    }
-                    _ => payload
-                }
+                let payload = ElemPayload::parse_tail(parser, ty)?;
+                Ok(possibly_backpatch(payload, elem))
             })?;
             TableKind::Inline { elem, payload }
         } else if l.peek::<u32>() {
