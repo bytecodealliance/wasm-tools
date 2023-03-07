@@ -47,27 +47,6 @@ pub enum TableKind<'a> {
     },
 }
 
-fn possibly_backpatch<'a>(payload: ElemPayload<'a>, elem: RefType<'a>) -> ElemPayload<'a> {
-    // TODO(dhil): document this hack.
-    match elem {
-        rt @ RefType { heap: HeapType::Index(_), .. } => {
-            match payload {
-                ElemPayload::Indices(indices) => {
-                    let instrs = indices.iter().map(|i| { Instruction::RefFunc(*i) }).collect();
-                    ElemPayload::Exprs {
-                        ty: rt,
-                        exprs: vec![Expression {
-                            instrs,
-                        }]
-                    }
-                }
-                payload => payload,
-            }
-        }
-        _ => payload
-    }
-}
-
 impl<'a> Parse<'a> for Table<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::table>()?.0;
@@ -85,13 +64,12 @@ impl<'a> Parse<'a> for Table<'a> {
             let elem = parser.parse()?;
             let payload = parser.parens(|p| {
                 p.parse::<kw::elem>()?;
-                let ty = if parser.peek::<LParen>() {
-                    Some(elem)
-                } else {
-                    None
+                let ty = match elem {
+                    rt @ RefType { heap: HeapType::Index(_), .. } => Some(rt),
+                    elem if parser.peek::<LParen>() => Some(elem),
+                    _ => None,
                 };
-                let payload = ElemPayload::parse_tail(parser, ty)?;
-                Ok(possibly_backpatch(payload, elem))
+                Ok(ElemPayload::parse_tail(parser, ty)?)
             })?;
             TableKind::Inline { elem, payload }
         } else if l.peek::<u32>() {
@@ -225,39 +203,65 @@ impl<'a> Parse<'a> for ElemPayload<'a> {
 
 impl<'a> ElemPayload<'a> {
     fn parse_tail(parser: Parser<'a>, ty: Option<RefType<'a>>) -> Result<Self> {
-        let (must_use_indices, ty) = match ty {
+
+        // We are in the middle of parsing an element
+        // (elem XXXX indices/expressions)
+        //       ^^^^
+        //       | we are here. We use the provided context `ty` + parser lookahead to learn which
+        //         abbreviation notation we are currently parsing.
+        match ty {
             None => {
+                // case: "XXXX" is "func", we expect to parse a list
+                // of untyped function references indices.
                 parser.parse::<Option<kw::func>>()?;
-                (true, RefType::func())
-            }
-            Some(ty) => (false, ty),
-        };
-        if let HeapType::Func = ty.heap {
-            if must_use_indices || parser.peek::<Index<'_>>() {
                 let mut elems = Vec::new();
                 while !parser.is_empty() {
                     elems.push(parser.parse()?);
                 }
-                return Ok(ElemPayload::Indices(elems));
+                Ok(ElemPayload::Indices(elems))
+            }
+            Some(RefType { heap: HeapType::Func, .. }) if parser.peek::<Index<'_>>() => {
+                // case: "XXXX" is the empty string. The context tells
+                // us to expect a list of untyped function references.
+                let mut elems = Vec::new();
+                while !parser.is_empty() {
+                    elems.push(parser.parse()?);
+                }
+                Ok(ElemPayload::Indices(elems))
+            }
+            Some(ty @ RefType { heap: HeapType::Index(_), .. }) if parser.peek::<Index<'_>>() => {
+                // case: "XXXX" is the empty string. The context tells
+                // us to expect a list of typeful function references.
+                let mut instrs = Vec::new();
+                while !parser.is_empty() {
+                    instrs.push(Instruction::RefFunc(parser.parse()?));
+                }
+                Ok(ElemPayload::Exprs {
+                    ty,
+                    exprs: vec![Expression { instrs:instrs.into() }] })
+            }
+            Some(ty) => {
+                // default case: "XXXX" is the empty string. We expect
+                // to parse a list of constant expressions.
+                let mut exprs = Vec::new();
+                while !parser.is_empty() {
+                    let expr = parser.parens(|parser| {
+                        if parser.peek::<kw::item>() {
+                            parser.parse::<kw::item>()?;
+                            parser.parse()
+                        } else {
+                            // Without `item` this is "sugar" for a single-instruction
+                            // expression.
+                            let insn = parser.parse()?;
+                            Ok(Expression {
+                                instrs: [insn].into(),
+                            })
+                        }
+                    })?;
+                    exprs.push(expr);
+                }
+                Ok(ElemPayload::Exprs { exprs, ty })
             }
         }
-        let mut exprs = Vec::new();
-        while !parser.is_empty() {
-            let expr = parser.parens(|parser| {
-                if parser.peek::<kw::item>() {
-                    parser.parse::<kw::item>()?;
-                    parser.parse()
-                } else {
-                    // Without `item` this is "sugar" for a single-instruction
-                    // expression.
-                    let insn = parser.parse()?;
-                    Ok(Expression {
-                        instrs: [insn].into(),
-                    })
-                }
-            })?;
-            exprs.push(expr);
-        }
-        Ok(ElemPayload::Exprs { exprs, ty })
     }
 }
