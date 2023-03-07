@@ -110,17 +110,19 @@ impl SizeAlign {
         types: impl IntoIterator<Item = Option<&'a Type>>,
     ) -> (usize, usize) {
         let (discrim_size, discrim_align) = int_size_align(tag);
-        let mut size = discrim_size;
-        let mut align = discrim_align;
+        let mut case_size = 0;
+        let mut case_align = 1;
         for ty in types {
             if let Some(ty) = ty {
-                let case_size = self.size(ty);
-                let case_align = self.align(ty);
-                align = align.max(case_align);
-                size = size.max(align_to(discrim_size, case_align) + case_size);
+                case_size = case_size.max(self.size(ty));
+                case_align = case_align.max(self.align(ty));
             }
         }
-        (size, align)
+        let align = discrim_align.max(case_align);
+        (
+            align_to(align_to(discrim_size, case_align) + case_size, align),
+            align,
+        )
     }
 }
 
