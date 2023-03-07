@@ -473,20 +473,20 @@ impl<'a> Value<'a> {
     pub(crate) fn name(&self) -> &'a str {
         match &self.name {
             VariableId::Id(id) => id.name,
-            VariableId::Var(_) => "*",
+            VariableId::Wildcard(_) => "*",
         }
     }
 
     pub(crate) fn span(&self) -> Span {
         match self.name {
             VariableId::Id(Id { span, .. }) => span,
-            VariableId::Var(span) => span,
+            VariableId::Wildcard(span) => span,
         }
     }
 }
 
 pub enum VariableId<'a> {
-    Var(Span), // `*`
+    Wildcard(Span), // `*`
     Id(Id<'a>),
 }
 
@@ -704,7 +704,7 @@ fn parse_variable_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<VariableId<'a>> {
         Some((_span, Token::Id | Token::ExplicitId)) => parse_id(tokens).map(VariableId::Id),
         Some((span, Token::Star)) => {
             tokens.expect(Token::Star)?;
-            Ok(VariableId::Var(span))
+            Ok(VariableId::Wildcard(span))
         }
         other => Err(err_expected(tokens, "an identifier or `*`", other).into()),
     }

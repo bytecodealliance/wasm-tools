@@ -1,4 +1,4 @@
-use super::{Error, ParamList, ResultList, ValueKind};
+use super::{Error, ParamList, ResultList, ValueKind, VariableId};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::{anyhow, bail, Result};
@@ -186,6 +186,7 @@ impl<'a> Resolver<'a> {
                                     docs: Docs::default(),
                                     document: doc,
                                     functions: IndexMap::new(),
+                                    wildcard: None,
                                 });
                                 DocumentItem::Interface(id)
                             });
@@ -205,6 +206,7 @@ impl<'a> Resolver<'a> {
                                 docs: Docs::default(),
                                 document: doc,
                                 functions: IndexMap::new(),
+                                wildcard: None,
                             })
                         }),
                 };
@@ -528,6 +530,7 @@ impl<'a> Resolver<'a> {
             name: name.map(|s| s.to_string()),
             functions: IndexMap::new(),
             types: IndexMap::new(),
+            wildcard: None,
         });
         if let Some(name) = name {
             self.document_interfaces[document.index()]
@@ -563,6 +566,13 @@ impl<'a> Resolver<'a> {
                     let name = value.name();
                     let span = value.span();
                     match &value.kind {
+                        ValueKind::Func(func) if matches!(value.name, VariableId::Wildcard(_))=> {
+                            let func = self.resolve_function(docs, name, func)?;
+                            let prev = self.interfaces[interface_id]
+                                .wildcard
+                                .replace(func);
+                            assert!(prev.is_none());
+                        },
                         ValueKind::Func(func) => {
                             self.define_interface_name(name, span, TypeOrItem::Item("function"))?;
                             let func = self.resolve_function(docs, name, func)?;

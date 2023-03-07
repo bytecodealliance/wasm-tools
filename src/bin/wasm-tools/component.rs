@@ -2,7 +2,6 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
-use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use wasm_encoder::{Encode, Section};
@@ -272,9 +271,6 @@ pub struct WitOpts {
     /// options.
     #[clap(long)]
     skip_validation: bool,
-
-    #[clap(long)]
-    expand: Option<PathBuf>,
 }
 
 impl WitOpts {
@@ -287,14 +283,6 @@ impl WitOpts {
                 None => "component",
             },
         };
-
-        let substitutions = match self.expand.as_ref() {
-            Some(path) => {
-                let input = fs::read_to_string(path).context("failed to read substitutions from file")?;
-                toml::from_str(&input).context("failed to parse substitutions from TOML")?
-            },
-            None => Default::default(),
-        };        
 
         // First up determine the actual `DecodedWasm` as the input. This could
         // come from a number of sources:
@@ -317,8 +305,7 @@ impl WitOpts {
                     wit_component::decode(name, &bytes).context("failed to decode WIT document")?
                 }
                 _ => {
-                    let (mut resolve, id) = parse_wit(input)?;
-                    wit_parser::expand(&mut resolve, id, None, substitutions)?;
+                    let (resolve, id) = parse_wit(input)?;
                     DecodedWasm::WitPackage(resolve, id)
                 }
             },
@@ -343,7 +330,6 @@ impl WitOpts {
                     let mut resolve = Resolve::default();
                     let pkg = UnresolvedPackage::parse("<stdin>".as_ref(), stdin)?;
                     let id = resolve.push(pkg, &Default::default())?;
-                    wit_parser::expand(&mut resolve, id, None, substitutions)?;
                     DecodedWasm::WitPackage(resolve, id)
                 }
             }

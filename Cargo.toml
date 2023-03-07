@@ -102,7 +102,6 @@ wast = { workspace = true, optional = true }
 
 # Dependencies of `metadata`
 wasm-metadata = { workspace = true, features = ["clap"], optional = true }
-toml = "0.7.2"
 
 [dev-dependencies]
 serde_json = "1.0"
@@ -121,7 +120,21 @@ harness = false
 
 [features]
 # By default, all subcommands are built
-default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump', 'strip', 'compose', 'demangle', 'component', 'metadata']
+default = [
+  'shrink',
+  'smith',
+  'mutate',
+  'validate',
+  'print',
+  'parse',
+  'dump',
+  'objdump',
+  'strip',
+  'compose',
+  'demangle',
+  'component',
+  'metadata',
+]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = ['wasmparser', 'rayon']
@@ -136,4 +149,4 @@ strip = ['wasm-encoder', 'wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'wasmparser', 'wasm-encoder']
 component = ['wit-component', 'wit-parser', 'wast', 'wasm-encoder', 'wasmparser']
-metadata = ['wasmparser', 'wasm-metadata', 'serde_json']
+metadata = ['wasmparser', 'wasm-metadata', 'serde_json' ]

@@ -289,6 +289,9 @@ pub struct Interface {
 
     /// The document that this interface belongs to.
     pub document: DocumentId,
+
+    /// TODO: A templated function.
+    pub wildcard: Option<Function>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
