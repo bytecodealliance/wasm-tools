@@ -20,7 +20,6 @@
 //! functions is processed in order to construct an equivalent piece of code.
 //!
 
-pub mod add_custom;
 pub mod add_function;
 pub mod add_type;
 pub mod codemotion;

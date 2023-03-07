@@ -309,6 +309,31 @@ impl<'a> ModuleInfo<'a> {
         module
     }
 
+    /// Move a section from index `src_idx` to `dest_idx` in the Wasm module
+    pub fn move_section(&self, src_idx: usize, dest_idx: usize) -> wasm_encoder::Module {
+        log::trace!(
+            "moving section from index {} to index {}",
+            src_idx,
+            dest_idx
+        );
+        assert!(src_idx < self.raw_sections.len());
+        assert!(dest_idx < self.raw_sections.len());
+        assert_ne!(src_idx, dest_idx);
+        let mut module = wasm_encoder::Module::new();
+        self.raw_sections.iter().enumerate().for_each(|(i, s)| {
+            if src_idx < dest_idx && i == dest_idx {
+                module.section(&self.raw_sections[src_idx]);
+            }
+            if i != src_idx {
+                module.section(s);
+            }
+            if dest_idx < src_idx && i == dest_idx {
+                module.section(&self.raw_sections[src_idx]);
+            }
+        });
+        module
+    }
+
     /// Replace the `i`th section in this module with the given new section.
     pub fn replace_section(
         &self,
