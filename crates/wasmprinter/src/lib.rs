@@ -44,6 +44,10 @@ pub struct Printer {
     print_offsets: bool,
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
+    /// The `i`th line in `result` is at offset `lines[i]`.
+    lines: Vec<usize>,
+    /// The binary offset for the `i`th line is `line_offsets[i]`.
+    line_offsets: Vec<Option<usize>>,
     nesting: u32,
     line: usize,
     group_lines: Vec<usize>,
@@ -160,6 +164,29 @@ impl Printer {
         Ok(mem::take(&mut self.result))
     }
 
+    /// Get the line-by-line WAT disassembly for the given Wasm, along with the
+    /// binary offsets for each line.
+    pub fn offsets_and_lines<'a>(
+        &'a mut self,
+        wasm: &[u8],
+    ) -> Result<impl Iterator<Item = (Option<usize>, &'a str)> + 'a> {
+        self.print_contents(wasm)?;
+
+        let end = self.result.len();
+        let result = &self.result;
+
+        let mut offsets = self.line_offsets.iter().copied();
+        let mut lines = self.lines.iter().copied().peekable();
+
+        Ok(std::iter::from_fn(move || {
+            let offset = offsets.next()?;
+            let i = lines.next()?;
+            let j = lines.peek().copied().unwrap_or(end);
+            let line = &result[i..j];
+            Some((offset, line))
+        }))
+    }
+
     fn read_names_and_code<'a>(
         &mut self,
         mut bytes: &'a [u8],
@@ -233,6 +260,11 @@ impl Printer {
     }
 
     fn print_contents(&mut self, mut bytes: &[u8]) -> Result<()> {
+        self.lines.clear();
+        self.lines.push(0);
+        self.line_offsets.clear();
+        self.line_offsets.push(Some(0));
+
         let mut expected = None;
         let mut states: Vec<State> = Vec::new();
         let mut parser = Parser::new(0);
@@ -1009,6 +1041,10 @@ impl Printer {
 
     fn print_newline(&mut self, offset: Option<usize>) {
         self.result.push('\n');
+
+        self.lines.push(self.result.len());
+        self.line_offsets.push(offset);
+
         if self.print_offsets {
             match offset {
                 Some(offset) => write!(self.result, "(;@{offset:<6x};)").unwrap(),
