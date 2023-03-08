@@ -47,6 +47,7 @@ impl<'a> Ast<'a> {
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
+                            WorldItem::Include(i) => f(None, &i.from, Some(&i.names))?,
                         }
                     }
 
@@ -145,6 +146,7 @@ pub enum WorldItem<'a> {
     Export(Export<'a>),
     Use(Use<'a>),
     Type(TypeDef<'a>),
+    Include(Include<'a>),
 }
 
 impl<'a> WorldItem<'a> {
@@ -163,9 +165,10 @@ impl<'a> WorldItem<'a> {
             }
             Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Include)) => Include::parse(tokens).map(WorldItem::Include),
             other => Err(err_expected(
                 tokens,
-                "`import`, `export`, `use`, or type definition",
+                "`import`, `export`, `use`, `include`, or type definition",
                 other,
             )
             .into()),
@@ -226,6 +229,42 @@ impl<'a> ExternKind<'a> {
     }
 }
 
+pub struct Include<'a> {
+    from: UsePath<'a>,
+    names: Vec<UseName<'a>>,
+}
+
+impl<'a> Include<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        tokens.expect(Token::Include)?;
+        let from = UsePath::parse(tokens)?;
+
+        let mut names = Vec::new();
+
+        match tokens.clone().next()? {
+            Some((_span, Token::With)) => {
+                tokens.expect(Token::With)?;
+                tokens.expect(Token::LeftBrace)?;
+                while !tokens.eat(Token::RightBrace)? {
+                    let mut name = UseName {
+                        name: parse_id(tokens)?,
+                        as_: None,
+                    };
+                    if tokens.eat(Token::As)? {
+                        name.as_ = Some(parse_id(tokens)?);
+                    }
+                    names.push(name);
+                    if !tokens.eat(Token::Comma)? {
+                        tokens.expect(Token::RightBrace)?;
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(Include { from, names })
+    }
+}
 pub struct Interface<'a> {
     docs: Docs<'a>,
     name: Id<'a>,

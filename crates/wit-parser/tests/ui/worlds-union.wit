@@ -1,0 +1,22 @@
+interface a { }
+interface b { }
+interface c { }
+interface foo { }
+interface bar { }
+interface baz { }
+
+world my-world-a {
+    import a: self.a
+    import b: self.b
+    export c: self.c
+}
+world my-world-b {
+    import foo: self.foo
+    import bar: self.bar
+    export baz: self.baz
+}
+
+default world union-my-world {
+     include self.my-world-a
+     include self.my-world-b
+}

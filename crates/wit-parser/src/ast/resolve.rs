@@ -400,6 +400,7 @@ impl<'a> Resolver<'a> {
             world.items.iter().filter_map(|i| match i {
                 ast::WorldItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::WorldItem::Type(t) => Some(TypeItem::Def(t)),
+                ast::WorldItem::Include(_) => None, // TODO: come back
                 ast::WorldItem::Import(_) | ast::WorldItem::Export(_) => None,
             }),
         )?;
@@ -434,7 +435,7 @@ impl<'a> Resolver<'a> {
         for item in world.items.iter() {
             let (name, kind, desc, spans, interfaces) = match item {
                 // handled in `resolve_types`
-                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) => continue,
+                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) | ast::WorldItem::Include(_) => continue,
 
                 ast::WorldItem::Import(import) => (
                     &import.name,
