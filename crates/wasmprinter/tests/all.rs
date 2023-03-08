@@ -234,3 +234,33 @@ fn label_shadowing_locals() {
         MODULE.replace(" ", "").trim()
     );
 }
+
+#[test]
+fn offsets_and_lines_smoke_test() {
+    const MODULE: &str = r#"
+        (;@0     ;) (module
+        (;@b     ;)   (type (;0;) (func (param i32) (result i32)))
+        (;@1f    ;)   (func (;0;) (type 0) (param i32) (result i32)
+        (;@20    ;)     local.get 0
+                      )
+        (;@17    ;)   (export "f" (func 0))
+                    )
+    "#;
+    let bytes = wat::parse_str(MODULE).unwrap();
+
+    let mut printer = wasmprinter::Printer::new();
+    let actual: Vec<_> = printer.offsets_and_lines(&bytes).unwrap().collect();
+
+    #[rustfmt::skip]
+    let expected = vec![
+        (Some(0),    "(module\n"),
+        (Some(0xb),  "  (type (;0;) (func (param i32) (result i32)))\n"),
+        (Some(0x1f), "  (func (;0;) (type 0) (param i32) (result i32)\n"),
+        (Some(0x20), "    local.get 0\n"),
+        (None,       "  )\n"),
+        (Some(0x17), "  (export \"f\" (func 0))\n"),
+        (None,       ")"),
+    ];
+
+    assert_eq!(actual, expected);
+}
