@@ -135,8 +135,8 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/try_delegate.wast",
         "exception-handling/try_catch.wast",
         "exception-handling/throw.wast",
-        // Blocked on WebAssembly/testsuite being updated
-        "relaxed-simd/relaxed_dot_product.wast",
+        // This is an empty file which currently doesn't parse
+        "multi-memory/memory_copy1.wast",
     ];
     if broken.iter().any(|x| test.ends_with(x)) {
         return true;
