@@ -435,7 +435,9 @@ impl<'a> Resolver<'a> {
         for item in world.items.iter() {
             let (docs, name, kind, desc, spans, interfaces) = match item {
                 // handled in `resolve_types`
-                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) | ast::WorldItem::Include(_) => continue,
+                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) | ast::WorldItem::Include(_) => {
+                    continue
+                }
 
                 ast::WorldItem::Import(import) => (
                     &import.docs,

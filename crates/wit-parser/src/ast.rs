@@ -47,7 +47,7 @@ impl<'a> Ast<'a> {
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
-                            WorldItem::Include(i) => f(None, &i.from, Some(&i.names))?,
+                            WorldItem::Include(i) => f(None, &i.from, None)?,
                         }
                     }
 
@@ -252,9 +252,8 @@ impl<'a> Include<'a> {
                         name: parse_id(tokens)?,
                         as_: None,
                     };
-                    if tokens.eat(Token::As)? {
-                        name.as_ = Some(parse_id(tokens)?);
-                    }
+                    tokens.eat(Token::As)?;
+                    name.as_ = Some(parse_id(tokens)?);
                     names.push(name);
                     if !tokens.eat(Token::Comma)? {
                         tokens.expect(Token::RightBrace)?;
