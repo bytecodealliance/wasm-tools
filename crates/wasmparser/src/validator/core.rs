@@ -207,7 +207,7 @@ impl ModuleState {
                 table_index,
                 offset_expr,
             } => {
-                let table = self.module.table_at(table_index, offset)?;
+                let table = self.module.table_at(table_index.unwrap_or(0), offset)?;
                 if !self
                     .module
                     .matches(ValType::Ref(e.ty), ValType::Ref(table.element_type), types)

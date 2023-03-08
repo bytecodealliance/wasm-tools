@@ -263,7 +263,7 @@ pub fn element(
                 ConstExprKind::ElementOffset,
             )?;
             ElementMode::Active {
-                table: Some(t.remap(Item::Table, *table_index)?),
+                table: table_index.map(|i| t.remap(Item::Table, i)).transpose()?,
                 offset: &offset,
             }
         }

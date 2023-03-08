@@ -1134,9 +1134,10 @@ impl Printer {
                     table_index,
                     offset_expr,
                 } => {
-                    if *table_index != 0 {
+                    let table_index = table_index.unwrap_or(0);
+                    if table_index != 0 {
                         self.result.push_str(" (table ");
-                        self.print_idx(&state.core.table_names, *table_index)?;
+                        self.print_idx(&state.core.table_names, table_index)?;
                         self.result.push(')');
                     }
                     self.result.push(' ');
