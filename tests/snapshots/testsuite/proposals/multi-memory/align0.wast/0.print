@@ -1,0 +1,52 @@
+(module
+  (type (;0;) (func (param i32) (result f32)))
+  (func (;0;) (type 0) (param i32) (result f32)
+    (local f32 f32)
+    f32.const 0x1.4p+3 (;=10;)
+    local.set 1
+    block $4 ;; label = @1
+      block $2 ;; label = @2
+        block $1 ;; label = @3
+          block $default ;; label = @4
+            block $0 ;; label = @5
+              local.get 0
+              br_table 0 (;@5;) 1 (;@4;) 2 (;@3;) 3 (;@2;) 4 (;@1;)
+            end
+            i32.const 0
+            local.get 1
+            f32.store $mem1
+            i32.const 0
+            f32.load $mem1
+            local.set 2
+            br 3 (;@1;)
+          end
+          i32.const 0
+          local.get 1
+          f32.store $mem1 align=1
+          i32.const 0
+          f32.load $mem1 align=1
+          local.set 2
+          br 2 (;@1;)
+        end
+        i32.const 0
+        local.get 1
+        f32.store $mem1 align=2
+        i32.const 0
+        f32.load $mem1 align=2
+        local.set 2
+        br 1 (;@1;)
+      end
+      i32.const 0
+      local.get 1
+      f32.store $mem1
+      i32.const 0
+      f32.load $mem1
+      local.set 2
+    end
+    local.get 2
+  )
+  (memory $mem0 (;0;) 0)
+  (memory $mem1 (;1;) 1)
+  (memory $mem2 (;2;) 0)
+  (export "f32_align_switch" (func 0))
+)
