@@ -8,7 +8,7 @@ use std::path::Path;
 pub mod abi;
 mod ast;
 use ast::lex::Span;
-pub use ast::SourceMap;
+pub use ast::{SourceMap, expand};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -289,6 +289,9 @@ pub struct Interface {
 
     /// The document that this interface belongs to.
     pub document: DocumentId,
+
+    /// TODO: A templated function.
+    pub wildcard: Option<Function>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
