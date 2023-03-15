@@ -35,6 +35,13 @@ pub fn run(
     }
     let mut not_required = IndexSet::new();
     for name in module.exports.keys().copied() {
+        // If we need `name` then we also need cabi_post_`name`:
+        let name = if let Some(suffix) = name.strip_prefix("cabi_post_") {
+            suffix
+        } else {
+            name
+        };
+
         if !required.contains_key(name) && !always_keep(name) {
             not_required.insert(name);
         }
@@ -620,7 +627,8 @@ impl<'a> Module<'a> {
         // afterwards actually map the body of all functions so the `map` of all
         // index mappings is fully populated before instructions are mapped.
 
-        let is_realloc = |m, n| m == "__main_module__" && n == "cabi_realloc";
+        let is_realloc =
+            |m, n| m == "__main_module__" && matches!(n, "canonical_abi_realloc" | "cabi_realloc");
 
         let (imported, local) =
             self.live_funcs()
