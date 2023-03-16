@@ -150,8 +150,8 @@ pub enum WorldItem<'a> {
 impl<'a> WorldItem<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<WorldItem<'a>> {
         match tokens.clone().next()? {
-            Some((_span, Token::Import)) => Import::parse(tokens).map(WorldItem::Import),
-            Some((_span, Token::Export)) => Export::parse(tokens).map(WorldItem::Export),
+            Some((_span, Token::Import)) => Import::parse(tokens, docs).map(WorldItem::Import),
+            Some((_span, Token::Export)) => Export::parse(tokens, docs).map(WorldItem::Export),
             Some((_span, Token::Use)) => Use::parse(tokens).map(WorldItem::Use),
             Some((_span, Token::Type)) => TypeDef::parse(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Flags)) => TypeDef::parse_flags(tokens, docs).map(WorldItem::Type),
@@ -174,32 +174,34 @@ impl<'a> WorldItem<'a> {
 }
 
 pub struct Import<'a> {
+    docs: Docs<'a>,
     name: Id<'a>,
     kind: ExternKind<'a>,
 }
 
 impl<'a> Import<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Import<'a>> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Import<'a>> {
         tokens.expect(Token::Import)?;
         let name = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let kind = ExternKind::parse(tokens)?;
-        Ok(Import { name, kind })
+        Ok(Import { docs, name, kind })
     }
 }
 
 pub struct Export<'a> {
+    docs: Docs<'a>,
     name: Id<'a>,
     kind: ExternKind<'a>,
 }
 
 impl<'a> Export<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Export<'a>> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Export<'a>> {
         tokens.expect(Token::Export)?;
         let name = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let kind = ExternKind::parse(tokens)?;
-        Ok(Export { name, kind })
+        Ok(Export { docs, name, kind })
     }
 }
 
