@@ -1,7 +1,8 @@
 use crate::ast::lex::Span;
 use crate::{
-    Document, DocumentId, Error, Function, Interface, InterfaceId, Results, Type, TypeDef,
-    TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
+    Case, Document, DocumentId, Error, Field, Function, Interface, InterfaceId, Params, Record,
+    Result_, Results, Stream, Tuple, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, Union,
+    UnionCase, UnresolvedPackage, Variant, World, WorldId, WorldItem,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -321,10 +322,7 @@ impl Resolve {
     /// producing a singular world that will be the final component's
     /// interface.
     ///
-    /// This operation can fail if the imports/exports overlap.
-    //
-    // TODO: overlap shouldn't be a hard error here, there should be some form
-    // of comparing names/urls/deep merging or such to get this working.
+    /// This operation can fail if the imports/exports conflict.
     pub fn merge_worlds(&mut self, from: WorldId, into: WorldId) -> Result<()> {
         let mut new_imports = Vec::new();
         let mut new_exports = Vec::new();
@@ -333,25 +331,27 @@ impl Resolve {
         let into_world = &self.worlds[into];
         for (name, import) in from_world.imports.iter() {
             match into_world.imports.get(name) {
-                Some(_) => bail!("duplicate import found for interface `{name}`"),
-                None => new_imports.push((name.clone(), import.clone())),
+                Some(existing) if !structurally_equivalent_worlditems(existing, import, self) => {
+                    bail!("conflicting import found for interface `{name}`")
+                }
+                Some(_) | None => new_imports.push((name.clone(), import.clone())),
             }
         }
         for (name, export) in from_world.exports.iter() {
             match into_world.exports.get(name) {
-                Some(_) => bail!("duplicate export found for interface `{name}`"),
-                None => new_exports.push((name.clone(), export.clone())),
+                Some(existing) if !structurally_equivalent_worlditems(existing, export, self) => {
+                    bail!("conflicting export found for interface `{name}`")
+                }
+                Some(_) | None => new_exports.push((name.clone(), export.clone())),
             }
         }
 
         let into = &mut self.worlds[into];
         for (name, import) in new_imports {
-            let prev = into.imports.insert(name, import);
-            assert!(prev.is_none());
+            into.imports.insert(name, import);
         }
         for (name, import) in new_exports {
-            let prev = into.exports.insert(name, import);
-            assert!(prev.is_none());
+            into.exports.insert(name, import);
         }
 
         Ok(())
@@ -435,6 +435,389 @@ impl Resolve {
             }
         }
     }
+}
+
+fn structurally_equivalent_worlditems(a: &WorldItem, b: &WorldItem, resolve: &Resolve) -> bool {
+    match a {
+        WorldItem::Interface(a) => match b {
+            WorldItem::Interface(b) => {
+                let a = &resolve.interfaces[*a];
+                let b = &resolve.interfaces[*b];
+                // Don't compare the documents, because we don't care where
+                // they came from, just their contents.
+                let Interface {
+                    name: a_name,
+                    docs: _docs,
+                    types: a_types,
+                    functions: a_functions,
+                    document: _document,
+                } = a;
+                let Interface {
+                    name: b_name,
+                    docs: _docs,
+                    types: b_types,
+                    functions: b_functions,
+                    document: _document,
+                } = b;
+
+                a_name == b_name
+                    && structurally_equivalent_typelists(a_types, b_types, resolve)
+                    && structurally_equivalent_functions(a_functions, b_functions, resolve)
+            }
+            _ => false,
+        },
+        WorldItem::Function(a) => match b {
+            WorldItem::Function(b) => a == b,
+            _ => false,
+        },
+        WorldItem::Type(a) => match b {
+            WorldItem::Type(b) => {
+                let a = &resolve.types[*a];
+                let b = &resolve.types[*b];
+                structurally_equivalent_typedefs(a, b, resolve)
+            }
+            _ => false,
+        },
+    }
+}
+
+fn structurally_equivalent_functions(
+    a: &IndexMap<String, Function>,
+    b: &IndexMap<String, Function>,
+    resolve: &Resolve,
+) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    for (key, a) in a.iter() {
+        let b = match b.get(key) {
+            Some(b) => b,
+            None => return false,
+        };
+        let Function {
+            docs: _docs,
+            name: a_name,
+            kind: a_kind,
+            params: a_params,
+            results: a_results,
+        } = a;
+        let Function {
+            docs: _docs,
+            name: b_name,
+            kind: b_kind,
+            params: b_params,
+            results: b_results,
+        } = b;
+        if a_name != b_name || a_kind != b_kind {
+            return false;
+        }
+        if !structurally_equivalent_params(a_params, b_params, resolve) {
+            return false;
+        }
+        match a_results {
+            Results::Anon(a) => match b_results {
+                Results::Anon(b) => {
+                    if !structurally_equivalent_types(*a, *b, resolve) {
+                        return false;
+                    }
+                }
+                Results::Named(_) => return false,
+            },
+            Results::Named(a) => match b_results {
+                Results::Named(b) => {
+                    if !structurally_equivalent_params(a, b, resolve) {
+                        return false;
+                    }
+                }
+                Results::Anon(_) => return false,
+            },
+        }
+    }
+    true
+}
+
+fn structurally_equivalent_types(a: Type, b: Type, resolve: &Resolve) -> bool {
+    if let Type::Id(a) = a {
+        if let Type::Id(b) = b {
+            let a = &resolve.types[a];
+            let b = &resolve.types[b];
+            structurally_equivalent_typedefs(a, b, resolve)
+        } else {
+            false
+        }
+    } else {
+        if let Type::Id(_) = b {
+            false
+        } else {
+            a == b
+        }
+    }
+}
+
+fn structurally_equivalent_params(a: &Params, b: &Params, resolve: &Resolve) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    for (a, b) in a.iter().zip(b.iter()) {
+        let (a_name, a_type) = a;
+        let (b_name, b_type) = b;
+        if a_name != b_name {
+            return false;
+        }
+        if !structurally_equivalent_types(*a_type, *b_type, resolve) {
+            return false;
+        }
+    }
+    true
+}
+
+fn structurally_equivalent_typedefs(a: &TypeDef, b: &TypeDef, resolve: &Resolve) -> bool {
+    // Ignore the owner; we don't care where it's defined, only that it's structurally
+    // equivalent.
+    let TypeDef {
+        docs: _docs,
+        kind: a_kind,
+        name: a_name,
+        owner: _owner,
+    } = a;
+    let TypeDef {
+        docs: _docs,
+        kind: b_kind,
+        name: b_name,
+        owner: _owner,
+    } = b;
+
+    if a_name != b_name {
+        return false;
+    }
+    match a_kind {
+        TypeDefKind::Record(a) => match b_kind {
+            TypeDefKind::Record(b) => {
+                let Record { fields: a } = a;
+                let Record { fields: b } = b;
+                if a.len() != b.len() {
+                    return false;
+                }
+                for (a, b) in a.iter().zip(b.iter()) {
+                    let Field {
+                        docs: _docs,
+                        name: a_name,
+                        ty: a_ty,
+                    } = a;
+                    let Field {
+                        docs: _docs,
+                        name: b_name,
+                        ty: b_ty,
+                    } = b;
+                    if a_name != b_name {
+                        return false;
+                    }
+                    if !structurally_equivalent_types(*a_ty, *b_ty, resolve) {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::Flags(a) => match b_kind {
+            TypeDefKind::Flags(b) => a == b,
+            _ => false,
+        },
+        TypeDefKind::Tuple(a) => match b_kind {
+            TypeDefKind::Tuple(b) => {
+                let Tuple { types: a } = a;
+                let Tuple { types: b } = b;
+                if a.len() != b.len() {
+                    return false;
+                }
+                for (a, b) in a.iter().zip(b.iter()) {
+                    if !structurally_equivalent_types(*a, *b, resolve) {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::Variant(a) => match b_kind {
+            TypeDefKind::Variant(b) => {
+                let Variant { cases: a } = a;
+                let Variant { cases: b } = b;
+                if a.len() != b.len() {
+                    return false;
+                }
+                for (a, b) in a.iter().zip(b.iter()) {
+                    let Case {
+                        docs: _docs,
+                        name: a_name,
+                        ty: a_ty,
+                    } = a;
+                    let Case {
+                        docs: _docs,
+                        name: b_name,
+                        ty: b_ty,
+                    } = b;
+                    if a_name != b_name {
+                        return false;
+                    }
+                    match (a_ty, b_ty) {
+                        (Some(a), Some(b)) => {
+                            if !structurally_equivalent_types(*a, *b, resolve) {
+                                return false;
+                            }
+                        }
+                        (None, None) => {}
+                        _ => return false,
+                    }
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::Enum(a) => match b_kind {
+            TypeDefKind::Enum(b) => a == b,
+            _ => false,
+        },
+        TypeDefKind::Option(a) => match b_kind {
+            TypeDefKind::Option(b) => structurally_equivalent_types(*a, *b, resolve),
+            _ => false,
+        },
+        TypeDefKind::Result(a) => match b_kind {
+            TypeDefKind::Result(b) => {
+                let Result_ {
+                    ok: a_ok,
+                    err: a_err,
+                } = a;
+                let Result_ {
+                    ok: b_ok,
+                    err: b_err,
+                } = b;
+                match (a_ok, b_ok) {
+                    (Some(a), Some(b)) => {
+                        if !structurally_equivalent_types(*a, *b, resolve) {
+                            return false;
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return false,
+                }
+                match (a_err, b_err) {
+                    (Some(a), Some(b)) => {
+                        if !structurally_equivalent_types(*a, *b, resolve) {
+                            return false;
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return false,
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::Union(a) => match b_kind {
+            TypeDefKind::Union(b) => {
+                let Union { cases: a } = a;
+                let Union { cases: b } = b;
+                if a.len() != b.len() {
+                    return false;
+                }
+                for (a, b) in a.iter().zip(b.iter()) {
+                    let UnionCase { docs: _docs, ty: a } = a;
+                    let UnionCase { docs: _docs, ty: b } = b;
+                    if !structurally_equivalent_types(*a, *b, resolve) {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::List(a) => match b_kind {
+            TypeDefKind::List(b) => structurally_equivalent_types(*a, *b, resolve),
+            _ => false,
+        },
+        TypeDefKind::Future(a) => match b_kind {
+            TypeDefKind::Future(b) => {
+                match (a, b) {
+                    (Some(a), Some(b)) => {
+                        if !structurally_equivalent_types(*a, *b, resolve) {
+                            return false;
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return false,
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::Stream(a) => match b_kind {
+            TypeDefKind::Stream(b) => {
+                let Stream {
+                    element: a_element,
+                    end: a_end,
+                } = a;
+                let Stream {
+                    element: b_element,
+                    end: b_end,
+                } = b;
+                match (a_element, b_element) {
+                    (Some(a), Some(b)) => {
+                        if !structurally_equivalent_types(*a, *b, resolve) {
+                            return false;
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return false,
+                }
+                match (a_end, b_end) {
+                    (Some(a), Some(b)) => {
+                        if !structurally_equivalent_types(*a, *b, resolve) {
+                            return false;
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return false,
+                }
+                true
+            }
+            _ => false,
+        },
+        TypeDefKind::Type(a) => match b_kind {
+            TypeDefKind::Type(b) => structurally_equivalent_types(*a, *b, resolve),
+            _ => false,
+        },
+        // Conservatively don't consider `Unknown` equivalent to anything.
+        TypeDefKind::Unknown => false,
+    }
+}
+
+fn structurally_equivalent_typelists(
+    a: &IndexMap<String, TypeId>,
+    b: &IndexMap<String, TypeId>,
+    resolve: &Resolve,
+) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    for (key, a) in a.iter() {
+        let b = match b.get(key) {
+            Some(b) => b,
+            None => return false,
+        };
+
+        let a = &resolve.types[*a];
+        let b = &resolve.types[*b];
+        if !structurally_equivalent_typedefs(a, b, resolve) {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Structure returned by [`Resolve::merge`] which contains mappings from
