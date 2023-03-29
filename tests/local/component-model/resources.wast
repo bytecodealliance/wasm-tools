@@ -772,3 +772,62 @@
     ))
   )
   "resource types are not the same")
+
+;; aliasing outer resources is ok
+(component $A
+  (type $C (component
+    (import "x" (type $x (sub resource)))
+
+    (type $y (component
+      (alias outer $C $x (type $my-x))
+      (import "x" (type (eq $my-x)))
+    ))
+
+    (import "y" (component (type $y)))
+    (export "z" (component (type $y)))
+  ))
+
+  (type $t (resource (rep i32)))
+
+  (alias outer $A $t (type $other-t))
+
+  (type (instance (export "t" (type (eq $t)))))
+  (type (component (export "t" (type (eq $t)))))
+  (type (component (import "t" (type (eq $t)))))
+)
+
+;; aliasing beyond components, however, is not ok
+(assert_invalid
+  (component $A
+    (type $t (resource (rep i32)))
+    (component (alias outer $A $t (type $foo)))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component $A
+    (type $t (resource (rep i32)))
+    (type $u (record (field "x" (own $t))))
+    (component (alias outer $A $u (type $foo)))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component $A
+    (type $t (resource (rep i32)))
+    (type $u (borrow $t))
+    (component (alias outer $A $u (type $foo)))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component $A
+    (type $t (resource (rep i32)))
+    (type $u (component (export "a" (type (eq $t)))))
+    (component (alias outer $A $u (type $foo)))
+  )
+  "refers to resources not defined in the current component")
+(assert_invalid
+  (component $A
+    (type $t (resource (rep i32)))
+    (type $u (component (import "a" (type (eq $t)))))
+    (component (alias outer $A $u (type $foo)))
+  )
+  "refers to resources not defined in the current component")

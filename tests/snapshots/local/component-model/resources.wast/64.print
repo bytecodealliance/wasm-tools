@@ -1,0 +1,35 @@
+(component $A
+  (type $C (;0;)
+    (component
+      (import "x" (type (sub resource)))
+      (type (;0;)
+        (component
+          (alias outer 1 0 (type (;0;)))
+          (import "x" (type (eq 0)))
+        )
+      )
+      (import "y" (component (type 1)))
+      (export (;0;) "z" (component (type 1)))
+    )
+  )
+  (type $t (;1;) (resource (rep i32)))
+  (alias outer $A $t (type $other-t (;2;)))
+  (type (;3;)
+    (instance
+      (alias outer $A $t (type (;0;)))
+      (export (;1;) "t" (type (eq 0)))
+    )
+  )
+  (type (;4;)
+    (component
+      (alias outer $A $t (type (;0;)))
+      (export (;1;) "t" (type (eq 0)))
+    )
+  )
+  (type (;5;)
+    (component
+      (alias outer $A $t (type (;0;)))
+      (import "t" (type (eq 0)))
+    )
+  )
+)
