@@ -515,7 +515,11 @@ impl<'a> EncodingState<'a> {
             .exported_instances
             .get(&interface)
             .copied()
-            .unwrap_or_else(|| self.imported_instances[&interface]);
+            .unwrap_or_else(|| {
+                *self.imported_instances.get(&interface).unwrap_or_else(|| {
+                    panic!("interface with index {} of type with index {} missing from imported instances", interface.index(), id.index())
+                })
+            });
         self.component.alias_type_export(instance, name)
     }
 
