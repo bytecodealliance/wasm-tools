@@ -1,0 +1,12 @@
+interface handler {
+  enum level {
+    trace,
+    debug,
+    info,
+    warn,
+    error,
+  }
+
+  log: func(level: level, context: string, message: string)
+}
+

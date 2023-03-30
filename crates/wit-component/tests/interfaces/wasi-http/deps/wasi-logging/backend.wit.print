@@ -1,9 +1,0 @@
-interface backend {
-  enum level {
-    info,
-    debug,
-  }
-
-  log: func(level: level, msg: string)
-}
-
