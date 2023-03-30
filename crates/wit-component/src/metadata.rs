@@ -163,7 +163,14 @@ pub fn encode(
             .iter()
             .filter(|(_, p)| p.name == pkg.name)
             .count()
-            == 1
+            == 1,
+        "expected exactly one package with name {}, got names: {:?}",
+        pkg.name,
+        resolve
+            .packages
+            .iter()
+            .map(|(_x, p)| p.name.clone())
+            .collect::<Vec<_>>()
     );
 
     let mut ret = Vec::new();
