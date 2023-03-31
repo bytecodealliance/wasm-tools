@@ -1007,7 +1007,7 @@ impl<'a> EncodingState<'a> {
         return ret;
 
         fn to_wasm_type(ty: &wasmparser::ValType) -> WasmType {
-            match ty {
+            match *ty {
                 wasmparser::ValType::I32 => WasmType::I32,
                 wasmparser::ValType::I64 => WasmType::I64,
                 wasmparser::ValType::F32 => WasmType::F32,

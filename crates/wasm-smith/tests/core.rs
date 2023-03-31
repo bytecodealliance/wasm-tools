@@ -151,7 +151,7 @@ fn smoke_test_imports_config() {
                                 *seen = true
                             }
                             (Some((seen, I::Table(t))), TypeRef::Table(tt))
-                                if *t == ValType::Ref(tt.element_type) =>
+                                if *t == tt.element_type.into() =>
                             {
                                 *seen = true
                             }
@@ -244,18 +244,18 @@ fn import_config(
     let mut config = SwarmConfig::arbitrary(u).expect("arbitrary swarm");
     config.exceptions_enabled = u.arbitrary().expect("exceptions enabled for swarm");
     let available = {
-        use {AvailableImportKind::*, ValType::*};
+        use {AvailableImportKind::*, ValType as V};
         vec![
-            ("env", "pi", Func(&[I32], &[])),
-            ("env", "pi2", Func(&[I32], &[])),
-            ("env", "pipi2", Func(&[I32, I32], &[])),
-            ("env", "po", Func(&[], &[I32])),
-            ("env", "pipo", Func(&[I32], &[I32])),
-            ("env", "popo", Func(&[], &[I32, I32])),
+            ("env", "pi", Func(&[V::I32], &[])),
+            ("env", "pi2", Func(&[V::I32], &[])),
+            ("env", "pipi2", Func(&[V::I32, V::I32], &[])),
+            ("env", "po", Func(&[], &[V::I32])),
+            ("env", "pipo", Func(&[V::I32], &[V::I32])),
+            ("env", "popo", Func(&[], &[V::I32, V::I32])),
             ("env", "mem", Memory),
-            ("env", "tbl", Table(ValType::FUNCREF)),
-            ("vars", "g", Global(I64)),
-            ("tags", "tag1", Tag(&[I32])),
+            ("env", "tbl", Table(V::FUNCREF)),
+            ("vars", "g", Global(V::I64)),
+            ("tags", "tag1", Tag(&[V::I32])),
         ]
     };
     config.available_imports = Some(

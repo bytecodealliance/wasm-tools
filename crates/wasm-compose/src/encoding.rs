@@ -269,14 +269,15 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::ValType::F32 => ValType::F32,
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::Ref(ty) => ValType::Ref(Self::ref_type(ty)),
+            ty if ty.is_ref_type() => ValType::Ref(Self::ref_type(ty.as_ref_type().unwrap())),
+            _ => unreachable!(),
         }
     }
 
     fn ref_type(ty: wasmparser::RefType) -> RefType {
         RefType {
-            nullable: ty.nullable,
-            heap_type: match ty.heap_type {
+            nullable: ty.is_nullable(),
+            heap_type: match ty.heap_type() {
                 wasmparser::HeapType::Func => HeapType::Func,
                 wasmparser::HeapType::Extern => HeapType::Extern,
                 wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),

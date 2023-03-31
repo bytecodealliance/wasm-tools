@@ -2,7 +2,7 @@
       | 01 00 00 00
   0x8 | 01 08       | type section
   0xa | 02          | 2 count
-  0xb | 60 01 7f 00 | [type 0] Func(FuncType { params: [I32], returns: [] })
+  0xb | 60 01 7f 00 | [type 0] Func(FuncType { params: [i32], returns: [] })
   0xf | 60 00 00    | [type 1] Func(FuncType { params: [], returns: [] })
  0x12 | 02 07       | import section
  0x14 | 01          | 1 count
@@ -15,13 +15,13 @@
  0x20 | 01          | [func 3] type 1
  0x21 | 04 04       | table section
  0x23 | 01          | 1 count
- 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: RefType { nullable: true, heap_type: Func }, initial: 1, maximum: None }, init: RefNull }
+ 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, initial: 1, maximum: None }, init: RefNull }
  0x27 | 05 03       | memory section
  0x29 | 01          | 1 count
  0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
  0x2c | 06 06       | global section
  0x2e | 01          | 1 count
- 0x2f | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
+ 0x2f | 7f 00       | [global 0] GlobalType { content_type: i32, mutable: false }
  0x31 | 41 00       | i32_const value:0
  0x33 | 0b          | end
  0x34 | 07 05       | export section
@@ -31,14 +31,14 @@
  0x3d | 00          | start function 0
  0x3e | 09 0f       | element section
  0x40 | 03          | 3 count
- 0x41 | 00          | element RefType { nullable: true, heap_type: Func } table[0]
+ 0x41 | 00          | element funcref table[0]
  0x42 | 41 03       | i32_const value:3
  0x44 | 0b          | end
  0x45 | 01          | 1 items
  0x46 | 00          | item 0
- 0x47 | 01 00 01    | element RefType { nullable: true, heap_type: Func } passive, 1 items
+ 0x47 | 01 00 01    | element funcref passive, 1 items
  0x4a | 00          | item 0
- 0x4b | 03 00 01    | element RefType { nullable: true, heap_type: Func } declared 1 items
+ 0x4b | 03 00 01    | element funcref declared 1 items
  0x4e | 00          | item 0
  0x4f | 0a 10       | code section
  0x51 | 03          | 3 count
@@ -49,12 +49,12 @@
 ============== func 2 ====================
  0x55 | 04          | size of function
  0x56 | 01          | 1 local blocks
- 0x57 | 01 7f       | 1 locals of type I32
+ 0x57 | 01 7f       | 1 locals of type i32
  0x59 | 0b          | end
 ============== func 3 ====================
  0x5a | 06          | size of function
  0x5b | 01          | 1 local blocks
- 0x5c | 01 7f       | 1 locals of type I32
+ 0x5c | 01 7f       | 1 locals of type i32
  0x5e | 41 00       | i32_const value:0
  0x60 | 0b          | end
  0x61 | 0b 0a       | data section

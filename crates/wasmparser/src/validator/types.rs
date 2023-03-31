@@ -1291,12 +1291,12 @@ impl ComponentDefinedType {
     }
 
     fn join_types(a: ValType, b: ValType) -> ValType {
-        use ValType::*;
+        use ValType as V;
 
         match (a, b) {
-            (I32, I32) | (I64, I64) | (F32, F32) | (F64, F64) => a,
-            (I32, F32) | (F32, I32) => I32,
-            (_, I64 | F64) | (I64 | F64, _) => I64,
+            (V::I32, V::I32) | (V::I64, V::I64) | (V::F32, V::F32) | (V::F64, V::F64) => a,
+            (V::I32, V::F32) | (V::F32, V::I32) => V::I32,
+            (_, V::I64 | V::F64) | (V::I64 | V::F64, _) => V::I64,
             _ => panic!("unexpected wasm type for canonical ABI"),
         }
     }

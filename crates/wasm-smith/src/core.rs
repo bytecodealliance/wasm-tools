@@ -1626,21 +1626,22 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
 
 /// Convert a wasmparser's `ValType` to a `wasm_encoder::ValType`.
 fn convert_type(parsed_type: wasmparser::ValType) -> ValType {
-    use wasmparser::ValType::*;
+    use wasmparser::ValType as V;
     match parsed_type {
-        I32 => ValType::I32,
-        I64 => ValType::I64,
-        F32 => ValType::F32,
-        F64 => ValType::F64,
-        V128 => ValType::V128,
-        Ref(ty) => ValType::Ref(convert_reftype(ty)),
+        V::I32 => ValType::I32,
+        V::I64 => ValType::I64,
+        V::F32 => ValType::F32,
+        V::F64 => ValType::F64,
+        V::V128 => ValType::V128,
+        ty if ty.is_ref_type() => ValType::Ref(convert_reftype(ty.as_ref_type().unwrap())),
+        _ => unreachable!(),
     }
 }
 
 fn convert_reftype(ty: wasmparser::RefType) -> RefType {
     wasm_encoder::RefType {
-        nullable: ty.nullable,
-        heap_type: match ty.heap_type {
+        nullable: ty.is_nullable(),
+        heap_type: match ty.heap_type() {
             wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
             wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
             wasmparser::HeapType::TypedFunc(i) => wasm_encoder::HeapType::TypedFunc(i.into()),

@@ -1,4 +1,4 @@
 failed to validate import interface `foo`
 
 Caused by:
-    type mismatch for function `bar`: expected `[I32, I32] -> []` but found `[] -> []`
+    type mismatch for function `bar`: expected `[i32, i32] -> []` but found `[] -> []`

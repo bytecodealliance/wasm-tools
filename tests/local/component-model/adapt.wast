@@ -260,7 +260,7 @@
     (core instance $i (instantiate $m))
     (func (export "foo") (canon lift (core func $i "foo")))
   )
-  "lowered parameter types `[]` do not match parameter types `[I32]`")
+  "lowered parameter types `[]` do not match parameter types `[i32]`")
 
 (assert_invalid
   (component
@@ -268,7 +268,7 @@
     (core instance $i (instantiate $m))
     (func (export "foo") (canon lift (core func $i "foo")))
   )
-  "lowered result types `[]` do not match result types `[I32]`")
+  "lowered result types `[]` do not match result types `[i32]`")
 
 (assert_invalid
   (component

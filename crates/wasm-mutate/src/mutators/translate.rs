@@ -181,20 +181,21 @@ pub fn tag_type(t: &mut dyn Translator, ty: &wasmparser::TagType) -> Result<wasm
 }
 
 pub fn ty(t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> {
-    match ty {
+    match *ty {
         wasmparser::ValType::I32 => Ok(ValType::I32),
         wasmparser::ValType::I64 => Ok(ValType::I64),
         wasmparser::ValType::F32 => Ok(ValType::F32),
         wasmparser::ValType::F64 => Ok(ValType::F64),
         wasmparser::ValType::V128 => Ok(ValType::V128),
-        wasmparser::ValType::Ref(ty) => Ok(ValType::Ref(t.translate_refty(ty)?)),
+        ty if ty.is_ref_type() => Ok(ValType::Ref(t.translate_refty(&ty.as_ref_type().unwrap())?)),
+        _ => unreachable!(),
     }
 }
 
 pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType> {
     Ok(RefType {
-        nullable: ty.nullable,
-        heap_type: t.translate_heapty(&ty.heap_type)?,
+        nullable: ty.is_nullable(),
+        heap_type: t.translate_heapty(&ty.heap_type())?,
     })
 }
 
@@ -285,11 +286,7 @@ pub fn element(
             exprs = reader
                 .into_iter()
                 .map(|f| {
-                    t.translate_const_expr(
-                        &f?,
-                        &wasmparser::ValType::Ref(element.ty),
-                        ConstExprKind::ElementFunction,
-                    )
+                    t.translate_const_expr(&f?, &element.ty.into(), ConstExprKind::ElementFunction)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             Elements::Expressions(&exprs)

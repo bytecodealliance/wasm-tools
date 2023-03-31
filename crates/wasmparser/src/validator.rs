@@ -261,10 +261,19 @@ impl WasmFeatures {
                     Err("floating-point support is disabled")
                 }
             }
-            ValType::Ref(r) => {
+            ValType::V128 => {
+                if self.simd {
+                    Ok(())
+                } else {
+                    Err("SIMD support is not enabled")
+                }
+            }
+            _ => {
+                assert!(ty.is_ref_type());
+                let r = ty.as_ref_type().unwrap();
                 if self.reference_types {
                     if !self.function_references {
-                        match (r.heap_type, r.nullable) {
+                        match (r.heap_type(), r.is_nullable()) {
                             (_, false) => {
                                 Err("function references required for non-nullable types")
                             }
@@ -278,13 +287,6 @@ impl WasmFeatures {
                     }
                 } else {
                     Err("reference types support is not enabled")
-                }
-            }
-            ValType::V128 => {
-                if self.simd {
-                    Ok(())
-                } else {
-                    Err("SIMD support is not enabled")
                 }
             }
         }

@@ -34,7 +34,8 @@ impl From<wasmparser::ValType> for PrimitiveTypeInfo {
             wasmparser::ValType::F32 => PrimitiveTypeInfo::F32,
             wasmparser::ValType::F64 => PrimitiveTypeInfo::F64,
             wasmparser::ValType::V128 => PrimitiveTypeInfo::V128,
-            wasmparser::ValType::Ref(t) => t.into(),
+            ty if ty.is_ref_type() => ty.as_ref_type().unwrap().into(),
+            _ => unreachable!(),
         }
     }
 }
@@ -77,14 +78,15 @@ pub fn map_type(tpe: wasmparser::ValType) -> Result<ValType> {
         wasmparser::ValType::F32 => Ok(ValType::F32),
         wasmparser::ValType::F64 => Ok(ValType::F64),
         wasmparser::ValType::V128 => Ok(ValType::V128),
-        wasmparser::ValType::Ref(t) => Ok(ValType::Ref(map_ref_type(t)?)),
+        ty if ty.is_ref_type() => Ok(ValType::Ref(map_ref_type(ty.as_ref_type().unwrap())?)),
+        _ => unreachable!(),
     }
 }
 
-pub fn map_ref_type(tpe: wasmparser::RefType) -> Result<RefType> {
+pub fn map_ref_type(ty: wasmparser::RefType) -> Result<RefType> {
     Ok(RefType {
-        nullable: tpe.nullable,
-        heap_type: match tpe.heap_type {
+        nullable: ty.is_nullable(),
+        heap_type: match ty.heap_type() {
             wasmparser::HeapType::Func => HeapType::Func,
             wasmparser::HeapType::Extern => HeapType::Extern,
             wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),

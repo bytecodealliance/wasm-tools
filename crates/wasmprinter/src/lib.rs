@@ -719,7 +719,8 @@ impl Printer {
             ValType::F32 => self.result.push_str("f32"),
             ValType::F64 => self.result.push_str("f64"),
             ValType::V128 => self.result.push_str("v128"),
-            ValType::Ref(rt) => self.print_reftype(rt)?,
+            ty if ty.is_ref_type() => self.print_reftype(ty.as_ref_type().unwrap())?,
+            _ => unreachable!(),
         }
         Ok(())
     }
@@ -731,10 +732,10 @@ impl Printer {
             self.result.push_str("externref");
         } else {
             self.result.push_str("(ref ");
-            if ty.nullable {
+            if ty.is_nullable() {
                 self.result.push_str("null ");
             }
-            self.print_heaptype(ty.heap_type)?;
+            self.print_heaptype(ty.heap_type())?;
             self.result.push_str(")");
         }
         Ok(())

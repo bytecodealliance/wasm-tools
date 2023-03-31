@@ -1,1 +1,1 @@
-type mismatch for function `a`: expected `[I32, I32] -> [I32]` but found `[] -> []`
+type mismatch for function `a`: expected `[i32, i32] -> [i32]` but found `[] -> []`
