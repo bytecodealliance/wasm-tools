@@ -518,7 +518,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                         // ...but not any other types.
                         bail!(
                             self.offset,
-                            "type mismatche: expected {}, found heap type",
+                            "type mismatch: expected {}, found heap type",
                             ty_to_str(expected)
                         )
                     }
