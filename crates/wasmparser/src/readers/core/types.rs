@@ -330,7 +330,6 @@ pub enum HeapType {
     Extern,
 }
 
-impl ValType {}
 
 impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
