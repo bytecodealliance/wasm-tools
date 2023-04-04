@@ -275,8 +275,8 @@ impl<'a> TypeEncoder<'a> {
 
     fn ref_type(ty: wasmparser::RefType) -> RefType {
         RefType {
-            nullable: ty.nullable,
-            heap_type: match ty.heap_type {
+            nullable: ty.is_nullable(),
+            heap_type: match ty.heap_type() {
                 wasmparser::HeapType::Func => HeapType::Func,
                 wasmparser::HeapType::Extern => HeapType::Extern,
                 wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),

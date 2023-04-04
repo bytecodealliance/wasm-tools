@@ -30,37 +30,14 @@ pub enum ValType {
     F64,
     /// The value type is v128.
     V128,
-    /// The value type is a reference. Which type of reference is decided by
-    /// RefType. This is a change in syntax from the function references proposal,
-    /// which now provides FuncRef and ExternRef as sugar for the generic ref
-    /// construct.
+    /// The value type is a reference.
     Ref(RefType),
 }
 
-/// A reference type. When the function references feature is disabled, this
-/// only represents funcref and externref, using the following format:
-/// RefType { nullable: true, heap_type: Func | Extern })
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(packed)]
-pub struct RefType {
-    /// Whether it's nullable
-    pub nullable: bool,
-    /// The relevant heap type
-    pub heap_type: HeapType,
-}
-
-impl RefType {
-    /// Alias for the wasm `funcref` type.
-    pub const FUNCREF: RefType = RefType {
-        nullable: true,
-        heap_type: HeapType::Func,
-    };
-    /// Alias for the wasm `externref` type.
-    pub const EXTERNREF: RefType = RefType {
-        nullable: true,
-        heap_type: HeapType::Extern,
-    };
-}
+// The size of `ValType` is performance sensitive.
+const _: () = {
+    assert!(std::mem::size_of::<ValType>() == 4);
+};
 
 impl From<RefType> for ValType {
     fn from(ty: RefType) -> ValType {
@@ -68,44 +45,10 @@ impl From<RefType> for ValType {
     }
 }
 
-/// Used as a performance optimization in HeapType. Call `.into()` to get the u32
-// A u16 forces 2-byte alignment, which forces HeapType to be 4 bytes,
-// which forces ValType to 5 bytes. This newtype is annotated as unaligned to
-// store the necessary bits compactly
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(packed)]
-pub struct PackedIndex(u16);
-
-impl TryFrom<u32> for PackedIndex {
-    type Error = ();
-
-    fn try_from(idx: u32) -> Result<PackedIndex, ()> {
-        idx.try_into().map(PackedIndex).map_err(|_| ())
-    }
-}
-
-impl From<PackedIndex> for u32 {
-    fn from(x: PackedIndex) -> u32 {
-        x.0 as u32
-    }
-}
-
-/// A heap type from function references. When the proposal is disabled, Index
-/// is an invalid type.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum HeapType {
-    /// Function type index
-    /// Note: [PackedIndex] may need to be unpacked
-    TypedFunc(PackedIndex),
-    /// From reference types
-    Func,
-    /// From reference types
-    Extern,
-}
-
 impl ValType {
     /// Alias for the wasm `funcref` type.
     pub const FUNCREF: ValType = ValType::Ref(RefType::FUNCREF);
+
     /// Alias for the wasm `externref` type.
     pub const EXTERNREF: ValType = ValType::Ref(RefType::EXTERNREF);
 
@@ -116,16 +59,14 @@ impl ValType {
     pub fn is_reference_type(&self) -> bool {
         matches!(self, ValType::Ref(_))
     }
-    /// Whether the type is defaultable according to function references
-    /// spec. This amounts to whether it's a non-nullable ref
+
+    /// Whether the type is defaultable, i.e. it is not a non-nullable reference
+    /// type.
     pub fn is_defaultable(&self) -> bool {
-        !matches!(
-            self,
-            ValType::Ref(RefType {
-                nullable: false,
-                ..
-            })
-        )
+        match *self {
+            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
+            Self::Ref(rt) => rt.is_nullable(),
+        }
     }
 
     pub(crate) fn is_valtype_byte(byte: u8) -> bool {
@@ -165,18 +106,213 @@ impl<'a> FromReader<'a> for ValType {
     }
 }
 
+/// A reference type.
+///
+/// The reference types proposal first introduced `externref` and `funcref`.
+///
+/// The function refererences proposal introduced typed function references.
+//
+// This is a bitpacked enum that fits in a "u24" aka `[u8; 3]`. It has a two bit
+// discriminant distinguishing the following variants:
+//
+// `(ref null? <type_index>)`: [ 00:i2 nullable:i1 type_index:i21 ]
+//         `(ref null? func)`: [ 01:i2 nullable:i1                ]
+//       `(ref null? extern)`: [ 10:i2 nullable:i1                ]
+//                     unused: [ 11:i2                            ]
+//
+// Note that we only technically need 20 bits for the type index to fit every
+// type index less than or equal to `crate::limits::MAX_WASM_TYPES`. So if we
+// ever need them, we have 2 bits available in that first variant.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct RefType([u8; 3]);
+
+impl std::fmt::Debug for RefType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (self.is_nullable(), self.heap_type()) {
+            (true, HeapType::Extern) => write!(f, "externref"),
+            (false, HeapType::Extern) => write!(f, "(ref extern)"),
+            (true, HeapType::Func) => write!(f, "funcref"),
+            (false, HeapType::Func) => write!(f, "(ref func)"),
+            (true, HeapType::TypedFunc(idx)) => write!(f, "(ref null {idx})"),
+            (false, HeapType::TypedFunc(idx)) => write!(f, "(ref {idx})"),
+        }
+    }
+}
+
+// Static assert that we can fit indices up to `MAX_WASM_TYPES` inside `RefType`.
+const _: () = {
+    const fn can_roundtrip_index(index: u32) -> bool {
+        assert!(RefType::can_represent_type_index(index));
+        let rt = match RefType::typed_func(true, index) {
+            Some(rt) => rt,
+            None => panic!(),
+        };
+        assert!(rt.is_nullable());
+        let actual_index = match rt.type_index() {
+            Some(i) => i,
+            None => panic!(),
+        };
+        actual_index == index
+    }
+
+    assert!(can_roundtrip_index(crate::limits::MAX_WASM_TYPES as u32));
+    assert!(can_roundtrip_index(0b00000000_00011111_00000000_00000000));
+    assert!(can_roundtrip_index(0b00000000_00000000_11111111_00000000));
+    assert!(can_roundtrip_index(0b00000000_00000000_00000000_11111111));
+    assert!(can_roundtrip_index(0));
+};
+
+impl RefType {
+    const DISCRIMINANT_MASK: u32 = 0b11 << 22;
+
+    const TYPED_FUNC_DISCRIMINANT: u32 = 0b00 << 22;
+    const ANY_FUNC_DISCRIMINANT: u32 = 0b01 << 22;
+    const EXTERN_DISCRIMINANT: u32 = 0b10 << 22;
+
+    const NULLABLE_MASK: u32 = 1 << 21;
+    const INDEX_MASK: u32 = (1 << 21) - 1;
+
+    /// An nullable untyped function reference aka `(ref null func)` aka
+    /// `funcref` aka `anyfunc`.
+    pub const FUNCREF: Self = RefType::from_u32(Self::ANY_FUNC_DISCRIMINANT | Self::NULLABLE_MASK);
+
+    /// A nullable reference to an extern object aka `(ref null extern)` aka
+    /// `externref`.
+    pub const EXTERNREF: Self = RefType::from_u32(Self::EXTERN_DISCRIMINANT | Self::NULLABLE_MASK);
+
+    const fn can_represent_type_index(index: u32) -> bool {
+        index & Self::INDEX_MASK == index
+    }
+
+    const fn u24_to_u32(bytes: [u8; 3]) -> u32 {
+        let expanded_bytes = [bytes[0], bytes[1], bytes[2], 0];
+        u32::from_le_bytes(expanded_bytes)
+    }
+
+    const fn u32_to_u24(x: u32) -> [u8; 3] {
+        let bytes = x.to_le_bytes();
+        debug_assert!(bytes[3] == 0);
+        [bytes[0], bytes[1], bytes[2]]
+    }
+
+    #[inline]
+    const fn as_u32(&self) -> u32 {
+        Self::u24_to_u32(self.0)
+    }
+
+    #[inline]
+    const fn from_u32(x: u32) -> Self {
+        debug_assert!(x & (0b11111111 << 24) == 0);
+        debug_assert!(matches!(
+            x & Self::DISCRIMINANT_MASK,
+            Self::ANY_FUNC_DISCRIMINANT | Self::TYPED_FUNC_DISCRIMINANT | Self::EXTERN_DISCRIMINANT
+        ));
+        RefType(Self::u32_to_u24(x))
+    }
+
+    /// Create a reference to a typed function with the type at the given index.
+    ///
+    /// Returns `None` when the type index is beyond this crate's implementation
+    /// limits and therfore is not representable.
+    pub const fn typed_func(nullable: bool, index: u32) -> Option<Self> {
+        if Self::can_represent_type_index(index) {
+            let nullable = if nullable { Self::NULLABLE_MASK } else { 0 };
+            Some(RefType::from_u32(
+                Self::TYPED_FUNC_DISCRIMINANT | nullable | index,
+            ))
+        } else {
+            None
+        }
+    }
+
+    /// Create a new `RefType`.
+    ///
+    /// Returns `None` when the heap type's type index (if any) is beyond this
+    /// crate's implementation limits and therfore is not representable.
+    pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
+        let nullable32 = if nullable { Self::NULLABLE_MASK } else { 0 };
+        match heap_type {
+            HeapType::TypedFunc(index) => RefType::typed_func(nullable, index),
+            HeapType::Func => Some(Self::from_u32(Self::ANY_FUNC_DISCRIMINANT | nullable32)),
+            HeapType::Extern => Some(Self::from_u32(Self::EXTERN_DISCRIMINANT | nullable32)),
+        }
+    }
+
+    const fn discriminant(&self) -> u32 {
+        self.as_u32() & Self::DISCRIMINANT_MASK
+    }
+
+    /// Is this a reference to a typed function?
+    pub const fn is_typed_func_ref(&self) -> bool {
+        self.discriminant() == Self::TYPED_FUNC_DISCRIMINANT
+    }
+
+    /// If this is a reference to a typed function, get its type index.
+    pub const fn type_index(&self) -> Option<u32> {
+        if self.is_typed_func_ref() {
+            Some(self.as_u32() & Self::INDEX_MASK)
+        } else {
+            None
+        }
+    }
+
+    /// Is this an untyped function reference aka `(ref null func)` aka `funcref` aka `anyfunc`?
+    pub fn is_func_ref(&self) -> bool {
+        self.discriminant() == Self::ANY_FUNC_DISCRIMINANT
+    }
+
+    /// Is this a `(ref null extern)` aka `externref`?
+    pub fn is_extern_ref(&self) -> bool {
+        self.discriminant() == Self::EXTERN_DISCRIMINANT
+    }
+
+    /// Is this ref type nullable?
+    pub const fn is_nullable(&self) -> bool {
+        self.as_u32() & Self::NULLABLE_MASK != 0
+    }
+
+    /// Get the non-nullable version of this ref type.
+    pub fn as_non_null(&self) -> Self {
+        Self::from_u32(self.as_u32() & !Self::NULLABLE_MASK)
+    }
+
+    /// Get the heap type that this is a reference to.
+    pub fn heap_type(&self) -> HeapType {
+        match self.discriminant() {
+            Self::TYPED_FUNC_DISCRIMINANT => HeapType::TypedFunc(self.type_index().unwrap()),
+            Self::ANY_FUNC_DISCRIMINANT => HeapType::Func,
+            Self::EXTERN_DISCRIMINANT => HeapType::Extern,
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read()? {
             0x70 => Ok(RefType::FUNCREF),
             0x6F => Ok(RefType::EXTERNREF),
-            byte @ (0x6B | 0x6C) => Ok(RefType {
-                nullable: byte == 0x6C,
-                heap_type: reader.read()?,
-            }),
+            byte @ (0x6B | 0x6C) => {
+                let nullable = byte == 0x6C;
+                // NB: `FromReader for HeapType` only succeeds when
+                // `RefType::new` will succeed, so we can unwrap here.
+                Ok(RefType::new(nullable, reader.read()?).unwrap())
+            }
             _ => bail!(reader.original_position(), "malformed reference type"),
         }
     }
+}
+
+/// A heap type from function references. When the proposal is disabled, Index
+/// is an invalid type.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum HeapType {
+    /// Function of the type at the given index.
+    TypedFunc(u32),
+    /// Untyped (any) function.
+    Func,
+    /// External heap type.
+    Extern,
 }
 
 impl<'a> FromReader<'a> for HeapType {
@@ -192,17 +328,13 @@ impl<'a> FromReader<'a> for HeapType {
             }
             _ => {
                 let idx = match u32::try_from(reader.read_var_s33()?) {
-                    Ok(idx) => idx,
+                    Ok(idx) if RefType::can_represent_type_index(idx) => idx,
+                    Ok(_) => bail!(reader.original_position(), "function index too large"),
                     Err(_) => {
                         bail!(reader.original_position(), "invalid function heap type",);
                     }
                 };
-                match idx.try_into() {
-                    Ok(packed) => Ok(HeapType::TypedFunc(packed)),
-                    Err(_) => {
-                        bail!(reader.original_position(), "function index too large");
-                    }
-                }
+                Ok(HeapType::TypedFunc(idx))
             }
         }
     }

@@ -264,7 +264,7 @@ impl WasmFeatures {
             ValType::Ref(r) => {
                 if self.reference_types {
                     if !self.function_references {
-                        match (r.heap_type, r.nullable) {
+                        match (r.heap_type(), r.is_nullable()) {
                             (_, false) => {
                                 Err("function references required for non-nullable types")
                             }
