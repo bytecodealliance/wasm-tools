@@ -1,0 +1,41 @@
+interface streams {
+  use poll.poll.poll.{pollable}
+
+  record stream-error {
+  }
+
+  type output-stream = u32
+
+  type input-stream = u32
+
+  read: func(this: input-stream, len: u64) -> result<tuple<list<u8>, bool>, stream-error>
+
+  blocking-read: func(this: input-stream, len: u64) -> result<tuple<list<u8>, bool>, stream-error>
+
+  skip: func(this: input-stream, len: u64) -> result<tuple<u64, bool>, stream-error>
+
+  blocking-skip: func(this: input-stream, len: u64) -> result<tuple<u64, bool>, stream-error>
+
+  subscribe-to-input-stream: func(this: input-stream) -> pollable
+
+  drop-input-stream: func(this: input-stream)
+
+  write: func(this: output-stream, buf: list<u8>) -> result<u64, stream-error>
+
+  blocking-write: func(this: output-stream, buf: list<u8>) -> result<u64, stream-error>
+
+  write-zeroes: func(this: output-stream, len: u64) -> result<u64, stream-error>
+
+  blocking-write-zeroes: func(this: output-stream, len: u64) -> result<u64, stream-error>
+
+  splice: func(this: output-stream, src: input-stream, len: u64) -> result<tuple<u64, bool>, stream-error>
+
+  blocking-splice: func(this: output-stream, src: input-stream, len: u64) -> result<tuple<u64, bool>, stream-error>
+
+  forward: func(this: output-stream, src: input-stream) -> result<u64, stream-error>
+
+  subscribe-to-output-stream: func(this: output-stream) -> pollable
+
+  drop-output-stream: func(this: output-stream)
+}
+

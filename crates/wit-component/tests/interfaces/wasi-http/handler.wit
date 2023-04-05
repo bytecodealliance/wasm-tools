@@ -1,4 +1,0 @@
-default interface handler {
-  use pkg.types.{request, response}
-  handle: func(request: request) -> response
-}

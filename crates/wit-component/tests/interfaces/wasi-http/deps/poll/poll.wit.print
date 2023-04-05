@@ -1,0 +1,8 @@
+interface poll {
+  type pollable = u32
+
+  drop-pollable: func(this: pollable)
+
+  poll-oneoff: func(in: list<pollable>) -> list<u8>
+}
+
