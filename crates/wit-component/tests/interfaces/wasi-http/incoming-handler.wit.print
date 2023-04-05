@@ -1,0 +1,5 @@
+interface incoming-handler {
+  use pkg.types.types.{incoming-request, response-outparam}
+  handle: func(request: incoming-request, response-out: response-outparam)
+}
+

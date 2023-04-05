@@ -1,0 +1,8 @@
+interface random {
+  get-random-bytes: func(len: u64) -> list<u8>
+
+  get-random-u64: func() -> u64
+
+  insecure-random: func() -> tuple<u64, u64>
+}
+
