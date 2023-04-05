@@ -31,7 +31,7 @@
  0x3d | 00          | start function 0
  0x3e | 09 0f       | element section
  0x40 | 03          | 3 count
- 0x41 | 00          | element RefType { nullable: true, heap_type: Func } table[0]
+ 0x41 | 00          | element RefType { nullable: true, heap_type: Func } table[None]
  0x42 | 41 03       | i32_const value:3
  0x44 | 0b          | end
  0x45 | 01          | 1 items

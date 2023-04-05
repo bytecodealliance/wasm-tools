@@ -171,7 +171,7 @@ impl<'a> Dump<'a> {
                             table_index,
                             offset_expr,
                         } => {
-                            write!(me.state, " table[{}]", table_index)?;
+                            write!(me.state, " table[{:?}]", table_index)?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
                             me.print_ops(offset_expr.get_operators_reader())?;
                             write!(me.state, "{} items", item_count)?;
