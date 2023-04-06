@@ -731,10 +731,10 @@ impl Printer {
             self.result.push_str("externref");
         } else {
             self.result.push_str("(ref ");
-            if ty.nullable {
+            if ty.is_nullable() {
                 self.result.push_str("null ");
             }
-            self.print_heaptype(ty.heap_type)?;
+            self.print_heaptype(ty.heap_type())?;
             self.result.push_str(")");
         }
         Ok(())
