@@ -294,9 +294,9 @@ impl<'a> FromReader<'a> for RefType {
             0x6F => Ok(RefType::EXTERNREF),
             byte @ (0x6B | 0x6C) => {
                 let nullable = byte == 0x6C;
-                // NB: `FromReader for HeapType` only succeeds when
-                // `RefType::new` will succeed, so we can unwrap here.
-                Ok(RefType::new(nullable, reader.read()?).unwrap())
+                let pos = reader.original_position();
+                RefType::new(nullable, reader.read()?)
+                    .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
             }
             _ => bail!(reader.original_position(), "malformed reference type"),
         }
@@ -328,8 +328,7 @@ impl<'a> FromReader<'a> for HeapType {
             }
             _ => {
                 let idx = match u32::try_from(reader.read_var_s33()?) {
-                    Ok(idx) if RefType::can_represent_type_index(idx) => idx,
-                    Ok(_) => bail!(reader.original_position(), "function index too large"),
+                    Ok(idx) => idx,
                     Err(_) => {
                         bail!(reader.original_position(), "invalid function heap type",);
                     }
