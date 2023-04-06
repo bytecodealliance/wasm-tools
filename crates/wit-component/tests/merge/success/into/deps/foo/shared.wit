@@ -1,0 +1,21 @@
+interface only-into {
+  variant v {
+    c1,
+  }
+
+  bar: func(x: v)
+}
+
+interface shared {
+  type a = u32
+}
+
+world shared-world {
+  import a: self.shared
+
+  export b: self.shared
+
+  type c = u32
+
+  import d: interface {}
+}

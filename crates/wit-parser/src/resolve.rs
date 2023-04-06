@@ -234,7 +234,53 @@ impl Resolve {
     /// Merges all the contents of a different `Resolve` into this one. The
     /// `Remap` structure returned provides a mapping from all old indices to
     /// new indices
-    pub fn merge(&mut self, resolve: Resolve) -> Remap {
+    ///
+    /// This operation can fail if `resolve` disagrees with `self` about the
+    /// packages being inserted. Otherwise though this will additionally attempt
+    /// to "union" packages found in `resolve` with those found in `self`.
+    /// Unioning packages is keyed on the name/url of packages for those with
+    /// URLs present. If found then it's assumed that both `Resolve` instances
+    /// were originally created from the same contents and are two views
+    /// of the same package.
+    pub fn merge(&mut self, resolve: Resolve) -> Result<Remap> {
+        log::trace!(
+            "merging {} packages into {} packages",
+            resolve.packages.len(),
+            self.packages.len()
+        );
+
+        let mut map = MergeMap::new(&resolve, &self)?;
+        map.build()?;
+        let MergeMap {
+            package_map,
+            interface_map,
+            type_map,
+            doc_map,
+            world_map,
+            documents_to_add,
+            interfaces_to_add,
+            worlds_to_add,
+            ..
+        } = map;
+
+        // With a set of maps from ids in `resolve` to ids in `self` the next
+        // operation is to start moving over items and building a `Remap` to
+        // update ids.
+        //
+        // Each component field of `resolve` is moved into `self` so long as
+        // its ID is not within one of the maps above. If it's present in a map
+        // above then that means the item is already present in `self` so a new
+        // one need not be added. If it's not present in a map that means it's
+        // not present in `self` so it must be added to an arena.
+        //
+        // When adding an item to an arena one of the `remap.update_*` methods
+        // is additionally called to update all identifiers from pointers within
+        // `resolve` to becoming pointers within `self`.
+        //
+        // Altogether this should weave all the missing items in `self` from
+        // `resolve` into one structure while updating all identifiers to
+        // be local within `self`.
+
         let mut remap = Remap::default();
         let Resolve {
             types,
@@ -244,36 +290,52 @@ impl Resolve {
             packages,
         } = resolve;
 
+        let mut moved_types = Vec::new();
         for (id, mut ty) in types {
-            remap.update_typedef(&mut ty);
-            let new_id = self.types.alloc(ty);
+            let new_id = type_map.get(&id).copied().unwrap_or_else(|| {
+                moved_types.push(id);
+                remap.update_typedef(&mut ty);
+                self.types.alloc(ty)
+            });
             assert_eq!(remap.types.len(), id.index());
             remap.types.push(new_id);
         }
 
+        let mut moved_interfaces = Vec::new();
         for (id, mut iface) in interfaces {
-            remap.update_interface(&mut iface);
-            let new_id = self.interfaces.alloc(iface);
+            let new_id = interface_map.get(&id).copied().unwrap_or_else(|| {
+                moved_interfaces.push(id);
+                remap.update_interface(&mut iface);
+                self.interfaces.alloc(iface)
+            });
             assert_eq!(remap.interfaces.len(), id.index());
             remap.interfaces.push(new_id);
         }
 
+        let mut moved_worlds = Vec::new();
         for (id, mut world) in worlds {
-            for (_, item) in world.imports.iter_mut().chain(&mut world.exports) {
-                match item {
-                    WorldItem::Function(f) => remap.update_function(f),
-                    WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
-                    WorldItem::Type(i) => *i = remap.types[i.index()],
+            let new_id = world_map.get(&id).copied().unwrap_or_else(|| {
+                moved_worlds.push(id);
+                for (_, item) in world.imports.iter_mut().chain(&mut world.exports) {
+                    match item {
+                        WorldItem::Function(f) => remap.update_function(f),
+                        WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
+                        WorldItem::Type(i) => *i = remap.types[i.index()],
+                    }
                 }
-            }
-            let new_id = self.worlds.alloc(world);
+                self.worlds.alloc(world)
+            });
             assert_eq!(remap.worlds.len(), id.index());
             remap.worlds.push(new_id);
         }
 
+        let mut moved_documents = Vec::new();
         for (id, mut doc) in documents {
-            remap.update_document(&mut doc);
-            let new_id = self.documents.alloc(doc);
+            let new_id = doc_map.get(&id).copied().unwrap_or_else(|| {
+                moved_documents.push(id);
+                remap.update_document(&mut doc);
+                self.documents.alloc(doc)
+            });
             assert_eq!(remap.documents.len(), id.index());
             remap.documents.push(new_id);
         }
@@ -282,26 +344,39 @@ impl Resolve {
             for (_, doc) in pkg.documents.iter_mut() {
                 *doc = remap.documents[doc.index()];
             }
-            let new_id = self.packages.alloc(pkg);
+            let new_id = package_map
+                .get(&id)
+                .copied()
+                .unwrap_or_else(|| self.packages.alloc(pkg));
             assert_eq!(remap.packages.len(), id.index());
             remap.packages.push(new_id);
         }
 
-        // Fixup all "parent" links now
-        for id in remap.documents.iter().copied() {
+        // Fixup all "parent" links now.
+        //
+        // Note that this is only done for items that are actually moved from
+        // `resolve` into `self`, which is tracked by the various `moved_*`
+        // lists built incrementally above. The ids in the `moved_*` lists
+        // are ids within `resolve`, so they're translated through `remap` to
+        // ids within `self`.
+        for id in moved_documents {
+            let id = remap.documents[id.index()];
             if let Some(pkg) = &mut self.documents[id].package {
                 *pkg = remap.packages[pkg.index()];
             }
         }
-        for id in remap.worlds.iter().copied() {
+        for id in moved_worlds {
+            let id = remap.worlds[id.index()];
             let doc = &mut self.worlds[id].document;
             *doc = remap.documents[doc.index()];
         }
-        for id in remap.interfaces.iter().copied() {
+        for id in moved_interfaces {
+            let id = remap.interfaces[id.index()];
             let doc = &mut self.interfaces[id].document;
             *doc = remap.documents[doc.index()];
         }
-        for id in remap.types.iter().copied() {
+        for id in moved_types {
+            let id = remap.types[id.index()];
             match &mut self.types[id].owner {
                 TypeOwner::Interface(id) => *id = remap.interfaces[id.index()],
                 TypeOwner::World(id) => *id = remap.worlds[id.index()],
@@ -309,7 +384,31 @@ impl Resolve {
             }
         }
 
-        remap
+        // And finally process documents that were present in `resolve` but were
+        // not present in `self`. This is only done for merged packages as
+        // documents may be added to `self.documents` but wouldn't otherwise be
+        // present in the `documents` field of the corresponding package.
+        for (name, pkg, doc) in documents_to_add {
+            let prev = self.packages[pkg]
+                .documents
+                .insert(name, remap.documents[doc.index()]);
+            assert!(prev.is_none());
+        }
+        for (name, doc, iface) in interfaces_to_add {
+            let prev = self.documents[doc]
+                .interfaces
+                .insert(name, remap.interfaces[iface.index()]);
+            assert!(prev.is_none());
+        }
+        for (name, doc, world) in worlds_to_add {
+            let prev = self.documents[doc]
+                .worlds
+                .insert(name, remap.worlds[world.index()]);
+            assert!(prev.is_none());
+        }
+
+        log::trace!("now have {} packages", self.packages.len());
+        Ok(remap)
     }
 
     /// Merges the world `from` into the world `into`.
@@ -322,21 +421,76 @@ impl Resolve {
     /// interface.
     ///
     /// This operation can fail if the imports/exports overlap.
-    //
-    // TODO: overlap shouldn't be a hard error here, there should be some form
-    // of comparing names/urls/deep merging or such to get this working.
     pub fn merge_worlds(&mut self, from: WorldId, into: WorldId) -> Result<()> {
         let mut new_imports = Vec::new();
         let mut new_exports = Vec::new();
 
         let from_world = &self.worlds[from];
         let into_world = &self.worlds[into];
-        for (name, import) in from_world.imports.iter() {
-            match into_world.imports.get(name) {
-                Some(_) => bail!("duplicate import found for interface `{name}`"),
-                None => new_imports.push((name.clone(), import.clone())),
+
+        // Build a map of the imports/exports in `into` going the reverse
+        // direction from what's listed. This is then consulted below to ensure
+        // that the same item isn't exported or imported under two different
+        // names which isn't allowed in the component model.
+        let mut into_imports_by_id = HashMap::new();
+        let mut into_exports_by_id = HashMap::new();
+        for (name, import) in into_world.imports.iter() {
+            if let WorldItem::Interface(id) = *import {
+                let prev = into_imports_by_id.insert(id, name);
+                assert!(prev.is_none());
             }
         }
+        for (name, export) in into_world.exports.iter() {
+            if let WorldItem::Interface(id) = *export {
+                let prev = into_exports_by_id.insert(id, name);
+                assert!(prev.is_none());
+            }
+        }
+        for (name, import) in from_world.imports.iter() {
+            // If the "from" world imports an interface which is already
+            // imported by the "into" world then this is allowed if the names
+            // are the same. Importing the same interface under different names
+            // isn't allowed, but otherwise merging imports of
+            // same-named-interfaces is allowed to merge them together.
+            if let WorldItem::Interface(id) = import {
+                if let Some(prev) = into_imports_by_id.get(id) {
+                    if *prev != name {
+                        bail!("import `{name}` conflicts with previous name of `{prev}`");
+                    }
+                }
+            }
+        }
+        for (name, export) in from_world.exports.iter() {
+            // Note that unlike imports same-named exports are not handled here
+            // since if something is exported twice there's no way to "unify" it
+            // so it's left as an error.
+            if let WorldItem::Interface(id) = export {
+                if let Some(prev) = into_exports_by_id.get(id) {
+                    bail!("export `{name}` conflicts with previous name of `{prev}`");
+                }
+            }
+        }
+
+        // Next walk over the interfaces imported into `from_world` and queue up
+        // imports to get inserted into `into_world`.
+        for (name, from_import) in from_world.imports.iter() {
+            match into_world.imports.get(name) {
+                Some(into_import) => match (from_import, into_import) {
+                    // If these imports, which have the same name, are of the
+                    // same interface then union them together at this point.
+                    (WorldItem::Interface(from), WorldItem::Interface(into)) if from == into => {
+                        continue
+                    }
+                    _ => bail!("duplicate import found for interface `{name}`"),
+                },
+                None => new_imports.push((name.clone(), from_import.clone())),
+            }
+        }
+
+        // All exports at this time must be unique. For example the same
+        // interface exported from two locations can't really be resolved to one
+        // canonical definition, so make sure that merging worlds only succeeds
+        // if the worlds have disjoint sets of exports.
         for (name, export) in from_world.exports.iter() {
             match into_world.exports.get(name) {
                 Some(_) => bail!("duplicate export found for interface `{name}`"),
@@ -344,13 +498,14 @@ impl Resolve {
             }
         }
 
+        // Insert any new imports and new exports found first.
         let into = &mut self.worlds[into];
         for (name, import) in new_imports {
             let prev = into.imports.insert(name, import);
             assert!(prev.is_none());
         }
-        for (name, import) in new_exports {
-            let prev = into.exports.insert(name, import);
+        for (name, export) in new_exports {
+            let prev = into.exports.insert(name, export);
             assert!(prev.is_none());
         }
 
@@ -1020,5 +1175,304 @@ impl<'a> WorldElaborator<'a, '_> {
         };
         set.get(&id)
             .unwrap_or_else(|| self.resolve.interfaces[id].name.as_ref().unwrap())
+    }
+}
+
+struct MergeMap<'a> {
+    /// A map of package ids in `from` to those in `into` for those that are
+    /// found to be equivalent.
+    package_map: HashMap<PackageId, PackageId>,
+
+    /// A map of interface ids in `from` to those in `into` for those that are
+    /// found to be equivalent.
+    interface_map: HashMap<InterfaceId, InterfaceId>,
+
+    /// A map of type ids in `from` to those in `into` for those that are
+    /// found to be equivalent.
+    type_map: HashMap<TypeId, TypeId>,
+
+    /// A map of document ids in `from` to those in `into` for those that are
+    /// found to be equivalent.
+    doc_map: HashMap<DocumentId, DocumentId>,
+
+    /// A map of world ids in `from` to those in `into` for those that are
+    /// found to be equivalent.
+    world_map: HashMap<WorldId, WorldId>,
+
+    /// A list of documents that need to be added to packages in `into`.
+    ///
+    /// The elements here are:
+    ///
+    /// * The name of the document
+    /// * The ID within `into` of the package being added to
+    /// * The ID within `from` of the document being added.
+    documents_to_add: Vec<(String, PackageId, DocumentId)>,
+    interfaces_to_add: Vec<(String, DocumentId, InterfaceId)>,
+    worlds_to_add: Vec<(String, DocumentId, WorldId)>,
+
+    /// Which `Resolve` is being merged from.
+    from: &'a Resolve,
+
+    /// Which `Resolve` is being merged into.
+    into: &'a Resolve,
+
+    /// A cache of packages, keyed by name/url, within `into`.
+    packages_in_into: HashMap<(&'a String, &'a Option<String>), PackageId>,
+}
+
+impl<'a> MergeMap<'a> {
+    fn new(from: &'a Resolve, into: &'a Resolve) -> Result<MergeMap<'a>> {
+        let mut packages_in_into = HashMap::new();
+        for (id, package) in into.packages.iter() {
+            log::trace!("previous package {}/{:?}", package.name, package.url);
+            if package.url.is_none() {
+                continue;
+            }
+            let prev = packages_in_into.insert((&package.name, &package.url), id);
+            if prev.is_some() {
+                bail!(
+                    "found duplicate name/url combination in current resolve: {}/{:?}",
+                    package.name,
+                    package.url
+                );
+            }
+        }
+        Ok(MergeMap {
+            package_map: Default::default(),
+            interface_map: Default::default(),
+            type_map: Default::default(),
+            doc_map: Default::default(),
+            world_map: Default::default(),
+            documents_to_add: Default::default(),
+            interfaces_to_add: Default::default(),
+            worlds_to_add: Default::default(),
+            from,
+            into,
+            packages_in_into,
+        })
+    }
+
+    fn build(&mut self) -> Result<()> {
+        for (from_id, from) in self.from.packages.iter() {
+            let into_id = match self.packages_in_into.get(&(&from.name, &from.url)) {
+                Some(id) => *id,
+
+                // This package, according to its name and url, is not present
+                // in `self` so it needs to get added below.
+                None => {
+                    log::trace!("adding unique package {} / {:?}", from.name, from.url);
+                    continue;
+                }
+            };
+            log::trace!("merging duplicate package {} / {:?}", from.name, from.url);
+
+            self.build_package(from_id, into_id).with_context(|| {
+                format!("failed to merge package `{}` into existing copy", from.name)
+            })?;
+        }
+
+        Ok(())
+    }
+
+    fn build_package(&mut self, from_id: PackageId, into_id: PackageId) -> Result<()> {
+        let prev = self.package_map.insert(from_id, into_id);
+        assert!(prev.is_none());
+
+        let from = &self.from.packages[from_id];
+        let into = &self.into.packages[into_id];
+
+        // All documents in `from` should already be present in `into` to get
+        // merged, or it's assumed `self.from` contains a view of the package
+        // which happens to contain more files. In this situation the job of
+        // merging will be to add a new document to the package within
+        // `self.into` which is queued up with `self.documents_to_add`.
+        for (name, from_id) in from.documents.iter() {
+            let into_id = match into.documents.get(name) {
+                Some(id) => *id,
+                None => {
+                    self.documents_to_add
+                        .push((name.clone(), into_id, *from_id));
+                    continue;
+                }
+            };
+
+            self.build_document(*from_id, into_id)
+                .with_context(|| format!("failed to merge document `{name}` into existing copy"))?;
+        }
+
+        Ok(())
+    }
+
+    fn build_document(&mut self, from_id: DocumentId, into_id: DocumentId) -> Result<()> {
+        let prev = self.doc_map.insert(from_id, into_id);
+        assert!(prev.is_none());
+
+        let from_doc = &self.from.documents[from_id];
+        let into_doc = &self.into.documents[into_id];
+
+        // Like documents above if an interface is present in `from_id` but not
+        // present in `into_id` then it can be copied over wholesale. That
+        // copy is scheduled to happen within the `self.interfaces_to_add` list.
+        for (name, from_interface_id) in from_doc.interfaces.iter() {
+            let into_interface_id = match into_doc.interfaces.get(name) {
+                Some(id) => *id,
+                None => {
+                    self.interfaces_to_add
+                        .push((name.clone(), into_id, *from_interface_id));
+                    continue;
+                }
+            };
+
+            self.build_interface(*from_interface_id, into_interface_id)
+                .with_context(|| format!("failed to merge interface `{name}`"))?;
+        }
+
+        for (name, from_world_id) in from_doc.worlds.iter() {
+            let into_world_id = match into_doc.worlds.get(name) {
+                Some(id) => *id,
+                None => {
+                    self.worlds_to_add
+                        .push((name.clone(), into_id, *from_world_id));
+                    continue;
+                }
+            };
+
+            self.build_world(*from_world_id, into_world_id)
+                .with_context(|| format!("failed to merge world `{name}`"))?;
+        }
+        Ok(())
+    }
+
+    fn build_interface(&mut self, from_id: InterfaceId, into_id: InterfaceId) -> Result<()> {
+        let prev = self.interface_map.insert(from_id, into_id);
+        assert!(prev.is_none());
+
+        let from_interface = &self.from.interfaces[from_id];
+        let into_interface = &self.into.interfaces[into_id];
+
+        // Unlike documents/interfaces above if an interface in `from`
+        // differs from the interface in `into` then that's considered an
+        // error. Changing interfaces can reflect changes in imports/exports
+        // which may not be expected so it's currently required that all
+        // interfaces, when merged, exactly match.
+        //
+        // One case to consider here, for example, is that if a world in
+        // `into` exports the interface `into_id` then if `from_id` were to
+        // add more items into `into` then it would unexpectedly require more
+        // items to be exported which may not work. In an import context this
+        // might work since it's "just more items available for import", but
+        // for now a conservative route of "interfaces must match" is taken.
+
+        for (name, from_type_id) in from_interface.types.iter() {
+            let into_type_id = *into_interface
+                .types
+                .get(name)
+                .ok_or_else(|| anyhow!("expected type `{name}` to be present"))?;
+            let prev = self.type_map.insert(*from_type_id, into_type_id);
+            assert!(prev.is_none());
+
+            // FIXME: ideally the types should be "structurally
+            // equal" but that's not trivial to do in the face of
+            // resources.
+        }
+
+        for (name, _) in from_interface.functions.iter() {
+            if !into_interface.functions.contains_key(name) {
+                bail!("expected function `{name}` to be present");
+            }
+
+            // FIXME: ideally the functions should be "structurally
+            // equal" but that's not trivial to do in the face of
+            // resources.
+        }
+
+        Ok(())
+    }
+
+    fn build_world(&mut self, from_id: WorldId, into_id: WorldId) -> Result<()> {
+        let prev = self.world_map.insert(from_id, into_id);
+        assert!(prev.is_none());
+
+        let from_world = &self.from.worlds[from_id];
+        let into_world = &self.into.worlds[into_id];
+
+        // Same as interfaces worlds are expected to exactly match to avoid
+        // unexpectedly changing a particular component's view of imports and
+        // exports.
+        //
+        // FIXME: this should probably share functionality with
+        // `Resolve::merge_worlds` to support adding imports but not changing
+        // exports.
+
+        if from_world.imports.len() != into_world.imports.len() {
+            bail!("world contains different number of imports than expected");
+        }
+        if from_world.exports.len() != into_world.exports.len() {
+            bail!("world contains different number of exports than expected");
+        }
+
+        for (name, from) in from_world.imports.iter() {
+            let into = into_world
+                .imports
+                .get(name)
+                .ok_or_else(|| anyhow!("import `{name}` not found in target world"))?;
+            self.match_world_item(from, into)
+                .with_context(|| format!("import `{name}` didn't match target world"))?;
+        }
+
+        for (name, from) in from_world.exports.iter() {
+            let into = into_world
+                .exports
+                .get(name)
+                .ok_or_else(|| anyhow!("export `{name}` not found in target world"))?;
+            self.match_world_item(from, into)
+                .with_context(|| format!("export `{name}` didn't match target world"))?;
+        }
+
+        Ok(())
+    }
+
+    fn match_world_item(&mut self, from: &WorldItem, into: &WorldItem) -> Result<()> {
+        match (from, into) {
+            (WorldItem::Interface(from), WorldItem::Interface(into)) => {
+                match (
+                    &self.from.interfaces[*from].name,
+                    &self.into.interfaces[*into].name,
+                ) {
+                    // If one interface is unnamed then they must both be
+                    // unnamed and they must both have the same structure for
+                    // now.
+                    (None, None) => self.build_interface(*from, *into)?,
+
+                    // Otherwise both interfaces must be named and they must
+                    // have been previously found to be equivalent. Note that
+                    // if either is unnamed it won't be present in
+                    // `interface_map` so this'll return an error.
+                    _ => {
+                        if self.interface_map.get(&from) != Some(&into) {
+                            bail!("interfaces are not the same");
+                        }
+                    }
+                }
+            }
+            (WorldItem::Function(from), WorldItem::Function(into)) => {
+                drop((from, into));
+                // FIXME: should assert an check that `from` structurally
+                // matches `into`
+            }
+            (WorldItem::Type(from), WorldItem::Type(into)) => {
+                // FIXME: should assert an check that `from` structurally
+                // matches `into`
+                let prev = self.type_map.insert(*from, *into);
+                assert!(prev.is_none());
+            }
+
+            (WorldItem::Interface(_), _)
+            | (WorldItem::Function(_), _)
+            | (WorldItem::Type(_), _) => {
+                bail!("world items do not have the same type")
+            }
+        }
+        Ok(())
     }
 }

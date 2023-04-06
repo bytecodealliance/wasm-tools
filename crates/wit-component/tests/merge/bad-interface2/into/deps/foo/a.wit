@@ -1,0 +1,6 @@
+default interface a {
+  type t = u32
+
+  b: func()
+}
+

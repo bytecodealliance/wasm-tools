@@ -89,6 +89,7 @@ pub struct ValidatedModule<'a> {
 pub fn validate_module<'a>(
     bytes: &'a [u8],
     metadata: &'a Bindgen,
+    exports: &IndexSet<String>,
     adapters: &IndexSet<&str>,
 ) -> Result<ValidatedModule<'a>> {
     let mut validator = Validator::new();
@@ -197,8 +198,14 @@ pub fn validate_module<'a>(
         }
     }
 
-    for (name, item) in world.exports.iter() {
-        validate_exported_item(&metadata.resolve, item, name, &export_funcs, &types)?;
+    for name in exports {
+        validate_exported_item(
+            &metadata.resolve,
+            &world.exports[name],
+            name,
+            &export_funcs,
+            &types,
+        )?;
     }
 
     Ok(ret)
