@@ -193,8 +193,8 @@ pub fn ty(t: &mut dyn Translator, ty: &wasmparser::ValType) -> Result<ValType> {
 
 pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType> {
     Ok(RefType {
-        nullable: ty.nullable,
-        heap_type: t.translate_heapty(&ty.heap_type)?,
+        nullable: ty.is_nullable(),
+        heap_type: t.translate_heapty(&ty.heap_type())?,
     })
 }
 

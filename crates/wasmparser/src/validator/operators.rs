@@ -173,6 +173,13 @@ impl From<ValType> for MaybeType {
     }
 }
 
+impl From<RefType> for MaybeType {
+    fn from(ty: RefType) -> MaybeType {
+        let ty: ValType = ty.into();
+        ty.into()
+    }
+}
+
 impl OperatorValidator {
     fn new(features: &WasmFeatures, allocs: OperatorValidatorAllocations) -> Self {
         let OperatorValidatorAllocations {
@@ -985,22 +992,14 @@ pub fn ty_to_str(ty: ValType) -> &'static str {
         ValType::V128 => "v128",
         ValType::FUNCREF => "funcref",
         ValType::EXTERNREF => "externref",
-        ValType::Ref(RefType {
-            nullable: false,
-            heap_type: HeapType::Func,
-        }) => "(ref func)",
-        ValType::Ref(RefType {
-            nullable: false,
-            heap_type: HeapType::Extern,
-        }) => "(ref extern)",
-        ValType::Ref(RefType {
-            nullable: false,
-            heap_type: HeapType::TypedFunc(_),
-        }) => "(ref $type)",
-        ValType::Ref(RefType {
-            nullable: true,
-            heap_type: HeapType::TypedFunc(_),
-        }) => "(ref null $type)",
+        ValType::Ref(rt) => match (rt.is_nullable(), rt.heap_type()) {
+            (false, HeapType::Func) => "(ref func)",
+            (true, HeapType::Func) => "funcref",
+            (false, HeapType::Extern) => "(ref extern)",
+            (true, HeapType::Extern) => "externref",
+            (false, HeapType::TypedFunc(_)) => "(ref $type)",
+            (true, HeapType::TypedFunc(_)) => "(ref null $type)",
+        },
     }
 }
 
@@ -1286,10 +1285,8 @@ where
         // If `None` is popped then that means a "bottom" type was popped which
         // is always considered equivalent to the `hty` tag.
         if let Some(rt) = self.pop_ref()? {
-            let expected = RefType {
-                nullable: true,
-                heap_type: hty,
-            };
+            let expected =
+                RefType::new(true, hty).expect("existing heap types should be within our limits");
             if !self
                 .resources
                 .matches(ValType::Ref(rt), ValType::Ref(expected))
@@ -2221,19 +2218,15 @@ where
     fn visit_ref_null(&mut self, heap_type: HeapType) -> Self::Output {
         self.resources
             .check_heap_type(heap_type, &self.features, self.offset)?;
-        self.push_operand(ValType::Ref(RefType {
-            nullable: true,
-            heap_type,
-        }))?;
+        self.push_operand(ValType::Ref(
+            RefType::new(true, heap_type).expect("existing heap types should be within our limits"),
+        ))?;
         Ok(())
     }
 
     fn visit_ref_as_non_null(&mut self) -> Self::Output {
         let ty = match self.pop_ref()? {
-            Some(ty) => MaybeType::Type(ValType::Ref(RefType {
-                nullable: false,
-                heap_type: ty.heap_type,
-            })),
+            Some(ty) => MaybeType::Type(ValType::Ref(ty.as_non_null())),
             None => MaybeType::HeapBot,
         };
         self.push_operand(ty)?;
@@ -2242,10 +2235,7 @@ where
     fn visit_br_on_null(&mut self, relative_depth: u32) -> Self::Output {
         let ty = match self.pop_ref()? {
             None => MaybeType::HeapBot,
-            Some(ty) => MaybeType::Type(ValType::Ref(RefType {
-                nullable: false,
-                heap_type: ty.heap_type,
-            })),
+            Some(ty) => MaybeType::Type(ValType::Ref(ty.as_non_null())),
         };
         let (ft, kind) = self.jump(relative_depth)?;
         for ty in self.label_types(ft, kind)?.rev() {
@@ -2271,10 +2261,7 @@ where
                 // Switch rt0, our popped type, to a non-nullable type and
                 // perform the match because if the branch is taken it's a
                 // non-null value.
-                let ty = RefType {
-                    nullable: false,
-                    heap_type: rt0.heap_type,
-                };
+                let ty = rt0.as_non_null();
                 if !self.resources.matches(ty.into(), rt1) {
                     bail!(
                         self.offset,
@@ -2318,16 +2305,11 @@ where
         // FIXME(#924) this should not be conditional based on enabled
         // proposals.
         if self.features.function_references {
-            let heap_type = HeapType::TypedFunc(match type_index.try_into() {
-                Ok(packed) => packed,
-                Err(_) => {
-                    bail!(self.offset, "type index of `ref.func` target too large")
-                }
-            });
-            self.push_operand(ValType::Ref(RefType {
-                nullable: false,
-                heap_type,
-            }))?;
+            let heap_type = HeapType::TypedFunc(type_index);
+            self.push_operand(
+                RefType::new(false, heap_type)
+                    .expect("our limits on number of types should fit into ref type"),
+            )?;
         } else {
             self.push_operand(ValType::FUNCREF)?;
         }

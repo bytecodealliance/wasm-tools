@@ -474,7 +474,7 @@ impl<'a> Module<'a> {
 
     fn valty(&mut self, ty: ValType) {
         match ty {
-            ValType::Ref(r) => self.heapty(r.heap_type),
+            ValType::Ref(r) => self.heapty(r.heap_type()),
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
         }
     }
@@ -1092,8 +1092,8 @@ impl Encoder {
 
     fn refty(&self, rt: wasmparser::RefType) -> wasm_encoder::RefType {
         wasm_encoder::RefType {
-            nullable: rt.nullable,
-            heap_type: self.heapty(rt.heap_type),
+            nullable: rt.is_nullable(),
+            heap_type: self.heapty(rt.heap_type()),
         }
     }
 
