@@ -726,25 +726,9 @@ pub struct Type<'a> {
     pub parent: Option<Index<'a>>,
 }
 
-impl<'a> Type<'a> {
-    fn parse_inner(parser: Parser<'a>, parent: Option<Index<'a>>) -> Result<Self> {
-        let span = parser.parse::<kw::r#type>()?.0;
-        let id = parser.parse()?;
-        let name = parser.parse()?;
-        let def = parser.parens(|parser| parser.parse())?;
-        Ok(Type {
-            span,
-            id,
-            name,
-            def,
-            parent,
-        })
-    }
-}
-
 impl<'a> Peek for Type<'a> {
     fn peek(cursor: Cursor<'_>) -> bool {
-        kw::r#type::peek(cursor) || kw::sub::peek(cursor)
+        kw::r#type::peek(cursor)
     }
     fn display() -> &'static str {
         "type"
@@ -753,16 +737,32 @@ impl<'a> Peek for Type<'a> {
 
 impl<'a> Parse<'a> for Type<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<kw::sub>() {
-            parser.parse::<kw::sub>()?;
-            let parent = if parser.peek::<Index<'a>>() {
-                parser.parse()?
-            } else {
-                None
-            };
-            return parser.parens(|parser| Type::parse_inner(parser, parent));
-        }
-        Type::parse_inner(parser, None)
+        let span = parser.parse::<kw::r#type>()?.0;
+        let id = parser.parse()?;
+        let name = parser.parse()?;
+
+        let (parent, def) = if parser.peek2::<kw::sub>() {
+            parser.parens(|parser| {
+                parser.parse::<kw::sub>()?;
+                let parent = if parser.peek::<Index<'a>>() {
+                    parser.parse()?
+                } else {
+                    None
+                };
+                let def = parser.parens(|parser| parser.parse())?;
+                Ok((parent, def))
+            })?
+        } else {
+            (None, parser.parens(|parser| parser.parse())?)
+        };
+
+        Ok(Type {
+            span,
+            id,
+            name,
+            def,
+            parent,
+        })
     }
 }
 
