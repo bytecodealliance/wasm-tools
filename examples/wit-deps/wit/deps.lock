@@ -1,0 +1,24 @@
+[http]
+url = "https://github.com/WebAssembly/wasi-http/archive/6c6855a7329fb040a48ecdbad1765be8e694416c.tar.gz"
+sha256 = "1667921c63364722b0d23eb69023ede0cdace86ee9b4c6f7c4286b3a2dd8d635"
+sha512 = "9b2f225411d347d3e99276359d3ad98475e9fbee4b3fad0169060dc648a5efa3584a6a1db990607a4971c7e3c0026dc65f8e48fe2824f9553840bb46f3b389ae"
+
+[io]
+url = "https://github.com/rvolosatovs/wasi-io/archive/v0.1.0.tar.gz"
+sha256 = "50e907cde3a0b49b2358c564a10db26e3585a5466029baaecb00424dccea77a1"
+sha512 = "096953066bc1e690b90e01d0a8ed92650052184173df8dac1e24d2a277a6f864a078eca0d555fa2de0b38be1ba8ed25db7949a396f60c9a35def7ea956a66ff1"
+
+[logging]
+url = "https://github.com/WebAssembly/wasi-logging/archive/d106e59b25297d0496e6a5d221ad090e19c3aaa3.tar.gz"
+sha256 = "f378a2b6a36af096528ec5e7031da474990cecaec1949c663befc5066d719f6f"
+sha512 = "ba09307b12f5428c3058d878001c9fb15df21933c6203328f785d5009a4fc0cf304950271590d4146305a2d8b8988595f396d955961168cb6bfa7ea9af1cc362"
+
+[poll]
+url = "https://github.com/WebAssembly/wasi-poll/archive/3ff76670b0d43bc7c8a224c2e65880a963416835.tar.gz"
+sha256 = "065422b0ea6ccb2a9facc6b87b902eef110c53d76fc31f341a6bc8d0b0285b6a"
+sha512 = "19a55cd3072a19ae6a1774723a4962e7a155a5ce89a27175e8c76020efb4d00bc92ebb78427d92bcb8effd4f0d03ebf0a0daa747ecd981b8d31d5abc2ad86423"
+
+[random]
+url = "https://github.com/WebAssembly/wasi-random/archive/28970c50c3797c0087fa75a15e88bfa39b91e0a0.tar.gz"
+sha256 = "79b6417bb1ab3c82c241c56021e717f258e2a0b3ab94db93907ca11d7f92ed66"
+sha512 = "1e657ac56420e65bde75eabea920a605a0ff4adc6f2ba8b7cf1c37a603710449bc1a29568dda2b61c04ae9889d2b1a82b9935d4b9d573eb48a83e0ecf9cad591"

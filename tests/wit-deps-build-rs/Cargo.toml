@@ -1,0 +1,13 @@
+[package]
+name = "wit-deps-build-rs-test"
+version = "0.0.0"
+description = "`wit-deps` build.rs `lock!` test"
+edition = "2021"
+
+[dependencies]
+wit-bindgen = { workspace = true, features = ["default"] }
+
+[build-dependencies]
+anyhow = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
+wit-deps = { workspace = true }
