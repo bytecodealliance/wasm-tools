@@ -30,10 +30,10 @@
 
   (rec
     (type $a (func))
-    (sub $a (type (func)))
+    (type (sub $a (func)))
   )
   (rec
-    (sub $a (type (func)))
+    (type (sub $a (func)))
   )
-  (sub $a (type (func)))
+  (type (sub $a (func)))
 )
