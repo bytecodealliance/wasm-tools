@@ -14,7 +14,7 @@ There are three subdirectories in this example:
 
 ## Overview
 
-The server will listen for `POST` requests at `http://localhost:8080`. 
+The server will listen for `POST` requests at `http://localhost:8080`.
 
 When it receives a request, the server will instantiate a service component
 and forward it the request.
@@ -41,10 +41,10 @@ interface handler {
 }
 ```
 
-A service handler will be passed a `request` containing only the headers and 
+A service handler will be passed a `request` containing only the headers and
 body and respond with a `response` containing only the headers and body.
 
-Note that this is an overly-simplistic (and inefficient) interface for 
+Note that this is an overly-simplistic (and inefficient) interface for
 describing HTTP request processing.
 
 ### Execution flow
@@ -86,6 +86,10 @@ The components in this example will be built with [`cargo component`](https://gi
 Follow the [installation instructions](https://github.com/bytecodealliance/cargo-component#installation)
 to install `cargo component` locally.
 
+> *Note*: `cargo component` is under active development. This example has been tested
+> with git sha [`a5ed5e`](https://github.com/bytecodealliance/cargo-component/commit/a5ed5ea1694431ab019d7f768579808794e5e26d)
+> and may not work with other versions of `cargo component`.
+
 Additionally, it is assumed that `wasm-tools` has been installed from the
 root of this repository.
 
@@ -114,7 +118,7 @@ The server can be run with `cargo run`:
 
 ```sh
 cd server
-cargo run --release -- ../service/target/wasm32-unknown-unknown/release/svc.wasm
+cargo run --release -- ../service/target/wasm32-wasi/release/svc.wasm
 ```
 
 This will start a HTTP server that listens at `http://localhost:8080`.
@@ -140,13 +144,13 @@ This should output something like this:
 > Accept: */*
 > Content-Type: text/plain
 > Content-Length: 13
-> 
+>
 * Mark bundle as not supporting multiuse
 < HTTP/1.1 200 OK
 < content-length: 35
 < content-type: text/plain
 < date: Fri, 05 Aug 2022 01:39:43 GMT
-< 
+<
 * Connection #0 to host localhost left intact
 The request body was: Hello, world!
 ```
@@ -156,8 +160,8 @@ compressed.
 
 ## Composing with a middleware
 
-If we want to instead compress the response bodies for the service, we can 
-easily compose a new component that sends requests through the `middleware` 
+If we want to instead compress the response bodies for the service, we can
+easily compose a new component that sends requests through the `middleware`
 component without rebuilding any of the previously built components.
 
 The `server/config.yml` file contains the configuration needed to compose a new
@@ -167,7 +171,7 @@ Run `wasm-compose` to compose the new component:
 
 ```sh
 cd server
-wasm-tools compose -c config.yml -o service.wasm ../middleware/target/wasm32-unknown-unknown/release/middleware.wasm
+wasm-tools compose -c config.yml -o service.wasm ../middleware/target/wasm32-wasi/release/middleware.wasm
 ```
 
 This results in a new `service.wasm` in the `server` directory where the
@@ -209,14 +213,14 @@ This should output something like this:
 > Accept-Encoding: deflate, gzip
 > Content-Type: text/plain
 > Content-Length: 13
-> 
+>
 * Mark bundle as not supporting multiuse
 < HTTP/1.1 200 OK
 < content-encoding: gzip
 < content-length: 58
 < content-type: text/plain
 < date: Fri, 05 Aug 2022 01:47:59 GMT
-< 
+<
 * Connection #0 to host localhost left intact
 The request body was: Hello, world!
 ```
