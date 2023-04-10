@@ -1,5 +1,5 @@
 search-paths:
-  - ../service/target/wasm32-unknown-unknown/release
+  - ../service/target/wasm32-wasi/release
 
 instantiations:
   $input:
