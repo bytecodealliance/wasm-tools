@@ -35,6 +35,9 @@ impl Opts {
                         Err(e) => log::debug!("error parsing name section {e:?}"),
                     }
                 }
+                Version { encoding, .. } if *encoding == wasmparser::Encoding::Component => {
+                    bail!("demangling components is not supported");
+                }
                 _ => {}
             }
             if let Some((id, range)) = payload.as_section() {
