@@ -322,6 +322,26 @@ pub enum TypeDefKind {
     Unknown,
 }
 
+impl TypeDefKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TypeDefKind::Record(_) => "record",
+            TypeDefKind::Flags(_) => "flags",
+            TypeDefKind::Tuple(_) => "tuple",
+            TypeDefKind::Variant(_) => "variant",
+            TypeDefKind::Enum(_) => "enum",
+            TypeDefKind::Option(_) => "option",
+            TypeDefKind::Result(_) => "result",
+            TypeDefKind::Union(_) => "union",
+            TypeDefKind::List(_) => "list",
+            TypeDefKind::Future(_) => "future",
+            TypeDefKind::Stream(_) => "stream",
+            TypeDefKind::Type(_) => "type",
+            TypeDefKind::Unknown => "unknown",
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
