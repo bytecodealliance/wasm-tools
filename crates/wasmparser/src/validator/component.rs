@@ -113,13 +113,13 @@ impl ComponentState {
     ) -> Result<()> {
         let ty = match ty {
             crate::CoreType::Func(ty) => Type::Func(ty),
-            crate::CoreType::Module(decls) => Type::Module(Self::create_module_type(
+            crate::CoreType::Module(decls) => Type::Module(Box::new(Self::create_module_type(
                 components,
                 decls.into_vec(),
                 features,
                 types,
                 offset,
-            )?),
+            )?)),
         };
 
         let current = components.last_mut().unwrap();
@@ -128,7 +128,7 @@ impl ComponentState {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        let id = types.push_defined(ty);
+        let id = types.push_ty(ty);
         current.core_types.push(id);
 
         Ok(())
@@ -145,13 +145,13 @@ impl ComponentState {
         // We have to clone the module's imports and exports here
         // because we cannot take the data out of the `MaybeOwned`
         // as it might be shared with a function validator.
-        let ty = Type::Module(ModuleType {
+        let ty = Type::Module(Box::new(ModuleType {
             type_size: module.type_size,
             imports,
             exports: module.exports.clone(),
-        });
+        }));
 
-        let id = types.push_anon(ty);
+        let id = types.push_ty(ty);
         self.core_modules.push(id);
 
         Ok(())
@@ -199,16 +199,12 @@ impl ComponentState {
                     .unwrap()
                     .create_function_type(ty, types, offset)?,
             ),
-            crate::ComponentType::Component(decls) => Type::Component(Self::create_component_type(
-                components,
-                decls.into_vec(),
-                features,
-                types,
-                offset,
-            )?),
-            crate::ComponentType::Instance(decls) => Type::ComponentInstance(
+            crate::ComponentType::Component(decls) => Type::Component(Box::new(
+                Self::create_component_type(components, decls.into_vec(), features, types, offset)?,
+            )),
+            crate::ComponentType::Instance(decls) => Type::ComponentInstance(Box::new(
                 Self::create_instance_type(components, decls.into_vec(), features, types, offset)?,
-            ),
+            )),
         };
 
         let current = components.last_mut().unwrap();
@@ -216,7 +212,7 @@ impl ComponentState {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        let id = types.push_defined(ty);
+        let id = types.push_ty(ty);
         current.types.push(id);
 
         Ok(())
@@ -403,15 +399,15 @@ impl ComponentState {
 
         let lowered_ty = Type::Func(info.into_func_type());
 
-        let id = types.push_anon(lowered_ty);
+        let id = types.push_ty(lowered_ty);
         self.core_funcs.push(id);
 
         Ok(())
     }
 
     pub fn add_component(&mut self, component: &mut Self, types: &mut TypeAlloc) {
-        let ty = Type::Component(component.take_component_type());
-        let id = types.push_anon(ty);
+        let ty = Type::Component(Box::new(component.take_component_type()));
+        let id = types.push_ty(ty);
         self.components.push(id);
     }
 
@@ -1064,15 +1060,15 @@ impl ComponentState {
             }
         }
 
-        let ty = Type::Instance(InstanceType {
+        let ty = Type::Instance(Box::new(InstanceType {
             type_size: module_type
                 .exports
                 .iter()
                 .fold(1, |acc, (_, ty)| acc + ty.type_size()),
             kind: InstanceTypeKind::Instantiated(module_type_id),
-        });
+        }));
 
-        Ok(types.push_anon(ty))
+        Ok(types.push_ty(ty))
     }
 
     fn instantiate_component(
@@ -1207,15 +1203,15 @@ impl ComponentState {
             }
         }
 
-        let ty = Type::ComponentInstance(ComponentInstanceType {
+        let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
             type_size: component_type
                 .exports
                 .iter()
                 .fold(1, |acc, (_, (_, ty))| acc + ty.type_size()),
             kind: ComponentInstanceTypeKind::Instantiated(component_type_id),
-        });
+        }));
 
-        Ok(types.push_anon(ty))
+        Ok(types.push_ty(ty))
     }
 
     fn instantiate_exports(
@@ -1318,12 +1314,12 @@ impl ComponentState {
             }
         }
 
-        let ty = Type::ComponentInstance(ComponentInstanceType {
+        let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
             type_size,
             kind: ComponentInstanceTypeKind::Exports(inst_exports),
-        });
+        }));
 
-        Ok(types.push_anon(ty))
+        Ok(types.push_ty(ty))
     }
 
     fn instantiate_core_exports(
@@ -1397,12 +1393,12 @@ impl ComponentState {
             }
         }
 
-        let ty = Type::Instance(InstanceType {
+        let ty = Type::Instance(Box::new(InstanceType {
             type_size,
             kind: InstanceTypeKind::Exports(inst_exports),
-        });
+        }));
 
-        Ok(types.push_anon(ty))
+        Ok(types.push_ty(ty))
     }
 
     fn alias_core_instance_export(
