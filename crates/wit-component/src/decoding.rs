@@ -651,7 +651,9 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(&name, ty)?;
+                    let func = self
+                        .convert_function(&name, ty)
+                        .with_context(|| format!("failed to convert function '{name}'"))?;
                     let prev = interface.functions.insert(name.to_string(), func);
                     assert!(prev.is_none());
                 }
@@ -795,9 +797,13 @@ impl WitPackageDecoder<'_> {
             .params
             .iter()
             .map(|(name, ty)| Ok((name.to_string(), self.convert_valtype(ty)?)))
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
+            .context("failed to convert params")?;
         let results = if ty.results.len() == 1 && ty.results[0].0.is_none() {
-            Results::Anon(self.convert_valtype(&ty.results[0].1)?)
+            Results::Anon(
+                self.convert_valtype(&ty.results[0].1)
+                    .context("failed to convert anonymous result type")?,
+            )
         } else {
             Results::Named(
                 ty.results
@@ -808,7 +814,8 @@ impl WitPackageDecoder<'_> {
                             self.convert_valtype(ty)?,
                         ))
                     })
-                    .collect::<Result<Vec<_>>>()?,
+                    .collect::<Result<Vec<_>>>()
+                    .context("failed to convert named result types")?,
             )
         };
         Ok(Function {
@@ -855,7 +862,7 @@ impl WitPackageDecoder<'_> {
             | TypeDefKind::Flags(_)
             | TypeDefKind::Future(_)
             | TypeDefKind::Stream(_) => {
-                bail!("unexpected unnamed type");
+                bail!("unexpected unnamed type of kind '{}'", kind.as_str());
             }
             TypeDefKind::Unknown => unreachable!(),
         }
