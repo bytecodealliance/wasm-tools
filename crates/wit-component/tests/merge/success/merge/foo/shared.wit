@@ -1,0 +1,31 @@
+interface shared {
+  type a = u32
+
+}
+
+interface only-into {
+  variant v {
+    c1,
+  }
+
+  bar: func(x: v)
+}
+
+interface only-from {
+  use only-from-dep.a.foo.{a}
+
+  variant v {
+    c1,
+  }
+
+  bar: func(x: v)
+}
+
+world shared-world {
+  import a: self.shared
+  import d: interface {
+  }
+  type c = u32
+
+  export b: self.shared
+}

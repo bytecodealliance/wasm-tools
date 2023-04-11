@@ -1,0 +1,6 @@
+failed to merge package `foo` into existing copy
+
+Caused by:
+    0: failed to merge document `a` into existing copy
+    1: failed to merge world `foo`
+    2: export `b` not found in target world

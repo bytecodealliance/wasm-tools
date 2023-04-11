@@ -1,0 +1,9 @@
+default world the-adapter {
+  import shared-dependency: shared-dependency.doc
+
+  import adapter-dep: interface {
+    use shared-dependency.types.{a-typedef}
+
+    foo: func() -> a-typedef
+  }
+}

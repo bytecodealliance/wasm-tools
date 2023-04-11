@@ -240,7 +240,11 @@ impl Bindgen {
             producers,
         } = other;
 
-        let world = self.resolve.merge(resolve).worlds[world.index()];
+        let world = self
+            .resolve
+            .merge(resolve)
+            .context("failed to merge WIT package sets together")?
+            .worlds[world.index()];
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;
