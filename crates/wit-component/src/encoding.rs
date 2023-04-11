@@ -1428,8 +1428,14 @@ impl ComponentEncoder {
     pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
         // Merge the adapter's document into our own document to have one large
-        // document, but the adapter's world isn't merged in to our world so
-        // retain it separately.
+        // document, and then afterwards merge worlds as well.
+        //
+        // The first `merge` operation will interleave equivalent packages from
+        // each adapter into packages that are stored within our own resolve.
+        // The second `merge_worlds` operation will then ensure that both the
+        // adapter and the main module have compatible worlds, meaning that they
+        // either import the same items or they import disjoint items, for
+        // example.
         let world = self
             .metadata
             .resolve
