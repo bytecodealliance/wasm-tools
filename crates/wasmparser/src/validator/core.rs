@@ -519,7 +519,7 @@ impl Module {
             check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
 
-        let id = types.push_defined(ty);
+        let id = types.push_ty(ty);
         self.types.push(id);
         Ok(())
     }
