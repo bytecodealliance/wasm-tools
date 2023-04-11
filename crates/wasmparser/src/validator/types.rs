@@ -360,19 +360,19 @@ pub enum Type {
     /// The definition is for a core module type.
     ///
     /// This variant is only supported when parsing a component.
-    Module(ModuleType),
+    Module(Box<ModuleType>),
     /// The definition is for a core module instance type.
     ///
     /// This variant is only supported when parsing a component.
-    Instance(InstanceType),
+    Instance(Box<InstanceType>),
     /// The definition is for a component type.
     ///
     /// This variant is only supported when parsing a component.
-    Component(ComponentType),
+    Component(Box<ComponentType>),
     /// The definition is for a component instance type.
     ///
     /// This variant is only supported when parsing a component.
-    ComponentInstance(ComponentInstanceType),
+    ComponentInstance(Box<ComponentInstanceType>),
     /// The definition is for a component function type.
     ///
     /// This variant is only supported when parsing a component.
@@ -2133,9 +2133,12 @@ impl DerefMut for TypeAlloc {
 }
 
 impl TypeAlloc {
-    /// Pushes a new anonymous type into this list which will have its
-    /// `unique_id` field cleared.
-    pub fn push_anon(&mut self, ty: Type) -> TypeId {
+    /// Pushes a new type into this list, returning an identifier which can be
+    /// used to later retrieve it.
+    ///
+    /// The returned identifier is unique within this `TypeAlloc` and won't be
+    /// hash-equivalent to anything else.
+    pub fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len();
         let type_size = ty.type_size();
         self.list.push(ty);
@@ -2144,16 +2147,6 @@ impl TypeAlloc {
             type_size,
             unique_id: 0,
         }
-    }
-
-    /// Pushes a new defined type which has an index in core wasm onto this
-    /// list.
-    ///
-    /// The returned `TypeId` is guaranteed to be unique and not hash-equivalent
-    /// to any other prior ID in this list.
-    pub fn push_defined(&mut self, ty: Type) -> TypeId {
-        let id = self.push_anon(ty);
-        self.with_unique(id)
     }
 }
 
