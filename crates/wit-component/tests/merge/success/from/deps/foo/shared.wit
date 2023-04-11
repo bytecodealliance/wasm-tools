@@ -1,0 +1,23 @@
+interface only-from {
+  variant v {
+    c1,
+  }
+
+  bar: func(x: v)
+
+  use only-from-dep.a.{a}
+}
+
+interface shared {
+  type a = u32
+}
+
+world shared-world {
+  import a: self.shared
+
+  export b: self.shared
+
+  type c = u32
+
+  import d: interface {}
+}

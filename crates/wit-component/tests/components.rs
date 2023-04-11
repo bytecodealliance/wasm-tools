@@ -1,9 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use pretty_assertions::assert_eq;
 use std::{fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
-use wit_parser::{Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve};
 
 /// Tests the encoding of components.
 ///
@@ -48,10 +48,13 @@ fn component_encoding_via_flags() -> Result<()> {
         let test_case = path.file_stem().unwrap().to_str().unwrap();
         println!("testing {test_case}");
 
+        let mut resolve = Resolve::default();
+        let (pkg, _) = resolve.push_dir(&path)?;
+
         let module_path = path.join("module.wat");
-        let module = read_core_module(&module_path)?;
+        let module = read_core_module(&module_path, &resolve, pkg)?;
         let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
-        encoder = add_adapters(encoder, &path)?;
+        encoder = add_adapters(encoder, &path, &resolve, pkg)?;
         let component_path = path.join("component.wat");
         let component_wit_path = path.join("component.wit");
         let error_path = path.join("error.txt");
@@ -105,10 +108,15 @@ fn component_encoding_via_flags() -> Result<()> {
     Ok(())
 }
 
-fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentEncoder> {
+fn add_adapters(
+    mut encoder: ComponentEncoder,
+    path: &Path,
+    resolve: &Resolve,
+    pkg: PackageId,
+) -> Result<ComponentEncoder> {
     for adapter in glob::glob(path.join("adapt-*.wat").to_str().unwrap())? {
         let adapter = adapter?;
-        let wasm = read_core_module(&adapter)?;
+        let wasm = read_core_module(&adapter, resolve, pkg)?;
         let stem = adapter.file_stem().unwrap().to_str().unwrap();
         let name = stem.trim_start_matches("adapt-");
         encoder = encoder.adapter(&name, &wasm)?;
@@ -118,17 +126,19 @@ fn add_adapters(mut encoder: ComponentEncoder, path: &Path) -> Result<ComponentE
 
 /// Parses the core wasm module at `path`, expected as a `*.wat` file.
 ///
-/// Additionally expects a sibling `*.wit` file which will be used to encode
-/// metadata into the binary returned here.
-fn read_core_module(path: &Path) -> Result<Vec<u8>> {
+/// The `resolve` and `pkg` are the parsed WIT package from this test's
+/// directory and the `path`'s filename is used to find a WIT document of the
+/// corresponding name which should have a world that `path` ascribes to.
+fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Vec<u8>> {
     let mut wasm = wat::parse_file(path)?;
-    let interface = path.with_extension("wit");
-    let mut resolve = Resolve::default();
-    let pkg = resolve.push(
-        UnresolvedPackage::parse_file(&interface)?,
-        &Default::default(),
-    )?;
-    let world = resolve.select_world(pkg, None)?;
+    let name = path.file_stem().and_then(|s| s.to_str()).unwrap();
+    let doc = *resolve.packages[pkg]
+        .documents
+        .get(name)
+        .ok_or_else(|| anyhow!("failed to find document named `{name}`"))?;
+    let world = resolve.documents[doc]
+        .default_world
+        .ok_or_else(|| anyhow!("failed to find default world in document `{name}`"))?;
 
     // Add this producer data to the wit-component metadata so we can make sure it gets through the
     // translation:

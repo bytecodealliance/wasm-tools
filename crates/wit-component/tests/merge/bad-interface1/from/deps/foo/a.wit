@@ -1,0 +1,4 @@
+default interface a {
+  type a = u32
+}
+

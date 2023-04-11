@@ -1,0 +1,7 @@
+interface only-into {
+  record r {
+  }
+
+  foo: func() -> r
+}
+

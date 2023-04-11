@@ -1,0 +1,7 @@
+failed to merge package `foo` into existing copy
+
+Caused by:
+    0: failed to merge document `a` into existing copy
+    1: failed to merge world `foo`
+    2: import `a` didn't match target world
+    3: interfaces are not the same

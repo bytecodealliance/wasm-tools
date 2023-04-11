@@ -1,0 +1,7 @@
+default interface a {
+  type a = u32
+}
+
+world foo {
+  import b: self.a
+}
