@@ -143,8 +143,11 @@ impl<'a> TypeEncoder<'a> {
         }
 
         for (name, url, ty) in exports {
-            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
-            encoded.export(name, url, ty);
+            let type_definiton = self.0.type_from_id(ty.id().unwrap()).unwrap();
+            let export = self.component_entity_type(&mut encoded, &mut types, ty);
+            // Point the type index to the export instead of the concrete type definition
+            types.insert(PtrKey(type_definiton), encoded.type_count());
+            encoded.export(name, url, export);
         }
 
         encoded
@@ -158,8 +161,11 @@ impl<'a> TypeEncoder<'a> {
         let mut types = TypeMap::new();
 
         for (name, url, ty) in exports {
-            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
-            encoded.export(name, url, ty);
+            let type_definiton = self.0.type_from_id(ty.id().unwrap()).unwrap();
+            let export = self.component_entity_type(&mut encoded, &mut types, ty);
+            // Point the type index to the export instead of the concrete type definition
+            types.insert(PtrKey(type_definiton), encoded.type_count());
+            encoded.export(name, url, export);
         }
 
         encoded
@@ -1142,8 +1148,11 @@ impl<'a> CompositionGraphEncoder<'a> {
         let mut types = TypeMap::new();
         for (name, (url, component, ty)) in exports {
             let encoder = TypeEncoder::new(&component.types);
-            let ty = encoder.component_entity_type(&mut instance_type, &mut types, ty);
-            instance_type.export(name, url, ty);
+            let type_definiton = component.types.type_from_id(ty.id().unwrap()).unwrap();
+            let export = encoder.component_entity_type(&mut instance_type, &mut types, ty);
+            // Point the type index to the export instead of the concrete type definition
+            types.insert(PtrKey(type_definiton), instance_type.type_count());
+            instance_type.export(name, url, export);
         }
 
         let index = self.types;
