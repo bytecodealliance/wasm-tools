@@ -831,3 +831,63 @@
     (component (alias outer $A $u (type $foo)))
   )
   "refers to resources not defined in the current component")
+
+(assert_invalid
+  (component
+    (component $X
+      (type $t (resource (rep i32)))
+      (export "t" (type $t))
+    )
+    (component $F
+      (import "x" (component (export $t "t" (type (sub resource)))))
+    )
+    (instance $x1 (instantiate $X))
+    (instance $f1 (instantiate $F (with "x" (instance $x1))))
+  )
+  "expected component, found instance")
+
+;; Show that two instantiations of the same component produce unique exported
+;; resource types.
+(assert_invalid
+  (component
+    (component $F
+      (type $t1 (resource (rep i32)))
+      (export "t1" (type $t1))
+    )
+    (instance $f1 (instantiate $F))
+    (instance $f2 (instantiate $F))
+    (alias export $f1 "t1" (type $t1))
+    (alias export $f2 "t1" (type $t2))
+    (component $T
+      (import "x" (type $x (sub resource)))
+      (import "y" (type (eq $x)))
+    )
+    (instance $test
+      (instantiate $T (with "x" (type $t1)) (with "y" (type $t2))))
+  )
+  "type mismatch for import `y`")
+
+;; Show that re-exporting imported resources from an imported component doesn't
+;; change the identity of that resource.
+(component
+  (component $X
+    (type $t (resource (rep i32)))
+    (export "t" (type $t))
+  )
+  (component $F
+    (import "x" (instance $i (export $t "t" (type (sub resource)))))
+    (alias export $i "t" (type $t))
+    (export "t" (type $t))
+  )
+  (instance $x1 (instantiate $X))
+  (instance $f1 (instantiate $F (with "x" (instance $x1))))
+  (instance $f2 (instantiate $F (with "x" (instance $x1))))
+  (alias export $f1 "t" (type $t1))
+  (alias export $f2 "t" (type $t2))
+  (component $T
+    (import "x" (type $x (sub resource)))
+    (import "y" (type (eq $x)))
+  )
+  (instance $test
+    (instantiate $T (with "x" (type $t1)) (with "y" (type $t2))))
+)
