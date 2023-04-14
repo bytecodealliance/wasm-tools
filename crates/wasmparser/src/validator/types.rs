@@ -816,20 +816,6 @@ impl ComponentEntityType {
             Self::Value(ty) => ty.type_size(),
         }
     }
-
-    /// The underlying `TypeId` for this entity type if one exists
-    pub fn id(&self) -> Option<TypeId> {
-        let id = *match self {
-            ComponentEntityType::Module(i) => i,
-            ComponentEntityType::Func(i) => i,
-            ComponentEntityType::Value(ComponentValType::Type(i)) => i,
-            ComponentEntityType::Type { created: i, .. } => i,
-            ComponentEntityType::Instance(i) => i,
-            ComponentEntityType::Component(i) => i,
-            ComponentEntityType::Value(ComponentValType::Primitive(_)) => return None,
-        };
-        Some(id)
-    }
 }
 
 /// Represents a type of a component.
