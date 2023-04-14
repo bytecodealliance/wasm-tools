@@ -144,7 +144,6 @@ impl<'a> TypeEncoder<'a> {
 
         for (name, url, ty) in exports {
             let export = self.export(ty, &mut encoded, &mut types);
-
             encoded.export(name, url, export);
         }
 

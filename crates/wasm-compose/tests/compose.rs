@@ -75,6 +75,13 @@ fn component_composing() -> Result<()> {
                 )
             })?;
 
+            wit_component::decode("component", &bytes).with_context(|| {
+                format!(
+                    "failed to decode component bytes as a wit component `{}`",
+                    test_case
+                )
+            })?;
+
             (
                 wasmprinter::print_bytes(&bytes).with_context(|| {
                     format!(

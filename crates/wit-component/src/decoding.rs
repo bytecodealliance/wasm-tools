@@ -207,9 +207,8 @@ impl<'a> ComponentInfo<'a> {
                                 })?;
                             WorldItem::Type(id)
                         }
-                        _ => {
-                            bail!("component import `{name}` was not a function, instance, or type")
-                        }
+                        // All other imports do not form part of the component's world
+                        _ => continue,
                     };
                     decoder.resolve.worlds[world]
                         .imports
