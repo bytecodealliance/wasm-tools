@@ -77,7 +77,7 @@ fn component_composing() -> Result<()> {
 
             wit_component::decode("component", &bytes).with_context(|| {
                 format!(
-                    "failed to decode component bytes as a wit component `{}`",
+                    "failed to decode WIT from component bytes for test case `{}`",
                     test_case
                 )
             })?;
