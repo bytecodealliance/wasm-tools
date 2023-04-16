@@ -207,9 +207,8 @@ impl<'a> ComponentInfo<'a> {
                                 })?;
                             WorldItem::Type(id)
                         }
-                        _ => {
-                            bail!("component import `{name}` was not a function, instance, or type")
-                        }
+                        // All other imports do not form part of the component's world
+                        _ => continue,
                     };
                     decoder.resolve.worlds[world]
                         .imports
@@ -636,12 +635,14 @@ impl WitPackageDecoder<'_> {
                     referenced,
                     created,
                 } => {
-                    let ty = self.register_type_export(
-                        name,
-                        TypeOwner::Interface(self.resolve.interfaces.next_id()),
-                        referenced,
-                        created,
-                    )?;
+                    let ty = self
+                        .register_type_export(
+                            name,
+                            TypeOwner::Interface(self.resolve.interfaces.next_id()),
+                            referenced,
+                            created,
+                        )
+                        .with_context(|| format!("failed to register type export '{name}'"))?;
                     let prev = interface.types.insert(name.to_string(), ty);
                     assert!(prev.is_none());
                 }
@@ -682,7 +683,9 @@ impl WitPackageDecoder<'_> {
 
             // ... or this `TypeId`'s source definition has never
             // been seen before, so declare the full type.
-            None => self.convert_defined(ty)?,
+            None => self
+                .convert_defined(ty)
+                .context("failed to convert unaliased type")?,
         };
         let ty = self.resolve.types.alloc(TypeDef {
             name: Some(name.to_string()),
@@ -924,7 +927,9 @@ impl WitPackageDecoder<'_> {
                     .map(|(name, ty)| {
                         Ok(Field {
                             name: name.to_string(),
-                            ty: self.convert_valtype(ty)?,
+                            ty: self.convert_valtype(ty).with_context(|| {
+                                format!("failed to convert record field '{name}'")
+                            })?,
                             docs: Default::default(),
                         })
                     })
