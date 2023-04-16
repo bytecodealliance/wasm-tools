@@ -143,8 +143,8 @@ impl<'a> TypeEncoder<'a> {
         }
 
         for (name, url, ty) in exports {
-            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
-            encoded.export(name, url, ty);
+            let export = self.export(ty, &mut encoded, &mut types);
+            encoded.export(name, url, export);
         }
 
         encoded
@@ -158,8 +158,8 @@ impl<'a> TypeEncoder<'a> {
         let mut types = TypeMap::new();
 
         for (name, url, ty) in exports {
-            let ty = self.component_entity_type(&mut encoded, &mut types, ty);
-            encoded.export(name, url, ty);
+            let export = self.export(ty, &mut encoded, &mut types);
+            encoded.export(name, url, export);
         }
 
         encoded
@@ -666,6 +666,27 @@ impl<'a> TypeEncoder<'a> {
         encodable.ty().defined_type().result(ok, err);
         index
     }
+
+    fn export(
+        &self,
+        export: ComponentEntityType,
+        encoded: &mut impl Encodable,
+        types: &mut TypeMap<'a>,
+    ) -> ComponentTypeRef {
+        // Check if the export is a type; if so, we need to update the index of the
+        // type to point to the export instead of the original definition
+        let id = match export {
+            ComponentEntityType::Type { created: id, .. } => Some(id),
+            _ => None,
+        };
+        let export = self.component_entity_type(encoded, types, export);
+        if let Some(id) = id {
+            // Update the index in the type map to point to this export
+            let ty = self.0.type_from_id(id).unwrap();
+            types.insert(PtrKey(ty), encoded.type_count());
+        }
+        export
+    }
 }
 
 /// Represents an instance index in a composition graph.
@@ -1142,8 +1163,8 @@ impl<'a> CompositionGraphEncoder<'a> {
         let mut types = TypeMap::new();
         for (name, (url, component, ty)) in exports {
             let encoder = TypeEncoder::new(&component.types);
-            let ty = encoder.component_entity_type(&mut instance_type, &mut types, ty);
-            instance_type.export(name, url, ty);
+            let export = encoder.export(ty, &mut instance_type, &mut types);
+            instance_type.export(name, url, export);
         }
 
         let index = self.types;
