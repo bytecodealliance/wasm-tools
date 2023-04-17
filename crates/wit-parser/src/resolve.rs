@@ -576,8 +576,8 @@ impl Resolve {
                 }
 
                 let mut unique_default_world = None;
-                for (_name, doc) in &self.documents {
-                    if let Some(default_world) = doc.default_world {
+                for (_name, doc) in &self.packages[pkg].documents {
+                    if let Some(default_world) = self.documents[*doc].default_world {
                         if unique_default_world.is_some() {
                             bail!("multiple default worlds found in package, one must be specified")
                         } else {
