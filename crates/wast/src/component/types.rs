@@ -138,12 +138,26 @@ pub struct Type<'a> {
     pub def: TypeDef<'a>,
 }
 
-impl<'a> Parse<'a> for Type<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
+impl<'a> Type<'a> {
+    /// Parses a `Type` while allowing inline `(export "...")` names to be
+    /// defined.
+    pub fn parse_maybe_with_inline_exports(parser: Parser<'a>) -> Result<Self> {
+        Type::parse(parser, true)
+    }
+
+    fn parse_no_inline_exports(parser: Parser<'a>) -> Result<Self> {
+        Type::parse(parser, false)
+    }
+
+    fn parse(parser: Parser<'a>, allow_inline_exports: bool) -> Result<Self> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
-        let exports = parser.parse()?;
+        let exports = if allow_inline_exports {
+            parser.parse()?
+        } else {
+            Default::default()
+        };
         let def = parser.parse()?;
 
         Ok(Self {
@@ -805,7 +819,7 @@ impl<'a> Parse<'a> for ComponentTypeDecl<'a> {
         if l.peek::<kw::core>() {
             Ok(Self::CoreType(parser.parse()?))
         } else if l.peek::<kw::r#type>() {
-            Ok(Self::Type(parser.parse()?))
+            Ok(Self::Type(Type::parse_no_inline_exports(parser)?))
         } else if l.peek::<kw::alias>() {
             Ok(Self::Alias(parser.parse()?))
         } else if l.peek::<kw::import>() {
@@ -863,7 +877,7 @@ impl<'a> Parse<'a> for InstanceTypeDecl<'a> {
         if l.peek::<kw::core>() {
             Ok(Self::CoreType(parser.parse()?))
         } else if l.peek::<kw::r#type>() {
-            Ok(Self::Type(parser.parse()?))
+            Ok(Self::Type(Type::parse_no_inline_exports(parser)?))
         } else if l.peek::<kw::alias>() {
             Ok(Self::Alias(parser.parse()?))
         } else if l.peek::<kw::export>() {
