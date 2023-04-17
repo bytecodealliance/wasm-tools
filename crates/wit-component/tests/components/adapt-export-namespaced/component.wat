@@ -22,7 +22,7 @@
   (alias core export 2 "new#entrypoint" (core func (;1;)))
   (func (;0;) (type 0) (canon lift (core func 1)))
   (component (;0;)
-    (alias outer 1 0 (type (;0;)))
+    (type (;0;) (func))
     (import "import-entrypoint" (func (;0;) (type 0)))
     (type (;1;) (func))
     (export (;1;) "entrypoint" (func 0) (func (type 1)))

@@ -10,6 +10,7 @@ use crate::{
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ops::Index;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
@@ -2085,6 +2086,55 @@ impl TypeAlloc {
             ComponentValType::Type(id) => self.free_variables_type_id(*id, set),
         }
     }
+
+    /// Returns whether the type `id` is "named" where named types are presented
+    /// via the provided `set`.
+    ///
+    /// This requires that `id` is a `Defined` type.
+    pub(crate) fn type_named_type_id(&self, id: TypeId, set: &HashSet<TypeId>) -> bool {
+        let ty = self[id].as_defined_type().unwrap();
+        match ty {
+            // Primitives are always considered named
+            ComponentDefinedType::Primitive(_) => true,
+
+            // These structures are never allowed to be anonymous, so they
+            // themselves must be named.
+            ComponentDefinedType::Flags(_)
+            | ComponentDefinedType::Enum(_)
+            | ComponentDefinedType::Record(_)
+            | ComponentDefinedType::Union(_)
+            | ComponentDefinedType::Variant(_) => set.contains(&id),
+
+            // All types below here are allowed to be anonymous, but their
+            // own components must be appropriately named.
+            ComponentDefinedType::Tuple(r) => {
+                r.types.iter().all(|t| self.type_named_valtype(t, set))
+            }
+            ComponentDefinedType::Result { ok, err } => {
+                ok.as_ref()
+                    .map(|t| self.type_named_valtype(t, set))
+                    .unwrap_or(true)
+                    && err
+                        .as_ref()
+                        .map(|t| self.type_named_valtype(t, set))
+                        .unwrap_or(true)
+            }
+            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+                self.type_named_valtype(ty, set)
+            }
+
+            // own/borrow themselves don't have to be named, but the resource
+            // they refer to must be named.
+            ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => set.contains(id),
+        }
+    }
+
+    pub(crate) fn type_named_valtype(&self, ty: &ComponentValType, set: &HashSet<TypeId>) -> bool {
+        match ty {
+            ComponentValType::Primitive(_) => true,
+            ComponentValType::Type(id) => self.type_named_type_id(*id, set),
+        }
+    }
 }
 
 /// A helper trait to provide the functionality necessary to resources within a
@@ -2106,9 +2156,12 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
     ///
     /// The `id` argument will be rewritten to a new identifier if `true` is
     /// returned.
-    fn remap_type_id(&mut self, id: &mut TypeId, map: &HashMap<ResourceId, ResourceId>) -> bool {
-        if map.is_empty() {
+    fn remap_type_id(&mut self, id: &mut TypeId, map: &mut Remapping) -> bool {
+        if map.resources.is_empty() {
             return false;
+        } else if let Some(new) = map.types.get(id) {
+            *id = *new;
+            return true;
         }
 
         // This function attempts what ends up probably being a relatively
@@ -2118,9 +2171,11 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
         // id is allocated.
         let mut any_changed = false;
 
-        let map_map = |tmp: &mut IndexMap<ResourceId, Vec<usize>>, any_changed: &mut bool| {
+        let map_map = |tmp: &mut IndexMap<ResourceId, Vec<usize>>,
+                       any_changed: &mut bool,
+                       map: &mut Remapping| {
             for (id, path) in mem::take(tmp) {
-                let id = match map.get(&id) {
+                let id = match map.resources.get(&id) {
                     Some(id) => {
                         *any_changed = true;
                         *id
@@ -2148,12 +2203,12 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
                     .iter_mut()
                     .chain(&mut tmp.existential_resources)
                 {
-                    if let Some(new) = map.get(id) {
+                    if let Some(new) = map.resources.get(id) {
                         *id = *new;
                         any_changed = true;
                     }
                 }
-                map_map(&mut tmp.explicit_resources, &mut any_changed);
+                map_map(&mut tmp.explicit_resources, &mut any_changed, map);
                 Type::Component(tmp)
             }
 
@@ -2165,17 +2220,17 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
                     }
                 }
                 for id in tmp.existential_resources.iter_mut() {
-                    if let Some(new) = map.get(id) {
+                    if let Some(new) = map.resources.get(id) {
                         *id = *new;
                         any_changed = true;
                     }
                 }
-                map_map(&mut tmp.explicit_resources, &mut any_changed);
+                map_map(&mut tmp.explicit_resources, &mut any_changed, map);
                 Type::ComponentInstance(tmp)
             }
 
             Type::Resource(id) => {
-                let id = match map.get(id).copied() {
+                let id = match map.resources.get(id).copied() {
                     Some(id) => id,
                     None => return false,
                 };
@@ -2260,7 +2315,10 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
             }
         };
         if any_changed {
-            *id = self.push_ty(ty);
+            let new = self.push_ty(ty);
+            let prev = map.types.insert(*id, new);
+            assert!(prev.is_none());
+            *id = new;
             true
         } else {
             false
@@ -2271,7 +2329,7 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
     fn remap_component_entity(
         &mut self,
         ty: &mut ComponentEntityType,
-        map: &HashMap<ResourceId, ResourceId>,
+        map: &mut Remapping,
     ) -> bool {
         match ty {
             ComponentEntityType::Module(id)
@@ -2295,16 +2353,23 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
     }
 
     /// Same as `remap_type_id`, but works with `ComponentValType`.
-    fn remap_valtype(
-        &mut self,
-        ty: &mut ComponentValType,
-        map: &HashMap<ResourceId, ResourceId>,
-    ) -> bool {
+    fn remap_valtype(&mut self, ty: &mut ComponentValType, map: &mut Remapping) -> bool {
         match ty {
             ComponentValType::Primitive(_) => false,
             ComponentValType::Type(id) => self.remap_type_id(id, map),
         }
     }
+}
+
+#[derive(Default)]
+pub(crate) struct Remapping {
+    /// A mapping from old resource ID to new resource ID.
+    pub(crate) resources: HashMap<ResourceId, ResourceId>,
+
+    /// A mapping filled in during the remapping process which records how a
+    /// type was remapped, if applicable. This avoids remapping multiple
+    /// references to the same type and instead only processing it once.
+    types: HashMap<TypeId, TypeId>,
 }
 
 impl Remap for TypeAlloc {
@@ -2362,7 +2427,7 @@ impl<'a> SubtypeCx<'a> {
     ///
     /// This enables `f` to modify the internal arenas while relying on all
     /// changes being discarded after the closure finishes.
-    fn mark<T>(&mut self, f: impl Fn(&mut Self) -> T) -> T {
+    fn mark<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let a_len = self.a.list.len();
         let b_len = self.b.list.len();
         let result = f(self);
@@ -2602,7 +2667,7 @@ impl<'a> SubtypeCx<'a> {
                     .map(|(name, (_url, ty))| (name.clone(), ty.clone()))
                     .collect();
                 self.swap();
-                let import_mapping =
+                let mut import_mapping =
                     self.open_instance_type(&b_imports, *a, ExternKind::Import, offset)?;
                 self.swap();
                 self.mark(|this| {
@@ -2614,7 +2679,7 @@ impl<'a> SubtypeCx<'a> {
                         .map(|(name, (_url, ty))| (name.clone(), ty.clone()))
                         .collect::<IndexMap<_, _>>();
                     for ty in a_exports.values_mut() {
-                        this.a.remap_component_entity(ty, &import_mapping);
+                        this.a.remap_component_entity(ty, &mut import_mapping);
                     }
                     this.open_instance_type(&a_exports, *b, ExternKind::Export, offset)?;
                     Ok(())
@@ -2653,7 +2718,7 @@ impl<'a> SubtypeCx<'a> {
         b: TypeId,
         kind: ExternKind,
         offset: usize,
-    ) -> Result<HashMap<ResourceId, ResourceId>> {
+    ) -> Result<Remapping> {
         // First, determine the mapping from resources in `b` to those supplied
         // by arguments in `a`.
         //
@@ -2692,7 +2757,7 @@ impl<'a> SubtypeCx<'a> {
             ExternKind::Import => &component_type.universal_resources,
             ExternKind::Export => &component_type.existential_resources,
         };
-        let mut mapping = HashMap::new();
+        let mut mapping = Remapping::default();
         'outer: for (resource, path) in resources.iter() {
             // Lookup the first path item in `imports` and the corresponding
             // entry in `args` by name.
@@ -2748,7 +2813,7 @@ impl<'a> SubtypeCx<'a> {
                 },
                 _ => continue,
             };
-            mapping.insert(*resource, new_id);
+            mapping.resources.insert(*resource, new_id);
         }
 
         // Now that a mapping from the resources in `b` to the resources in `a`
@@ -2772,7 +2837,8 @@ impl<'a> SubtypeCx<'a> {
         for (i, (actual, expected)) in to_typecheck.into_iter().enumerate() {
             let result = self.mark(|this| {
                 let mut expected = expected;
-                this.b.remap_component_entity(&mut expected, &mapping);
+                this.b.remap_component_entity(&mut expected, &mut mapping);
+                mapping.types.clear();
                 this.component_entity_type(&actual, &expected, offset)
             });
             let err = match result {

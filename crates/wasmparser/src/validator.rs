@@ -1496,7 +1496,48 @@ mod tests {
         let a1_id = types.id_from_type_index(1, false).unwrap();
         let a2_id = types.id_from_type_index(2, false).unwrap();
 
-        // The ids should all be different
+        // The ids should all be the same
+        assert!(t_id == a1_id);
+        assert!(t_id == a2_id);
+        assert!(a1_id == a2_id);
+
+        // However, they should all point to the same type
+        assert!(std::ptr::eq(
+            types.type_from_id(t_id).unwrap(),
+            types.type_from_id(a1_id).unwrap()
+        ));
+        assert!(std::ptr::eq(
+            types.type_from_id(t_id).unwrap(),
+            types.type_from_id(a2_id).unwrap()
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_type_id_exports() -> Result<()> {
+        let bytes = wat::parse_str(
+            r#"
+            (component
+              (type $T (list string))
+              (export $A1 "A1" (type $T))
+              (export $A2 "A2" (type $T))
+            )
+        "#,
+        )?;
+
+        let mut validator = Validator::new_with_features(WasmFeatures {
+            component_model: true,
+            ..Default::default()
+        });
+
+        let types = validator.validate_all(&bytes)?;
+
+        let t_id = types.id_from_type_index(0, false).unwrap();
+        let a1_id = types.id_from_type_index(1, false).unwrap();
+        let a2_id = types.id_from_type_index(2, false).unwrap();
+
+        // The ids should all be the same
         assert!(t_id != a1_id);
         assert!(t_id != a2_id);
         assert!(a1_id != a2_id);

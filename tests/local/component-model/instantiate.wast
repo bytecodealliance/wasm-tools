@@ -778,7 +778,7 @@
 (assert_invalid
   (component
     (import "y" (component $c
-      (type $f (record))
+      (type $f (option s32))
       (type $t (record (field "x" $f)))
       (import "x" (type (eq $t)))
     ))

@@ -689,18 +689,19 @@ impl<'a> EncodingState<'a> {
         // the nested component synthesized below.
         let mut imports = Vec::new();
         let mut root = self.root_type_encoder(Some(export));
-        let mut func_types = Vec::new();
         for (_, func) in &resolve.interfaces[export].functions {
             let core_name = func.core_export_name(Some(export_name));
             let ty = root.encode_func_type(resolve, func)?;
             let func_index = root.state.encode_lift(module, &core_name, func, ty)?;
-            func_types.push(ty);
             imports.push((
                 format!("import-{}", func.name),
                 ComponentExportKind::Func,
                 func_index,
             ));
         }
+        // Save the map from `TypeId` to type index in the current component for
+        // use in a moment.
+        let type_map = root.type_map;
 
         // Next a nested component is created which will import the functions
         // above and then reexport them. The purpose of them is to "re-type" the
@@ -712,19 +713,37 @@ impl<'a> EncodingState<'a> {
             export_types: false,
             interface: export,
             state: self,
+            imports: Vec::new(),
         };
 
         // Our nested component starts off by importing each function of this
         // interface. Note that the type used here is the same type that was
         // used to execute the `canon lift`, so the type is aliased from the
         // outer component.
-        for ((_, func), ty) in resolve.interfaces[export].functions.iter().zip(func_types) {
-            let ty = nested.component.alias_outer_type(1, ty);
+        for (_, func) in resolve.interfaces[export].functions.iter() {
+            let ty = nested.encode_func_type(resolve, func)?;
             nested.component.import(
                 &format!("import-{}", func.name),
                 "",
                 ComponentTypeRef::Func(ty),
             );
+        }
+
+        // Swap the `nested.type_map` which was previously from `TypeId` to
+        // `u32` to instead being from `u32` to `TypeId`. This reverse map is
+        // then used in conjunction with `type_map` to satisfy all type imports
+        // of the nested component generated. The type import's index in the
+        // inner component is translated to a `TypeId` via `reverse_map` which
+        // is then translated back to our own index space via `type_map`.
+        let reverse_map = nested
+            .type_map
+            .drain()
+            .map(|p| (p.1, p.0))
+            .collect::<HashMap<_, _>>();
+        for (name, idx) in nested.imports.drain(..) {
+            let id = reverse_map[&idx];
+            let idx = type_map[&id];
+            imports.push((name, ComponentExportKind::Type, idx))
         }
 
         // Next the component reexports all of its imports, but notably uses the
@@ -734,7 +753,6 @@ impl<'a> EncodingState<'a> {
         // new type index space. Hence the `export_types = true` flag here which
         // flows through the type encoding and when types are emitted.
         nested.export_types = true;
-        nested.type_map.clear();
         nested.func_type_map.clear();
         for (i, (_, func)) in resolve.interfaces[export].functions.iter().enumerate() {
             let ty = nested.encode_func_type(resolve, func)?;
@@ -782,6 +800,7 @@ impl<'a> EncodingState<'a> {
             export_types: bool,
             interface: InterfaceId,
             state: &'state mut EncodingState<'a>,
+            imports: Vec<(String, u32)>,
         }
 
         impl<'a> ValtypeEncoder<'a> for NestedComponentTypeEncoder<'_, 'a> {
@@ -798,7 +817,14 @@ impl<'a> EncodingState<'a> {
                             .export(name, "", ComponentExportKind::Type, idx, None),
                     )
                 } else {
-                    None
+                    let name = format!("import-{name}");
+                    let ret = self.component.import(
+                        &name,
+                        "",
+                        ComponentTypeRef::Type(TypeBounds::Eq(idx)),
+                    );
+                    self.imports.push((name, ret));
+                    Some(ret)
                 }
             }
             fn import_type(&mut self, _: InterfaceId, id: TypeId) -> u32 {

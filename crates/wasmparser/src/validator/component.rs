@@ -5,8 +5,8 @@ use super::{
     core::Module,
     types::{
         ComponentFuncType, ComponentInstanceType, ComponentType, ComponentValType, EntityType,
-        InstanceType, KebabString, ModuleType, RecordType, ResourceId, Type, TypeAlloc, TypeId,
-        TypeList, VariantCase,
+        InstanceType, KebabString, ModuleType, RecordType, Remapping, ResourceId, Type, TypeAlloc,
+        TypeId, TypeList, VariantCase,
     },
 };
 use crate::{
@@ -20,7 +20,6 @@ use crate::{
     TableType, TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
-use std::collections::HashMap;
 use std::{collections::HashSet, mem};
 use url::Url;
 
@@ -147,6 +146,19 @@ pub(crate) struct ComponentState {
     /// `universal_resources`. Note that the indexes here index into the
     /// list of exports of this component.
     explicit_resources: IndexMap<ResourceId, Vec<usize>>,
+
+    /// The set of types which are considered "exported" from this component.
+    ///
+    /// This is added to whenever a type export is found, or an instance export
+    /// which itself contains a type export. This additionally includes all
+    /// imported types since those are suitable for export as well.
+    ///
+    /// This set is consulted whenever an exported item is added since all
+    /// referenced types must be members of this set.
+    exported_types: HashSet<TypeId>,
+
+    /// Same as `exported_types`, but for imports.
+    imported_types: HashSet<TypeId>,
 }
 
 #[derive(Copy, Clone)]
@@ -191,6 +203,8 @@ impl ComponentState {
             explicit_resources: Default::default(),
             next_import_index: 0,
             next_export_index: 0,
+            exported_types: Default::default(),
+            imported_types: Default::default(),
         }
     }
 
@@ -504,7 +518,155 @@ impl ComponentState {
         };
 
         check_max(len, 0, max, desc, offset)?;
+
+        // Before returning perform the final validation of the type of the item
+        // being imported/exported. This will ensure that everything is
+        // appropriately named with respect to type definitions, resources, etc.
+        if !self.validate_and_register_named_types(kind, ty, types) {
+            bail!(
+                offset,
+                "{} not valid to be used as {}",
+                ty.desc(),
+                kind.desc()
+            );
+        }
         Ok(())
+    }
+
+    /// Validates that the `ty` referenced only refers to named types internally
+    /// and then inserts anything necessary, if applicable, to the defined sets
+    /// within this component.
+    ///
+    /// This function will validate that `ty` only refers to named types. For
+    /// example if it's a record then all of its fields must refer to named
+    /// types. This consults either `self.imported_types` or
+    /// `self.exported_types` as specified by `kind`. Note that this is not
+    /// inherently recursive itself but it ends up being recursive since if
+    /// recursive members were named then all their components must also be
+    /// named. Consequently this check stops at the "one layer deep" position,
+    /// or more accurately the position where types must be named (e.g. tuples
+    /// aren't required to be named).
+    fn validate_and_register_named_types(
+        &mut self,
+        kind: ExternKind,
+        ty: &ComponentEntityType,
+        types: &TypeAlloc,
+    ) -> bool {
+        let set = match kind {
+            ExternKind::Import => &self.imported_types,
+            ExternKind::Export => &self.exported_types,
+        };
+        match ty {
+            // When a type is imported or exported than any recursive type
+            // referred to by that import/export must additionally be exported
+            // or imported. Here this walks the "first layer" of the type which
+            // delegates to `TypeAlloc::type_named_type_id` to determine whether
+            // the components of the type being named here are indeed all they
+            // themselves named.
+            ComponentEntityType::Type {
+                created,
+                referenced,
+            } => {
+                let ok = match &types[*referenced] {
+                    Type::Defined(i) => match i {
+                        // These types do not contain anything which must be
+                        // named.
+                        ComponentDefinedType::Primitive(_)
+                        | ComponentDefinedType::Flags(_)
+                        | ComponentDefinedType::Enum(_) => true,
+
+                        // Referenced types of all these aggregates must all be
+                        // named.
+                        ComponentDefinedType::Record(r) => {
+                            r.fields.values().all(|t| types.type_named_valtype(t, set))
+                        }
+                        ComponentDefinedType::Tuple(r) => {
+                            r.types.iter().all(|t| types.type_named_valtype(t, set))
+                        }
+                        ComponentDefinedType::Union(r) => {
+                            r.types.iter().all(|t| types.type_named_valtype(t, set))
+                        }
+                        ComponentDefinedType::Variant(r) => r
+                            .cases
+                            .values()
+                            .filter_map(|t| t.ty.as_ref())
+                            .all(|t| types.type_named_valtype(t, set)),
+                        ComponentDefinedType::Result { ok, err } => {
+                            ok.as_ref()
+                                .map(|t| types.type_named_valtype(t, set))
+                                .unwrap_or(true)
+                                && err
+                                    .as_ref()
+                                    .map(|t| types.type_named_valtype(t, set))
+                                    .unwrap_or(true)
+                        }
+                        ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+                            types.type_named_valtype(ty, set)
+                        }
+
+                        // The resource referred to by own/borrow must be named.
+                        ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
+                            set.contains(id)
+                        }
+                    },
+
+                    // Everything else is an export of a type which isn't itself
+                    // a type, for example a component type or an instance
+                    // type, and those aren't validated at this time.
+                    _ => true,
+                };
+                if !ok {
+                    return false;
+                }
+                match kind {
+                    // Imported types are both valid for import and valid for
+                    // export.
+                    ExternKind::Import => {
+                        self.imported_types.insert(*created);
+                        self.exported_types.insert(*created);
+                    }
+                    ExternKind::Export => {
+                        self.exported_types.insert(*created);
+                    }
+                }
+                true
+            }
+
+            // Instances are slightly nuanced here. The general idea is that if
+            // an instance is imported, then any type exported by the instance
+            // is then also exported. Additionally for exports. To get this to
+            // work out this arm will recursively call
+            // `validate_and_register_named_types` which means that types are
+            // inserted into `self.{imported,exported}_types` as-we-go rather
+            // than all at once.
+            //
+            // This then recursively validates that all items in the instance
+            // itself are valid to import/export, recursive instances are
+            // captured, and everything is appropriately added to the right
+            // imported/exported set.
+            ComponentEntityType::Instance(i) => {
+                let ty = types[*i].as_component_instance_type().unwrap();
+                ty.exports
+                    .values()
+                    .all(|(_url, ty)| self.validate_and_register_named_types(kind, ty, types))
+            }
+
+            // All types referred to by a function must be named.
+            ComponentEntityType::Func(id) => {
+                let ty = types[*id].as_component_func_type().unwrap();
+                ty.params
+                    .iter()
+                    .map(|(_, ty)| ty)
+                    .chain(ty.results.iter().map(|(_, ty)| ty))
+                    .all(|ty| types.type_named_valtype(ty, set))
+            }
+
+            ComponentEntityType::Value(ty) => types.type_named_valtype(ty, set),
+
+            // Components/modules are always "closed" or "standalone" and don't
+            // need validation with respect to their named types.
+            ComponentEntityType::Component(_) | ComponentEntityType::Module(_) => true,
+        }
     }
 
     /// Updates the type `id` specified, an identifier for a component instance
@@ -555,10 +717,10 @@ impl ComponentState {
         // existential in `ty`, now become universal variables in `self`. Their
         // path for where they're imported is updated as well with
         // `self.next_import_index` as the import-to-be soon.
-        let mut mapping = HashMap::new();
+        let mut mapping = Remapping::default();
         let ty = types[*id].as_component_instance_type().unwrap();
         for (old, new) in ty.existential_resources.iter().zip(&resources) {
-            let prev = mapping.insert(*old, *new);
+            let prev = mapping.resources.insert(*old, *new);
             assert!(prev.is_none());
 
             let mut base = vec![self.next_import_index];
@@ -569,10 +731,10 @@ impl ComponentState {
         // Using the old-to-new resource mapping perform a substitution on
         // the `exports` and `explicit_resources` fields of `new_ty`
         for (_, ty) in new_ty.exports.values_mut() {
-            types.remap_component_entity(ty, &mapping);
+            types.remap_component_entity(ty, &mut mapping);
         }
         for (id, path) in mem::take(&mut new_ty.explicit_resources) {
-            let id = *mapping.get(&id).unwrap_or(&id);
+            let id = *mapping.resources.get(&id).unwrap_or(&id);
             new_ty.explicit_resources.insert(id, path);
         }
 
@@ -826,7 +988,7 @@ impl ComponentState {
                     Self::alias_module(components, count, index, offset)
                 }
                 ComponentOuterAliasKind::CoreType => {
-                    Self::alias_core_type(components, count, index, types, offset)
+                    Self::alias_core_type(components, count, index, offset)
                 }
                 ComponentOuterAliasKind::Type => {
                     Self::alias_type(components, count, index, types, offset)
@@ -1688,7 +1850,7 @@ impl ComponentState {
             .iter()
             .zip(&fresh_existential_resources)
         {
-            let prev = mapping.insert(*old, *new);
+            let prev = mapping.resources.insert(*old, *new);
             assert!(prev.is_none());
         }
 
@@ -1703,13 +1865,18 @@ impl ComponentState {
         // references to the component's existentials are rebound to the fresh
         // existentials introduced just above.
         for (_, entity) in exports.values_mut() {
-            types.remap_component_entity(entity, &mapping);
+            types.remap_component_entity(entity, &mut mapping);
         }
         let component_type = types[component_type_id].as_component_type().unwrap();
         let explicit_resources = component_type
             .explicit_resources
             .iter()
-            .map(|(id, path)| (mapping.get(id).copied().unwrap_or(*id), path.clone()))
+            .map(|(id, path)| {
+                (
+                    mapping.resources.get(id).copied().unwrap_or(*id),
+                    path.clone(),
+                )
+            })
             .collect::<IndexMap<_, _>>();
 
         // Technically in the last formalism that was consulted in writing this
@@ -2169,8 +2336,7 @@ impl ComponentState {
                 check_max(self.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
                 match *self.instance_export(instance_index, name, types, offset)? {
                     ComponentEntityType::Type { created, .. } => {
-                        let id = types.with_unique(created);
-                        self.types.push(id);
+                        self.types.push(created);
                         Ok(())
                     }
                     _ => {
@@ -2227,7 +2393,6 @@ impl ComponentState {
         components: &mut [Self],
         count: u32,
         index: u32,
-        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
@@ -2236,8 +2401,7 @@ impl ComponentState {
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-        let id = types.with_unique(ty);
-        current.core_types.push(id);
+        current.core_types.push(ty);
 
         Ok(())
     }
@@ -2292,8 +2456,7 @@ impl ComponentState {
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-        let id = types.with_unique(ty);
-        current.types.push(id);
+        current.types.push(ty);
 
         Ok(())
     }

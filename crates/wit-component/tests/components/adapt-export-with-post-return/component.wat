@@ -82,7 +82,7 @@
   (alias core export 2 "cabi_post_new#foo" (core func (;4;)))
   (func (;0;) (type 0) (canon lift (core func 3) (memory 0) string-encoding=utf8 (post-return 4)))
   (component (;0;)
-    (alias outer 1 0 (type (;0;)))
+    (type (;0;) (func (result string)))
     (import "import-foo" (func (;0;) (type 0)))
     (type (;1;) (func (result string)))
     (export (;1;) "foo" (func 0) (func (type 1)))

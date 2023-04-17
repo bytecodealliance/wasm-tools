@@ -1,7 +1,7 @@
 (component
   (component $C1 (;0;)
-    (type $X (;0;) (resource (rep i32)))
-    (export (;1;) "X" (type $X))
+    (type $X' (;0;) (resource (rep i32)))
+    (export $X (;1;) "X" (type $X'))
     (type (;2;) (own $X))
     (core func $f (;0;) (canon resource.drop 2))
     (type (;3;) (own $X))

@@ -399,8 +399,8 @@
 
 (component
   (component $C1
-    (type $X (resource (rep i32)))
-    (export "X" (type $X))
+    (type $X' (resource (rep i32)))
+    (export $X "X" (type $X'))
 
     (core func $f (canon resource.drop (own $X)))
     (func (export "f") (param "X" (own $X)) (canon lift (core func $f)))
@@ -420,8 +420,8 @@
 (assert_invalid
   (component
     (component $C1
-      (type $X (resource (rep i32)))
-      (export "X" (type $X))
+      (type $X' (resource (rep i32)))
+      (export $X "X" (type $X'))
 
       (core func $f (canon resource.drop (own $X)))
       (func (export "f") (param "X" (own $X)) (canon lift (core func $f)))
@@ -546,7 +546,7 @@
     (type $r (resource (rep i32)))
     (import "x" (func (result (own $r))))
   )
-  "local resource type found in imports")
+  "func not valid to be used as import")
 
 (assert_invalid
   (component
@@ -555,7 +555,7 @@
       (import "f" (func (result (own $x))))
     ))
   )
-  "local resource type found in imports")
+  "func not valid to be used as import")
 
 (assert_invalid
   (component
@@ -565,12 +565,12 @@
     (func (export "f") (param "x" (own $r))
       (canon lift (core func $f)))
   )
-  "local resource type found in export but not exported itself")
+  "func not valid to be used as export")
 
 ;; direct exports count as "explicit in" for resources
 (component
-  (type $r (resource (rep i32)))
-  (export "r" (type $r))
+  (type $r' (resource (rep i32)))
+  (export $r "r" (type $r'))
 
   (core func $f (canon resource.drop (own $r)))
   (func (export "f") (param "x" (own $r))
@@ -579,11 +579,12 @@
 
 ;; instances-as-a-bundle count as "explicit in" for resources
 (component
-  (type $r (resource (rep i32)))
-  (instance $i
-    (export "r" (type $r))
+  (type $r' (resource (rep i32)))
+  (instance $i'
+    (export "r" (type $r'))
   )
-  (export "i" (instance $i))
+  (export $i "i" (instance $i'))
+  (alias export $i "r" (type $r))
 
   (core func $f (canon resource.drop (own $r)))
   (func (export "f") (param "x" (own $r))
@@ -592,14 +593,16 @@
 
 ;; Transitive bundles count for "explicit in"
 (component
-  (type $r (resource (rep i32)))
-  (instance $i
-    (export "r" (type $r))
+  (type $r' (resource (rep i32)))
+  (instance $i'
+    (export "r" (type $r'))
   )
-  (instance $i2
-    (export "i" (instance $i))
+  (instance $i2'
+    (export "i" (instance $i'))
   )
-  (export "i2" (instance $i2))
+  (export $i2 "i2" (instance $i2'))
+  (alias export $i2 "i" (instance $i))
+  (alias export $i "r" (type $r))
 
   (core func $f (canon resource.drop (own $r)))
   (func (export "f") (param "x" (own $r))
@@ -608,13 +611,14 @@
 
 ;; Component instantiations count for "explicit in"
 (component
-  (type $r (resource (rep i32)))
+  (type $r' (resource (rep i32)))
   (component $C
     (import "x" (type $x (sub resource)))
     (export "y" (type $x))
   )
-  (instance $c (instantiate $C (with "x" (type $r))))
-  (export "c" (instance $c))
+  (instance $c' (instantiate $C (with "x" (type $r'))))
+  (export $c "c" (instance $c'))
+  (alias export $c "y" (type $r))
 
   (core func $f (canon resource.drop (own $r)))
   (func (export "f") (param "x" (own $r))
@@ -623,12 +627,12 @@
 
 ;; Make sure threading things around is valid for "explicit in"
 (component
-  (type $r (resource (rep i32)))
+  (type $r' (resource (rep i32)))
   (component $C
     (import "x" (type $x (sub resource)))
     (export "y" (type $x))
   )
-  (instance $c (instantiate $C (with "x" (type $r))))
+  (instance $c (instantiate $C (with "x" (type $r'))))
   (instance $i (export "x" (type $c "y")))
 
   (component $C2
@@ -645,7 +649,7 @@
   (instance $c2 (instantiate $C2
     (with "x" (instance $i1))
   ))
-  (export "x" (type $c2 "y"))
+  (export $r "x" (type $c2 "y"))
 
   (core func $f (canon resource.drop (own $r)))
   (func (export "f") (param "x" (own $r))
@@ -655,17 +659,19 @@
 ;; Importing-and-exporting instances through instantiation counts for "explicit
 ;; in"
 (component
-  (type $r (resource (rep i32)))
+  (type $r' (resource (rep i32)))
   (component $C
     (import "x" (instance $x (export "t" (type (sub resource)))))
     (export "y" (instance $x))
   )
-  (instance $c (instantiate $C
+  (instance $c' (instantiate $C
     (with "x" (instance
-      (export "t" (type $r))
+      (export "t" (type $r'))
     ))
   ))
-  (export "c" (instance $c))
+  (export $c "c" (instance $c'))
+  (alias export $c "y" (instance $y))
+  (alias export $y "t" (type $r))
 
   (core func $f (canon resource.drop (own $r)))
   (func (export "f") (param "x" (own $r))
