@@ -897,3 +897,149 @@
   (instance $test
     (instantiate $T (with "x" (type $t1)) (with "y" (type $t2))))
 )
+
+(assert_invalid
+  (component (import "[static]" (func)))
+  "not in kebab case")
+
+;; validation of `[constructor]foo`
+(assert_invalid
+  (component (import "[constructor]" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[constructor]a" (func)))
+  "should return one value")
+(assert_invalid
+  (component (import "[constructor]a" (func (result u32))))
+  "should return `(own $T)`")
+(assert_invalid
+  (component
+    (import "b" (type $a (sub resource)))
+    (import "[constructor]a" (func (result (own $a)))))
+  "import name `[constructor]a` is not valid")
+(assert_invalid
+  (component
+    (import "b" (type $a (sub resource)))
+    (import "[constructor]a" (func (result (own $a)))))
+  "function does not match expected resource name `b`")
+(component
+  (import "a" (type $a (sub resource)))
+  (import "[constructor]a" (func (result (own $a)))))
+(component
+  (import "a" (type $a (sub resource)))
+  (import "[constructor]a" (func (param "x" u32) (result (own $a)))))
+
+;; validation of `[method]a.b`
+(assert_invalid
+  (component (import "[method]" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[method]a" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[method]a." (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[method].a" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[method]a.b.c" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[method]a.b" (instance)))
+  "is not a func")
+(assert_invalid
+  (component (import "[method]a.b" (func)))
+  "should have at least one argument")
+(assert_invalid
+  (component (import "[method]a.b" (func (param "x" u32))))
+  "should have a first argument called `self`")
+(assert_invalid
+  (component (import "[method]a.b" (func (param "self" u32))))
+  "should take a first argument of `(borrow $T)`")
+(assert_invalid
+  (component
+    (import "b" (type $T (sub resource)))
+    (import "[method]a.b" (func (param "self" (borrow $T)))))
+  "does not match expected resource name")
+(component
+  (import "a" (type $T (sub resource)))
+  (import "[method]a.b" (func (param "self" (borrow $T)))))
+
+;; validation of `[static]a.b`
+(assert_invalid
+  (component (import "[static]" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[static]a" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[static]a." (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[static].a" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[static]a.b.c" (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import "[static]a.b" (instance)))
+  "is not a func")
+(assert_invalid
+  (component (import "[static]a.b" (func)))
+  "static resource name is not known in this context")
+
+(component
+  (import "a" (type (sub resource)))
+  (import "[static]a.b" (func)))
+
+;; exports/imports are disjoint
+(assert_invalid
+  (component
+    (import "b" (type $T (sub resource)))
+    (import "f" (func $f (param "self" (borrow $T))))
+    (export "[method]b.foo" (func $f))
+  )
+  "resource used in function does not have a name in this context")
+
+(component
+  (import "b" (type $T (sub resource)))
+  (import "f" (func $f (param "self" (borrow $T))))
+  (export $c "c" (type $T))
+  (export "[method]c.foo" (func $f) (func (param "self" (borrow $c))))
+)
+
+;; imports aren't transitive
+(assert_invalid
+  (component
+    (import "i" (instance $i
+      (export "t" (type (sub resource)))
+    ))
+    (alias export $i "t" (type $t))
+    (import "[method]t.foo" (func (param "self" (borrow $t))))
+  )
+  "resource used in function does not have a name in this context")
+
+;; validation happens in a type context
+(assert_invalid
+  (component
+    (type (component
+      (import "b" (type $T (sub resource)))
+      (import "[constructor]a" (func (result (own $T))))
+    ))
+  )
+  "function does not match expected resource name `b`")
+
+;; bag-of-exports validation
+(assert_invalid
+  (component
+    (type $T (resource (rep i32)))
+    (core module $m (func (export "a") (result i32) unreachable))
+    (core instance $i (instantiate $m))
+    (func $f (result (own $T)) (canon lift (core func $i "a")))
+    (instance
+      (export "a" (type $T))
+      (export "[constructor]a" (func $f))
+    )
+  )
+  "resource used in function does not have a name in this context")
