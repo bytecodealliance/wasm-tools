@@ -262,8 +262,10 @@ pub fn element(
                 &wasmparser::ValType::I32,
                 ConstExprKind::ElementOffset,
             )?;
+            let table_index = table_index.unwrap_or(0);
+            let table = t.remap(Item::Table, table_index)?;
             ElementMode::Active {
-                table: table_index.map(|i| t.remap(Item::Table, i)).transpose()?,
+                table: if table == 0 { None } else { Some(table) },
                 offset: &offset,
             }
         }
