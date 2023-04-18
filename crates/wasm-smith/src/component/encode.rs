@@ -1,6 +1,6 @@
 use super::*;
 use wasm_encoder::{ComponentExportKind, ComponentOuterAliasKind, ExportKind};
-use wasmparser::types::KebabStr;
+use wasmparser::names::KebabStr;
 
 impl Component {
     /// Encode this Wasm component into bytes.

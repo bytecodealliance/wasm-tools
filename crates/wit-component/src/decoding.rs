@@ -371,7 +371,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let id = self
-                        .register_interface(doc, Some(name), ty)
+                        .register_interface(doc, Some(name.as_str()), ty)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                     let prev = self.resolve.documents[doc]
                         .interfaces
@@ -388,7 +388,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let id = self
-                        .register_world(doc, name, ty)
+                        .register_world(doc, name.as_str(), ty)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                     let prev = self.resolve.documents[doc]
                         .worlds
@@ -469,7 +469,7 @@ impl WitPackageDecoder<'_> {
                                 bail!("instance type export `{name}` not defined in interface");
                             }
                             let id = self.register_type_export(
-                                name,
+                                name.as_str(),
                                 TypeOwner::Interface(interface),
                                 referenced,
                                 created,
@@ -501,7 +501,7 @@ impl WitPackageDecoder<'_> {
                     if url.scheme() == "pkg" {
                         bail!("instance function export `{name}` not defined in interface");
                     }
-                    let func = self.convert_function(name, def)?;
+                    let func = self.convert_function(name.as_str(), def)?;
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
@@ -637,7 +637,7 @@ impl WitPackageDecoder<'_> {
                 } => {
                     let ty = self
                         .register_type_export(
-                            name,
+                            name.as_str(),
                             TypeOwner::Interface(self.resolve.interfaces.next_id()),
                             referenced,
                             created,
@@ -653,7 +653,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let func = self
-                        .convert_function(&name, ty)
+                        .convert_function(name.as_str(), ty)
                         .with_context(|| format!("failed to convert function '{name}'"))?;
                     let prev = interface.functions.insert(name.to_string(), func);
                     assert!(prev.is_none());
@@ -739,7 +739,7 @@ impl WitPackageDecoder<'_> {
                     referenced,
                 } => {
                     let ty = self.register_type_export(
-                        name,
+                        name.as_str(),
                         TypeOwner::World(self.resolve.worlds.next_id()),
                         *referenced,
                         *created,
@@ -751,7 +751,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(name, ty)?;
+                    let func = self.convert_function(name.as_str(), ty)?;
                     WorldItem::Function(func)
                 }
                 _ => bail!("component import `{name}` is not an instance, func, or type"),
@@ -784,7 +784,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(name, ty)?;
+                    let func = self.convert_function(name.as_str(), ty)?;
                     WorldItem::Function(func)
                 }
 

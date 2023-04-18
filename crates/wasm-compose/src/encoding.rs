@@ -12,7 +12,8 @@ use std::{
 };
 use wasm_encoder::*;
 use wasmparser::{
-    types::{ComponentEntityType, KebabString, Type, TypeId, Types},
+    names::KebabString,
+    types::{ComponentEntityType, Type, TypeId, Types},
     ComponentExternalKind,
 };
 
@@ -760,7 +761,7 @@ impl ArgumentImport<'_> {
             let mut map = IndexMap::with_capacity(exports.len());
             for (name, (url, ty)) in exports {
                 map.insert(
-                    name.as_ref(),
+                    name.as_str(),
                     (
                         url.as_ref().map(|u| u.as_str()).unwrap_or(""),
                         *component,
@@ -800,7 +801,7 @@ impl ArgumentImport<'_> {
                     .exports
                     .iter()
                 {
-                    match exports.entry(name) {
+                    match exports.entry(name.as_str()) {
                         indexmap::map::Entry::Occupied(mut e) => {
                             let (_, existing_component, existing_type) = e.get_mut();
                             match Self::compatible_type(

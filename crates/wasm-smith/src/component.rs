@@ -13,7 +13,7 @@ use std::{
     rc::Rc,
 };
 use wasm_encoder::{ComponentTypeRef, ComponentValType, PrimitiveValType, TypeBounds, ValType};
-use wasmparser::types::KebabString;
+use wasmparser::names::KebabString;
 
 mod encode;
 
