@@ -8,11 +8,14 @@ use tide::{
     utils::After,
     Request, Response, StatusCode,
 };
+use wasi_host::wasi;
+use wasi_cap_std_sync::WasiCtxBuilder;
 use wasmtime::{component::*, Config, Engine, Store};
 
-wasmtime_component_macro::bindgen!({
+wasmtime::component::bindgen!({
     path: "../service.wit",
-    world: "service"
+    world: "service",
+    async: true
 });
 
 /// Represents state stored in the tide application context.
@@ -30,6 +33,7 @@ impl State {
         // Enable component model support in Wasmtime
         let mut config = Config::default();
         config.wasm_component_model(true);
+        config.async_support(true);
 
         // Load the component from the given path
         let engine = Engine::new(&config)?;
@@ -117,9 +121,19 @@ impl ServerApp {
 
         // Create a new store for the request
         let state = req.state();
-        let linker: Linker<()> = Linker::new(&state.engine);
-        let mut store = Store::new(&state.engine, ());
-        let (service, _) = Service::instantiate(&mut store, &state.component, &linker)?;
+        let mut linker = Linker::new(&state.engine);
+        let wasi_ctx = WasiCtxBuilder::new()
+            .inherit_stdio()
+            .build();
+        
+        wasi::environment::add_to_linker(&mut linker, |x| x)?;
+        wasi::filesystem::add_to_linker(&mut linker, |x| x)?;
+        wasi::preopens::add_to_linker(&mut linker, |x| x)?;
+        wasi::streams::add_to_linker(&mut linker, |x| x)?;
+        wasi::exit::add_to_linker(&mut linker, |x| x)?;
+
+        let mut store = Store::new(&state.engine, wasi_ctx);
+        let (service, _) = Service::instantiate_async(&mut store, &state.component, &linker).await?;
         service
             .handler
             .call_execute(
@@ -128,7 +142,8 @@ impl ServerApp {
                     headers: &headers,
                     body: &body,
                 },
-            )?
+            )
+            .await?
             .map(TryInto::try_into)
             .map_err(handler::Error::into_tide)?
     }
