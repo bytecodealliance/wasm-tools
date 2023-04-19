@@ -9,7 +9,8 @@ async-std = { version = "1.12.0", features = ["attributes"] }
 clap = { version = "3.2.23", features = ["derive"] }
 driftwood = "0.0.6"
 tide = "0.16.0"
-wasmtime = { version = "6.0.0", features = ["component-model"] }
-wasmtime-component-macro = "6.0.0"
+wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/preview2-prototyping", rev = "0d5ca073d1131002d97c9f5984d388b55539950e" }
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "299131ae2d6655c49138bfab2c4469650763ef3b", features = ["component-model"] }
+wasi-host = { git = "https://github.com/bytecodealliance/preview2-prototyping", package = "host", rev = "0d5ca073d1131002d97c9f5984d388b55539950e" }
 
 [workspace]
