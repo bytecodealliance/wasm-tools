@@ -27,6 +27,7 @@ fuzz_target!(|data: &[u8]| {
                 let err = e.to_string();
                 if err.contains("conflicts with a previous")
                     || err.contains("shadows previously imported")
+                    || err.contains("shadows previously exported")
                 {
                     return;
                 }
