@@ -1171,11 +1171,19 @@ impl<'a> EncodingState<'a> {
 
             let mut core_exports = Vec::new();
             for export_name in info.needs_core_exports.iter() {
+                let mut core_export_name = export_name.as_str();
+                // provide cabi_realloc_adapter as cabi_realloc to adapters
+                // if it exists
+                if export_name == "cabi_realloc" {
+                    if let Some(adapter_realloc) = self.info.info.adapter_realloc {
+                        core_export_name = adapter_realloc;
+                    }
+                }
                 let index = self.component.alias_core_item(
                     self.instance_index
                         .expect("adaptee index set at this point"),
                     ExportKind::Func,
-                    export_name,
+                    core_export_name,
                 );
                 core_exports.push((export_name.as_str(), ExportKind::Func, index));
             }
