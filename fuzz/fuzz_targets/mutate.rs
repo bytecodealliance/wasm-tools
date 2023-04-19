@@ -273,8 +273,13 @@ mod eval {
                 },
                 {
                     let consumed = orig_store.fuel_consumed().unwrap() - prev_consumed;
+                    // Add in some extra fuel to account for extra code that
+                    // may be inserted by the mutation or to handle the case
+                    // where the original execution trapped which may not have
+                    // fully accounted for the last bit of fuel needed to reach
+                    // the trap.
                     log::debug!("consumed {consumed} fuel");
-                    mutated_store.add_fuel(consumed).unwrap();
+                    mutated_store.add_fuel(consumed + 10).unwrap();
                     mutated_func.call(&mut *mutated_store, &args, &mut mutated_results)
                 },
             ) {
@@ -283,7 +288,11 @@ mod eval {
                         assert_val_eq(orig_val, mutated_val);
                     }
                 }
-                (Err(_), Err(_)) => continue,
+                (Err(orig), Err(mutated)) => {
+                    log::debug!("original error {orig:?}");
+                    log::debug!("mutated error {mutated:?}");
+                    continue;
+                }
                 (orig, mutated) => panic!(
                     "mutated and original Wasm diverged: orig = {:?}; mutated = {:?}",
                     orig, mutated,
