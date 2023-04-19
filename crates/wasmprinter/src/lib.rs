@@ -42,6 +42,7 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 #[derive(Default)]
 pub struct Printer {
     print_offsets: bool,
+    print_skeleton: bool,
     printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
     result: String,
     /// The `i`th line in `result` is at offset `lines[i]`.
@@ -125,6 +126,12 @@ impl Printer {
     /// text format whenever a newline is printed.
     pub fn print_offsets(&mut self, print: bool) {
         self.print_offsets = print;
+    }
+
+    /// Whether or not to print only a "skeleton" which skips function bodies,
+    /// data segment contents, element segment contents, etc.
+    pub fn print_skeleton(&mut self, print: bool) {
+        self.print_skeleton = print;
     }
 
     /// Registers a custom `printer` function to get invoked whenever a custom
@@ -934,100 +941,116 @@ impl Printer {
                 .print_core_functype_idx(state, ty, Some(func_idx))?
                 .unwrap_or(0);
 
-            let mut first = true;
-            let mut local_idx = 0;
-            let mut locals = NamedLocalPrinter::new("local");
-            for _ in 0..body.read_var_u32()? {
-                let offset = body.original_position();
-                let cnt = body.read_var_u32()?;
-                let ty = body.read()?;
-                if MAX_LOCALS
-                    .checked_sub(local_idx)
-                    .and_then(|s| s.checked_sub(cnt))
-                    .is_none()
-                {
-                    bail!("function exceeds the maximum number of locals that can be printed");
-                }
-                for _ in 0..cnt {
-                    if first {
-                        self.newline(offset);
-                        first = false;
-                    }
-                    let name = state.core.local_names.get(&(func_idx, params + local_idx));
-                    locals.start_local(name, &mut self.result);
-                    self.print_valtype(ty)?;
-                    locals.end_local(&mut self.result);
-                    local_idx += 1;
-                }
-            }
-            locals.finish(&mut self.result);
-
-            state.core.labels = 0;
-            let nesting_start = self.nesting;
-            body.allow_memarg64(true);
-
-            let mut buf = String::new();
-            let mut op_printer = operator::PrintOperator::new(self, state);
-            while !body.eof() {
-                // TODO
-                let offset = body.original_position();
-                mem::swap(&mut buf, &mut op_printer.printer.result);
-                let op_kind = body.visit_operator(&mut op_printer)??;
-                mem::swap(&mut buf, &mut op_printer.printer.result);
-
-                match op_kind {
-                    // The final `end` in a reader is not printed, it's implied
-                    // in the text format.
-                    operator::OpKind::End if body.eof() => break,
-
-                    // When we start a block we newline to the current
-                    // indentation, then we increase the indentation so further
-                    // instructions are tabbed over.
-                    operator::OpKind::BlockStart => {
-                        op_printer.printer.newline(offset);
-                        op_printer.printer.nesting += 1;
-                    }
-
-                    // `else`/`catch` are special in that it's printed at
-                    // the previous indentation, but it doesn't actually change
-                    // our nesting level.
-                    operator::OpKind::BlockMid => {
-                        op_printer.printer.nesting -= 1;
-                        op_printer.printer.newline(offset);
-                        op_printer.printer.nesting += 1;
-                    }
-
-                    // Exiting a block prints `end` at the previous indentation
-                    // level. `delegate` also ends a block like `end` for `try`.
-                    operator::OpKind::End | operator::OpKind::Delegate
-                        if op_printer.printer.nesting > nesting_start =>
-                    {
-                        op_printer.printer.nesting -= 1;
-                        op_printer.printer.newline(offset);
-                    }
-
-                    // .. otherwise everything else just has a normal newline
-                    // out in front.
-                    _ => op_printer.printer.newline(offset),
-                }
-                op_printer.printer.result.push_str(&buf);
-                buf.truncate(0);
-            }
-
-            // If this was an invalid function body then the nesting may not
-            // have reset back to normal. Fix that up here and forcibly insert
-            // a newline as well in case the last instruction was something
-            // like an `if` which has a comment after it which could interfere
-            // with the closing paren printed for the func.
-            if self.nesting != nesting_start {
-                self.nesting = nesting_start;
-                self.newline(body.original_position());
+            if self.print_skeleton {
+                self.result.push_str(" ...");
+            } else {
+                self.print_func_body(state, func_idx, params, &mut body)?;
             }
 
             self.end_group();
 
             state.core.funcs += 1;
         }
+        Ok(())
+    }
+
+    fn print_func_body(
+        &mut self,
+        state: &mut State,
+        func_idx: u32,
+        params: u32,
+        body: &mut BinaryReader<'_>,
+    ) -> Result<()> {
+        let mut first = true;
+        let mut local_idx = 0;
+        let mut locals = NamedLocalPrinter::new("local");
+        for _ in 0..body.read_var_u32()? {
+            let offset = body.original_position();
+            let cnt = body.read_var_u32()?;
+            let ty = body.read()?;
+            if MAX_LOCALS
+                .checked_sub(local_idx)
+                .and_then(|s| s.checked_sub(cnt))
+                .is_none()
+            {
+                bail!("function exceeds the maximum number of locals that can be printed");
+            }
+            for _ in 0..cnt {
+                if first {
+                    self.newline(offset);
+                    first = false;
+                }
+                let name = state.core.local_names.get(&(func_idx, params + local_idx));
+                locals.start_local(name, &mut self.result);
+                self.print_valtype(ty)?;
+                locals.end_local(&mut self.result);
+                local_idx += 1;
+            }
+        }
+        locals.finish(&mut self.result);
+
+        state.core.labels = 0;
+        let nesting_start = self.nesting;
+        body.allow_memarg64(true);
+
+        let mut buf = String::new();
+        let mut op_printer = operator::PrintOperator::new(self, state);
+        while !body.eof() {
+            // TODO
+            let offset = body.original_position();
+            mem::swap(&mut buf, &mut op_printer.printer.result);
+            let op_kind = body.visit_operator(&mut op_printer)??;
+            mem::swap(&mut buf, &mut op_printer.printer.result);
+
+            match op_kind {
+                // The final `end` in a reader is not printed, it's implied
+                // in the text format.
+                operator::OpKind::End if body.eof() => break,
+
+                // When we start a block we newline to the current
+                // indentation, then we increase the indentation so further
+                // instructions are tabbed over.
+                operator::OpKind::BlockStart => {
+                    op_printer.printer.newline(offset);
+                    op_printer.printer.nesting += 1;
+                }
+
+                // `else`/`catch` are special in that it's printed at
+                // the previous indentation, but it doesn't actually change
+                // our nesting level.
+                operator::OpKind::BlockMid => {
+                    op_printer.printer.nesting -= 1;
+                    op_printer.printer.newline(offset);
+                    op_printer.printer.nesting += 1;
+                }
+
+                // Exiting a block prints `end` at the previous indentation
+                // level. `delegate` also ends a block like `end` for `try`.
+                operator::OpKind::End | operator::OpKind::Delegate
+                    if op_printer.printer.nesting > nesting_start =>
+                {
+                    op_printer.printer.nesting -= 1;
+                    op_printer.printer.newline(offset);
+                }
+
+                // .. otherwise everything else just has a normal newline
+                // out in front.
+                _ => op_printer.printer.newline(offset),
+            }
+            op_printer.printer.result.push_str(&buf);
+            buf.truncate(0);
+        }
+
+        // If this was an invalid function body then the nesting may not
+        // have reset back to normal. Fix that up here and forcibly insert
+        // a newline as well in case the last instruction was something
+        // like an `if` which has a comment after it which could interfere
+        // with the closing paren printed for the func.
+        if self.nesting != nesting_start {
+            self.nesting = nesting_start;
+            self.newline(body.original_position());
+        }
+
         Ok(())
     }
 
@@ -1182,19 +1205,23 @@ impl Printer {
             }
             self.result.push(' ');
 
-            match elem.items {
-                ElementItems::Functions(reader) => {
-                    self.result.push_str("func");
-                    for idx in reader {
-                        self.result.push(' ');
-                        self.print_idx(&state.core.func_names, idx?)?
+            if self.print_skeleton {
+                self.result.push_str("...");
+            } else {
+                match elem.items {
+                    ElementItems::Functions(reader) => {
+                        self.result.push_str("func");
+                        for idx in reader {
+                            self.result.push(' ');
+                            self.print_idx(&state.core.func_names, idx?)?
+                        }
                     }
-                }
-                ElementItems::Expressions(reader) => {
-                    self.print_reftype(elem.ty)?;
-                    for expr in reader {
-                        self.result.push(' ');
-                        self.print_const_expr_sugar(state, &expr?, "item")?
+                    ElementItems::Expressions(reader) => {
+                        self.print_reftype(elem.ty)?;
+                        for expr in reader {
+                            self.result.push(' ');
+                            self.print_const_expr_sugar(state, &expr?, "item")?
+                        }
                     }
                 }
             }
@@ -1225,7 +1252,11 @@ impl Printer {
                     self.result.push(' ');
                 }
             }
-            self.print_bytes(data.data)?;
+            if self.print_skeleton {
+                self.result.push_str("...");
+            } else {
+                self.print_bytes(data.data)?;
+            }
             self.end_group();
         }
         Ok(())
