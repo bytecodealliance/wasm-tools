@@ -106,7 +106,7 @@ To build the `middleware` component, use `cargo component build`:
 
 ```sh
 cd middleware
-cargo component build --release --target wasm32-wasi
+cargo component build --release
 ```
 
 ## Running the server
