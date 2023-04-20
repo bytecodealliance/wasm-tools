@@ -866,8 +866,8 @@ impl<'a> EncodingState<'a> {
                     Some(ret)
                 }
             }
-            fn import_type(&mut self, _: InterfaceId, id: TypeId) -> u32 {
-                self.type_map[&id]
+            fn import_type(&mut self, _: InterfaceId, _id: TypeId) -> u32 {
+                unreachable!()
             }
             fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
                 &mut self.type_map

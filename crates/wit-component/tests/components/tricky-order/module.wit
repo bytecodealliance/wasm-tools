@@ -1,0 +1,16 @@
+default interface name1 {
+  record name {}
+}
+
+interface name2 {
+  use self.name1.{name}
+}
+
+default world name3 {
+  import name1: self.name1
+  import name2: self.name2
+  export name: interface {
+    use self.name1.{name}
+    use self.name2.{name as name1}
+  }
+}
