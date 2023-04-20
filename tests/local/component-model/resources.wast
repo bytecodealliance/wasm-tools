@@ -1043,3 +1043,19 @@
     )
   )
   "resource used in function does not have a name in this context")
+
+;; Test that even unused arguments to instantiation have kebab-case checked
+(assert_invalid
+  (component
+    (component $C)
+    (instance (instantiate $C (with "this is not kebab case" (component $C))))
+  )
+  "is not in kebab case")
+
+;; Test that unused arguments to instantiation are not validated to have
+;; appropriate types with respect to kebab naming conventions which require
+;; functions/interfaces/etc.
+(component
+  (component $C)
+  (instance (instantiate $C (with "[method]foo.bar" (component $C))))
+)
