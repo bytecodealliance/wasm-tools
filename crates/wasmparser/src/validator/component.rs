@@ -49,6 +49,10 @@ fn parse_url(url: &str, offset: usize) -> Result<Option<Url>> {
 }
 
 pub(crate) struct ComponentState {
+    /// Whether this state is a concrete component, an instance type, or a
+    /// component type.
+    kind: ComponentKind,
+
     // Core index spaces
     pub core_types: Vec<TypeId>,
     pub core_modules: Vec<TypeId>,
@@ -78,10 +82,6 @@ pub(crate) struct ComponentState {
 
     has_start: bool,
     type_size: u32,
-
-    // Whether or not this state is for a component or instance type definition,
-    // not for an actual component itself.
-    is_type: bool,
 
     /// A mapping of "universal" resources in this component, or those which
     /// are imported into the component.
@@ -177,6 +177,13 @@ pub(crate) struct ComponentState {
     toplevel_imported_resources: KebabNameContext,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ComponentKind {
+    Component,
+    InstanceType,
+    ComponentType,
+}
+
 /// Helper context used to track information about resource names for method
 /// name validation.
 #[derive(Default)]
@@ -207,9 +214,9 @@ impl ExternKind {
 }
 
 impl ComponentState {
-    pub fn new() -> Self {
+    pub fn new(kind: ComponentKind) -> Self {
         Self {
-            is_type: false,
+            kind,
             core_types: Default::default(),
             core_modules: Default::default(),
             core_instances: Default::default(),
@@ -238,12 +245,6 @@ impl ComponentState {
             toplevel_exported_resources: Default::default(),
             toplevel_imported_resources: Default::default(),
         }
-    }
-
-    pub fn new_type() -> Self {
-        let mut ret = Self::new();
-        ret.is_type = true;
-        ret
     }
 
     pub fn type_count(&self) -> usize {
@@ -365,7 +366,7 @@ impl ComponentState {
 
                 // Resource types cannot be declared in a type context, only
                 // within a component context.
-                if component.is_type {
+                if component.kind != ComponentKind::Component {
                     bail!(
                         offset,
                         "resources can only be defined within a concrete component"
@@ -624,6 +625,10 @@ impl ComponentState {
         ty: &ComponentEntityType,
         types: &TypeAlloc,
     ) -> bool {
+        match self.kind {
+            ComponentKind::Component | ComponentKind::ComponentType => {}
+            ComponentKind::InstanceType => return true,
+        }
         let set = match kind {
             ExternKind::Import => &self.imported_types,
             ExternKind::Export => &self.exported_types,
@@ -1475,7 +1480,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentType> {
-        components.push(ComponentState::new_type());
+        components.push(ComponentState::new(ComponentKind::ComponentType));
 
         for decl in decls {
             match decl {
@@ -1512,7 +1517,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentInstanceType> {
-        components.push(ComponentState::new_type());
+        components.push(ComponentState::new(ComponentKind::InstanceType));
 
         for decl in decls {
             match decl {
@@ -2415,7 +2420,7 @@ impl ComponentState {
         // variables as they want).
         let pos_after_component = components.len() - (count as usize);
         if let Some(component) = components.get(pos_after_component) {
-            if !component.is_type {
+            if component.kind == ComponentKind::Component {
                 let mut free = IndexSet::new();
                 types.free_variables_type_id(ty, &mut free);
                 if !free.is_empty() {

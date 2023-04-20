@@ -541,7 +541,8 @@ impl Validator {
                     );
                 }
                 if num == WASM_COMPONENT_VERSION {
-                    self.components.push(ComponentState::new());
+                    self.components
+                        .push(ComponentState::new(ComponentKind::Component));
                     State::Component
                 } else if num < WASM_COMPONENT_VERSION {
                     bail!(range.start, "unsupported component version: {num:#x}");

@@ -159,7 +159,7 @@
 ;; validate within the type context
 (assert_invalid
   (component
-    (type (instance
+    (type (component
       (type $t (record))
       (export "f" (func (param "x" $t)))
     ))
@@ -167,7 +167,7 @@
   "func not valid to be used as export")
 (assert_invalid
   (component
-    (type (instance
+    (type (component
       (type $t (record))
       (type $f (record (field "t" $t)))
       (export "f" (type (eq $f)))
@@ -376,3 +376,38 @@
     (export "a" (instance $a "i"))
   )
   "instance not valid to be used as export")
+
+;; instance types can be "temporarily invalid", but not if they're attached
+;; to a concrete component
+(component
+  (type (instance
+    (type $t (record))
+    (export "f" (func (param "x" $t)))
+  ))
+)
+(assert_invalid
+  (component
+    (type $i (instance
+      (type $t (record))
+      (type $f (record (field "t" $t)))
+      (export "f" (type (eq $f)))
+    ))
+    (import "f" (instance (type $i)))
+  )
+  "instance not valid to be used as import")
+
+;; allow for one import to refer to another
+(component $C
+  (import "foo" (instance $i
+    (type $baz' (record))
+    (export $baz "baz" (type (eq $baz')))
+    (type $bar' (record (field "baz" $baz)))
+    (export $bar "bar" (type (eq $bar')))
+  ))
+  (alias export $i "bar" (type $bar))
+  (import "bar" (instance
+    (alias outer $C $bar (type $bar'))
+    (export $bar "bar" (type (eq $bar')))
+    (export $f "a" (func (result $bar)))
+  ))
+)
