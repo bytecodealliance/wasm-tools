@@ -1954,21 +1954,22 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
     /// which can be used to refer to it.
     fn push_ty(&mut self, ty: Type) -> TypeId;
 
-    /// Applies a resource renaming map to the `id` specified, returning `true`
-    /// if the `id` was modified or `false` if it didn't need changing.
+    /// Applies a resource and type renaming map to the `id` specified,
+    /// returning `true` if the `id` was modified or `false` if it didn't need
+    /// changing.
     ///
     /// This will recursively modify the structure of the `id` specified and
     /// update all references to resources found. The resource identifier keys
-    /// in the `map` specified will become the corresponding value.
+    /// in the `map` specified will become the corresponding value, in addition
+    /// to any existing types in `map` becoming different tyeps.
     ///
     /// The `id` argument will be rewritten to a new identifier if `true` is
     /// returned.
     fn remap_type_id(&mut self, id: &mut TypeId, map: &mut Remapping) -> bool {
-        if map.resources.is_empty() {
-            return false;
-        } else if let Some(new) = map.types.get(id) {
+        if let Some(new) = map.types.get(id) {
+            let changed = *new != *id;
             *id = *new;
-            return true;
+            return changed;
         }
 
         // This function attempts what ends up probably being a relatively
@@ -2121,15 +2122,13 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
                 Type::Defined(tmp)
             }
         };
-        if any_changed {
-            let new = self.push_ty(ty);
-            let prev = map.types.insert(*id, new);
-            assert!(prev.is_none());
-            *id = new;
-            true
-        } else {
-            false
-        }
+
+        let new = if any_changed { self.push_ty(ty) } else { *id };
+        let prev = map.types.insert(*id, new);
+        assert!(prev.is_none());
+        let changed = *id != new;
+        *id = new;
+        changed
     }
 
     /// Same as `remap_type_id`, but works with `ComponentEntityType`.
@@ -2641,6 +2640,7 @@ impl<'a> SubtypeCx<'a> {
                 None => bail!(offset, "missing {} named `{name}`", kind.desc()),
             }
         }
+        let mut type_map = HashMap::new();
         for (i, (actual, expected)) in to_typecheck.into_iter().enumerate() {
             let result = self.mark(|this| {
                 let mut expected = expected;
@@ -2649,7 +2649,28 @@ impl<'a> SubtypeCx<'a> {
                 this.component_entity_type(&actual, &expected, offset)
             });
             let err = match result {
-                Ok(()) => continue,
+                Ok(()) => {
+                    // On a successful type-check record a mapping of
+                    // type-to-type in `type_map` for any type imports that were
+                    // satisfied. This is then used afterwards when performing
+                    // type substitution to remap all component-local types to
+                    // those that were provided in the imports.
+                    match (expected, actual) {
+                        (
+                            ComponentEntityType::Type {
+                                created: expected, ..
+                            },
+                            ComponentEntityType::Type {
+                                created: actual, ..
+                            },
+                        ) => {
+                            let prev = type_map.insert(expected, actual);
+                            assert!(prev.is_none());
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
                 Err(e) => e,
             };
 
@@ -2663,6 +2684,7 @@ impl<'a> SubtypeCx<'a> {
             let (name, _) = entities.get_index(i).unwrap();
             return Err(err.with_context(|| format!("type mismatch for {} `{name}`", kind.desc())));
         }
+        mapping.types = type_map;
         Ok(mapping)
     }
 

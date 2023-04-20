@@ -198,7 +198,7 @@ struct KebabNameContext {
     all_resource_names: IndexSet<String>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum ExternKind {
     Import,
     Export,

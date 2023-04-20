@@ -411,3 +411,17 @@
     (export $f "a" (func (result $bar)))
   ))
 )
+
+;; allow for one import to refer to another
+(component
+  (type $r' (record))
+  (import "r" (type $r (eq $r')))
+  (component $C
+    (type $r' (record))
+    (import "r" (type $r (eq $r')))
+    (type $r2' (record (field "r" $r)))
+    (export "r2" (type $r2'))
+  )
+  (instance $c (instantiate $C (with "r" (type $r))))
+  (export "r2" (type $c "r2"))
+)
