@@ -1036,7 +1036,7 @@ impl Remap {
             let prev = world
                 .exports
                 .insert(name.clone(), WorldItem::Function(func));
-            if prev.is_some() {
+            if prev.is_some() || world.imports.contains_key(&name) {
                 bail!(Error {
                     msg: format!(
                         "export of function `{name}` shadows previously exported interface"
