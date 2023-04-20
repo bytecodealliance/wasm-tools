@@ -1,0 +1,5 @@
+export of function `foo` shadows previously exported interface
+     --> tests/ui/parse-fail/world-implicit-import3.wit:8:10
+      |
+    8 |   export foo: func() -> g
+      |          ^--

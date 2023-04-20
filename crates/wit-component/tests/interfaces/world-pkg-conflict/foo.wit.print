@@ -1,0 +1,6 @@
+interface foo {
+  use pkg.bar.a.{t}
+}
+
+world a {
+}

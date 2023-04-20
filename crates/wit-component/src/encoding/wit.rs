@@ -84,6 +84,10 @@ impl Encoder<'_> {
                 assert!(first);
             }
         }
+        for (name, _world) in self.resolve.documents[doc].worlds.iter() {
+            let first = used_names.insert(name.clone());
+            assert!(first);
+        }
 
         // Encode all interfaces, foreign and local, into this component type.
         // Local interfaces get their functions defined as well and are
