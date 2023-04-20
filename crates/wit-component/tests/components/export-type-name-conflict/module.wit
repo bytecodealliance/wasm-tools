@@ -1,0 +1,11 @@
+interface foo {
+  record foo {}
+}
+
+default world bar {
+  export bar: interface {
+    use self.foo.{foo as bar}
+
+    foo: func() -> bar
+  }
+}

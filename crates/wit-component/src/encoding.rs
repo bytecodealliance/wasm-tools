@@ -694,7 +694,7 @@ impl<'a> EncodingState<'a> {
             let ty = root.encode_func_type(resolve, func)?;
             let func_index = root.state.encode_lift(module, &core_name, func, ty)?;
             imports.push((
-                format!("import-{}", func.name),
+                format!("import-func-{}", func.name),
                 ComponentExportKind::Func,
                 func_index,
             ));
@@ -750,7 +750,7 @@ impl<'a> EncodingState<'a> {
         for (_, func) in resolve.interfaces[export].functions.iter() {
             let ty = nested.encode_func_type(resolve, func)?;
             nested.component.import(
-                &format!("import-{}", func.name),
+                &format!("import-func-{}", func.name),
                 "",
                 ComponentTypeRef::Func(ty),
             );
@@ -850,7 +850,7 @@ impl<'a> EncodingState<'a> {
                             .export(name, "", ComponentExportKind::Type, idx, None),
                     )
                 } else {
-                    let base = format!("import-{name}");
+                    let base = format!("import-type-{name}");
                     let mut name = base.clone();
                     let mut n = 0;
                     while self.imports.contains_key(&name) {
