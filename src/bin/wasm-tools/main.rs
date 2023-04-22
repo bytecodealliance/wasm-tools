@@ -53,6 +53,7 @@ subcommands! {
     (component, "component")
     #[command(subcommand)]
     (metadata, "metadata")
+    (wit_smith, "wit-smith")
 }
 
 fn main() -> ExitCode {
