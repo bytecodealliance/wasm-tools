@@ -502,7 +502,7 @@ impl ComponentState {
             ComponentEntityType::Instance(id) => {
                 match kind {
                     // The bulk of the logic of handling this is deferred for
-                    // improts to `prepare_instance_import`.
+                    // imports to `prepare_instance_import`.
                     Some(ExternKind::Import) => {
                         self.prepare_instance_import(id, types);
                     }
@@ -771,8 +771,8 @@ impl ComponentState {
     ///
     /// One side effect of this operation, for example, is that if an instance
     /// type is used twice to import two different instances then the instances
-    /// instances do not share resource types despite sharing the same original
-    /// instance type.
+    /// do not share resource types despite sharing the same original instance
+    /// type.
     fn prepare_instance_import(&mut self, id: &mut TypeId, types: &mut TypeAlloc) {
         let ty = types[*id].as_component_instance_type().unwrap();
 
@@ -804,7 +804,7 @@ impl ComponentState {
         // Build a map from the existentials in `ty` to the existentials in
         // `new_ty`.
         //
-        // As aprt of this same loop the new resources, which were previously
+        // As part of this same loop the new resources, which were previously
         // existential in `ty`, now become universal variables in `self`. Their
         // path for where they're imported is updated as well with
         // `self.next_import_index` as the import-to-be soon.
@@ -1836,7 +1836,7 @@ impl ComponentState {
         //    your id equal mine". Naively implemented that means anything with
         //    resources isn't subtypes of anything else since resource ids are
         //    unique between components. Instead what actually needs to happen
-        //    is types need to be subsituted.
+        //    is types need to be substituted.
         //
         // Much of the complexity here is not actually apparent here in this
         // literal one function. Instead it's spread out across validation

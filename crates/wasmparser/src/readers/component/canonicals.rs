@@ -43,7 +43,7 @@ pub enum CanonicalFunction {
         /// The canonical options for the function.
         options: Box<[CanonicalOption]>,
     },
-    /// A function which creates a new owned handle to a resource,
+    /// A function which creates a new owned handle to a resource.
     ResourceNew {
         /// The type index of the resource that's being created.
         resource: u32,

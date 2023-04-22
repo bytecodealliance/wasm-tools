@@ -582,7 +582,7 @@ pub struct ComponentInstanceType {
     /// this instance type.
     ///
     /// This list is populated, for example, when the type of an instance is
-    /// declared an it contains its own resource type exports defined
+    /// declared and it contains its own resource type exports defined
     /// internally. For example:
     ///
     /// ```wasm

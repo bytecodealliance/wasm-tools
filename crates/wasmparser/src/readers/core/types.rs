@@ -301,7 +301,7 @@ impl RefType {
     }
 
     // Note that this is similar to `Display for RefType` except that it has
-    // the indexes filled out.
+    // the indexes stubbed out.
     pub(crate) fn wat(&self) -> &'static str {
         match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Func) => "funcref",
