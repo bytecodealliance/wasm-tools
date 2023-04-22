@@ -53,7 +53,9 @@ fuzz_target!(|data: &[u8]| {
         panic!("roundtrip wasm didn't match");
     }
 
-    for (id, _world) in resolve.worlds.iter() {
+    // If there's hundreds or thousands of worlds only work with the first few
+    // to avoid timing out this fuzzer with asan enabled.
+    for (id, _world) in resolve.worlds.iter().take(20) {
         let mut dummy = wit_component::dummy_module(&resolve, id);
         let metadata =
             wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8, None).unwrap();
