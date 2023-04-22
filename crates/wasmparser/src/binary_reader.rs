@@ -21,7 +21,7 @@ use std::marker;
 use std::ops::Range;
 use std::str;
 
-const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
+pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 
 /// A binary reader for WebAssembly modules.
 #[derive(Debug, Clone)]
