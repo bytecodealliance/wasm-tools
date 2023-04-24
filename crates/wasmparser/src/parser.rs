@@ -1,3 +1,4 @@
+use crate::binary_reader::WASM_MAGIC_NUMBER;
 use crate::CoreTypeSectionReader;
 use crate::{
     limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
@@ -21,6 +22,9 @@ pub(crate) const WASM_MODULE_VERSION: u16 = 0x1;
 // * [2022-01-05] 0xb - `export` introduces an alias
 // * [2022-02-06] 0xc - `export` has an optional type ascribed to it
 pub(crate) const WASM_COMPONENT_VERSION: u16 = 0xc;
+
+const KIND_MODULE: u16 = 0x00;
+const KIND_COMPONENT: u16 = 0x01;
 
 /// The supported encoding formats for the parser.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -332,6 +336,42 @@ impl Parser {
         }
     }
 
+    /// Tests whether `bytes` looks like a core WebAssembly module.
+    ///
+    /// This will inspect the first 8 bytes of `bytes` and return `true` if it
+    /// starts with the standard core WebAssembly header.
+    pub fn is_core_wasm(bytes: &[u8]) -> bool {
+        const HEADER: [u8; 8] = [
+            WASM_MAGIC_NUMBER[0],
+            WASM_MAGIC_NUMBER[1],
+            WASM_MAGIC_NUMBER[2],
+            WASM_MAGIC_NUMBER[3],
+            WASM_MODULE_VERSION.to_le_bytes()[0],
+            WASM_MODULE_VERSION.to_le_bytes()[1],
+            KIND_MODULE.to_le_bytes()[0],
+            KIND_MODULE.to_le_bytes()[1],
+        ];
+        bytes.starts_with(&HEADER)
+    }
+
+    /// Tests whether `bytes` looks like a WebAssembly component.
+    ///
+    /// This will inspect the first 8 bytes of `bytes` and return `true` if it
+    /// starts with the standard WebAssembly component header.
+    pub fn is_component(bytes: &[u8]) -> bool {
+        const HEADER: [u8; 8] = [
+            WASM_MAGIC_NUMBER[0],
+            WASM_MAGIC_NUMBER[1],
+            WASM_MAGIC_NUMBER[2],
+            WASM_MAGIC_NUMBER[3],
+            WASM_COMPONENT_VERSION.to_le_bytes()[0],
+            WASM_COMPONENT_VERSION.to_le_bytes()[1],
+            KIND_COMPONENT.to_le_bytes()[0],
+            KIND_COMPONENT.to_le_bytes()[1],
+        ];
+        bytes.starts_with(&HEADER)
+    }
+
     /// Attempts to parse a chunk of data.
     ///
     /// This method will attempt to parse the next incremental portion of a
@@ -520,9 +560,6 @@ impl Parser {
 
         match self.state {
             State::Header => {
-                const KIND_MODULE: u16 = 0x00;
-                const KIND_COMPONENT: u16 = 0x01;
-
                 let start = reader.original_position();
                 let header_version = reader.read_header_version()?;
                 self.encoding = match (header_version >> 16) as u16 {
