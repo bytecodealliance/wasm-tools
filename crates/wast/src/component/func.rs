@@ -46,7 +46,7 @@ pub enum CoreFuncKind<'a> {
     /// The core function is defined in terms of aliasing a module instance export.
     ///
     /// The core function is actually a member of the core alias section.
-    Alias(InlineExportAlias<'a>),
+    Alias(InlineExportAlias<'a, true>),
 }
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
@@ -128,7 +128,7 @@ pub enum FuncKind<'a> {
     /// The function is defined in terms of aliasing a component instance export.
     ///
     /// The function is actually a member of the alias section.
-    Alias(InlineExportAlias<'a>),
+    Alias(InlineExportAlias<'a, false>),
 }
 
 impl<'a> Parse<'a> for FuncKind<'a> {
