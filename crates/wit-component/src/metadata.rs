@@ -81,6 +81,12 @@ impl Default for Bindgen {
             exports: Default::default(),
             document,
         });
+        resolve.packages[package]
+            .documents
+            .insert("root".to_string(), document);
+        resolve.documents[document]
+            .worlds
+            .insert("root".to_string(), world);
         Bindgen {
             resolve,
             world,
