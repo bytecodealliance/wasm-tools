@@ -16,6 +16,6 @@
   )
 
   (core instance $m (instantiate $m))
-  (core func (alias export $m "f3"))
+  (core func (alias core export $m "f3"))
   (alias core export $m "f3" (core func))
 )
