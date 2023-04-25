@@ -25,17 +25,21 @@ impl CoreDumpSection {
         let name = name.into();
         CoreDumpSection { name }
     }
-}
 
-impl Encode for CoreDumpSection {
-    fn encode(&self, sink: &mut Vec<u8>) {
+    /// View the encoded section as a CustomSection.
+    fn as_custom<'a>(&'a self) -> CustomSection<'a> {
         let mut data = vec![0];
         self.name.encode(&mut data);
         CustomSection {
             name: "core".into(),
             data: Cow::Owned(data),
         }
-        .encode(sink);
+    }
+}
+
+impl Encode for CoreDumpSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.as_custom().encode(sink);
     }
 }
 
@@ -97,10 +101,9 @@ impl CoreDumpStackSection {
         crate::encode_vec(stack, &mut self.frame_bytes);
         self
     }
-}
 
-impl Encode for CoreDumpStackSection {
-    fn encode(&self, sink: &mut Vec<u8>) {
+    /// View the encoded section as a CustomSection.
+    pub fn as_custom<'a>(&'a self) -> CustomSection<'a> {
         let mut data = vec![0];
         self.name.encode(&mut data);
         self.count.encode(&mut data);
@@ -109,7 +112,12 @@ impl Encode for CoreDumpStackSection {
             name: "corestack".into(),
             data: Cow::Owned(data),
         }
-        .encode(sink);
+    }
+}
+
+impl Encode for CoreDumpStackSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.as_custom().encode(sink);
     }
 }
 
