@@ -644,55 +644,7 @@ impl ComponentState {
                 created,
                 referenced,
             } => {
-                let ok = match &types[*referenced] {
-                    Type::Defined(i) => match i {
-                        // These types do not contain anything which must be
-                        // named.
-                        ComponentDefinedType::Primitive(_)
-                        | ComponentDefinedType::Flags(_)
-                        | ComponentDefinedType::Enum(_) => true,
-
-                        // Referenced types of all these aggregates must all be
-                        // named.
-                        ComponentDefinedType::Record(r) => {
-                            r.fields.values().all(|t| types.type_named_valtype(t, set))
-                        }
-                        ComponentDefinedType::Tuple(r) => {
-                            r.types.iter().all(|t| types.type_named_valtype(t, set))
-                        }
-                        ComponentDefinedType::Union(r) => {
-                            r.types.iter().all(|t| types.type_named_valtype(t, set))
-                        }
-                        ComponentDefinedType::Variant(r) => r
-                            .cases
-                            .values()
-                            .filter_map(|t| t.ty.as_ref())
-                            .all(|t| types.type_named_valtype(t, set)),
-                        ComponentDefinedType::Result { ok, err } => {
-                            ok.as_ref()
-                                .map(|t| types.type_named_valtype(t, set))
-                                .unwrap_or(true)
-                                && err
-                                    .as_ref()
-                                    .map(|t| types.type_named_valtype(t, set))
-                                    .unwrap_or(true)
-                        }
-                        ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
-                            types.type_named_valtype(ty, set)
-                        }
-
-                        // The resource referred to by own/borrow must be named.
-                        ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
-                            set.contains(id)
-                        }
-                    },
-
-                    // Everything else is an export of a type which isn't itself
-                    // a type, for example a component type or an instance
-                    // type, and those aren't validated at this time.
-                    _ => true,
-                };
-                if !ok {
+                if !self.all_valtypes_named(types, *referenced, set) {
                     return false;
                 }
                 match kind {
@@ -743,20 +695,97 @@ impl ComponentState {
             }
 
             // All types referred to by a function must be named.
-            ComponentEntityType::Func(id) => {
-                let ty = types[*id].as_component_func_type().unwrap();
-                ty.params
-                    .iter()
-                    .map(|(_, ty)| ty)
-                    .chain(ty.results.iter().map(|(_, ty)| ty))
-                    .all(|ty| types.type_named_valtype(ty, set))
-            }
+            ComponentEntityType::Func(id) => self.all_valtypes_named(types, *id, set),
 
             ComponentEntityType::Value(ty) => types.type_named_valtype(ty, set),
 
             // Components/modules are always "closed" or "standalone" and don't
             // need validation with respect to their named types.
             ComponentEntityType::Component(_) | ComponentEntityType::Module(_) => true,
+        }
+    }
+    fn all_valtypes_named(&self, types: &TypeAlloc, id: TypeId, set: &HashSet<TypeId>) -> bool {
+        match &types[id] {
+            Type::Defined(i) => match i {
+                // These types do not contain anything which must be
+                // named.
+                ComponentDefinedType::Primitive(_)
+                | ComponentDefinedType::Flags(_)
+                | ComponentDefinedType::Enum(_) => true,
+
+                // Referenced types of all these aggregates must all be
+                // named.
+                ComponentDefinedType::Record(r) => {
+                    r.fields.values().all(|t| types.type_named_valtype(t, set))
+                }
+                ComponentDefinedType::Tuple(r) => {
+                    r.types.iter().all(|t| types.type_named_valtype(t, set))
+                }
+                ComponentDefinedType::Union(r) => {
+                    r.types.iter().all(|t| types.type_named_valtype(t, set))
+                }
+                ComponentDefinedType::Variant(r) => r
+                    .cases
+                    .values()
+                    .filter_map(|t| t.ty.as_ref())
+                    .all(|t| types.type_named_valtype(t, set)),
+                ComponentDefinedType::Result { ok, err } => {
+                    ok.as_ref()
+                        .map(|t| types.type_named_valtype(t, set))
+                        .unwrap_or(true)
+                        && err
+                            .as_ref()
+                            .map(|t| types.type_named_valtype(t, set))
+                            .unwrap_or(true)
+                }
+                ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+                    types.type_named_valtype(ty, set)
+                }
+
+                // The resource referred to by own/borrow must be named.
+                ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
+                    set.contains(id)
+                }
+            },
+
+            // Core wasm constructs are always valid with respect to
+            // exported types, since they have none.
+            Type::Module(_) | Type::Instance(_) | Type::Func(_) => true,
+
+            // Resource types, in isolation, are always valid to import
+            // or export since they're either attached to an import or
+            // being exported.
+            //
+            // Note that further validation of this happens in `finish`,
+            // too.
+            Type::Resource(_) => true,
+
+            // Component types are validated as they are constructed,
+            // so all component types are valid to export if they've
+            // already been constructed.
+            Type::Component(_) => true,
+
+            // Function types must have all their parameters/results named.
+            Type::ComponentFunc(ty) => ty
+                .params
+                .iter()
+                .map(|(_, ty)| ty)
+                .chain(ty.results.iter().map(|(_, ty)| ty))
+                .all(|ty| types.type_named_valtype(ty, set)),
+
+            // Instances must recursively have all referenced types named.
+            Type::ComponentInstance(ty) => ty.exports.values().all(|(_url, ty)| {
+                let id = match ty {
+                    ComponentEntityType::Module(id)
+                    | ComponentEntityType::Func(id)
+                    | ComponentEntityType::Value(ComponentValType::Type(id))
+                    | ComponentEntityType::Type { created: id, .. }
+                    | ComponentEntityType::Instance(id)
+                    | ComponentEntityType::Component(id) => *id,
+                    ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
+                };
+                self.all_valtypes_named(types, id, set)
+            }),
         }
     }
 

@@ -437,3 +437,40 @@
   (instance $c (instantiate $C (with "r" (type $r))))
   (export "r2" (type $c "r2"))
 )
+
+;; types are validated when they are exported
+(assert_invalid
+  (component
+    (type $i (instance
+      (type $t (record))
+      (type $f (record (field "t" $t)))
+      (export "f" (type (eq $f)))
+    ))
+    (import "f" (type (eq $i)))
+  )
+  "type not valid to be used as import")
+(assert_invalid
+  (component
+    (type $i (instance
+      (type $t (record))
+      (type $f (record (field "t" $t)))
+      (export "f" (type (eq $f)))
+    ))
+    (export "f" (type $i))
+  )
+  "type not valid to be used as export")
+
+(assert_invalid
+  (component
+    (type $t (record))
+    (type $f (func (result $t)))
+    (import "f" (type (eq $f)))
+  )
+  "type not valid to be used as import")
+(assert_invalid
+  (component
+    (type $t (record))
+    (type $f (func (result $t)))
+    (export "f" (type $f))
+  )
+  "type not valid to be used as export")
