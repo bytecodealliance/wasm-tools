@@ -305,7 +305,7 @@
   (export "e-i" (func $f))
 )
 
-;; outer aliases don't work for exports
+;; outer aliases don't work for imports/exports
 (assert_invalid
   (component
     (type $t1 (record))
@@ -315,6 +315,17 @@
     )
   )
   "func not valid to be used as import")
+(assert_invalid
+  (component
+    (type $t1 (record))
+    (export $t2 "t1" (type $t1))
+    (component
+      (core module $m (func (export "f")))
+      (core instance $i (instantiate $m))
+      (func $f (export "i") (result $t2) (canon lift (core func $i "f")))
+    )
+  )
+  "func not valid to be used as export")
 
 ;; outer aliases work for components, modules, and resources
 (component
@@ -355,7 +366,8 @@
   (export "r2" (type $r))
 )
 
-;; TODO - bag of exports can be exported
+;; bag of exports cannot be exported by carrying through context that's not
+;; otherwise exported
 (assert_invalid
   (component
     (component $A

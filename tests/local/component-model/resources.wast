@@ -1059,3 +1059,37 @@
   (component $C)
   (instance (instantiate $C (with "[method]foo.bar" (component $C))))
 )
+
+;; thread a resource through a few layers
+(component
+  (component $C
+    (import "in" (type $r (sub resource)))
+    (export "out" (type $r))
+  )
+
+  (type $r (resource (rep i32)))
+
+  (instance $c1 (instantiate $C (with "in" (type $r))))
+  (instance $c2 (instantiate $C (with "in" (type $c1 "out"))))
+  (instance $c3 (instantiate $C (with "in" (type $c2 "out"))))
+  (instance $c4 (instantiate $C (with "in" (type $c3 "out"))))
+  (instance $c5 (instantiate $C (with "in" (type $c4 "out"))))
+
+  (component $C2
+    (import "in1" (type $r (sub resource)))
+    (import "in2" (type (eq $r)))
+    (import "in3" (type (eq $r)))
+    (import "in4" (type (eq $r)))
+    (import "in5" (type (eq $r)))
+    (import "in6" (type (eq $r)))
+  )
+
+  (instance (instantiate $C2
+    (with "in1" (type $r))
+    (with "in2" (type $c1 "out"))
+    (with "in3" (type $c2 "out"))
+    (with "in4" (type $c3 "out"))
+    (with "in5" (type $c4 "out"))
+    (with "in6" (type $c5 "out"))
+  ))
+)
