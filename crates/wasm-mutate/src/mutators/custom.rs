@@ -1,5 +1,7 @@
 //! Mutate custom sections.
 
+use std::borrow::Cow;
+
 use super::Mutator;
 use rand::{seq::SliceRandom, Rng};
 
@@ -67,7 +69,10 @@ impl Mutator for CustomSectionMutator {
             .info()
             .replace_section(
                 custom_section_index,
-                &wasm_encoder::CustomSection { name, data },
+                &wasm_encoder::CustomSection {
+                    name: name.into(),
+                    data: Cow::Borrowed(data),
+                },
             )))))
     }
 }
@@ -98,8 +103,8 @@ impl Mutator for AddCustomSectionMutator {
         Ok(Box::new(std::iter::once(Ok(config.info().insert_section(
             new_custom_section_idx,
             &wasm_encoder::CustomSection {
-                name: &name,
-                data: &data,
+                name: name.into(),
+                data: Cow::Borrowed(&data),
             },
         )))))
     }

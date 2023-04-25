@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use pretty_assertions::assert_eq;
-use std::{fs, path::Path};
+use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
 use wit_parser::{PackageId, Resolve};
@@ -149,8 +149,8 @@ fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Ve
         wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8, Some(&producers))?;
 
     let section = wasm_encoder::CustomSection {
-        name: "component-type",
-        data: &encoded,
+        name: "component-type".into(),
+        data: Cow::Borrowed(&encoded),
     };
     wasm.push(section.id());
     section.encode(&mut wasm);

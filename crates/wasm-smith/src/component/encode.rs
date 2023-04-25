@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::*;
 use wasm_encoder::{ComponentExportKind, ComponentOuterAliasKind, ExportKind};
 use wasmparser::types::KebabStr;
@@ -51,8 +53,8 @@ impl Section {
 impl CustomSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         component.section(&wasm_encoder::CustomSection {
-            name: &self.name,
-            data: &self.data,
+            name: (&self.name).into(),
+            data: Cow::Borrowed(&self.data),
         });
     }
 }
