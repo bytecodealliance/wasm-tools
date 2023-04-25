@@ -2,6 +2,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
+use std::borrow::Cow;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use wasm_encoder::{Encode, Section};
@@ -190,8 +191,8 @@ impl EmbedOpts {
         )?;
 
         let section = wasm_encoder::CustomSection {
-            name: "component-type",
-            data: &encoded,
+            name: "component-type".into(),
+            data: Cow::Borrowed(&encoded),
         };
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
         wasm.push(section.id());

@@ -1,8 +1,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use std::collections::HashMap;
 use std::path::Path;
+use std::{borrow::Cow, collections::HashMap};
 use wasm_encoder::{CustomSection, Encode, Section};
 use wit_component::*;
 use wit_parser::{Resolve, SourceMap};
@@ -45,8 +45,8 @@ fuzz_target!(|data: &[u8]| {
         let metadata =
             wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8, None).unwrap();
         let section = CustomSection {
-            name: "component-type",
-            data: &metadata,
+            name: "component-type".into(),
+            data: Cow::Borrowed(&metadata),
         };
         dummy.push(section.id());
         section.encode(&mut dummy);

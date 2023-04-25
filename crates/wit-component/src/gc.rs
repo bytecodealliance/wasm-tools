@@ -2,6 +2,7 @@ use self::bitvec::BitVec;
 use anyhow::{bail, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     mem,
     ops::Deref,
@@ -937,8 +938,8 @@ impl<'a> Module<'a> {
         encode_subsection(0x07, &global_names);
         if !section.is_empty() {
             ret.section(&wasm_encoder::CustomSection {
-                name: "name",
-                data: &section,
+                name: "name".into(),
+                data: Cow::Borrowed(&section),
             });
         }
         if let Some(producers) = &self.producers {
