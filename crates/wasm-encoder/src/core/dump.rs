@@ -48,12 +48,18 @@ impl Section for CoreDumpSection {
 /// A "corestack" custom section as described in the [tool-conventions
 /// repository](https://github.com/WebAssembly/tool-conventions/blob/main/Coredump.md)
 ///
-/// Example
+/// # Example
 ///
 /// ```
 /// use wasm_encoder::{CoreDumpStackSection, Module, CoreDumpValue};
 /// let mut thread = CoreDumpStackSection::new("main");
-/// thread.frame(42, 1000, vec![CoreDumpValue::I32(1)], vec![CoreDumpValue::I32(2)]);
+///
+/// let func_index = 42;
+/// let code_offset = 0x1234;
+/// let locals = vec![CoreDumpValue::I32(1)];
+/// let stack = vec![CoreDumpValue::I32(2)];
+/// thread.frame(func_index, code_offset, locals, stack);
+///
 /// let mut module = Module::new();
 /// module.section(&thread);
 /// ```
@@ -65,7 +71,7 @@ pub struct CoreDumpStackSection {
 }
 
 impl CoreDumpStackSection {
-    /// Create a new core dump stack section encoder
+    /// Create a new core dump stack section encoder.
     pub fn new(name: impl Into<String>) -> Self {
         let name = name.into();
         CoreDumpStackSection {
@@ -75,7 +81,7 @@ impl CoreDumpStackSection {
         }
     }
 
-    /// Encode a stack frame and add it to the encoded bytes of the stack section
+    /// Add a stack frame to this coredump stack section.
     pub fn frame<L, S>(&mut self, funcidx: u32, codeoffset: u32, locals: L, stack: S) -> &mut Self
     where
         L: IntoIterator<Item = CoreDumpValue>,
