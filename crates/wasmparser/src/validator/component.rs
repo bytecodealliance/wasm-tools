@@ -83,8 +83,7 @@ pub(crate) struct ComponentState {
     has_start: bool,
     type_size: u32,
 
-    /// A mapping of "universal" resources in this component, or those which
-    /// are imported into the component.
+    /// A mapping of imported resources in this component.
     ///
     /// This mapping represents all "type variables" imported into the
     /// component, or resources. This could be resources imported directly as
@@ -122,30 +121,31 @@ pub(crate) struct ComponentState {
     //
     // TODO: make these `SkolemResourceId` and then go fix all the compile
     // errors, don't add skolem things into the type area
-    universal_resources: IndexMap<ResourceId, Vec<usize>>,
+    imported_resources: IndexMap<ResourceId, Vec<usize>>,
 
-    /// A mapping of "existential" resources in this component, or those which
+    /// A mapping of "defined" resources in this component, or those which
     /// are defined within the instantiation of this component.
     ///
-    /// Existential resources can sort of be thought of as "these are defined
-    /// within the component". Note though that the means by which a local
-    /// definition can occur are not simply those defined in the component but
-    /// also in its transitively instantiated components internally. This
-    /// means that this set closes over many transitive internal items in
-    /// addition to those defined immediately in the component itself.
+    /// Defined resources, as the name implies, can sort of be thought of as
+    /// "these are defined within the component". Note though that the means by
+    /// which a local definition can occur are not simply those defined in the
+    /// component but also in its transitively instantiated components
+    /// internally. This means that this set closes over many transitive
+    /// internal items in addition to those defined immediately in the component
+    /// itself.
     ///
     /// The `Option<ValType>` in this mapping is whether or not the underlying
     /// reprsentation of the resource is known to this component. Immediately
     /// defined resources, for example, will have `Some(I32)` here. Resources
     /// that come from transitively defined components, for example, will have
     /// `None`. In the type context all entries here are `None`.
-    existential_resources: IndexMap<ResourceId, Option<ValType>>,
+    defined_resources: IndexMap<ResourceId, Option<ValType>>,
 
     /// A mapping of explicitly exported resources from this component in
     /// addition to the path that they're exported at.
     ///
     /// For more information on the path here see the documentation for
-    /// `universal_resources`. Note that the indexes here index into the
+    /// `imported_resources`. Note that the indexes here index into the
     /// list of exports of this component.
     explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 
@@ -235,8 +235,8 @@ impl ComponentState {
             export_urls: Default::default(),
             has_start: Default::default(),
             type_size: 1,
-            universal_resources: Default::default(),
-            existential_resources: Default::default(),
+            imported_resources: Default::default(),
+            defined_resources: Default::default(),
             explicit_resources: Default::default(),
             next_import_index: 0,
             next_export_index: 0,
@@ -393,11 +393,11 @@ impl ComponentState {
 
                 // As this is the introduction of a resource create a fresh new
                 // identifier for the resource. This is then added into the
-                // list of existentials for this component, notably with a
+                // list of defined resources for this component, notably with a
                 // rep listed to enable getting access to various intrinsics
                 // such as `resource.rep`.
                 let id = types.alloc_resource_id();
-                component.existential_resources.insert(id, Some(rep));
+                component.defined_resources.insert(id, Some(rep));
                 Type::Resource(id)
             }
         };
@@ -511,7 +511,7 @@ impl ComponentState {
                     // is inheriting the resources that the instance
                     // encapsulates. This means that the instance type
                     // recorded for this export will itself have no
-                    // existentials.
+                    // defined resources.
                     Some(ExternKind::Export) => {
                         let ty = types[*id].as_component_instance_type().unwrap();
 
@@ -522,31 +522,25 @@ impl ComponentState {
                         // The path to each explicit resources gets one element
                         // prepended which is `self.next_export_index`, the
                         // index of the export about to be generated.
-                        //
-                        // Finally as part of this operation the
-                        // `self.existential_resources` list is additionally
-                        // updated, if necessary, with paths to those resources.
-                        // For example if the instance exported ends up
-                        // exporting one of our existential resources then the
-                        // path to that export is recorded.
                         for (id, path) in ty.explicit_resources.iter() {
                             let mut new_path = vec![self.next_export_index];
                             new_path.extend(path);
                             self.explicit_resources.insert(*id, new_path);
                         }
 
-                        // If this instance type has any of its own existential
+                        // If this instance type has any of its own defined
                         // resources then by exporting it we're inheriting the
-                        // existentials. This block will update `id` to a new
-                        // type which has no `resources` internally.
+                        // defined resources. This block will update `id` to a
+                        // new type which has no `resources` internally.
                         //
                         // All resources are appended to our own list of
-                        // existentials with an updated path to their location
-                        // which has `self.next_export_index` prepended.
-                        if !ty.existential_resources.is_empty() {
+                        // defined resources with an updated path to their
+                        // location which has `self.next_export_index`
+                        // prepended.
+                        if !ty.defined_resources.is_empty() {
                             let mut new_ty = ty.clone();
-                            let resources = mem::take(&mut new_ty.existential_resources);
-                            self.existential_resources
+                            let resources = mem::take(&mut new_ty.defined_resources);
+                            self.defined_resources
                                 .extend(resources.into_iter().map(|id| (id, None)));
                             *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
                         }
@@ -793,10 +787,10 @@ impl ComponentState {
     /// type, to be imported into this component.
     ///
     /// Importing an instance type into a component specially handles the
-    /// existential resources registered in the instance type. Notably all
-    /// existentials are "freshened" into brand new type variables and these
-    /// new variables are substituted within the type. This is what creates
-    /// a new `TypeId` and may update the `id` specified.
+    /// defined resources registered in the instance type. Notably all
+    /// defined resources are "freshened" into brand new type variables and
+    /// these new variables are substituted within the type. This is what
+    /// creates a new `TypeId` and may update the `id` specified.
     ///
     /// One side effect of this operation, for example, is that if an instance
     /// type is used twice to import two different instances then the instances
@@ -806,8 +800,8 @@ impl ComponentState {
         let ty = types[*id].as_component_instance_type().unwrap();
 
         // No special treatment for imports of instances which themselves have
-        // no existential resources
-        if ty.existential_resources.is_empty() {
+        // no defined resources
+        if ty.defined_resources.is_empty() {
             return;
         }
 
@@ -821,31 +815,30 @@ impl ComponentState {
             explicit_resources: ty.explicit_resources.clone(),
 
             // Explicitly discard this field since the
-            // existential resources are lifted into `self`
-            existential_resources: Default::default(),
+            // defined resources are lifted into `self`
+            defined_resources: Default::default(),
         };
 
-        // Create brand new resources for all existentials in the instance.
-        let resources = (0..ty.existential_resources.len())
+        // Create brand new resources for all defined ones in the instance.
+        let resources = (0..ty.defined_resources.len())
             .map(|_| types.alloc_resource_id())
             .collect::<IndexSet<_>>();
 
-        // Build a map from the existentials in `ty` to the existentials in
-        // `new_ty`.
+        // Build a map from the defined resources in `ty` to those in `new_ty`.
         //
         // As part of this same loop the new resources, which were previously
-        // existential in `ty`, now become universal variables in `self`. Their
+        // defined in `ty`, now become imported variables in `self`. Their
         // path for where they're imported is updated as well with
         // `self.next_import_index` as the import-to-be soon.
         let mut mapping = Remapping::default();
         let ty = types[*id].as_component_instance_type().unwrap();
-        for (old, new) in ty.existential_resources.iter().zip(&resources) {
+        for (old, new) in ty.defined_resources.iter().zip(&resources) {
             let prev = mapping.resources.insert(*old, *new);
             assert!(prev.is_none());
 
             let mut base = vec![self.next_import_index];
             base.extend(ty.explicit_resources[old].iter().copied());
-            self.universal_resources.insert(*new, base);
+            self.imported_resources.insert(*new, base);
         }
 
         // Using the old-to-new resource mapping perform a substitution on
@@ -1034,11 +1027,7 @@ impl ComponentState {
     fn check_local_resource(&self, idx: u32, types: &TypeList, offset: usize) -> Result<ValType> {
         let id = self.resource_at(idx, types, offset)?;
         let resource = types[id].as_resource().unwrap();
-        match self
-            .existential_resources
-            .get(&resource)
-            .and_then(|rep| *rep)
-        {
+        match self.defined_resources.get(&resource).and_then(|rep| *rep) {
             Some(ty) => Ok(ty),
             None => bail!(offset, "type {idx} is not a local resource"),
         }
@@ -1354,27 +1343,27 @@ impl ComponentState {
                     // A fresh new resource is being imported into a component.
                     // This arises from the import section of a component or
                     // from the import declaration in a component type. In both
-                    // cases a new universal resource is injected with a fresh
+                    // cases a new imported resource is injected with a fresh
                     // new identifier into our state.
                     ExternKind::Import => {
-                        self.universal_resources
+                        self.imported_resources
                             .insert(id, vec![self.next_import_index]);
                     }
 
                     // A fresh resource is being exported from this component.
                     // This arises as part of the declaration of a component
                     // type, for example. In this situation brand new resource
-                    // identifier is allocated and an existential is added,
-                    // unlike the import case where a universal is added.
-                    // Notably the representation of this new resource is
-                    // unknown so it's listed as `None`.
+                    // identifier is allocated and a definition is added,
+                    // unlike the import case where an imported resource is
+                    // added. Notably the representation of this new resource
+                    // is unknown so it's listed as `None`.
                     //
                     // TODO: this can additionally arise as part of export type
                     // ascription where the fresh new identifier basically
                     // guarantees that the subtype check won't work. That's
                     // probably not intended.
                     ExternKind::Export => {
-                        self.existential_resources.insert(id, None);
+                        self.defined_resources.insert(id, None);
                     }
                 }
                 let id = types.push_ty(Type::Resource(id));
@@ -1569,21 +1558,21 @@ impl ComponentState {
 
         let mut state = components.pop().unwrap();
 
-        assert!(state.universal_resources.is_empty());
+        assert!(state.imported_resources.is_empty());
 
         Ok(ComponentInstanceType {
             type_size: state.type_size,
 
-            // The existential resources for this instance type are those
-            // listed on the component state. The path to each existential
-            // resource is guaranteed to live within the `explicit_resources`
-            // map since, when in the type context, the introduction of any
-            // existential must have been done with `(export "x" (type (sub
+            // The defined resources for this instance type are those listed on
+            // the component state. The path to each defined resource is
+            // guaranteed to live within the `explicit_resources` map since,
+            // when in the type context, the introduction of any defined
+            // resource must have been done with `(export "x" (type (sub
             // resource)))` which, in a sense, "fuses" the introduction of the
-            // variable with the export. This means that all existentials, if
-            // any, should be guaranteed to have an `explicit_resources` path
+            // variable with the export. This means that all defined resources,
+            // if any, should be guaranteed to have an `explicit_resources` path
             // listed.
-            existential_resources: mem::take(&mut state.existential_resources)
+            defined_resources: mem::take(&mut state.defined_resources)
                 .into_iter()
                 .map(|(id, rep)| {
                     assert!(rep.is_none());
@@ -1857,8 +1846,8 @@ impl ComponentState {
         //    instantiations would be the same, which they aren't.
         //
         //    This sort of subtelty comes up quite frequently for resources.
-        //    This file contains references to `universal_resources` and
-        //    `existential_resources` for example which refer to the formal
+        //    This file contains references to `imported_resources` and
+        //    `defined_resources` for example which refer to the formal
         //    nature of components and their abstract variables. Specifically
         //    for instantiation though we're eventually faced with the problem
         //    of subtype checks where resource subtyping is defined as "does
@@ -1872,7 +1861,7 @@ impl ComponentState {
         // in this file and type-checking in the `types.rs` module. Note that
         // the "spread out" nature isn't because we're bad maintainers
         // (hopefully), but rather it's quite infectious how many parts need
-        // to handle resources and account for existential/universal variables.
+        // to handle resources and account for defined/imported variables.
         //
         // For example only one subtyping method is called here where `args` is
         // passed in. This method is quite recursive in its nature though and
@@ -1911,34 +1900,34 @@ impl ComponentState {
         )?;
 
         // Part of the instantiation of a component is that all of its
-        // existential resources become "fresh" on each instantiation. This
+        // defined resources become "fresh" on each instantiation. This
         // means that each instantiation of a component gets brand new type
-        // variables representing its existential resources, modeling that each
+        // variables representing its defined resources, modeling that each
         // instantiation produces distinct types. The freshening is performed
         // here by allocating new ids and inserting them into `mapping`.
         //
         // Note that technically the `mapping` from subtyping should be applied
-        // first and then the mapping for freshing should be applied afterwards.
-        // The keys of the map from subtyping are the universals from this
-        // component which are disjoint from its existentials. That means it
-        // should be possible to place everything into one large map which maps
-        // from:
+        // first and then the mapping for freshening should be applied
+        // afterwards. The keys of the map from subtyping are the imported
+        // resources from this component which are disjoint from its defined
+        // resources. That means it should be possible to place everything
+        // into one large map which maps from:
         //
-        // * the component's universals go to whatever was explicitly supplied
-        //   in the import map
-        // * the component's existentials go to fresh new resources
+        // * the component's imported resources go to whatever was explicitly
+        //   supplied in the import map
+        // * the component's defined resources go to fresh new resources
         //
         // These two remapping operations can then get folded into one by
         // placing everything in the same `mapping` and using that for a remap
         // only once.
-        let fresh_existential_resources = (0..component_type.existential_resources.len())
+        let fresh_defined_resources = (0..component_type.defined_resources.len())
             .map(|_| types.alloc_resource_id())
             .collect::<IndexSet<_>>();
         let component_type = types[component_type_id].as_component_type().unwrap();
         for ((old, _path), new) in component_type
-            .existential_resources
+            .defined_resources
             .iter()
-            .zip(&fresh_existential_resources)
+            .zip(&fresh_defined_resources)
         {
             let prev = mapping.resources.insert(*old, *new);
             assert!(prev.is_none());
@@ -1952,8 +1941,8 @@ impl ComponentState {
         // Note that this is a crucial step of the instantiation process which
         // is intentionally transforming the type of a component based on the
         // variables provided by imports and additionally ensuring that all
-        // references to the component's existentials are rebound to the fresh
-        // existentials introduced just above.
+        // references to the component's defined resources are rebound to the
+        // fresh ones introduced just above.
         for (_, entity) in exports.values_mut() {
             types.remap_component_entity(entity, &mut mapping);
         }
@@ -1973,9 +1962,9 @@ impl ComponentState {
         // implementation there are two further steps that are part of the
         // instantiation process:
         //
-        // 1. The set of existentials from the instance created, which are
+        // 1. The set of defined resources from the instance created, which are
         //    added to the outer component, is the subset of the instance's
-        //    original existentials and the free variables of the exports.
+        //    original defined resources and the free variables of the exports.
         //
         // 2. Each element of this subset is required to be "explicit in" the
         //    instance, or otherwise explicitly exported somewhere within the
@@ -1993,35 +1982,35 @@ impl ComponentState {
             for (_, ty) in exports.values() {
                 types.free_variables_component_entity(ty, &mut free);
             }
-            assert!(fresh_existential_resources.is_subset(&free));
-            for resource in fresh_existential_resources.iter() {
+            assert!(fresh_defined_resources.is_subset(&free));
+            for resource in fresh_defined_resources.iter() {
                 assert!(explicit_resources.contains_key(resource));
             }
         }
 
         // And as the final step of the instantiation process all of the
-        // new existential resources from this component instantiation are moved
-        // onto `self`. Note that concrete instances never have existential
+        // new defined resources from this component instantiation are moved
+        // onto `self`. Note that concrete instances never have defined
         // resources (see more comments in `instantiate_exports`) so the
-        // `resources` listing in the final type is always empty. This
-        // represents how by having a concrete instance the existentials
+        // `defined_resources` listing in the final type is always empty. This
+        // represents how by having a concrete instance the definitions
         // referred to in that instance are now problems for the outer
         // component rather than the inner instance since the instance is bound
         // to the component.
         //
-        // All existentials here have no known representation, so they're all
-        // listed with `None`. Also note that none of the existentials were
+        // All defined resources here have no known representation, so they're
+        // all listed with `None`. Also note that none of the resources were
         // exported yet so `self.explicit_resources` is not updated yet. If
         // this instance is exported, however, it'll consult the type's
         // `explicit_resources` array and use that appropriately.
-        for resource in fresh_existential_resources {
-            let prev = self.existential_resources.insert(resource, None);
+        for resource in fresh_defined_resources {
+            let prev = self.defined_resources.insert(resource, None);
             assert!(prev.is_none());
         }
 
         let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
             type_size,
-            existential_resources: Default::default(),
+            defined_resources: Default::default(),
             explicit_resources,
             exports,
         }));
@@ -2127,35 +2116,35 @@ impl ComponentState {
             explicit_resources,
             exports: inst_exports,
 
-            // NB: the list of existential resources for this instance itself
+            // NB: the list of defined resources for this instance itself
             // is always empty. Even if this instance exports resources,
             // it's empty.
             //
-            // The reason for this is a bit subtle. The general idea, though,
-            // is that the existential list here is only used for instance types
-            // that are sort of "floating around" and haven't actually been
-            // attached to something yet. For example when an instance type is
-            // simply declared it can have existentials introduced through
-            // `(export "name" (type (sub resource)))`. These existentials,
-            // however, are local to the instance itself and aren't defined
-            // elsewhere.
+            // The reason for this is a bit subtle. The general idea, though, is
+            // that the defined resources list here is only used for instance
+            // types that are sort of "floating around" and haven't actually
+            // been attached to something yet. For example when an instance type
+            // is simply declared it can have defined resources introduced
+            // through `(export "name" (type (sub resource)))`. These
+            // definitions, however, are local to the instance itself and aren't
+            // defined elsewhere.
             //
-            // Here, though, no new existentials were introduced. The instance
+            // Here, though, no new definitions were introduced. The instance
             // created here is a "bag of exports" which could only refer to
-            // preexisting items. This means that inherently no new
-            // existentials were created so there's nothing to put in this
-            // list. Any resources referenced by the instance must be bound
-            // by the outer component context or further above.
+            // preexisting items. This means that inherently no new resources
+            // were created so there's nothing to put in this list. Any
+            // resources referenced by the instance must be bound by the outer
+            // component context or further above.
             //
             // Furthermore, however, actual instances of instances, which this
-            // is, aren't allowed to have existentials. Instead the existential
-            // would have to be injected into the outer component enclosing the
-            // instance. That means that even if bag-of-exports could declare
-            // a new resource then the existential would be moved from here
-            // to `self.existential_resources`. This doesn't exist at this
+            // is, aren't allowed to have defined resources. Instead the
+            // resources would have to be injected into the outer component
+            // enclosing the instance. That means that even if bag-of-exports
+            // could declare a new resource then the resource would be moved
+            // from here to `self.defined_resources`. This doesn't exist at this
             // time, though, so this still remains empty and
-            // `self.existential_resources` remains unperturbed.
-            existential_resources: Default::default(),
+            // `self.defined_resources` remains unperturbed.
+            defined_resources: Default::default(),
         }));
 
         Ok(types.push_ty(ty))
@@ -2885,14 +2874,14 @@ impl ComponentState {
             imports,
             exports,
 
-            // This is filled in as a subset of `self.existential_resources`
+            // This is filled in as a subset of `self.defined_resources`
             // depending on what's actually used by the exports. See the
             // bottom of this function.
-            existential_resources: Default::default(),
+            defined_resources: Default::default(),
 
             // These are inherited directly from what was calculated for this
             // component.
-            universal_resources: mem::take(&mut self.universal_resources)
+            imported_resources: mem::take(&mut self.imported_resources)
                 .into_iter()
                 .collect(),
             explicit_resources: mem::take(&mut self.explicit_resources),
@@ -2901,12 +2890,12 @@ impl ComponentState {
         // Collect all "free variables", or resources, from the imports of this
         // component. None of the resources defined within this component can
         // be used as part of the exports. This set is then used to reject any
-        // of `self.existential_resources` which show up.
+        // of `self.defined_resources` which show up.
         let mut free = IndexSet::default();
         for (_, ty) in ty.imports.values() {
             types.free_variables_component_entity(ty, &mut free);
         }
-        for (resource, _path) in self.existential_resources.iter() {
+        for (resource, _path) in self.defined_resources.iter() {
             // FIXME: this error message is quite opaque and doesn't indicate
             // more contextual information such as:
             //
@@ -2920,27 +2909,32 @@ impl ComponentState {
         }
 
         // The next step in validation a component, with respect to resources,
-        // is to minimize the set of existential resources to only those that
-        // are actually used by the exports. This weed out resources that are
+        // is to minimize the set of defined resources to only those that
+        // are actually used by the exports. This weeds out resources that are
         // defined, used within a component, and never exported, for example.
         //
-        // The free variables of all exported are inserted into the `free` set
-        // (which is reused from the imports after clearing it). The existential
+        // The free variables of all exports are inserted into the `free` set
+        // (which is reused from the imports after clearing it). The defined
         // resources calculated for this component are then inserted into this
-        // type's list of existential resources if it's contained somewhere in
+        // type's list of defined resources if it's contained somewhere in
         // the free variables.
         //
-        // Note that at the same time all existentials must be exported,
+        // Note that at the same time all defined resources must be exported,
         // somehow, transitively from this component. The `explicit_resources`
         // map is consulted for this purpose which lists all explicitly
         // exported resources in the component, regardless from whence they
         // came. If not present in this map then it's not exported and an error
         // is returned.
+        //
+        // NB: the "types are exported" check is probably sufficient nowadays
+        // that the check of the `explicit_resources` map is probably not
+        // necessary, but it's left here for completeness and out of an
+        // abundance of caution.
         free.clear();
         for (_, ty) in ty.exports.values() {
             types.free_variables_component_entity(ty, &mut free);
         }
-        for (id, _rep) in mem::take(&mut self.existential_resources) {
+        for (id, _rep) in mem::take(&mut self.defined_resources) {
             if !free.contains(&id) {
                 continue;
             }
@@ -2960,7 +2954,7 @@ impl ComponentState {
                 ),
             };
 
-            ty.existential_resources.push((id, path));
+            ty.defined_resources.push((id, path));
         }
 
         Ok(ty)

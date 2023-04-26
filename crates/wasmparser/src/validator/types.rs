@@ -535,7 +535,7 @@ pub struct ComponentType {
     /// Each resource in this map is explicitly imported somewhere in the
     /// `imports` map. The "path" to where it's imported is specified by the
     /// `Vec<usize>` payload here. For more information about the indexes see
-    /// the documentation on `ComponentState::universal_resources`.
+    /// the documentation on `ComponentState::imported_resources`.
     ///
     /// This should technically be inferrable from the structure of `imports`,
     /// but it's stored as an auxiliary set for subtype checking and
@@ -544,24 +544,24 @@ pub struct ComponentType {
     /// Note that this is not a set of all resources referred to by the
     /// `imports`. Instead it's only those created, relative to the internals of
     /// this component, by the imports.
-    pub universal_resources: Vec<(ResourceId, Vec<usize>)>,
+    pub imported_resources: Vec<(ResourceId, Vec<usize>)>,
 
-    /// The dual of the `universal_resources`, or the set of existential
+    /// The dual of the `imported_resources`, or the set of defined
     /// resources -- those created through the instantiation process which are
     /// unique to this component.
     ///
-    /// This set is similar to the `universal_resources` set but it's those
+    /// This set is similar to the `imported_resources` set but it's those
     /// contained within the `exports`. Instantiating this component will
     /// create fresh new versions of all of these resources. The path here is
     /// within the `exports` array.
-    pub existential_resources: Vec<(ResourceId, Vec<usize>)>,
+    pub defined_resources: Vec<(ResourceId, Vec<usize>)>,
 
     /// The set of all resources which are explicitly exported by this
     /// component, and where they're exported.
     ///
-    /// This mapping is stored separately from `existential_resources` to ensure
+    /// This mapping is stored separately from `defined_resources` to ensure
     /// that it contains all exported resources, not just those which are
-    /// existential. That means that this can cover reexports of imported
+    /// defined. That means that this can cover reexports of imported
     /// resources, exports of local resources, or exports of closed-over
     /// resources for example.
     pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
@@ -578,7 +578,7 @@ pub struct ComponentInstanceType {
     /// An optional URL and type of each export is provided as well.
     pub exports: IndexMap<KebabName, (Option<Url>, ComponentEntityType)>,
 
-    /// The list of "existential resources" or those which are closed over in
+    /// The list of "defined resources" or those which are closed over in
     /// this instance type.
     ///
     /// This list is populated, for example, when the type of an instance is
@@ -588,7 +588,7 @@ pub struct ComponentInstanceType {
     /// ```wasm
     /// (component
     ///     (type (instance
-    ///         (export "x" (type sub resource)) ;; one `existential_resources` entry
+    ///         (export "x" (type sub resource)) ;; one `defined_resources` entry
     ///     ))
     /// )
     /// ```
@@ -600,8 +600,8 @@ pub struct ComponentInstanceType {
     /// (component
     ///     (type $t (instance (export "x" (type sub resource))))
     ///
-    ///     ;; the type of this interface has no existential resources
-    ///     (import "i" (interface (type $t)))
+    ///     ;; the type of this instance has no defined resources
+    ///     (import "i" (instance (type $t)))
     /// )
     /// ```
     ///
@@ -609,8 +609,8 @@ pub struct ComponentInstanceType {
     /// module which aren't yet "attached" to anything. Once something is
     /// instantiated, imported, exported, or otherwise refers to a concrete
     /// instance then this list is always empty. For concrete instances
-    /// existentials are tracked in the component state or component type.
-    pub existential_resources: Vec<ResourceId>,
+    /// defined resources are tracked in the component state or component type.
+    pub defined_resources: Vec<ResourceId>,
 
     /// The list of all resources that are explicitly exported from this
     /// instance type along with the path they're exported at.
@@ -1780,19 +1780,20 @@ impl TypeAlloc {
             Type::Func(_) | Type::Module(_) | Type::Instance(_) => {}
 
             // Recurse on the imports/exports of components, but remove the
-            // universals and existentials defined within the component itself.
+            // imported and defined resources within the component itself.
             //
-            // Technically this needs to add all the export free variables,
-            // remove the existentials, then add imports, then remove the
-            // universals. Given prior validation of component types, however,
-            // the existentials and universals are disjoint and imports can't
-            // refer to existentials, so doing this all in one go should be
+            // Technically this needs to add all the free variables of the
+            // exports, remove the defined resources, then add the free
+            // variables of imports, then remove the imported resources. Given
+            // prior validation of component types, however, the defined
+            // and imported resources are disjoint and imports can't refer to
+            // defined resources, so doing this all in one go should be
             // equivalent.
             Type::Component(i) => {
                 for (_, ty) in i.imports.values().chain(i.exports.values()) {
                     self.free_variables_component_entity(ty, set);
                 }
-                for (id, _path) in i.universal_resources.iter().chain(&i.existential_resources) {
+                for (id, _path) in i.imported_resources.iter().chain(&i.defined_resources) {
                     set.remove(id);
                 }
             }
@@ -1804,7 +1805,7 @@ impl TypeAlloc {
                 for (_, ty) in i.exports.values() {
                     self.free_variables_component_entity(ty, set);
                 }
-                for id in i.existential_resources.iter() {
+                for id in i.defined_resources.iter() {
                     set.remove(id);
                 }
             }
@@ -2007,9 +2008,9 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
                     }
                 }
                 for (id, _) in tmp
-                    .universal_resources
+                    .imported_resources
                     .iter_mut()
-                    .chain(&mut tmp.existential_resources)
+                    .chain(&mut tmp.defined_resources)
                 {
                     if let Some(new) = map.resources.get(id) {
                         *id = *new;
@@ -2027,7 +2028,7 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
                         any_changed = true;
                     }
                 }
-                for id in tmp.existential_resources.iter_mut() {
+                for id in tmp.defined_resources.iter_mut() {
                     if let Some(new) = map.resources.get(id) {
                         *id = *new;
                         any_changed = true;
@@ -2431,14 +2432,14 @@ impl<'a> SubtypeCx<'a> {
                 // 2. This mapping is applied to all of A's exports. This means
                 //    that all exports of A referring to A's imported resources
                 //    now instead refer to B's. Note, though that A's exports
-                //    still refer to its own existentials.
+                //    still refer to its own defined resources.
                 //
                 // 3. The same `open_instance_type` method used during the
                 //    first step is used again, but this time on the exports
                 //    in the reverse direction. This performs a similar
                 //    operation, though, by creating a mapping from B's
-                //    existentials to A's existentials. The map itself is
-                //    discarded as it's not needed.
+                //    defined resources to A's defined resources. The map
+                //    itself is discarded as it's not needed.
                 //
                 // The order that everything passed here is intentional, but
                 // also subtle. I personally think of it as
@@ -2459,8 +2460,8 @@ impl<'a> SubtypeCx<'a> {
                 //   and these exports must satisfy the signature required by B
                 //   since that's what they're expecting.
                 // * This is the second `open_instance_type` which, to get
-                //   resource types to line up, will map from A's existential
-                //   resources to B's existential resources.
+                //   resource types to line up, will map from A's defined
+                //   resources to B's defined resources.
                 //
                 // If all that passes then the resources should all line up
                 // perfectly. Any misalignment is reported as a subtyping
@@ -2516,8 +2517,8 @@ impl<'a> SubtypeCx<'a> {
     ///
     /// This function, if successful, will return a mapping of the resources in
     /// `b` to the resources in `a` provided. This mapping is guaranteed to
-    /// contain all the resources for `b` (all universals for
-    /// `ExternKind::Import` or all existentials for `ExternKind::Export`).
+    /// contain all the resources for `b` (all imported resources for
+    /// `ExternKind::Import` or all defined resources for `ExternKind::Export`).
     pub fn open_instance_type(
         &mut self,
         a: &IndexMap<KebabName, ComponentEntityType>,
@@ -2540,7 +2541,7 @@ impl<'a> SubtypeCx<'a> {
         // if present, means that this resource was present through a layer of
         // an instance type, and the index is into the instance type's exports.
         // More information about this can be found on
-        // `ComponentState::universal_resources`.
+        // `ComponentState::imported_resources`.
         //
         // This loop will follow the list of indices for each resource and, at
         // the same time, walk through the arguments supplied to instantiating
@@ -2560,8 +2561,8 @@ impl<'a> SubtypeCx<'a> {
             ExternKind::Export => &component_type.exports,
         };
         let resources = match kind {
-            ExternKind::Import => &component_type.universal_resources,
-            ExternKind::Export => &component_type.existential_resources,
+            ExternKind::Import => &component_type.imported_resources,
+            ExternKind::Export => &component_type.defined_resources,
         };
         let mut mapping = Remapping::default();
         'outer: for (resource, path) in resources.iter() {
