@@ -2612,14 +2612,11 @@ impl<'a> SubtypeCx<'a> {
             // The leaf of `arg` should be a type which is a resource. If not
             // it's skipped and this'll wind up generating an error later on in
             // subtype checking below.
-            let new_id = match arg {
-                Some(ComponentEntityType::Type { created, .. }) => match &self.b[*created] {
-                    Type::Resource(r) => *r,
-                    _ => continue,
-                },
-                _ => continue,
-            };
-            mapping.resources.insert(*resource, new_id);
+            if let Some(ComponentEntityType::Type { created, .. }) = arg {
+                if let Type::Resource(r) = &self.b[*created] {
+                    mapping.resources.insert(*resource, *r);
+                }
+            }
         }
 
         // Now that a mapping from the resources in `b` to the resources in `a`
