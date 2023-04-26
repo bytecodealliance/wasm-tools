@@ -419,7 +419,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let mut entity = self.check_type_ref(&import.ty, ExternKind::Import, types, offset)?;
+        let mut entity = self.check_type_ref(&import.ty, types, offset)?;
         self.add_entity(
             &mut entity,
             Some((import.name, ExternKind::Import)),
@@ -565,16 +565,53 @@ impl ComponentState {
                 self.values.push((*ty, value_used));
                 (self.values.len(), MAX_WASM_VALUES, "values")
             }
-            ComponentEntityType::Type { created, .. } => {
+            ComponentEntityType::Type {
+                created,
+                referenced,
+            } => {
                 self.types.push(*created);
 
-                // If this is a type export of a resource type then update the
-                // `explicit_resources` list. A new export path is about to be
-                // created for this resource and this keeps track of that.
-                if let Some(ExternKind::Export) = kind {
-                    if let Type::Resource(id) = &types[*created] {
-                        self.explicit_resources
-                            .insert(*id, vec![self.next_export_index]);
+                // Extra logic here for resources being imported and exported.
+                // Note that if `created` is the same as `referenced` then this
+                // is the original introduction of the resource which is where
+                // `self.{imported,defined}_resources` are updated.
+                if let Type::Resource(id) = types[*created] {
+                    match kind {
+                        Some(ExternKind::Import) => {
+                            // A fresh new resource is being imported into a
+                            // component. This arises from the import section of
+                            // a component or from the import declaration in a
+                            // component type. In both cases a new imported
+                            // resource is injected with a fresh new identifier
+                            // into our state.
+                            if created == referenced {
+                                self.imported_resources
+                                    .insert(id, vec![self.next_import_index]);
+                            }
+                        }
+
+                        Some(ExternKind::Export) => {
+                            // A fresh resource is being exported from this
+                            // component. This arises as part of the
+                            // declaration of a component type, for example. In
+                            // this situation brand new resource identifier is
+                            // allocated and a definition is added, unlike the
+                            // import case where an imported resource is added.
+                            // Notably the representation of this new resource
+                            // is unknown so it's listed as `None`.
+                            if created == referenced {
+                                self.defined_resources.insert(id, None);
+                            }
+
+                            // If this is a type export of a resource type then
+                            // update the `explicit_resources` list. A new
+                            // export path is about to be created for this
+                            // resource and this keeps track of that.
+                            self.explicit_resources
+                                .insert(id, vec![self.next_export_index]);
+                        }
+
+                        None => {}
                     }
                 }
                 (self.types.len(), MAX_WASM_TYPES, "types")
@@ -1301,7 +1338,6 @@ impl ComponentState {
     fn check_type_ref(
         &mut self,
         ty: &ComponentTypeRef,
-        kind: ExternKind,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
@@ -1339,33 +1375,6 @@ impl ComponentState {
             }
             ComponentTypeRef::Type(TypeBounds::SubResource) => {
                 let id = types.alloc_resource_id();
-                match kind {
-                    // A fresh new resource is being imported into a component.
-                    // This arises from the import section of a component or
-                    // from the import declaration in a component type. In both
-                    // cases a new imported resource is injected with a fresh
-                    // new identifier into our state.
-                    ExternKind::Import => {
-                        self.imported_resources
-                            .insert(id, vec![self.next_import_index]);
-                    }
-
-                    // A fresh resource is being exported from this component.
-                    // This arises as part of the declaration of a component
-                    // type, for example. In this situation brand new resource
-                    // identifier is allocated and a definition is added,
-                    // unlike the import case where an imported resource is
-                    // added. Notably the representation of this new resource
-                    // is unknown so it's listed as `None`.
-                    //
-                    // TODO: this can additionally arise as part of export type
-                    // ascription where the fresh new identifier basically
-                    // guarantees that the subtype check won't work. That's
-                    // probably not intended.
-                    ExternKind::Export => {
-                        self.defined_resources.insert(id, None);
-                    }
-                }
                 let id = types.push_ty(Type::Resource(id));
                 ComponentEntityType::Type {
                     referenced: id,
@@ -1422,7 +1431,7 @@ impl ComponentState {
         };
 
         let ascribed = match &export.ty {
-            Some(ty) => self.check_type_ref(ty, ExternKind::Export, types, offset)?,
+            Some(ty) => self.check_type_ref(ty, types, offset)?,
             None => return Ok(actual),
         };
 
@@ -1510,7 +1519,7 @@ impl ComponentState {
                 }
                 crate::ComponentTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
-                    let ty = current.check_type_ref(&ty, ExternKind::Export, types, offset)?;
+                    let ty = current.check_type_ref(&ty, types, offset)?;
                     current.add_export(name, url, ty, types, offset, true)?;
                 }
                 crate::ComponentTypeDeclaration::Import(import) => {
@@ -1547,7 +1556,7 @@ impl ComponentState {
                 }
                 crate::InstanceTypeDeclaration::Export { name, url, ty } => {
                     let current = components.last_mut().unwrap();
-                    let ty = current.check_type_ref(&ty, ExternKind::Export, types, offset)?;
+                    let ty = current.check_type_ref(&ty, types, offset)?;
                     current.add_export(name, url, ty, types, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Alias(alias) => {
