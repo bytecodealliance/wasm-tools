@@ -48,6 +48,19 @@ impl ComponentExternalKind {
             }
         })
     }
+
+    /// Returns a simple string description of this kind.
+    pub fn desc(&self) -> &'static str {
+        use ComponentExternalKind::*;
+        match self {
+            Module => "module",
+            Func => "func",
+            Value => "value",
+            Type => "type",
+            Instance => "instance",
+            Component => "component",
+        }
+    }
 }
 
 /// Represents an export in a WebAssembly component.

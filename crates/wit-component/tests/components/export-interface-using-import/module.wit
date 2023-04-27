@@ -1,0 +1,13 @@
+interface foo {
+  record f {}
+
+  record r {
+    f: f,
+  }
+}
+
+default world the-world {
+  export x: interface {
+    use self.foo.{r}
+  }
+}

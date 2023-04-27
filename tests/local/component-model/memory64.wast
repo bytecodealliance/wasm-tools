@@ -7,7 +7,7 @@
     (core instance $b (instantiate $B))
     (core instance $a (instantiate $A (with "" (instance $b))))
   )
-  "memory type mismatch")
+  "mismatch in index type used for memories")
 
 (assert_invalid
   (component
@@ -18,4 +18,4 @@
     (core instance $b (instantiate $B))
     (core instance $a (instantiate $A (with "" (instance $b))))
   )
-  "memory type mismatch")
+  "mismatch in index type used for memories")

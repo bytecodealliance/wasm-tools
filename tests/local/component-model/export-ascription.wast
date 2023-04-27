@@ -35,4 +35,4 @@
 
     (instance (instantiate $consume (with "arg" (instance $c "f2"))))
   )
-  "type mismatch for component instantiation argument `arg`")
+  "missing expected export `f`")

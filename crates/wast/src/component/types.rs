@@ -181,6 +181,8 @@ pub enum TypeDef<'a> {
     Component(ComponentType<'a>),
     /// An instance type.
     Instance(InstanceType<'a>),
+    /// A resource type.
+    Resource(ResourceType<'a>),
 }
 
 impl<'a> Parse<'a> for TypeDef<'a> {
@@ -197,6 +199,9 @@ impl<'a> Parse<'a> for TypeDef<'a> {
                 } else if l.peek::<kw::instance>() {
                     parser.parse::<kw::instance>()?;
                     Ok(Self::Instance(parser.parse()?))
+                } else if l.peek::<kw::resource>() {
+                    parser.parse::<kw::resource>()?;
+                    Ok(Self::Resource(parser.parse()?))
                 } else {
                     Ok(Self::Defined(ComponentDefinedType::parse_non_primitive(
                         parser, l,
@@ -370,6 +375,8 @@ pub enum ComponentDefinedType<'a> {
     Union(Union<'a>),
     Option(OptionType<'a>),
     Result(ResultType<'a>),
+    Own(Index<'a>),
+    Borrow(Index<'a>),
 }
 
 impl<'a> ComponentDefinedType<'a> {
@@ -393,6 +400,12 @@ impl<'a> ComponentDefinedType<'a> {
             Ok(Self::Option(parser.parse()?))
         } else if l.peek::<kw::result>() {
             Ok(Self::Result(parser.parse()?))
+        } else if l.peek::<kw::own>() {
+            parser.parse::<kw::own>()?;
+            Ok(Self::Own(parser.parse()?))
+        } else if l.peek::<kw::borrow>() {
+            parser.parse::<kw::borrow>()?;
+            Ok(Self::Borrow(parser.parse()?))
         } else {
             Err(l.error())
         }
@@ -423,6 +436,8 @@ impl Peek for ComponentDefinedType<'_> {
                     | Some(("union", _))
                     | Some(("option", _))
                     | Some(("result", _))
+                    | Some(("own", _))
+                    | Some(("borrow", _))
             ),
             None => false,
         }
@@ -895,6 +910,33 @@ impl<'a> Parse<'a> for Vec<InstanceTypeDecl<'a>> {
             decls.push(parser.parens(|parser| parser.parse())?);
         }
         Ok(decls)
+    }
+}
+
+/// A type definition for an instance type.
+#[derive(Debug)]
+pub struct ResourceType<'a> {
+    /// Representation, in core WebAssembly, of this resource.
+    pub rep: core::ValType<'a>,
+    /// The declarations of the instance type.
+    pub dtor: Option<CoreItemRef<'a, kw::func>>,
+}
+
+impl<'a> Parse<'a> for ResourceType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let rep = parser.parens(|p| {
+            p.parse::<kw::rep>()?;
+            p.parse()
+        })?;
+        let dtor = if parser.is_empty() {
+            None
+        } else {
+            Some(parser.parens(|p| {
+                p.parse::<kw::dtor>()?;
+                p.parens(|p| p.parse())
+            })?)
+        };
+        Ok(Self { rep, dtor })
     }
 }
 

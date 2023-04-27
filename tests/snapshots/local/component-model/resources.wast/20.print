@@ -1,0 +1,9 @@
+(component
+  (type (;0;)
+    (component
+      (import "x" (type (sub resource)))
+      (export (;0;) "y" (type (eq 0)))
+      (export (;1;) "z" (type (sub resource)))
+    )
+  )
+)

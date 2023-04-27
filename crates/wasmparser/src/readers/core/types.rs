@@ -15,7 +15,7 @@
 
 use crate::limits::{MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS};
 use crate::{BinaryReader, FromReader, Result, SectionLimited};
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Write};
 
 /// Represents the types of values in a WebAssembly module.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -103,6 +103,20 @@ impl<'a> FromReader<'a> for ValType {
             0x70 | 0x6F | 0x6B | 0x6C => Ok(ValType::Ref(reader.read()?)),
             _ => bail!(reader.original_position(), "invalid value type"),
         }
+    }
+}
+
+impl fmt::Display for ValType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            ValType::I32 => "i32",
+            ValType::I64 => "i64",
+            ValType::F32 => "f32",
+            ValType::F64 => "f64",
+            ValType::V128 => "v128",
+            ValType::Ref(r) => return fmt::Display::fmt(r, f),
+        };
+        f.write_str(s)
     }
 }
 
@@ -285,6 +299,19 @@ impl RefType {
             _ => unreachable!(),
         }
     }
+
+    // Note that this is similar to `Display for RefType` except that it has
+    // the indexes stubbed out.
+    pub(crate) fn wat(&self) -> &'static str {
+        match (self.is_nullable(), self.heap_type()) {
+            (true, HeapType::Func) => "funcref",
+            (true, HeapType::Extern) => "externref",
+            (true, HeapType::TypedFunc(_)) => "(ref null $type)",
+            (false, HeapType::Func) => "(ref func)",
+            (false, HeapType::Extern) => "(ref extern)",
+            (false, HeapType::TypedFunc(_)) => "(ref $type)",
+        }
+    }
 }
 
 impl<'a> FromReader<'a> for RefType {
@@ -300,6 +327,22 @@ impl<'a> FromReader<'a> for RefType {
             }
             _ => bail!(reader.original_position(), "malformed reference type"),
         }
+    }
+}
+
+impl fmt::Display for RefType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Note that this is similar to `RefType::wat` except that it has the
+        // indexes filled out.
+        let s = match (self.is_nullable(), self.heap_type()) {
+            (true, HeapType::Func) => "funcref",
+            (true, HeapType::Extern) => "externref",
+            (true, HeapType::TypedFunc(i)) => return write!(f, "(ref null {i})"),
+            (false, HeapType::Func) => "(ref func)",
+            (false, HeapType::Extern) => "(ref extern)",
+            (false, HeapType::TypedFunc(i)) => return write!(f, "(ref {i})"),
+        };
+        f.write_str(s)
     }
 }
 
@@ -403,6 +446,26 @@ impl FuncType {
     #[inline]
     pub fn results(&self) -> &[ValType] {
         &self.params_results[self.len_params..]
+    }
+
+    pub(crate) fn desc(&self) -> String {
+        let mut s = String::new();
+        s.push_str("[");
+        for (i, param) in self.params().iter().enumerate() {
+            if i > 0 {
+                s.push_str(" ");
+            }
+            write!(s, "{param}").unwrap();
+        }
+        s.push_str("] -> [");
+        for (i, result) in self.results().iter().enumerate() {
+            if i > 0 {
+                s.push_str(" ");
+            }
+            write!(s, "{result}").unwrap();
+        }
+        s.push_str("]");
+        s
     }
 }
 

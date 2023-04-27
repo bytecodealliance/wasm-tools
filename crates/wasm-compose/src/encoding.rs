@@ -12,7 +12,8 @@ use std::{
 };
 use wasm_encoder::*;
 use wasmparser::{
-    types::{ComponentEntityType, KebabString, Type, TypeId, Types},
+    names::KebabString,
+    types::{ComponentEntityType, Type, TypeId, Types},
     ComponentExternalKind,
 };
 
@@ -251,7 +252,7 @@ impl<'a> TypeEncoder<'a> {
                 ComponentTypeRef::Value(self.component_val_type(encodable, types, ty))
             }
             wasmparser::types::ComponentEntityType::Type { created, .. } => {
-                ComponentTypeRef::Type(TypeBounds::Eq, self.ty(encodable, types, created))
+                ComponentTypeRef::Type(TypeBounds::Eq(self.ty(encodable, types, created)))
             }
             wasmparser::types::ComponentEntityType::Instance(id) => {
                 ComponentTypeRef::Instance(self.component_instance_type(encodable, types, id))
@@ -363,8 +364,8 @@ impl<'a> TypeEncoder<'a> {
             Entry::Occupied(e) => *e.get(),
             Entry::Vacant(e) => {
                 let ty = ty.as_component_instance_type().unwrap();
-                let instance = self.instance(ty.exports(self.0.as_ref()).map(|(n, u, t)| {
-                    (n.as_str(), u.as_ref().map(|u| u.as_str()).unwrap_or(""), t)
+                let instance = self.instance(ty.exports.iter().map(|(n, (u, t))| {
+                    (n.as_str(), u.as_ref().map(|u| u.as_str()).unwrap_or(""), *t)
                 }));
                 let index = encodable.type_count();
                 encodable.ty().instance(&instance);
@@ -471,6 +472,7 @@ impl<'a> TypeEncoder<'a> {
                 self.component_func_type(encodable, types, id)
             }
             wasmparser::types::Type::Defined(_) => self.defined_type(encodable, types, id),
+            wasmparser::types::Type::Resource(_) => unimplemented!(),
         }
     }
 
@@ -528,6 +530,18 @@ impl<'a> TypeEncoder<'a> {
             }
             wasmparser::types::ComponentDefinedType::Result { ok, err } => {
                 self.result(encodable, types, *ok, *err)
+            }
+            wasmparser::types::ComponentDefinedType::Own(id) => {
+                let i = self.defined_type(encodable, types, *id);
+                let index = encodable.type_count();
+                encodable.ty().defined_type().own(i);
+                index
+            }
+            wasmparser::types::ComponentDefinedType::Borrow(id) => {
+                let i = self.defined_type(encodable, types, *id);
+                let index = encodable.type_count();
+                encodable.ty().defined_type().borrow(i);
+                index
             }
         };
 
@@ -741,16 +755,17 @@ impl ArgumentImport<'_> {
                 .unwrap()
                 .as_component_instance_type()
                 .unwrap()
-                .exports(component.types.as_ref());
+                .exports
+                .iter();
 
             let mut map = IndexMap::with_capacity(exports.len());
-            for (name, url, ty) in exports {
+            for (name, (url, ty)) in exports {
                 map.insert(
-                    name.as_ref(),
+                    name.as_str(),
                     (
                         url.as_ref().map(|u| u.as_str()).unwrap_or(""),
                         *component,
-                        ty,
+                        *ty,
                     ),
                 );
             }
@@ -777,22 +792,23 @@ impl ArgumentImport<'_> {
                     );
                 }
 
-                for (name, url, new_type) in new_component
+                for (name, (url, new_type)) in new_component
                     .types
                     .type_from_id(id)
                     .unwrap()
                     .as_component_instance_type()
                     .unwrap()
-                    .exports(new_component.types.as_ref())
+                    .exports
+                    .iter()
                 {
-                    match exports.entry(name) {
+                    match exports.entry(name.as_str()) {
                         indexmap::map::Entry::Occupied(mut e) => {
                             let (_, existing_component, existing_type) = e.get_mut();
                             match Self::compatible_type(
                                 existing_component,
                                 *existing_type,
                                 new_component,
-                                new_type,
+                                *new_type,
                             ) {
                                 Some((c, ty)) => {
                                     *existing_component = c;
@@ -810,7 +826,7 @@ impl ArgumentImport<'_> {
                             e.insert((
                                 url.as_ref().map(|u| u.as_str()).unwrap_or(""),
                                 new_component,
-                                new_type,
+                                *new_type,
                             ));
                         }
                     }
@@ -1406,7 +1422,7 @@ impl<'a> CompositionGraphEncoder<'a> {
             ComponentTypeRef::Module(_) => ("module", &mut self.modules),
             ComponentTypeRef::Func(_) => ("function", &mut self.funcs),
             ComponentTypeRef::Value(_) => ("value", &mut self.values),
-            ComponentTypeRef::Type(_, _) => ("type", &mut self.types),
+            ComponentTypeRef::Type(_) => ("type", &mut self.types),
             ComponentTypeRef::Instance(_) => ("instance", &mut self.instances),
             ComponentTypeRef::Component(_) => ("component", &mut self.components),
         };

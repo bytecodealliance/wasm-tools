@@ -1,0 +1,5 @@
+(component
+  (type $t1 (;0;) (record))
+  (import "t1" (type $t2 (;1;) (eq $t1)))
+  (export (;2;) "e-t1" (type $t2))
+)

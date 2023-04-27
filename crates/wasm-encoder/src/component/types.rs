@@ -442,6 +442,19 @@ impl<'a> ComponentTypeEncoder<'a> {
     pub fn defined_type(self) -> ComponentDefinedTypeEncoder<'a> {
         ComponentDefinedTypeEncoder(self.0)
     }
+
+    /// Define a resource type.
+    pub fn resource(self, rep: ValType, dtor: Option<u32>) {
+        self.0.push(0x3f);
+        rep.encode(self.0);
+        match dtor {
+            Some(i) => {
+                self.0.push(0x01);
+                i.encode(self.0);
+            }
+            None => self.0.push(0x00),
+        }
+    }
 }
 
 /// Represents a primitive component value type.
@@ -638,6 +651,18 @@ impl ComponentDefinedTypeEncoder<'_> {
         self.0.push(0x6A);
         ok.encode(self.0);
         err.encode(self.0);
+    }
+
+    /// Define a `own` handle type
+    pub fn own(self, idx: u32) {
+        self.0.push(0x69);
+        idx.encode(self.0);
+    }
+
+    /// Define a `borrow` handle type
+    pub fn borrow(self, idx: u32) {
+        self.0.push(0x68);
+        idx.encode(self.0);
     }
 }
 

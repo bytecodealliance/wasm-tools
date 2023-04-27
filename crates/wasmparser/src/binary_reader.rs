@@ -92,6 +92,11 @@ impl BinaryReaderError {
     pub fn offset(&self) -> usize {
         self.inner.offset
     }
+
+    pub(crate) fn add_context(&mut self, mut context: String) {
+        context.push_str("\n");
+        self.inner.message.insert_str(0, &context);
+    }
 }
 
 /// A binary reader of the WebAssembly structures and types.

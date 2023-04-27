@@ -1,0 +1,15 @@
+interface foo {
+  record foo {
+  }
+
+}
+
+interface bar {
+  use self.foo.{foo as bar}
+  foo: func() -> bar
+}
+
+default world component {
+  import foo: self.foo
+  export bar: self.bar
+}

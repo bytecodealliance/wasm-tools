@@ -119,13 +119,23 @@ pub enum ItemSigKind<'a> {
 pub enum TypeBounds<'a> {
     /// The equality type bounds.
     Eq(Index<'a>),
+    /// A resource type is imported/exported,
+    SubResource,
 }
 
 impl<'a> Parse<'a> for TypeBounds<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        // Currently this is the only supported type bounds.
-        parser.parse::<kw::eq>()?;
-        Ok(Self::Eq(parser.parse()?))
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::eq>() {
+            parser.parse::<kw::eq>()?;
+            Ok(Self::Eq(parser.parse()?))
+        } else if l.peek::<kw::sub>() {
+            parser.parse::<kw::sub>()?;
+            parser.parse::<kw::resource>()?;
+            Ok(Self::SubResource)
+        } else {
+            Err(l.error())
+        }
     }
 }
 

@@ -1,5 +1,9 @@
 default world component {
   type t = u32
 
-  export a: func() -> t
+  record r {
+    x: t,
+  }
+
+  export a: func(r: r) -> t
 }

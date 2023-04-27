@@ -39,7 +39,7 @@ fn main() {
     let filter = std::env::args().nth(1);
     let bless = std::env::var_os("BLESS").is_some();
     if bless {
-        std::fs::remove_dir_all("tests/snapshots").expect("clear the snapshots directory");
+        drop(std::fs::remove_dir_all("tests/snapshots"));
     }
 
     let tests = tests
@@ -66,7 +66,14 @@ fn main() {
     let state = TestState::default();
     let errors = tests
         .par_iter()
-        .filter_map(|(test, contents)| state.run_test(test, contents).err())
+        .filter_map(|(test, contents)| {
+            let start = std::time::Instant::now();
+            let result = state.run_test(test, contents).err();
+            if start.elapsed().as_secs() > 2 {
+                println!("{test:?} SLOW");
+            }
+            result
+        })
         .collect::<Vec<_>>();
 
     if !errors.is_empty() {

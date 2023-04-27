@@ -90,6 +90,10 @@ fn encode_type(encoder: ComponentTypeEncoder, ty: &TypeDef) {
         TypeDef::Instance(i) => {
             encoder.instance(&i.into());
         }
+        TypeDef::Resource(i) => {
+            let dtor = i.dtor.as_ref().map(|i| i.idx.into());
+            encoder.resource(i.rep.into(), dtor);
+        }
     }
 }
 
@@ -130,6 +134,8 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
                 e.err.as_deref().map(Into::into),
             );
         }
+        ComponentDefinedType::Own(i) => encoder.own((*i).into()),
+        ComponentDefinedType::Borrow(i) => encoder.borrow((*i).into()),
     }
 }
 
@@ -314,6 +320,18 @@ impl<'a> Encoder<'a> {
                 self.core_func_names.push(name);
                 self.funcs
                     .lower(info.func.idx.into(), info.opts.iter().map(Into::into));
+            }
+            CanonicalFuncKind::ResourceNew(info) => {
+                self.core_func_names.push(name);
+                self.funcs.resource_new(info.ty.into());
+            }
+            CanonicalFuncKind::ResourceDrop(info) => {
+                self.core_func_names.push(name);
+                self.funcs.resource_drop((&info.ty).into());
+            }
+            CanonicalFuncKind::ResourceRep(info) => {
+                self.core_func_names.push(name);
+                self.funcs.resource_rep(info.ty.into());
             }
         }
 
@@ -777,7 +795,10 @@ impl From<&ItemSigKind<'_>> for wasm_encoder::ComponentTypeRef {
             ItemSigKind::Value(v) => Self::Value((&v.0).into()),
             ItemSigKind::Func(f) => Self::Func(f.into()),
             ItemSigKind::Type(TypeBounds::Eq(t)) => {
-                Self::Type(wasm_encoder::TypeBounds::Eq, (*t).into())
+                Self::Type(wasm_encoder::TypeBounds::Eq((*t).into()))
+            }
+            ItemSigKind::Type(TypeBounds::SubResource) => {
+                Self::Type(wasm_encoder::TypeBounds::SubResource)
             }
         }
     }
