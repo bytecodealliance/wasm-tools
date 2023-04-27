@@ -118,10 +118,15 @@ pub(crate) struct ComponentState {
     ///
     /// The `Vec<usize>` here can be thought of as `Vec<String>` but a
     /// (hopefully) more efficient representation.
+    ///
+    /// Finally note that this map is listed as an "append only" map because all
+    /// insertions into it should always succeed. Any insertion which overlaps
+    /// with a previous entry indicates a bug in the validator which needs to be
+    /// corrected via other means.
     //
     // TODO: make these `SkolemResourceId` and then go fix all the compile
     // errors, don't add skolem things into the type area
-    imported_resources: IndexMap<ResourceId, Vec<usize>>,
+    imported_resources: IndexMapAppendOnly<ResourceId, Vec<usize>>,
 
     /// A mapping of "defined" resources in this component, or those which
     /// are defined within the instantiation of this component.
@@ -139,7 +144,10 @@ pub(crate) struct ComponentState {
     /// defined resources, for example, will have `Some(I32)` here. Resources
     /// that come from transitively defined components, for example, will have
     /// `None`. In the type context all entries here are `None`.
-    defined_resources: IndexMap<ResourceId, Option<ValType>>,
+    ///
+    /// Note that like `imported_resources` all insertions into this map are
+    /// expected to succeed to it's declared as append-only.
+    defined_resources: IndexMapAppendOnly<ResourceId, Option<ValType>>,
 
     /// A mapping of explicitly exported resources from this component in
     /// addition to the path that they're exported at.
@@ -2034,8 +2042,7 @@ impl ComponentState {
         // this instance is exported, however, it'll consult the type's
         // `explicit_resources` array and use that appropriately.
         for resource in fresh_defined_resources {
-            let prev = self.defined_resources.insert(resource, None);
-            assert!(prev.is_none());
+            self.defined_resources.insert(resource, None);
         }
 
         let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
@@ -3106,5 +3113,46 @@ impl KebabNameContext {
             );
         }
         Ok(())
+    }
+}
+
+use self::append_only::*;
+
+mod append_only {
+    use indexmap::IndexMap;
+    use std::hash::Hash;
+    use std::ops::Deref;
+
+    pub struct IndexMapAppendOnly<K, V>(IndexMap<K, V>);
+
+    impl<K, V> IndexMapAppendOnly<K, V>
+    where
+        K: Hash + Eq + PartialEq,
+    {
+        pub fn insert(&mut self, key: K, value: V) {
+            let prev = self.0.insert(key, value);
+            assert!(prev.is_none());
+        }
+    }
+
+    impl<K, V> Deref for IndexMapAppendOnly<K, V> {
+        type Target = IndexMap<K, V>;
+        fn deref(&self) -> &IndexMap<K, V> {
+            &self.0
+        }
+    }
+
+    impl<K, V> Default for IndexMapAppendOnly<K, V> {
+        fn default() -> Self {
+            Self(Default::default())
+        }
+    }
+
+    impl<K, V> IntoIterator for IndexMapAppendOnly<K, V> {
+        type IntoIter = <IndexMap<K, V> as IntoIterator>::IntoIter;
+        type Item = <IndexMap<K, V> as IntoIterator>::Item;
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
     }
 }
