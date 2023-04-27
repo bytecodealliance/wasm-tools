@@ -26,8 +26,8 @@ use std::time::Duration;
 
 // Crates we care about publishing sorted topologically.
 const CRATES_TO_PUBLISH: &[&str] = &[
-    "wasmparser",
     "wasm-encoder",
+    "wasmparser",
     "wasmprinter",
     "wast",
     "wat",
