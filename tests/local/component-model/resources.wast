@@ -1093,3 +1093,25 @@
     (with "in6" (type $c5 "out"))
   ))
 )
+
+;; exporting an instance type "freshens" resources
+(assert_invalid
+  (component
+    (import "x" (instance $i
+      (type $i (instance
+        (export "r" (type (sub resource)))
+      ))
+      (export "a" (instance (type $i)))
+      (export "b" (instance (type $i)))
+    ))
+
+    (component $C
+      (import "x" (type $x (sub resource)))
+      (import "y" (type (eq $x)))
+    )
+    (instance (instantiate $C
+      (with "x" (type $i "a" "r"))
+      (with "y" (type $i "b" "r"))
+    ))
+  )
+  "resource types are not the same")

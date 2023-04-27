@@ -501,53 +501,8 @@ impl ComponentState {
             }
             ComponentEntityType::Instance(id) => {
                 match kind {
-                    // The bulk of the logic of handling this is deferred for
-                    // imports to `prepare_instance_import`.
-                    Some(ExternKind::Import) => {
-                        self.prepare_instance_import(id, types);
-                    }
-
-                    // Exports of an instance mean that the enclosing context
-                    // is inheriting the resources that the instance
-                    // encapsulates. This means that the instance type
-                    // recorded for this export will itself have no
-                    // defined resources.
-                    Some(ExternKind::Export) => {
-                        let ty = types[*id].as_component_instance_type().unwrap();
-
-                        // Any explicit resources in the instance are now
-                        // additionally explicit in this component since it's
-                        // exported.
-                        //
-                        // The path to each explicit resources gets one element
-                        // prepended which is `self.next_export_index`, the
-                        // index of the export about to be generated.
-                        for (id, path) in ty.explicit_resources.iter() {
-                            let mut new_path = vec![self.next_export_index];
-                            new_path.extend(path);
-                            self.explicit_resources.insert(*id, new_path);
-                        }
-
-                        // If this instance type has any of its own defined
-                        // resources then by exporting it we're inheriting the
-                        // defined resources. This block will update `id` to a
-                        // new type which has no `resources` internally.
-                        //
-                        // All resources are appended to our own list of
-                        // defined resources with an updated path to their
-                        // location which has `self.next_export_index`
-                        // prepended.
-                        if !ty.defined_resources.is_empty() {
-                            let mut new_ty = ty.clone();
-                            let resources = mem::take(&mut new_ty.defined_resources);
-                            self.defined_resources
-                                .extend(resources.into_iter().map(|id| (id, None)));
-                            *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
-                        }
-                    }
-
-                    // No special treatment for aliases dealing with concrete
-                    // instances.
+                    Some(ExternKind::Import) => self.prepare_instance_import(id, types),
+                    Some(ExternKind::Export) => self.prepare_instance_export(id, types),
                     None => {}
                 }
                 self.instances.push(*id);
@@ -891,6 +846,72 @@ impl ComponentState {
         // Now that `new_ty` is complete finish its registration and then
         // update `id` on the way out.
         *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
+    }
+
+    /// Prepares an instance type, pointed to `id`, for being exported as a
+    /// concrete instance from `self`.
+    ///
+    /// This will internally perform any resource "freshening" as required and
+    /// then additionally update metadata within `self` about resources being
+    /// exported or defined.
+    fn prepare_instance_export(&mut self, id: &mut TypeId, types: &mut TypeAlloc) {
+        // Exports of an instance mean that the enclosing context
+        // is inheriting the resources that the instance
+        // encapsulates. This means that the instance type
+        // recorded for this export will itself have no
+        // defined resources.
+        let ty = types[*id].as_component_instance_type().unwrap();
+
+        // Check to see if `defined_resources` is non-empty, and if so then
+        // "freshen" all the resources and inherit them to our own defined
+        // resources, updating `id` in the process.
+        //
+        // Note though that this specifically is not rewriting the resources of
+        // exported instances. The `defined_resources` set on instance types is
+        // a little subtle (see its documentation for more info), but the
+        // general idea is that for a concrete instance it's always empty. Only
+        // for instance type definitions does it ever have elements in it.
+        //
+        // That means that if this set is non-empty then what's happening is
+        // that we're in a type context an exporting an instance of a previously
+        // specified type. In this case all resources are required to be
+        // "freshened" to ensure that multiple exports of the same type all
+        // export different types of resources.
+        //
+        // And finally note that this operation empties out the
+        // `defined_resources` set of the type that is registered for the
+        // instance, as this export is modeled as producing a concrete instance.
+        if !ty.defined_resources.is_empty() {
+            let mut new_ty = ty.clone();
+            let mut mapping = Remapping::default();
+            for old in mem::take(&mut new_ty.defined_resources) {
+                let new = types.alloc_resource_id();
+                mapping.resources.insert(old, new);
+                self.defined_resources.insert(new, None);
+            }
+            for (_, ty) in new_ty.exports.values_mut() {
+                types.remap_component_entity(ty, &mut mapping);
+            }
+            for (id, path) in mem::take(&mut new_ty.explicit_resources) {
+                new_ty
+                    .explicit_resources
+                    .insert(mapping.resources[&id], path);
+            }
+            *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
+        }
+
+        // Any explicit resources in the instance are now additionally explicit
+        // in this component since it's exported.
+        //
+        // The path to each explicit resources gets one element prepended which
+        // is `self.next_export_index`, the index of the export about to be
+        // generated.
+        let ty = types[*id].as_component_instance_type().unwrap();
+        for (id, path) in ty.explicit_resources.iter() {
+            let mut new_path = vec![self.next_export_index];
+            new_path.extend(path);
+            self.explicit_resources.insert(*id, new_path);
+        }
     }
 
     pub fn add_export(
