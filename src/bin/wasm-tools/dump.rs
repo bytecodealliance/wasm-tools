@@ -417,18 +417,15 @@ impl<'a> Dump<'a> {
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
                     if c.name() == "name" {
-                        let mut iter = NameSectionReader::new(c.data(), c.data_offset());
-                        while let Some(section) = iter.next() {
-                            self.print_custom_name_section(section?, iter.original_position())?;
-                        }
+                        let iter = NameSectionReader::new(c.data(), c.data_offset());
+                        self.print_custom_name_section(iter, |me, item, pos| {
+                            me.print_core_name(item, pos)
+                        })?;
                     } else if c.name() == "component-name" {
-                        let mut iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                        while let Some(section) = iter.next() {
-                            self.print_custom_component_name_section(
-                                section?,
-                                iter.original_position(),
-                            )?;
-                        }
+                        let iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
+                        self.print_custom_name_section(iter, |me, item, pos| {
+                            me.print_component_name(item, pos)
+                        })?;
                     } else {
                         self.print_byte_header()?;
                         for _ in 0..NBYTES {
@@ -483,7 +480,46 @@ impl<'a> Dump<'a> {
         })
     }
 
-    fn print_custom_name_section(&mut self, name: Name<'_>, end: usize) -> Result<()> {
+    fn print_custom_name_section<'b, T>(
+        &mut self,
+        mut section: Subsections<'b, T>,
+        print_item: impl Fn(&mut Self, T, usize) -> Result<()>,
+    ) -> Result<()>
+    where
+        T: wasmparser::Subsection<'b>,
+    {
+        while let Some(item) = section.next() {
+            let pos = section.original_position();
+
+            let err = match item {
+                Ok(item) => match print_item(self, item, pos) {
+                    Ok(()) => continue,
+                    Err(e) => e.downcast()?,
+                },
+                Err(e) => e,
+            };
+            if self.cur != pos {
+                if self.state.is_empty() {
+                    write!(self.state, "???")?;
+                }
+                self.print(pos)?;
+            }
+            self.print_byte_header()?;
+            for _ in 0..NBYTES {
+                write!(self.dst, "---")?;
+            }
+            let remaining = section.range().end - pos;
+            writeln!(
+                self.dst,
+                "-| ... failed to decode {remaining} more bytes: {err}"
+            )?;
+            self.cur += remaining;
+            break;
+        }
+        Ok(())
+    }
+
+    fn print_core_name(&mut self, name: Name<'_>, end: usize) -> Result<()> {
         match name {
             Name::Module { name, name_range } => {
                 write!(self.state, "module name")?;
@@ -509,11 +545,7 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn print_custom_component_name_section(
-        &mut self,
-        name: ComponentName<'_>,
-        end: usize,
-    ) -> Result<()> {
+    fn print_component_name(&mut self, name: ComponentName<'_>, end: usize) -> Result<()> {
         match name {
             ComponentName::Component { name, name_range } => {
                 write!(self.state, "component name")?;
