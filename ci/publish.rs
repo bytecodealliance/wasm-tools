@@ -39,6 +39,7 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wit-parser",
     "wasm-metadata",
     "wit-component",
+    "wit-smith",
     "wasm-tools",
 ];
 
