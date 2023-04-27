@@ -263,7 +263,13 @@ impl<'a> Expander<'a> {
             CanonicalFuncKind::Lift { ty, .. } => {
                 self.expand_component_type_use(ty);
             }
-            CanonicalFuncKind::Lower(_) => {}
+            CanonicalFuncKind::Lower(_)
+            | CanonicalFuncKind::ResourceNew(_)
+            | CanonicalFuncKind::ResourceRep(_) => {}
+
+            CanonicalFuncKind::ResourceDrop(info) => {
+                self.expand_component_val_ty(&mut info.ty);
+            }
         }
     }
 
@@ -284,6 +290,27 @@ impl<'a> Expander<'a> {
                 id: func.id,
                 name: func.name,
                 kind: CanonicalFuncKind::Lower(mem::take(info)),
+            })),
+            CoreFuncKind::ResourceNew(info) => Some(ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::ResourceNew(mem::take(info)),
+            })),
+            CoreFuncKind::ResourceDrop(info) => {
+                self.expand_component_val_ty(&mut info.ty);
+                Some(ComponentField::CanonicalFunc(CanonicalFunc {
+                    span: func.span,
+                    id: func.id,
+                    name: func.name,
+                    kind: CanonicalFuncKind::ResourceDrop(mem::take(info)),
+                }))
+            }
+            CoreFuncKind::ResourceRep(info) => Some(ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::ResourceRep(mem::take(info)),
             })),
         }
     }
@@ -362,6 +389,7 @@ impl<'a> Expander<'a> {
             TypeDef::Func(f) => self.expand_func_ty(f),
             TypeDef::Component(c) => self.expand_component_ty(c),
             TypeDef::Instance(i) => self.expand_instance_ty(i),
+            TypeDef::Resource(_) => {}
         }
 
         let id = gensym::fill(field.span, &mut field.id);
@@ -371,6 +399,7 @@ impl<'a> Expander<'a> {
             TypeDef::Func(t) => t.key().insert(self, index),
             TypeDef::Component(t) => t.key().insert(self, index),
             TypeDef::Instance(t) => t.key().insert(self, index),
+            TypeDef::Resource(_) => {}
         }
         for (name, url) in field.exports.names.drain(..) {
             self.component_fields_to_append
@@ -552,6 +581,7 @@ impl<'a> Expander<'a> {
                     self.expand_component_val_ty(ty);
                 }
             }
+            ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {}
         }
     }
 

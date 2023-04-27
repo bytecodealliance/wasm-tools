@@ -1,0 +1,4 @@
+(component
+  (import "T1" (type $T1 (;0;) (sub resource)))
+  (import "T2" (type $T2 (;1;) (sub resource)))
+)

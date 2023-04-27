@@ -371,7 +371,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let id = self
-                        .register_interface(doc, Some(name), ty)
+                        .register_interface(doc, Some(name.as_str()), ty)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                     let prev = self.resolve.documents[doc]
                         .interfaces
@@ -388,7 +388,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let id = self
-                        .register_world(doc, name, ty)
+                        .register_world(doc, name.as_str(), ty)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                     let prev = self.resolve.documents[doc]
                         .worlds
@@ -408,12 +408,12 @@ impl WitPackageDecoder<'_> {
     ) -> Result<InterfaceId> {
         let interface = self.extract_url_interface(url)?;
 
-        for (name, export_url, ty) in ty.exports(self.info.types.as_ref()) {
+        for (name, (export_url, ty)) in ty.exports.iter() {
             if export_url.is_some() {
                 bail!("instance type export `{name}` should not have a url")
             }
 
-            match ty {
+            match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
@@ -469,7 +469,7 @@ impl WitPackageDecoder<'_> {
                                 bail!("instance type export `{name}` not defined in interface");
                             }
                             let id = self.register_type_export(
-                                name,
+                                name.as_str(),
                                 TypeOwner::Interface(interface),
                                 referenced,
                                 created,
@@ -501,7 +501,7 @@ impl WitPackageDecoder<'_> {
                     if url.scheme() == "pkg" {
                         bail!("instance function export `{name}` not defined in interface");
                     }
-                    let func = self.convert_function(name, def)?;
+                    let func = self.convert_function(name.as_str(), def)?;
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
@@ -625,19 +625,19 @@ impl WitPackageDecoder<'_> {
             document: doc,
         };
 
-        for (name, export_url, ty) in ty.exports(self.info.types.as_ref()) {
+        for (name, (export_url, ty)) in ty.exports.iter() {
             if export_url.is_some() {
                 bail!("instance type export `{name}` should not have a url")
             }
 
-            match ty {
+            match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
                 } => {
                     let ty = self
                         .register_type_export(
-                            name,
+                            name.as_str(),
                             TypeOwner::Interface(self.resolve.interfaces.next_id()),
                             referenced,
                             created,
@@ -653,7 +653,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let func = self
-                        .convert_function(&name, ty)
+                        .convert_function(name.as_str(), ty)
                         .with_context(|| format!("failed to convert function '{name}'"))?;
                     let prev = interface.functions.insert(name.to_string(), func);
                     assert!(prev.is_none());
@@ -739,7 +739,7 @@ impl WitPackageDecoder<'_> {
                     referenced,
                 } => {
                     let ty = self.register_type_export(
-                        name,
+                        name.as_str(),
                         TypeOwner::World(self.resolve.worlds.next_id()),
                         *referenced,
                         *created,
@@ -751,7 +751,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(name, ty)?;
+                    let func = self.convert_function(name.as_str(), ty)?;
                     WorldItem::Function(func)
                 }
                 _ => bail!("component import `{name}` is not an instance, func, or type"),
@@ -784,7 +784,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(name, ty)?;
+                    let func = self.convert_function(name.as_str(), ty)?;
                     WorldItem::Function(func)
                 }
 
@@ -994,6 +994,9 @@ impl WitPackageDecoder<'_> {
                     .collect();
                 Ok(TypeDefKind::Enum(Enum { cases }))
             }
+
+            types::ComponentDefinedType::Own(_) => unimplemented!(),
+            types::ComponentDefinedType::Borrow(_) => unimplemented!(),
         }
     }
 
@@ -1257,8 +1260,10 @@ impl Registrar<'_> {
             }
 
             // These have no recursive structure so they can bail out.
-            types::ComponentDefinedType::Flags(_) => Ok(()),
-            types::ComponentDefinedType::Enum(_) => Ok(()),
+            types::ComponentDefinedType::Flags(_)
+            | types::ComponentDefinedType::Enum(_)
+            | types::ComponentDefinedType::Own(_)
+            | types::ComponentDefinedType::Borrow(_) => Ok(()),
         }
     }
 

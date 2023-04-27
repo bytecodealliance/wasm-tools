@@ -12,7 +12,7 @@ use anyhow::{anyhow, bail, Result};
 use indexmap::IndexMap;
 use std::{collections::VecDeque, path::Path};
 use wasmparser::{
-    types::{ComponentInstanceType, TypesRef},
+    types::{ComponentEntityType, TypeId, TypesRef},
     ComponentExternalKind, ComponentTypeRef,
 };
 
@@ -161,7 +161,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         instance: usize,
         dependent: usize,
         arg_name: &str,
-        ty: &ComponentInstanceType,
+        ty: TypeId,
         types: TypesRef,
     ) -> Result<Option<ExportIndex>> {
         let (instance_name, instance_id) = self.instances.get_index(instance).unwrap();
@@ -204,7 +204,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         instance: usize,
         dependent_path: &Path,
         arg_name: &str,
-        ty: &ComponentInstanceType,
+        ty: TypeId,
         types: TypesRef,
     ) -> Result<ExportIndex> {
         let (_, instance_id) = self.instances.get_index(instance).unwrap();
@@ -212,7 +212,12 @@ impl<'a> CompositionGraphBuilder<'a> {
         match component.export_by_name(export) {
             Some((export_index, _, kind, index)) if kind == ComponentExternalKind::Instance => {
                 let export_ty = component.types.component_instance_at(index).unwrap();
-                if !ComponentInstanceType::is_subtype_of(export_ty, component.types(), ty, types) {
+                if !ComponentEntityType::is_subtype_of(
+                    &ComponentEntityType::Instance(export_ty),
+                    component.types(),
+                    &ComponentEntityType::Instance(ty),
+                    types,
+                ) {
                     bail!("component `{path}` exports an instance named `{export}` but it is not compatible with import `{arg_name}` of component `{dependent_path}`",
                             path = component.path().unwrap().display(),
                             dependent_path = dependent_path.display(),
@@ -229,22 +234,14 @@ impl<'a> CompositionGraphBuilder<'a> {
     }
 
     /// Resolves an import instance reference.
-    fn resolve_import_ref(
-        &self,
-        r: InstanceImportRef,
-    ) -> (&Component, &str, &ComponentInstanceType) {
+    fn resolve_import_ref(&self, r: InstanceImportRef) -> (&Component, &str, TypeId) {
         let component = self.graph.get_component(r.component).unwrap();
         let (name, _, ty) = component.import(r.import).unwrap();
         match ty {
             ComponentTypeRef::Instance(index) => (
                 component,
                 name,
-                component
-                    .types
-                    .type_at(index, false)
-                    .unwrap()
-                    .as_component_instance_type()
-                    .unwrap(),
+                component.types.id_from_type_index(index, false).unwrap(),
             ),
             _ => unreachable!("should not have an instance import ref to a non-instance import"),
         }

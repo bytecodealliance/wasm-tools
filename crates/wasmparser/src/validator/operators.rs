@@ -990,16 +990,7 @@ pub fn ty_to_str(ty: ValType) -> &'static str {
         ValType::F32 => "f32",
         ValType::F64 => "f64",
         ValType::V128 => "v128",
-        ValType::FUNCREF => "funcref",
-        ValType::EXTERNREF => "externref",
-        ValType::Ref(rt) => match (rt.is_nullable(), rt.heap_type()) {
-            (false, HeapType::Func) => "(ref func)",
-            (true, HeapType::Func) => "funcref",
-            (false, HeapType::Extern) => "(ref extern)",
-            (true, HeapType::Extern) => "externref",
-            (false, HeapType::TypedFunc(_)) => "(ref $type)",
-            (true, HeapType::TypedFunc(_)) => "(ref null $type)",
-        },
+        ValType::Ref(r) => r.wat(),
     }
 }
 

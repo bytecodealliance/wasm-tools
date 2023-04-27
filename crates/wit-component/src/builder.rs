@@ -179,15 +179,6 @@ impl ComponentBuilder {
         inc(&mut self.types)
     }
 
-    pub fn alias_outer_type(&mut self, count: u32, index: u32) -> u32 {
-        self.aliases().alias(Alias::Outer {
-            count,
-            index,
-            kind: ComponentOuterAliasKind::Type,
-        });
-        inc(&mut self.types)
-    }
-
     pub fn component(&mut self, mut builder: ComponentBuilder) -> u32 {
         builder.flush();
         self.flush();

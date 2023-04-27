@@ -10,9 +10,7 @@ pub struct LiveTypes {
 
 impl LiveTypes {
     pub fn iter(&self) -> impl Iterator<Item = TypeId> + '_ {
-        // Note the reverse iteration order to ensure that everything is visited
-        // in a topological order.
-        self.set.iter().rev().copied()
+        self.set.iter().copied()
     }
 
     pub fn len(&self) -> usize {
@@ -64,7 +62,7 @@ impl LiveTypes {
     }
 
     pub fn add_type_id(&mut self, resolve: &Resolve, ty: TypeId) {
-        if !self.set.insert(ty) {
+        if self.set.contains(&ty) {
             return;
         }
         match &resolve.types[ty].kind {
@@ -113,6 +111,7 @@ impl LiveTypes {
             TypeDefKind::Flags(_) | TypeDefKind::Enum(_) | TypeDefKind::Future(None) => {}
             TypeDefKind::Unknown => unreachable!(),
         }
+        assert!(self.set.insert(ty));
     }
 
     pub fn add_type(&mut self, resolve: &Resolve, ty: &Type) {

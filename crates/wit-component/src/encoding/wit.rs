@@ -328,17 +328,17 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             Some(ty) => {
                 assert!(!self.import_types);
                 let ret = ty.type_count();
-                ty.export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                ty.export(name, "", ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 Some(ret)
             }
             None => {
                 let ret = self.outer.type_count();
                 if self.import_types {
                     self.outer
-                        .import(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                        .import(name, "", ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 } else {
                     self.outer
-                        .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq, index));
+                        .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 }
                 Some(ret)
             }

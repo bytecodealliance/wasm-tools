@@ -6,13 +6,16 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeBounds {
     /// The type is bounded by equality.
-    Eq,
+    Eq(u32),
+    /// A fresh resource type,
+    SubResource,
 }
 
 impl<'a> FromReader<'a> for TypeBounds {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
-            0x00 => TypeBounds::Eq,
+            0x00 => TypeBounds::Eq(reader.read()?),
+            0x01 => TypeBounds::SubResource,
             x => return reader.invalid_leading_byte(x, "type bound"),
         })
     }
@@ -34,7 +37,7 @@ pub enum ComponentTypeRef {
     /// The reference is to a bounded type.
     ///
     /// The index is expected to be a type index.
-    Type(TypeBounds, u32),
+    Type(TypeBounds),
     /// The reference is to an instance type.
     ///
     /// The index is a type index to an instance type.
@@ -65,7 +68,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
             ComponentExternalKind::Module => ComponentTypeRef::Module(reader.read()?),
             ComponentExternalKind::Func => ComponentTypeRef::Func(reader.read()?),
             ComponentExternalKind::Value => ComponentTypeRef::Value(reader.read()?),
-            ComponentExternalKind::Type => ComponentTypeRef::Type(reader.read()?, reader.read()?),
+            ComponentExternalKind::Type => ComponentTypeRef::Type(reader.read()?),
             ComponentExternalKind::Instance => ComponentTypeRef::Instance(reader.read()?),
             ComponentExternalKind::Component => ComponentTypeRef::Component(reader.read()?),
         })
