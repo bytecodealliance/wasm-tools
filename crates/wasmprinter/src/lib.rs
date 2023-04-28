@@ -751,6 +751,7 @@ impl Printer {
         match ty {
             HeapType::Func => self.result.push_str("func"),
             HeapType::Extern => self.result.push_str("extern"),
+            HeapType::I31 => self.result.push_str("i31"),
             HeapType::TypedFunc(i) => self.result.push_str(&format!("{}", u32::from(i))),
         }
         Ok(())

@@ -151,6 +151,10 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 
     // TODO: the gc proposal isn't implemented yet
     if test.iter().any(|p| p == "gc") {
+        // enable for gc/gc-i31.wat
+        if test.ends_with("gc/gc-i31.wat") {
+            return false;
+        }
         return true;
     }
 
@@ -569,6 +573,7 @@ impl TestState {
             mutable_global: true,
             function_references: true,
             memory_control: true,
+            gc: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -583,6 +588,7 @@ impl TestState {
                     features.mutable_global = false;
                     features.bulk_memory = false;
                     features.function_references = false;
+                    features.gc = false;
                 }
                 "floats-disabled.wast" => features.floats = false,
                 "threads" => {
@@ -603,6 +609,7 @@ impl TestState {
                 "function-references" => features.function_references = true,
                 "relaxed-simd" => features.relaxed_simd = true,
                 "reference-types" => features.reference_types = true,
+                "gc" => features.gc = true,
                 _ => {}
             }
         }

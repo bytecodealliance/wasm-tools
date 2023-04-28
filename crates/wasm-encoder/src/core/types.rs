@@ -103,6 +103,8 @@ pub enum HeapType {
     Func,
     /// An extern reference. When nullable, equivalent to `externref`
     Extern,
+    /// An i31 reference. When nullable, equivalent to `i31ref`
+    I31,
     /// A reference to a particular index in a table.
     TypedFunc(u32),
 }
@@ -112,6 +114,7 @@ impl Encode for HeapType {
         match self {
             HeapType::Func => sink.push(0x70),
             HeapType::Extern => sink.push(0x6F),
+            HeapType::I31 => sink.push(0x6A),
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
             HeapType::TypedFunc(i) => i64::from(*i).encode(sink),
