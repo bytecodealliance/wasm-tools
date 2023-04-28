@@ -7,7 +7,7 @@
   (func (;1;) (type 1) (result i32)
     unreachable
     ref.func $f
-    return_call_ref 0
+    return_call_ref $t
   )
   (export "unreachable" (func 1))
   (elem (;0;) declare func $f)

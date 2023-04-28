@@ -5,12 +5,12 @@
   (func $nn (;0;) (type 1) (param $r (ref 0)) (result i32)
     local.get $r
     ref.as_non_null
-    call_ref 0
+    call_ref $t
   )
   (func $n (;1;) (type 2) (param $r (ref null 0)) (result i32)
     local.get $r
     ref.as_non_null
-    call_ref 0
+    call_ref $t
   )
   (func $f (;2;) (type $t) (result i32)
     i32.const 7
