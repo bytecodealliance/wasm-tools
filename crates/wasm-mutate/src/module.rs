@@ -87,6 +87,7 @@ pub fn map_ref_type(ref_ty: wasmparser::RefType) -> Result<RefType> {
         heap_type: match ref_ty.heap_type() {
             wasmparser::HeapType::Func => HeapType::Func,
             wasmparser::HeapType::Extern => HeapType::Extern,
+            wasmparser::HeapType::I31 => HeapType::I31,
             wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
         },
     })

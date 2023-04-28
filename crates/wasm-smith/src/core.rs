@@ -1643,6 +1643,7 @@ fn convert_reftype(ty: wasmparser::RefType) -> RefType {
         heap_type: match ty.heap_type() {
             wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
             wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
+            wasmparser::HeapType::I31 => wasm_encoder::HeapType::I31,
             wasmparser::HeapType::TypedFunc(i) => wasm_encoder::HeapType::TypedFunc(i.into()),
         },
     }

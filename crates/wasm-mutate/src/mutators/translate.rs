@@ -202,6 +202,7 @@ pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapT
     match ty {
         wasmparser::HeapType::Func => Ok(HeapType::Func),
         wasmparser::HeapType::Extern => Ok(HeapType::Extern),
+        wasmparser::HeapType::I31 => Ok(HeapType::I31),
         wasmparser::HeapType::TypedFunc(i) => {
             Ok(HeapType::TypedFunc(t.remap(Item::Type, (*i).into())?))
         }

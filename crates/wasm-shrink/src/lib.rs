@@ -234,6 +234,7 @@ impl ShrinkRun {
             sign_extension: true,
             component_model: false,
             function_references: false,
+            gc: false,
 
             floats: true,
             memory_control: true,
