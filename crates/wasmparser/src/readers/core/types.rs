@@ -101,8 +101,9 @@ impl<'a> FromReader<'a> for ValType {
                 reader.position += 1;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x65 | 0x69
-            | 0x68 | 0x6D | 0x67 | 0x66 | 0x6A => Ok(ValType::Ref(reader.read()?)),
+            0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x65 | 0x69 | 0x68 | 0x6D | 0x67 | 0x66 | 0x6A => {
+                Ok(ValType::Ref(reader.read()?))
+            }
             _ => bail!(reader.original_position(), "invalid value type"),
         }
     }
