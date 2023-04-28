@@ -49,6 +49,7 @@
 /// - `@threads`: [Wasm `threads` proposal]
 /// - `@simd`: [Wasm `simd` proposal]
 /// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
+/// - `@gc`: [Wasm `gc` proposal]
 ///
 /// [Wasm `expection-handling` proposal]:
 /// https://github.com/WebAssembly/exception-handling
@@ -76,6 +77,9 @@
 ///
 /// [Wasm `relaxed-simd` proposal]:
 /// https://github.com/WebAssembly/relaxed-simd
+///
+/// [Wasm `gc` proposal]:
+/// https://github.com/WebAssembly/gc
 ///
 /// ```
 /// macro_rules! define_visit_operator {
