@@ -1,7 +1,7 @@
 (module
   (type (;0;) (func (result i32)))
   (func $f (;0;) (type 0) (result i32)
-    (local $a (ref i31)) (local $b (ref null i31)) (local $c (ref null i31))
+    (local $a (ref i31)) (local $b i31ref) (local $c i31ref)
     unreachable
   )
 )
