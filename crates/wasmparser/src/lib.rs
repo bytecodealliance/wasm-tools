@@ -683,8 +683,8 @@ macro_rules! for_each_operator {
             @relaxed_simd I32x4RelaxedDotI8x16I7x16AddS => visit_i32x4_relaxed_dot_i8x16_i7x16_add_s
 
             // Typed Function references
-            @function_references CallRef { hty: $crate::HeapType } => visit_call_ref
-            @function_references ReturnCallRef { hty: $crate::HeapType } => visit_return_call_ref
+            @function_references CallRef { type_index: u32 } => visit_call_ref
+            @function_references ReturnCallRef { type_index: u32 } => visit_return_call_ref
             @function_references RefAsNonNull => visit_ref_as_non_null
             @function_references BrOnNull { relative_depth: u32 } => visit_br_on_null
             @function_references BrOnNonNull { relative_depth: u32 } => visit_br_on_non_null

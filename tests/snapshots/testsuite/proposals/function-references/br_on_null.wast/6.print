@@ -11,7 +11,7 @@
       local.get $n
       local.get $r
       br_on_null 0 (;@1;)
-      call_ref 0
+      call_ref $t
       return
     end
   )

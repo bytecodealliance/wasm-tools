@@ -7,7 +7,7 @@
   (func $apply (;0;) (type 3) (param $f (ref 0)) (param $x i32) (result i32)
     local.get $x
     local.get $f
-    call_ref 0
+    call_ref $ii
   )
   (func $f (;1;) (type $ii) (param i32) (result i32)
     local.get 0
@@ -27,14 +27,14 @@
     local.set $rg
     local.get $x
     local.get $rf
-    call_ref 0
+    call_ref $ii
     local.get $rg
-    call_ref 0
+    call_ref $ii
   )
   (func (;4;) (type 4) (result i32)
     i32.const 1
     ref.null 0
-    call_ref 0
+    call_ref $ii
   )
   (func $fac (;5;) (type $ll) (param i64) (result i64)
     local.get 0
@@ -47,7 +47,7 @@
       i64.const 1
       i64.sub
       global.get $fac
-      call_ref 1
+      call_ref $ll
       i64.mul
     end
   )
@@ -64,7 +64,7 @@
       local.get 1
       i64.mul
       global.get $fac-acc
-      call_ref 2
+      call_ref $lll
     end
   )
   (func $fib (;7;) (type $ll) (param i64) (result i64)
@@ -78,12 +78,12 @@
       i64.const 2
       i64.sub
       global.get $fib
-      call_ref 1
+      call_ref $ll
       local.get 0
       i64.const 1
       i64.sub
       global.get $fib
-      call_ref 1
+      call_ref $ll
       i64.add
     end
   )
@@ -97,7 +97,7 @@
       i64.const 1
       i64.sub
       global.get $odd
-      call_ref 1
+      call_ref $ll
     end
   )
   (func $odd (;9;) (type $ll) (param i64) (result i64)
@@ -110,7 +110,7 @@
       i64.const 1
       i64.sub
       global.get $even
-      call_ref 1
+      call_ref $ll
     end
   )
   (global $fac (;0;) (ref 1) ref.func $fac)

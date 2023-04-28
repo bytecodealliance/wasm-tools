@@ -1270,7 +1270,8 @@ where
         self.check_return()?;
         Ok(())
     }
-    fn visit_call_ref(&mut self, hty: HeapType) -> Self::Output {
+    fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
+        let hty = HeapType::TypedFunc(type_index);
         self.resources
             .check_heap_type(hty, &self.features, self.offset)?;
         // If `None` is popped then that means a "bottom" type was popped which
@@ -1288,17 +1289,10 @@ where
                 );
             }
         }
-        match hty {
-            HeapType::TypedFunc(type_index) => self.check_call_ty(type_index.into())?,
-            _ => bail!(
-                self.offset,
-                "type mismatch: instruction requires function reference type",
-            ),
-        }
-        Ok(())
+        self.check_call_ty(type_index)
     }
-    fn visit_return_call_ref(&mut self, hty: HeapType) -> Self::Output {
-        self.visit_call_ref(hty)?;
+    fn visit_return_call_ref(&mut self, type_index: u32) -> Self::Output {
+        self.visit_call_ref(type_index)?;
         self.check_return()
     }
     fn visit_call_indirect(

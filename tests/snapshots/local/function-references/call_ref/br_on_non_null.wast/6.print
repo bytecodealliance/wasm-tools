@@ -14,7 +14,7 @@
       br_on_non_null 0 (;@1;)
       return
     end
-    call_ref 0
+    call_ref $t
   )
   (func (;2;) (type $t) (param $n i32) (result i32)
     local.get $n

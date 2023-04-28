@@ -8,7 +8,7 @@
     unreachable
     i32.const 0
     ref.func $f
-    call_ref 0
+    call_ref $t
     drop
     i32.const 0
   )
