@@ -1,7 +1,7 @@
 use super::{Printer, State};
 use anyhow::{bail, Result};
 use std::fmt::Write;
-use wasmparser::{BlockType, BrTable, HeapType, MemArg, VisitOperator};
+use wasmparser::{BlockType, BrTable, MemArg, VisitOperator};
 
 pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
@@ -165,10 +165,6 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             write!(self.result(), " align={}", align)?;
         }
         Ok(())
-    }
-
-    fn hty(&mut self, hty: HeapType) -> Result<()> {
-        self.printer.print_heaptype(hty)
     }
 }
 
