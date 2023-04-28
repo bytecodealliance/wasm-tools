@@ -1641,11 +1641,17 @@ fn convert_reftype(ty: wasmparser::RefType) -> RefType {
     wasm_encoder::RefType {
         nullable: ty.is_nullable(),
         heap_type: match ty.heap_type() {
-            wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
-            wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
-            wasmparser::HeapType::Any => wasm_encoder::HeapType::Any,
-            wasmparser::HeapType::I31 => wasm_encoder::HeapType::I31,
-            wasmparser::HeapType::TypedFunc(i) => wasm_encoder::HeapType::TypedFunc(i.into()),
+            wasmparser::HeapType::Func => HeapType::Func,
+            wasmparser::HeapType::Extern => HeapType::Extern,
+            wasmparser::HeapType::Any => HeapType::Any,
+            wasmparser::HeapType::None => HeapType::None,
+            wasmparser::HeapType::NoExtern => HeapType::NoExtern,
+            wasmparser::HeapType::NoFunc => HeapType::NoFunc,
+            wasmparser::HeapType::Eq => HeapType::Eq,
+            wasmparser::HeapType::Struct => HeapType::Struct,
+            wasmparser::HeapType::Array => HeapType::Array,
+            wasmparser::HeapType::I31 => HeapType::I31,
+            wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
         },
     }
 }

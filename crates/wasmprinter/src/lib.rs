@@ -737,6 +737,12 @@ impl Printer {
             RefType::EXTERNREF => self.result.push_str("externref"),
             RefType::I31REF => self.result.push_str("i31ref"),
             RefType::ANYREF => self.result.push_str("anyref"),
+            RefType::NULLREF => self.result.push_str("nullref"),
+            RefType::NULLEXTERNREF => self.result.push_str("nullexternref"),
+            RefType::NULLFUNCREF => self.result.push_str("nullfuncref"),
+            RefType::EQREF => self.result.push_str("eqref"),
+            RefType::STRUCTREF => self.result.push_str("structref"),
+            RefType::ARRAYREF => self.result.push_str("arrayref"),
             _ => {
                 self.result.push_str("(ref ");
                 if ty.is_nullable() {
@@ -754,6 +760,12 @@ impl Printer {
             HeapType::Func => self.result.push_str("func"),
             HeapType::Extern => self.result.push_str("extern"),
             HeapType::Any => self.result.push_str("any"),
+            HeapType::None => self.result.push_str("none"),
+            HeapType::NoExtern => self.result.push_str("noextern"),
+            HeapType::NoFunc => self.result.push_str("nofunc"),
+            HeapType::Eq => self.result.push_str("eq"),
+            HeapType::Struct => self.result.push_str("struct"),
+            HeapType::Array => self.result.push_str("array"),
             HeapType::I31 => self.result.push_str("i31"),
             HeapType::TypedFunc(i) => self.result.push_str(&format!("{}", u32::from(i))),
         }

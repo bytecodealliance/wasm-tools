@@ -203,6 +203,12 @@ pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapT
         wasmparser::HeapType::Func => Ok(HeapType::Func),
         wasmparser::HeapType::Extern => Ok(HeapType::Extern),
         wasmparser::HeapType::Any => Ok(HeapType::Any),
+        wasmparser::HeapType::None => Ok(HeapType::None),
+        wasmparser::HeapType::NoExtern => Ok(HeapType::NoExtern),
+        wasmparser::HeapType::NoFunc => Ok(HeapType::NoFunc),
+        wasmparser::HeapType::Eq => Ok(HeapType::Eq),
+        wasmparser::HeapType::Struct => Ok(HeapType::Struct),
+        wasmparser::HeapType::Array => Ok(HeapType::Array),
         wasmparser::HeapType::I31 => Ok(HeapType::I31),
         wasmparser::HeapType::TypedFunc(i) => {
             Ok(HeapType::TypedFunc(t.remap(Item::Type, (*i).into())?))

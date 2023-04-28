@@ -67,6 +67,8 @@ impl RefType {
         nullable: true,
         heap_type: HeapType::Extern,
     };
+
+    // TODO(imikushin): add all other RefTypes
 }
 
 impl Encode for RefType {
@@ -99,15 +101,28 @@ impl From<RefType> for ValType {
 /// Part of the function references proposal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum HeapType {
-    /// A function reference. When nullable, equivalent to `funcref`
+    /// Untyped (any) function.
     Func,
-    /// An extern reference. When nullable, equivalent to `externref`
+    /// External heap type.
     Extern,
-    /// Any reference. When nullable, equivalent to `anyref`
+    /// The `any` heap type. The common supertype (a.k.a. top) of all internal types.
     Any,
-    /// An i31 reference. When nullable, equivalent to `i31ref`
+    /// The `none` heap type. The common subtype (a.k.a. bottom) of all internal types.
+    None,
+    /// The `noextern` heap type. The common subtype (a.k.a. bottom) of all external types.
+    NoExtern,
+    /// The `nofunc` heap type. The common subtype (a.k.a. bottom) of all function types.
+    NoFunc,
+    /// The `eq` heap type. The common supertype of all referenceable types on which comparison
+    /// (ref.eq) is allowed.
+    Eq,
+    /// The `struct` heap type. The common supertype of all struct types.
+    Struct,
+    /// The `array` heap type. The common supertype of all array types.
+    Array,
+    /// The i31 heap type.
     I31,
-    /// A reference to a particular index in a table.
+    /// Function of the type at the given index.
     TypedFunc(u32),
 }
 
@@ -117,6 +132,12 @@ impl Encode for HeapType {
             HeapType::Func => sink.push(0x70),
             HeapType::Extern => sink.push(0x6F),
             HeapType::Any => sink.push(0x6E),
+            HeapType::None => sink.push(0x65),
+            HeapType::NoExtern => sink.push(0x69),
+            HeapType::NoFunc => sink.push(0x68),
+            HeapType::Eq => sink.push(0x6D),
+            HeapType::Struct => sink.push(0x67),
+            HeapType::Array => sink.push(0x66),
             HeapType::I31 => sink.push(0x6A),
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
