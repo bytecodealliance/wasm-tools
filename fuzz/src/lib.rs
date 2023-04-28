@@ -16,6 +16,7 @@ pub fn generate_valid_module(
     config.threads_enabled = u.arbitrary()?;
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
+    config.tail_call_enabled = u.arbitrary()?;
 
     configure(&mut config, u)?;
 

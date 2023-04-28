@@ -25,7 +25,13 @@ fuzz_target!(|data: &[u8]| {
         Ok(m) => m,
         Err(_) => return,
     };
-    validate_module(config, &wasm_bytes);
+    validate_module(config.clone(), &wasm_bytes);
+
+    // Tail calls aren't implemented in wasmtime, so don't try to run them
+    // there.
+    if config.tail_call_enabled {
+        return;
+    }
 
     #[cfg(feature = "wasmtime")]
     {
