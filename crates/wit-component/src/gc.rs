@@ -482,7 +482,7 @@ impl<'a> Module<'a> {
 
     fn heapty(&mut self, ty: HeapType) {
         match ty {
-            HeapType::Func | HeapType::Extern | HeapType::I31 => {}
+            HeapType::Func | HeapType::Extern | HeapType::Any | HeapType::I31 => {}
             HeapType::TypedFunc(i) => self.ty(i.into()),
         }
     }
@@ -1102,6 +1102,7 @@ impl Encoder {
         match ht {
             wasmparser::HeapType::Func => wasm_encoder::HeapType::Func,
             wasmparser::HeapType::Extern => wasm_encoder::HeapType::Extern,
+            wasmparser::HeapType::Any => wasm_encoder::HeapType::Any,
             wasmparser::HeapType::I31 => wasm_encoder::HeapType::I31,
             wasmparser::HeapType::TypedFunc(idx) => {
                 wasm_encoder::HeapType::TypedFunc(self.types.remap(idx.into()).try_into().unwrap())

@@ -280,6 +280,7 @@ impl<'a> TypeEncoder<'a> {
             heap_type: match ty.heap_type() {
                 wasmparser::HeapType::Func => HeapType::Func,
                 wasmparser::HeapType::Extern => HeapType::Extern,
+                wasmparser::HeapType::Any => HeapType::Any,
                 wasmparser::HeapType::I31 => HeapType::I31,
                 wasmparser::HeapType::TypedFunc(i) => HeapType::TypedFunc(i.into()),
             },

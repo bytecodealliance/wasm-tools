@@ -736,6 +736,7 @@ impl Printer {
             RefType::FUNCREF => self.result.push_str("funcref"),
             RefType::EXTERNREF => self.result.push_str("externref"),
             RefType::I31REF => self.result.push_str("i31ref"),
+            RefType::ANYREF => self.result.push_str("anyref"),
             _ => {
                 self.result.push_str("(ref ");
                 if ty.is_nullable() {
@@ -752,6 +753,7 @@ impl Printer {
         match ty {
             HeapType::Func => self.result.push_str("func"),
             HeapType::Extern => self.result.push_str("extern"),
+            HeapType::Any => self.result.push_str("any"),
             HeapType::I31 => self.result.push_str("i31"),
             HeapType::TypedFunc(i) => self.result.push_str(&format!("{}", u32::from(i))),
         }

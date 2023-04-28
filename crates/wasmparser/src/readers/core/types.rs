@@ -71,7 +71,7 @@ impl ValType {
 
     pub(crate) fn is_valtype_byte(byte: u8) -> bool {
         match byte {
-            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x6B | 0x6C | 0x6A => true,
+            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x6A => true,
             _ => false,
         }
     }
@@ -100,7 +100,7 @@ impl<'a> FromReader<'a> for ValType {
                 reader.position += 1;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x6B | 0x6C | 0x6A => Ok(ValType::Ref(reader.read()?)),
+            0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x6A => Ok(ValType::Ref(reader.read()?)),
             _ => bail!(reader.original_position(), "invalid value type"),
         }
     }
@@ -169,6 +169,8 @@ pub struct RefType([u8; 3]);
 impl std::fmt::Debug for RefType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (self.is_nullable(), self.heap_type()) {
+            (true, HeapType::Any) => write!(f, "anyref"),
+            (false, HeapType::Any) => write!(f, "(ref any)"),
             (true, HeapType::I31) => write!(f, "i31ref"),
             (false, HeapType::I31) => write!(f, "(ref i31)"),
             (true, HeapType::Extern) => write!(f, "externref"),
@@ -235,6 +237,10 @@ impl RefType {
     /// `externref`.
     pub const EXTERNREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::EXTERN_TYPE);
 
+    /// A nullable reference to any object aka `(ref null any)` aka
+    /// `anyref`.
+    pub const ANYREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::ANY_TYPE);
+
     /// A nullable reference to an i31 object aka `(ref null i31)` aka
     /// `i31ref`.
     pub const I31REF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::I31_TYPE);
@@ -272,7 +278,7 @@ impl RefType {
                 )
         );
 
-        // if not indexed, type must be any/eq/i31/struct/array/func/extern/noextern/none
+        // if not indexed, type must be any/eq/i31/struct/array/func/extern/nofunc/noextern/none
         debug_assert!(
             x & Self::INDEXED_BIT != 0
                 || matches!(
@@ -317,6 +323,7 @@ impl RefType {
             HeapType::TypedFunc(index) => RefType::typed_func(nullable, index),
             HeapType::Func => Some(Self::from_u32(nullable32 | Self::FUNC_TYPE)),
             HeapType::Extern => Some(Self::from_u32(nullable32 | Self::EXTERN_TYPE)),
+            HeapType::Any => Some(Self::from_u32(nullable32 | Self::ANY_TYPE)),
             HeapType::I31 => Some(Self::from_u32(nullable32 | Self::I31_TYPE)),
         }
     }
@@ -372,6 +379,7 @@ impl RefType {
             match s & Self::TYPE_MASK {
                 Self::FUNC_TYPE => HeapType::Func,
                 Self::EXTERN_TYPE => HeapType::Extern,
+                Self::ANY_TYPE => HeapType::Any,
                 Self::I31_TYPE => HeapType::I31,
                 _ => unreachable!(),
             }
@@ -385,10 +393,12 @@ impl RefType {
             (true, HeapType::Func) => "funcref",
             (true, HeapType::Extern) => "externref",
             (true, HeapType::TypedFunc(_)) => "(ref null $type)",
+            (true, HeapType::Any) => "anyref",
             (true, HeapType::I31) => "i31ref",
             (false, HeapType::Func) => "(ref func)",
             (false, HeapType::Extern) => "(ref extern)",
             (false, HeapType::TypedFunc(_)) => "(ref $type)",
+            (false, HeapType::Any) => "(ref any)",
             (false, HeapType::I31) => "(ref i31)",
         }
     }
@@ -399,6 +409,7 @@ impl<'a> FromReader<'a> for RefType {
         match reader.read()? {
             0x70 => Ok(RefType::FUNCREF),
             0x6F => Ok(RefType::EXTERNREF),
+            0x6E => Ok(RefType::ANYREF),
             0x6A => Ok(RefType::I31REF),
             byte @ (0x6B | 0x6C) => {
                 let nullable = byte == 0x6C;
@@ -419,10 +430,12 @@ impl fmt::Display for RefType {
             (true, HeapType::Func) => "funcref",
             (true, HeapType::Extern) => "externref",
             (true, HeapType::TypedFunc(i)) => return write!(f, "(ref null {i})"),
+            (true, HeapType::Any) => "anyref",
             (true, HeapType::I31) => "i31ref",
             (false, HeapType::Func) => "(ref func)",
             (false, HeapType::Extern) => "(ref extern)",
             (false, HeapType::TypedFunc(i)) => return write!(f, "(ref {i})"),
+            (false, HeapType::Any) => "(ref any)",
             (false, HeapType::I31) => "(ref i31)",
         };
         f.write_str(s)
@@ -439,8 +452,8 @@ pub enum HeapType {
     Func,
     /// External heap type.
     Extern,
-    // /// The `any` heap type. The common supertype (a.k.a. top) of all internal types.
-    // Any,
+    /// The `any` heap type. The common supertype (a.k.a. top) of all internal types.
+    Any,
     // /// The `none` heap type. The common subtype (a.k.a. bottom) of all internal types.
     // None,
     // /// The `noextern` heap type. The common subtype (a.k.a. bottom) of all external types.
@@ -464,6 +477,10 @@ impl<'a> FromReader<'a> for HeapType {
             0x6F => {
                 reader.position += 1;
                 Ok(HeapType::Extern)
+            }
+            0x6E => {
+                reader.position += 1;
+                Ok(HeapType::Any)
             }
             0x6A => {
                 reader.position += 1;

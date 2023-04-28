@@ -805,7 +805,7 @@ impl Module {
     fn check_ref_type(&self, ty: RefType, types: &TypeList, offset: usize) -> Result<()> {
         // Check that the heap type is valid
         match ty.heap_type() {
-            HeapType::Func | HeapType::Extern | HeapType::I31 => (),
+            HeapType::Func | HeapType::Extern | HeapType::Any | HeapType::I31 => (),
             HeapType::TypedFunc(type_index) => {
                 // Just check that the index is valid
                 self.func_type_at(type_index.into(), types, offset)?;

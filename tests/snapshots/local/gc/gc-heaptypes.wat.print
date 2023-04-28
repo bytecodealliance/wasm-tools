@@ -1,0 +1,8 @@
+(module
+  (type (;0;) (func (param funcref (ref func) funcref)))
+  (type (;1;) (func (param externref (ref extern) externref)))
+  (type (;2;) (func (param anyref (ref any) anyref)))
+  (func (;0;) (type 0) (param funcref (ref func) funcref))
+  (func (;1;) (type 1) (param externref (ref extern) externref))
+  (func (;2;) (type 2) (param anyref (ref any) anyref))
+)
