@@ -62,7 +62,7 @@
   )
   (func (;7;) (type 2) (result i32)
     unreachable
-    call_ref 0
+    call_ref $t
   )
   (export "select-trap-left" (func 0))
   (export "select-trap-right" (func 1))

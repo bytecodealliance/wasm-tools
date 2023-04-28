@@ -6,7 +6,7 @@
     block $l ;; label = @1
       local.get $r
       br_on_null 0 (;@1;)
-      call_ref 0
+      call_ref $t
       return
     end
     i32.const -1
@@ -15,7 +15,7 @@
     block $l ;; label = @1
       local.get $r
       br_on_null 0 (;@1;)
-      call_ref 0
+      call_ref $t
       return
     end
     i32.const -1
@@ -39,7 +39,7 @@
     block $l ;; label = @1
       unreachable
       br_on_null 0 (;@1;)
-      call_ref 0
+      call_ref $t
       return
     end
     i32.const -1

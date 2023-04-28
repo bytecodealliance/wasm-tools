@@ -226,6 +226,14 @@ macro_rules! define_visit {
         }
         $self.type_index($ty)?;
     );
+    (payload $self:ident CallRef $ty:ident) => (
+        $self.push_str(" ");
+        $self.printer.print_idx(&$self.state.core.type_names, $ty)?;
+    );
+    (payload $self:ident ReturnCallRef $ty:ident) => (
+        $self.push_str(" ");
+        $self.printer.print_idx(&$self.state.core.type_names, $ty)?;
+    );
     (payload $self:ident TypedSelect $ty:ident) => (
         $self.push_str(" (result ");
         $self.printer.print_valtype($ty)?;
