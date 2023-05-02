@@ -488,6 +488,7 @@ impl<'a> Expander<'a> {
                         name: None,
                         def: key.to_def(item.span),
                         parent: None,
+                        final_type: None,
                     }));
                     let idx = Index::Id(id);
                     t.index = Some(idx);
