@@ -67,8 +67,6 @@ impl RefType {
         nullable: true,
         heap_type: HeapType::Extern,
     };
-
-    // TODO(imikushin): add all other RefTypes
 }
 
 impl Encode for RefType {
