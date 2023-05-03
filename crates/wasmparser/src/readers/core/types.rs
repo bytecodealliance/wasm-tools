@@ -244,7 +244,7 @@ impl RefType {
 
     const INDEX_MASK: u32 = (1 << 20) - 1; // 20 bits #19-#0 (if `indexed == 1`)
 
-    /// An nullable untyped function reference aka `(ref null func)` aka
+    /// A nullable untyped function reference aka `(ref null func)` aka
     /// `funcref` aka `anyfunc`.
     pub const FUNCREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::FUNC_TYPE);
 
@@ -283,6 +283,36 @@ impl RefType {
     /// A nullable reference to an i31 object aka `(ref null i31)` aka
     /// `i31ref`.
     pub const I31REF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::I31_TYPE);
+
+    /// A non-nullable untyped function reference aka `(ref func)`.
+    pub const REF_FUNC: Self = RefType::from_u32(Self::FUNC_TYPE);
+
+    /// A non-nullable reference to an extern object aka `(ref extern)`.
+    pub const REF_EXTERN: Self = RefType::from_u32(Self::EXTERN_TYPE);
+
+    /// A non-nullable reference to any object aka `(ref any)`.
+    pub const REF_ANY: Self = RefType::from_u32(Self::ANY_TYPE);
+
+    /// A non-nullable reference to no object aka `(ref none)`.
+    pub const REF_NONE: Self = RefType::from_u32(Self::NONE_TYPE);
+
+    /// A non-nullable reference to a noextern object aka `(ref noextern)`.
+    pub const REF_NOEXTERN: Self = RefType::from_u32(Self::NOEXTERN_TYPE);
+
+    /// A non-nullable reference to a nofunc object aka `(ref nofunc)`.
+    pub const REF_NOFUNC: Self = RefType::from_u32(Self::NOFUNC_TYPE);
+
+    /// A non-nullable reference to an eq object aka `(ref eq)`.
+    pub const REF_EQ: Self = RefType::from_u32(Self::EQ_TYPE);
+
+    /// A non-nullable reference to a struct aka `(ref struct)`.
+    pub const REF_STRUCT: Self = RefType::from_u32(Self::STRUCT_TYPE);
+
+    /// A non-nullable reference to an array aka `(ref array)`.
+    pub const REF_ARRAY: Self = RefType::from_u32(Self::ARRAY_TYPE);
+
+    /// A non-nullable reference to an i31 object aka `(ref i31)`.
+    pub const REF_I31: Self = RefType::from_u32(Self::I31_TYPE);
 
     const fn can_represent_type_index(index: u32) -> bool {
         index & Self::INDEX_MASK == index
