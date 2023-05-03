@@ -172,6 +172,82 @@ impl Encode for CoreDumpValue {
 mod tests {
     use super::*;
 
+    // Create new core dump and core dump stack sections and test whether they
+    // are properly encoded and parsed back out by wasmparser
+    #[test]
+    fn test_roundtrip() {
+        use crate::Module;
+        use wasmparser::{BinaryReader, FromReader, Parser, Payload};
+
+        let core = CoreDumpSection::new("test.wasm");
+        let mut corestack = CoreDumpStackSection::new("main");
+        corestack.frame(
+            12,
+            0,
+            vec![CoreDumpValue::I32(10)],
+            vec![CoreDumpValue::I32(42)],
+        );
+        let mut module = Module::new();
+        module.section(&core);
+        module.section(&corestack);
+        let wasm_bytes = module.finish();
+
+        let mut parser = Parser::new(0).parse_all(&wasm_bytes);
+        match parser.next() {
+            Some(Ok(Payload::Version { .. })) => {}
+            _ => panic!(""),
+        }
+
+        let payload = parser
+            .next()
+            .expect("parser is not empty")
+            .expect("element is a payload");
+        match payload {
+            Payload::CustomSection(section) => {
+                assert_eq!(section.name(), "core");
+                let core = wasmparser::CoreDumpSection::from_reader(&mut BinaryReader::new(
+                    section.data(),
+                ))
+                .expect("data is readable into a core dump section");
+                assert_eq!(core.name, "test.wasm");
+            }
+            _ => panic!("unexpected payload"),
+        }
+
+        let payload = parser
+            .next()
+            .expect("parser is not empty")
+            .expect("element is a payload");
+        match payload {
+            Payload::CustomSection(section) => {
+                assert_eq!(section.name(), "corestack");
+                let corestack = wasmparser::CoreDumpStackSection::from_reader(
+                    &mut BinaryReader::new(section.data()),
+                )
+                .expect("data is readable into a core dump stack section");
+                assert_eq!(corestack.name, "main");
+                assert_eq!(corestack.frames.len(), 1);
+                let frame = corestack
+                    .frames
+                    .first()
+                    .expect("frame is encoded in corestack");
+                assert_eq!(frame.funcidx, 12);
+                assert_eq!(frame.codeoffset, 0);
+                assert_eq!(frame.locals.len(), 1);
+                match frame.locals.first().expect("frame contains a local") {
+                    &wasmparser::CoreDumpValue::I32(val) => assert_eq!(val, 10),
+                    _ => panic!("unexpected local value"),
+                }
+                assert_eq!(frame.stack.len(), 1);
+                match frame.stack.first().expect("stack contains a value") {
+                    &wasmparser::CoreDumpValue::I32(val) => assert_eq!(val, 42),
+                    _ => panic!("unexpected stack value"),
+                }
+            }
+            _ => panic!("unexpected payload"),
+        }
+    }
+
     #[test]
     fn test_encode_coredump_section() {
         let core = CoreDumpSection::new("test");
