@@ -3338,21 +3338,25 @@ where
     }
     fn visit_i31_new(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
-        self.push_operand(ValType::Ref(RefType::REF_I31))
+        self.push_operand(ValType::Ref(RefType::I31))
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
         match self.pop_ref()? {
-            Some(RefType::REF_I31) | Some(RefType::I31REF) => {}
+            Some(ref_type) => match ref_type.heap_type() {
+                HeapType::I31 => self.push_operand(ValType::I32),
+                _ => bail!(self.offset, "ref heap type mismatch: expected i31"),
+            },
             _ => bail!(self.offset, "type mismatch: expected (ref null? i31)"),
-        };
-        self.push_operand(ValType::I32)
+        }
     }
     fn visit_i31_get_u(&mut self) -> Self::Output {
         match self.pop_ref()? {
-            Some(RefType::REF_I31) | Some(RefType::I31REF) => {}
+            Some(ref_type) => match ref_type.heap_type() {
+                HeapType::I31 => self.push_operand(ValType::I32),
+                _ => bail!(self.offset, "ref heap type mismatch: expected i31"),
+            },
             _ => bail!(self.offset, "type mismatch: expected (ref null? i31)"),
-        };
-        self.push_operand(ValType::I32)
+        }
     }
 }
 
