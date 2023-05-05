@@ -513,7 +513,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 ) => {
                     bail!(
                         self.offset,
-                        "type mismatche: expected {}, found heap type",
+                        "type mismatch: expected {}, found heap type",
                         ty_to_str(expected)
                     )
                 }
@@ -1041,6 +1041,7 @@ macro_rules! validate_proposal {
     (desc tail_call) => ("tail calls");
     (desc function_references) => ("function references");
     (desc memory_control) => ("memory control");
+    (desc gc) => ("gc");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -3334,6 +3335,28 @@ where
         self.pop_operand(Some(ValType::Ref(ty)))?;
         self.pop_operand(Some(ValType::I32))?;
         Ok(())
+    }
+    fn visit_i31_new(&mut self) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_operand(ValType::Ref(RefType::I31))
+    }
+    fn visit_i31_get_s(&mut self) -> Self::Output {
+        match self.pop_ref()? {
+            Some(ref_type) => match ref_type.heap_type() {
+                HeapType::I31 => self.push_operand(ValType::I32),
+                _ => bail!(self.offset, "ref heap type mismatch: expected i31"),
+            },
+            _ => bail!(self.offset, "type mismatch: expected (ref null? i31)"),
+        }
+    }
+    fn visit_i31_get_u(&mut self) -> Self::Output {
+        match self.pop_ref()? {
+            Some(ref_type) => match ref_type.heap_type() {
+                HeapType::I31 => self.push_operand(ValType::I32),
+                _ => bail!(self.offset, "ref heap type mismatch: expected i31"),
+            },
+            _ => bail!(self.offset, "type mismatch: expected (ref null? i31)"),
+        }
     }
 }
 

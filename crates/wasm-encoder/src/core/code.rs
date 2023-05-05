@@ -522,6 +522,11 @@ pub enum Instruction<'a> {
     RefFunc(u32),
     RefAsNonNull,
 
+    // GC types instructions.
+    I31New,
+    I31GetS,
+    I31GetU,
+
     // Bulk memory instructions.
     TableInit { elem_index: u32, table: u32 },
     ElemDrop(u32),
@@ -1314,6 +1319,20 @@ impl Encode for Instruction<'_> {
                 f.encode(sink);
             }
             Instruction::RefAsNonNull => sink.push(0xD3),
+
+            // GC instructions.
+            Instruction::I31New => {
+                sink.push(0xfb);
+                sink.push(0x20)
+            }
+            Instruction::I31GetS => {
+                sink.push(0xfb);
+                sink.push(0x21)
+            }
+            Instruction::I31GetU => {
+                sink.push(0xfb);
+                sink.push(0x22)
+            }
 
             // Bulk memory instructions.
             Instruction::TableInit { elem_index, table } => {

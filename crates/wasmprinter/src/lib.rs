@@ -732,25 +732,28 @@ impl Printer {
     }
 
     fn print_reftype(&mut self, ty: RefType) -> Result<()> {
-        match ty {
-            RefType::FUNCREF => self.result.push_str("funcref"),
-            RefType::EXTERNREF => self.result.push_str("externref"),
-            RefType::I31REF => self.result.push_str("i31ref"),
-            RefType::ANYREF => self.result.push_str("anyref"),
-            RefType::NULLREF => self.result.push_str("nullref"),
-            RefType::NULLEXTERNREF => self.result.push_str("nullexternref"),
-            RefType::NULLFUNCREF => self.result.push_str("nullfuncref"),
-            RefType::EQREF => self.result.push_str("eqref"),
-            RefType::STRUCTREF => self.result.push_str("structref"),
-            RefType::ARRAYREF => self.result.push_str("arrayref"),
-            _ => {
-                self.result.push_str("(ref ");
-                if ty.is_nullable() {
-                    self.result.push_str("null ");
+        if ty.is_nullable() {
+            match ty.as_non_null() {
+                RefType::FUNC => self.result.push_str("funcref"),
+                RefType::EXTERN => self.result.push_str("externref"),
+                RefType::I31 => self.result.push_str("i31ref"),
+                RefType::ANY => self.result.push_str("anyref"),
+                RefType::NONE => self.result.push_str("nullref"),
+                RefType::NOEXTERN => self.result.push_str("nullexternref"),
+                RefType::NOFUNC => self.result.push_str("nullfuncref"),
+                RefType::EQ => self.result.push_str("eqref"),
+                RefType::STRUCT => self.result.push_str("structref"),
+                RefType::ARRAY => self.result.push_str("arrayref"),
+                _ => {
+                    self.result.push_str("(ref null ");
+                    self.print_heaptype(ty.heap_type())?;
+                    self.result.push_str(")");
                 }
-                self.print_heaptype(ty.heap_type())?;
-                self.result.push_str(")");
             }
+        } else {
+            self.result.push_str("(ref ");
+            self.print_heaptype(ty.heap_type())?;
+            self.result.push_str(")");
         }
         Ok(())
     }

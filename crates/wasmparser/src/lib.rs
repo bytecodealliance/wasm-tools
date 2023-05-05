@@ -310,6 +310,13 @@ macro_rules! for_each_operator {
             @sign_extension I64Extend16S => visit_i64_extend16_s
             @sign_extension I64Extend32S => visit_i64_extend32_s
 
+            // 0xFB prefixed operators
+            // Garbage Collection
+            // http://github.com/WebAssembly/gc
+            @gc I31New => visit_i31_new
+            @gc I31GetS => visit_i31_get_s
+            @gc I31GetU => visit_i31_get_u
+
             // 0xFC operators
             // Non-trapping Float-to-int Conversions
             // https://github.com/WebAssembly/nontrapping-float-to-int-conversions
