@@ -244,45 +244,43 @@ impl RefType {
 
     const INDEX_MASK: u32 = (1 << 20) - 1; // 20 bits #19-#0 (if `indexed == 1`)
 
-    /// An nullable untyped function reference aka `(ref null func)` aka
+    /// A nullable untyped function reference aka `(ref null func)` aka
     /// `funcref` aka `anyfunc`.
-    pub const FUNCREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::FUNC_TYPE);
+    pub const FUNCREF: Self = RefType::FUNC.nullable();
 
     /// A nullable reference to an extern object aka `(ref null extern)` aka
     /// `externref`.
-    pub const EXTERNREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::EXTERN_TYPE);
+    pub const EXTERNREF: Self = RefType::EXTERN.nullable();
 
-    /// A nullable reference to any object aka `(ref null any)` aka
-    /// `anyref`.
-    pub const ANYREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::ANY_TYPE);
+    /// A non-nullable untyped function reference aka `(ref func)`.
+    pub const FUNC: Self = RefType::from_u32(Self::FUNC_TYPE);
 
-    /// A nullable reference to no object aka `(ref null none)` aka
-    /// `nullref`.
-    pub const NULLREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::NONE_TYPE);
+    /// A non-nullable reference to an extern object aka `(ref extern)`.
+    pub const EXTERN: Self = RefType::from_u32(Self::EXTERN_TYPE);
 
-    /// A nullable reference to a noextern object aka `(ref null noextern)` aka
-    /// `nullexternref`.
-    pub const NULLEXTERNREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::NOEXTERN_TYPE);
+    /// A non-nullable reference to any object aka `(ref any)`.
+    pub const ANY: Self = RefType::from_u32(Self::ANY_TYPE);
 
-    /// A nullable reference to a nofunc object aka `(ref null nofunc)` aka
-    /// `nullfuncref`.
-    pub const NULLFUNCREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::NOFUNC_TYPE);
+    /// A non-nullable reference to no object aka `(ref none)`.
+    pub const NONE: Self = RefType::from_u32(Self::NONE_TYPE);
 
-    /// A nullable reference to an eq object aka `(ref null eq)` aka
-    /// `eqref`.
-    pub const EQREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::EQ_TYPE);
+    /// A non-nullable reference to a noextern object aka `(ref noextern)`.
+    pub const NOEXTERN: Self = RefType::from_u32(Self::NOEXTERN_TYPE);
 
-    /// A nullable reference to a struct aka `(ref null struct)` aka
-    /// `structref`.
-    pub const STRUCTREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::STRUCT_TYPE);
+    /// A non-nullable reference to a nofunc object aka `(ref nofunc)`.
+    pub const NOFUNC: Self = RefType::from_u32(Self::NOFUNC_TYPE);
 
-    /// A nullable reference to an array aka `(ref null array)` aka
-    /// `arrayref`.
-    pub const ARRAYREF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::ARRAY_TYPE);
+    /// A non-nullable reference to an eq object aka `(ref eq)`.
+    pub const EQ: Self = RefType::from_u32(Self::EQ_TYPE);
 
-    /// A nullable reference to an i31 object aka `(ref null i31)` aka
-    /// `i31ref`.
-    pub const I31REF: Self = RefType::from_u32(Self::NULLABLE_BIT | Self::I31_TYPE);
+    /// A non-nullable reference to a struct aka `(ref struct)`.
+    pub const STRUCT: Self = RefType::from_u32(Self::STRUCT_TYPE);
+
+    /// A non-nullable reference to an array aka `(ref array)`.
+    pub const ARRAY: Self = RefType::from_u32(Self::ARRAY_TYPE);
+
+    /// A non-nullable reference to an i31 object aka `(ref i31)`.
+    pub const I31: Self = RefType::from_u32(Self::I31_TYPE);
 
     const fn can_represent_type_index(index: u32) -> bool {
         index & Self::INDEX_MASK == index
@@ -356,7 +354,7 @@ impl RefType {
     ///
     /// Returns `None` when the heap type's type index (if any) is beyond this
     /// crate's implementation limits and therfore is not representable.
-    pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
+    pub const fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * nullable as u32;
         match heap_type {
             HeapType::TypedFunc(index) => RefType::typed_func(nullable, index),
@@ -393,12 +391,12 @@ impl RefType {
     }
 
     /// Is this an untyped function reference aka `(ref null func)` aka `funcref` aka `anyfunc`?
-    pub fn is_func_ref(&self) -> bool {
+    pub const fn is_func_ref(&self) -> bool {
         !self.is_indexed_type_ref() && self.as_u32() & Self::TYPE_MASK == Self::FUNC_TYPE
     }
 
     /// Is this a `(ref null extern)` aka `externref`?
-    pub fn is_extern_ref(&self) -> bool {
+    pub const fn is_extern_ref(&self) -> bool {
         !self.is_indexed_type_ref() && self.as_u32() & Self::TYPE_MASK == Self::EXTERN_TYPE
     }
 
@@ -408,8 +406,13 @@ impl RefType {
     }
 
     /// Get the non-nullable version of this ref type.
-    pub fn as_non_null(&self) -> Self {
+    pub const fn as_non_null(&self) -> Self {
         Self::from_u32(self.as_u32() & !Self::NULLABLE_BIT)
+    }
+
+    /// Get the non-nullable version of this ref type.
+    pub const fn nullable(&self) -> Self {
+        Self::from_u32(self.as_u32() | Self::NULLABLE_BIT)
     }
 
     /// Get the heap type that this is a reference to.
@@ -470,16 +473,16 @@ impl RefType {
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read()? {
-            0x70 => Ok(RefType::FUNCREF),
-            0x6F => Ok(RefType::EXTERNREF),
-            0x6E => Ok(RefType::ANYREF),
-            0x65 => Ok(RefType::NULLREF),
-            0x69 => Ok(RefType::NULLEXTERNREF),
-            0x68 => Ok(RefType::NULLFUNCREF),
-            0x6D => Ok(RefType::EQREF),
-            0x67 => Ok(RefType::STRUCTREF),
-            0x66 => Ok(RefType::ARRAYREF),
-            0x6A => Ok(RefType::I31REF),
+            0x70 => Ok(RefType::FUNC.nullable()),
+            0x6F => Ok(RefType::EXTERN.nullable()),
+            0x6E => Ok(RefType::ANY.nullable()),
+            0x65 => Ok(RefType::NONE.nullable()),
+            0x69 => Ok(RefType::NOEXTERN.nullable()),
+            0x68 => Ok(RefType::NOFUNC.nullable()),
+            0x6D => Ok(RefType::EQ.nullable()),
+            0x67 => Ok(RefType::STRUCT.nullable()),
+            0x66 => Ok(RefType::ARRAY.nullable()),
+            0x6A => Ok(RefType::I31.nullable()),
             byte @ (0x6B | 0x6C) => {
                 let nullable = byte == 0x6C;
                 let pos = reader.original_position();
