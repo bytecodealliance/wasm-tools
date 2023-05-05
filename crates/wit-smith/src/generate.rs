@@ -198,11 +198,15 @@ impl Generator {
 
 impl<'a> InterfaceGenerator<'a> {
     fn new(gen: &'a Generator) -> InterfaceGenerator<'a> {
+        // Claim the name `memory` to avoid conflicting with the canonical ABI
+        // always using a linear memory named `memory`.
+        let mut unique_names = HashSet::new();
+        unique_names.insert("memory".to_string());
         InterfaceGenerator {
             gen,
             config: &gen.config,
             types_in_interface: Vec::new(),
-            unique_names: HashSet::new(),
+            unique_names,
         }
     }
 
