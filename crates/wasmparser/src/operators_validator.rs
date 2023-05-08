@@ -42,7 +42,7 @@ macro_rules! format_op_err {
 /// Early return an `Err(OperatorValidatorError)` with a format string.
 macro_rules! bail_op_err {
     ( $( $arg:expr ),* $(,)* ) => {
-        return Err(format_op_err!( $( $arg ),* ));
+        return Err(format_op_err!( $( $arg ),* ))
     }
 }
 
