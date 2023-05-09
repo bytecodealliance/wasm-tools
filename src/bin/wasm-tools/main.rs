@@ -54,6 +54,7 @@ subcommands! {
     #[command(subcommand)]
     (metadata, "metadata")
     (wit_smith, "wit-smith")
+    (addr2line, "addr2line")
 }
 
 fn main() -> ExitCode {
