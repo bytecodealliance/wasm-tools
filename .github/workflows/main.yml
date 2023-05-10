@@ -90,6 +90,7 @@ jobs:
       - run: cargo check --no-default-features --features component
       - run: cargo check --no-default-features --features metadata
       - run: cargo check --no-default-features --features wit-smith
+      - run: cargo check --no-default-features --features addr2line
 
   doc:
     runs-on: ubuntu-latest
