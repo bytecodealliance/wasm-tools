@@ -6,7 +6,7 @@ use super::{
 };
 use crate::validator::names::{KebabName, KebabString};
 use crate::{
-    BinaryReaderError, Export, ExternalKind, FuncType, GlobalType, Import, MemoryType,
+    ArrayType, BinaryReaderError, Export, ExternalKind, FuncType, GlobalType, Import, MemoryType,
     PrimitiveValType, RefType, Result, TableType, TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
@@ -170,6 +170,8 @@ const _: () = {
 pub enum Type {
     /// The definition is for a core function type.
     Func(FuncType),
+    /// The definition is for a core array type.
+    Array(ArrayType),
     /// The definition is for a core module type.
     ///
     /// This variant is only supported when parsing a component.
@@ -205,6 +207,14 @@ impl Type {
     pub fn as_func_type(&self) -> Option<&FuncType> {
         match self {
             Self::Func(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the type to an array type.
+    pub fn as_array_type(&self) -> Option<&ArrayType> {
+        match self {
+            Self::Array(ty) => Some(ty),
             _ => None,
         }
     }
@@ -268,6 +278,7 @@ impl Type {
     pub(crate) fn type_size(&self) -> u32 {
         match self {
             Self::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
+            Self::Array(_) => 2, // 2 is a guess.
             Self::Module(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,
@@ -1777,7 +1788,7 @@ impl TypeAlloc {
     pub fn free_variables_type_id(&self, id: TypeId, set: &mut IndexSet<ResourceId>) {
         match &self[id] {
             // Core wasm constructs cannot reference resources.
-            Type::Func(_) | Type::Module(_) | Type::Instance(_) => {}
+            Type::Func(_) | Type::Array(_) | Type::Module(_) | Type::Instance(_) => {}
 
             // Recurse on the imports/exports of components, but remove the
             // imported and defined resources within the component itself.
@@ -1998,7 +2009,7 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
         let ty = match &self[*id] {
             // Core wasm functions/modules/instances don't have resource types
             // in them.
-            Type::Func(_) | Type::Module(_) | Type::Instance(_) => return false,
+            Type::Func(_) | Type::Array(_) | Type::Module(_) | Type::Instance(_) => return false,
 
             Type::Component(i) => {
                 let mut tmp = i.clone();

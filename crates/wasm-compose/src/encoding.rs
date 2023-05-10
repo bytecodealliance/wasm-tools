@@ -468,19 +468,15 @@ impl<'a> TypeEncoder<'a> {
         let ty = self.0.type_from_id(id).unwrap();
 
         match ty {
-            wasmparser::types::Type::Func(_) | wasmparser::types::Type::Instance(_) => {
+            Type::Func(_) | Type::Array(_) | Type::Instance(_) => {
                 unreachable!()
             }
-            wasmparser::types::Type::Module(_) => self.module_type(encodable, types, id),
-            wasmparser::types::Type::Component(_) => self.component_type(encodable, types, id),
-            wasmparser::types::Type::ComponentInstance(_) => {
-                self.component_instance_type(encodable, types, id)
-            }
-            wasmparser::types::Type::ComponentFunc(_) => {
-                self.component_func_type(encodable, types, id)
-            }
-            wasmparser::types::Type::Defined(_) => self.defined_type(encodable, types, id),
-            wasmparser::types::Type::Resource(_) => unimplemented!(),
+            Type::Module(_) => self.module_type(encodable, types, id),
+            Type::Component(_) => self.component_type(encodable, types, id),
+            Type::ComponentInstance(_) => self.component_instance_type(encodable, types, id),
+            Type::ComponentFunc(_) => self.component_func_type(encodable, types, id),
+            Type::Defined(_) => self.defined_type(encodable, types, id),
+            Type::Resource(_) => unimplemented!(),
         }
     }
 

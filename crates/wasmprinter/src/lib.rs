@@ -56,7 +56,7 @@ pub struct Printer {
 
 #[derive(Default)]
 struct CoreState {
-    types: Vec<Option<FuncType>>,
+    types: Vec<Option<Type>>,
     funcs: u32,
     memories: u32,
     tags: u32,
@@ -605,21 +605,21 @@ impl Printer {
         Ok(())
     }
 
-    fn print_core_type(&mut self, states: &mut Vec<State>, ty: wasmparser::CoreType) -> Result<()> {
+    fn print_core_type(&mut self, states: &mut Vec<State>, ty: CoreType) -> Result<()> {
         self.start_group("core type ");
         self.print_name(
             &states.last().unwrap().core.type_names,
             states.last().unwrap().core.types.len() as u32,
         )?;
         let ty = match ty {
-            wasmparser::CoreType::Func(ty) => {
+            CoreType::Func(ty) => {
                 self.result.push(' ');
                 self.start_group("func");
                 self.print_func_type(states.last().unwrap(), &ty, None)?;
                 self.end_group();
-                Some(ty)
+                Some(Type::Func(ty))
             }
-            wasmparser::CoreType::Module(decls) => {
+            CoreType::Module(decls) => {
                 self.print_module_type(states, decls.into_vec())?;
                 None
             }
@@ -635,11 +635,17 @@ impl Printer {
         self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
         self.result.push(' ');
         let ty = match ty {
-            wasmparser::Type::Func(ty) => {
+            Type::Func(ty) => {
                 self.start_group("func");
                 self.print_func_type(state, &ty, None)?;
                 self.end_group();
-                ty
+                Type::Func(ty)
+            }
+            Type::Array(ty) => {
+                self.start_group("array");
+                self.print_array_type(&ty)?;
+                self.end_group();
+                Type::Array(ty)
             }
         };
         self.end_group(); // `type` itself
@@ -680,7 +686,8 @@ impl Printer {
         self.print_core_type_ref(state, idx)?;
 
         match state.core.types.get(idx as usize) {
-            Some(Some(ty)) => self.print_func_type(state, ty, names_for).map(Some),
+            Some(Some(Type::Func(ty))) => self.print_func_type(state, ty, names_for).map(Some),
+            Some(Some(Type::Array(ty))) => self.print_array_type(ty).map(Some),
             Some(None) | None => Ok(None),
         }
     }
@@ -717,6 +724,18 @@ impl Printer {
             self.result.push(')');
         }
         Ok(ty.params().len() as u32)
+    }
+
+    fn print_array_type(&mut self, ty: &ArrayType) -> Result<u32> {
+        self.result.push(' ');
+        if ty.mutable {
+            self.result.push_str("(mut ");
+        }
+        self.print_valtype(ty.element_type)?;
+        if ty.mutable {
+            self.result.push_str(")");
+        }
+        Ok(0)
     }
 
     fn print_valtype(&mut self, ty: ValType) -> Result<()> {

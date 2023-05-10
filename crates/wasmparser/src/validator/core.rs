@@ -513,6 +513,11 @@ impl Module {
                 }
                 Type::Func(t)
             }
+            crate::Type::Array(t) => {
+                // TODO check element type. Currently the check panics if the ref is not to a function type.
+                // self.check_revalue_type(t.element_type, features, types, offset)?;
+                Type::Array(t)
+            }
         };
 
         if check_limit {

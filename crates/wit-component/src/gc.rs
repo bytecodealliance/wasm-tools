@@ -501,12 +501,16 @@ impl<'a> Module<'a> {
             return;
         }
         self.worklist.push((ty, |me, ty| {
-            let ty = match me.types[ty as usize].clone() {
-                wasmparser::Type::Func(f) => f,
+            match me.types[ty as usize].clone() {
+                Type::Func(ty) => {
+                    for param in ty.params().iter().chain(ty.results()) {
+                        me.valty(*param);
+                    }
+                }
+                Type::Array(ty) => {
+                    me.valty(ty.element_type);
+                }
             };
-            for param in ty.params().iter().chain(ty.results()) {
-                me.valty(*param);
-            }
             Ok(())
         }));
     }
@@ -571,6 +575,9 @@ impl<'a> Module<'a> {
                     if ty.params().is_empty() && ty.results().is_empty() {
                         empty_type = Some(map.types.remap(i));
                     }
+                }
+                Type::Array(ty) => {
+                    types.array(map.valty(ty.element_type), ty.mutable);
                 }
             }
         }

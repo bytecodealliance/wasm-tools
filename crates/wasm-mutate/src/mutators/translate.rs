@@ -137,6 +137,7 @@ pub fn type_def(t: &mut dyn Translator, ty: Type, s: &mut TypeSection) -> Result
             );
             Ok(())
         }
+        _ => unimplemented!("Array and struct types are not supported yet."),
     }
 }
 

@@ -72,6 +72,7 @@ impl Mutator for AddTypeMutator {
                             .collect::<Result<Vec<_>, _>>()?;
                         types.function(params, results);
                     }
+                    _ => unimplemented!("Array and struct types are not supported yet."),
                 }
             }
             // And then add our new type.

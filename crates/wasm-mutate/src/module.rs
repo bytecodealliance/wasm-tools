@@ -66,6 +66,7 @@ impl TryFrom<wasmparser::Type> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
             })),
+            _ => unimplemented!("Array and struct types are not supported yet."),
         }
     }
 }

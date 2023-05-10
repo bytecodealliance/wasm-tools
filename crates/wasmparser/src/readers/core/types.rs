@@ -166,10 +166,11 @@ impl fmt::Display for ValType {
 //   0000 = none
 //   ```
 // - `(unused)` is unused sequence of bits
+// TODO (unused) is supposed to be zeroed out
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RefType([u8; 3]);
 
-impl std::fmt::Debug for RefType {
+impl Debug for RefType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Any) => write!(f, "anyref"),
@@ -340,10 +341,27 @@ impl RefType {
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable.
     pub const fn typed_func(nullable: bool, index: u32) -> Option<Self> {
+        Self::indexed(nullable, HeapType::Func, index)
+    }
+
+    /// Create a reference to a user defined type at the given index.
+    ///
+    /// Returns `None` when the type index is beyond this crate's implementation
+    /// limits and therefore is not representable, or when the heap type is not
+    /// a typed array, struct or function.
+    pub const fn indexed(nullable: bool, heap_type: HeapType, index: u32) -> Option<Self> {
+        let kind = match heap_type {
+            HeapType::Func => Self::FUNC_KIND,
+            HeapType::Array => Self::ARRAY_KIND,
+            HeapType::Struct => Self::STRUCT_KIND,
+            _ => {
+                return None;
+            }
+        };
         if Self::can_represent_type_index(index) {
             let nullable32 = Self::NULLABLE_BIT * nullable as u32;
             Some(RefType::from_u32(
-                nullable32 | Self::INDEXED_BIT | Self::FUNC_KIND | index,
+                nullable32 | Self::INDEXED_BIT | kind | index,
             ))
         } else {
             None
@@ -530,8 +548,10 @@ impl fmt::Display for RefType {
 /// is an invalid type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HeapType {
-    /// Function of the type at the given index.
+    /// User defined type at the given index.
     TypedFunc(u32),
+    // Indexed user defined type at the given index.
+    // Indexed(u32),
     /// Untyped (any) function.
     Func,
     /// External heap type.
@@ -616,6 +636,9 @@ impl<'a> FromReader<'a> for HeapType {
 pub enum Type {
     /// The type is for a function.
     Func(FuncType),
+    /// The type is for an array.
+    Array(ArrayType),
+    // Struct(StructType),
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -625,6 +648,15 @@ pub struct FuncType {
     params_results: Box<[ValType]>,
     /// The number of parameter types.
     len_params: usize,
+}
+
+/// Represents a type of an array in a WebAssembly module.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct ArrayType {
+    /// Array element type.
+    pub element_type: ValType,
+    /// Are elements mutable.
+    pub mutable: bool,
 }
 
 impl Debug for FuncType {
@@ -782,6 +814,7 @@ impl<'a> FromReader<'a> for Type {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x60 => Type::Func(reader.read()?),
+            0x5e => Type::Array(reader.read()?),
             x => return reader.invalid_leading_byte(x, "type"),
         })
     }
@@ -799,5 +832,16 @@ impl<'a> FromReader<'a> for FuncType {
             params_results.push(result?);
         }
         Ok(FuncType::from_raw_parts(params_results.into(), len_params))
+    }
+}
+
+impl<'a> FromReader<'a> for ArrayType {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let element_type = reader.read()?;
+        let mutable = reader.read_u8()?;
+        Ok(ArrayType {
+            element_type,
+            mutable: (mutable != 0x00),
+        })
     }
 }

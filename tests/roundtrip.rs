@@ -152,7 +152,7 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
     // TODO: the gc proposal isn't implemented yet
     if test.iter().any(|p| p == "gc") {
         // selectively enable some tests
-        let implemented = &["gc-i31.wat", "gc-heaptypes.wat"];
+        let implemented = &["gc-i31.wat", "gc-heaptypes.wat", "gc-array-types.wat"];
         if implemented.iter().any(|x| test.ends_with(x)) {
             return false;
         }
