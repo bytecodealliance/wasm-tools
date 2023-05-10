@@ -432,6 +432,7 @@ pub mod kw {
     custom_keyword!(import);
     custom_keyword!(instance);
     custom_keyword!(instantiate);
+    custom_keyword!(interface);
     custom_keyword!(invoke);
     custom_keyword!(item);
     custom_keyword!(last);

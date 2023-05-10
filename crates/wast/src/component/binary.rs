@@ -262,7 +262,7 @@ impl<'a> Encoder<'a> {
             InstanceKind::BundleOfExports(exports) => {
                 self.instances.export_items(exports.iter().map(|e| {
                     let (kind, index) = (&e.kind).into();
-                    (e.name, kind, index)
+                    (e.name.into(), kind, index)
                 }));
             }
         }
@@ -342,8 +342,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&import.item.id, &import.item.name);
         self.names_for_item_kind(&import.item.kind).push(name);
         self.imports.import(
-            import.name,
-            import.url.unwrap_or(""),
+            wasm_encoder::ComponentImportName::from(import.name),
             (&import.item.kind).into(),
         );
         self.flush(Some(self.imports.id()));
@@ -353,8 +352,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
         self.exports.export(
-            export.name,
-            export.url.unwrap_or(""),
+            wasm_encoder::ComponentExportName::from(export.name),
             kind,
             index,
             export.ty.as_ref().map(|ty| (&ty.0.kind).into()),
@@ -820,10 +818,16 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                     encoded.alias((&a.target).into());
                 }
                 ComponentTypeDecl::Import(i) => {
-                    encoded.import(i.name, i.url.unwrap_or(""), (&i.item.kind).into());
+                    encoded.import(
+                        wasm_encoder::ComponentImportName::from(i.name),
+                        (&i.item.kind).into(),
+                    );
                 }
                 ComponentTypeDecl::Export(e) => {
-                    encoded.export(e.name, e.url.unwrap_or(""), (&e.item.kind).into());
+                    encoded.export(
+                        wasm_encoder::ComponentExportName::from(e.name),
+                        (&e.item.kind).into(),
+                    );
                 }
             }
         }
@@ -848,7 +852,10 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                     encoded.alias((&a.target).into());
                 }
                 InstanceTypeDecl::Export(e) => {
-                    encoded.export(e.name, e.url.unwrap_or(""), (&e.item.kind).into());
+                    encoded.export(
+                        wasm_encoder::ComponentExportName::from(e.name),
+                        (&e.item.kind).into(),
+                    );
                 }
             }
         }
@@ -988,6 +995,28 @@ impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
                 kind: (*kind).into(),
                 index: (*index).into(),
             },
+        }
+    }
+}
+
+impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a> {
+    fn from(name: ComponentImportName<'a>) -> Self {
+        match name {
+            ComponentImportName::Kebab(name) => wasm_encoder::ComponentImportName::Kebab(name),
+            ComponentImportName::Interface(name) => {
+                wasm_encoder::ComponentImportName::Interface(name)
+            }
+        }
+    }
+}
+
+impl<'a> From<ComponentExportName<'a>> for wasm_encoder::ComponentExportName<'a> {
+    fn from(name: ComponentExportName<'a>) -> Self {
+        match name {
+            ComponentExportName::Kebab(name) => wasm_encoder::ComponentExportName::Kebab(name),
+            ComponentExportName::Interface(name) => {
+                wasm_encoder::ComponentExportName::Interface(name)
+            }
         }
     }
 }

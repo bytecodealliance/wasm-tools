@@ -16,14 +16,14 @@ use crate::{
         ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, LoweringInfo, Remap,
         SubtypeCx, TupleType, UnionType, VariantType,
     },
-    BinaryReaderError, CanonicalOption, ComponentExternalKind, ComponentOuterAliasKind,
-    ComponentTypeRef, ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, Result,
-    TableType, TypeBounds, ValType, WasmFeatures,
+    BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
+    ComponentImportName, ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, Result, TableType, TypeBounds, ValType,
+    WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
 use std::mem;
-use url::Url;
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
     match KebabStr::new(s) {
@@ -36,16 +36,6 @@ fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabSt
             bail!(offset, "{desc} name `{s}` is not in kebab case");
         }
     }
-}
-
-fn parse_url(url: &str, offset: usize) -> Result<Option<Url>> {
-    if url.is_empty() {
-        return Ok(None);
-    }
-
-    Url::parse(url)
-        .map(Some)
-        .map_err(|e| BinaryReaderError::new(e.to_string(), offset))
 }
 
 pub(crate) struct ComponentState {
@@ -70,15 +60,9 @@ pub(crate) struct ComponentState {
     pub instances: Vec<TypeId>,
     pub components: Vec<TypeId>,
 
-    /// A set of all imports and exports since they share the same namespace.
-    pub externs: IndexMap<KebabName, (Option<Url>, ComponentEntityType, ExternKind)>,
-    next_import_index: usize,
-    next_export_index: usize,
-
-    // Note: URL validation requires unique URLs by byte comparison, so
-    // strings are used here and the URLs are not normalized.
-    import_urls: HashSet<String>,
-    export_urls: HashSet<String>,
+    pub imports: IndexMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentEntityType>,
+    pub kebab_named_externs: IndexSet<KebabName>,
 
     has_start: bool,
     type_size: u32,
@@ -238,16 +222,14 @@ impl ComponentState {
             values: Default::default(),
             instances: Default::default(),
             components: Default::default(),
-            externs: Default::default(),
-            import_urls: Default::default(),
-            export_urls: Default::default(),
+            imports: Default::default(),
+            exports: Default::default(),
+            kebab_named_externs: Default::default(),
             has_start: Default::default(),
             type_size: 1,
             imported_resources: Default::default(),
             defined_resources: Default::default(),
             explicit_resources: Default::default(),
-            next_import_index: 0,
-            next_export_index: 0,
             exported_types: Default::default(),
             imported_types: Default::default(),
             toplevel_exported_resources: Default::default(),
@@ -430,64 +412,21 @@ impl ComponentState {
         let mut entity = self.check_type_ref(&import.ty, types, offset)?;
         self.add_entity(
             &mut entity,
-            Some((import.name, ExternKind::Import)),
+            Some((import.name.as_str(), ExternKind::Import)),
             types,
             offset,
         )?;
-        let name = self.parse_kebab_name(
+        self.toplevel_imported_resources.validate_extern(
             import.name,
             "import",
             &entity,
-            Some(&self.toplevel_imported_resources),
             types,
             offset,
+            &mut self.kebab_named_externs,
+            &mut self.imports,
+            &mut self.type_size,
         )?;
-
-        match self.externs.entry(name) {
-            Entry::Occupied(e) => {
-                bail!(
-                    offset,
-                    "import name `{name}` conflicts with previous {desc} name `{prev}`",
-                    name = import.name,
-                    prev = e.key(),
-                    desc = e.get().2.desc(),
-                );
-            }
-            Entry::Vacant(e) => {
-                let url = parse_url(import.url, offset)?;
-                if let Some(url) = url.as_ref() {
-                    if !self.import_urls.insert(url.to_string()) {
-                        bail!(offset, "duplicate import URL `{url}`");
-                    }
-                }
-
-                self.type_size = combine_type_sizes(self.type_size, entity.type_size(), offset)?;
-                e.insert((url, entity, ExternKind::Import));
-                self.next_import_index += 1;
-            }
-        }
-
         Ok(())
-    }
-
-    fn parse_kebab_name(
-        &self,
-        name: &str,
-        desc: &str,
-        ty: &ComponentEntityType,
-        cx: Option<&KebabNameContext>,
-        types: &TypeAlloc,
-        offset: usize,
-    ) -> Result<KebabName> {
-        let name = match KebabName::new(name.to_string()) {
-            Some(name) => name,
-            None => bail!(offset, "{desc} name `{name}` is not in kebab case"),
-        };
-        if let Some(cx) = cx {
-            cx.validate(&name, ty, types, offset)
-                .with_context(|| format!("{desc} name `{name}` is not valid"))?;
-        }
-        Ok(name)
     }
 
     fn add_entity(
@@ -548,8 +487,7 @@ impl ComponentState {
                             // resource is injected with a fresh new identifier
                             // into our state.
                             if created == referenced {
-                                self.imported_resources
-                                    .insert(id, vec![self.next_import_index]);
+                                self.imported_resources.insert(id, vec![self.imports.len()]);
                             }
                         }
 
@@ -570,8 +508,7 @@ impl ComponentState {
                             // update the `explicit_resources` list. A new
                             // export path is about to be created for this
                             // resource and this keeps track of that.
-                            self.explicit_resources
-                                .insert(id, vec![self.next_export_index]);
+                            self.explicit_resources.insert(id, vec![self.exports.len()]);
                         }
 
                         None => {}
@@ -685,7 +622,7 @@ impl ComponentState {
                 let ty = types[*i].as_component_instance_type().unwrap();
                 ty.exports
                     .values()
-                    .all(|(_url, ty)| self.validate_and_register_named_types(None, kind, ty, types))
+                    .all(|ty| self.validate_and_register_named_types(None, kind, ty, types))
             }
 
             // All types referred to by a function must be named.
@@ -768,7 +705,7 @@ impl ComponentState {
                 .all(|ty| types.type_named_valtype(ty, set)),
 
             // Instances must recursively have all referenced types named.
-            Type::ComponentInstance(ty) => ty.exports.values().all(|(_url, ty)| {
+            Type::ComponentInstance(ty) => ty.exports.values().all(|ty| {
                 let id = match ty {
                     ComponentEntityType::Module(id)
                     | ComponentEntityType::Func(id)
@@ -836,14 +773,14 @@ impl ComponentState {
             let prev = mapping.resources.insert(*old, *new);
             assert!(prev.is_none());
 
-            let mut base = vec![self.next_import_index];
+            let mut base = vec![self.imports.len()];
             base.extend(ty.explicit_resources[old].iter().copied());
             self.imported_resources.insert(*new, base);
         }
 
         // Using the old-to-new resource mapping perform a substitution on
         // the `exports` and `explicit_resources` fields of `new_ty`
-        for (_, ty) in new_ty.exports.values_mut() {
+        for ty in new_ty.exports.values_mut() {
             types.remap_component_entity(ty, &mut mapping);
         }
         for (id, path) in mem::take(&mut new_ty.explicit_resources) {
@@ -897,7 +834,7 @@ impl ComponentState {
                 mapping.resources.insert(old, new);
                 self.defined_resources.insert(new, None);
             }
-            for (_, ty) in new_ty.exports.values_mut() {
+            for ty in new_ty.exports.values_mut() {
                 types.remap_component_entity(ty, &mut mapping);
             }
             for (id, path) in mem::take(&mut new_ty.explicit_resources) {
@@ -916,7 +853,7 @@ impl ComponentState {
         // generated.
         let ty = types[*id].as_component_instance_type().unwrap();
         for (id, path) in ty.explicit_resources.iter() {
-            let mut new_path = vec![self.next_export_index];
+            let mut new_path = vec![self.exports.len()];
             new_path.extend(path);
             self.explicit_resources.insert(*id, new_path);
         }
@@ -924,55 +861,31 @@ impl ComponentState {
 
     pub fn add_export(
         &mut self,
-        name: &str,
-        url: &str,
+        name: ComponentExportName<'_>,
         mut ty: ComponentEntityType,
         types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
         if check_limit {
-            check_max(
-                self.externs.len(),
-                1,
-                MAX_WASM_EXPORTS,
-                "imports and exports",
-                offset,
-            )?;
+            check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
         }
-        self.add_entity(&mut ty, Some((name, ExternKind::Export)), types, offset)?;
-        let kebab_name = self.parse_kebab_name(
-            name,
-            "export",
-            &ty,
-            Some(&self.toplevel_exported_resources),
+        self.add_entity(
+            &mut ty,
+            Some((name.as_str(), ExternKind::Export)),
             types,
             offset,
         )?;
-
-        match self.externs.entry(kebab_name) {
-            Entry::Occupied(e) => {
-                bail!(
-                    offset,
-                    "export name `{name}` conflicts with previous {desc} name `{prev}`",
-                    prev = e.key(),
-                    desc = e.get().2.desc(),
-                );
-            }
-            Entry::Vacant(e) => {
-                let url = parse_url(url, offset)?;
-                if let Some(url) = url.as_ref() {
-                    if !self.export_urls.insert(url.to_string()) {
-                        bail!(offset, "duplicate export URL `{url}`");
-                    }
-                }
-
-                self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
-                e.insert((url, ty, ExternKind::Export));
-                self.next_export_index += 1;
-            }
-        }
-
+        self.toplevel_exported_resources.validate_extern(
+            name.into(),
+            "export",
+            &ty,
+            types,
+            offset,
+            &mut self.kebab_named_externs,
+            &mut self.exports,
+            &mut self.type_size,
+        )?;
         Ok(())
     }
 
@@ -1546,10 +1459,10 @@ impl ComponentState {
                 crate::ComponentTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
                 }
-                crate::ComponentTypeDeclaration::Export { name, url, ty } => {
+                crate::ComponentTypeDeclaration::Export { name, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, types, offset, true)?;
+                    current.add_export(name, ty, types, offset, true)?;
                 }
                 crate::ComponentTypeDeclaration::Import(import) => {
                     components
@@ -1583,10 +1496,10 @@ impl ComponentState {
                 crate::InstanceTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, features, types, offset, true)?;
                 }
-                crate::InstanceTypeDeclaration::Export { name, url, ty } => {
+                crate::InstanceTypeDeclaration::Export { name, ty } => {
                     let current = components.last_mut().unwrap();
                     let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, url, ty, types, offset, true)?;
+                    current.add_export(name, ty, types, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Alias(alias) => {
                     Self::add_alias(components, alias, types, offset)?;
@@ -1624,14 +1537,7 @@ impl ComponentState {
 
             // Transform the fused list of imports and exports into just exports
             // since instance types can only declare exports.
-            exports: state
-                .externs
-                .into_iter()
-                .map(|(name, (url, ty, kind))| match kind {
-                    ExternKind::Export => (name, (url, ty)),
-                    ExternKind::Import => unreachable!(),
-                })
-                .collect(),
+            exports: mem::take(&mut state.exports),
         })
     }
 
@@ -1814,15 +1720,7 @@ impl ComponentState {
                     }
                 }
             };
-            let name = self.parse_kebab_name(
-                component_arg.name,
-                "instantiation argument",
-                &ty,
-                None,
-                types,
-                offset,
-            )?;
-            match args.entry(name) {
+            match args.entry(component_arg.name.to_string()) {
                 Entry::Occupied(e) => {
                     bail!(
                         offset,
@@ -1921,7 +1819,7 @@ impl ComponentState {
         let type_size = component_type
             .exports
             .iter()
-            .fold(1, |acc, (_, (_, ty))| acc + ty.type_size());
+            .fold(1, |acc, (_, ty)| acc + ty.type_size());
 
         // Perform the subtype check that `args` matches the imports of
         // `component_type_id`. The result of this subtype check is the
@@ -1981,7 +1879,7 @@ impl ComponentState {
         // variables provided by imports and additionally ensuring that all
         // references to the component's defined resources are rebound to the
         // fresh ones introduced just above.
-        for (_, entity) in exports.values_mut() {
+        for entity in exports.values_mut() {
             types.remap_component_entity(entity, &mut mapping);
         }
         let component_type = types[component_type_id].as_component_type().unwrap();
@@ -2017,7 +1915,7 @@ impl ComponentState {
         // In debug mode, however, do a sanity check.
         if cfg!(debug_assertions) {
             let mut free = IndexSet::new();
-            for (_, ty) in exports.values() {
+            for ty in exports.values() {
                 types.free_variables_component_entity(ty, &mut free);
             }
             assert!(fresh_defined_resources.is_subset(&free));
@@ -2063,6 +1961,7 @@ impl ComponentState {
         let mut type_size = 1;
         let mut inst_exports = IndexMap::new();
         let mut explicit_resources = IndexMap::new();
+        let mut kebab_names = IndexSet::new();
 
         // NB: It's intentional that this context is empty since no indices are
         // introduced in the bag-of-exports construct which means there's no
@@ -2126,26 +2025,16 @@ impl ComponentState {
                 }
             };
 
-            let name = self.parse_kebab_name(
-                export.name,
+            names.validate_extern(
+                export.name.into(),
                 "instance export",
                 &ty,
-                Some(&names),
                 types,
                 offset,
+                &mut kebab_names,
+                &mut inst_exports,
+                &mut type_size,
             )?;
-            match inst_exports.entry(name) {
-                Entry::Occupied(e) => bail!(
-                    offset,
-                    "instance export name `{name}` conflicts with previous export name `{prev}`",
-                    prev = e.key(),
-                    name = export.name,
-                ),
-                Entry::Vacant(e) => {
-                    type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
-                    e.insert((None, ty));
-                }
-            }
         }
 
         let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
@@ -2342,17 +2231,13 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let name = match KebabName::new(name.to_string()) {
-            Some(name) => name,
-            None => bail!(offset, "alias export name `{name}` is not in kebab case"),
-        };
         let mut ty = match types[self.instance_at(instance_index, offset)?]
             .as_component_instance_type()
             .unwrap()
             .exports
-            .get(&name)
+            .get(name)
         {
-            Some((_, ty)) => *ty,
+            Some(ty) => *ty,
             None => bail!(
                 offset,
                 "instance {instance_index} has no export named `{name}`"
@@ -2893,23 +2778,11 @@ impl ComponentState {
     /// `ComponentType` which is suitable to use to describe the type of this
     /// component.
     pub fn finish(&mut self, types: &TypeAlloc, offset: usize) -> Result<ComponentType> {
-        // Partition `self.externs` into `imports` and `exports.
-        let mut imports = IndexMap::with_capacity(self.next_import_index);
-        let mut exports = IndexMap::with_capacity(self.next_export_index);
-        for (name, (url, t, kind)) in self.externs.iter() {
-            let map = match kind {
-                ExternKind::Import => &mut imports,
-                ExternKind::Export => &mut exports,
-            };
-            let prev = map.insert(name.clone(), (url.clone(), *t));
-            assert!(prev.is_none());
-        }
-
         let mut ty = ComponentType {
             // Inherit some fields based on translation of the component.
             type_size: self.type_size,
-            imports,
-            exports,
+            imports: self.imports.clone(),
+            exports: self.exports.clone(),
 
             // This is filled in as a subset of `self.defined_resources`
             // depending on what's actually used by the exports. See the
@@ -2929,7 +2802,7 @@ impl ComponentState {
         // be used as part of the exports. This set is then used to reject any
         // of `self.defined_resources` which show up.
         let mut free = IndexSet::default();
-        for (_, ty) in ty.imports.values() {
+        for ty in ty.imports.values() {
             types.free_variables_component_entity(ty, &mut free);
         }
         for (resource, _path) in self.defined_resources.iter() {
@@ -2968,7 +2841,7 @@ impl ComponentState {
         // necessary, but it's left here for completeness and out of an
         // abundance of caution.
         free.clear();
-        for (_, ty) in ty.exports.values() {
+        for ty in ty.exports.values() {
             types.free_variables_component_entity(ty, &mut free);
         }
         for (id, _rep) in mem::take(&mut self.defined_resources) {
@@ -3007,6 +2880,59 @@ impl KebabNameContext {
         self.all_resource_names.insert(name.to_string());
     }
 
+    fn validate_extern(
+        &self,
+        name: ComponentImportName<'_>,
+        desc: &str,
+        ty: &ComponentEntityType,
+        types: &TypeAlloc,
+        offset: usize,
+        kebab_names: &mut IndexSet<KebabName>,
+        items: &mut IndexMap<String, ComponentEntityType>,
+        type_size: &mut u32,
+    ) -> Result<()> {
+        // First validate that `name` is even a valid kebab name, meaning it's
+        // in kebab-case, is an ID, etc.
+        let kebab = KebabName::new(name, offset)
+            .with_context(|| format!("valid to validate {desc} name `{}`", name.as_str()))?;
+
+        // Validate that the kebab name, if it has structure such as
+        // `[method]a.b`, is indeed valid with respect to known resources.
+        self.validate(&kebab, ty, types, offset)
+            .with_context(|| format!("{desc} name `{kebab}` is not valid"))?;
+
+        // Top-level kebab-names must all be unique, even between both imports
+        // and exports ot a component. For those names consult the `kebab_names`
+        // set.
+        if let ComponentImportName::Kebab(_) = name {
+            if let Some(prev) = kebab_names.replace(kebab.clone()) {
+                bail!(
+                    offset,
+                    "{desc} name `{kebab}` conflicts with previous name `{prev}`",
+                );
+            }
+        }
+
+        // Otherwise all strings must be unique, regardless of their name, so
+        // consult the `items` set to ensure that we're not for example
+        // importing the same interface ID twice.
+        match items.entry(kebab.into()) {
+            Entry::Occupied(e) => {
+                bail!(
+                    offset,
+                    "{desc} name `{name}` conflicts with previous name `{prev}`",
+                    name = name.as_str(),
+                    prev = e.key(),
+                );
+            }
+            Entry::Vacant(e) => {
+                e.insert(*ty);
+                *type_size = combine_type_sizes(*type_size, ty.type_size(), offset)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Validates that the `name` provided is allowed to have the type `ty`.
     fn validate(
         &self,
@@ -3023,8 +2949,8 @@ impl KebabNameContext {
             Ok(types[id].as_component_func_type().unwrap())
         };
         match name.kind() {
-            // Normal kebab name? No validation necessary.
-            KebabNameKind::Normal(_) => {}
+            // Normal kebab name or id? No validation necessary.
+            KebabNameKind::Normal(_) | KebabNameKind::Id { .. } => {}
 
             // Constructors must return `(own $resource)` and the `$resource`
             // must be named within this context to match `rname`

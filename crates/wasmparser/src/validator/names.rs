@@ -1,6 +1,7 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
+use crate::{ComponentImportName, Result};
 use std::borrow::Borrow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -214,10 +215,27 @@ impl From<KebabString> for String {
 /// Note that this type the `Method` and `Static` variants are considered equal
 /// and hash to the same value. This enables disallowing clashes between the two
 /// where method name overlap cannot happen.
+#[derive(Clone)]
+pub struct KebabName {
+    raw: String,
+    parsed: ParsedKebabName,
+}
+
 #[derive(Copy, Clone)]
-pub struct KebabName<T = String> {
-    raw: T,
-    dot: Option<u32>,
+enum ParsedKebabName {
+    Normal,
+    Constructor,
+    Method {
+        dot: u32,
+    },
+    Static {
+        dot: u32,
+    },
+    Id {
+        colon: Option<u32>,
+        slash: u32,
+        at: Option<u32>,
+    },
 }
 
 /// Created via [`KebabName::kind`] and classifies a name.
@@ -239,99 +257,162 @@ pub enum KebabNameKind<'a> {
         resource: &'a KebabStr,
         name: &'a KebabStr,
     },
+    /// `wasi:http/types@2.0`
+    #[allow(missing_docs)]
+    Id {
+        namespace: Option<&'a KebabStr>,
+        package: &'a KebabStr,
+        interface: &'a KebabStr,
+        version: Option<&'a str>,
+    },
 }
 
-impl<T> KebabName<T>
-where
-    T: AsRef<str>,
-{
+const CONSTRUCTOR: &str = "[constructor]";
+const METHOD: &str = "[method]";
+const STATIC: &str = "[static]";
+
+impl KebabName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
     /// valid.
-    pub fn new(name: T) -> Option<KebabName<T>> {
-        let s = name.as_ref();
-        let dot = if let Some(s) = s.strip_prefix("[constructor]") {
-            KebabStr::new(s)?;
-            None
-        } else if let Some(s) = s.strip_prefix("[method]") {
-            let dot = s.find('.')?;
-            KebabStr::new(&s[..dot])?;
-            KebabStr::new(&s[dot + 1..])?;
-            Some(u32::try_from(dot).ok()?)
-        } else if let Some(s) = s.strip_prefix("[static]") {
-            let dot = s.find('.')?;
-            KebabStr::new(&s[..dot])?;
-            KebabStr::new(&s[dot + 1..])?;
-            Some(u32::try_from(dot).ok()?)
-        } else {
-            KebabStr::new(s)?;
-            None
+    pub fn new(name: ComponentImportName<'_>, offset: usize) -> Result<KebabName> {
+        let validate_kebab = |s: &str| {
+            if KebabStr::new(s).is_none() {
+                bail!(offset, "`{s}` is not in kebab case")
+            } else {
+                Ok(())
+            }
         };
-        Some(KebabName { raw: name, dot })
+        let find = |s: &str, c: char| match s.find(c) {
+            Some(i) => Ok(i),
+            None => bail!(offset, "failed to find `{c}` character"),
+        };
+        let parsed = match name {
+            ComponentImportName::Kebab(s) => {
+                if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
+                    validate_kebab(s)?;
+                    ParsedKebabName::Constructor
+                } else if let Some(s) = s.strip_prefix(METHOD) {
+                    let dot = find(s, '.')?;
+                    validate_kebab(&s[..dot])?;
+                    validate_kebab(&s[dot + 1..])?;
+                    ParsedKebabName::Method { dot: dot as u32 }
+                } else if let Some(s) = s.strip_prefix(STATIC) {
+                    let dot = find(s, '.')?;
+                    validate_kebab(&s[..dot])?;
+                    validate_kebab(&s[dot + 1..])?;
+                    ParsedKebabName::Static { dot: dot as u32 }
+                } else {
+                    validate_kebab(s)?;
+                    ParsedKebabName::Normal
+                }
+            }
+            ComponentImportName::Interface(s) => {
+                let colon = s.find(':');
+                let slash = find(s, '/')?;
+                let at = s[slash..].find('@').map(|i| i + slash);
+                if let Some(colon) = colon {
+                    validate_kebab(&s[..colon])?;
+                }
+                validate_kebab(&s[colon.map(|i| i + 1).unwrap_or(0)..slash])?;
+                validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
+                if let Some(at) = at {
+                    let version = &s[at + 1..];
+                    let dot = find(version, '.')?;
+                    let major = &version[..dot];
+                    let minor = &version[dot + 1..];
+                    if major.parse::<u32>().is_err() {
+                        bail!(offset, "`{major}` is not a number")
+                    }
+                    if minor.parse::<u32>().is_err() {
+                        bail!(offset, "`{minor}` is not a number")
+                    }
+                }
+                ParsedKebabName::Id {
+                    colon: colon.map(|i| i as u32),
+                    slash: slash as u32,
+                    at: at.map(|i| i as u32),
+                }
+            }
+        };
+        Ok(KebabName {
+            raw: name.as_str().to_string(),
+            parsed,
+        })
     }
 
     /// Returns the [`KebabNameKind`] corresponding to this name.
     pub fn kind(&self) -> KebabNameKind<'_> {
-        let s = self.raw.as_ref();
-        if !s.starts_with('[') {
-            KebabNameKind::Normal(KebabStr::new_unchecked(s))
-        } else if s.as_bytes()[1] == b'c' {
-            let prefix = "[constructor]";
-            KebabNameKind::Constructor(KebabStr::new_unchecked(&s[prefix.len()..]))
-        } else {
-            let prefix1 = "[method]";
-            let prefix2 = "[static]";
-            let dot = self.dot.unwrap() as usize;
-            assert_eq!(prefix1.len(), prefix2.len());
-            let rest = &s[prefix1.len()..];
-            let resource = KebabStr::new_unchecked(&rest[..dot]);
-            let name = KebabStr::new_unchecked(&rest[dot + 1..]);
-            if s.as_bytes()[1] == b'm' {
+        match self.parsed {
+            ParsedKebabName::Normal => KebabNameKind::Normal(KebabStr::new_unchecked(&self.raw)),
+            ParsedKebabName::Constructor => {
+                let kebab = &self.raw[CONSTRUCTOR.len()..];
+                KebabNameKind::Constructor(KebabStr::new_unchecked(kebab))
+            }
+            ParsedKebabName::Method { dot } => {
+                let dotted = &self.raw[METHOD.len()..];
+                let resource = KebabStr::new_unchecked(&dotted[..dot as usize]);
+                let name = KebabStr::new_unchecked(&dotted[dot as usize + 1..]);
                 KebabNameKind::Method { resource, name }
-            } else {
+            }
+            ParsedKebabName::Static { dot } => {
+                let dotted = &self.raw[METHOD.len()..];
+                let resource = KebabStr::new_unchecked(&dotted[..dot as usize]);
+                let name = KebabStr::new_unchecked(&dotted[dot as usize + 1..]);
                 KebabNameKind::Static { resource, name }
+            }
+            ParsedKebabName::Id { colon, slash, at } => {
+                let colon = colon.map(|i| i as usize);
+                let slash = slash as usize;
+                let at = at.map(|i| i as usize);
+                let namespace = colon.map(|i| KebabStr::new_unchecked(&self.raw[..i]));
+                let package =
+                    KebabStr::new_unchecked(&self.raw[colon.map(|i| i + 1).unwrap_or(0)..slash]);
+                let interface =
+                    KebabStr::new_unchecked(&self.raw[slash + 1..at.unwrap_or(self.raw.len())]);
+                let version = at.map(|i| &self.raw[i + 1..]);
+                KebabNameKind::Id {
+                    namespace,
+                    package,
+                    interface,
+                    version,
+                }
             }
         }
     }
 
     /// Returns the raw underlying name as a string.
     pub fn as_str(&self) -> &str {
-        self.raw.as_ref()
+        &self.raw
     }
 }
 
-impl<T> Hash for KebabName<T>
-where
-    T: AsRef<str>,
-{
+impl From<KebabName> for String {
+    fn from(name: KebabName) -> String {
+        name.raw
+    }
+}
+
+impl Hash for KebabName {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.kind().hash(hasher)
     }
 }
 
-impl<T> PartialEq for KebabName<T>
-where
-    T: AsRef<str>,
-{
-    fn eq(&self, other: &KebabName<T>) -> bool {
+impl PartialEq for KebabName {
+    fn eq(&self, other: &KebabName) -> bool {
         self.kind().eq(&other.kind())
     }
 }
 
-impl<T> Eq for KebabName<T> where T: AsRef<str> {}
+impl Eq for KebabName {}
 
-impl<T> fmt::Display for KebabName<T>
-where
-    T: fmt::Display,
-{
+impl fmt::Display for KebabName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.raw.fmt(f)
     }
 }
 
-impl<T> fmt::Debug for KebabName<T>
-where
-    T: fmt::Debug,
-{
+impl fmt::Debug for KebabName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.raw.fmt(f)
     }
@@ -353,6 +434,18 @@ impl Hash for KebabNameKind<'_> {
                 hasher.write_u8(2);
                 resource.hash(hasher);
                 name.hash(hasher);
+            }
+            KebabNameKind::Id {
+                namespace,
+                package,
+                interface,
+                version,
+            } => {
+                hasher.write_u8(3);
+                namespace.hash(hasher);
+                package.hash(hasher);
+                interface.hash(hasher);
+                version.hash(hasher);
             }
         }
     }
@@ -411,6 +504,22 @@ impl PartialEq for KebabNameKind<'_> {
 
             (KebabNameKind::Method { .. }, _) => false,
             (KebabNameKind::Static { .. }, _) => false,
+
+            (
+                KebabNameKind::Id {
+                    namespace: an,
+                    package: ap,
+                    interface: ai,
+                    version: av,
+                },
+                KebabNameKind::Id {
+                    namespace: bn,
+                    package: bp,
+                    interface: bi,
+                    version: bv,
+                },
+            ) => an == bn && ap == bp && ai == bi && av == bv,
+            (KebabNameKind::Id { .. }, _) => false,
         }
     }
 }
@@ -421,6 +530,10 @@ impl Eq for KebabNameKind<'_> {}
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    fn parse_kebab_name(s: &str) -> Option<KebabName> {
+        KebabName::new(ComponentImportName::Kebab(s), 0).ok()
+    }
 
     #[test]
     fn kebab_smoke() {
@@ -438,43 +551,64 @@ mod tests {
 
     #[test]
     fn name_smoke() {
-        assert!(KebabName::new("a").is_some());
-        assert!(KebabName::new("[foo]a").is_none());
-        assert!(KebabName::new("[constructor]a").is_some());
-        assert!(KebabName::new("[method]a").is_none());
-        assert!(KebabName::new("[method]a.b").is_some());
-        assert!(KebabName::new("[method]a.b.c").is_none());
-        assert!(KebabName::new("[static]a.b").is_some());
-        assert!(KebabName::new("[static]a").is_none());
+        assert!(parse_kebab_name("a").is_some());
+        assert!(parse_kebab_name("[foo]a").is_none());
+        assert!(parse_kebab_name("[constructor]a").is_some());
+        assert!(parse_kebab_name("[method]a").is_none());
+        assert!(parse_kebab_name("[method]a.b").is_some());
+        assert!(parse_kebab_name("[method]a.b.c").is_none());
+        assert!(parse_kebab_name("[static]a.b").is_some());
+        assert!(parse_kebab_name("[static]a").is_none());
     }
 
     #[test]
     fn name_equality() {
-        assert_eq!(KebabName::new("a"), KebabName::new("a"));
-        assert_ne!(KebabName::new("a"), KebabName::new("b"));
+        assert_eq!(parse_kebab_name("a"), parse_kebab_name("a"));
+        assert_ne!(parse_kebab_name("a"), parse_kebab_name("b"));
         assert_eq!(
-            KebabName::new("[constructor]a"),
-            KebabName::new("[constructor]a")
+            parse_kebab_name("[constructor]a"),
+            parse_kebab_name("[constructor]a")
         );
         assert_ne!(
-            KebabName::new("[constructor]a"),
-            KebabName::new("[constructor]b")
+            parse_kebab_name("[constructor]a"),
+            parse_kebab_name("[constructor]b")
         );
-        assert_eq!(KebabName::new("[method]a.b"), KebabName::new("[method]a.b"));
-        assert_ne!(KebabName::new("[method]a.b"), KebabName::new("[method]b.b"));
-        assert_eq!(KebabName::new("[static]a.b"), KebabName::new("[static]a.b"));
-        assert_ne!(KebabName::new("[static]a.b"), KebabName::new("[static]b.b"));
+        assert_eq!(
+            parse_kebab_name("[method]a.b"),
+            parse_kebab_name("[method]a.b")
+        );
+        assert_ne!(
+            parse_kebab_name("[method]a.b"),
+            parse_kebab_name("[method]b.b")
+        );
+        assert_eq!(
+            parse_kebab_name("[static]a.b"),
+            parse_kebab_name("[static]a.b")
+        );
+        assert_ne!(
+            parse_kebab_name("[static]a.b"),
+            parse_kebab_name("[static]b.b")
+        );
 
-        assert_eq!(KebabName::new("[static]a.b"), KebabName::new("[method]a.b"));
-        assert_eq!(KebabName::new("[method]a.b"), KebabName::new("[static]a.b"));
+        assert_eq!(
+            parse_kebab_name("[static]a.b"),
+            parse_kebab_name("[method]a.b")
+        );
+        assert_eq!(
+            parse_kebab_name("[method]a.b"),
+            parse_kebab_name("[static]a.b")
+        );
 
-        assert_ne!(KebabName::new("[method]b.b"), KebabName::new("[static]a.b"));
+        assert_ne!(
+            parse_kebab_name("[method]b.b"),
+            parse_kebab_name("[static]a.b")
+        );
 
         let mut s = HashSet::new();
-        assert!(s.insert(KebabName::new("a")));
-        assert!(s.insert(KebabName::new("[constructor]a")));
-        assert!(s.insert(KebabName::new("[method]a.b")));
-        assert!(!s.insert(KebabName::new("[static]a.b")));
-        assert!(s.insert(KebabName::new("[static]b.b")));
+        assert!(s.insert(parse_kebab_name("a")));
+        assert!(s.insert(parse_kebab_name("[constructor]a")));
+        assert!(s.insert(parse_kebab_name("[method]a.b")));
+        assert!(!s.insert(parse_kebab_name("[static]a.b")));
+        assert!(s.insert(parse_kebab_name("[static]b.b")));
     }
 }

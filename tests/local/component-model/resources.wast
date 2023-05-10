@@ -900,7 +900,7 @@
 
 (assert_invalid
   (component (import "[static]" (func)))
-  "not in kebab case")
+  "failed to find `.` character")
 
 ;; validation of `[constructor]foo`
 (assert_invalid
@@ -932,10 +932,10 @@
 ;; validation of `[method]a.b`
 (assert_invalid
   (component (import "[method]" (func)))
-  "not in kebab case")
+  "failed to find `.` character")
 (assert_invalid
   (component (import "[method]a" (func)))
-  "not in kebab case")
+  "failed to find `.` character")
 (assert_invalid
   (component (import "[method]a." (func)))
   "not in kebab case")
@@ -969,10 +969,10 @@
 ;; validation of `[static]a.b`
 (assert_invalid
   (component (import "[static]" (func)))
-  "not in kebab case")
+  "failed to find `.` character")
 (assert_invalid
   (component (import "[static]a" (func)))
-  "not in kebab case")
+  "failed to find `.` character")
 (assert_invalid
   (component (import "[static]a." (func)))
   "not in kebab case")
@@ -1044,13 +1044,10 @@
   )
   "resource used in function does not have a name in this context")
 
-;; Test that even unused arguments to instantiation have kebab-case checked
-(assert_invalid
-  (component
-    (component $C)
-    (instance (instantiate $C (with "this is not kebab case" (component $C))))
-  )
-  "is not in kebab case")
+(component
+  (component $C)
+  (instance (instantiate $C (with "this is not kebab case" (component $C))))
+)
 
 ;; Test that unused arguments to instantiation are not validated to have
 ;; appropriate types with respect to kebab naming conventions which require

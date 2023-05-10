@@ -1,5 +1,5 @@
-  0x0 | 00 61 73 6d | version 12 (Component)
-      | 0c 00 01 00
+  0x0 | 00 61 73 6d | version 13 (Component)
+      | 0d 00 01 00
   0x8 | 03 0d       | core type section
   0xa | 01          | 1 count
   0xb | 50 02 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) })])
@@ -7,7 +7,7 @@
       | 01 66 00 00
  0x17 | 0a 07       | component import section
  0x19 | 01          | 1 count
- 0x1a | 01 61 00 00 | [module 0] ComponentImport { name: "a", url: "", ty: Module(0) }
+ 0x1a | 00 01 61 00 | [module 0] ComponentImport { name: Kebab("a"), ty: Module(0) }
       | 11 00      
  0x20 | 01 2b       | [core module 1] inline size
    0x22 | 00 61 73 6d | version 1 (Module)

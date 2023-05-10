@@ -72,7 +72,7 @@
     "(import \"a\" (func))"
     "(import \"a\" (func))"
   )
-  "import name `a` conflicts with previous import name `a`")
+  "import name `a` conflicts with previous name `a`")
 
 (assert_malformed
   (component quote
@@ -81,7 +81,7 @@
       "(import \"a\" (func))"
     "))"
   )
-  "import name `a` conflicts with previous import name `a`")
+  "import name `a` conflicts with previous name `a`")
 
 (assert_invalid
   (component
@@ -109,30 +109,70 @@
 )
 
 (component
-  (import "a" "https://example.com" (func))
-)
-
-;; Empty URLs are treated as no URL
-(component
-  (import "a" "" (func))
+  (import (interface "http/types") (func))
+  (import (interface "http/types@2.0") (func))
+  (import (interface "wasi:http/types") (func))
+  (import (interface "wasi:http/types@1.0") (func))
+  (import (interface "wasi:http/types@2.0") (func))
+  (import (interface "a-b:c-d/e-f@123456.7890") (func))
 )
 
 (assert_invalid
   (component
-    (import "a" "foo" (func))
+    (import (interface "wasi:http/types") (func))
+    (import (interface "wasi:http/types") (func))
   )
-  "relative URL without a base")
+  "conflicts with previous name")
 
 (assert_invalid
-  (component
-    (import "a" "https://example.com" (func))
-    (import "b" "https://example.com" (func))
-  )
-  "duplicate import URL `https://example.com/`")
+  (component (import (interface "") (func)))
+  "failed to find `/` character")
+(assert_invalid
+  (component (import (interface "wasi") (func)))
+  "failed to find `/` character")
+(assert_invalid
+  (component (import (interface "wasi:") (func)))
+  "failed to find `/` character")
+(assert_invalid
+  (component (import (interface "wasi:/") (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import (interface ":/") (func)))
+  "not in kebab case")
+(assert_invalid
+  (component (import (interface "wasi:http/TyPeS") (func)))
+  "`TyPeS` is not in kebab case")
+(assert_invalid
+  (component (import (interface "WaSi:http/types") (func)))
+  "`WaSi` is not in kebab case")
+(assert_invalid
+  (component (import (interface "wasi:HtTp/types") (func)))
+  "`HtTp` is not in kebab case")
+(assert_invalid
+  (component (import (interface "wasi:http/types@") (func)))
+  "failed to find `.` character")
+(assert_invalid
+  (component (import (interface "wasi:http/types@.") (func)))
+  "`` is not a number")
+(assert_invalid
+  (component (import (interface "wasi:http/types@1.") (func)))
+  "`` is not a number")
+(assert_invalid
+  (component (import (interface "wasi:http/types@a.2") (func)))
+  "`a` is not a number")
+(assert_invalid
+  (component (import (interface "wasi:http/types@2.b") (func)))
+  "`b` is not a number")
+(assert_invalid
+  (component (import (interface "wasi:http/types@2.0x0") (func)))
+  "`0x0` is not a number")
+(assert_invalid
+  (component (import (interface "wasi:http/types@2.0.0") (func)))
+  "`0.0` is not a number")
 
 (assert_invalid
   (component
     (import "a" (func $a))
     (export "a" (func $a))
   )
-  "export name `a` conflicts with previous import name `a`")
+  "export name `a` conflicts with previous name `a`")

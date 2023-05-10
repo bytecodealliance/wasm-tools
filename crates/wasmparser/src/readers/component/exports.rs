@@ -1,4 +1,6 @@
-use crate::{BinaryReader, ComponentTypeRef, FromReader, Result, SectionLimited};
+use crate::{
+    BinaryReader, ComponentImportName, ComponentTypeRef, FromReader, Result, SectionLimited,
+};
 
 /// Represents the kind of an external items of a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,9 +69,7 @@ impl ComponentExternalKind {
 #[derive(Debug, Clone)]
 pub struct ComponentExport<'a> {
     /// The name of the exported item.
-    pub name: &'a str,
-    /// The optional URL of the exported item.
-    pub url: &'a str,
+    pub name: ComponentExportName<'a>,
     /// The kind of the export.
     pub kind: ComponentExternalKind,
     /// The index of the exported item.
@@ -85,7 +85,6 @@ impl<'a> FromReader<'a> for ComponentExport<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(ComponentExport {
             name: reader.read()?,
-            url: reader.read()?,
             kind: reader.read()?,
             index: reader.read()?,
             ty: match reader.read_u8()? {
@@ -114,5 +113,42 @@ impl<'a> FromReader<'a> for ComponentExternalKind {
         };
 
         ComponentExternalKind::from_bytes(byte1, byte2, offset)
+    }
+}
+
+/// Represents the name of a component export.
+#[derive(Debug, Copy, Clone)]
+#[allow(missing_docs)]
+pub enum ComponentExportName<'a> {
+    Kebab(&'a str),
+    Interface(&'a str),
+}
+
+impl<'a> ComponentExportName<'a> {
+    /// Returns the underlying string representing this name.
+    pub fn as_str(&self) -> &'a str {
+        match self {
+            ComponentExportName::Kebab(name) => name,
+            ComponentExportName::Interface(name) => name,
+        }
+    }
+}
+
+impl<'a> FromReader<'a> for ComponentExportName<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(match reader.read_u8()? {
+            0x00 => ComponentExportName::Kebab(reader.read()?),
+            0x01 => ComponentExportName::Interface(reader.read()?),
+            x => return reader.invalid_leading_byte(x, "export name"),
+        })
+    }
+}
+
+impl<'a> From<ComponentExportName<'a>> for ComponentImportName<'a> {
+    fn from(name: ComponentExportName<'a>) -> ComponentImportName<'a> {
+        match name {
+            ComponentExportName::Kebab(name) => ComponentImportName::Kebab(name),
+            ComponentExportName::Interface(name) => ComponentImportName::Interface(name),
+        }
     }
 }

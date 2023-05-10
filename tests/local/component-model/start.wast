@@ -74,7 +74,7 @@
 
 (assert_invalid
   (component binary
-    "\00asm" "\0c\00\01\00"   ;; component header
+    "\00asm" "\0d\00\01\00"   ;; component header
 
     "\07\05"          ;; type section, 5 bytes large
     "\01"             ;; 1 count
@@ -82,10 +82,9 @@
     "\00"             ;; parameters, 0 count
     "\01\00"          ;; results, named, 0 count
 
-    "\0a\06"          ;; import section, 5 bytes large
+    "\0a\06"          ;; import section, 6 bytes large
     "\01"             ;; 1 count
-    "\01a"            ;; name = "a"
-    "\00"             ;; url = ""
+    "\00\01a"         ;; name = "a"
     "\01\00"          ;; type = func ($type 0)
 
     "\09\06"          ;; start section, 6 bytes large
@@ -97,7 +96,7 @@
 
 (assert_invalid
   (component binary
-    "\00asm" "\0c\00\01\00"   ;; component header
+    "\00asm" "\0d\00\01\00"   ;; component header
 
     "\07\05"          ;; type section, 5 bytes large
     "\01"             ;; 1 count
@@ -105,10 +104,9 @@
     "\00"             ;; parameters, 0 count
     "\01\00"          ;; results, named, 0 count
 
-    "\0a\06"          ;; import section, 5 bytes large
+    "\0a\06"          ;; import section, 6 bytes large
     "\01"             ;; 1 count
-    "\01a"            ;; name = "a"
-    "\00"             ;; url = ""
+    "\00\01a"         ;; name = "a"
     "\01\00"          ;; type = func ($type 0)
 
     "\09\04"          ;; start section, 4 bytes large

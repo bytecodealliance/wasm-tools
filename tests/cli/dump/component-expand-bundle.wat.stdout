@@ -1,5 +1,5 @@
-  0x0 | 00 61 73 6d | version 12 (Component)
-      | 0c 00 01 00
+  0x0 | 00 61 73 6d | version 13 (Component)
+      | 0d 00 01 00
   0x8 | 01 29       | [core module 0] inline size
     0xa | 00 61 73 6d | version 1 (Module)
         | 01 00 00 00

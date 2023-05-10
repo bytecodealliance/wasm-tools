@@ -1,7 +1,7 @@
 use super::{ItemRef, ItemSigNoName};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, Index, NameAnnotation, Span};
+use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
 /// An entry in a WebAssembly component's export section.
 #[derive(Debug)]
@@ -13,9 +13,7 @@ pub struct ComponentExport<'a> {
     /// An optional name for this instance stored in the custom `name` section.
     pub debug_name: Option<NameAnnotation<'a>>,
     /// The name of this export from the component.
-    pub name: &'a str,
-    /// The URL of the export.
-    pub url: Option<&'a str>,
+    pub name: ComponentExportName<'a>,
     /// The kind of export.
     pub kind: ComponentExportKind<'a>,
     /// The kind of export.
@@ -28,7 +26,6 @@ impl<'a> Parse<'a> for ComponentExport<'a> {
         let id = parser.parse()?;
         let debug_name = parser.parse()?;
         let name = parser.parse()?;
-        let url = parser.parse()?;
         let kind = parser.parse()?;
         let ty = if !parser.is_empty() {
             Some(parser.parens(|p| p.parse())?)
@@ -40,7 +37,6 @@ impl<'a> Parse<'a> for ComponentExport<'a> {
             id,
             debug_name,
             name,
-            url,
             kind,
             ty,
         })
@@ -54,6 +50,28 @@ impl<'a> Parse<'a> for Vec<ComponentExport<'a>> {
             exports.push(parser.parens(|parser| parser.parse())?);
         }
         Ok(exports)
+    }
+}
+
+/// The different ways an export can be named.
+#[derive(Debug, Copy, Clone)]
+pub enum ComponentExportName<'a> {
+    /// This is a kebab-named export where a top-level name is assigned.
+    Kebab(&'a str),
+    /// This is an interface export where the string is an ID.
+    Interface(&'a str),
+}
+
+impl<'a> Parse<'a> for ComponentExportName<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        if parser.peek::<LParen>() {
+            Ok(ComponentExportName::Interface(parser.parens(|p| {
+                p.parse::<kw::interface>()?;
+                p.parse()
+            })?))
+        } else {
+            Ok(ComponentExportName::Kebab(parser.parse()?))
+        }
     }
 }
 
@@ -177,7 +195,7 @@ impl Peek for ComponentExportKind<'_> {
 #[derive(Debug, Default)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
-    pub names: Vec<(&'a str, Option<&'a str>)>,
+    pub names: Vec<ComponentExportName<'a>>,
 }
 
 impl<'a> Parse<'a> for InlineExport<'a> {
@@ -186,7 +204,7 @@ impl<'a> Parse<'a> for InlineExport<'a> {
         while parser.peek::<Self>() {
             names.push(parser.parens(|p| {
                 p.parse::<kw::export>()?;
-                Ok((p.parse()?, p.parse()?))
+                p.parse()
             })?);
         }
         Ok(InlineExport { names })
@@ -203,15 +221,29 @@ impl Peek for InlineExport<'_> {
             Some(("export", cursor)) => cursor,
             _ => return false,
         };
-        // Name
-        let mut cursor = match cursor.string() {
-            Some((_, cursor)) => cursor,
+
+        // (export "foo")
+        if let Some((_, cursor)) = cursor.string() {
+            return cursor.rparen().is_some();
+        }
+
+        // (export (interface "foo"))
+        let cursor = match cursor.lparen() {
+            Some(cursor) => cursor,
             None => return false,
         };
-        // Optional URL
-        if let Some((_, c)) = cursor.string() {
-            cursor = c;
-        }
+        let cursor = match cursor.keyword() {
+            Some(("interface", cursor)) => cursor,
+            _ => return false,
+        };
+        let cursor = match cursor.string() {
+            Some((_, cursor)) => cursor,
+            _ => return false,
+        };
+        let cursor = match cursor.rparen() {
+            Some(cursor) => cursor,
+            _ => return false,
+        };
         cursor.rparen().is_some()
     }
 

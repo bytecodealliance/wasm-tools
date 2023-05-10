@@ -79,9 +79,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
 #[derive(Debug, Copy, Clone)]
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
-    pub name: &'a str,
-    /// The optional URL of the imported item.
-    pub url: &'a str,
+    pub name: ComponentImportName<'a>,
     /// The type reference for the import.
     pub ty: ComponentTypeRef,
 }
@@ -90,7 +88,6 @@ impl<'a> FromReader<'a> for ComponentImport<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(ComponentImport {
             name: reader.read()?,
-            url: reader.read()?,
             ty: reader.read()?,
         })
     }
@@ -102,7 +99,7 @@ impl<'a> FromReader<'a> for ComponentImport<'a> {
 ///
 /// ```
 /// use wasmparser::ComponentImportSectionReader;
-/// let data: &[u8] = &[0x01, 0x01, 0x41, 0x00, 0x01, 0x66];
+/// let data: &[u8] = &[0x01, 0x00, 0x01, 0x41, 0x01, 0x66];
 /// let reader = ComponentImportSectionReader::new(data, 0).unwrap();
 /// for import in reader {
 ///     let import = import.expect("import");
@@ -110,3 +107,31 @@ impl<'a> FromReader<'a> for ComponentImport<'a> {
 /// }
 /// ```
 pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'a>>;
+
+/// Represents the name of a component import.
+#[derive(Debug, Copy, Clone)]
+#[allow(missing_docs)]
+pub enum ComponentImportName<'a> {
+    Kebab(&'a str),
+    Interface(&'a str),
+}
+
+impl<'a> ComponentImportName<'a> {
+    /// Returns the underlying string representing this name.
+    pub fn as_str(&self) -> &'a str {
+        match self {
+            ComponentImportName::Kebab(name) => name,
+            ComponentImportName::Interface(name) => name,
+        }
+    }
+}
+
+impl<'a> FromReader<'a> for ComponentImportName<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(match reader.read_u8()? {
+            0x00 => ComponentImportName::Kebab(reader.read()?),
+            0x01 => ComponentImportName::Interface(reader.read()?),
+            x => return reader.invalid_leading_byte(x, "import name"),
+        })
+    }
+}

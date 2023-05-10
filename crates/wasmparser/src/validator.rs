@@ -1191,13 +1191,13 @@ impl Validator {
             |components, _, count, offset| {
                 let current = components.last_mut().unwrap();
                 check_max(
-                    current.externs.len(),
+                    current.exports.len(),
                     count,
                     MAX_WASM_EXPORTS,
-                    "imports and exports",
+                    "exports",
                     offset,
                 )?;
-                current.externs.reserve(count as usize);
+                current.exports.reserve(count as usize);
                 Ok(())
             },
             |components, types, _, export, offset| {
@@ -1205,7 +1205,6 @@ impl Validator {
                 let ty = current.export_to_entity_type(&export, types, offset)?;
                 current.add_export(
                     export.name,
-                    export.url,
                     ty,
                     types,
                     offset,

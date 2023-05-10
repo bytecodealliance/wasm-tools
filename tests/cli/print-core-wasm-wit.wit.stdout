@@ -1,3 +1,5 @@
+package root
+
 world root {
-  import my-interface: print-core-wasm-wit.print-core-wasm-wit.my-interface
+  import foo/my-interface
 }

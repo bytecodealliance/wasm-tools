@@ -1,7 +1,7 @@
 use crate::limits::*;
 use crate::{
-    BinaryReader, ComponentAlias, ComponentImport, ComponentTypeRef, FromReader, FuncType, Import,
-    Result, SectionLimited, Type, TypeRef, ValType,
+    BinaryReader, ComponentAlias, ComponentExportName, ComponentImport, ComponentTypeRef,
+    FromReader, FuncType, Import, Result, SectionLimited, Type, TypeRef, ValType,
 };
 use std::fmt;
 
@@ -296,9 +296,7 @@ pub enum ComponentTypeDeclaration<'a> {
     /// The component type declaration is for an export.
     Export {
         /// The name of the export.
-        name: &'a str,
-        /// The optional URL of the export.
-        url: &'a str,
+        name: ComponentExportName<'a>,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },
@@ -320,8 +318,8 @@ impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
             InstanceTypeDeclaration::CoreType(t) => ComponentTypeDeclaration::CoreType(t),
             InstanceTypeDeclaration::Type(t) => ComponentTypeDeclaration::Type(t),
             InstanceTypeDeclaration::Alias(a) => ComponentTypeDeclaration::Alias(a),
-            InstanceTypeDeclaration::Export { name, url, ty } => {
-                ComponentTypeDeclaration::Export { name, url, ty }
+            InstanceTypeDeclaration::Export { name, ty } => {
+                ComponentTypeDeclaration::Export { name, ty }
             }
         })
     }
@@ -339,9 +337,7 @@ pub enum InstanceTypeDeclaration<'a> {
     /// The instance type declaration is for an export.
     Export {
         /// The name of the export.
-        name: &'a str,
-        /// The URL for the export.
-        url: &'a str,
+        name: ComponentExportName<'a>,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },
@@ -355,7 +351,6 @@ impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
             0x02 => InstanceTypeDeclaration::Alias(reader.read()?),
             0x04 => InstanceTypeDeclaration::Export {
                 name: reader.read()?,
-                url: reader.read()?,
                 ty: reader.read()?,
             },
             x => return reader.invalid_leading_byte(x, "component or instance type declaration"),

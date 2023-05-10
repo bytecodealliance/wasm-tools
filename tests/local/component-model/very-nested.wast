@@ -1562,7 +1562,7 @@
       (component)
     )
   )
-  "conflicts with previous export name")
+  "conflicts with previous name")
 
 (assert_invalid
   (component

@@ -1,18 +1,18 @@
-  0x0 | 00 61 73 6d | version 12 (Component)
-      | 0c 00 01 00
+  0x0 | 00 61 73 6d | version 13 (Component)
+      | 0d 00 01 00
   0x8 | 07 1f       | component type section
   0xa | 01          | 1 count
-  0xb | 42 04 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: [], results: Named([]) })), Export { name: "f1", url: "", ty: Func(0) }, Type(Func(ComponentFuncType { params: [("p1", Primitive(String))], results: Named([]) })), Export { name: "f2", url: "", ty: Func(1) }])
+  0xb | 42 04 01 40 | [type 0] Instance([Type(Func(ComponentFuncType { params: [], results: Named([]) })), Export { name: Kebab("f1"), ty: Func(0) }, Type(Func(ComponentFuncType { params: [("p1", Primitive(String))], results: Named([]) })), Export { name: Kebab("f2"), ty: Func(1) }])
       | 00 01 00 04
-      | 02 66 31 00
+      | 00 02 66 31
       | 01 00 01 40
       | 01 02 70 31
       | 73 01 00 04
-      | 02 66 32 00
+      | 00 02 66 32
       | 01 01      
  0x29 | 0a 06       | component import section
  0x2b | 01          | 1 count
- 0x2c | 01 69 00 05 | [instance 0] ComponentImport { name: "i", url: "", ty: Instance(0) }
+ 0x2c | 00 01 69 05 | [instance 0] ComponentImport { name: Kebab("i"), ty: Instance(0) }
       | 00         
  0x31 | 06 13       | component alias section
  0x33 | 03          | 3 count
