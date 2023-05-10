@@ -9,7 +9,7 @@
           (export (;0;) "a" (core module (type 0)))
         )
       )
-      (import "a" (instance (type 0)))
+      (import "a" (instance (;0;) (type 0)))
     )
   )
   (import "a" (component $m (;0;) (type 0)))

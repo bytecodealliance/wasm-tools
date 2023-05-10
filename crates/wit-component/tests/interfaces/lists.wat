@@ -192,7 +192,7 @@
               (export (;27;) "load-store-everything" (func (type 61)))
             )
           )
-          (import "lists" "pkg:/lists/lists" (instance (type 0)))
+          (import "lists" "pkg:/lists/lists" (instance (;0;) (type 0)))
         )
       )
       (export (;0;) "lists-world" "pkg:/lists/lists-world" (component (type 1)))

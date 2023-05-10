@@ -19,7 +19,7 @@
           (export (;1;) "t" (type (eq 0)))
         )
       )
-      (import "a2" "pkg:/bar/a" (instance (type 0)))
+      (import "a2" "pkg:/bar/a" (instance (;0;) (type 0)))
       (alias export 0 "t" (type (;1;)))
       (type (;2;)
         (instance
@@ -27,7 +27,7 @@
           (export (;1;) "t" (type (eq 0)))
         )
       )
-      (export (;0;) "foo" "pkg:/foo/foo" (instance (type 2)))
+      (export (;1;) "foo" "pkg:/foo/foo" (instance (type 2)))
       (type (;3;)
         (component)
       )

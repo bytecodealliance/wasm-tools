@@ -16,7 +16,7 @@
               (export (;0;) "log" (func (type 0)))
             )
           )
-          (import "console" "pkg:/simple-world/console" (instance (type 0)))
+          (import "console" "pkg:/simple-world/console" (instance (;0;) (type 0)))
         )
       )
       (export (;0;) "the-world" "pkg:/simple-world/the-world" (component (type 1)))

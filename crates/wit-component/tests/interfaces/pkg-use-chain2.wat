@@ -29,7 +29,7 @@
           (export (;1;) "name" (type (eq 0)))
         )
       )
-      (import "other" "pkg:/bar/other" (instance (type 0)))
+      (import "other" "pkg:/bar/other" (instance (;0;) (type 0)))
       (alias export 0 "name" (type (;1;)))
       (type (;2;)
         (instance
@@ -39,7 +39,7 @@
           (export (;3;) "name" (type (eq 2)))
         )
       )
-      (import "d" "pkg:/bar/d" (instance (type 2)))
+      (import "d" "pkg:/bar/d" (instance (;1;) (type 2)))
       (alias export 1 "the-name" (type (;3;)))
       (type (;4;)
         (instance
@@ -47,7 +47,7 @@
           (export (;1;) "the-name" (type (eq 0)))
         )
       )
-      (export (;0;) "foo" "pkg:/foo/foo" (instance (type 4)))
+      (export (;2;) "foo" "pkg:/foo/foo" (instance (type 4)))
     )
   )
   (export (;3;) "foo" "pkg:/foo" (type 2))

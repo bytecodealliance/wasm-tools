@@ -22,7 +22,7 @@
               (export (;0;) "f" (func (type 3)))
             )
           )
-          (import "foo" "pkg:/type-alias/foo" (instance (type 0)))
+          (import "foo" "pkg:/type-alias/foo" (instance (;0;) (type 0)))
           (type (;1;)
             (instance
               (type (;0;) u8)
@@ -32,7 +32,7 @@
               (export (;0;) "f" (func (type 3)))
             )
           )
-          (export (;0;) "foo2" "pkg:/type-alias/foo" (instance (type 1)))
+          (export (;1;) "foo2" "pkg:/type-alias/foo" (instance (type 1)))
         )
       )
       (export (;0;) "my-world" "pkg:/type-alias/my-world" (component (type 1)))

@@ -5,7 +5,7 @@
   (component $C2 (;1;)
     (type (;0;)
       (component
-        (import "X" (type (sub resource)))
+        (import "X" (type (;0;) (sub resource)))
       )
     )
     (import "C1" (component (;0;) (type 0)))

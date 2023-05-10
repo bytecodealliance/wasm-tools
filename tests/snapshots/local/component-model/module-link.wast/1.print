@@ -27,7 +27,7 @@
     (type (;1;)
       (component
         (alias outer $B $Wasi (type (;0;)))
-        (import "wasi" (instance (type 0)))
+        (import "wasi" (instance (;0;) (type 0)))
         (type (;1;) (func))
         (export (;0;) "a" (func (type 1)))
       )
@@ -80,7 +80,7 @@
     (type (;1;)
       (component
         (alias outer $C $Wasi (type (;0;)))
-        (import "wasi" (instance (type 0)))
+        (import "wasi" (instance (;0;) (type 0)))
         (type (;1;) (func))
         (export (;0;) "b" (func (type 1)))
       )
@@ -116,7 +116,7 @@
     (type (;1;)
       (component
         (alias outer $D $Wasi (type (;0;)))
-        (import "wasi" (instance (type 0)))
+        (import "wasi" (instance (;0;) (type 0)))
         (type (;1;) (func))
         (export (;0;) "c" (func (type 1)))
       )

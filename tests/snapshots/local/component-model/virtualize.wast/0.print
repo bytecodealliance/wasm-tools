@@ -80,7 +80,7 @@
     (type (;1;)
       (component
         (alias outer 1 $WasiFile (type (;0;)))
-        (import "wasi-file" (instance (type 0)))
+        (import "wasi-file" (instance (;0;) (type 0)))
         (type (;1;) (list u8))
         (type (;2;) (func (param "len" u32) (result 1)))
         (export (;0;) "read" (func (type 2)))
@@ -93,7 +93,7 @@
     (type (;2;)
       (component
         (alias outer 1 $WasiFile (type (;0;)))
-        (import "wasi-file" (instance (type 0)))
+        (import "wasi-file" (instance (;0;) (type 0)))
         (type (;1;) (func))
         (export (;0;) "play" (func (type 1)))
       )
