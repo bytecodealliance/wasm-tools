@@ -90,7 +90,7 @@
               (export (;18;) "multi-ret" (func (type 19)))
             )
           )
-          (import "integers" "pkg:/integers/integers" (instance (type 0)))
+          (import "integers" "pkg:/integers/integers" (instance (;0;) (type 0)))
         )
       )
       (export (;0;) "integers-world" "pkg:/integers/integers-world" (component (type 1)))

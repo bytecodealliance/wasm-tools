@@ -68,7 +68,7 @@
               (export (;6;) "roundtrip-flag64" (func (type 20)))
             )
           )
-          (import "imports" "pkg:/flags/imports" (instance (type 0)))
+          (import "imports" "pkg:/flags/imports" (instance (;0;) (type 0)))
         )
       )
       (export (;0;) "flags-world" "pkg:/flags/flags-world" (component (type 1)))

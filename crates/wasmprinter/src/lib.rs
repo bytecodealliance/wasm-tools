@@ -1566,11 +1566,11 @@ impl Printer {
                         self.print_str(url)?;
                     }
                     self.result.push(' ');
-                    self.print_component_import_ty(states.last().unwrap(), &ty, false)?;
+                    self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
                     self.end_group();
                 }
                 ComponentTypeDeclaration::Import(import) => {
-                    self.print_component_import(states.last_mut().unwrap(), &import, false)?
+                    self.print_component_import(states.last_mut().unwrap(), &import, true)?
                 }
             }
         }
@@ -1604,7 +1604,7 @@ impl Printer {
                         self.print_str(url)?;
                     }
                     self.result.push(' ');
-                    self.print_component_import_ty(states.last().unwrap(), &ty, false)?;
+                    self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
                     self.end_group();
                 }
             }
@@ -1754,26 +1754,6 @@ impl Printer {
             let (offset, import) = import?;
             self.newline(offset);
             self.print_component_import(state, &import, true)?;
-            match import.ty {
-                ComponentTypeRef::Module(_) => {
-                    state.core.modules += 1;
-                }
-                ComponentTypeRef::Func(_) => {
-                    state.component.funcs += 1;
-                }
-                ComponentTypeRef::Value(_) => {
-                    state.component.values += 1;
-                }
-                ComponentTypeRef::Type(..) => {
-                    state.component.types += 1;
-                }
-                ComponentTypeRef::Instance(_) => {
-                    state.component.instances += 1;
-                }
-                ComponentTypeRef::Component(_) => {
-                    state.component.components += 1;
-                }
-            }
         }
 
         Ok(())
@@ -1799,7 +1779,7 @@ impl Printer {
 
     fn print_component_import_ty(
         &mut self,
-        state: &State,
+        state: &mut State,
         ty: &ComponentTypeRef,
         index: bool,
     ) -> Result<()> {
@@ -1809,6 +1789,7 @@ impl Printer {
                 if index {
                     self.print_name(&state.core.module_names, state.core.modules as u32)?;
                     self.result.push(' ');
+                    state.core.modules += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group();
@@ -1818,6 +1799,7 @@ impl Printer {
                 if index {
                     self.print_name(&state.component.func_names, state.component.funcs)?;
                     self.result.push(' ');
+                    state.component.funcs += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group();
@@ -1827,6 +1809,7 @@ impl Printer {
                 if index {
                     self.print_name(&state.component.value_names, state.component.values)?;
                     self.result.push(' ');
+                    state.component.values += 1;
                 }
                 match ty {
                     ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty),
@@ -1841,6 +1824,7 @@ impl Printer {
                 if index {
                     self.print_name(&state.component.type_names, state.component.types)?;
                     self.result.push(' ');
+                    state.component.types += 1;
                 }
                 match bounds {
                     TypeBounds::Eq(idx) => {
@@ -1859,6 +1843,7 @@ impl Printer {
                 if index {
                     self.print_name(&state.component.instance_names, state.component.instances)?;
                     self.result.push(' ');
+                    state.component.instances += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group();
@@ -1868,6 +1853,7 @@ impl Printer {
                 if index {
                     self.print_name(&state.component.component_names, state.component.components)?;
                     self.result.push(' ');
+                    state.component.components += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group();

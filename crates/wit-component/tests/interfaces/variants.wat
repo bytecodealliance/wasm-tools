@@ -192,7 +192,7 @@
               (export (;19;) "expected-simple" (func (type 69)))
             )
           )
-          (import "variants" "pkg:/variants/variants" (instance (type 0)))
+          (import "variants" "pkg:/variants/variants" (instance (;0;) (type 0)))
         )
       )
       (export (;0;) "variants-world" "pkg:/variants/variants-world" (component (type 1)))

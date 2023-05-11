@@ -27,7 +27,7 @@
           (export (;1;) "the-type" (type (eq 0)))
         )
       )
-      (import "b2" "pkg:/b/b" (instance (type 0)))
+      (import "b2" "pkg:/b/b" (instance (;0;) (type 0)))
       (alias export 0 "the-type" (type (;1;)))
       (type (;2;)
         (instance
@@ -35,7 +35,7 @@
           (export (;1;) "the-type" (type (eq 0)))
         )
       )
-      (import "a2" "pkg:/b/a" (instance (type 2)))
+      (import "a2" "pkg:/b/a" (instance (;1;) (type 2)))
       (alias export 1 "the-type" (type (;3;)))
       (type (;4;)
         (instance
@@ -43,7 +43,7 @@
           (export (;1;) "the-type" (type (eq 0)))
         )
       )
-      (export (;0;) "b" "pkg:/a/b" (instance (type 4)))
+      (export (;2;) "b" "pkg:/a/b" (instance (type 4)))
       (alias export 2 "the-type" (type (;5;)))
       (type (;6;)
         (instance
@@ -51,7 +51,7 @@
           (export (;1;) "the-type" (type (eq 0)))
         )
       )
-      (export (;1;) "a" "pkg:/a/a" (instance (type 6)))
+      (export (;3;) "a" "pkg:/a/a" (instance (type 6)))
     )
   )
   (export (;3;) "a" "pkg:/a" (type 2))
