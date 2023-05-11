@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use termcolor::{Ansi, ColorChoice, StandardStream, WriteColor};
+use termcolor::{Ansi, ColorChoice, NoColor, StandardStream, WriteColor};
 
 // Implements the verbosity flag for the CLI commands.
 #[derive(clap::Parser)]
@@ -95,8 +95,7 @@ impl InputOutput {
     }
 
     pub fn output_writer(&self) -> Result<Box<dyn WriteColor>> {
-        assert!(self.color == false);
-        self.output.output_writer()
+        self.output.output_writer(self.color)
     }
 
     pub fn output_path(&self) -> Option<&Path> {
@@ -156,10 +155,16 @@ impl OutputArg {
         self.output.as_deref()
     }
 
-    pub fn output_writer(&self) -> Result<Box<dyn WriteColor>> {
+    pub fn output_writer(&self, color: bool) -> Result<Box<dyn WriteColor>> {
         match &self.output {
-            Some(output) => Ok(Box::new(Ansi::new(BufWriter::new(File::create(&output)?)))),
-            None => Ok(Box::new(StandardStream::stdout(ColorChoice::Auto))),
+            Some(output) if color => {
+                Ok(Box::new(Ansi::new(BufWriter::new(File::create(&output)?))))
+            }
+            Some(output) => Ok(Box::new(NoColor::new(BufWriter::new(File::create(
+                &output,
+            )?)))),
+            None if color => Ok(Box::new(StandardStream::stdout(ColorChoice::Auto))),
+            None => Ok(Box::new(StandardStream::stdout(ColorChoice::Never))),
         }
     }
 }
