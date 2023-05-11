@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use crate::{CustomSection, Encode, Section};
 
+/// TODO: Make this a full example with all modules, instances, stack frames, etc.
 /// The "core" custom section for coredumps, as described in the
 /// [tool-conventions
 /// repository](https://github.com/WebAssembly/tool-conventions/blob/main/Coredump.md)
@@ -49,6 +50,109 @@ impl Section for CoreDumpSection {
     }
 }
 
+/// The "coremodules" custom section for coredumps which lists the names of the
+/// modules
+#[derive(Debug)]
+pub struct CoreDumpModulesSection {
+    num_added: u32,
+    bytes: Vec<u8>,
+}
+
+impl CoreDumpModulesSection {
+    /// Create a new core dump modules section encoder.
+    pub fn new() -> Self {
+        CoreDumpModulesSection {
+            bytes: vec![],
+            num_added: 0,
+        }
+    }
+
+    /// View the encoded section as a CustomSection.
+    pub fn as_custom(&self) -> CustomSection<'_> {
+        let mut data = vec![];
+        self.num_added.encode(&mut data);
+        data.extend(self.bytes.iter().copied());
+        CustomSection {
+            name: "coremodules".into(),
+            data: Cow::Owned(data),
+        }
+    }
+
+    /// Encode a module name into the section's bytes.
+    pub fn module(&mut self, module_name: impl AsRef<str>) -> &mut Self {
+        self.bytes.push(0x0);
+        module_name.as_ref().encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// The number of modules that are encoded in the section.
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+}
+
+impl Encode for CoreDumpModulesSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.as_custom().encode(sink);
+    }
+}
+
+/// The "coreinstances" section for the core dump
+#[derive(Debug)]
+pub struct CoreDumpInstancesSection {
+    num_added: u32,
+    bytes: Vec<u8>,
+}
+
+impl CoreDumpInstancesSection {
+    /// Create a new core dump instances section encoder.
+    pub fn new() -> Self {
+        CoreDumpInstancesSection {
+            bytes: vec![],
+            num_added: 0,
+        }
+    }
+
+    /// View the encoded section as a CustomSection.
+    pub fn as_custom(&self) -> CustomSection<'_> {
+        let mut data = vec![];
+        self.num_added.encode(&mut data);
+        data.extend(self.bytes.iter().copied());
+        CustomSection {
+            name: "coreinstances".into(),
+            data: Cow::Owned(data),
+        }
+    }
+
+    /// Encode an instance into the section's bytes.
+    pub fn instance<M, G>(&mut self, module_index: u32, memories: M, globals: G) -> &mut Self
+    where
+        M: IntoIterator<Item = u32>,
+        <M as IntoIterator>::IntoIter: ExactSizeIterator,
+        G: IntoIterator<Item = u32>,
+        <G as IntoIterator>::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x0);
+        module_index.encode(&mut self.bytes);
+        crate::encode_vec(memories, &mut self.bytes);
+        crate::encode_vec(globals, &mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// The number of modules that are encoded in the section.
+    pub fn len(&self) -> u32 {
+        self.num_added
+    }
+}
+
+impl Encode for CoreDumpInstancesSection {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.as_custom().encode(sink);
+    }
+}
+
 /// A "corestack" custom section as described in the [tool-conventions
 /// repository](https://github.com/WebAssembly/tool-conventions/blob/main/Coredump.md)
 ///
@@ -86,7 +190,14 @@ impl CoreDumpStackSection {
     }
 
     /// Add a stack frame to this coredump stack section.
-    pub fn frame<L, S>(&mut self, funcidx: u32, codeoffset: u32, locals: L, stack: S) -> &mut Self
+    pub fn frame<L, S>(
+        &mut self,
+        instanceidx: u32,
+        funcidx: u32,
+        codeoffset: u32,
+        locals: L,
+        stack: S,
+    ) -> &mut Self
     where
         L: IntoIterator<Item = CoreDumpValue>,
         <L as IntoIterator>::IntoIter: ExactSizeIterator,
@@ -95,6 +206,7 @@ impl CoreDumpStackSection {
     {
         self.count += 1;
         self.frame_bytes.push(0);
+        instanceidx.encode(&mut self.frame_bytes);
         funcidx.encode(&mut self.frame_bytes);
         codeoffset.encode(&mut self.frame_bytes);
         crate::encode_vec(locals, &mut self.frame_bytes);
@@ -182,6 +294,7 @@ mod tests {
         let core = CoreDumpSection::new("test.wasm");
         let mut corestack = CoreDumpStackSection::new("main");
         corestack.frame(
+            0,
             12,
             0,
             vec![CoreDumpValue::I32(10)],
