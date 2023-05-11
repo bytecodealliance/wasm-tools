@@ -9,7 +9,7 @@
           (export (;0;) "f" (func (type 2)))
         )
       )
-      (import "x" (instance (type 0)))
+      (import "x" (instance (;0;) (type 0)))
       (alias export 0 "t" (type (;1;)))
       (type (;2;) (own 1))
       (type (;3;) (func (result "x" 2)))

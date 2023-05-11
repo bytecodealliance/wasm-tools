@@ -9,7 +9,7 @@
               (export (;1;) "the-type" (type (eq 0)))
             )
           )
-          (import "the-interface" "path:/bar/bar/the-interface" (instance (type 0)))
+          (import "the-interface" "path:/bar/bar/the-interface" (instance (;0;) (type 0)))
           (alias export 0 "the-type" (type (;1;)))
           (type (;2;)
             (instance
@@ -17,7 +17,7 @@
               (export (;1;) "bar" (type (eq 0)))
             )
           )
-          (import "bar" "path:/bar/bar/the-name" (instance (type 2)))
+          (import "bar" "path:/bar/bar/the-name" (instance (;1;) (type 2)))
         )
       )
       (export (;0;) "foo" "pkg:/foo/foo" (component (type 0)))

@@ -8,7 +8,7 @@
           (export (;1;) "t" (type (eq 0)))
         )
       )
-      (import "x" (instance (type 1)))
+      (import "x" (instance (;0;) (type 1)))
       (alias export 0 "t" (type (;2;)))
     )
   )

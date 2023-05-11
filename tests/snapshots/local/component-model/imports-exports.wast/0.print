@@ -14,7 +14,7 @@
           (export (;0;) "f" (func (type 0)))
         )
       )
-      (import "c" (instance (type 0)))
+      (import "c" (instance (;0;) (type 0)))
       (type (;1;) (func (result string)))
       (export (;0;) "g" (func (type 1)))
     )

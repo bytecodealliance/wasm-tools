@@ -2,7 +2,7 @@
   (import "a" (value $i (;0;) string))
   (type (;0;)
     (component
-      (import "a" (value string))
+      (import "a" (value (;0;) string))
     )
   )
   (import "b" (component $c (;0;) (type 0)))

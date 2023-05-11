@@ -8,7 +8,7 @@
       (type (;0;)
         (component)
       )
-      (import "a" (component (type 0)))
+      (import "a" (component (;0;) (type 0)))
     )
   )
   (import "b" (component $c (;1;) (type 1)))

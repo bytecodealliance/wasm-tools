@@ -44,7 +44,7 @@
               (export (;3;) "d" (func (type 11)))
             )
           )
-          (import "foo" "pkg:/reference-out-of-order/foo" (instance (type 0)))
+          (import "foo" "pkg:/reference-out-of-order/foo" (instance (;0;) (type 0)))
         )
       )
       (export (;0;) "foo-world" "pkg:/reference-out-of-order/foo-world" (component (type 1)))
