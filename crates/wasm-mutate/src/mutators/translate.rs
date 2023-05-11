@@ -1,4 +1,3 @@
-use crate::mutators::Item::Type;
 use crate::{Error, Result};
 use wasm_encoder::*;
 use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator, Type};
