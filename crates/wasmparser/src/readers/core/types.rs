@@ -550,8 +550,7 @@ impl fmt::Display for RefType {
 pub enum HeapType {
     /// User defined type at the given index.
     TypedFunc(u32),
-    // Indexed user defined type at the given index.
-    // Indexed(u32),
+    // TODO rename TypedFunc to Indexed as there are more indexed types now: funcs, structs, arrays.
     /// Untyped (any) function.
     Func,
     /// External heap type.

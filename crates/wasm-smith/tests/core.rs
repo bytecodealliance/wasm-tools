@@ -132,7 +132,9 @@ fn smoke_test_imports_config() {
                     for ty in rdr {
                         match ty.unwrap() {
                             wasmparser::Type::Func(ft) => sig_types.push(ft),
-                            _ => unimplemented!("Array and struct types are not supported yet."),
+                            wasmparser::Type::Array(_) => {
+                                unimplemented!("Array and struct types are not supported yet.")
+                            }
                         }
                     }
                 } else if let wasmparser::Payload::ImportSection(rdr) = payload {

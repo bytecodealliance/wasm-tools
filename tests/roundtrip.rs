@@ -152,7 +152,12 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
     // TODO: the gc proposal isn't implemented yet
     if test.iter().any(|p| p == "gc") {
         // selectively enable some tests
-        let implemented = &["gc-i31.wat", "gc-heaptypes.wat", "gc-array-types.wat"];
+        let implemented = &[
+            "gc-i31.wat",
+            "gc-heaptypes.wat",
+            "gc-array-types.wat",
+            "gc-array-types-invalid.wast",
+        ];
         if implemented.iter().any(|x| test.ends_with(x)) {
             return false;
         }
@@ -303,7 +308,7 @@ impl TestState {
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
         // Only test parsing and encoding of modules which wasmparser doesn't
         // support test (basically just test `wast`, nothing else)
-        let skip_verify = test.iter().any(|t| t == "gc")
+        let skip_verify =
             // This specific test contains a module along the lines of:
             //
             //  (module
@@ -316,7 +321,7 @@ impl TestState {
             // segment has a type of `funcref` which isn't compatible with the
             // table's type. The spec interpreter thinks this should validate,
             // however, and I'm not entirely sure why.
-            || test.ends_with("function-references/br_table.wast");
+            test.ends_with("function-references/br_table.wast");
 
         match directive {
             WastDirective::Wat(mut module) => {

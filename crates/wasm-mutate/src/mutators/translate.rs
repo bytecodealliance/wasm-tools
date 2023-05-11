@@ -1,3 +1,4 @@
+use crate::mutators::Item::Type;
 use crate::{Error, Result};
 use wasm_encoder::*;
 use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator, Type};
@@ -137,7 +138,7 @@ pub fn type_def(t: &mut dyn Translator, ty: Type, s: &mut TypeSection) -> Result
             );
             Ok(())
         }
-        _ => unimplemented!("Array and struct types are not supported yet."),
+        Type::Array(_) => unimplemented!("Array and struct types are not supported yet."),
     }
 }
 

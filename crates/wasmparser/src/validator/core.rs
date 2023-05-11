@@ -514,8 +514,7 @@ impl Module {
                 Type::Func(t)
             }
             crate::Type::Array(t) => {
-                // TODO check element type. Currently the check panics if the ref is not to a function type.
-                // self.check_revalue_type(t.element_type, features, types, offset)?;
+                self.check_value_type(t.element_type, features, types, offset)?;
                 Type::Array(t)
             }
         };
@@ -807,7 +806,7 @@ impl Module {
         Ok(())
     }
 
-    fn check_ref_type(&self, ty: RefType, types: &TypeList, offset: usize) -> Result<()> {
+    fn check_ref_type(&self, ty: RefType, _types: &TypeList, offset: usize) -> Result<()> {
         // Check that the heap type is valid
         match ty.heap_type() {
             HeapType::Func
@@ -822,7 +821,7 @@ impl Module {
             | HeapType::I31 => (),
             HeapType::TypedFunc(type_index) => {
                 // Just check that the index is valid
-                self.func_type_at(type_index.into(), types, offset)?;
+                self.type_at(type_index, offset)?;
             }
         }
         Ok(())
