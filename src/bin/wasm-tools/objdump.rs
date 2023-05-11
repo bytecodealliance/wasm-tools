@@ -1,4 +1,5 @@
 use anyhow::Result;
+use termcolor::WriteColor;
 use std::io::Write;
 use std::ops::Range;
 use wasmparser::{Encoding, Parser, Payload::*};
@@ -90,7 +91,7 @@ struct IndexSpace {
 
 struct Printer {
     indices: Vec<IndexSpace>,
-    output: Box<dyn Write>,
+    output: Box<dyn WriteColor>,
 }
 
 impl Printer {
