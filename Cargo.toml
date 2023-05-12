@@ -64,6 +64,7 @@ log = { workspace = true }
 clap = { workspace = true }
 tempfile = "3.2.0"
 wat = { workspace = true }
+termcolor = "1.2.0"
 
 # Dependencies of `validate`
 wasmparser = { workspace = true, optional = true }
@@ -110,7 +111,6 @@ wit-smith = { workspace = true, features = ["clap"], optional = true }
 # Dependencies of `addr2line`
 addr2line = { version = "0.20.0", optional = true }
 gimli = { version = "0.27.2", optional = true }
-termcolor = "1.2.0"
 
 [dev-dependencies]
 serde_json = "1.0"

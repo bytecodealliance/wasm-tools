@@ -51,8 +51,8 @@ pub struct InputOutput {
     verbosity: Verbosity,
 
     /// Use colors in output.
-    #[clap(long = "color", short = 'c', action = clap::ArgAction::SetTrue)]
-    color: bool,
+    #[clap(long = "color", short = 'c')]
+    color: Option<ColorChoice>,
 }
 
 #[derive(clap::Parser)]
@@ -95,7 +95,8 @@ impl InputOutput {
     }
 
     pub fn output_writer(&self) -> Result<Box<dyn WriteColor>> {
-        self.output.output_writer(self.color)
+        self.output
+            .output_writer(self.color.unwrap_or(ColorChoice::Auto))
     }
 
     pub fn output_path(&self) -> Option<&Path> {
@@ -155,16 +156,21 @@ impl OutputArg {
         self.output.as_deref()
     }
 
-    pub fn output_writer(&self, color: bool) -> Result<Box<dyn WriteColor>> {
+    pub fn output_writer(&self, mut color: ColorChoice) -> Result<Box<dyn WriteColor>> {
+        if color == ColorChoice::Auto && !atty::is(atty::Stream::Stdout) {
+            color = ColorChoice::Never;
+        }
+
         match &self.output {
-            Some(output) if color => {
-                Ok(Box::new(Ansi::new(BufWriter::new(File::create(&output)?))))
+            Some(output) => {
+                let writer = BufWriter::new(File::create(&output)?);
+                if color == ColorChoice::Never {
+                    Ok(Box::new(NoColor::new(writer)))
+                } else {
+                    Ok(Box::new(Ansi::new(writer)))
+                }
             }
-            Some(output) => Ok(Box::new(NoColor::new(BufWriter::new(File::create(
-                &output,
-            )?)))),
-            None if color => Ok(Box::new(StandardStream::stdout(ColorChoice::Auto))),
-            None => Ok(Box::new(StandardStream::stdout(ColorChoice::Never))),
+            None => Ok(Box::new(StandardStream::stdout(color))),
         }
     }
 }
