@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::fmt::Write as _;
 use std::io::Write;
+use termcolor::{Color, ColorSpec, WriteColor};
 use wasmparser::*;
 
 /// Debugging utility to dump information about a wasm binary.
@@ -27,7 +28,7 @@ struct Dump<'a> {
     bytes: &'a [u8],
     cur: usize,
     state: String,
-    dst: Box<dyn Write + 'a>,
+    dst: Box<dyn WriteColor + 'a>,
     nesting: u32,
     offset_width: usize,
 }
@@ -63,7 +64,7 @@ enum ComponentTypeKind {
 const NBYTES: usize = 4;
 
 impl<'a> Dump<'a> {
-    fn new(bytes: &'a [u8], dst: impl Write + 'a) -> Dump<'a> {
+    fn new(bytes: &'a [u8], dst: impl WriteColor + 'a) -> Dump<'a> {
         Dump {
             bytes,
             cur: 0,
@@ -94,7 +95,7 @@ impl<'a> Dump<'a> {
                     range,
                 } => {
                     write!(self.state, "version {} ({:?})", num, encoding)?;
-                    self.print(range.end)?;
+                    self.color_print(range.end)?;
                 }
                 Payload::TypeSection(s) => self.section(s, "type", |me, end, t| {
                     write!(me.state, "[type {}] {:?}", inc(&mut i.core_types), t)?;
@@ -228,7 +229,7 @@ impl<'a> Dump<'a> {
 
                 Payload::CodeSectionStart { count, range, size } => {
                     write!(self.state, "code section")?;
-                    self.print(range.start)?;
+                    self.color_print(range.start)?;
                     write!(self.state, "{} count", count)?;
                     self.print(range.end - size as usize)?;
                 }
@@ -420,7 +421,7 @@ impl<'a> Dump<'a> {
 
                 Payload::CustomSection(c) => {
                     write!(self.state, "custom section")?;
-                    self.print(c.range().start)?;
+                    self.color_print(c.range().start)?;
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
                     if c.name() == "name" {
@@ -448,7 +449,7 @@ impl<'a> Dump<'a> {
                     contents,
                 } => {
                     write!(self.state, "unknown section: {}", id)?;
-                    self.print(range.start)?;
+                    self.color_print(range.start)?;
                     self.print_byte_header()?;
                     for _ in 0..NBYTES {
                         write!(self.dst, "---")?;
@@ -591,7 +592,7 @@ impl<'a> Dump<'a> {
         T: FromReader<'b>,
     {
         write!(self.state, "{} section", name)?;
-        self.print(iter.range().start)?;
+        self.color_print(iter.range().start)?;
         self.print_iter(iter, print)
     }
 
@@ -623,7 +624,15 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
+    fn color_print(&mut self, end: usize) -> Result<()> {
+        self.print_(end, true)
+    }
+
     fn print(&mut self, end: usize) -> Result<()> {
+        self.print_(end, false)
+    }
+
+    fn print_(&mut self, end: usize, color: bool) -> Result<()> {
         assert!(
             self.cur < end,
             "{:#x} >= {:#x}\ntrying to print: {}",
@@ -651,7 +660,12 @@ impl<'a> Dump<'a> {
             }
             if i == 0 {
                 write!(self.dst, " | ")?;
+                if color {
+                    self.dst
+                        .set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
+                }
                 write!(self.dst, "{}", &self.state)?;
+                self.dst.set_color(ColorSpec::new().set_fg(None))?;
                 self.state.truncate(0);
             }
             writeln!(self.dst)?;

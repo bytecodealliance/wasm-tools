@@ -64,6 +64,7 @@ log = { workspace = true }
 clap = { workspace = true }
 tempfile = "3.2.0"
 wat = { workspace = true }
+termcolor = "1.2.0"
 
 # Dependencies of `validate`
 wasmparser = { workspace = true, optional = true }
