@@ -156,21 +156,23 @@ impl OutputArg {
         self.output.as_deref()
     }
 
-    pub fn output_writer(&self, mut color: ColorChoice) -> Result<Box<dyn WriteColor>> {
-        if color == ColorChoice::Auto && !atty::is(atty::Stream::Stdout) {
-            color = ColorChoice::Never;
-        }
-
+    pub fn output_writer(&self, color: ColorChoice) -> Result<Box<dyn WriteColor>> {
         match &self.output {
             Some(output) => {
                 let writer = BufWriter::new(File::create(&output)?);
-                if color == ColorChoice::Never {
-                    Ok(Box::new(NoColor::new(writer)))
-                } else {
+                if color == ColorChoice::AlwaysAnsi {
                     Ok(Box::new(Ansi::new(writer)))
+                } else {
+                    Ok(Box::new(NoColor::new(writer)))
                 }
             }
-            None => Ok(Box::new(StandardStream::stdout(color))),
+            None => {
+                if color == ColorChoice::Auto && !atty::is(atty::Stream::Stdout) {
+                    Ok(Box::new(StandardStream::stdout(ColorChoice::Never)))
+                } else {
+                    Ok(Box::new(StandardStream::stdout(color)))
+                }
+            }
         }
     }
 }
