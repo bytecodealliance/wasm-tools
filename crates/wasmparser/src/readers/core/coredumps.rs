@@ -125,14 +125,15 @@ impl<'a> FromReader<'a> for CoreDumpInstance {
 /// # Examples
 ///
 /// ```
-/// let data: &[u8] = &[0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x01, 0x00, 0x2a,
-///     0x33, 0x01, 0x7f, 0x01, 0x01, 0x7f, 0x02];
+/// let data: &[u8] = &[0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x01, 0x00, 0x04,
+///     0x2a, 0x33, 0x01, 0x7f, 0x01, 0x01, 0x7f, 0x02];
 /// use wasmparser::{ BinaryReader, CoreDumpStackSection, FromReader };
 /// let mut reader = BinaryReader::new(data);
 /// let corestack = CoreDumpStackSection::from_reader(&mut reader).unwrap();
 /// assert!(corestack.name == "main");
 /// assert!(corestack.frames.len() == 1);
 /// let frame = &corestack.frames[0];
+/// assert!(frame.instanceidx == 4);
 /// assert!(frame.funcidx == 42);
 /// assert!(frame.codeoffset == 51);
 /// assert!(frame.locals.len() == 1);

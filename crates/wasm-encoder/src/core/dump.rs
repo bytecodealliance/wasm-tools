@@ -16,7 +16,8 @@ use crate::{CustomSection, Encode, Section};
 ///
 /// ```
 /// use wasm_encoder::{
-///    CoreDumpInstancesSection, CoreDumpModulesSection, CoreDumpSection, CoreDumpStackSection, Module,
+///     CoreDumpInstancesSection, CoreDumpModulesSection, CoreDumpSection, CoreDumpStackSection,
+///     CoreDumpValue, Module,
 /// };
 /// let core = CoreDumpSection::new("MyModule.wasm");
 ///
@@ -25,8 +26,8 @@ use crate::{CustomSection, Encode, Section};
 ///
 /// let mut instances = CoreDumpInstancesSection::new();
 /// let module_idx = 0;
-/// let memories = vec![CoreDumpValue::I32(1)];
-/// let globals = vec![CoreDumpValue::I32(2)];
+/// let memories = vec![1];
+/// let globals = vec![2];
 /// instances.instance(module_idx, memories, globals);
 ///
 /// let mut thread = CoreDumpStackSection::new("main");
@@ -87,6 +88,7 @@ impl Section for CoreDumpSection {
 /// use wasm_encoder::{CoreDumpModulesSection, Module};
 /// let mut modules_section = CoreDumpModulesSection::new();
 /// modules_section.module("my_module");
+/// let mut module = Module::new();
 /// module.section(&modules_section);
 /// ```
 #[derive(Debug)]
@@ -132,6 +134,12 @@ impl CoreDumpModulesSection {
 impl Encode for CoreDumpModulesSection {
     fn encode(&self, sink: &mut Vec<u8>) {
         self.as_custom().encode(sink);
+    }
+}
+
+impl Section for CoreDumpModulesSection {
+    fn id(&self) -> u8 {
+        crate::core::SectionId::Custom as u8
     }
 }
 
@@ -187,6 +195,12 @@ impl CoreDumpInstancesSection {
 impl Encode for CoreDumpInstancesSection {
     fn encode(&self, sink: &mut Vec<u8>) {
         self.as_custom().encode(sink);
+    }
+}
+
+impl Section for CoreDumpInstancesSection {
+    fn id(&self) -> u8 {
+        crate::core::SectionId::Custom as u8
     }
 }
 
@@ -321,26 +335,17 @@ impl Encode for CoreDumpValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Module;
+    use wasmparser::{BinaryReader, FromReader, Parser, Payload};
 
-    // Create new core dump and core dump stack sections and test whether they
-    // are properly encoded and parsed back out by wasmparser
+    // Create new core dump section and test whether it is properly encoded and
+    // parsed back out by wasmparser
     #[test]
-    fn test_roundtrip() {
-        use crate::Module;
-        use wasmparser::{BinaryReader, FromReader, Parser, Payload};
-
+    fn test_roundtrip_core() {
         let core = CoreDumpSection::new("test.wasm");
-        let mut corestack = CoreDumpStackSection::new("main");
-        corestack.frame(
-            0,
-            12,
-            0,
-            vec![CoreDumpValue::I32(10)],
-            vec![CoreDumpValue::I32(42)],
-        );
         let mut module = Module::new();
         module.section(&core);
-        module.section(&corestack);
+
         let wasm_bytes = module.finish();
 
         let mut parser = Parser::new(0).parse_all(&wasm_bytes);
@@ -363,6 +368,104 @@ mod tests {
                 assert_eq!(core.name, "test.wasm");
             }
             _ => panic!("unexpected payload"),
+        }
+    }
+
+    #[test]
+    fn test_roundtrip_coremodules() {
+        let mut coremodules = CoreDumpModulesSection::new();
+        coremodules.module("test_module");
+
+        let mut module = crate::Module::new();
+        module.section(&coremodules);
+
+        let wasm_bytes = module.finish();
+
+        let mut parser = Parser::new(0).parse_all(&wasm_bytes);
+        match parser.next() {
+            Some(Ok(Payload::Version { .. })) => {}
+            _ => panic!(""),
+        }
+
+        let payload = parser
+            .next()
+            .expect("parser is not empty")
+            .expect("element is a payload");
+        match payload {
+            Payload::CustomSection(section) => {
+                assert_eq!(section.name(), "coremodules");
+                let modules = wasmparser::CoreDumpModulesSection::from_reader(
+                    &mut BinaryReader::new(section.data()),
+                )
+                .expect("data is readable into a core dump modules section");
+                assert_eq!(modules.modules[0], "test_module");
+            }
+            _ => panic!("unexpected payload"),
+        }
+    }
+
+    #[test]
+    fn test_roundtrip_coreinstances() {
+        let mut coreinstances = CoreDumpInstancesSection::new();
+        let module_index = 0;
+        let memories = vec![42];
+        let globals = vec![17];
+        coreinstances.instance(module_index, memories, globals);
+
+        let mut module = Module::new();
+        module.section(&coreinstances);
+        let wasm_bytes = module.finish();
+
+        let mut parser = Parser::new(0).parse_all(&wasm_bytes);
+        match parser.next() {
+            Some(Ok(Payload::Version { .. })) => {}
+            _ => panic!(""),
+        }
+
+        let payload = parser
+            .next()
+            .expect("parser is not empty")
+            .expect("element is a payload");
+        match payload {
+            Payload::CustomSection(section) => {
+                assert_eq!(section.name(), "coreinstances");
+                let coreinstances = wasmparser::CoreDumpInstancesSection::from_reader(
+                    &mut BinaryReader::new(section.data()),
+                )
+                .expect("data is readable into a core dump instances section");
+                assert_eq!(coreinstances.instances.len(), 1);
+                let instance = coreinstances
+                    .instances
+                    .first()
+                    .expect("instance is encoded");
+                assert_eq!(instance.module_index, 0);
+                assert_eq!(instance.memories.len(), 1);
+                assert_eq!(instance.globals.len(), 1);
+            }
+            _ => panic!("unexpected payload"),
+        }
+    }
+
+    // Create new corestack section and test whether it is properly encoded and
+    // parsed back out by wasmparser
+    #[test]
+    fn test_roundtrip_corestack() {
+        let mut corestack = CoreDumpStackSection::new("main");
+        corestack.frame(
+            0,
+            12,
+            0,
+            vec![CoreDumpValue::I32(10)],
+            vec![CoreDumpValue::I32(42)],
+        );
+        let mut module = Module::new();
+        module.section(&corestack);
+        let wasm_bytes = module.finish();
+
+        let mut parser = Parser::new(0).parse_all(&wasm_bytes);
+        match parser.next() {
+            Some(Ok(Payload::Version { .. })) => {}
+            _ => panic!(""),
         }
 
         let payload = parser
@@ -408,16 +511,69 @@ mod tests {
         core.encode(&mut encoded);
 
         #[rustfmt::skip]
-      assert_eq!(encoded, vec![
-          // section length
-          11,
-          // name length
-          4,
-          // section name (core)
-          b'c',b'o',b'r',b'e',
-          // process-info (0, data length, data)
-          0, 4, b't', b'e', b's', b't',
-      ]);
+        assert_eq!(encoded, vec![
+            // section length
+            11,
+            // name length
+            4,
+            // section name (core)
+            b'c',b'o',b'r',b'e',
+            // process-info (0, data length, data)
+            0, 4, b't', b'e', b's', b't',
+        ]);
+    }
+
+    #[test]
+    fn test_encode_coremodules_section() {
+        let mut modules = CoreDumpModulesSection::new();
+        modules.module("mod1");
+        modules.module("mod2");
+
+        let mut encoded = vec![];
+        modules.encode(&mut encoded);
+
+        #[rustfmt::skip]
+        assert_eq!(encoded, vec![
+            // section length
+            25,
+            // name length
+            11,
+            // section name (coremodules)
+            b'c',b'o',b'r',b'e',b'm',b'o',b'd',b'u',b'l',b'e',b's',
+            // module count
+            2,
+            // 0x0, name-length, module name (mod1)
+            0x0, 4, b'm',b'o',b'd',b'1',
+            // 0x0, name-length, module name (mod2)
+            0x0, 4, b'm',b'o',b'd',b'2'
+        ]);
+    }
+
+    #[test]
+    fn test_encode_coreinstances_section() {
+        let mut instances = CoreDumpInstancesSection::new();
+        instances.instance(0, vec![42], vec![17]);
+
+        let mut encoded = vec![];
+        instances.encode(&mut encoded);
+
+        #[rustfmt::skip]
+        assert_eq!(encoded, vec![
+            // section length
+            21,
+            // name length
+            13,
+            // section name (coreinstances)
+            b'c',b'o',b'r',b'e',b'i',b'n',b's',b't',b'a',b'n',b'c',b'e',b's',
+            // instance count
+            1,
+            // 0x0, module_idx
+            0x0, 0,
+            // memories count, memories
+            1, 42, 
+            // globals count, globals
+            1, 17
+        ]);
     }
 
     #[test]
