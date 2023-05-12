@@ -1,4 +1,6 @@
 // parse-fail
 
+package foo
+
 interface foo {}
 interface foo {}

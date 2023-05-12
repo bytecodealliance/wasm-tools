@@ -1,5 +1,5 @@
 import `foo` conflicts with prior import of same name
-     --> tests/ui/parse-fail/world-same-fields2.wit:5:10
+     --> tests/ui/parse-fail/world-same-fields2.wit:7:10
       |
-    5 |   import foo: interface {}
+    7 |   import foo: interface {}
       |          ^--

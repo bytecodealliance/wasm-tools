@@ -1,5 +1,5 @@
 name `nonexistent` is not defined
-     --> tests/ui/parse-fail/bad-function.wit:4:18
+     --> tests/ui/parse-fail/bad-function.wit:6:18
       |
-    4 |   x: func(param: nonexistent)
+    6 |   x: func(param: nonexistent)
       |                  ^----------

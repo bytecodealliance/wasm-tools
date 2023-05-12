@@ -1,31 +1,44 @@
+package root
+
 interface foo {
-  use wasi.clocks.{timestamp}
-  use wasi.filesystem.{stat}
+  use wasi/clocks.{timestamp}
+  use wasi/filesystem.{stat}
 }
 
 world my-world {
-  import wasi-fs: wasi.filesystem
-  import wasi-clocks: wasi.clocks
+  import wasi/filesystem
+  import wasi/clocks
 
-  export saas: corp.saas
+  export corp/saas
+}
+
+use wasi/filesystem as filesystem
+use wasi/clocks as clocks
+
+world my-world2 {
+  import filesystem
+  import clocks
+  export foo
+  export corp/saas
 }
 
 interface bar {
-  use some-pkg.some-doc.{from-default}
-  use some-pkg.some-doc.some-interface.{another-type}
-  use some-pkg.some-doc.some-interface.{}
-  use some-pkg.some-doc.another-interface.{yet-another-type}
-  use different-pkg.the-doc.{}
+  use filesystem.{}
+  use some-pkg/the-default.{from-default}
+  use some-pkg/some-interface.{another-type}
+  use some-pkg/some-interface.{}
+  use some-pkg/another-interface.{yet-another-type}
+  use different-pkg/i.{}
 }
 
 world bars-world {
-  import foo: some-pkg.some-doc
-  import bar: another-pkg.other-doc.other-interface
+  import some-pkg/the-default
+  import another-pkg/other-interface
 }
 
 interface use1 {
-  use foreign-pkg.the-doc.{some-type}
+  use foreign-pkg/the-default.{some-type}
 }
 interface use2 {
-  use foreign-pkg.the-doc.{some-type}
+  use foreign-pkg/the-default.{some-type}
 }

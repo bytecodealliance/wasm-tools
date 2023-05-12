@@ -1,5 +1,0 @@
-cannot specify more than one `default` world
-     --> tests/ui/parse-fail/default-world1.wit:3:15
-      |
-    3 | default world bar {}
-      |               ^--

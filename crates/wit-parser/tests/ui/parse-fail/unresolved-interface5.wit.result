@@ -1,5 +1,0 @@
-interface does not exist
-     --> tests/ui/parse-fail/unresolved-interface5.wit:4:41
-      |
-    4 |   import foo: pkg.unresolved-interface5.bar
-      |                                         ^--

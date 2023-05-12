@@ -1,0 +1,6 @@
+package foo
+
+world foo {
+  import dep1/types
+  import dep2/types
+}

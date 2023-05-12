@@ -1,7 +1,9 @@
 // parse-fail
 
+package foo
+
 world foo {
   import foo: interface {
-    use self.bar.{i32}
+    use bar.{i32}
   }
 }

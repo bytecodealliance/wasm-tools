@@ -1,9 +1,0 @@
-interface foo {
-  type g = char
-}
-
-world w {
-  use self.foo.{g}
-
-  import foo: func() -> g
-}

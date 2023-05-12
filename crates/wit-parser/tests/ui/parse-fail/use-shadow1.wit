@@ -1,0 +1,7 @@
+package foo
+
+use foo as bar
+
+interface foo {}
+
+interface bar {}

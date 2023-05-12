@@ -1,5 +1,0 @@
-import of function `foo` shadows previously imported interface
-     --> tests/ui/parse-fail/world-implicit-import2.wit:8:10
-      |
-    8 |   import foo: func() -> g
-      |          ^--

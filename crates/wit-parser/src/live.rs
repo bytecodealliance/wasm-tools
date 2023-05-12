@@ -1,6 +1,4 @@
-use crate::{
-    DocumentId, Function, InterfaceId, Resolve, Type, TypeDefKind, TypeId, WorldId, WorldItem,
-};
+use crate::{Function, InterfaceId, Resolve, Type, TypeDefKind, TypeId, WorldId, WorldItem};
 use indexmap::IndexSet;
 
 #[derive(Default)]
@@ -15,16 +13,6 @@ impl LiveTypes {
 
     pub fn len(&self) -> usize {
         self.set.len()
-    }
-
-    pub fn add_document(&mut self, resolve: &Resolve, doc: DocumentId) {
-        let doc = &resolve.documents[doc];
-        for (_, id) in doc.interfaces.iter() {
-            self.add_interface(resolve, *id);
-        }
-        for (_, id) in doc.worlds.iter() {
-            self.add_world(resolve, *id);
-        }
     }
 
     pub fn add_interface(&mut self, resolve: &Resolve, iface: InterfaceId) {

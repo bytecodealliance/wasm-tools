@@ -1,5 +1,7 @@
 // parse-fail
 
+package foo
+
 world foo {
-  import bar: self.bar
+  import bar
 }

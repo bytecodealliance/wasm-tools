@@ -1,3 +1,4 @@
+package foo
 world foo {
   import a: func()
   export a: func()

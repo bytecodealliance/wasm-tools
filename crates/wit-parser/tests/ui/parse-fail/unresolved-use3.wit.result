@@ -1,5 +1,5 @@
 cannot import function `x`
-     --> tests/ui/parse-fail/unresolved-use3.wit:4:17
+     --> tests/ui/parse-fail/unresolved-use3.wit:6:12
       |
-    4 |   use self.bar.{x}
-      |                 ^
+    6 |   use bar.{x}
+      |            ^

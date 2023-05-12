@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use std::borrow::Cow;
@@ -25,7 +25,6 @@ pub fn validate_id(s: &str) -> Result<()> {
 pub type WorldId = Id<World>;
 pub type InterfaceId = Id<Interface>;
 pub type TypeId = Id<TypeDef>;
-pub type DocumentId = Id<Document>;
 
 /// Representation of a parsed WIT package which has not resolved external
 /// dependencies yet.
@@ -54,15 +53,8 @@ pub type DocumentId = Id<Document>;
 /// performing this resolution themselves.
 #[derive(Clone)]
 pub struct UnresolvedPackage {
-    /// Local name for this package.
-    pub name: String,
-
-    /// Optionally-specified URL for this package.
-    ///
-    /// Must be specified for non-local dependencies. Note that this is never
-    /// automatically set from [`UnresolvedPackage::parse`] methods, and it must
-    /// be manually configured in the return value.
-    pub url: Option<String>,
+    /// The namespace, name, and version information for this package.
+    pub name: PackageName,
 
     /// All worlds from all documents within this package.
     ///
@@ -85,28 +77,67 @@ pub struct UnresolvedPackage {
     /// other types transitively that are already iterated over.
     pub types: Arena<TypeDef>,
 
-    /// All documents found within this package.
-    ///
-    /// Documents are sorted topologically in this arena with respect to imports
-    /// between them.
-    pub documents: Arena<Document>,
-
     /// All foreign dependencies that this package depends on.
     ///
     /// These foreign dependencies must be resolved to convert this unresolved
     /// package into a `Resolve`. The map here is keyed by the name of the
-    /// foreign package that this depends on, and the sub-map is keyed by a
-    /// document name followed by the identifier within `self.documents`. The
-    /// fields of `self.documents` describes the required types, interfaces,
-    /// etc, that are required from each foreign package.
-    pub foreign_deps: IndexMap<String, IndexMap<String, DocumentId>>,
+    /// foreign package that this depends on, and the sub-map is keyed by an
+    /// interface name followed by the identifier within `self.interfaces`. The
+    /// fields of `self.interfaces` describes the required types that are from
+    /// each foreign interface.
+    pub foreign_deps: IndexMap<PackageName, IndexMap<String, InterfaceId>>,
 
     unknown_type_spans: Vec<Span>,
     world_spans: Vec<(Vec<Span>, Vec<Span>)>,
-    document_spans: Vec<Span>,
     interface_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     source_map: SourceMap,
+}
+
+/// A structure used to keep track of the name of a package, containing optional
+/// information such as a namespace and version information.
+///
+/// This is directly encoded as an "ID" in the binary component representation
+/// with an interfaced tacked on as well.
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct PackageName {
+    /// An optional namespace such as `wasi` in `wasi:foo/bar`
+    pub namespace: Option<String>,
+    /// The kebab-name of this package, which is always specified.
+    pub name: String,
+    /// Optional major/minor version information.
+    pub version: Option<(u32, u32)>,
+}
+
+impl PackageName {
+    /// Returns the ID that this package name would assign the `interface` name
+    /// specified.
+    pub fn interface_id(&self, interface: &str) -> String {
+        let mut s = String::new();
+        if let Some(ns) = &self.namespace {
+            s.push_str(&format!("{ns}:"));
+        }
+        s.push_str(&self.name);
+        s.push_str("/");
+        s.push_str(interface);
+        if let Some((major, minor)) = self.version {
+            s.push_str(&format!("@{major}.{minor}"));
+        }
+        s
+    }
+}
+
+impl fmt::Display for PackageName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(ns) = &self.namespace {
+            write!(f, "{ns}:")?;
+        }
+        write!(f, "{}", self.name)?;
+        if let Some((major, minor)) = self.version {
+            write!(f, "@{major}.{minor}")?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -130,16 +161,8 @@ impl UnresolvedPackage {
     /// will not be able to use `pkg` use paths to other documents.
     pub fn parse(path: &Path, contents: &str) -> Result<Self> {
         let mut map = SourceMap::default();
-        let name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
-        let name = match name.find('.') {
-            Some(i) => &name[..i],
-            None => name,
-        };
-        map.push(path, name, contents);
-        map.parse(name, None)
+        map.push(path, contents);
+        map.parse()
     }
 
     /// Parse a WIT package at the provided path.
@@ -171,10 +194,6 @@ impl UnresolvedPackage {
     /// `path` into the returned package.
     pub fn parse_dir(path: &Path) -> Result<Self> {
         let mut map = SourceMap::default();
-        let name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
             let entry = entry.with_context(&cx)?;
@@ -197,7 +216,7 @@ impl UnresolvedPackage {
             }
             map.push_file(&path)?;
         }
-        map.parse(name, None)
+        map.parse()
     }
 
     /// Returns an iterator over the list of source files that were read when
@@ -205,34 +224,6 @@ impl UnresolvedPackage {
     pub fn source_files(&self) -> impl Iterator<Item = &Path> {
         self.source_map.source_files()
     }
-}
-
-/// Represents the result of parsing a wit document.
-#[derive(Debug, Clone)]
-pub struct Document {
-    pub name: String,
-
-    /// The top-level interfaces contained in the document.
-    ///
-    /// The interfaces here are listed in topological order of the
-    /// dependencies between them.
-    pub interfaces: IndexMap<String, InterfaceId>,
-
-    /// The worlds contained in the document.
-    pub worlds: IndexMap<String, WorldId>,
-
-    /// The default interface of this document, if any.
-    ///
-    /// This interface will also be listed in `self.interfaces`
-    pub default_interface: Option<InterfaceId>,
-
-    /// The default world of this document, if any.
-    ///
-    /// This will also be listed in `self.worlds`.
-    pub default_world: Option<WorldId>,
-
-    /// The package that this document belongs to.
-    pub package: Option<PackageId>,
 }
 
 #[derive(Debug, Clone)]
@@ -244,13 +235,34 @@ pub struct World {
     pub docs: Docs,
 
     /// All imported items into this interface, both worlds and functions.
-    pub imports: IndexMap<String, WorldItem>,
+    pub imports: IndexMap<WorldKey, WorldItem>,
 
     /// All exported items from this interface, both worlds and functions.
-    pub exports: IndexMap<String, WorldItem>,
+    pub exports: IndexMap<WorldKey, WorldItem>,
 
-    /// The document that owns this world.
-    pub document: DocumentId,
+    /// The package that owns this world.
+    pub package: Option<PackageId>,
+}
+
+/// The key to the import/export maps of a world. Either a kebab-name or a
+/// unique interface.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum WorldKey {
+    /// A kebab-name.
+    Name(String),
+    /// An interface which is assigned no kebab-name.
+    Interface(InterfaceId),
+}
+
+impl WorldKey {
+    /// Asserts that this is `WorldKey::Name` and returns the name.
+    #[track_caller]
+    pub fn unwrap_name(self) -> String {
+        match self {
+            WorldKey::Name(name) => name,
+            WorldKey::Interface(_) => panic!("expected a name, found interface"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -287,8 +299,8 @@ pub struct Interface {
     /// Exported functions from this interface.
     pub functions: IndexMap<String, Function>,
 
-    /// The document that this interface belongs to.
-    pub document: DocumentId,
+    /// The package that owns this interface.
+    pub package: Option<PackageId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

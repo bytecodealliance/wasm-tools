@@ -1,3 +1,5 @@
+package shared
+
 world foo {
   import foo: interface {
     a: func() -> list<u8>

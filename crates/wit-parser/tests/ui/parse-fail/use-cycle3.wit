@@ -1,6 +1,0 @@
-// parse-fail
-
-default interface foo {
-  // TODO: this could use a better error message
-  use pkg.use-cycle3.{bar}
-}

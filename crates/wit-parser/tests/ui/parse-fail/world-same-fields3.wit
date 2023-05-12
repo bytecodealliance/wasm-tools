@@ -1,5 +1,7 @@
 // parse-fail
 
+package foo
+
 world a {
   export foo: interface {}
   export foo: interface {}

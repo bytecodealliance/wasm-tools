@@ -1,0 +1,8 @@
+failed to parse package: tests/ui/parse-fail/conflicting-package
+
+Caused by:
+    package identifier does not match previous
+         --> tests/ui/parse-fail/conflicting-package/b.wit:1:9
+          |
+        1 | package b
+          |         ^

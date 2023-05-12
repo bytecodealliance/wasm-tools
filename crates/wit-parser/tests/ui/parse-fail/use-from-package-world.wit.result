@@ -1,5 +1,0 @@
-interface does not exist
-     --> tests/ui/parse-fail/use-from-package-world.wit:7:34
-      |
-    7 |   use pkg.use-from-package-world.foo.{x}
-      |                                  ^--

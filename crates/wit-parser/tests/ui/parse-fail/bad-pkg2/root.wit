@@ -1,3 +1,5 @@
+package foo
+
 interface foo {
-  use bar.nonexistent.{}
+  use bar/nonexistent.{}
 }

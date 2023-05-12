@@ -1,3 +1,5 @@
-default interface wasi-clocks {
+package wasi
+
+interface clocks {
   type timestamp = u64
 }

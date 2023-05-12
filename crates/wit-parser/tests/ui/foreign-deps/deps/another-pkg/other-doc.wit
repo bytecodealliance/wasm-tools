@@ -1,1 +1,3 @@
+package another-pkg
+
 interface other-interface {}

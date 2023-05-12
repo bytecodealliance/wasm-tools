@@ -1,0 +1,2 @@
+package dep1
+interface types {}

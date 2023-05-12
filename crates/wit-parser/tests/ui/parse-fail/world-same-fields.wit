@@ -1,9 +1,0 @@
-// parse-fail
-
-interface foo {}
-interface bar {}
-
-world a {
-  import foo: self.foo
-  import foo: self.bar
-}

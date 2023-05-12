@@ -1,5 +1,0 @@
-document `something-that-does-not-exist` does not exist
-     --> tests/ui/parse-fail/unresolved-use4.wit:4:11
-      |
-    4 |   use pkg.something-that-does-not-exist.{x}
-      |           ^----------------------------

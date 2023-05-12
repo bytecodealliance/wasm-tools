@@ -1,3 +1,0 @@
-interface bar {
-  use pkg.foo.{thing}
-}

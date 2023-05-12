@@ -1,5 +1,5 @@
-document does not specify a default interface
-     --> tests/ui/parse-fail/unresolved-interface4.wit:4:19
+package not found
+     --> tests/ui/parse-fail/unresolved-interface4.wit:6:10
       |
-    4 |   import foo: pkg.unresolved-interface4
-      |                   ^--------------------
+    6 |   import some:dependency/iface
+      |          ^--------------

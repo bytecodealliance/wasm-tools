@@ -1,5 +1,5 @@
 name `x` is not defined
-     --> tests/ui/parse-fail/unresolved-use7.wit:4:32
+     --> tests/ui/parse-fail/unresolved-use7.wit:6:12
       |
-    4 |   use pkg.unresolved-use7.bar.{x}
-      |                                ^
+    6 |   use bar.{x}
+      |            ^

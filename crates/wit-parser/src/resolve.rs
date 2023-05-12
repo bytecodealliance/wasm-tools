@@ -1,16 +1,14 @@
 use crate::ast::lex::Span;
 use crate::{
-    Document, DocumentId, Error, Function, Interface, InterfaceId, Results, Type, TypeDef,
-    TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
+    Error, Function, Interface, InterfaceId, PackageName, Results, Type, TypeDef, TypeDefKind,
+    TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem, WorldKey,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
-use std::fmt::Write;
 use std::mem;
 use std::path::{Path, PathBuf};
-use url::Url;
 
 /// Representation of a fully resolved set of WIT packages.
 ///
@@ -30,21 +28,26 @@ pub struct Resolve {
     pub worlds: Arena<World>,
     pub interfaces: Arena<Interface>,
     pub types: Arena<TypeDef>,
-    pub documents: Arena<Document>,
     pub packages: Arena<Package>,
+    pub package_names: IndexMap<PackageName, PackageId>,
 }
 
+/// A WIT package within a `Resolve`.
+///
+/// A package is a collection of interfaces and worlds. Packages additionally
+/// have a unique identifier that affects generated components and uniquely
+/// identifiers this particular package.
 #[derive(Clone)]
 pub struct Package {
-    /// Locally-known name of this package.
-    pub name: String,
+    /// A unique name corresponding to this package.
+    pub name: PackageName,
 
-    /// Optionally-specified URL of this package, must be specified for remote
-    /// dependencies.
-    pub url: Option<String>,
+    /// All interfaces contained in this packaged, keyed by the interface's
+    /// name.
+    pub interfaces: IndexMap<String, InterfaceId>,
 
-    /// Documents contained within this package, organized by name.
-    pub documents: IndexMap<String, DocumentId>,
+    /// All worlds contained in this package, keyed by the world's name.
+    pub worlds: IndexMap<String, WorldId>,
 }
 
 pub type PackageId = Id<Package>;
@@ -58,119 +61,90 @@ impl Resolve {
     /// Parses the filesystem directory at `path` as a WIT package and returns
     /// the fully resolved [`PackageId`] as a result.
     ///
-    /// This method is intended for testing and convenience for now and isn't
-    /// the only way to push packages into this [`Resolve`]. This will
-    /// interpret `path` as a directory where all `*.wit` files in that
-    /// directory are members of the package.
-    ///
     /// Dependencies referenced by the WIT package at `path` will be loaded from
-    /// a `deps/$name` directory under `path` where `$name` is the name of the
-    /// dependency loaded. If `deps/$name` does not exist then an error will be
-    /// returned indicating that the dependency is not defined. All dependencies
-    /// are listed in a flat namespace under `$path/deps` so they can refer to
-    /// each other.
+    /// a `deps/..` directory under `path`. All directories under `deps/` will
+    /// be parsed as a WIT package. The directory name containing each package
+    /// is not used as each package is otherwise self-identifying.
     ///
     /// This function returns the [`PackageId`] of the root parsed package at
     /// `path`, along with a list of all paths that were consumed during parsing
     /// for the root package and all dependency packages.
     pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
-        // Maintain a `to_parse` stack of packages that have yet to be parsed
-        // along with an `enqueued` set of all the prior parsed packages and
-        // packages enqueued to be parsed. These are then used to fill the
-        // `packages` map with parsed, but unresolved, packages. The `pkg_deps`
-        // map then tracks dependencies between packages.
-        let mut to_parse = Vec::new();
-        let mut enqueued = HashSet::new();
-        let mut packages = IndexMap::new();
-        let mut pkg_deps = IndexMap::new();
-        to_parse.push((path.to_path_buf(), None));
-        enqueued.insert(path.to_path_buf());
-        while let Some((pkg_root, url)) = to_parse.pop() {
-            let mut pkg = UnresolvedPackage::parse_dir(&pkg_root)
-                .with_context(|| format!("failed to parse package: {}", path.display()))?;
-            pkg.url = url;
+        let pkg = UnresolvedPackage::parse_dir(path)
+            .with_context(|| format!("failed to parse package: {}", path.display()))?;
 
-            let mut deps = Vec::new();
-            pkg.source_map.rewrite_error(|| {
-                for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
-                    let path = path.join("deps").join(dep);
-                    let span = pkg.foreign_dep_spans[i];
-                    // If this is the first request to parse `path` then push it
-                    // onto our stack, otherwise it's already there so skip it.
-                    if enqueued.insert(path.clone()) {
-                        if !path.is_dir() {
-                            bail!(Error {
-                                span,
-                                msg: format!(
-                                    "dependency on `{dep}` doesn't exist at: {}",
-                                    path.display()
-                                ),
-                            })
-                        }
-                        let url = Some(format!("path:/{dep}"));
-                        to_parse.push((path.clone(), url));
-                    }
-                    deps.push((path, span));
-                }
-                Ok(())
-            })?;
-
-            let prev = packages.insert(pkg_root.clone(), pkg);
-            assert!(prev.is_none());
-            pkg_deps.insert(pkg_root, deps);
-        }
+        let deps = path.join("deps");
+        let mut deps = parse_deps_dir(&deps)
+            .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
 
         // Perform a simple topological sort which will bail out on cycles
         // and otherwise determine the order that packages must be added to
         // this `Resolve`.
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
-        for (dep, _) in pkg_deps.iter() {
-            visit(dep, &pkg_deps, &packages, &mut order, &mut visiting)?;
-        }
+        visit(&pkg, &deps, &mut order, &mut visiting)?;
 
         // Using the topological ordering insert each package incrementally.
         // Additionally note that the last item visited here is the root
         // package, which is the one returned here.
-        let mut package_ids = IndexMap::new();
         let mut last = None;
         let mut files = Vec::new();
-        for path in order {
-            let pkg = packages.remove(path).unwrap();
-            let mut deps = HashMap::new();
-            for ((dep, _), (path, _span)) in pkg.foreign_deps.iter().zip(&pkg_deps[path]) {
-                deps.insert(dep.clone(), package_ids[&**path]);
-            }
+        let mut pkg = Some(pkg);
+        for name in order {
+            let pkg = deps.remove(&name).unwrap_or_else(|| pkg.take().unwrap());
             files.extend(pkg.source_files().map(|p| p.to_path_buf()));
-            let pkgid = self.push(pkg, &deps)?;
-            package_ids.insert(path, pkgid);
+            let pkgid = self.push(pkg)?;
             last = Some(pkgid);
         }
 
         return Ok((last.unwrap(), files));
 
+        fn parse_deps_dir(path: &Path) -> Result<HashMap<PackageName, UnresolvedPackage>> {
+            let mut ret = HashMap::new();
+            // If there's no `deps` dir, then there's no deps, so return the
+            // empty set.
+            if !path.exists() {
+                return Ok(ret);
+            }
+            for dep in path.read_dir()? {
+                let dep = dep?;
+                let path = dep.path();
+                let pkg = UnresolvedPackage::parse_dir(&path)
+                    .with_context(|| format!("failed to parse package: {}", path.display()))?;
+                let prev = ret.insert(pkg.name.clone(), pkg);
+                if let Some(prev) = prev {
+                    bail!("duplicate definitions of package `{}` found", prev.name);
+                }
+            }
+            Ok(ret)
+        }
+
         fn visit<'a>(
-            path: &'a Path,
-            deps: &'a IndexMap<PathBuf, Vec<(PathBuf, Span)>>,
-            pkgs: &IndexMap<PathBuf, UnresolvedPackage>,
-            order: &mut IndexSet<&'a Path>,
-            visiting: &mut HashSet<&'a Path>,
+            pkg: &'a UnresolvedPackage,
+            deps: &'a HashMap<PackageName, UnresolvedPackage>,
+            order: &mut IndexSet<PackageName>,
+            visiting: &mut HashSet<&'a PackageName>,
         ) -> Result<()> {
-            if order.contains(path) {
+            if order.contains(&pkg.name) {
                 return Ok(());
             }
-            pkgs[path].source_map.rewrite_error(|| {
-                for (dep, span) in deps[path].iter() {
+            pkg.source_map.rewrite_error(|| {
+                for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
+                    let span = pkg.foreign_dep_spans[i];
                     if !visiting.insert(dep) {
                         bail!(Error {
-                            span: *span,
+                            span,
                             msg: format!("package depends on itself"),
                         });
                     }
-                    visit(dep, deps, pkgs, order, visiting)?;
-                    assert!(visiting.remove(&**dep));
+                    let dep = deps.get(dep).ok_or_else(|| Error {
+                        span,
+                        msg: format!("failed to find package in `deps` directory"),
+                    })?;
+                    visit(dep, deps, order, visiting)?;
+                    assert!(visiting.remove(&dep.name));
                 }
-                assert!(order.insert(path));
+                assert!(order.insert(pkg.name.clone()));
                 Ok(())
             })
         }
@@ -184,13 +158,9 @@ impl Resolve {
     ///
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here. If successful a package identifier is returned.
-    pub fn push(
-        &mut self,
-        mut unresolved: UnresolvedPackage,
-        deps: &HashMap<String, PackageId>,
-    ) -> Result<PackageId> {
+    pub fn push(&mut self, mut unresolved: UnresolvedPackage) -> Result<PackageId> {
         let source_map = mem::take(&mut unresolved.source_map);
-        source_map.rewrite_error(|| Remap::default().append(self, unresolved, deps))
+        source_map.rewrite_error(|| Remap::default().append(self, unresolved))
     }
 
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
@@ -255,9 +225,7 @@ impl Resolve {
             package_map,
             interface_map,
             type_map,
-            doc_map,
             world_map,
-            documents_to_add,
             interfaces_to_add,
             worlds_to_add,
             ..
@@ -286,8 +254,8 @@ impl Resolve {
             types,
             worlds,
             interfaces,
-            documents,
             packages,
+            package_names,
         } = resolve;
 
         let mut moved_types = Vec::new();
@@ -316,40 +284,44 @@ impl Resolve {
         for (id, mut world) in worlds {
             let new_id = world_map.get(&id).copied().unwrap_or_else(|| {
                 moved_worlds.push(id);
-                for (_, item) in world.imports.iter_mut().chain(&mut world.exports) {
-                    match item {
-                        WorldItem::Function(f) => remap.update_function(f),
-                        WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
-                        WorldItem::Type(i) => *i = remap.types[i.index()],
+                let update = |map: &mut IndexMap<WorldKey, WorldItem>| {
+                    for (mut name, mut item) in mem::take(map) {
+                        remap.update_world_key(&mut name);
+                        match &mut item {
+                            WorldItem::Function(f) => remap.update_function(f),
+                            WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
+                            WorldItem::Type(i) => *i = remap.types[i.index()],
+                        }
+                        map.insert(name, item);
                     }
-                }
+                };
+                update(&mut world.imports);
+                update(&mut world.exports);
                 self.worlds.alloc(world)
             });
             assert_eq!(remap.worlds.len(), id.index());
             remap.worlds.push(new_id);
         }
 
-        let mut moved_documents = Vec::new();
-        for (id, mut doc) in documents {
-            let new_id = doc_map.get(&id).copied().unwrap_or_else(|| {
-                moved_documents.push(id);
-                remap.update_document(&mut doc);
-                self.documents.alloc(doc)
-            });
-            assert_eq!(remap.documents.len(), id.index());
-            remap.documents.push(new_id);
-        }
-
         for (id, mut pkg) in packages {
-            for (_, doc) in pkg.documents.iter_mut() {
-                *doc = remap.documents[doc.index()];
-            }
-            let new_id = package_map
-                .get(&id)
-                .copied()
-                .unwrap_or_else(|| self.packages.alloc(pkg));
+            let new_id = package_map.get(&id).copied().unwrap_or_else(|| {
+                for (_, id) in pkg.interfaces.iter_mut() {
+                    *id = remap.interfaces[id.index()];
+                }
+                for (_, id) in pkg.worlds.iter_mut() {
+                    *id = remap.worlds[id.index()];
+                }
+                self.packages.alloc(pkg)
+            });
             assert_eq!(remap.packages.len(), id.index());
             remap.packages.push(new_id);
+        }
+
+        for (name, id) in package_names {
+            let id = remap.packages[id.index()];
+            if let Some(prev) = self.package_names.insert(name, id) {
+                assert_eq!(prev, id);
+            }
         }
 
         // Fixup all "parent" links now.
@@ -359,21 +331,15 @@ impl Resolve {
         // lists built incrementally above. The ids in the `moved_*` lists
         // are ids within `resolve`, so they're translated through `remap` to
         // ids within `self`.
-        for id in moved_documents {
-            let id = remap.documents[id.index()];
-            if let Some(pkg) = &mut self.documents[id].package {
-                *pkg = remap.packages[pkg.index()];
-            }
-        }
         for id in moved_worlds {
             let id = remap.worlds[id.index()];
-            let doc = &mut self.worlds[id].document;
-            *doc = remap.documents[doc.index()];
+            let pkg = self.worlds[id].package.as_mut().unwrap();
+            *pkg = remap.packages[pkg.index()];
         }
         for id in moved_interfaces {
             let id = remap.interfaces[id.index()];
-            let doc = &mut self.interfaces[id].document;
-            *doc = remap.documents[doc.index()];
+            let pkg = self.interfaces[id].package.as_mut().unwrap();
+            *pkg = remap.packages[pkg.index()];
         }
         for id in moved_types {
             let id = remap.types[id.index()];
@@ -384,24 +350,18 @@ impl Resolve {
             }
         }
 
-        // And finally process documents that were present in `resolve` but were
+        // And finally process items that were present in `resolve` but were
         // not present in `self`. This is only done for merged packages as
         // documents may be added to `self.documents` but wouldn't otherwise be
         // present in the `documents` field of the corresponding package.
-        for (name, pkg, doc) in documents_to_add {
+        for (name, pkg, iface) in interfaces_to_add {
             let prev = self.packages[pkg]
-                .documents
-                .insert(name, remap.documents[doc.index()]);
-            assert!(prev.is_none());
-        }
-        for (name, doc, iface) in interfaces_to_add {
-            let prev = self.documents[doc]
                 .interfaces
                 .insert(name, remap.interfaces[iface.index()]);
             assert!(prev.is_none());
         }
-        for (name, doc, world) in worlds_to_add {
-            let prev = self.documents[doc]
+        for (name, pkg, world) in worlds_to_add {
+            let prev = self.packages[pkg]
                 .worlds
                 .insert(name, remap.worlds[world.index()]);
             assert!(prev.is_none());
@@ -455,6 +415,8 @@ impl Resolve {
             if let WorldItem::Interface(id) = import {
                 if let Some(prev) = into_imports_by_id.get(id) {
                     if *prev != name {
+                        let name = self.name_world_key(name);
+                        let prev = self.name_world_key(prev);
                         bail!("import `{name}` conflicts with previous name of `{prev}`");
                     }
                 }
@@ -466,6 +428,8 @@ impl Resolve {
             // so it's left as an error.
             if let WorldItem::Interface(id) = export {
                 if let Some(prev) = into_exports_by_id.get(id) {
+                    let name = self.name_world_key(name);
+                    let prev = self.name_world_key(prev);
                     bail!("export `{name}` conflicts with previous name of `{prev}`");
                 }
             }
@@ -481,7 +445,10 @@ impl Resolve {
                     (WorldItem::Interface(from), WorldItem::Interface(into)) if from == into => {
                         continue
                     }
-                    _ => bail!("duplicate import found for interface `{name}`"),
+                    _ => {
+                        let name = self.name_world_key(name);
+                        bail!("duplicate import found for interface `{name}`");
+                    }
                 },
                 None => new_imports.push((name.clone(), from_import.clone())),
             }
@@ -493,7 +460,10 @@ impl Resolve {
         // if the worlds have disjoint sets of exports.
         for (name, export) in from_world.exports.iter() {
             match into_world.exports.get(name) {
-                Some(_) => bail!("duplicate export found for interface `{name}`"),
+                Some(_) => {
+                    let name = self.name_world_key(name);
+                    bail!("duplicate export found for interface `{name}`");
+                }
                 None => new_exports.push((name.clone(), export.clone())),
             }
         }
@@ -512,24 +482,24 @@ impl Resolve {
         Ok(())
     }
 
-    /// Returns the URL of the specified `interface`, if available.
+    /// Returns the ID of the specified `interface`.
     ///
-    /// This currently creates a URL based on the URL of the package that
-    /// `interface` resides in. If the package owner of `interface` does not
-    /// specify a URL then `None` will be returned.
-    ///
-    /// If the `interface` specified does not have a name then `None` will be
-    /// returned as well.
-    pub fn url_of(&self, interface: InterfaceId) -> Option<String> {
+    /// Returns `None` for unnamed interfaces.
+    pub fn id_of(&self, interface: InterfaceId) -> Option<String> {
         let interface = &self.interfaces[interface];
-        let doc = &self.documents[interface.document];
-        let package = &self.packages[doc.package.unwrap()];
-        let mut base = Url::parse(package.url.as_ref()?).unwrap();
-        base.path_segments_mut()
-            .unwrap()
-            .push(&doc.name)
-            .push(interface.name.as_ref()?);
-        Some(base.to_string())
+        let package = &self.packages[interface.package.unwrap()];
+        let mut base = String::new();
+        if let Some(ns) = &package.name.namespace {
+            base.push_str(ns);
+            base.push_str(":");
+        }
+        base.push_str(&package.name.name);
+        base.push_str("/");
+        base.push_str(interface.name.as_ref()?);
+        if let Some((major, minor)) = package.name.version {
+            base.push_str(&format!("@{major}.{minor}"));
+        }
+        Some(base)
     }
 
     /// Attempts to locate a default world for the `pkg` specified within this
@@ -550,44 +520,26 @@ impl Resolve {
     /// would mean the `default world` of the `foo` document. The name `foo.bar`
     /// would mean the world named `bar` in the `foo` document.
     pub fn select_world(&self, pkg: PackageId, world: Option<&str>) -> Result<WorldId> {
+        let pkg = &self.packages[pkg];
         match world {
-            Some(world) => {
-                let mut parts = world.splitn(2, '.');
-                let doc = parts.next().unwrap();
-                let world = parts.next();
-                let doc = *self.packages[pkg]
-                    .documents
-                    .get(doc)
-                    .ok_or_else(|| anyhow!("no document named `{doc}` in package"))?;
-                match world {
-                    Some(name) => self.documents[doc]
-                        .worlds
-                        .get(name)
-                        .copied()
-                        .ok_or_else(|| anyhow!("no world named `{name}` in document")),
-                    None => self.documents[doc]
-                        .default_world
-                        .ok_or_else(|| anyhow!("no default world in document")),
-                }
-            }
-            None => {
-                if self.packages[pkg].documents.is_empty() {
-                    bail!("no documents found in package")
-                }
+            Some(world) => pkg
+                .worlds
+                .get(world)
+                .copied()
+                .ok_or_else(|| anyhow!("no world named `{world}` in package")),
+            None => match pkg.worlds.len() {
+                0 => bail!("no worlds found in package"),
+                1 => Ok(*pkg.worlds.values().next().unwrap()),
+                _ => bail!("multiple worlds found in package: one must be explicitly chosen"),
+            },
+        }
+    }
 
-                let mut unique_default_world = None;
-                for (_name, doc) in &self.packages[pkg].documents {
-                    if let Some(default_world) = self.documents[*doc].default_world {
-                        if unique_default_world.is_some() {
-                            bail!("multiple default worlds found in package, one must be specified")
-                        } else {
-                            unique_default_world = Some(default_world);
-                        }
-                    }
-                }
-
-                unique_default_world.ok_or_else(|| anyhow!("no default world in package"))
-            }
+    /// Assigns a human readable name to the `WorldKey` specified.
+    pub fn name_world_key(&self, key: &WorldKey) -> String {
+        match key {
+            WorldKey::Name(s) => s.to_string(),
+            WorldKey::Interface(i) => self.id_of(*i).expect("unexpected anonymous interface"),
         }
     }
 }
@@ -599,7 +551,6 @@ pub struct Remap {
     pub types: Vec<TypeId>,
     pub interfaces: Vec<InterfaceId>,
     pub worlds: Vec<WorldId>,
-    pub documents: Vec<DocumentId>,
     pub packages: Vec<PackageId>,
 }
 
@@ -608,13 +559,11 @@ impl Remap {
         &mut self,
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
-        deps: &HashMap<String, PackageId>,
     ) -> Result<PackageId> {
-        self.process_foreign_deps(resolve, &unresolved, deps)?;
+        self.process_foreign_deps(resolve, &unresolved)?;
 
         let foreign_types = self.types.len();
         let foreign_interfaces = self.interfaces.len();
-        let foreign_documents = self.documents.len();
         let foreign_worlds = self.worlds.len();
 
         // Copy over all types first, updating any intra-type references. Note
@@ -675,36 +624,29 @@ impl Remap {
             }
         }
 
-        // And the final major step is transferring documents to `Resolve`
-        // which is just updating a few identifiers here and there.
-        for (id, mut doc) in unresolved.documents.into_iter().skip(foreign_documents) {
-            self.update_document(&mut doc);
-            let new_id = resolve.documents.alloc(doc);
-            assert_eq!(self.documents.len(), id.index());
-            self.documents.push(new_id);
-        }
-
-        // Fixup "parent" ids now that everything has been identifier
+        // Fixup "parent" ids now that everything has been identified
+        let pkgid = resolve.packages.alloc(Package {
+            name: unresolved.name.clone(),
+            interfaces: Default::default(),
+            worlds: Default::default(),
+        });
+        let prev = resolve.package_names.insert(unresolved.name.clone(), pkgid);
+        assert!(prev.is_none());
         for id in self.interfaces.iter().skip(foreign_interfaces) {
-            let doc = &mut resolve.interfaces[*id].document;
-            *doc = self.documents[doc.index()];
+            let iface = &mut resolve.interfaces[*id];
+            iface.package = Some(pkgid);
+            if let Some(name) = &iface.name {
+                let prev = resolve.packages[pkgid].interfaces.insert(name.clone(), *id);
+                assert!(prev.is_none());
+            }
         }
         for id in self.worlds.iter().skip(foreign_worlds) {
-            let doc = &mut resolve.worlds[*id].document;
-            *doc = self.documents[doc.index()];
-        }
-        let mut documents = IndexMap::new();
-        for id in self.documents.iter().skip(foreign_documents) {
-            let prev = documents.insert(resolve.documents[*id].name.clone(), *id);
+            let world = &mut resolve.worlds[*id];
+            world.package = Some(pkgid);
+            let prev = resolve.packages[pkgid]
+                .worlds
+                .insert(world.name.clone(), *id);
             assert!(prev.is_none());
-        }
-        let pkgid = resolve.packages.alloc(Package {
-            name: unresolved.name,
-            url: unresolved.url,
-            documents,
-        });
-        for (_, id) in resolve.packages[pkgid].documents.iter() {
-            resolve.documents[*id].package = Some(pkgid);
         }
         Ok(pkgid)
     }
@@ -713,81 +655,62 @@ impl Remap {
         &mut self,
         resolve: &mut Resolve,
         unresolved: &UnresolvedPackage,
-        deps: &HashMap<String, PackageId>,
     ) -> Result<()> {
-        // First, connect all references to foreign documents to actual
-        // documents within `resolve`, building up the initial entries of
-        // the `self.documents` mapping.
-        let mut document_to_package = HashMap::new();
-        for (i, (pkg, docs)) in unresolved.foreign_deps.iter().enumerate() {
-            for (doc, unresolved_doc_id) in docs {
-                let prev = document_to_package.insert(
-                    *unresolved_doc_id,
-                    (pkg, doc, unresolved.foreign_dep_spans[i]),
+        // Invert the `foreign_deps` map to be keyed by interface id to get
+        // used in the loops below.
+        let mut interface_to_package = HashMap::new();
+        for (i, (pkg_name, interfaces)) in unresolved.foreign_deps.iter().enumerate() {
+            for (interface, unresolved_interface_id) in interfaces {
+                let prev = interface_to_package.insert(
+                    *unresolved_interface_id,
+                    (pkg_name, interface, unresolved.foreign_dep_spans[i]),
                 );
                 assert!(prev.is_none());
             }
         }
-        for (unresolved_doc_id, _doc) in unresolved.documents.iter() {
-            let (pkg, doc, span) = match document_to_package.get(&unresolved_doc_id) {
-                Some(items) => *items,
-                None => break,
-            };
-            let pkgid = *deps.get(pkg).ok_or_else(|| Error {
-                span,
-                msg: format!("no package dependency specified for `{pkg}`"),
-            })?;
-            let package = &resolve.packages[pkgid];
 
-            let docid = *package.documents.get(doc).ok_or_else(|| Error {
-                span: unresolved.document_spans[unresolved_doc_id.index()],
-                msg: format!("package `{pkg}` does not define document `{doc}`"),
-            })?;
-
-            assert_eq!(self.documents.len(), unresolved_doc_id.index());
-            self.documents.push(docid);
-        }
-        for (id, _) in unresolved.documents.iter().skip(self.documents.len()) {
-            assert!(
-                document_to_package.get(&id).is_none(),
-                "found foreign document after local documents"
-            );
-        }
-
-        // Next, for all documents that are referenced in this `Resolve`
-        // determine the mapping of all interfaces that they refer to.
+        // Connect all interfaces referred to in `interface_to_package`, which
+        // are at the front of `unresolved.interfaces`, to interfaces already
+        // contained within `resolve`.
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
-            let doc_id = match self.documents.get(unresolved_iface.document.index()) {
-                Some(i) => *i,
+            let (pkg_name, interface, span) = match interface_to_package.get(&unresolved_iface_id) {
+                Some(items) => *items,
                 // All foreign interfaces are defined first, so the first one
                 // which is defined in a non-foreign document means that all
                 // further interfaces will be non-foreign as well.
                 None => break,
             };
+            let pkgid = resolve
+                .package_names
+                .get(pkg_name)
+                .copied()
+                .ok_or_else(|| Error {
+                    span,
+                    msg: format!("package not found"),
+                })?;
 
             // Functions can't be imported so this should be empty.
             assert!(unresolved_iface.functions.is_empty());
 
-            let document = &resolve.documents[doc_id];
+            let pkg = &resolve.packages[pkgid];
             let span = unresolved.interface_spans[unresolved_iface_id.index()];
-            let iface_id = match &unresolved_iface.name {
-                Some(name) => *document.interfaces.get(name).ok_or_else(|| Error {
+            let iface_id = pkg
+                .interfaces
+                .get(interface)
+                .copied()
+                .ok_or_else(|| Error {
                     span,
-                    msg: format!("interface not defined in document"),
-                })?,
-                None => document.default_interface.ok_or_else(|| Error {
-                    span,
-                    msg: format!("default interface not specified in document"),
-                })?,
-            };
+                    msg: format!("interface not found in package"),
+                })?;
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(iface_id);
         }
 
-        for (_, iface) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
-            if self.documents.get(iface.document.index()).is_some() {
-                panic!("found foreign interface after local interfaces");
-            }
+        for (id, _) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
+            assert!(
+                interface_to_package.get(&id).is_none(),
+                "found foreign interface after local interface"
+            );
         }
 
         // And finally iterate over all foreign-defined types and determine
@@ -936,81 +859,61 @@ impl Remap {
         // Here each import of an interface is recorded and then additionally
         // explicitly named imports of interfaces are recorded as well for
         // determining names later on.
-        let mut explicit_import_names = HashMap::new();
-        let mut explicit_export_names = HashMap::new();
-        let mut imports = Vec::new();
-        let mut exports = Vec::new();
         let mut import_funcs = Vec::new();
-        let mut export_funcs = Vec::new();
         let mut import_types = Vec::new();
-        for ((name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans) {
+        for ((mut name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans)
+        {
+            self.update_world_key(&mut name);
             match item {
                 WorldItem::Interface(id) => {
                     let id = self.interfaces[id.index()];
-                    imports.push((id, *span));
-                    let prev = explicit_import_names.insert(id, name);
-                    assert!(prev.is_none());
+                    self.add_world_import(resolve, world, name, id);
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
-                    import_funcs.push((name, f, *span));
+                    import_funcs.push((name.unwrap_name(), f, *span));
                 }
                 WorldItem::Type(id) => {
                     let id = self.types[id.index()];
-                    import_types.push((name, id, *span));
+                    import_types.push((name.unwrap_name(), id, *span));
                 }
             }
         }
-        for ((name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans) {
+
+        for (_name, id, _span) in import_types.iter() {
+            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
+                if let TypeOwner::Interface(owner) = resolve.types[other].owner {
+                    let name = WorldKey::Interface(owner);
+                    self.add_world_import(resolve, world, name, owner);
+                }
+            }
+        }
+
+        let mut export_funcs = Vec::new();
+        for ((mut name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans)
+        {
+            self.update_world_key(&mut name);
             match item {
                 WorldItem::Interface(id) => {
                     let id = self.interfaces[id.index()];
-                    exports.push((id, *span));
-                    let prev = explicit_export_names.insert(id, name);
-                    assert!(prev.is_none());
+                    self.add_world_export(resolve, world, name, id);
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
+                    let name = match name {
+                        WorldKey::Name(name) => name,
+                        WorldKey::Interface(_) => unreachable!(),
+                    };
                     export_funcs.push((name, f, *span));
                 }
                 WorldItem::Type(_) => unreachable!(),
             }
         }
 
-        // Next all imports and their transitive imports are processed. This
-        // is done through a `stack` of `Action` items which is processed in
-        // LIFO order, meaning that an action of processing the dependencies
-        // is pushed after processing the node itself. The dependency processing
-        // will push more items onto the stack as necessary.
-        let mut elaborate = WorldElaborator {
-            resolve,
-            world,
-            imports_processed: Default::default(),
-            exports_processed: Default::default(),
-            resolving_stack: Default::default(),
-            explicit_import_names: &explicit_import_names,
-            explicit_export_names: &explicit_export_names,
-            names: Default::default(),
-        };
-        for (id, span) in imports {
-            elaborate.import(id, span)?;
-        }
-        for (_name, id, span) in import_types.iter() {
-            if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
-                if let TypeOwner::Interface(owner) = resolve.types[other].owner {
-                    elaborate.import(owner, *span)?;
-                }
-            }
-        }
-        for (id, span) in exports {
-            elaborate.export(id, span)?;
-        }
-
         for (name, id, span) in import_types {
-            let prev = elaborate
-                .world
+            let prev = world
                 .imports
-                .insert(name.clone(), WorldItem::Type(id));
+                .insert(WorldKey::Name(name.clone()), WorldItem::Type(id));
             if prev.is_some() {
                 bail!(Error {
                     msg: format!("export of type `{name}` shadows previously imported interface"),
@@ -1022,7 +925,7 @@ impl Remap {
         for (name, func, span) in import_funcs {
             let prev = world
                 .imports
-                .insert(name.clone(), WorldItem::Function(func));
+                .insert(WorldKey::Name(name.clone()), WorldItem::Function(func));
             if prev.is_some() {
                 bail!(Error {
                     msg: format!(
@@ -1035,8 +938,8 @@ impl Remap {
         for (name, func, span) in export_funcs {
             let prev = world
                 .exports
-                .insert(name.clone(), WorldItem::Function(func));
-            if prev.is_some() || world.imports.contains_key(&name) {
+                .insert(WorldKey::Name(name.clone()), WorldItem::Function(func));
+            if prev.is_some() || world.imports.contains_key(&WorldKey::Name(name.clone())) {
                 bail!(Error {
                     msg: format!(
                         "export of function `{name}` shadows previously exported interface"
@@ -1052,129 +955,74 @@ impl Remap {
         Ok(())
     }
 
-    fn update_document(&self, doc: &mut Document) {
-        for (_name, iface) in doc.interfaces.iter_mut() {
-            *iface = self.interfaces[iface.index()];
-        }
-        for (_name, world) in doc.worlds.iter_mut() {
-            *world = self.worlds[world.index()];
-        }
-        if let Some(default) = &mut doc.default_interface {
-            *default = self.interfaces[default.index()];
-        }
-        if let Some(default) = &mut doc.default_world {
-            *default = self.worlds[default.index()];
-        }
-    }
-}
-
-struct WorldElaborator<'a, 'b> {
-    resolve: &'a Resolve,
-    world: &'b mut World,
-    explicit_import_names: &'a HashMap<InterfaceId, String>,
-    explicit_export_names: &'a HashMap<InterfaceId, String>,
-    names: HashMap<String, bool>,
-
-    /// Set of imports which are either imported into the world already or in
-    /// the `stack` to get processed, used to ensure the same dependency isn't
-    /// pushed multiple times into the stack.
-    imports_processed: HashSet<InterfaceId>,
-    exports_processed: HashSet<InterfaceId>,
-
-    /// Dependency chain of why we're importing the top of `stack`, used to
-    /// print an error message.
-    resolving_stack: Vec<(InterfaceId, bool)>,
-}
-
-impl<'a> WorldElaborator<'a, '_> {
-    fn import(&mut self, id: InterfaceId, span: Span) -> Result<()> {
-        self.recurse(id, span, true)
-    }
-
-    fn export(&mut self, id: InterfaceId, span: Span) -> Result<()> {
-        self.recurse(id, span, false)
-    }
-
-    fn recurse(&mut self, id: InterfaceId, span: Span, import: bool) -> Result<()> {
-        let processed = if import {
-            &mut self.imports_processed
-        } else {
-            &mut self.exports_processed
-        };
-        if !processed.insert(id) {
-            return Ok(());
-        }
-
-        self.resolving_stack.push((id, import));
-        for (_, ty) in self.resolve.interfaces[id].types.iter() {
-            let ty = match self.resolve.types[*ty].kind {
-                TypeDefKind::Type(Type::Id(id)) => id,
-                _ => continue,
-            };
-            let dep = match self.resolve.types[ty].owner {
-                TypeOwner::None => continue,
-                TypeOwner::Interface(other) => other,
-                TypeOwner::World(_) => unreachable!(),
-            };
-            let import = import || !self.explicit_export_names.contains_key(&dep);
-
-            self.recurse(dep, span, import)?;
-        }
-        assert_eq!(self.resolving_stack.pop(), Some((id, import)));
-
-        let name = self.name_of(id, import);
-        let prev = self.names.insert(name.clone(), import);
-
-        if prev.is_none() {
-            let set = if import {
-                &mut self.world.imports
-            } else {
-                &mut self.world.exports
-            };
-            let prev = set.insert(name.clone(), WorldItem::Interface(id));
-            assert!(prev.is_none());
-            return Ok(());
-        }
-
-        let desc = |import: bool| {
-            if import {
-                "import"
-            } else {
-                "export"
+    fn update_world_key(&self, key: &mut WorldKey) {
+        match key {
+            WorldKey::Name(_) => {}
+            WorldKey::Interface(id) => {
+                *id = self.interfaces[id.index()];
             }
-        };
-
-        let mut msg = format!("{} of `{}`", desc(import), self.name_of(id, import));
-        if self.resolving_stack.is_empty() {
-            msg.push_str(" ");
-        } else {
-            msg.push_str("\n");
         }
-        for (i, import) in self.resolving_stack.iter().rev() {
-            writeln!(
-                msg,
-                "  .. which is depended on by {} `{}`",
-                desc(*import),
-                self.name_of(*i, *import)
-            )
-            .unwrap();
-        }
-        writeln!(
-            msg,
-            "conflicts with a previous interface using the name `{name}`",
-        )
-        .unwrap();
-        bail!(Error { span, msg })
     }
 
-    fn name_of(&self, id: InterfaceId, import: bool) -> &'a String {
-        let set = if import {
-            &self.explicit_import_names
-        } else {
-            &self.explicit_export_names
+    fn add_world_import(
+        &self,
+        resolve: &Resolve,
+        world: &mut World,
+        key: WorldKey,
+        id: InterfaceId,
+    ) {
+        if world.imports.contains_key(&key) {
+            return;
+        }
+
+        foreach_interface_dep(resolve, id, |dep| {
+            self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
+        });
+        let prev = world.imports.insert(key, WorldItem::Interface(id));
+        assert!(prev.is_none());
+    }
+
+    fn add_world_export(
+        &self,
+        resolve: &Resolve,
+        world: &mut World,
+        key: WorldKey,
+        id: InterfaceId,
+    ) {
+        if world
+            .exports
+            .insert(key, WorldItem::Interface(id))
+            .is_some()
+        {
+            return;
+        }
+
+        foreach_interface_dep(resolve, id, |dep| {
+            if !world.exports.contains_key(&WorldKey::Interface(dep)) {
+                self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
+            }
+        });
+    }
+}
+
+fn foreach_interface_dep(
+    resolve: &Resolve,
+    interface: InterfaceId,
+    mut f: impl FnMut(InterfaceId),
+) {
+    for (_, ty) in resolve.interfaces[interface].types.iter() {
+        let ty = match resolve.types[*ty].kind {
+            TypeDefKind::Type(Type::Id(id)) => id,
+            _ => continue,
         };
-        set.get(&id)
-            .unwrap_or_else(|| self.resolve.interfaces[id].name.as_ref().unwrap())
+        let dep = match resolve.types[ty].owner {
+            TypeOwner::None => continue,
+            TypeOwner::Interface(other) => other,
+            TypeOwner::World(_) => unreachable!(),
+        };
+        if dep != interface {
+            f(dep);
+        }
     }
 }
 
@@ -1191,10 +1039,6 @@ struct MergeMap<'a> {
     /// found to be equivalent.
     type_map: HashMap<TypeId, TypeId>,
 
-    /// A map of document ids in `from` to those in `into` for those that are
-    /// found to be equivalent.
-    doc_map: HashMap<DocumentId, DocumentId>,
-
     /// A map of world ids in `from` to those in `into` for those that are
     /// found to be equivalent.
     world_map: HashMap<WorldId, WorldId>,
@@ -1203,68 +1047,46 @@ struct MergeMap<'a> {
     ///
     /// The elements here are:
     ///
-    /// * The name of the document
+    /// * The name of the interface/world
     /// * The ID within `into` of the package being added to
-    /// * The ID within `from` of the document being added.
-    documents_to_add: Vec<(String, PackageId, DocumentId)>,
-    interfaces_to_add: Vec<(String, DocumentId, InterfaceId)>,
-    worlds_to_add: Vec<(String, DocumentId, WorldId)>,
+    /// * The ID within `from` of the item being added.
+    interfaces_to_add: Vec<(String, PackageId, InterfaceId)>,
+    worlds_to_add: Vec<(String, PackageId, WorldId)>,
 
     /// Which `Resolve` is being merged from.
     from: &'a Resolve,
 
     /// Which `Resolve` is being merged into.
     into: &'a Resolve,
-
-    /// A cache of packages, keyed by name/url, within `into`.
-    packages_in_into: HashMap<(&'a String, &'a Option<String>), PackageId>,
 }
 
 impl<'a> MergeMap<'a> {
     fn new(from: &'a Resolve, into: &'a Resolve) -> Result<MergeMap<'a>> {
-        let mut packages_in_into = HashMap::new();
-        for (id, package) in into.packages.iter() {
-            log::trace!("previous package {}/{:?}", package.name, package.url);
-            if package.url.is_none() {
-                continue;
-            }
-            let prev = packages_in_into.insert((&package.name, &package.url), id);
-            if prev.is_some() {
-                bail!(
-                    "found duplicate name/url combination in current resolve: {}/{:?}",
-                    package.name,
-                    package.url
-                );
-            }
-        }
         Ok(MergeMap {
             package_map: Default::default(),
             interface_map: Default::default(),
             type_map: Default::default(),
-            doc_map: Default::default(),
             world_map: Default::default(),
-            documents_to_add: Default::default(),
             interfaces_to_add: Default::default(),
             worlds_to_add: Default::default(),
             from,
             into,
-            packages_in_into,
         })
     }
 
     fn build(&mut self) -> Result<()> {
         for (from_id, from) in self.from.packages.iter() {
-            let into_id = match self.packages_in_into.get(&(&from.name, &from.url)) {
+            let into_id = match self.into.package_names.get(&from.name) {
                 Some(id) => *id,
 
                 // This package, according to its name and url, is not present
                 // in `self` so it needs to get added below.
                 None => {
-                    log::trace!("adding unique package {} / {:?}", from.name, from.url);
+                    log::trace!("adding unique package {}", from.name);
                     continue;
                 }
             };
-            log::trace!("merging duplicate package {} / {:?}", from.name, from.url);
+            log::trace!("merging duplicate package {}", from.name);
 
             self.build_package(from_id, into_id).with_context(|| {
                 format!("failed to merge package `{}` into existing copy", from.name)
@@ -1281,40 +1103,11 @@ impl<'a> MergeMap<'a> {
         let from = &self.from.packages[from_id];
         let into = &self.into.packages[into_id];
 
-        // All documents in `from` should already be present in `into` to get
-        // merged, or it's assumed `self.from` contains a view of the package
-        // which happens to contain more files. In this situation the job of
-        // merging will be to add a new document to the package within
-        // `self.into` which is queued up with `self.documents_to_add`.
-        for (name, from_id) in from.documents.iter() {
-            let into_id = match into.documents.get(name) {
-                Some(id) => *id,
-                None => {
-                    self.documents_to_add
-                        .push((name.clone(), into_id, *from_id));
-                    continue;
-                }
-            };
-
-            self.build_document(*from_id, into_id)
-                .with_context(|| format!("failed to merge document `{name}` into existing copy"))?;
-        }
-
-        Ok(())
-    }
-
-    fn build_document(&mut self, from_id: DocumentId, into_id: DocumentId) -> Result<()> {
-        let prev = self.doc_map.insert(from_id, into_id);
-        assert!(prev.is_none());
-
-        let from_doc = &self.from.documents[from_id];
-        let into_doc = &self.into.documents[into_id];
-
-        // Like documents above if an interface is present in `from_id` but not
-        // present in `into_id` then it can be copied over wholesale. That
-        // copy is scheduled to happen within the `self.interfaces_to_add` list.
-        for (name, from_interface_id) in from_doc.interfaces.iter() {
-            let into_interface_id = match into_doc.interfaces.get(name) {
+        // If an interface is present in `from_id` but not present in `into_id`
+        // then it can be copied over wholesale. That copy is scheduled to
+        // happen within the `self.interfaces_to_add` list.
+        for (name, from_interface_id) in from.interfaces.iter() {
+            let into_interface_id = match into.interfaces.get(name) {
                 Some(id) => *id,
                 None => {
                     self.interfaces_to_add
@@ -1327,8 +1120,8 @@ impl<'a> MergeMap<'a> {
                 .with_context(|| format!("failed to merge interface `{name}`"))?;
         }
 
-        for (name, from_world_id) in from_doc.worlds.iter() {
-            let into_world_id = match into_doc.worlds.get(name) {
+        for (name, from_world_id) in from.worlds.iter() {
+            let into_world_id = match into.worlds.get(name) {
                 Some(id) => *id,
                 None => {
                     self.worlds_to_add
@@ -1340,6 +1133,7 @@ impl<'a> MergeMap<'a> {
             self.build_world(*from_world_id, into_world_id)
                 .with_context(|| format!("failed to merge world `{name}`"))?;
         }
+
         Ok(())
     }
 
@@ -1411,25 +1205,38 @@ impl<'a> MergeMap<'a> {
             bail!("world contains different number of exports than expected");
         }
 
-        for (name, from) in from_world.imports.iter() {
+        for (from_name, from) in from_world.imports.iter() {
+            let into_name = self.map_name(from_name);
+            let name_str = self.from.name_world_key(from_name);
             let into = into_world
                 .imports
-                .get(name)
-                .ok_or_else(|| anyhow!("import `{name}` not found in target world"))?;
+                .get(&into_name)
+                .ok_or_else(|| anyhow!("import `{name_str}` not found in target world"))?;
             self.match_world_item(from, into)
-                .with_context(|| format!("import `{name}` didn't match target world"))?;
+                .with_context(|| format!("import `{name_str}` didn't match target world"))?;
         }
 
-        for (name, from) in from_world.exports.iter() {
+        for (from_name, from) in from_world.exports.iter() {
+            let into_name = self.map_name(from_name);
+            let name_str = self.from.name_world_key(from_name);
             let into = into_world
                 .exports
-                .get(name)
-                .ok_or_else(|| anyhow!("export `{name}` not found in target world"))?;
+                .get(&into_name)
+                .ok_or_else(|| anyhow!("export `{name_str}` not found in target world"))?;
             self.match_world_item(from, into)
-                .with_context(|| format!("export `{name}` didn't match target world"))?;
+                .with_context(|| format!("export `{name_str}` didn't match target world"))?;
         }
 
         Ok(())
+    }
+
+    fn map_name(&self, from_name: &WorldKey) -> WorldKey {
+        match from_name {
+            WorldKey::Name(s) => WorldKey::Name(s.clone()),
+            WorldKey::Interface(id) => {
+                WorldKey::Interface(self.interface_map.get(id).copied().unwrap_or(*id))
+            }
+        }
     }
 
     fn match_world_item(&mut self, from: &WorldItem, into: &WorldItem) -> Result<()> {

@@ -1,5 +1,5 @@
 name `foo` is defined more than once
-     --> tests/ui/parse-fail/duplicate-functions.wit:5:3
+     --> tests/ui/parse-fail/duplicate-functions.wit:7:3
       |
-    5 |   foo: func()
+    7 |   foo: func()
       |   ^--
