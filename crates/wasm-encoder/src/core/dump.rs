@@ -2,18 +2,46 @@ use std::borrow::Cow;
 
 use crate::{CustomSection, Encode, Section};
 
-/// TODO: Make this a full example with all modules, instances, stack frames, etc.
 /// The "core" custom section for coredumps, as described in the
 /// [tool-conventions
-/// repository](https://github.com/WebAssembly/tool-conventions/blob/main/Coredump.md)
+/// repository](https://github.com/WebAssembly/tool-conventions/blob/main/Coredump.md).
 ///
-/// # Example
+/// There are four sections that comprise a core dump:
+///     - "core", which contains the name of the core dump
+///     - "coremodules", a listing of modules
+///     - "coreinstances", a listing of module instances
+///     - "corestack", a listing of frames for a specific thread
+///
+/// # Example of how these could be constructed and encoded into a module:
 ///
 /// ```
-/// use wasm_encoder::{CoreDumpSection, Module};
+/// use wasm_encoder::{
+///    CoreDumpInstancesSection, CoreDumpModulesSection, CoreDumpSection, CoreDumpStackSection, Module,
+/// };
 /// let core = CoreDumpSection::new("MyModule.wasm");
+///
+/// let mut modules = CoreDumpModulesSection::new();
+/// modules.module("my_module");
+///
+/// let mut instances = CoreDumpInstancesSection::new();
+/// let module_idx = 0;
+/// let memories = vec![CoreDumpValue::I32(1)];
+/// let globals = vec![CoreDumpValue::I32(2)];
+/// instances.instance(module_idx, memories, globals);
+///
+/// let mut thread = CoreDumpStackSection::new("main");
+/// let instance_index = 0;
+/// let func_index = 42;
+/// let code_offset = 0x1234;
+/// let locals = vec![CoreDumpValue::I32(1)];
+/// let stack = vec![CoreDumpValue::I32(2)];
+/// thread.frame(instance_index, func_index, code_offset, locals, stack);
+///
 /// let mut module = Module::new();
 /// module.section(&core);
+/// module.section(&modules);
+/// module.section(&instances);
+/// module.section(&thread);
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct CoreDumpSection {
@@ -52,6 +80,15 @@ impl Section for CoreDumpSection {
 
 /// The "coremodules" custom section for coredumps which lists the names of the
 /// modules
+///
+/// # Example
+///
+/// ```
+/// use wasm_encoder::{CoreDumpModulesSection, Module};
+/// let mut modules_section = CoreDumpModulesSection::new();
+/// modules_section.module("my_module");
+/// module.section(&modules_section);
+/// ```
 #[derive(Debug)]
 pub struct CoreDumpModulesSection {
     num_added: u32,
@@ -162,11 +199,12 @@ impl Encode for CoreDumpInstancesSection {
 /// use wasm_encoder::{CoreDumpStackSection, Module, CoreDumpValue};
 /// let mut thread = CoreDumpStackSection::new("main");
 ///
+/// let instance_index = 0;
 /// let func_index = 42;
 /// let code_offset = 0x1234;
 /// let locals = vec![CoreDumpValue::I32(1)];
 /// let stack = vec![CoreDumpValue::I32(2)];
-/// thread.frame(func_index, code_offset, locals, stack);
+/// thread.frame(instance_index, func_index, code_offset, locals, stack);
 ///
 /// let mut module = Module::new();
 /// module.section(&thread);
@@ -344,6 +382,7 @@ mod tests {
                     .frames
                     .first()
                     .expect("frame is encoded in corestack");
+                assert_eq!(frame.instanceidx, 0);
                 assert_eq!(frame.funcidx, 12);
                 assert_eq!(frame.codeoffset, 0);
                 assert_eq!(frame.locals.len(), 1);
@@ -385,6 +424,7 @@ mod tests {
     fn test_encode_corestack_section() {
         let mut thread = CoreDumpStackSection::new("main");
         thread.frame(
+            0,
             42,
             51,
             vec![CoreDumpValue::I32(1)],
@@ -399,7 +439,7 @@ mod tests {
             encoded,
             vec![
                 // section length
-                26, 
+                27, 
                 // length of name.
                 9,
                 // section name (corestack)
@@ -410,8 +450,8 @@ mod tests {
                 b'm',b'a',b'i',b'n',
                 // frame count
                 1,
-                // 0x0, funcidx, codeoffset
-                0, 42, 51,
+                // 0x0, instanceidx, funcidx, codeoffset
+                0, 0, 42, 51,
                 // local count
                 1,
                 // local value type
