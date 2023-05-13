@@ -13,7 +13,7 @@ pub struct GeneralOpts {
     verbose: u8,
 
     /// Use colors in output.
-    #[clap(long = "color", short = 'c', default_value = "auto")]
+    #[clap(long = "color", default_value = "auto")]
     pub color: ColorChoice,
 }
 
