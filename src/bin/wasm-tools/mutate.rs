@@ -49,6 +49,10 @@ pub struct Opts {
 }
 
 impl Opts {
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     pub fn run(mut self) -> Result<()> {
         let input_wasm = self.io.parse_input_wasm()?;
 

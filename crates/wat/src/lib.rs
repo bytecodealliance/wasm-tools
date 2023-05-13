@@ -287,7 +287,7 @@ impl fmt::Display for Error {
             },
             ErrorKind::Io { err, file, .. } => match file {
                 Some(file) => {
-                    write!(f, "failed to read from `{}`: {}", file.display(), err)
+                    write!(f, "failed to read from `{}`", file.display())
                 }
                 None => err.fmt(f),
             },
