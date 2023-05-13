@@ -1,7 +1,0 @@
-interface new {
-  get-two: func() -> (a: u32, b: u32)
-}
-
-default world component {
-  import new: self.new
-}

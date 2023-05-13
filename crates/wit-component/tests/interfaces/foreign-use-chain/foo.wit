@@ -1,3 +1,5 @@
-default world foo {
-  import bar: bar.bar
+package foo
+
+world foo {
+  import bar/bar
 }

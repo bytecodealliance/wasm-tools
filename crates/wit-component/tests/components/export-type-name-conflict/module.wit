@@ -1,10 +1,12 @@
+package foo
+
 interface foo {
   record foo {}
 }
 
-default world bar {
+world module {
   export bar: interface {
-    use self.foo.{foo as bar}
+    use foo.{foo as bar}
 
     foo: func() -> bar
   }

@@ -1,3 +1,5 @@
+package chain
+
 interface foo {
-  use pkg.def.{name}
+  use def.{name}
 }

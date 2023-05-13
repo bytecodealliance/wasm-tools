@@ -1,0 +1,5 @@
+package dep
+
+interface the-name {
+  a: func()
+}

@@ -1,5 +1,0 @@
-default world brave-new-world {
-  import new: interface {
-    log: func(s: string)
-  }
-}

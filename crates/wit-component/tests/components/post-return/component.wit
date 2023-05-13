@@ -1,3 +1,0 @@
-default world component {
-  export a: func() -> string
-}

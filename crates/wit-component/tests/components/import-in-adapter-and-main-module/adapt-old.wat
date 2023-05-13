@@ -1,11 +1,11 @@
 (module
-  (import "shared-dependency" "f1" (func $f1))
-  (import "shared-dependency" "f3" (func $f3))
+  (import "shared-dependency/doc" "f1" (func $f1))
+  (import "shared-dependency/doc" "f3" (func $f3))
 
-  (import "shared-dependency" "g1" (func $g1 (param i32)))
-  (import "shared-dependency" "g3" (func $g3 (param i32)))
+  (import "shared-dependency/doc" "g1" (func $g1 (param i32)))
+  (import "shared-dependency/doc" "g3" (func $g3 (param i32)))
 
-  (import "shared-dependency" "unused-in-adapter" (func))
+  (import "shared-dependency/doc" "unused-in-adapter" (func))
   (import "env" "memory" (memory 0))
 
   (import "adapter-dep" "foo" (func $foo (result i32)))

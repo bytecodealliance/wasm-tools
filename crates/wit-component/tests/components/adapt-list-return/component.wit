@@ -1,7 +1,0 @@
-interface new {
-  read: func() -> list<u8>
-}
-
-default world component {
-  import new: self.new
-}

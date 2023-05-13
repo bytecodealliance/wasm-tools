@@ -1,5 +1,7 @@
+package %from
+
 interface a {
-  use foo.only-from.only-from.{r}
+  use foo/only-from.{r}
 
   foo: func()
 }

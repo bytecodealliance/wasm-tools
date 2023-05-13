@@ -1,0 +1,10 @@
+package component
+
+world root {
+  import foo/name
+  export foo/name
+  export name: interface {
+    use foo/name.{r2}
+    a: func()
+  }
+}

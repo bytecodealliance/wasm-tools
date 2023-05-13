@@ -1,11 +1,13 @@
-interface only-from {
+package foo
+
+interface shared-only-from {
   variant v {
     c1,
   }
 
   bar: func(x: v)
 
-  use only-from-dep.a.{a}
+  use only-from-dep/a.{a}
 }
 
 interface shared {
@@ -13,9 +15,9 @@ interface shared {
 }
 
 world shared-world {
-  import a: self.shared
+  import shared
 
-  export b: self.shared
+  export shared
 
   type c = u32
 

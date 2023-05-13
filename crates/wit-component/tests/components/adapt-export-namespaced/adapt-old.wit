@@ -2,6 +2,6 @@ interface new {
   entrypoint: func()
 }
 
-default world brave-new-world {
-  export new: self.new
+world adapt-old {
+  export new
 }

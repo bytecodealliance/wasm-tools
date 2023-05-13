@@ -1,0 +1,10 @@
+package component
+
+world root {
+  import foo/name1
+  import foo/name2
+  export name: interface {
+    use foo/name1.{name}
+    use foo/name2.{name as name1}
+  }
+}

@@ -1,0 +1,11 @@
+package foo
+
+interface the-name {
+  a: func()
+}
+
+world module {
+  import dep/the-name
+  import the-name
+  export the-name
+}

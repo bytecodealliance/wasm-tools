@@ -327,11 +327,11 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
             Some(if self.import_types {
                 self.state
                     .component
-                    .import(name, "", ComponentTypeRef::Type(TypeBounds::Eq(idx)))
+                    .import(name, ComponentTypeRef::Type(TypeBounds::Eq(idx)))
             } else {
                 self.state
                     .component
-                    .export(name, "", ComponentExportKind::Type, idx, None)
+                    .export(name, ComponentExportKind::Type, idx, None)
             })
         } else {
             assert!(!self.import_types);
@@ -375,7 +375,7 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     fn export_type(&mut self, idx: u32, name: &str) -> Option<u32> {
         let ret = self.ty.type_count();
         self.ty
-            .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq(idx)));
+            .export(name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
         Some(ret)
     }
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {

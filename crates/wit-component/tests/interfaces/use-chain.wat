@@ -9,7 +9,7 @@
           (export (;3;) "c" (type (eq 2)))
         )
       )
-      (export (;0;) "foo" "pkg:/use-chain/foo" (instance (type 0)))
+      (export (;0;) (interface "foo/foo") (instance (type 0)))
       (alias export 0 "c" (type (;1;)))
       (type (;2;)
         (instance
@@ -17,7 +17,7 @@
           (export (;1;) "c" (type (eq 0)))
         )
       )
-      (export (;1;) "bar" "pkg:/use-chain/bar" (instance (type 2)))
+      (export (;1;) (interface "foo/bar") (instance (type 2)))
       (alias export 1 "c" (type (;3;)))
       (type (;4;)
         (instance
@@ -25,11 +25,11 @@
           (export (;1;) "c" (type (eq 0)))
         )
       )
-      (export (;2;) "baz" "pkg:/use-chain/baz" (instance (type 4)))
+      (export (;2;) (interface "foo/baz") (instance (type 4)))
     )
   )
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) "use-chain" "pkg:/use-chain" (type 0))
+  (export (;1;) (interface "foo/wit") (type 0))
 )

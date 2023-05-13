@@ -1,4 +1,5 @@
-default interface a {
+package foo
+
+interface a {
   type a = u32
 }
-

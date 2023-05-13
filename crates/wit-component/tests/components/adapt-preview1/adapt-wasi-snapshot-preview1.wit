@@ -7,6 +7,6 @@ interface my-wasi {
   something-not-used: func()
 }
 
-default world adapter {
-  import my-wasi: self.my-wasi
+world adapt-wasi-snapshot-preview1 {
+  import my-wasi
 }

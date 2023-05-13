@@ -1,3 +1,5 @@
-default interface types {
+package some-dep
+
+interface types {
   type some-type = u8
 }

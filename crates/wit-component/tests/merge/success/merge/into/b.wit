@@ -1,5 +1,0 @@
-interface b {
-  use foo.only-into.only-into.{r}
-  foo: func()
-}
-

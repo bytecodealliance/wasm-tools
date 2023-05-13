@@ -1,4 +1,6 @@
+package foo
+
 interface a {
-  use a.the-name.{ty}
-  use b.the-name.{ty as ty2}
+  use a/the-name.{ty}
+  use b/the-name.{ty as ty2}
 }

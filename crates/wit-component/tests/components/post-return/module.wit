@@ -1,3 +1,5 @@
-default world foo {
+package foo
+
+world module {
   export a: func() -> string
 }

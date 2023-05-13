@@ -1,5 +1,0 @@
-default world foo {
-  import foo: interface {
-    bar: func(s: string)
-  }
-}

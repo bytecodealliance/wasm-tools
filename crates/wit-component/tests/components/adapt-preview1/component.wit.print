@@ -1,0 +1,8 @@
+package component
+
+world root {
+  import foo: interface {
+    foo: func()
+  }
+  import foo/my-wasi
+}

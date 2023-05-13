@@ -1,3 +1,5 @@
+package %from
+
 interface a {
-  use foo.a.{a}
+  use foo/a.{a}
 }

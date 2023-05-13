@@ -1,7 +1,11 @@
-default interface a {
+package foo
+
+interface a {
   type a = u32
 }
 
 world foo {
-  export b: self.a
+  export b: interface {
+    type a = u32
+  }
 }

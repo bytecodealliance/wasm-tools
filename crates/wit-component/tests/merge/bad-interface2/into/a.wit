@@ -1,3 +1,5 @@
+package into
+
 interface a {
-  use foo.a.{t}
+  use foo/a.{t}
 }

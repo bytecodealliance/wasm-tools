@@ -1,0 +1,9 @@
+package component
+
+world root {
+  import foo/foo
+  import other-name: interface {
+    use foo/foo.{bar}
+    a: func() -> bar
+  }
+}

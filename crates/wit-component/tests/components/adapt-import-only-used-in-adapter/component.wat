@@ -5,7 +5,7 @@
       (export (;0;) "foo" (func (type 0)))
     )
   )
-  (import "adapter-imports" (instance (;0;) (type 0)))
+  (import (interface "foo/adapter-imports") (instance (;0;) (type 0)))
   (type (;1;) (func (param "x" string)))
   (import "foo" (func (;0;) (type 1)))
   (core module (;0;)
@@ -26,7 +26,7 @@
   (core module (;1;)
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "adapter-imports" "foo" (func $foo (;0;) (type 0)))
+    (import "foo/adapter-imports" "foo" (func $foo (;0;) (type 0)))
     (func (;1;) (type 0) (param i32 i32)
       i32.const 0
       i32.const 0
@@ -46,7 +46,7 @@
       i32.const 0
       call_indirect (type 0)
     )
-    (func $indirect-adapter-imports-foo (;1;) (type 0) (param i32 i32)
+    (func $indirect-foo/adapter-imports-foo (;1;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 1
@@ -54,7 +54,7 @@
     )
     (table (;0;) 2 2 funcref)
     (export "0" (func $indirect-$root-foo))
-    (export "1" (func $indirect-adapter-imports-foo))
+    (export "1" (func $indirect-foo/adapter-imports-foo))
     (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -85,7 +85,7 @@
     (export "foo" (func 1))
   )
   (core instance (;4;) (instantiate 1
-      (with "adapter-imports" (instance 3))
+      (with "foo/adapter-imports" (instance 3))
     )
   )
   (alias core export 4 "cabi_export_realloc" (core func (;2;)))

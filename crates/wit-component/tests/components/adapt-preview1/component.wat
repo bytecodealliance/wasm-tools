@@ -12,7 +12,7 @@
       (export (;0;) "proc-exit" (func (type 0)))
     )
   )
-  (import "my-wasi" (instance (;1;) (type 1)))
+  (import (interface "foo/my-wasi") (instance (;1;) (type 1)))
   (core module (;0;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
@@ -30,7 +30,7 @@
   (core module (;1;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32) (result i32)))
-    (import "my-wasi" "proc-exit" (func $proc_exit (;0;) (type 0)))
+    (import "foo/my-wasi" "proc-exit" (func $proc_exit (;0;) (type 0)))
     (func (;1;) (type 0) (param i32)
       local.get 0
       call $proc_exit
@@ -98,7 +98,7 @@
     (export "proc-exit" (func 3))
   )
   (core instance (;5;) (instantiate 1
-      (with "my-wasi" (instance 4))
+      (with "foo/my-wasi" (instance 4))
     )
   )
   (alias core export 0 "$imports" (core table (;0;)))

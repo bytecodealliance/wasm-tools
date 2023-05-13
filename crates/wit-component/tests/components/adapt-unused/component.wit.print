@@ -1,0 +1,4 @@
+package component
+
+world root {
+}

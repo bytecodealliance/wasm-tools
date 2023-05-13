@@ -1,13 +1,14 @@
 use crate::metadata::{Bindgen, ModuleMetadata};
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
+use wasmparser::names::{KebabName, KebabNameKind};
 use wasmparser::{
-    types::Types, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType,
-    ValidPayload, Validator,
+    types::Types, ComponentImportName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
+    ValType, ValidPayload, Validator,
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, Resolve, WorldId, WorldItem,
+    Function, InterfaceId, PackageName, Resolve, WorldId, WorldItem, WorldKey,
 };
 
 fn is_canonical_function(name: &str) -> bool {
@@ -92,7 +93,7 @@ pub struct ValidatedModule<'a> {
 pub fn validate_module<'a>(
     bytes: &'a [u8],
     metadata: &'a Bindgen,
-    exports: &IndexSet<String>,
+    exports: &IndexSet<WorldKey>,
     adapters: &IndexSet<&str>,
 ) -> Result<ValidatedModule<'a>> {
     let mut validator = Validator::new();
@@ -176,7 +177,7 @@ pub fn validate_module<'a>(
     for (name, funcs) in &import_funcs {
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
-        if *name == "$root" {
+        if *name == BARE_FUNC_MODULE_NAME {
             validate_imports_top_level(&metadata.resolve, metadata.world, funcs, &types)?;
             let funcs = funcs.keys().cloned().collect();
             let prev = ret.required_imports.insert(BARE_FUNC_MODULE_NAME, funcs);
@@ -184,7 +185,7 @@ pub fn validate_module<'a>(
             continue;
         }
 
-        match world.imports.get(*name) {
+        match world.imports.get(&world_key(&metadata.resolve, name)) {
             Some(WorldItem::Interface(interface)) => {
                 let funcs =
                     validate_imported_interface(&metadata.resolve, *interface, name, funcs, &types)
@@ -209,7 +210,7 @@ pub fn validate_module<'a>(
         validate_exported_item(
             &metadata.resolve,
             &world.exports[name],
-            name,
+            &metadata.resolve.name_world_key(name),
             &export_funcs,
             &types,
         )?;
@@ -226,7 +227,7 @@ pub struct ValidatedAdapter<'a> {
     /// If specified this is the list of required imports from the original set
     /// of possible imports along with the set of functions required from each
     /// imported interface.
-    pub required_imports: IndexMap<&'a str, IndexSet<&'a str>>,
+    pub required_imports: IndexMap<String, IndexSet<&'a str>>,
 
     /// This is the module and field name of the memory import, if one is
     /// specified.
@@ -373,19 +374,26 @@ pub fn validate_adapter_module<'a>(
             let funcs = resolve.worlds[world]
                 .imports
                 .iter()
-                .filter_map(|(name, item)| match item {
-                    WorldItem::Function(_) if funcs.contains_key(name.as_str()) => {
-                        Some(name.as_str())
+                .filter_map(|(name, item)| {
+                    let name = match name {
+                        WorldKey::Name(name) => name,
+                        WorldKey::Interface(_) => return None,
+                    };
+                    match item {
+                        WorldItem::Function(_) if funcs.contains_key(name.as_str()) => {
+                            Some(name.as_str())
+                        }
+                        _ => None,
                     }
-                    _ => None,
                 })
                 .collect();
-            ret.required_imports.insert(BARE_FUNC_MODULE_NAME, funcs);
+            ret.required_imports
+                .insert(BARE_FUNC_MODULE_NAME.to_string(), funcs);
             continue;
         }
 
-        match resolve.worlds[world].imports.get_full(name) {
-            Some((_, name, WorldItem::Interface(interface))) => {
+        match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
+            Some(WorldItem::Interface(interface)) => {
                 validate_imported_interface(resolve, *interface, name, &funcs, &types)
                     .with_context(|| format!("failed to validate import interface `{name}`"))?;
                 let funcs = resolve.interfaces[*interface]
@@ -394,10 +402,10 @@ pub fn validate_adapter_module<'a>(
                     .map(|s| s.as_str())
                     .filter(|s| funcs.contains_key(s))
                     .collect();
-                let prev = ret.required_imports.insert(name, funcs);
+                let prev = ret.required_imports.insert(name.to_string(), funcs);
                 assert!(prev.is_none());
             }
-            None | Some((_, _, WorldItem::Function(_) | WorldItem::Type(_))) => {
+            None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
                 bail!(
                     "adapter module requires an import interface named `{}`",
                     name
@@ -430,6 +438,42 @@ pub fn validate_adapter_module<'a>(
     Ok(ret)
 }
 
+fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
+    let name = if name.contains('/') {
+        ComponentImportName::Interface(name)
+    } else {
+        ComponentImportName::Kebab(name)
+    };
+    let kebab_name = KebabName::new(name, 0);
+    let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {
+        Ok(KebabNameKind::Id {
+            namespace,
+            package,
+            version,
+            interface,
+        }) => (
+            PackageName {
+                namespace: namespace.map(|s| s.as_str().to_string()),
+                name: package.as_str().to_string(),
+                version: version.map(|v| {
+                    let dot = v.find('.').unwrap();
+                    (v[..dot].parse().unwrap(), v[dot + 1..].parse().unwrap())
+                }),
+            },
+            interface.as_str(),
+        ),
+        _ => return WorldKey::Name(name.as_str().to_string()),
+    };
+    match resolve
+        .package_names
+        .get(&pkgname)
+        .and_then(|p| resolve.packages[*p].interfaces.get(interface))
+    {
+        Some(id) => WorldKey::Interface(*id),
+        None => WorldKey::Name(name.as_str().to_string()),
+    }
+}
+
 fn validate_imports_top_level<'a>(
     resolve: &Resolve,
     world: WorldId,
@@ -437,7 +481,7 @@ fn validate_imports_top_level<'a>(
     types: &Types,
 ) -> Result<()> {
     for (name, ty) in funcs {
-        let func = match resolve.worlds[world].imports.get(*name) {
+        let func = match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
             Some(WorldItem::Function(func)) => func,
             Some(_) => bail!("expected world top-level import `{name}` to be a function"),
             None => bail!("no top-level imported function `{name}` specified"),
@@ -462,9 +506,7 @@ fn validate_imported_interface<'a>(
             .get(*func_name)
             .ok_or_else(|| {
                 anyhow!(
-                    "import interface `{}` is missing function `{}` that is required by the module",
-                    name,
-                    func_name,
+                    "import interface `{name}` is missing function `{func_name}` that is required by the module",
                 )
             })?;
 

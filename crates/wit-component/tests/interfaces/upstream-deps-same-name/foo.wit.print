@@ -1,5 +1,7 @@
+package foo
+
 interface a {
-  use a.the-name.the-iface.{ty}
-  use b.the-name.the-iface.{ty as ty2}
+  use a/the-name.{ty}
+  use b/the-name.{ty as ty2}
 }
 

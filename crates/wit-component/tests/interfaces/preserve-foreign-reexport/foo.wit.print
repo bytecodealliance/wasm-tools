@@ -1,3 +1,5 @@
+package foo
+
 world foo {
-  export foo: my-dep.my-doc.my-interface
+  export my-dep/my-interface
 }

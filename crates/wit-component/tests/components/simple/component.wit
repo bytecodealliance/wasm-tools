@@ -1,5 +1,0 @@
-default world component {
-  export a: func()
-  export b: func() -> string
-  export c: func(x: string) -> string
-}

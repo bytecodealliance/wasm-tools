@@ -49,7 +49,7 @@
       (export (;15;) "p" (func (type 29)))
     )
   )
-  (import "foo" (instance (;0;) (type 0)))
+  (import (interface "foo/foo") (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func))
     (type (;1;) (func (param i32 i32)))
@@ -57,22 +57,22 @@
     (type (;3;) (func (param i32)))
     (type (;4;) (func (result i32)))
     (type (;5;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "foo" "a" (func (;0;) (type 0)))
-    (import "foo" "b" (func (;1;) (type 1)))
-    (import "foo" "c" (func (;2;) (type 1)))
-    (import "foo" "d" (func (;3;) (type 2)))
-    (import "foo" "e" (func (;4;) (type 3)))
-    (import "foo" "f" (func (;5;) (type 1)))
-    (import "foo" "g" (func (;6;) (type 1)))
-    (import "foo" "h" (func (;7;) (type 1)))
-    (import "foo" "i" (func (;8;) (type 1)))
-    (import "foo" "j" (func (;9;) (type 3)))
-    (import "foo" "k" (func (;10;) (type 3)))
-    (import "foo" "l" (func (;11;) (type 3)))
-    (import "foo" "m" (func (;12;) (type 3)))
-    (import "foo" "n" (func (;13;) (type 4)))
-    (import "foo" "o" (func (;14;) (type 3)))
-    (import "foo" "p" (func (;15;) (type 3)))
+    (import "foo/foo" "a" (func (;0;) (type 0)))
+    (import "foo/foo" "b" (func (;1;) (type 1)))
+    (import "foo/foo" "c" (func (;2;) (type 1)))
+    (import "foo/foo" "d" (func (;3;) (type 2)))
+    (import "foo/foo" "e" (func (;4;) (type 3)))
+    (import "foo/foo" "f" (func (;5;) (type 1)))
+    (import "foo/foo" "g" (func (;6;) (type 1)))
+    (import "foo/foo" "h" (func (;7;) (type 1)))
+    (import "foo/foo" "i" (func (;8;) (type 1)))
+    (import "foo/foo" "j" (func (;9;) (type 3)))
+    (import "foo/foo" "k" (func (;10;) (type 3)))
+    (import "foo/foo" "l" (func (;11;) (type 3)))
+    (import "foo/foo" "m" (func (;12;) (type 3)))
+    (import "foo/foo" "n" (func (;13;) (type 4)))
+    (import "foo/foo" "o" (func (;14;) (type 3)))
+    (import "foo/foo" "p" (func (;15;) (type 3)))
     (func (;16;) (type 5) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
@@ -88,80 +88,80 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32)))
     (type (;2;) (func (param i32)))
-    (func $indirect-foo-b (;0;) (type 0) (param i32 i32)
+    (func $indirect-foo/foo-b (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 0
       call_indirect (type 0)
     )
-    (func $indirect-foo-c (;1;) (type 0) (param i32 i32)
+    (func $indirect-foo/foo-c (;1;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 1
       call_indirect (type 0)
     )
-    (func $indirect-foo-d (;2;) (type 1) (param i32 i32 i32)
+    (func $indirect-foo/foo-d (;2;) (type 1) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 2
       call_indirect (type 1)
     )
-    (func $indirect-foo-g (;3;) (type 0) (param i32 i32)
+    (func $indirect-foo/foo-g (;3;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 3
       call_indirect (type 0)
     )
-    (func $indirect-foo-h (;4;) (type 0) (param i32 i32)
+    (func $indirect-foo/foo-h (;4;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 4
       call_indirect (type 0)
     )
-    (func $indirect-foo-i (;5;) (type 0) (param i32 i32)
+    (func $indirect-foo/foo-i (;5;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 5
       call_indirect (type 0)
     )
-    (func $indirect-foo-k (;6;) (type 2) (param i32)
+    (func $indirect-foo/foo-k (;6;) (type 2) (param i32)
       local.get 0
       i32.const 6
       call_indirect (type 2)
     )
-    (func $indirect-foo-l (;7;) (type 2) (param i32)
+    (func $indirect-foo/foo-l (;7;) (type 2) (param i32)
       local.get 0
       i32.const 7
       call_indirect (type 2)
     )
-    (func $indirect-foo-m (;8;) (type 2) (param i32)
+    (func $indirect-foo/foo-m (;8;) (type 2) (param i32)
       local.get 0
       i32.const 8
       call_indirect (type 2)
     )
-    (func $indirect-foo-o (;9;) (type 2) (param i32)
+    (func $indirect-foo/foo-o (;9;) (type 2) (param i32)
       local.get 0
       i32.const 9
       call_indirect (type 2)
     )
-    (func $indirect-foo-p (;10;) (type 2) (param i32)
+    (func $indirect-foo/foo-p (;10;) (type 2) (param i32)
       local.get 0
       i32.const 10
       call_indirect (type 2)
     )
     (table (;0;) 11 11 funcref)
-    (export "0" (func $indirect-foo-b))
-    (export "1" (func $indirect-foo-c))
-    (export "2" (func $indirect-foo-d))
-    (export "3" (func $indirect-foo-g))
-    (export "4" (func $indirect-foo-h))
-    (export "5" (func $indirect-foo-i))
-    (export "6" (func $indirect-foo-k))
-    (export "7" (func $indirect-foo-l))
-    (export "8" (func $indirect-foo-m))
-    (export "9" (func $indirect-foo-o))
-    (export "10" (func $indirect-foo-p))
+    (export "0" (func $indirect-foo/foo-b))
+    (export "1" (func $indirect-foo/foo-c))
+    (export "2" (func $indirect-foo/foo-d))
+    (export "3" (func $indirect-foo/foo-g))
+    (export "4" (func $indirect-foo/foo-h))
+    (export "5" (func $indirect-foo/foo-i))
+    (export "6" (func $indirect-foo/foo-k))
+    (export "7" (func $indirect-foo/foo-l))
+    (export "8" (func $indirect-foo/foo-m))
+    (export "9" (func $indirect-foo/foo-o))
+    (export "10" (func $indirect-foo/foo-p))
     (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -229,7 +229,7 @@
     (export "n" (func 15))
   )
   (core instance (;2;) (instantiate 0
-      (with "foo" (instance 1))
+      (with "foo/foo" (instance 1))
     )
   )
   (alias core export 2 "memory" (core memory (;0;)))

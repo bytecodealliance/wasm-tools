@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
 use std::{fs, path::Path};
-use wit_component::DocumentPrinter;
+use wit_component::WitPrinter;
 use wit_parser::{Resolve, TypeOwner, WorldItem};
 
 /// This is a test which iterates over the `tests/merge` directory and treats
@@ -42,16 +42,13 @@ fn merging() -> Result<()> {
                     "should have failed to merge"
                 );
                 assert_valid_resolve(&into);
-                for (_id, pkg) in into.packages.iter() {
-                    for (name, doc) in pkg.documents.iter() {
-                        let expected = path
-                            .join("merge")
-                            .join(&pkg.name)
-                            .join(name)
-                            .with_extension("wit");
-                        let output = DocumentPrinter::default().print(&into, *doc)?;
-                        assert_output(&expected, &output)?;
-                    }
+                for (id, pkg) in into.packages.iter() {
+                    let expected = path
+                        .join("merge")
+                        .join(&pkg.name.name)
+                        .with_extension("wit");
+                    let output = WitPrinter::default().print(&into, id)?;
+                    assert_output(&expected, &output)?;
                 }
             }
             Err(e) => {
@@ -82,53 +79,32 @@ fn assert_output(expected: &Path, actual: &str) -> Result<()> {
 }
 
 fn assert_valid_resolve(resolve: &Resolve) {
-    let mut package_documents = Vec::new();
-    for (id, package) in resolve.packages.iter() {
-        for (name, doc) in package.documents.iter() {
-            let doc = &resolve.documents[*doc];
-            assert_eq!(*name, doc.name);
-            assert_eq!(doc.package, Some(id));
-        }
-        package_documents.push(package.documents.values().copied().collect::<HashSet<_>>());
-    }
-
-    let mut document_interfaces = Vec::new();
-    let mut document_worlds = Vec::new();
-    for (id, doc) in resolve.documents.iter() {
-        if let Some(pkgid) = doc.package {
-            assert!(resolve.packages.get(pkgid).is_some());
-            assert!(package_documents[pkgid.index()].contains(&id));
-        }
+    let mut package_interfaces = Vec::new();
+    let mut package_worlds = Vec::new();
+    for (id, pkg) in resolve.packages.iter() {
         let mut interfaces = HashSet::new();
-        for (name, iface) in doc.interfaces.iter() {
+        for (name, iface) in pkg.interfaces.iter() {
             assert!(interfaces.insert(*iface));
             let iface = &resolve.interfaces[*iface];
             assert_eq!(name, iface.name.as_ref().unwrap());
-            assert_eq!(iface.document, id);
+            assert_eq!(iface.package.unwrap(), id);
         }
-        document_interfaces.push(doc.interfaces.values().copied().collect::<HashSet<_>>());
+        package_interfaces.push(pkg.interfaces.values().copied().collect::<HashSet<_>>());
         let mut worlds = HashSet::new();
-        for (name, world) in doc.worlds.iter() {
+        for (name, world) in pkg.worlds.iter() {
             assert!(worlds.insert(*world));
             let world = &resolve.worlds[*world];
             assert_eq!(*name, world.name);
-            assert_eq!(world.document, id);
+            assert_eq!(world.package.unwrap(), id);
         }
-        document_worlds.push(doc.worlds.values().copied().collect::<HashSet<_>>());
-
-        if let Some(id) = doc.default_interface {
-            assert!(interfaces.contains(&id));
-        }
-        if let Some(id) = doc.default_world {
-            assert!(worlds.contains(&id));
-        }
+        package_worlds.push(pkg.worlds.values().copied().collect::<HashSet<_>>());
     }
 
     let mut interface_types = Vec::new();
     for (id, iface) in resolve.interfaces.iter() {
-        assert!(resolve.documents.get(iface.document).is_some());
+        assert!(resolve.packages.get(iface.package.unwrap()).is_some());
         if iface.name.is_some() {
-            assert!(document_interfaces[iface.document.index()].contains(&id));
+            assert!(package_interfaces[iface.package.unwrap().index()].contains(&id));
         }
 
         for (name, ty) in iface.types.iter() {
@@ -144,20 +120,20 @@ fn assert_valid_resolve(resolve: &Resolve) {
 
     let mut world_types = Vec::new();
     for (id, world) in resolve.worlds.iter() {
-        assert!(resolve.documents.get(world.document).is_some());
-        assert!(document_worlds[world.document.index()].contains(&id));
+        assert!(resolve.packages.get(world.package.unwrap()).is_some());
+        assert!(package_worlds[world.package.unwrap().index()].contains(&id));
 
         let mut types = HashSet::new();
         for (name, item) in world.imports.iter().chain(world.exports.iter()) {
             match item {
                 WorldItem::Interface(_) => {}
                 WorldItem::Function(f) => {
-                    assert_eq!(f.name, *name);
+                    assert_eq!(f.name, name.clone().unwrap_name());
                 }
                 WorldItem::Type(ty) => {
                     assert!(types.insert(*ty));
                     let ty = &resolve.types[*ty];
-                    assert_eq!(ty.name.as_ref(), Some(name));
+                    assert_eq!(ty.name, Some(name.clone().unwrap_name()));
                     assert_eq!(ty.owner, TypeOwner::World(id));
                 }
             }

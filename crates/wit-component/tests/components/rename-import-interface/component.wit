@@ -1,7 +1,0 @@
-interface bar {
-  the-func: func()
-}
-
-default world component {
-  import bar: self.bar
-}

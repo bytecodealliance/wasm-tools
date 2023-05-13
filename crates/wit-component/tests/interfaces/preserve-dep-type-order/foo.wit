@@ -1,7 +1,9 @@
+package foo
+
 interface foo {
-  use dep.foo.{ty}
+  use dep/foo.{ty}
 }
 
 world bar {
-  import foo: dep.foo
+  import dep/foo
 }

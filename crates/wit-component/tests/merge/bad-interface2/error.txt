@@ -1,6 +1,5 @@
 failed to merge package `foo` into existing copy
 
 Caused by:
-    0: failed to merge document `a` into existing copy
-    1: failed to merge interface `a`
-    2: expected function `a` to be present
+    0: failed to merge interface `a`
+    1: expected function `a` to be present

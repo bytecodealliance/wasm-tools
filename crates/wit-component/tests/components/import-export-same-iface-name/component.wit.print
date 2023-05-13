@@ -1,0 +1,7 @@
+package component
+
+world root {
+  import dep/the-name
+  import foo/the-name
+  export foo/the-name
+}

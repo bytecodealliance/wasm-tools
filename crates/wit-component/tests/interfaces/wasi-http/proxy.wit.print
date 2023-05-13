@@ -1,9 +1,0 @@
-world proxy {
-  import random: random.random.random
-  import console: logging.handler.handler
-  import poll: poll.poll.poll
-  import streams: io.streams.streams
-  import types: pkg.types.types
-  import default-outgoing-HTTP: pkg.outgoing-handler.outgoing-handler
-  export HTTP: pkg.incoming-handler.incoming-handler
-}

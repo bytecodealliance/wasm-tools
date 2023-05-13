@@ -1,5 +1,5 @@
-default interface a {
-  use self.b.{the-type}
+interface a2 {
+  use b.{the-type}
 }
 
 interface b {

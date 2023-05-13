@@ -3,20 +3,6 @@
     (component
       (type (;0;)
         (component
-          (type (;0;) (func))
-          (import "foo" (func (;0;) (type 0)))
-        )
-      )
-      (export (;0;) "just-import" "pkg:/world-top-level/just-import" (component (type 0)))
-      (type (;1;)
-        (component
-          (type (;0;) (func))
-          (export (;0;) "foo" (func (type 0)))
-        )
-      )
-      (export (;1;) "just-export" "pkg:/world-top-level/just-export" (component (type 1)))
-      (type (;2;)
-        (component
           (type (;0;)
             (instance)
           )
@@ -34,11 +20,25 @@
           (export (;3;) "bar2" (func (type 4)))
         )
       )
-      (export (;2;) "foo" "pkg:/world-top-level/foo" (component (type 2)))
+      (export (;0;) (interface "foo/foo") (component (type 0)))
+      (type (;1;)
+        (component
+          (type (;0;) (func))
+          (import "foo" (func (;0;) (type 0)))
+        )
+      )
+      (export (;1;) (interface "foo/just-import") (component (type 1)))
+      (type (;2;)
+        (component
+          (type (;0;) (func))
+          (export (;0;) "foo" (func (type 0)))
+        )
+      )
+      (export (;2;) (interface "foo/just-export") (component (type 2)))
     )
   )
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) "world-top-level" "pkg:/world-top-level" (type 0))
+  (export (;1;) (interface "foo/wit") (type 0))
 )

@@ -4,7 +4,6 @@ use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
-use url::Url;
 use wasm_encoder::*;
 use wit_parser::*;
 
@@ -50,16 +49,6 @@ struct Encoder<'a> {
 
 impl Encoder<'_> {
     fn run(&mut self) -> Result<()> {
-        for (name, doc) in self.resolve.packages[self.package].documents.iter() {
-            let ty = self.encode_document(*doc)?;
-            let url = format!("pkg:/{name}");
-            self.component
-                .export(name, &url, ComponentExportKind::Type, ty, None);
-        }
-        Ok(())
-    }
-
-    fn encode_document(&mut self, doc: DocumentId) -> Result<u32> {
         // Build a set of interfaces reachable from this document, including the
         // interfaces in the document itself. This is used to import instances
         // into the component type we're encoding. Note that entire interfaces
@@ -69,7 +58,7 @@ impl Encoder<'_> {
         // notably on the order that types are defined in to assist with
         // roundtripping.
         let mut interfaces = IndexSet::new();
-        for (_, id) in self.resolve.documents[doc].interfaces.iter() {
+        for (_, id) in self.resolve.packages[self.package].interfaces.iter() {
             self.add_live_interfaces(&mut interfaces, *id);
         }
 
@@ -79,12 +68,12 @@ impl Encoder<'_> {
         let mut used_names = IndexSet::new();
         for id in interfaces.iter() {
             let iface = &self.resolve.interfaces[*id];
-            if iface.document == doc {
+            if iface.package == Some(self.package) {
                 let first = used_names.insert(iface.name.as_ref().unwrap().clone());
                 assert!(first);
             }
         }
-        for (name, _world) in self.resolve.documents[doc].worlds.iter() {
+        for (name, _world) in self.resolve.packages[self.package].worlds.iter() {
             let first = used_names.insert(name.clone());
             assert!(first);
         }
@@ -97,13 +86,11 @@ impl Encoder<'_> {
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
-            let name = iface.name.as_ref().unwrap();
-            if iface.document == doc {
+            let name = self.resolve.id_of(interface).unwrap();
+            log::trace!("encoding interface {name}");
+            if iface.package == Some(self.package) {
                 let idx = encoder.encode_instance(interface)?;
-                let url = format!("pkg:/{}/{name}", self.resolve.documents[doc].name);
-                encoder
-                    .outer
-                    .export(name, &url, ComponentTypeRef::Instance(idx));
+                encoder.outer.export(&name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -114,44 +101,29 @@ impl Encoder<'_> {
                 encoder.outer.ty().instance(&instance);
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
-
-                let import_name = if used_names.insert(name.clone()) {
-                    name.clone()
-                } else {
-                    let mut i = 2;
-                    loop {
-                        let name = format!("{name}{i}");
-                        if used_names.insert(name.clone()) {
-                            break name;
-                        }
-                        i += 1;
-                    }
-                };
-
-                let url = self.url_of(interface);
-                encoder
-                    .outer
-                    .import(&import_name, &url, ComponentTypeRef::Instance(idx));
+                encoder.outer.import(&name, ComponentTypeRef::Instance(idx));
             }
         }
         encoder.interface = None;
 
-        let doc = &self.resolve.documents[doc];
-        for (name, world) in doc.worlds.iter() {
+        for (name, world) in self.resolve.packages[self.package].worlds.iter() {
             let world = &self.resolve.worlds[*world];
             let mut component = InterfaceEncoder::new(self.resolve);
+            log::trace!("encoding world {}", world.name);
 
             for (name, import) in world.imports.iter() {
-                let (url, ty) = match import {
+                let name = self.resolve.name_world_key(name);
+                log::trace!("encoding import {name}");
+                let ty = match import {
                     WorldItem::Interface(i) => {
                         component.interface = Some(*i);
                         let idx = component.encode_instance(*i)?;
-                        (self.url_of(*i), ComponentTypeRef::Instance(idx))
+                        ComponentTypeRef::Instance(idx)
                     }
                     WorldItem::Function(f) => {
                         component.interface = None;
                         let idx = component.encode_func_type(self.resolve, f)?;
-                        (String::new(), ComponentTypeRef::Func(idx))
+                        ComponentTypeRef::Func(idx)
                     }
                     WorldItem::Type(t) => {
                         component.interface = None;
@@ -161,34 +133,38 @@ impl Encoder<'_> {
                         continue;
                     }
                 };
-                component.outer.import(name, &url, ty);
+                component.outer.import(&name, ty);
             }
 
             for (name, export) in world.exports.iter() {
-                let (url, ty) = match export {
+                let name = self.resolve.name_world_key(name);
+                log::trace!("encoding export {name}");
+                let ty = match export {
                     WorldItem::Interface(i) => {
                         component.interface = Some(*i);
                         let idx = component.encode_instance(*i)?;
-                        (self.url_of(*i), ComponentTypeRef::Instance(idx))
+                        ComponentTypeRef::Instance(idx)
                     }
                     WorldItem::Function(f) => {
                         component.interface = None;
                         let idx = component.encode_func_type(self.resolve, f)?;
-                        (String::new(), ComponentTypeRef::Func(idx))
+                        ComponentTypeRef::Func(idx)
                     }
                     WorldItem::Type(_) => unreachable!(),
                 };
-                component.outer.export(name, &url, ty);
+                component.outer.export(&name, ty);
             }
             let idx = encoder.outer.type_count();
             encoder.outer.ty().component(&component.outer);
-            let url = format!("pkg:/{}/{name}", doc.name);
-            encoder
-                .outer
-                .export(&name, &url, ComponentTypeRef::Component(idx));
+            let id = self.resolve.packages[self.package].name.interface_id(&name);
+            encoder.outer.export(&id, ComponentTypeRef::Component(idx));
         }
 
-        Ok(self.component.component_type(&encoder.outer))
+        let ty = self.component.component_type(&encoder.outer);
+        let id = self.resolve.packages[self.package].name.interface_id("wit");
+        self.component
+            .export(&id, ComponentExportKind::Type, ty, None);
+        Ok(())
     }
 
     /// Recursively add all live interfaces reachable from `id` into the
@@ -216,27 +192,6 @@ impl Encoder<'_> {
             }
         }
         assert!(interfaces.insert(id));
-    }
-
-    fn url_of(&self, interface: InterfaceId) -> String {
-        let iface = &self.resolve.interfaces[interface];
-        let iface_name = match &iface.name {
-            Some(name) => name,
-            None => return String::new(),
-        };
-        let doc = &self.resolve.documents[iface.document];
-        let pkg = doc.package.unwrap();
-        let mut base = if pkg == self.package {
-            Url::parse("pkg:/").unwrap()
-        } else {
-            let pkg = &self.resolve.packages[pkg];
-            Url::parse(pkg.url.as_ref().unwrap()).unwrap()
-        };
-        let mut segments = base.path_segments_mut().unwrap();
-        segments.push(&doc.name);
-        segments.push(iface_name);
-        drop(segments);
-        base.to_string()
     }
 }
 
@@ -282,7 +237,7 @@ impl InterfaceEncoder<'_> {
             self.ty
                 .as_mut()
                 .unwrap()
-                .export(name, "", ComponentTypeRef::Func(ty));
+                .export(name, ComponentTypeRef::Func(ty));
         }
         let instance = self.pop_instance();
         let idx = self.outer.type_count();
@@ -328,17 +283,17 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             Some(ty) => {
                 assert!(!self.import_types);
                 let ret = ty.type_count();
-                ty.export(name, "", ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                ty.export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 Some(ret)
             }
             None => {
                 let ret = self.outer.type_count();
                 if self.import_types {
                     self.outer
-                        .import(name, "", ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                        .import(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 } else {
                     self.outer
-                        .export(name, "", ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                        .export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 }
                 Some(ret)
             }

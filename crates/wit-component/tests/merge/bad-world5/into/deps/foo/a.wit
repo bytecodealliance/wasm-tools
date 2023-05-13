@@ -1,7 +1,9 @@
-default interface a {
+package foo
+
+interface a {
   type a = u32
 }
 
 world foo {
-  import a: self.a
+  import a
 }

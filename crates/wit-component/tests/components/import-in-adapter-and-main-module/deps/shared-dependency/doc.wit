@@ -1,4 +1,6 @@
-default interface doc {
+package shared-dependency
+
+interface doc {
   f1: func()
   f2: func()
   f3: func()

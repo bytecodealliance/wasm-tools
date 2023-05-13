@@ -1,3 +1,5 @@
+package console
+
 interface console {
   log: func(arg: string)
 }

@@ -1,5 +1,0 @@
-default interface foo {
-  type a = u32
-
-}
-

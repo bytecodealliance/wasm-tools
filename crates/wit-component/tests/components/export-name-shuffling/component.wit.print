@@ -1,0 +1,9 @@
+package component
+
+world root {
+  export foo/name
+  export name: interface {
+    use foo/name.{foo}
+    a: func(f: foo)
+  }
+}

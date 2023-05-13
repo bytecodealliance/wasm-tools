@@ -11,14 +11,14 @@
       (export (;5;) "g3" (func (type 1)))
     )
   )
-  (import "shared-dependency" "path:/shared-dependency/doc/doc" (instance (;0;) (type 0)))
+  (import (interface "shared-dependency/doc") (instance (;0;) (type 0)))
   (type (;1;)
     (instance
       (type (;0;) u32)
       (export (;1;) "a-typedef" (type (eq 0)))
     )
   )
-  (import "types" "path:/shared-dependency/types/types" (instance (;1;) (type 1)))
+  (import (interface "shared-dependency/types") (instance (;1;) (type 1)))
   (alias export 1 "a-typedef" (type (;2;)))
   (type (;3;)
     (instance
@@ -44,10 +44,10 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (result i32)))
     (type (;3;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "shared-dependency" "f1" (func (;0;) (type 0)))
-    (import "shared-dependency" "f2" (func (;1;) (type 0)))
-    (import "shared-dependency" "g1" (func (;2;) (type 1)))
-    (import "shared-dependency" "g2" (func (;3;) (type 1)))
+    (import "shared-dependency/doc" "f1" (func (;0;) (type 0)))
+    (import "shared-dependency/doc" "f2" (func (;1;) (type 0)))
+    (import "shared-dependency/doc" "g1" (func (;2;) (type 1)))
+    (import "shared-dependency/doc" "g2" (func (;3;) (type 1)))
     (import "old" "adapter-f1" (func (;4;) (type 0)))
     (import "main-dep" "foo" (func (;5;) (type 2)))
     (func (;6;) (type 3) (param i32 i32 i32 i32) (result i32)
@@ -66,10 +66,10 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (result i32)))
     (type (;3;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "shared-dependency" "f1" (func $f1 (;0;) (type 0)))
-    (import "shared-dependency" "f3" (func $f3 (;1;) (type 0)))
-    (import "shared-dependency" "g1" (func $g1 (;2;) (type 1)))
-    (import "shared-dependency" "g3" (func $g3 (;3;) (type 1)))
+    (import "shared-dependency/doc" "f1" (func $f1 (;0;) (type 0)))
+    (import "shared-dependency/doc" "f3" (func $f3 (;1;) (type 0)))
+    (import "shared-dependency/doc" "g1" (func $g1 (;2;) (type 1)))
+    (import "shared-dependency/doc" "g3" (func $g3 (;3;) (type 1)))
     (import "adapter-dep" "foo" (func $foo (;4;) (type 2)))
     (func (;5;) (type 0)
       call $f1
@@ -90,22 +90,22 @@
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func))
-    (func $indirect-shared-dependency-g1 (;0;) (type 0) (param i32)
+    (func $indirect-shared-dependency/doc-g1 (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (func $indirect-shared-dependency-g2 (;1;) (type 0) (param i32)
+    (func $indirect-shared-dependency/doc-g2 (;1;) (type 0) (param i32)
       local.get 0
       i32.const 1
       call_indirect (type 0)
     )
-    (func $#func2<indirect-shared-dependency-g1> (@name "indirect-shared-dependency-g1") (;2;) (type 0) (param i32)
+    (func $#func2<indirect-shared-dependency/doc-g1> (@name "indirect-shared-dependency/doc-g1") (;2;) (type 0) (param i32)
       local.get 0
       i32.const 2
       call_indirect (type 0)
     )
-    (func $indirect-shared-dependency-g3 (;3;) (type 0) (param i32)
+    (func $indirect-shared-dependency/doc-g3 (;3;) (type 0) (param i32)
       local.get 0
       i32.const 3
       call_indirect (type 0)
@@ -115,10 +115,10 @@
       call_indirect (type 1)
     )
     (table (;0;) 5 5 funcref)
-    (export "0" (func $indirect-shared-dependency-g1))
-    (export "1" (func $indirect-shared-dependency-g2))
-    (export "2" (func $#func2<indirect-shared-dependency-g1>))
-    (export "3" (func $indirect-shared-dependency-g3))
+    (export "0" (func $indirect-shared-dependency/doc-g1))
+    (export "1" (func $indirect-shared-dependency/doc-g2))
+    (export "2" (func $#func2<indirect-shared-dependency/doc-g1>))
+    (export "3" (func $indirect-shared-dependency/doc-g3))
     (export "4" (func $adapt-old-adapter-f1))
     (export "$imports" (table 0))
     (@producers
@@ -162,7 +162,7 @@
     (export "adapter-f1" (func 5))
   )
   (core instance (;4;) (instantiate 0
-      (with "shared-dependency" (instance 1))
+      (with "shared-dependency/doc" (instance 1))
       (with "main-dep" (instance 2))
       (with "old" (instance 3))
     )
@@ -187,7 +187,7 @@
     (export "foo" (func 11))
   )
   (core instance (;7;) (instantiate 1
-      (with "shared-dependency" (instance 5))
+      (with "shared-dependency/doc" (instance 5))
       (with "adapter-dep" (instance 6))
     )
   )

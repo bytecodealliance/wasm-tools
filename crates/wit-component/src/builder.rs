@@ -124,12 +124,11 @@ impl ComponentBuilder {
     pub fn export(
         &mut self,
         name: &str,
-        url: &str,
         kind: ComponentExportKind,
         idx: u32,
         ty: Option<ComponentTypeRef>,
     ) -> u32 {
-        self.exports().export(name, url, kind, idx, ty);
+        self.exports().export(name, kind, idx, ty);
         match kind {
             ComponentExportKind::Type => inc(&mut self.types),
             ComponentExportKind::Func => inc(&mut self.funcs),
@@ -139,14 +138,14 @@ impl ComponentBuilder {
         }
     }
 
-    pub fn import(&mut self, name: &str, url: &str, ty: ComponentTypeRef) -> u32 {
+    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> u32 {
         let ret = match &ty {
             ComponentTypeRef::Instance(_) => inc(&mut self.instances),
             ComponentTypeRef::Func(_) => inc(&mut self.funcs),
             ComponentTypeRef::Type(..) => inc(&mut self.types),
             _ => unimplemented!(),
         };
-        self.imports().import(name, url, ty);
+        self.imports().import(name, ty);
         ret
     }
 

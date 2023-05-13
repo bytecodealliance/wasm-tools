@@ -1,0 +1,5 @@
+package component
+
+world root {
+  export entrypoint: func()
+}
