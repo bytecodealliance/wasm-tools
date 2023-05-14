@@ -36,10 +36,10 @@ macro_rules! subcommands {
             }
 
             fn general_opts(&self) -> &wasm_tools::GeneralOpts {
-                match self {
+                match *self {
                     $(
                         #[cfg(feature = $string)]
-                        Self::$name(opts) => opts.general_opts(),
+                        Self::$name(ref opts) => opts.general_opts(),
                     )*
                 }
             }
