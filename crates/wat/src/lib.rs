@@ -287,7 +287,7 @@ impl fmt::Display for Error {
             },
             ErrorKind::Io { err, file, .. } => match file {
                 Some(file) => {
-                    write!(f, "failed to read from `{}`: {}", file.display(), err)
+                    write!(f, "failed to read from `{}`", file.display())
                 }
                 None => err.fmt(f),
             },
@@ -321,7 +321,7 @@ mod test {
         let e = parse_file("_does_not_exist_").unwrap_err();
         assert!(e
             .to_string()
-            .starts_with("failed to read from `_does_not_exist_`: "));
+            .starts_with("failed to read from `_does_not_exist_`"));
 
         let mut e = parse_bytes("()".as_bytes()).unwrap_err();
         e.set_path("foo");

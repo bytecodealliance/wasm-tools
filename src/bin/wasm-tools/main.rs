@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
-use std::io;
+use std::io::{self, Write};
 use std::process::ExitCode;
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 macro_rules! subcommands {
     ($(
@@ -33,6 +34,15 @@ macro_rules! subcommands {
                     )*
                 }
             }
+
+            fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+                match *self {
+                    $(
+                        #[cfg(feature = $string)]
+                        Self::$name(ref opts) => opts.general_opts(),
+                    )*
+                }
+            }
         }
     }
 }
@@ -58,7 +68,10 @@ subcommands! {
 }
 
 fn main() -> ExitCode {
-    let err = match <WasmTools as Parser>::parse().run() {
+    let args = <WasmTools as Parser>::parse();
+    args.general_opts().init_logger();
+    let color = args.general_opts().color;
+    let err = match args.run() {
         Ok(()) => return ExitCode::SUCCESS,
         Err(e) => e,
     };
@@ -72,8 +85,45 @@ fn main() -> ExitCode {
             _ => {}
         }
     }
-    eprintln!("Error: {:?}", err);
+
+    // ignore errors here since if we fail to print an error it's not like we
+    // can print it again.
+    let _ = print_error(color, err);
     ExitCode::FAILURE
+}
+
+fn print_error(color: ColorChoice, err: anyhow::Error) -> Result<()> {
+    let color = if color == ColorChoice::Auto && !atty::is(atty::Stream::Stderr) {
+        ColorChoice::Never
+    } else {
+        color
+    };
+    let mut stderr = StandardStream::stderr(color);
+    stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
+    write!(stderr, "error")?;
+    stderr.set_color(ColorSpec::new().set_fg(None).set_bold(true))?;
+    write!(stderr, ": ")?;
+
+    let msg = err.to_string();
+    for (i, line) in msg.lines().enumerate() {
+        writeln!(stderr, "{line}")?;
+        if i == 0 {
+            stderr.set_color(ColorSpec::new().set_reset(true))?;
+        }
+    }
+
+    if err.chain().len() == 1 {
+        return Ok(());
+    }
+    writeln!(stderr, "\nCaused by:")?;
+    for (i, err) in err.chain().skip(1).enumerate() {
+        writeln!(
+            stderr,
+            "{i:>5}: {}",
+            err.to_string().replace("\n", "\n       ")
+        )?;
+    }
+    return Ok(());
 }
 
 /// If CARGO_VERSION_INFO is set, use it, otherwise use CARGO_PKG_VERSION.

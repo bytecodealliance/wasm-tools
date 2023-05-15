@@ -36,6 +36,10 @@ pub struct Opts {
 }
 
 impl Opts {
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     pub fn run(self) -> Result<()> {
         let input = self.io.parse_input_wasm()?;
         let initial_size = input.len();

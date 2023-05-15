@@ -15,6 +15,13 @@ impl Opts {
             Opts::Add(opts) => opts.run(),
         }
     }
+
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        match self {
+            Opts::Show(opts) => opts.general_opts(),
+            Opts::Add(opts) => opts.general_opts(),
+        }
+    }
 }
 
 /// Read metadata (module name, producers) from a WebAssembly file.
@@ -29,6 +36,10 @@ pub struct ShowOpts {
 }
 
 impl ShowOpts {
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     pub fn run(&self) -> Result<()> {
         let input = self.io.parse_input_wasm()?;
         let mut output = self.io.output_writer()?;
@@ -58,6 +69,10 @@ pub struct AddOpts {
 }
 
 impl AddOpts {
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     pub fn run(&self) -> Result<()> {
         let input = self.io.parse_input_wasm()?;
 
