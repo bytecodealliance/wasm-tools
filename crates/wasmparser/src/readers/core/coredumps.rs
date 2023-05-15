@@ -31,20 +31,109 @@ impl<'a> FromReader<'a> for CoreDumpSection<'a> {
     }
 }
 
+/// The data portion of a "coremodules" custom section. This contains a vec of
+/// module names that will be referenced by index by other coredump sections.
+///
+/// # Example
+///
+/// ```
+/// use wasmparser::{ BinaryReader, CoreDumpModulesSection, FromReader, Result };
+/// let data: &[u8] = &[0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74];
+/// let mut reader = BinaryReader::new(data);
+/// let modules_section = CoreDumpModulesSection::from_reader(&mut reader).unwrap();
+/// assert!(modules_section.modules[0] == "test")
+/// ```
+#[derive(Debug)]
+pub struct CoreDumpModulesSection<'a> {
+    /// A list of module names, which may be URLs, file paths, or other
+    /// identifiers for the module.
+    pub modules: Vec<&'a str>,
+}
+
+impl<'a> FromReader<'a> for CoreDumpModulesSection<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let pos = reader.original_position();
+        let mut modules = vec![];
+        for _ in 0..reader.read_var_u32()? {
+            if reader.read_u8()? != 0 {
+                bail!(pos, "invalid start byte for coremodule");
+            }
+            modules.push(reader.read_string()?);
+        }
+        Ok(CoreDumpModulesSection { modules })
+    }
+}
+/// A custom section representing the instances involved in a given coredump
+pub struct CoreDumpInstancesSection {
+    /// The instances for the coredump
+    pub instances: Vec<CoreDumpInstance>,
+}
+
+impl<'a> FromReader<'a> for CoreDumpInstancesSection {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let mut instances = vec![];
+        for _ in 0..reader.read_var_u32()? {
+            instances.push(CoreDumpInstance::from_reader(reader)?);
+        }
+        Ok(CoreDumpInstancesSection { instances })
+    }
+}
+
+/// A single instance from a coredump instances section
+pub struct CoreDumpInstance {
+    /// The module that this is an instance of, as an index into a "coremodules"
+    /// section.
+    pub module_index: u32,
+
+    /// Which of the coredump's memories are this instance's memories, via
+    /// indexing into the memory index space.
+    pub memories: Vec<u32>,
+
+    /// Which of the coredump's globals are this instance's globals, via
+    /// indexing into the global index space.
+    pub globals: Vec<u32>,
+}
+
+impl<'a> FromReader<'a> for CoreDumpInstance {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let pos = reader.original_position();
+        if reader.read_u8()? != 0 {
+            bail!(pos, "invalid start byte for core dump instance");
+        }
+        let module_index = reader.read_var_u32()?;
+        let mut memories = vec![];
+        for _ in 0..reader.read_var_u32()? {
+            memories.push(reader.read_var_u32()?);
+        }
+        let mut globals = vec![];
+
+        for _ in 0..reader.read_var_u32()? {
+            globals.push(reader.read_var_u32()?);
+        }
+
+        Ok(CoreDumpInstance {
+            module_index,
+            memories,
+            globals,
+        })
+    }
+}
+
 /// The data portion of a custom section representing a core dump stack. The
 /// structure of this follows the coredump spec in the tool-conventions repo
 ///
 /// # Examples
 ///
 /// ```
-/// let data: &[u8] = &[0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x01, 0x00, 0x2a,
-///     0x33, 0x01, 0x7f, 0x01, 0x01, 0x7f, 0x02];
+/// let data: &[u8] = &[0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x01, 0x00, 0x04,
+///     0x2a, 0x33, 0x01, 0x7f, 0x01, 0x01, 0x7f, 0x02];
 /// use wasmparser::{ BinaryReader, CoreDumpStackSection, FromReader };
 /// let mut reader = BinaryReader::new(data);
 /// let corestack = CoreDumpStackSection::from_reader(&mut reader).unwrap();
 /// assert!(corestack.name == "main");
 /// assert!(corestack.frames.len() == 1);
 /// let frame = &corestack.frames[0];
+/// assert!(frame.instanceidx == 4);
 /// assert!(frame.funcidx == 42);
 /// assert!(frame.codeoffset == 51);
 /// assert!(frame.locals.len() == 1);
@@ -78,6 +167,8 @@ impl<'a> FromReader<'a> for CoreDumpStackSection<'a> {
 /// A single stack frame from a core dump
 #[derive(Debug)]
 pub struct CoreDumpStackFrame {
+    /// The instance that this stack frame belongs to.
+    pub instanceidx: u32,
     /// The function index in the module
     pub funcidx: u32,
     /// The instruction's offset relative to the function's start
@@ -94,6 +185,7 @@ impl<'a> FromReader<'a> for CoreDumpStackFrame {
         if reader.read_u8()? != 0 {
             bail!(pos, "invalid start byte for core dump stack frame");
         }
+        let instanceidx = reader.read_var_u32()?;
         let funcidx = reader.read_var_u32()?;
         let codeoffset = reader.read_var_u32()?;
         let mut locals = vec![];
@@ -106,6 +198,7 @@ impl<'a> FromReader<'a> for CoreDumpStackFrame {
         }
 
         Ok(CoreDumpStackFrame {
+            instanceidx,
             funcidx,
             codeoffset,
             locals,
