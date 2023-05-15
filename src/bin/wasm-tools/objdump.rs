@@ -1,7 +1,7 @@
 use anyhow::Result;
-use termcolor::WriteColor;
 use std::io::Write;
 use std::ops::Range;
+use termcolor::WriteColor;
 use wasmparser::{Encoding, Parser, Payload::*};
 
 /// Dumps information about sections in a WebAssembly file.
@@ -15,6 +15,10 @@ pub struct Opts {
 }
 
 impl Opts {
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     pub fn run(&self) -> Result<()> {
         let input = self.io.parse_input_wasm()?;
 

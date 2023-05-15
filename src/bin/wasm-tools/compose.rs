@@ -7,12 +7,15 @@ pub struct Opts {
     #[clap(flatten)]
     cmd: WasmComposeCommand,
     #[clap(flatten)]
-    verbosity: wasm_tools::Verbosity,
+    general: wasm_tools::GeneralOpts,
 }
 
 impl Opts {
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        &self.general
+    }
+
     pub fn run(self) -> Result<()> {
-        self.verbosity.init_logger();
         self.cmd.execute()
     }
 }

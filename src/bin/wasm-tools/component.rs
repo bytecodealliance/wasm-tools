@@ -26,6 +26,14 @@ impl Opts {
             Opts::Embed(embed) => embed.run(),
         }
     }
+
+    pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        match self {
+            Opts::New(new) => new.general_opts(),
+            Opts::Wit(wit) => wit.general_opts(),
+            Opts::Embed(embed) => embed.general_opts(),
+        }
+    }
 }
 
 fn parse_optionally_name_file(s: &str) -> (&str, &str) {
@@ -91,6 +99,10 @@ pub struct NewOpts {
 }
 
 impl NewOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     /// Executes the application.
     fn run(self) -> Result<()> {
         let wasm = self.io.parse_input_wasm()?;
@@ -172,10 +184,13 @@ pub struct EmbedOpts {
 }
 
 impl EmbedOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
     /// Executes the application.
     fn run(self) -> Result<()> {
         let wasm = if self.dummy {
-            self.io.init_logger();
             None
         } else {
             Some(self.io.parse_input_wasm()?)
@@ -217,7 +232,7 @@ impl EmbedOpts {
 #[derive(Parser)]
 pub struct WitOpts {
     #[clap(flatten)]
-    verbosity: wasm_tools::Verbosity,
+    general: wasm_tools::GeneralOpts,
 
     /// Input file or directory to process.
     ///
@@ -275,6 +290,10 @@ pub struct WitOpts {
 }
 
 impl WitOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        &self.general
+    }
+
     /// Executes the application.
     fn run(self) -> Result<()> {
         self.verbosity.init_logger();
