@@ -142,7 +142,7 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 
 /// Represents a unique identifier for a type known to a [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(C)]
+#[repr(C)] // use fixed field layout to ensure minimal size
 pub struct TypeId {
     /// The index into the global list of types.
     pub(crate) index: usize,
