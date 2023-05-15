@@ -203,7 +203,7 @@ impl Debug for RefType {
 const _: () = {
     const fn can_roundtrip_index(index: u32) -> bool {
         assert!(RefType::can_represent_type_index(index));
-        let rt = match RefType::typed_func(true, index) {
+        let rt = match RefType::indexed_func(true, index) {
             Some(rt) => rt,
             None => panic!(),
         };
@@ -340,8 +340,24 @@ impl RefType {
     ///
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable.
-    pub const fn typed_func(nullable: bool, index: u32) -> Option<Self> {
+    pub const fn indexed_func(nullable: bool, index: u32) -> Option<Self> {
         Self::indexed(nullable, HeapType::Func, index)
+    }
+
+    /// Create a reference to an array with the type at the given index.
+    ///
+    /// Returns `None` when the type index is beyond this crate's implementation
+    /// limits and therefore is not representable.
+    pub const fn indexed_array(nullable: bool, index: u32) -> Option<Self> {
+        Self::indexed(nullable, HeapType::Array, index)
+    }
+
+    /// Create a reference to a struct with the type at the given index.
+    ///
+    /// Returns `None` when the type index is beyond this crate's implementation
+    /// limits and therefore is not representable.
+    pub const fn indexed_struct(nullable: bool, index: u32) -> Option<Self> {
+        Self::indexed(nullable, HeapType::Struct, index)
     }
 
     /// Create a reference to a user defined type at the given index.
@@ -349,7 +365,7 @@ impl RefType {
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable, or when the heap type is not
     /// a typed array, struct or function.
-    pub const fn indexed(nullable: bool, heap_type: HeapType, index: u32) -> Option<Self> {
+    const fn indexed(nullable: bool, heap_type: HeapType, index: u32) -> Option<Self> {
         let kind = match heap_type {
             HeapType::Func => Self::FUNC_KIND,
             HeapType::Array => Self::ARRAY_KIND,
@@ -375,7 +391,7 @@ impl RefType {
     pub const fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * nullable as u32;
         match heap_type {
-            HeapType::TypedFunc(index) => RefType::typed_func(nullable, index),
+            HeapType::TypedFunc(index) => RefType::indexed_func(nullable, index),
             HeapType::Func => Some(Self::from_u32(nullable32 | Self::FUNC_TYPE)),
             HeapType::Extern => Some(Self::from_u32(nullable32 | Self::EXTERN_TYPE)),
             HeapType::Any => Some(Self::from_u32(nullable32 | Self::ANY_TYPE)),
@@ -840,7 +856,14 @@ impl<'a> FromReader<'a> for ArrayType {
         let mutable = reader.read_u8()?;
         Ok(ArrayType {
             element_type,
-            mutable: (mutable != 0x00),
+            mutable: match mutable {
+                0 => false,
+                1 => true,
+                _ => bail!(
+                    reader.original_position(),
+                    "invalid mutability byte for array type"
+                ),
+            },
         })
     }
 }

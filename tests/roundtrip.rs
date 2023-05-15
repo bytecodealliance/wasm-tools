@@ -144,23 +144,17 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/throw.wast",
         // This is an empty file which currently doesn't parse
         "multi-memory/memory_copy1.wast",
+        // the GC proposal isn't implemented yet
+        "gc/gc-array.wat",
+        "gc/gc-rec-sub.wat",
+        "gc/gc-ref.wat",
+        "gc/gc-ref-global-import.wat",
+        "gc/gc-struct.wat",
+        "gc/let.wat",
+        "/proposals/gc/",
     ];
-    if broken.iter().any(|x| test.ends_with(x)) {
-        return true;
-    }
-
-    // TODO: the gc proposal isn't implemented yet
-    if test.iter().any(|p| p == "gc") {
-        // selectively enable some tests
-        let implemented = &[
-            "gc-i31.wat",
-            "gc-heaptypes.wat",
-            "gc-array-types.wat",
-            "gc-array-types-invalid.wast",
-        ];
-        if implemented.iter().any(|x| test.ends_with(x)) {
-            return false;
-        }
+    let test_path = test.to_str().unwrap();
+    if broken.iter().any(|x| test_path.contains(x)) {
         return true;
     }
 
