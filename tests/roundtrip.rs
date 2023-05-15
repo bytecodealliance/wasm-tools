@@ -153,7 +153,7 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "gc/let.wat",
         "/proposals/gc/",
     ];
-    let test_path = test.to_str().unwrap();
+    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
     if broken.iter().any(|x| test_path.contains(x)) {
         return true;
     }
