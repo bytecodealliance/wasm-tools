@@ -1,6 +1,6 @@
 [package]
 name = "wasm-compose"
-version = "0.2.13"
+version = "0.2.14"
 edition.workspace = true
 authors = ["Peter Huene <peter@huene.dev>"]
 license = "Apache-2.0 WITH LLVM-exception"
