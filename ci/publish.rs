@@ -35,10 +35,10 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wasm-smith",
     "wasm-mutate",
     "wasm-shrink",
-    "wasm-compose",
     "wit-parser",
     "wasm-metadata",
     "wit-component",
+    "wasm-compose",
     "wit-smith",
     "wasm-tools",
 ];
