@@ -252,7 +252,7 @@ impl Bindgen {
             .context("failed to merge WIT package sets together")?
             .worlds[world.index()];
         self.resolve
-            .merge_worlds(world, self.world)
+            .merge_worlds(world, self.world, false)
             .context("failed to merge worlds from two documents")?;
 
         for (name, encoding) in export_encodings {

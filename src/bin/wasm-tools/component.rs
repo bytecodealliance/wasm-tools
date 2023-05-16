@@ -111,7 +111,7 @@ impl NewOpts {
             .module(&wasm)?;
 
         for (name, wasm) in self.adapters.iter() {
-            encoder = encoder.adapter(name, wasm)?;
+            encoder = encoder.adapter(name, wasm, false)?;
         }
 
         let bytes = encoder

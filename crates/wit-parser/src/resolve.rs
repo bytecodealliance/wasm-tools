@@ -421,7 +421,7 @@ impl Resolve {
     /// interface.
     ///
     /// This operation can fail if the imports/exports overlap.
-    pub fn merge_worlds(&mut self, from: WorldId, into: WorldId) -> Result<()> {
+    pub fn merge_worlds(&mut self, from: WorldId, into: WorldId, force_union: bool) -> Result<()> {
         let mut new_imports = Vec::new();
         let mut new_exports = Vec::new();
 
@@ -478,7 +478,9 @@ impl Resolve {
                 Some(into_import) => match (from_import, into_import) {
                     // If these imports, which have the same name, are of the
                     // same interface then union them together at this point.
-                    (WorldItem::Interface(from), WorldItem::Interface(into)) if from == into => {
+                    (WorldItem::Interface(from), WorldItem::Interface(into))
+                        if force_union || from == into =>
+                    {
                         continue
                     }
                     _ => bail!("duplicate import found for interface `{name}`"),

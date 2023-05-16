@@ -1497,7 +1497,13 @@ impl ComponentEncoder {
     /// wasm module specified by `bytes` imports. The `bytes` will then import
     /// `interface` and export functions to get imported from the module `name`
     /// in the core wasm that's being wrapped.
-    pub fn adapter(mut self, name: &str, bytes: &[u8]) -> Result<Self> {
+    ///
+    /// When merging components whose intersecting imports are known ahead of time
+    /// to have fully equivalent types, force_merge can be used to dedupe the
+    /// imports against eachother (for example shared WASI bindings).
+    /// No type checking is currently performed, so this will break components
+    /// when applied incorrectly.
+    pub fn adapter(mut self, name: &str, bytes: &[u8], force_merge: bool) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
         // Merge the adapter's document into our own document to have one large
         // document, and then afterwards merge worlds as well.
@@ -1518,7 +1524,7 @@ impl ComponentEncoder {
             .worlds[metadata.world.index()];
         self.metadata
             .resolve
-            .merge_worlds(world, self.metadata.world)
+            .merge_worlds(world, self.metadata.world, force_merge)
             .with_context(|| {
                 format!("failed to merge WIT world of adapter `{name}` into main package")
             })?;
