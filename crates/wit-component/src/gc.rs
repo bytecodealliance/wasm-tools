@@ -492,7 +492,7 @@ impl<'a> Module<'a> {
             | HeapType::Struct
             | HeapType::Array
             | HeapType::I31 => {}
-            HeapType::TypedFunc(i) => self.ty(i.into()),
+            HeapType::Indexed(i) => self.ty(i.into()),
         }
     }
 
@@ -1126,8 +1126,8 @@ impl Encoder {
             HeapType::Struct => wasm_encoder::HeapType::Struct,
             HeapType::Array => wasm_encoder::HeapType::Array,
             HeapType::I31 => wasm_encoder::HeapType::I31,
-            HeapType::TypedFunc(idx) => {
-                wasm_encoder::HeapType::TypedFunc(self.types.remap(idx.into()).try_into().unwrap())
+            HeapType::Indexed(idx) => {
+                wasm_encoder::HeapType::Indexed(self.types.remap(idx.into()).try_into().unwrap())
             }
         }
     }

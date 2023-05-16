@@ -642,11 +642,15 @@ impl Module {
         Ok(())
     }
 
-    pub fn type_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    pub fn type_id_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
         self.types
             .get(idx as usize)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
+    }
+
+    fn type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a Type> {
+        self.type_id_at(idx, offset).map(|type_id| &types[type_id])
     }
 
     fn func_type_at<'a>(
@@ -655,7 +659,7 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        types[self.type_at(type_index, offset)?]
+        types[self.type_id_at(type_index, offset)?]
             .as_func_type()
             .ok_or_else(|| format_err!(offset, "type index {type_index} is not a function type"))
     }
@@ -811,9 +815,9 @@ impl Module {
             | HeapType::Struct
             | HeapType::Array
             | HeapType::I31 => (),
-            HeapType::TypedFunc(type_index) => {
+            HeapType::Indexed(type_index) => {
                 // Just check that the index is valid
-                self.type_at(type_index, offset)?;
+                self.type_id_at(type_index, offset)?;
             }
         }
         Ok(())
@@ -824,19 +828,29 @@ impl Module {
             (ValType::Ref(rt1), ValType::Ref(rt2)) => {
                 rt1.is_nullable() == rt2.is_nullable()
                     && match (rt1.heap_type(), rt2.heap_type()) {
-                        (HeapType::Func, HeapType::Func) => true,
-                        (HeapType::Extern, HeapType::Extern) => true,
-                        (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
-                            let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
-                            let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
-                            self.eq_fns(n1, n2, types)
+                        (HeapType::Indexed(n1), HeapType::Indexed(n2)) => {
+                            self.eq_indexed_types(n1, n2, types)
                         }
-                        (_, _) => false,
+                        (h1, h2) => h1 == h2,
                     }
             }
             _ => ty1 == ty2,
         }
     }
+
+    fn eq_indexed_types(&self, n1: u32, n2: u32, types: &TypeList) -> bool {
+        let n1 = self.type_at(types, n1.into(), 0).unwrap();
+        let n2 = self.type_at(types, n2.into(), 0).unwrap();
+        match (n1, n2) {
+            (Type::Func(f1), Type::Func(f2)) => self.eq_fns(f1, f2, types),
+            (Type::Array(a1), Type::Array(a2)) => {
+                a1.mutable == a2.mutable
+                    && self.eq_valtypes(a1.element_type, a2.element_type, types)
+            }
+            _ => false,
+        }
+    }
+
     fn eq_fns(&self, f1: &impl WasmFuncType, f2: &impl WasmFuncType, types: &TypeList) -> bool {
         f1.len_inputs() == f2.len_inputs()
             && f2.len_outputs() == f2.len_outputs()
@@ -850,6 +864,9 @@ impl Module {
                 .all(|(t1, t2)| self.eq_valtypes(t1, t2, types))
     }
 
+    /// Check that a value of type ty1 is assignable to a variable / table element of type ty2.
+    /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
+    /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
         fn matches_null(null1: bool, null2: bool) -> bool {
             (null1 == null2) || null2
@@ -857,13 +874,28 @@ impl Module {
 
         let matches_heap = |ty1: HeapType, ty2: HeapType, types: &TypeList| -> bool {
             match (ty1, ty2) {
-                (HeapType::TypedFunc(n1), HeapType::TypedFunc(n2)) => {
+                (HeapType::Indexed(n1), HeapType::Indexed(n2)) => {
                     // Check whether the defined types are (structurally) equivalent.
-                    let n1 = self.func_type_at(n1.into(), types, 0).unwrap();
-                    let n2 = self.func_type_at(n2.into(), types, 0).unwrap();
-                    self.eq_fns(n1, n2, types)
+                    let n1 = self.type_at(types, n1.into(), 0);
+                    let n2 = self.type_at(types, n2.into(), 0);
+                    match (n1, n2) {
+                        (Ok(Type::Func(n1)), Ok(Type::Func(n2))) => self.eq_fns(n1, n2, types),
+                        (Ok(Type::Array(n1)), Ok(Type::Array(n2))) => {
+                            self.eq_valtypes(n1.element_type, n2.element_type, types)
+                                && (n1.mutable == n2.mutable || n2.mutable)
+                        }
+                        _ => false,
+                    }
                 }
-                (HeapType::TypedFunc(_), HeapType::Func) => true,
+                (HeapType::Indexed(n1), HeapType::Func) => {
+                    self.func_type_at(n1.into(), types, 0).is_ok()
+                }
+                (HeapType::Indexed(n1), HeapType::Array) => {
+                    match self.type_at(types, n1.into(), 0) {
+                        Ok(Type::Array(_)) => true,
+                        _ => false,
+                    }
+                }
                 (_, _) => ty1 == ty2,
             }
         };
