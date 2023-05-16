@@ -99,7 +99,7 @@ pub struct UnresolvedPackage {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
     pub namespace: String,
