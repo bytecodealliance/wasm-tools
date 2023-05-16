@@ -109,7 +109,7 @@ pub trait Translator {
     }
 
     fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
-        drop(item);
+        let _ = item;
         Ok(idx)
     }
 }

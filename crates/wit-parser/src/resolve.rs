@@ -1456,7 +1456,7 @@ impl<'a> MergeMap<'a> {
                 }
             }
             (WorldItem::Function(from), WorldItem::Function(into)) => {
-                drop((from, into));
+                let _ = (from, into);
                 // FIXME: should assert an check that `from` structurally
                 // matches `into`
             }
