@@ -1161,18 +1161,18 @@ macro_rules! define_encode {
         BrTable($arg.0, $arg.1)
     });
     (mk CallIndirect $ty:ident $table:ident $table_byte:ident) => ({
-        drop($table_byte);
+        let _ = $table_byte;
         CallIndirect { ty: $ty, table: $table }
     });
     (mk ReturnCallIndirect $ty:ident $table:ident) => (
         ReturnCallIndirect { ty: $ty, table: $table }
     );
     (mk MemorySize $mem:ident $mem_byte:ident) => ({
-        drop($mem_byte);
+        let _ = $mem_byte;
         MemorySize($mem)
     });
     (mk MemoryGrow $mem:ident $mem_byte:ident) => ({
-        drop($mem_byte);
+        let _ = $mem_byte;
         MemoryGrow($mem)
     });
     (mk I32Const $v:ident) => (I32Const($v));

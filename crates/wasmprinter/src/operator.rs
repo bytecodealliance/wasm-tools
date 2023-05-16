@@ -217,7 +217,7 @@ macro_rules! define_visit {
             $self.table_index($table)?;
         }
         $self.type_index($ty)?;
-        drop($byte);
+        let _ = $byte;
     );
     (payload $self:ident ReturnCallIndirect $ty:ident $table:ident) => (
         if $table != 0 {
