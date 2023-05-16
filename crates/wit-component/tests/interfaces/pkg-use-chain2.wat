@@ -7,7 +7,7 @@
           (export (;1;) "name" (type (eq 0)))
         )
       )
-      (export (;0;) (interface "foo/other") (instance (type 0)))
+      (export (;0;) (interface "foo:foo/other") (instance (type 0)))
       (alias export 0 "name" (type (;1;)))
       (type (;2;)
         (instance
@@ -17,7 +17,7 @@
           (export (;3;) "name" (type (eq 2)))
         )
       )
-      (export (;1;) (interface "foo/bar") (instance (type 2)))
+      (export (;1;) (interface "foo:foo/bar") (instance (type 2)))
       (alias export 1 "the-name" (type (;3;)))
       (type (;4;)
         (instance
@@ -25,11 +25,11 @@
           (export (;1;) "the-name" (type (eq 0)))
         )
       )
-      (export (;2;) (interface "foo/foo") (instance (type 4)))
+      (export (;2;) (interface "foo:foo/foo") (instance (type 4)))
     )
   )
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo/wit") (type 0))
+  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

@@ -5,7 +5,7 @@
       (export (;0;) "a" (func (type 0)))
     )
   )
-  (import (interface "foo/bar") (instance (;0;) (type 0)))
+  (import (interface "foo:foo/bar") (instance (;0;) (type 0)))
   (type (;1;)
     (instance
       (type (;0;) (list u8))
@@ -13,22 +13,22 @@
       (export (;0;) "baz" (func (type 1)))
     )
   )
-  (import (interface "foo/baz") (instance (;1;) (type 1)))
+  (import (interface "foo:foo/baz") (instance (;1;) (type 1)))
   (type (;2;)
     (instance
       (type (;0;) (func))
       (export (;0;) "a" (func (type 0)))
     )
   )
-  (import (interface "foo/foo") (instance (;2;) (type 2)))
+  (import (interface "foo:foo/foo") (instance (;2;) (type 2)))
   (core module (;0;)
     (type (;0;) (func))
     (type (;1;) (func (param i64 i32 i32)))
     (type (;2;) (func (param i32 i32 i32)))
     (type (;3;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "foo/foo" "a" (func (;0;) (type 0)))
-    (import "foo/bar" "a" (func (;1;) (type 1)))
-    (import "foo/baz" "baz" (func (;2;) (type 2)))
+    (import "foo:foo/foo" "a" (func (;0;) (type 0)))
+    (import "foo:foo/bar" "a" (func (;1;) (type 1)))
+    (import "foo:foo/baz" "baz" (func (;2;) (type 2)))
     (func (;3;) (type 3) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
@@ -43,14 +43,14 @@
   (core module (;1;)
     (type (;0;) (func (param i64 i32 i32)))
     (type (;1;) (func (param i32 i32 i32)))
-    (func $indirect-foo/bar-a (;0;) (type 0) (param i64 i32 i32)
+    (func $indirect-foo:foo/bar-a (;0;) (type 0) (param i64 i32 i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 0
       call_indirect (type 0)
     )
-    (func $indirect-foo/baz-baz (;1;) (type 1) (param i32 i32 i32)
+    (func $indirect-foo:foo/baz-baz (;1;) (type 1) (param i32 i32 i32)
       local.get 0
       local.get 1
       local.get 2
@@ -58,8 +58,8 @@
       call_indirect (type 1)
     )
     (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-foo/bar-a))
-    (export "1" (func $indirect-foo/baz-baz))
+    (export "0" (func $indirect-foo:foo/bar-a))
+    (export "1" (func $indirect-foo:foo/baz-baz))
     (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -91,9 +91,9 @@
     (export "baz" (func 2))
   )
   (core instance (;4;) (instantiate 0
-      (with "foo/foo" (instance 1))
-      (with "foo/bar" (instance 2))
-      (with "foo/baz" (instance 3))
+      (with "foo:foo/foo" (instance 1))
+      (with "foo:foo/bar" (instance 2))
+      (with "foo:foo/baz" (instance 3))
     )
   )
   (alias core export 4 "memory" (core memory (;0;)))

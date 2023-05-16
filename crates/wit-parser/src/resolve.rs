@@ -489,10 +489,8 @@ impl Resolve {
         let interface = &self.interfaces[interface];
         let package = &self.packages[interface.package.unwrap()];
         let mut base = String::new();
-        if let Some(ns) = &package.name.namespace {
-            base.push_str(ns);
-            base.push_str(":");
-        }
+        base.push_str(&package.name.namespace);
+        base.push_str(":");
         base.push_str(&package.name.name);
         base.push_str("/");
         base.push_str(interface.name.as_ref()?);

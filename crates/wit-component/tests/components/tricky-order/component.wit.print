@@ -1,10 +1,10 @@
-package component
+package root:component
 
 world root {
-  import foo/name1
-  import foo/name2
+  import foo:foo/name1
+  import foo:foo/name2
   export name: interface {
-    use foo/name1.{name}
-    use foo/name2.{name as name1}
+    use foo:foo/name1.{name}
+    use foo:foo/name2.{name as name1}
   }
 }

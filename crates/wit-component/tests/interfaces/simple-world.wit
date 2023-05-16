@@ -1,4 +1,4 @@
-package foo
+package foo:foo
 
 world the-world {
   import console

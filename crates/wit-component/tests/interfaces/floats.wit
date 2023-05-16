@@ -1,4 +1,4 @@
-package floats
+package foo:floats
 
 interface floats {
   float32-param: func(x: float32)

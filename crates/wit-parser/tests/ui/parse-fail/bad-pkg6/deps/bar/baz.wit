@@ -1,4 +1,4 @@
-package baz
+package foo:baz
 
 interface bar {}
 

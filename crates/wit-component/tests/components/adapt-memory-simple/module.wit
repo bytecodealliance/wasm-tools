@@ -1,2 +1,2 @@
-package foo
+package foo:foo
 world module {}

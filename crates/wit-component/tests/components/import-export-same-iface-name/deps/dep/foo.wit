@@ -1,4 +1,4 @@
-package dep
+package foo:dep
 
 interface the-name {
   a: func()

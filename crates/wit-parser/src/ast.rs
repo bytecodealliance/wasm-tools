@@ -113,39 +113,31 @@ impl<'a> AstItem<'a> {
 #[derive(Debug, Clone)]
 struct PackageName<'a> {
     span: Span,
-    namespace: Option<Id<'a>>,
+    namespace: Id<'a>,
     name: Id<'a>,
     version: Option<(Span, u32, u32)>,
 }
 
 impl<'a> PackageName<'a> {
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
-        let id = parse_id(tokens)?;
-        if tokens.eat(Token::Colon)? {
-            let name = parse_id(tokens)?;
-            let version = parse_opt_version(tokens)?;
-            Ok(PackageName {
-                span: Span {
-                    start: id.span.start,
-                    end: version.map(|(s, _, _)| s.end).unwrap_or(name.span.end),
-                },
-                namespace: Some(id),
-                name,
-                version,
-            })
-        } else {
-            Ok(PackageName {
-                span: id.span,
-                namespace: None,
-                name: id,
-                version: None,
-            })
-        }
+        let namespace = parse_id(tokens)?;
+        tokens.expect(Token::Colon)?;
+        let name = parse_id(tokens)?;
+        let version = parse_opt_version(tokens)?;
+        Ok(PackageName {
+            span: Span {
+                start: namespace.span.start,
+                end: version.map(|(s, _, _)| s.end).unwrap_or(name.span.end),
+            },
+            namespace,
+            name,
+            version,
+        })
     }
 
     fn package_name(&self) -> crate::PackageName {
         crate::PackageName {
-            namespace: self.namespace.as_ref().map(|s| s.name.to_string()),
+            namespace: self.namespace.name.to_string(),
             name: self.name.name.to_string(),
             version: self.version.map(|(_, a, b)| (a, b)),
         }
@@ -358,21 +350,9 @@ impl<'a> UsePath<'a> {
                         start: namespace.span.start,
                         end: pkg_name.span.end,
                     },
-                    namespace: Some(namespace),
+                    namespace,
                     name: pkg_name,
                     version,
-                },
-                name,
-            })
-        } else if tokens.eat(Token::Slash)? {
-            // `foo/bar`
-            let name = parse_id(tokens)?;
-            Ok(UsePath::Package {
-                id: PackageName {
-                    span: id.span,
-                    namespace: None,
-                    name: id,
-                    version: None,
                 },
                 name,
             })

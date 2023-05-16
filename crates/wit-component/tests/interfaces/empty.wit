@@ -1,4 +1,4 @@
-package empty
+package foo:empty
 
 interface empty {}
 

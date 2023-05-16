@@ -1,2 +1,2 @@
-package different-pkg
+package foo:different-pkg
 interface i {}

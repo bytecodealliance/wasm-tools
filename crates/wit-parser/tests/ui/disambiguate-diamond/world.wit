@@ -1,4 +1,4 @@
-package diamond
+package foo:diamond
 
 world foo {
   import foo: interface {

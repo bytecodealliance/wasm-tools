@@ -1,4 +1,4 @@
-package comments
+package foo:comments
 
 // hello
 // world

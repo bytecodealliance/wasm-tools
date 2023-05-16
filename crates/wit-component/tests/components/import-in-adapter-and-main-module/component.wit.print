@@ -1,14 +1,14 @@
-package component
+package root:component
 
 world root {
-  import shared-dependency/doc
-  import shared-dependency/types
+  import foo:shared-dependency/doc
+  import foo:shared-dependency/types
   import main-dep: interface {
-    use shared-dependency/types.{a-typedef}
+    use foo:shared-dependency/types.{a-typedef}
     foo: func() -> a-typedef
   }
   import adapter-dep: interface {
-    use shared-dependency/types.{a-typedef}
+    use foo:shared-dependency/types.{a-typedef}
     foo: func() -> a-typedef
   }
 }

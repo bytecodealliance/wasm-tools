@@ -9,11 +9,11 @@
       (export (;0;) "a" (func (type 4)))
     )
   )
-  (import (interface "foo/foo") (instance (;0;) (type 0)))
+  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "foo/foo" "a" (func (;0;) (type 0)))
+    (import "foo:foo/foo" "a" (func (;0;) (type 0)))
     (func (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
@@ -35,7 +35,7 @@
     (export "a" (func 0))
   )
   (core instance (;1;) (instantiate 0
-      (with "foo/foo" (instance 0))
+      (with "foo:foo/foo" (instance 0))
     )
   )
   (alias core export 1 "memory" (core memory (;0;)))

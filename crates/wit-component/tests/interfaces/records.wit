@@ -1,4 +1,4 @@
-package records
+package foo:records
 
 interface records {
   record empty {

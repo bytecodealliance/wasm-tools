@@ -1,10 +1,10 @@
-package foo
+package foo:foo
 
 world module {
-  import shared-dependency/doc
+  import foo:shared-dependency/doc
 
   import main-dep: interface {
-    use shared-dependency/types.{a-typedef}
+    use foo:shared-dependency/types.{a-typedef}
 
     foo: func() -> a-typedef
   }

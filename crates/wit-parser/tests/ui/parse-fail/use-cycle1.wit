@@ -1,6 +1,6 @@
 // parse-fail
 
-package foo
+package foo:foo
 
 interface foo {
   use foo.{bar}

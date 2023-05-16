@@ -13,10 +13,8 @@ impl WitPrinter {
     pub fn print(&mut self, resolve: &Resolve, pkgid: PackageId) -> Result<String> {
         let pkg = &resolve.packages[pkgid];
         self.output.push_str("package ");
-        if let Some(ns) = &pkg.name.namespace {
-            self.print_name(ns);
-            self.output.push_str(":");
-        }
+        self.print_name(&pkg.name.namespace);
+        self.output.push_str(":");
         self.print_name(&pkg.name.name);
         if let Some((major, minor)) = &pkg.name.version {
             self.output.push_str(&format!("@{major}.{minor}"));
@@ -257,10 +255,8 @@ impl WitPrinter {
             self.print_name(iface.name.as_ref().unwrap());
         } else {
             let pkg = &resolve.packages[iface.package.unwrap()].name;
-            if let Some(ns) = &pkg.namespace {
-                self.print_name(ns);
-                self.output.push_str(":");
-            }
+            self.print_name(&pkg.namespace);
+            self.output.push_str(":");
             self.print_name(&pkg.name);
             self.output.push_str("/");
             self.print_name(iface.name.as_ref().unwrap());

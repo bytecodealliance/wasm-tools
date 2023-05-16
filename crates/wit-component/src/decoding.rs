@@ -154,7 +154,7 @@ impl<'a> ComponentInfo<'a> {
             // not otherwise encoded in a binary component. This theoretically
             // shouldn't cause issues, however.
             name: PackageName {
-                namespace: None,
+                namespace: "root".to_string(),
                 version: None,
                 name: "component".to_string(),
             },
@@ -268,7 +268,7 @@ impl WitPackageDecoder<'_> {
                     version,
                     interface,
                 } if interface.as_str() == "wit" => PackageName {
-                    namespace: namespace.map(|s| s.to_string()),
+                    namespace: namespace.to_string(),
                     name: package.to_string(),
                     version: version.map(|v| {
                         let dot = v.find('.').unwrap();
@@ -563,7 +563,7 @@ impl WitPackageDecoder<'_> {
         };
         let package_name = PackageName {
             name: name.to_string(),
-            namespace: namespace.map(|s| s.to_string()),
+            namespace: namespace.to_string(),
             version: version.map(|v| {
                 let dot = v.find('.').unwrap();
                 (v[..dot].parse().unwrap(), v[dot + 1..].parse().unwrap())

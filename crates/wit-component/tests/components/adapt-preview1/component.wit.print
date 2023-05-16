@@ -1,8 +1,8 @@
-package component
+package root:component
 
 world root {
   import foo: interface {
     foo: func()
   }
-  import foo/my-wasi
+  import foo:foo/my-wasi
 }

@@ -101,8 +101,8 @@ pub struct UnresolvedPackage {
 /// with an interfaced tacked on as well.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PackageName {
-    /// An optional namespace such as `wasi` in `wasi:foo/bar`
-    pub namespace: Option<String>,
+    /// A namespace such as `wasi` in `wasi:foo/bar`
+    pub namespace: String,
     /// The kebab-name of this package, which is always specified.
     pub name: String,
     /// Optional major/minor version information.
@@ -114,12 +114,7 @@ impl PackageName {
     /// specified.
     pub fn interface_id(&self, interface: &str) -> String {
         let mut s = String::new();
-        if let Some(ns) = &self.namespace {
-            s.push_str(&format!("{ns}:"));
-        }
-        s.push_str(&self.name);
-        s.push_str("/");
-        s.push_str(interface);
+        s.push_str(&format!("{}:{}/{interface}", self.namespace, self.name));
         if let Some((major, minor)) = self.version {
             s.push_str(&format!("@{major}.{minor}"));
         }
@@ -129,10 +124,7 @@ impl PackageName {
 
 impl fmt::Display for PackageName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ns) = &self.namespace {
-            write!(f, "{ns}:")?;
-        }
-        write!(f, "{}", self.name)?;
+        write!(f, "{}:{}", self.namespace, self.name)?;
         if let Some((major, minor)) = self.version {
             write!(f, "@{major}.{minor}")?;
         }

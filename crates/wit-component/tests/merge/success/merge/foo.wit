@@ -1,4 +1,4 @@
-package foo
+package foo:foo
 
 interface shared-only-into {
   variant v {
@@ -21,7 +21,7 @@ interface only-into {
 }
 
 interface shared-only-from {
-  use only-from-dep/a.{a}
+  use foo:only-from-dep/a.{a}
 
   variant v {
     c1,

@@ -1,7 +1,7 @@
-package component
+package root:component
 
 world root {
-  import foo/i
-  use foo/i.{some-type as other-name}
-  export foo/i
+  import foo:foo/i
+  use foo:foo/i.{some-type as other-name}
+  export foo:foo/i
 }

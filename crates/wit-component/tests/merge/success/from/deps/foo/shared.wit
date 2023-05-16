@@ -1,4 +1,4 @@
-package foo
+package foo:foo
 
 interface shared-only-from {
   variant v {
@@ -7,7 +7,7 @@ interface shared-only-from {
 
   bar: func(x: v)
 
-  use only-from-dep/a.{a}
+  use foo:only-from-dep/a.{a}
 }
 
 interface shared {

@@ -63,7 +63,7 @@ impl Default for Bindgen {
         let mut resolve = Resolve::default();
         let package = resolve.packages.alloc(Package {
             name: PackageName {
-                namespace: None,
+                namespace: "root".to_string(),
                 name: "root".to_string(),
                 version: None,
             },

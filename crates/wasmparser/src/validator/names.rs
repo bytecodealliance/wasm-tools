@@ -232,7 +232,7 @@ enum ParsedKebabName {
         dot: u32,
     },
     Id {
-        colon: Option<u32>,
+        colon: u32,
         slash: u32,
         at: Option<u32>,
     },
@@ -260,7 +260,7 @@ pub enum KebabNameKind<'a> {
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
     Id {
-        namespace: Option<&'a KebabStr>,
+        namespace: &'a KebabStr,
         package: &'a KebabStr,
         interface: &'a KebabStr,
         version: Option<&'a str>,
@@ -307,13 +307,11 @@ impl KebabName {
                 }
             }
             ComponentImportName::Interface(s) => {
-                let colon = s.find(':');
+                let colon = find(s, ':')?;
+                validate_kebab(&s[..colon])?;
                 let slash = find(s, '/')?;
                 let at = s[slash..].find('@').map(|i| i + slash);
-                if let Some(colon) = colon {
-                    validate_kebab(&s[..colon])?;
-                }
-                validate_kebab(&s[colon.map(|i| i + 1).unwrap_or(0)..slash])?;
+                validate_kebab(&s[colon + 1..slash])?;
                 validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
                 if let Some(at) = at {
                     let version = &s[at + 1..];
@@ -328,7 +326,7 @@ impl KebabName {
                     }
                 }
                 ParsedKebabName::Id {
-                    colon: colon.map(|i| i as u32),
+                    colon: colon as u32,
                     slash: slash as u32,
                     at: at.map(|i| i as u32),
                 }
@@ -361,12 +359,11 @@ impl KebabName {
                 KebabNameKind::Static { resource, name }
             }
             ParsedKebabName::Id { colon, slash, at } => {
-                let colon = colon.map(|i| i as usize);
+                let colon = colon as usize;
                 let slash = slash as usize;
                 let at = at.map(|i| i as usize);
-                let namespace = colon.map(|i| KebabStr::new_unchecked(&self.raw[..i]));
-                let package =
-                    KebabStr::new_unchecked(&self.raw[colon.map(|i| i + 1).unwrap_or(0)..slash]);
+                let namespace = KebabStr::new_unchecked(&self.raw[..colon]);
+                let package = KebabStr::new_unchecked(&self.raw[colon + 1..slash]);
                 let interface =
                     KebabStr::new_unchecked(&self.raw[slash + 1..at.unwrap_or(self.raw.len())]);
                 let version = at.map(|i| &self.raw[i + 1..]);

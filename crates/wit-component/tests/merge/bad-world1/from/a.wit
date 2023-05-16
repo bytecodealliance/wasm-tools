@@ -1,4 +1,4 @@
-package %from
+package foo:%from
 interface a {
-  use foo/a.{a}
+  use foo:foo/a.{a}
 }

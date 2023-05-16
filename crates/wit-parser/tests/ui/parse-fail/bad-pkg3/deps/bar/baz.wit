@@ -1,2 +1,2 @@
-package bar
+package foo:bar
 world baz {}

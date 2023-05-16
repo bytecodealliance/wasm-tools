@@ -109,8 +109,6 @@
 )
 
 (component
-  (import (interface "http/types") (func))
-  (import (interface "http/types@2.0") (func))
   (import (interface "wasi:http/types") (func))
   (import (interface "wasi:http/types@1.0") (func))
   (import (interface "wasi:http/types@2.0") (func))
@@ -126,10 +124,10 @@
 
 (assert_invalid
   (component (import (interface "") (func)))
-  "failed to find `/` character")
+  "failed to find `:` character")
 (assert_invalid
   (component (import (interface "wasi") (func)))
-  "failed to find `/` character")
+  "failed to find `:` character")
 (assert_invalid
   (component (import (interface "wasi:") (func)))
   "failed to find `/` character")
@@ -139,6 +137,9 @@
 (assert_invalid
   (component (import (interface ":/") (func)))
   "not in kebab case")
+(assert_invalid
+  (component (import (interface "wasi/http") (func)))
+  "failed to find `:` character")
 (assert_invalid
   (component (import (interface "wasi:http/TyPeS") (func)))
   "`TyPeS` is not in kebab case")

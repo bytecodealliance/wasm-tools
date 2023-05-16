@@ -1,4 +1,4 @@
-package functions
+package foo:functions
 
 interface functions {
   f1: func()

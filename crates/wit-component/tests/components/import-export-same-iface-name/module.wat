@@ -1,5 +1,5 @@
 (module
-  (import "dep/the-name" "a" (func))
-  (import "foo/the-name" "a" (func))
-  (func (export "foo/the-name#a"))
+  (import "foo:dep/the-name" "a" (func))
+  (import "foo:foo/the-name" "a" (func))
+  (func (export "foo:foo/the-name#a"))
 )

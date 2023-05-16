@@ -1,4 +1,4 @@
-package chain
+package foo:chain
 
 interface a {
   type a = u8
