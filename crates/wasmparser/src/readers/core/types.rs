@@ -166,7 +166,6 @@ impl fmt::Display for ValType {
 //   0000 = none
 //   ```
 // - `(unused)` is unused sequence of bits
-// TODO (unused) is supposed to be zeroed out
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RefType([u8; 3]);
 
@@ -341,7 +340,7 @@ impl RefType {
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable.
     pub const fn indexed_func(nullable: bool, index: u32) -> Option<Self> {
-        Self::indexed(nullable, HeapType::Func, index)
+        Self::indexed(nullable, Self::FUNC_KIND, index)
     }
 
     /// Create a reference to an array with the type at the given index.
@@ -349,7 +348,7 @@ impl RefType {
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable.
     pub const fn indexed_array(nullable: bool, index: u32) -> Option<Self> {
-        Self::indexed(nullable, HeapType::Array, index)
+        Self::indexed(nullable, Self::ARRAY_KIND, index)
     }
 
     /// Create a reference to a struct with the type at the given index.
@@ -357,7 +356,7 @@ impl RefType {
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable.
     pub const fn indexed_struct(nullable: bool, index: u32) -> Option<Self> {
-        Self::indexed(nullable, HeapType::Struct, index)
+        Self::indexed(nullable, Self::STRUCT_KIND, index)
     }
 
     /// Create a reference to a user defined type at the given index.
@@ -365,15 +364,7 @@ impl RefType {
     /// Returns `None` when the type index is beyond this crate's implementation
     /// limits and therefore is not representable, or when the heap type is not
     /// a typed array, struct or function.
-    const fn indexed(nullable: bool, heap_type: HeapType, index: u32) -> Option<Self> {
-        let kind = match heap_type {
-            HeapType::Func => Self::FUNC_KIND,
-            HeapType::Array => Self::ARRAY_KIND,
-            HeapType::Struct => Self::STRUCT_KIND,
-            _ => {
-                return None;
-            }
-        };
+    const fn indexed(nullable: bool, kind: u32, index: u32) -> Option<Self> {
         if Self::can_represent_type_index(index) {
             let nullable32 = Self::NULLABLE_BIT * nullable as u32;
             Some(RefType::from_u32(
@@ -566,7 +557,6 @@ impl fmt::Display for RefType {
 pub enum HeapType {
     /// User defined type at the given index.
     TypedFunc(u32),
-    // TODO rename TypedFunc to Indexed as there are more indexed types now: funcs, structs, arrays.
     /// Untyped (any) function.
     Func,
     /// External heap type.
