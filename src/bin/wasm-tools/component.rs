@@ -277,6 +277,7 @@ pub struct WitOpts {
 impl WitOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
+        self.verbosity.init_logger();
         let name = match &self.name {
             Some(name) => name.as_str(),
             None => match &self.input {
