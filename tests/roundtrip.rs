@@ -144,18 +144,17 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/throw.wast",
         // This is an empty file which currently doesn't parse
         "multi-memory/memory_copy1.wast",
+        // the GC proposal isn't implemented yet
+        "gc/gc-array.wat",
+        "gc/gc-rec-sub.wat",
+        "gc/gc-ref.wat",
+        "gc/gc-ref-global-import.wat",
+        "gc/gc-struct.wat",
+        "gc/let.wat",
+        "/proposals/gc/",
     ];
-    if broken.iter().any(|x| test.ends_with(x)) {
-        return true;
-    }
-
-    // TODO: the gc proposal isn't implemented yet
-    if test.iter().any(|p| p == "gc") {
-        // selectively enable some tests
-        let implemented = &["gc-i31.wat", "gc-heaptypes.wat"];
-        if implemented.iter().any(|x| test.ends_with(x)) {
-            return false;
-        }
+    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
+    if broken.iter().any(|x| test_path.contains(x)) {
         return true;
     }
 
@@ -303,7 +302,7 @@ impl TestState {
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
         // Only test parsing and encoding of modules which wasmparser doesn't
         // support test (basically just test `wast`, nothing else)
-        let skip_verify = test.iter().any(|t| t == "gc")
+        let skip_verify =
             // This specific test contains a module along the lines of:
             //
             //  (module
@@ -316,7 +315,7 @@ impl TestState {
             // segment has a type of `funcref` which isn't compatible with the
             // table's type. The spec interpreter thinks this should validate,
             // however, and I'm not entirely sure why.
-            || test.ends_with("function-references/br_table.wast");
+            test.ends_with("function-references/br_table.wast");
 
         match directive {
             WastDirective::Wat(mut module) => {

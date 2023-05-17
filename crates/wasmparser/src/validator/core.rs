@@ -133,7 +133,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         self.module
-            .check_global_type(&global.ty, features, types, offset)?;
+            .check_global_type(&global.ty, features, offset)?;
         self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
@@ -146,8 +146,7 @@ impl ModuleState {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        self.module
-            .check_table_type(&table.ty, features, types, offset)?;
+        self.module.check_table_type(&table.ty, features, offset)?;
 
         match &table.init {
             TableInit::RefNull => {
@@ -200,7 +199,7 @@ impl ModuleState {
         // don't check it here
         if e.ty != RefType::FUNCREF {
             self.module
-                .check_value_type(ValType::Ref(e.ty), features, types, offset)?;
+                .check_value_type(ValType::Ref(e.ty), features, offset)?;
         }
         match e.kind {
             ElementKind::Active {
@@ -503,7 +502,7 @@ impl Module {
         let ty = match ty {
             crate::Type::Func(t) => {
                 for ty in t.params().iter().chain(t.results()) {
-                    self.check_value_type(*ty, features, types, offset)?;
+                    self.check_value_type(*ty, features, offset)?;
                 }
                 if t.results().len() > 1 && !features.multi_value {
                     return Err(BinaryReaderError::new(
@@ -512,6 +511,10 @@ impl Module {
                     ));
                 }
                 Type::Func(t)
+            }
+            crate::Type::Array(t) => {
+                self.check_value_type(t.element_type, features, offset)?;
+                Type::Array(t)
             }
         };
 
@@ -670,7 +673,7 @@ impl Module {
                 EntityType::Func(self.types[*type_index as usize])
             }
             TypeRef::Table(t) => {
-                self.check_table_type(t, features, types, offset)?;
+                self.check_table_type(t, features, offset)?;
                 EntityType::Table(*t)
             }
             TypeRef::Memory(t) => {
@@ -682,7 +685,7 @@ impl Module {
                 EntityType::Tag(self.types[t.func_type_idx as usize])
             }
             TypeRef::Global(t) => {
-                self.check_global_type(t, features, types, offset)?;
+                self.check_global_type(t, features, offset)?;
                 EntityType::Global(*t)
             }
         })
@@ -692,13 +695,12 @@ impl Module {
         &self,
         ty: &TableType,
         features: &WasmFeatures,
-        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
         if ty.element_type != RefType::FUNCREF {
-            self.check_value_type(ValType::Ref(ty.element_type), features, types, offset)?
+            self.check_value_type(ValType::Ref(ty.element_type), features, offset)?
         }
 
         self.check_limits(ty.initial, ty.maximum, offset)?;
@@ -780,13 +782,7 @@ impl Module {
             .collect::<Result<_>>()
     }
 
-    fn check_value_type(
-        &self,
-        ty: ValType,
-        features: &WasmFeatures,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
+    fn check_value_type(&self, ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
         match features.check_value_type(ty) {
             Ok(()) => Ok(()),
             Err(e) => Err(BinaryReaderError::new(e, offset)),
@@ -795,14 +791,14 @@ impl Module {
         // We must check it if it's a reference.
         match ty {
             ValType::Ref(rt) => {
-                self.check_ref_type(rt, types, offset)?;
+                self.check_ref_type(rt, offset)?;
             }
             _ => (),
         }
         Ok(())
     }
 
-    fn check_ref_type(&self, ty: RefType, types: &TypeList, offset: usize) -> Result<()> {
+    fn check_ref_type(&self, ty: RefType, offset: usize) -> Result<()> {
         // Check that the heap type is valid
         match ty.heap_type() {
             HeapType::Func
@@ -817,7 +813,7 @@ impl Module {
             | HeapType::I31 => (),
             HeapType::TypedFunc(type_index) => {
                 // Just check that the index is valid
-                self.func_type_at(type_index.into(), types, offset)?;
+                self.type_at(type_index, offset)?;
             }
         }
         Ok(())
@@ -910,10 +906,9 @@ impl Module {
         &self,
         ty: &GlobalType,
         features: &WasmFeatures,
-        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        self.check_value_type(ty.content_type, features, types, offset)
+        self.check_value_type(ty.content_type, features, offset)
     }
 
     fn check_limits<T>(&self, initial: T, maximum: Option<T>, offset: usize) -> Result<()>
@@ -1101,8 +1096,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn check_value_type(&self, t: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
-        self.module
-            .check_value_type(t, features, self.types, offset)
+        self.module.check_value_type(t, features, offset)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {
@@ -1170,8 +1164,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn check_value_type(&self, t: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
-        self.0
-            .check_value_type(t, features, self.0.snapshot.as_ref().unwrap(), offset)
+        self.0.check_value_type(t, features, offset)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {

@@ -1,0 +1,5 @@
+(module
+  (type $a (;0;) (array i32))
+  (type $b (;1;) (array (mut i32)))
+  (type $c (;2;) (array (mut (ref null 1))))
+)
