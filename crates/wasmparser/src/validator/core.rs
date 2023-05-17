@@ -9,8 +9,9 @@ use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
-    Global, GlobalType, HeapType, MemoryType, RefType, Result, Table, TableInit, TableType,
-    TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType, WasmModuleResources,
+    Global, GlobalType, HeapType, MemoryType, RefType, Result, StorageType, Table, TableInit,
+    TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType,
+    WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -513,7 +514,12 @@ impl Module {
                 Type::Func(t)
             }
             crate::Type::Array(t) => {
-                self.check_value_type(t.element_type, features, offset)?;
+                match t.element_type {
+                    crate::StorageType::I8 | crate::StorageType::I16 => {}
+                    crate::StorageType::Val(value_type) => {
+                        self.check_value_type(value_type, features, offset)?;
+                    }
+                };
                 Type::Array(t)
             }
         };
@@ -845,7 +851,12 @@ impl Module {
             (Type::Func(f1), Type::Func(f2)) => self.eq_fns(f1, f2, types),
             (Type::Array(a1), Type::Array(a2)) => {
                 a1.mutable == a2.mutable
-                    && self.eq_valtypes(a1.element_type, a2.element_type, types)
+                    && match (a1.element_type, a2.element_type) {
+                        (StorageType::Val(vt1), StorageType::Val(vt2)) => {
+                            self.eq_valtypes(vt1, vt2, types)
+                        }
+                        (st1, st2) => st1 == st2,
+                    }
             }
             _ => false,
         }
@@ -881,8 +892,13 @@ impl Module {
                     match (n1, n2) {
                         (Ok(Type::Func(n1)), Ok(Type::Func(n2))) => self.eq_fns(n1, n2, types),
                         (Ok(Type::Array(n1)), Ok(Type::Array(n2))) => {
-                            self.eq_valtypes(n1.element_type, n2.element_type, types)
-                                && (n1.mutable == n2.mutable || n2.mutable)
+                            (n1.mutable == n2.mutable || n2.mutable)
+                                && match (n1.element_type, n2.element_type) {
+                                    (StorageType::Val(vt1), StorageType::Val(vt2)) => {
+                                        self.matches(vt1, vt2, types)
+                                    }
+                                    (st1, st2) => st1 == st2,
+                                }
                         }
                         _ => false,
                     }

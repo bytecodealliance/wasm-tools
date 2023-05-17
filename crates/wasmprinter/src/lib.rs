@@ -731,11 +731,20 @@ impl Printer {
         if ty.mutable {
             self.result.push_str("(mut ");
         }
-        self.print_valtype(ty.element_type)?;
+        self.print_storage_type(ty.element_type)?;
         if ty.mutable {
             self.result.push_str(")");
         }
         Ok(0)
+    }
+
+    fn print_storage_type(&mut self, ty: StorageType) -> Result<()> {
+        match ty {
+            StorageType::I8 => self.result.push_str("i8"),
+            StorageType::I16 => self.result.push_str("i16"),
+            StorageType::Val(val_type) => self.print_valtype(val_type)?,
+        }
+        Ok(())
     }
 
     fn print_valtype(&mut self, ty: ValType) -> Result<()> {

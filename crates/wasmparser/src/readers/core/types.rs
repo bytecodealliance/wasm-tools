@@ -34,6 +34,17 @@ pub enum ValType {
     Ref(RefType),
 }
 
+/// Represents storage types introduced in the GC spec for array and struct fields.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum StorageType {
+    /// The storage type is i8.
+    I8,
+    /// The storage type is i16.
+    I16,
+    /// The storage type is a value type.
+    Val(ValType),
+}
+
 // The size of `ValType` is performance sensitive.
 const _: () = {
     assert!(std::mem::size_of::<ValType>() == 4);
@@ -74,6 +85,22 @@ impl ValType {
             0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x65 | 0x69
             | 0x68 | 0x6D | 0x67 | 0x66 | 0x6A => true,
             _ => false,
+        }
+    }
+}
+
+impl<'a> FromReader<'a> for StorageType {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        match reader.peek()? {
+            0x7A => {
+                reader.position += 1;
+                Ok(StorageType::I8)
+            }
+            0x79 => {
+                reader.position += 1;
+                Ok(StorageType::I16)
+            }
+            _ => Ok(StorageType::Val(reader.read()?)),
         }
     }
 }
@@ -647,7 +674,7 @@ pub struct FuncType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ArrayType {
     /// Array element type.
-    pub element_type: ValType,
+    pub element_type: StorageType,
     /// Are elements mutable.
     pub mutable: bool,
 }
