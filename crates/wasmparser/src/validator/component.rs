@@ -1500,7 +1500,7 @@ impl ComponentState {
                         crate::OuterAliasKind::Type => {
                             let ty = if count == 0 {
                                 // Local alias, check the local module state
-                                state.type_at(index, offset)?
+                                state.type_id_at(index, offset)?
                             } else {
                                 // Otherwise, check the enclosing component state
                                 let component =

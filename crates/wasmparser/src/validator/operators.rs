@@ -1272,14 +1272,14 @@ where
         Ok(())
     }
     fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
-        let hty = HeapType::TypedFunc(type_index);
+        let hty = HeapType::Indexed(type_index);
         self.resources
             .check_heap_type(hty, &self.features, self.offset)?;
         // If `None` is popped then that means a "bottom" type was popped which
         // is always considered equivalent to the `hty` tag.
         if let Some(rt) = self.pop_ref()? {
-            let expected =
-                RefType::new(true, hty).expect("existing heap types should be within our limits");
+            let expected = RefType::indexed_func(true, type_index)
+                .expect("existing heap types should be within our limits");
             if !self
                 .resources
                 .matches(ValType::Ref(rt), ValType::Ref(expected))
@@ -2291,9 +2291,8 @@ where
         // FIXME(#924) this should not be conditional based on enabled
         // proposals.
         if self.features.function_references {
-            let heap_type = HeapType::TypedFunc(type_index);
             self.push_operand(
-                RefType::new(false, heap_type)
+                RefType::indexed_func(false, type_index)
                     .expect("our limits on number of types should fit into ref type"),
             )?;
         } else {
