@@ -480,6 +480,13 @@ impl<'a> Module<'a> {
         }
     }
 
+    fn storagety(&mut self, ty: StorageType) {
+        match ty {
+            StorageType::I8 | StorageType::I16 => {}
+            StorageType::Val(ty) => self.valty(ty),
+        }
+    }
+
     fn heapty(&mut self, ty: HeapType) {
         match ty {
             HeapType::Func
@@ -508,7 +515,7 @@ impl<'a> Module<'a> {
                     }
                 }
                 Type::Array(ty) => {
-                    me.valty(ty.element_type);
+                    me.storagety(ty.element_type);
                 }
             };
             Ok(())
@@ -577,7 +584,7 @@ impl<'a> Module<'a> {
                     }
                 }
                 Type::Array(ty) => {
-                    types.array(map.valty(ty.element_type), ty.mutable);
+                    types.array(map.storagety(ty.element_type), ty.mutable);
                 }
             }
         }
@@ -1104,6 +1111,14 @@ impl Encoder {
             wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
             wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
             wasmparser::ValType::Ref(rt) => wasm_encoder::ValType::Ref(self.refty(rt)),
+        }
+    }
+
+    fn storagety(&self, ty: StorageType) -> wasm_encoder::StorageType {
+        match ty {
+            StorageType::I8 => wasm_encoder::StorageType::I8,
+            StorageType::I16 => wasm_encoder::StorageType::I16,
+            StorageType::Val(ty) => wasm_encoder::StorageType::Val(self.valty(ty)),
         }
     }
 
