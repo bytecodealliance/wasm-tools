@@ -201,6 +201,18 @@ impl TypeSection {
         self.num_added += 1;
         self
     }
+
+    /// Define an array type in this type section.
+    pub fn array<T>(&mut self, ty: T, mutable: bool) -> &mut Self
+    where
+        T: Into<ValType>,
+    {
+        self.bytes.push(0x5e);
+        ty.into().encode(&mut self.bytes);
+        self.bytes.push(mutable as u8);
+        self.num_added += 1;
+        self
+    }
 }
 
 impl Encode for TypeSection {
