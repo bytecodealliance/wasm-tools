@@ -219,8 +219,8 @@ impl Debug for RefType {
             (false, HeapType::Extern) => write!(f, "(ref extern)"),
             (true, HeapType::Func) => write!(f, "funcref"),
             (false, HeapType::Func) => write!(f, "(ref func)"),
-            (true, HeapType::TypedFunc(idx)) => write!(f, "(ref null {idx})"),
-            (false, HeapType::TypedFunc(idx)) => write!(f, "(ref {idx})"),
+            (true, HeapType::Indexed(idx)) => write!(f, "(ref null {idx})"),
+            (false, HeapType::Indexed(idx)) => write!(f, "(ref {idx})"),
         }
     }
 }
@@ -333,15 +333,6 @@ impl RefType {
     const fn from_u32(x: u32) -> Self {
         debug_assert!(x & (0b11111111 << 24) == 0);
 
-        // if indexed, kind must be struct/array/func
-        debug_assert!(
-            x & Self::INDEXED_BIT == 0
-                || matches!(
-                    x & Self::KIND_MASK,
-                    Self::FUNC_KIND | Self::ARRAY_KIND | Self::STRUCT_KIND
-                )
-        );
-
         // if not indexed, type must be any/eq/i31/struct/array/func/extern/nofunc/noextern/none
         debug_assert!(
             x & Self::INDEXED_BIT != 0
@@ -409,7 +400,7 @@ impl RefType {
     pub const fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * nullable as u32;
         match heap_type {
-            HeapType::TypedFunc(index) => RefType::indexed_func(nullable, index),
+            HeapType::Indexed(index) => RefType::indexed(nullable, 0, index), // 0 bc we don't know the kind
             HeapType::Func => Some(Self::from_u32(nullable32 | Self::FUNC_TYPE)),
             HeapType::Extern => Some(Self::from_u32(nullable32 | Self::EXTERN_TYPE)),
             HeapType::Any => Some(Self::from_u32(nullable32 | Self::ANY_TYPE)),
@@ -435,7 +426,7 @@ impl RefType {
 
     /// If this is a reference to a typed function, get its type index.
     pub const fn type_index(&self) -> Option<u32> {
-        if self.is_typed_func_ref() {
+        if self.is_indexed_type_ref() {
             Some(self.as_u32() & Self::INDEX_MASK)
         } else {
             None
@@ -471,10 +462,7 @@ impl RefType {
     pub fn heap_type(&self) -> HeapType {
         let s = self.as_u32();
         if self.is_indexed_type_ref() {
-            match s & Self::KIND_MASK {
-                Self::FUNC_KIND => HeapType::TypedFunc(self.type_index().unwrap()),
-                _ => unreachable!(),
-            }
+            HeapType::Indexed(self.type_index().unwrap())
         } else {
             match s & Self::TYPE_MASK {
                 Self::FUNC_TYPE => HeapType::Func,
@@ -498,7 +486,7 @@ impl RefType {
         match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Func) => "funcref",
             (true, HeapType::Extern) => "externref",
-            (true, HeapType::TypedFunc(_)) => "(ref null $type)",
+            (true, HeapType::Indexed(_)) => "(ref null $type)",
             (true, HeapType::Any) => "anyref",
             (true, HeapType::None) => "nullref",
             (true, HeapType::NoExtern) => "nullexternref",
@@ -509,7 +497,7 @@ impl RefType {
             (true, HeapType::I31) => "i31ref",
             (false, HeapType::Func) => "(ref func)",
             (false, HeapType::Extern) => "(ref extern)",
-            (false, HeapType::TypedFunc(_)) => "(ref $type)",
+            (false, HeapType::Indexed(_)) => "(ref $type)",
             (false, HeapType::Any) => "(ref any)",
             (false, HeapType::None) => "(ref none)",
             (false, HeapType::NoExtern) => "(ref noextern)",
@@ -553,7 +541,7 @@ impl fmt::Display for RefType {
         let s = match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Func) => "funcref",
             (true, HeapType::Extern) => "externref",
-            (true, HeapType::TypedFunc(i)) => return write!(f, "(ref null {i})"),
+            (true, HeapType::Indexed(i)) => return write!(f, "(ref null {i})"),
             (true, HeapType::Any) => "anyref",
             (true, HeapType::None) => "nullref",
             (true, HeapType::NoExtern) => "nullexternref",
@@ -564,7 +552,7 @@ impl fmt::Display for RefType {
             (true, HeapType::I31) => "i31ref",
             (false, HeapType::Func) => "(ref func)",
             (false, HeapType::Extern) => "(ref extern)",
-            (false, HeapType::TypedFunc(i)) => return write!(f, "(ref {i})"),
+            (false, HeapType::Indexed(i)) => return write!(f, "(ref {i})"),
             (false, HeapType::Any) => "(ref any)",
             (false, HeapType::None) => "(ref none)",
             (false, HeapType::NoExtern) => "(ref noextern)",
@@ -583,7 +571,7 @@ impl fmt::Display for RefType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HeapType {
     /// User defined type at the given index.
-    TypedFunc(u32),
+    Indexed(u32),
     /// Untyped (any) function.
     Func,
     /// External heap type.
@@ -654,10 +642,10 @@ impl<'a> FromReader<'a> for HeapType {
                 let idx = match u32::try_from(reader.read_var_s33()?) {
                     Ok(idx) => idx,
                     Err(_) => {
-                        bail!(reader.original_position(), "invalid function heap type",);
+                        bail!(reader.original_position(), "invalid indexed ref heap type");
                     }
                 };
-                Ok(HeapType::TypedFunc(idx))
+                Ok(HeapType::Indexed(idx))
             }
         }
     }

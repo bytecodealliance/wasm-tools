@@ -141,8 +141,8 @@ pub enum HeapType {
     Array,
     /// The i31 heap type.
     I31,
-    /// Function of the type at the given index.
-    TypedFunc(u32),
+    /// User defined type at the given index.
+    Indexed(u32),
 }
 
 impl Encode for HeapType {
@@ -160,7 +160,7 @@ impl Encode for HeapType {
             HeapType::I31 => sink.push(0x6A),
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
-            HeapType::TypedFunc(i) => i64::from(*i).encode(sink),
+            HeapType::Indexed(i) => i64::from(*i).encode(sink),
         }
     }
 }
