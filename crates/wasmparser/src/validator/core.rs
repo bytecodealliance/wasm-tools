@@ -513,7 +513,12 @@ impl Module {
                 Type::Func(t)
             }
             crate::Type::Array(t) => {
-                self.check_value_type(t.element_type, features, offset)?;
+                match t.element_type {
+                    crate::StorageType::I8 | crate::StorageType::I16 => {}
+                    crate::StorageType::Val(value_type) => {
+                        self.check_value_type(value_type, features, offset)?;
+                    }
+                };
                 Type::Array(t)
             }
         };
