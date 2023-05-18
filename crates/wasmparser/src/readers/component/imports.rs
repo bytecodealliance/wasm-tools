@@ -79,7 +79,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
 #[derive(Debug, Copy, Clone)]
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
-    pub name: ComponentImportName<'a>,
+    pub name: ComponentExternName<'a>,
     /// The type reference for the import.
     pub ty: ComponentTypeRef,
 }
@@ -111,26 +111,26 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 /// Represents the name of a component import.
 #[derive(Debug, Copy, Clone)]
 #[allow(missing_docs)]
-pub enum ComponentImportName<'a> {
+pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     Interface(&'a str),
 }
 
-impl<'a> ComponentImportName<'a> {
+impl<'a> ComponentExternName<'a> {
     /// Returns the underlying string representing this name.
     pub fn as_str(&self) -> &'a str {
         match self {
-            ComponentImportName::Kebab(name) => name,
-            ComponentImportName::Interface(name) => name,
+            ComponentExternName::Kebab(name) => name,
+            ComponentExternName::Interface(name) => name,
         }
     }
 }
 
-impl<'a> FromReader<'a> for ComponentImportName<'a> {
+impl<'a> FromReader<'a> for ComponentExternName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
-            0x00 => ComponentImportName::Kebab(reader.read()?),
-            0x01 => ComponentImportName::Interface(reader.read()?),
+            0x00 => ComponentExternName::Kebab(reader.read()?),
+            0x01 => ComponentExternName::Interface(reader.read()?),
             x => return reader.invalid_leading_byte(x, "import name"),
         })
     }

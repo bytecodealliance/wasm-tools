@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::mem;
 use wasmparser::{
     names::{KebabName, KebabNameKind},
-    types, ComponentExport, ComponentExternalKind, ComponentImport, ComponentImportName, Parser,
+    types, ComponentExport, ComponentExternalKind, ComponentImport, ComponentExternName, Parser,
     Payload, PrimitiveValType, ValidPayload, Validator, WasmFeatures,
 };
 use wit_parser::*;
@@ -15,7 +15,7 @@ struct ComponentInfo<'a> {
     /// validated.
     types: types::Types,
     /// List of all imports and exports from this component.
-    externs: Vec<(ComponentImportName<'a>, Extern<'a>)>,
+    externs: Vec<(ComponentExternName<'a>, Extern<'a>)>,
 }
 
 enum Extern<'a> {
@@ -546,9 +546,9 @@ impl WitPackageDecoder<'_> {
     /// ensure that there's an `InterfaceId` corresponding to its components.
     fn extract_dep_interface(&mut self, name_string: &str) -> Result<InterfaceId> {
         let import_name = if name_string.contains('/') {
-            ComponentImportName::Interface(name_string)
+            ComponentExternName::Interface(name_string)
         } else {
-            ComponentImportName::Kebab(name_string)
+            ComponentExternName::Kebab(name_string)
         };
         let name = KebabName::new(import_name, 0).unwrap();
         let (namespace, name, version, interface) = match name.kind() {
@@ -697,9 +697,9 @@ impl WitPackageDecoder<'_> {
 
     fn extract_interface_name_from_kebab_name(&self, name: &str) -> Result<Option<String>> {
         let import_name = if name.contains('/') {
-            ComponentImportName::Interface(name)
+            ComponentExternName::Interface(name)
         } else {
-            ComponentImportName::Kebab(name)
+            ComponentExternName::Kebab(name)
         };
         let kebab_name = KebabName::new(import_name, 0);
         match kebab_name.as_ref().map(|k| k.kind()) {

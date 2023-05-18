@@ -1,7 +1,7 @@
-use super::{ItemRef, ItemSigNoName};
+use super::{ComponentExternName, ItemRef, ItemSigNoName};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use crate::token::{Id, Index, NameAnnotation, Span};
 
 /// An entry in a WebAssembly component's export section.
 #[derive(Debug)]
@@ -13,7 +13,7 @@ pub struct ComponentExport<'a> {
     /// An optional name for this instance stored in the custom `name` section.
     pub debug_name: Option<NameAnnotation<'a>>,
     /// The name of this export from the component.
-    pub name: ComponentExportName<'a>,
+    pub name: ComponentExternName<'a>,
     /// The kind of export.
     pub kind: ComponentExportKind<'a>,
     /// The kind of export.
@@ -50,28 +50,6 @@ impl<'a> Parse<'a> for Vec<ComponentExport<'a>> {
             exports.push(parser.parens(|parser| parser.parse())?);
         }
         Ok(exports)
-    }
-}
-
-/// The different ways an export can be named.
-#[derive(Debug, Copy, Clone)]
-pub enum ComponentExportName<'a> {
-    /// This is a kebab-named export where a top-level name is assigned.
-    Kebab(&'a str),
-    /// This is an interface export where the string is an ID.
-    Interface(&'a str),
-}
-
-impl<'a> Parse<'a> for ComponentExportName<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<LParen>() {
-            Ok(ComponentExportName::Interface(parser.parens(|p| {
-                p.parse::<kw::interface>()?;
-                p.parse()
-            })?))
-        } else {
-            Ok(ComponentExportName::Kebab(parser.parse()?))
-        }
     }
 }
 
@@ -195,7 +173,7 @@ impl Peek for ComponentExportKind<'_> {
 #[derive(Debug, Default)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
-    pub names: Vec<ComponentExportName<'a>>,
+    pub names: Vec<ComponentExternName<'a>>,
 }
 
 impl<'a> Parse<'a> for InlineExport<'a> {

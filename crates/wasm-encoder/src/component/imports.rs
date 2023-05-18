@@ -82,7 +82,7 @@ impl Encode for ComponentTypeRef {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportSection, ComponentTypeRef, ComponentImportName};
+/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportSection, ComponentTypeRef, ComponentExternName};
 ///
 /// let mut types = ComponentTypeSection::new();
 ///
@@ -99,7 +99,7 @@ impl Encode for ComponentTypeRef {
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();
-/// let name = ComponentImportName::Kebab("f");
+/// let name = ComponentExternName::Kebab("f");
 /// imports.import(name, ComponentTypeRef::Func(0));
 ///
 /// let mut component = Component::new();
@@ -131,8 +131,8 @@ impl ComponentImportSection {
     }
 
     /// Define an import in the component import section.
-    pub fn import(&mut self, name: impl AsComponentImportName, ty: ComponentTypeRef) -> &mut Self {
-        name.as_component_import_name().encode(&mut self.bytes);
+    pub fn import(&mut self, name: impl AsComponentExternName, ty: ComponentTypeRef) -> &mut Self {
+        name.as_component_extern_name().encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -153,21 +153,21 @@ impl ComponentSection for ComponentImportSection {
 
 /// The different names that can be assigned to component imports
 #[derive(Debug, Copy, Clone)]
-pub enum ComponentImportName<'a> {
+pub enum ComponentExternName<'a> {
     /// This is a "kebab name" along the lines of "a-foo-bar"
     Kebab(&'a str),
     /// This is an ID along the lines of "wasi:http/types@2.0"
     Interface(&'a str),
 }
 
-impl Encode for ComponentImportName<'_> {
+impl Encode for ComponentExternName<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            ComponentImportName::Kebab(name) => {
+            ComponentExternName::Kebab(name) => {
                 sink.push(0x00);
                 name.encode(sink);
             }
-            ComponentImportName::Interface(name) => {
+            ComponentExternName::Interface(name) => {
                 sink.push(0x01);
                 name.encode(sink);
             }
@@ -175,26 +175,26 @@ impl Encode for ComponentImportName<'_> {
     }
 }
 
-/// Helper trait to convert into a `ComponentImportName` either from that type
+/// Helper trait to convert into a `ComponentExternName` either from that type
 /// or from a string.
-pub trait AsComponentImportName {
-    /// Converts this receiver into a `ComponentImportName`.
-    fn as_component_import_name(&self) -> ComponentImportName<'_>;
+pub trait AsComponentExternName {
+    /// Converts this receiver into a `ComponentExternName`.
+    fn as_component_extern_name(&self) -> ComponentExternName<'_>;
 }
 
-impl AsComponentImportName for ComponentImportName<'_> {
-    fn as_component_import_name(&self) -> ComponentImportName<'_> {
+impl AsComponentExternName for ComponentExternName<'_> {
+    fn as_component_extern_name(&self) -> ComponentExternName<'_> {
         *self
     }
 }
 
-impl<S: AsRef<str>> AsComponentImportName for S {
-    fn as_component_import_name(&self) -> ComponentImportName<'_> {
+impl<S: AsRef<str>> AsComponentExternName for S {
+    fn as_component_extern_name(&self) -> ComponentExternName<'_> {
         let s = self.as_ref();
         if s.contains("/") {
-            ComponentImportName::Interface(s)
+            ComponentExternName::Interface(s)
         } else {
-            ComponentImportName::Kebab(s)
+            ComponentExternName::Kebab(s)
         }
     }
 }

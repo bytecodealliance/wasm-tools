@@ -9,7 +9,7 @@ pub struct ComponentImport<'a> {
     /// Where this `import` was defined
     pub span: Span,
     /// The name of the item being imported.
-    pub name: ComponentImportName<'a>,
+    pub name: ComponentExternName<'a>,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
 }
@@ -25,22 +25,22 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
 
 /// The different ways an import can be named.
 #[derive(Debug, Copy, Clone)]
-pub enum ComponentImportName<'a> {
+pub enum ComponentExternName<'a> {
     /// This is a kebab-named import where a top-level name is assigned.
     Kebab(&'a str),
     /// This is an interface import where the string is an ID.
     Interface(&'a str),
 }
 
-impl<'a> Parse<'a> for ComponentImportName<'a> {
+impl<'a> Parse<'a> for ComponentExternName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<LParen>() {
-            Ok(ComponentImportName::Interface(parser.parens(|p| {
+            Ok(ComponentExternName::Interface(parser.parens(|p| {
                 p.parse::<kw::interface>()?;
                 p.parse()
             })?))
         } else {
-            Ok(ComponentImportName::Kebab(parser.parse()?))
+            Ok(ComponentExternName::Kebab(parser.parse()?))
         }
     }
 }
@@ -159,7 +159,7 @@ impl<'a> Parse<'a> for TypeBounds<'a> {
 #[derive(Debug, Clone)]
 pub struct InlineImport<'a> {
     /// The name of the item being imported.
-    pub name: ComponentImportName<'a>,
+    pub name: ComponentExternName<'a>,
 }
 
 impl<'a> Parse<'a> for InlineImport<'a> {

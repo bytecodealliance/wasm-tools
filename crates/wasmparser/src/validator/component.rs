@@ -16,10 +16,9 @@ use crate::{
         ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, LoweringInfo, Remap,
         SubtypeCx, TupleType, UnionType, VariantType,
     },
-    BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentImportName, ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType,
-    GlobalType, InstantiationArgKind, MemoryType, Result, TableType, TypeBounds, ValType,
-    WasmFeatures,
+    BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
+    ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType, GlobalType,
+    InstantiationArgKind, MemoryType, Result, TableType, TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -861,7 +860,7 @@ impl ComponentState {
 
     pub fn add_export(
         &mut self,
-        name: ComponentExportName<'_>,
+        name: ComponentExternName<'_>,
         mut ty: ComponentEntityType,
         types: &mut TypeAlloc,
         offset: usize,
@@ -2880,7 +2879,7 @@ impl KebabNameContext {
 
     fn validate_extern(
         &self,
-        name: ComponentImportName<'_>,
+        name: ComponentExternName<'_>,
         desc: &str,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
@@ -2903,7 +2902,7 @@ impl KebabNameContext {
         // Top-level kebab-names must all be unique, even between both imports
         // and exports ot a component. For those names consult the `kebab_names`
         // set.
-        if let ComponentImportName::Kebab(_) = name {
+        if let ComponentExternName::Kebab(_) = name {
             if let Some(prev) = kebab_names.replace(kebab.clone()) {
                 bail!(
                     offset,

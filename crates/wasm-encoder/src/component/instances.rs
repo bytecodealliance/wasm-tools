@@ -1,6 +1,6 @@
 use super::CORE_INSTANCE_SORT;
 use crate::{
-    encode_section, ComponentExportKind, ComponentExportName, ComponentSection, ComponentSectionId,
+    encode_section, ComponentExportKind, ComponentExternName, ComponentSection, ComponentSectionId,
     Encode, ExportKind,
 };
 
@@ -115,10 +115,10 @@ impl ComponentSection for InstanceSection {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentInstanceSection, ComponentExportKind, ComponentExportName};
+/// use wasm_encoder::{Component, ComponentInstanceSection, ComponentExportKind, ComponentExternName};
 ///
 /// let mut instances = ComponentInstanceSection::new();
-/// instances.export_items([(ComponentExportName::Kebab("foo"), ComponentExportKind::Func, 0)]);
+/// instances.export_items([(ComponentExternName::Kebab("foo"), ComponentExportKind::Func, 0)]);
 /// instances.instantiate(1, [("foo", ComponentExportKind::Instance, 0)]);
 ///
 /// let mut component = Component::new();
@@ -171,7 +171,7 @@ impl ComponentInstanceSection {
     /// Define an instance by exporting items.
     pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
     where
-        E: IntoIterator<Item = (ComponentExportName<'a>, ComponentExportKind, u32)>,
+        E: IntoIterator<Item = (ComponentExternName<'a>, ComponentExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
     {
         let exports = exports.into_iter();

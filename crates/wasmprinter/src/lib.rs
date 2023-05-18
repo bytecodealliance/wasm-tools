@@ -1821,10 +1821,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_component_import_name(&mut self, name: ComponentImportName<'_>) -> Result<()> {
+    fn print_component_import_name(&mut self, name: ComponentExternName<'_>) -> Result<()> {
         match name {
-            ComponentImportName::Kebab(s) => self.print_str(s),
-            ComponentImportName::Interface(s) => {
+            ComponentExternName::Kebab(s) => self.print_str(s),
+            ComponentExternName::Interface(s) => {
                 self.start_group("interface ");
                 self.print_str(s)?;
                 self.end_group();

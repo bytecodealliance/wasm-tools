@@ -123,8 +123,8 @@ impl<'a> Component<'a> {
                                     for import in s {
                                         let import = import?;
                                         let name = match import.name {
-                                            wasmparser::ComponentImportName::Kebab(s)
-                                            | wasmparser::ComponentImportName::Interface(s) => {
+                                            wasmparser::ComponentExternName::Kebab(s)
+                                            | wasmparser::ComponentExternName::Interface(s) => {
                                                 s.to_string()
                                             }
                                         };
@@ -135,8 +135,8 @@ impl<'a> Component<'a> {
                                     for export in s {
                                         let export = export?;
                                         let name = match export.name {
-                                            wasmparser::ComponentExportName::Kebab(s)
-                                            | wasmparser::ComponentExportName::Interface(s) => {
+                                            wasmparser::ComponentExternName::Kebab(s)
+                                            | wasmparser::ComponentExternName::Interface(s) => {
                                                 s.to_string()
                                             }
                                         };

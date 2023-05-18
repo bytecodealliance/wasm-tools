@@ -342,7 +342,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&import.item.id, &import.item.name);
         self.names_for_item_kind(&import.item.kind).push(name);
         self.imports.import(
-            wasm_encoder::ComponentImportName::from(import.name),
+            wasm_encoder::ComponentExternName::from(import.name),
             (&import.item.kind).into(),
         );
         self.flush(Some(self.imports.id()));
@@ -352,7 +352,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
         self.exports.export(
-            wasm_encoder::ComponentExportName::from(export.name),
+            wasm_encoder::ComponentExternName::from(export.name),
             kind,
             index,
             export.ty.as_ref().map(|ty| (&ty.0.kind).into()),
@@ -819,13 +819,13 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                 }
                 ComponentTypeDecl::Import(i) => {
                     encoded.import(
-                        wasm_encoder::ComponentImportName::from(i.name),
+                        wasm_encoder::ComponentExternName::from(i.name),
                         (&i.item.kind).into(),
                     );
                 }
                 ComponentTypeDecl::Export(e) => {
                     encoded.export(
-                        wasm_encoder::ComponentExportName::from(e.name),
+                        wasm_encoder::ComponentExternName::from(e.name),
                         (&e.item.kind).into(),
                     );
                 }
@@ -853,7 +853,7 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                 }
                 InstanceTypeDecl::Export(e) => {
                     encoded.export(
-                        wasm_encoder::ComponentExportName::from(e.name),
+                        wasm_encoder::ComponentExternName::from(e.name),
                         (&e.item.kind).into(),
                     );
                 }
@@ -999,20 +999,11 @@ impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
     }
 }
 
-impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a> {
-    fn from(name: ComponentImportName<'a>) -> Self {
+impl<'a> From<ComponentExternName<'a>> for wasm_encoder::ComponentExternName<'a> {
+    fn from(name: ComponentExternName<'a>) -> Self {
         match name {
-            ComponentImportName::Kebab(name) => Self::Kebab(name),
-            ComponentImportName::Interface(name) => Self::Interface(name),
-        }
-    }
-}
-
-impl<'a> From<ComponentExportName<'a>> for wasm_encoder::ComponentExportName<'a> {
-    fn from(name: ComponentExportName<'a>) -> Self {
-        match name {
-            ComponentExportName::Kebab(name) => Self::Kebab(name),
-            ComponentExportName::Interface(name) => Self::Interface(name),
+            ComponentExternName::Kebab(name) => Self::Kebab(name),
+            ComponentExternName::Interface(name) => Self::Interface(name),
         }
     }
 }

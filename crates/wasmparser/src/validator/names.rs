@@ -1,7 +1,7 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
-use crate::{ComponentImportName, Result};
+use crate::{ComponentExternName, Result};
 use std::borrow::Borrow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -274,7 +274,7 @@ const STATIC: &str = "[static]";
 impl KebabName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
     /// valid.
-    pub fn new(name: ComponentImportName<'_>, offset: usize) -> Result<KebabName> {
+    pub fn new(name: ComponentExternName<'_>, offset: usize) -> Result<KebabName> {
         let validate_kebab = |s: &str| {
             if KebabStr::new(s).is_none() {
                 bail!(offset, "`{s}` is not in kebab case")
@@ -287,7 +287,7 @@ impl KebabName {
             None => bail!(offset, "failed to find `{c}` character"),
         };
         let parsed = match name {
-            ComponentImportName::Kebab(s) => {
+            ComponentExternName::Kebab(s) => {
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
                     validate_kebab(s)?;
                     ParsedKebabName::Constructor
@@ -306,7 +306,7 @@ impl KebabName {
                     ParsedKebabName::Normal
                 }
             }
-            ComponentImportName::Interface(s) => {
+            ComponentExternName::Interface(s) => {
                 let colon = find(s, ':')?;
                 validate_kebab(&s[..colon])?;
                 let slash = find(s, '/')?;
@@ -529,7 +529,7 @@ mod tests {
     use std::collections::HashSet;
 
     fn parse_kebab_name(s: &str) -> Option<KebabName> {
-        KebabName::new(ComponentImportName::Kebab(s), 0).ok()
+        KebabName::new(ComponentExternName::Kebab(s), 0).ok()
     }
 
     #[test]

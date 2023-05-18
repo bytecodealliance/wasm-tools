@@ -3,7 +3,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use wasmparser::names::{KebabName, KebabNameKind};
 use wasmparser::{
-    types::Types, ComponentImportName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
+    types::Types, ComponentExternName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
     ValType, ValidPayload, Validator,
 };
 use wit_parser::{
@@ -440,9 +440,9 @@ pub fn validate_adapter_module<'a>(
 
 fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
     let name = if name.contains('/') {
-        ComponentImportName::Interface(name)
+        ComponentExternName::Interface(name)
     } else {
-        ComponentImportName::Kebab(name)
+        ComponentExternName::Kebab(name)
     };
     let kebab_name = KebabName::new(name, 0);
     let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {

@@ -1,5 +1,5 @@
 use crate::{
-    BinaryReader, ComponentImportName, ComponentTypeRef, FromReader, Result, SectionLimited,
+    BinaryReader, ComponentExternName, ComponentTypeRef, FromReader, Result, SectionLimited,
 };
 
 /// Represents the kind of an external items of a WebAssembly component.
@@ -69,7 +69,7 @@ impl ComponentExternalKind {
 #[derive(Debug, Clone)]
 pub struct ComponentExport<'a> {
     /// The name of the exported item.
-    pub name: ComponentExportName<'a>,
+    pub name: ComponentExternName<'a>,
     /// The kind of the export.
     pub kind: ComponentExternalKind,
     /// The index of the exported item.
@@ -113,42 +113,5 @@ impl<'a> FromReader<'a> for ComponentExternalKind {
         };
 
         ComponentExternalKind::from_bytes(byte1, byte2, offset)
-    }
-}
-
-/// Represents the name of a component export.
-#[derive(Debug, Copy, Clone)]
-#[allow(missing_docs)]
-pub enum ComponentExportName<'a> {
-    Kebab(&'a str),
-    Interface(&'a str),
-}
-
-impl<'a> ComponentExportName<'a> {
-    /// Returns the underlying string representing this name.
-    pub fn as_str(&self) -> &'a str {
-        match self {
-            ComponentExportName::Kebab(name) => name,
-            ComponentExportName::Interface(name) => name,
-        }
-    }
-}
-
-impl<'a> FromReader<'a> for ComponentExportName<'a> {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(match reader.read_u8()? {
-            0x00 => ComponentExportName::Kebab(reader.read()?),
-            0x01 => ComponentExportName::Interface(reader.read()?),
-            x => return reader.invalid_leading_byte(x, "export name"),
-        })
-    }
-}
-
-impl<'a> From<ComponentExportName<'a>> for ComponentImportName<'a> {
-    fn from(name: ComponentExportName<'a>) -> ComponentImportName<'a> {
-        match name {
-            ComponentExportName::Kebab(name) => ComponentImportName::Kebab(name),
-            ComponentExportName::Interface(name) => ComponentImportName::Interface(name),
-        }
     }
 }
