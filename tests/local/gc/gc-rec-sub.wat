@@ -35,5 +35,8 @@
   (rec
     (type (sub $a (func)))
   )
+  (rec
+    (type (sub final $a (func)))
+  )
   (type (sub $a (func)))
 )

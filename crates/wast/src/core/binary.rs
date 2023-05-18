@@ -173,10 +173,25 @@ impl Encode for RecOrType<'_> {
 
 impl Encode for Type<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        if let Some(parent) = &self.parent {
-            e.push(0x50);
-            (1 as usize).encode(e);
-            parent.encode(e);
+        match (&self.parent, self.final_type) {
+            (Some(parent), Some(true)) => {
+                // Type is final with a supertype
+                e.push(0x4e);
+                e.push(0x01);
+                parent.encode(e);
+            }
+            (Some(parent), Some(false) | None) => {
+                // Type is not final and has a declared supertype
+                e.push(0x50);
+                e.push(0x01);
+                parent.encode(e);
+            }
+            (None, Some(false)) => {
+                // Sub was used without any declared supertype
+                e.push(0x50);
+                e.push(0x00);
+            }
+            (None, _) => {} // No supertype, sub wasn't used
         }
         match &self.def {
             TypeDef::Func(func) => {

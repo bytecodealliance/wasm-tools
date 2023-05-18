@@ -474,6 +474,7 @@ pub mod kw {
     custom_keyword!(shared);
     custom_keyword!(start);
     custom_keyword!(sub);
+    custom_keyword!(r#final = "final");
     custom_keyword!(table);
     custom_keyword!(then);
     custom_keyword!(r#try = "try");
