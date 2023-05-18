@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::mem;
 use wasmparser::{
     names::{KebabName, KebabNameKind},
-    types, ComponentExport, ComponentExternalKind, ComponentImport, ComponentExternName, Parser,
+    types, ComponentExport, ComponentExternName, ComponentExternalKind, ComponentImport, Parser,
     Payload, PrimitiveValType, ValidPayload, Validator, WasmFeatures,
 };
 use wit_parser::*;
