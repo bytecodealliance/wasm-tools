@@ -33,7 +33,7 @@ pub struct Package {
 
 #[derive(Clone)]
 pub struct PackageName {
-    pub namespace: Option<String>,
+    pub namespace: String,
     pub name: String,
     pub version: Option<(u32, u32)>,
 }
@@ -43,7 +43,6 @@ impl Generator {
         Generator {
             config,
             packages: Default::default(),
-            // interfaces: Default::default(),
             next_interface_id: 0,
         }
     }
@@ -66,13 +65,9 @@ impl Generator {
         u: &mut Unstructured<'_>,
         names: &mut HashSet<String>,
     ) -> Result<(Package, InterfaceList)> {
-        let namespace = if u.arbitrary()? {
-            Some(gen_unique_name(u, names)?)
-        } else {
-            None
-        };
+        let namespace = gen_unique_name(u, names)?;
         let name = gen_unique_name(u, names)?;
-        let version = if namespace.is_some() && u.arbitrary()? {
+        let version = if u.arbitrary()? {
             Some((u.arbitrary()?, u.arbitrary()?))
         } else {
             None
@@ -204,11 +199,9 @@ impl Generator {
             if u.arbitrary()? || (!has_name && i == len - 1) {
                 has_name = true;
                 s.push_str("package ");
-                if let Some(ns) = &ret.name.namespace {
-                    s.push_str("%");
-                    s.push_str(ns);
-                    s.push_str(":");
-                }
+                s.push_str("%");
+                s.push_str(&ret.name.namespace);
+                s.push_str(":");
                 s.push_str("%");
                 s.push_str(&ret.name.name);
                 if let Some((a, b)) = ret.name.version {
@@ -281,11 +274,9 @@ impl Generator {
             }
             Choice::Packages => {
                 let (pkg, ifaces) = u.choose(&self.packages)?;
-                if let Some(ns) = &pkg.namespace {
-                    dst.push_str("%");
-                    dst.push_str(ns);
-                    dst.push_str(":");
-                }
+                dst.push_str("%");
+                dst.push_str(&pkg.namespace);
+                dst.push_str(":");
                 dst.push_str("%");
                 dst.push_str(&pkg.name);
                 dst.push_str("/");

@@ -456,8 +456,7 @@ impl WitPackageDecoder<'_> {
                         Some(id) => {
                             self.register_defined(id, def)?;
                             let prev = self.type_map.insert(created, id);
-                            // TODO
-                            // assert!(is_local || prev.is_none());
+                            assert!(prev.is_none());
                         }
 
                         // If the name is not defined, however, then there's two
@@ -1174,7 +1173,6 @@ impl WitPackageDecoder<'_> {
                     TypeOwner::Interface(i) => i,
                     _ => continue,
                 };
-                // let doc = self.resolve.interfaces[owner].document;
                 let owner_idx = self.iface_to_package_index[&owner];
                 if owner_idx != idx {
                     self.visit_package(owner_idx, order);

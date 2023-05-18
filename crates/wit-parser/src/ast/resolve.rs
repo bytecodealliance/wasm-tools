@@ -115,7 +115,10 @@ impl<'a> Resolver<'a> {
                 if cur_name != *prev {
                     bail!(Error {
                         span: cur.span,
-                        msg: format!("package identifier does not match previous"),
+                        msg: format!(
+                            "package identifier `{cur_name}` does not match \
+                             previous package name of `{prev}`"
+                        ),
                     })
                 }
             }
@@ -357,7 +360,10 @@ impl<'a> Resolver<'a> {
                         None => {
                             bail!(Error {
                                 span: used_name.span,
-                                msg: format!("interface not found in package"),
+                                msg: format!(
+                                    "interface `{name}` not found in package",
+                                    name = used_name.name
+                                ),
                             })
                         }
                     },
@@ -390,7 +396,10 @@ impl<'a> Resolver<'a> {
                             ast::UsePath::Id(name) => {
                                 *interface_ids.get(name.name).ok_or_else(|| Error {
                                     span: name.span,
-                                    msg: format!("interface does not exist"),
+                                    msg: format!(
+                                        "interface `{name}` does not exist",
+                                        name = name.name
+                                    ),
                                 })?
                             }
                             ast::UsePath::Package { id, name } => {
@@ -556,7 +565,7 @@ impl<'a> Resolver<'a> {
                 if !interfaces.insert(id) {
                     bail!(Error {
                         span: kind.span(),
-                        msg: format!("interface cannot be {desc}ed more than once",),
+                        msg: format!("interface cannot be {desc}ed more than once"),
                     })
                 }
             }
@@ -788,7 +797,7 @@ impl<'a> Resolver<'a> {
                     None => {
                         bail!(Error {
                             span: id.span,
-                            msg: format!("interface does not exist"),
+                            msg: format!("interface `{name}` does not exist", name = id.name),
                         })
                     }
                 }

@@ -105,7 +105,7 @@ impl<'a> AstItem<'a> {
             Some((_span, Token::Interface)) => Interface::parse(tokens, docs).map(Self::Interface),
             Some((_span, Token::World)) => World::parse(tokens, docs).map(Self::World),
             Some((_span, Token::Use)) => ToplevelUse::parse(tokens).map(Self::Use),
-            other => Err(err_expected(tokens, "`world` or `interface`", other).into()),
+            other => Err(err_expected(tokens, "`world`, `interface` or `use`", other).into()),
         }
     }
 }
@@ -257,6 +257,14 @@ enum ExternKind<'a> {
 
 impl<'a> ExternKind<'a> {
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<ExternKind<'a>> {
+        // Create a copy of the token stream to test out if this is a function
+        // or an interface import. In those situations the token stream gets
+        // reset to the state of the clone and we continue down those paths.
+        //
+        // If neither a function nor an interface appears here though then the
+        // clone is thrown away and the original token stream is parsed for an
+        // interface. This will redo the original ID parse and the original
+        // colon parse, but that shouldn't be too too bad perf-wise.
         let mut clone = tokens.clone();
         let id = parse_id(&mut clone)?;
         if clone.eat(Token::Colon)? {
@@ -952,7 +960,6 @@ pub struct SourceMap {
 struct Source {
     offset: u32,
     path: PathBuf,
-    // name: String,
     contents: String,
 }
 
@@ -964,9 +971,6 @@ impl SourceMap {
 
     /// Reads the file `path` on the filesystem and appends its contents to this
     /// [`SourceMap`].
-    ///
-    /// This method pushes a new document into the source map. The name of the
-    /// document is derived from the filename of the `path` provided.
     pub fn push_file(&mut self, path: &Path) -> Result<()> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
@@ -976,11 +980,11 @@ impl SourceMap {
 
     /// Appends the given contents with the given path into this source map.
     ///
-    /// Each path added to a [`SourceMap`] will become a document in the final
-    /// package. The `path` provided is not read from the filesystem and is
-    /// instead only used during error messages. The `name` provided is the name
-    /// of the document within the WIT package and must be a valid WIT
-    /// identifier.
+    /// The `path` provided is not read from the filesystem and is instead only
+    /// used during error messages. Each file added to a [`SourceMap`] is
+    /// used to create the final parsed package namely by unioning all the
+    /// interfaces and worlds defined together. Note that each file has its own
+    /// personal namespace, however, for top-level `use` and such.
     pub fn push(&mut self, path: &Path, contents: impl Into<String>) {
         let mut contents = contents.into();
         if path.extension().and_then(|s| s.to_str()) == Some("md") {
@@ -1034,9 +1038,6 @@ impl SourceMap {
     }
 
     /// Parses the files added to this source map into an [`UnresolvedPackage`].
-    ///
-    /// All files previously added are considered documents of the package to be
-    /// returned.
     pub fn parse(self) -> Result<UnresolvedPackage> {
         let mut doc = self.rewrite_error(|| {
             let mut resolver = Resolver::default();

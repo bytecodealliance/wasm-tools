@@ -1535,8 +1535,6 @@ impl ComponentState {
             // they're exported is plumbed through as-is.
             explicit_resources: mem::take(&mut state.explicit_resources),
 
-            // Transform the fused list of imports and exports into just exports
-            // since instance types can only declare exports.
             exports: mem::take(&mut state.exports),
         })
     }
@@ -2893,8 +2891,9 @@ impl KebabNameContext {
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
-        let kebab = KebabName::new(name, offset)
-            .with_context(|| format!("valid to validate {desc} name `{}`", name.as_str()))?;
+        let kebab = KebabName::new(name, offset).with_context(|| {
+            format!("{desc} name `{}` is not a valid extern name", name.as_str())
+        })?;
 
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.

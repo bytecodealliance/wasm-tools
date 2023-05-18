@@ -8,7 +8,7 @@ use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 pub struct ComponentImport<'a> {
     /// Where this `import` was defined
     pub span: Span,
-    /// The kind of the import (e.g. name, interface, etc)
+    /// The name of the item being imported.
     pub name: ComponentImportName<'a>,
     /// The item that's being imported.
     pub item: ItemSig<'a>,

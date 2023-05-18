@@ -106,8 +106,8 @@ impl Resolve {
             if !path.exists() {
                 return Ok(ret);
             }
-            for dep in path.read_dir()? {
-                let dep = dep?;
+            for dep in path.read_dir().context("failed to read directory")? {
+                let dep = dep.context("failed to read directory iterator")?;
                 let path = dep.path();
                 let pkg = UnresolvedPackage::parse_dir(&path)
                     .with_context(|| format!("failed to parse package: {}", path.display()))?;
@@ -139,7 +139,7 @@ impl Resolve {
                     }
                     let dep = deps.get(dep).ok_or_else(|| Error {
                         span,
-                        msg: format!("failed to find package in `deps` directory"),
+                        msg: format!("failed to find package `{dep}` in `deps` directory"),
                     })?;
                     visit(dep, deps, order, visiting)?;
                     assert!(visiting.remove(&dep.name));
@@ -733,7 +733,7 @@ impl Remap {
                 .get(name)
                 .ok_or_else(|| Error {
                     span,
-                    msg: format!("type not defined in interface"),
+                    msg: format!("type `{name}` not defined in interface"),
                 })?;
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);

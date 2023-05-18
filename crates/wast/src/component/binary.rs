@@ -1002,10 +1002,8 @@ impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
 impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a> {
     fn from(name: ComponentImportName<'a>) -> Self {
         match name {
-            ComponentImportName::Kebab(name) => wasm_encoder::ComponentImportName::Kebab(name),
-            ComponentImportName::Interface(name) => {
-                wasm_encoder::ComponentImportName::Interface(name)
-            }
+            ComponentImportName::Kebab(name) => Self::Kebab(name),
+            ComponentImportName::Interface(name) => Self::Interface(name),
         }
     }
 }
@@ -1013,10 +1011,8 @@ impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a>
 impl<'a> From<ComponentExportName<'a>> for wasm_encoder::ComponentExportName<'a> {
     fn from(name: ComponentExportName<'a>) -> Self {
         match name {
-            ComponentExportName::Kebab(name) => wasm_encoder::ComponentExportName::Kebab(name),
-            ComponentExportName::Interface(name) => {
-                wasm_encoder::ComponentExportName::Interface(name)
-            }
+            ComponentExportName::Kebab(name) => Self::Kebab(name),
+            ComponentExportName::Interface(name) => Self::Interface(name),
         }
     }
 }
