@@ -897,6 +897,9 @@ impl Remap {
         for (_, func) in iface.functions.iter_mut() {
             self.update_function(func);
         }
+        if let Some(func) = &mut iface.wildcard {
+            self.update_function(func);
+        }
     }
 
     fn update_function(&self, func: &mut Function) {

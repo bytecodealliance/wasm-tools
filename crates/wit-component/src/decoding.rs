@@ -606,6 +606,7 @@ impl WitPackageDecoder<'_> {
                     types: IndexMap::default(),
                     functions: IndexMap::new(),
                     document: doc,
+                    wildcard: None,
                 })
             });
         Ok(interface)
@@ -623,6 +624,7 @@ impl WitPackageDecoder<'_> {
             types: IndexMap::default(),
             functions: IndexMap::new(),
             document: doc,
+            wildcard: None,
         };
 
         for (name, (export_url, ty)) in ty.exports.iter() {
