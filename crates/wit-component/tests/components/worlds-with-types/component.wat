@@ -9,10 +9,17 @@
       i32.const 1
     )
     (export "a" (func 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core instance (;0;) (instantiate 0))
   (type (;4;) (func (param "r" 3) (result 1)))
   (alias core export 0 "a" (core func (;0;)))
   (func (;0;) (type 4) (canon lift (core func 0)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "a" (func 0))
 )

@@ -198,5 +198,8 @@
       (export (;0;) "lists-world" "pkg:/lists/lists-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "lists" "pkg:/lists" (type 0))
 )

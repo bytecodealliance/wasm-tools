@@ -34,5 +34,8 @@
       (export (;0;) "floats-world" "pkg:/floats/floats-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "floats" "pkg:/floats" (type 0))
 )

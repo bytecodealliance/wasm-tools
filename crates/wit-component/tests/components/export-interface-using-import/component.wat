@@ -8,7 +8,12 @@
     )
   )
   (import "foo" (instance (;0;) (type 0)))
-  (core module (;0;))
+  (core module (;0;)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
+  )
   (core instance (;0;) (instantiate 0))
   (alias export 0 "f" (type (;1;)))
   (alias export 0 "r" (type (;2;)))
@@ -23,6 +28,9 @@
       (with "import-type-f" (type 1))
       (with "import-type-r" (type 2))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;2;) "x" (instance 1))
 )

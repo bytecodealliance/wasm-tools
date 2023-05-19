@@ -14,7 +14,12 @@
     )
   )
   (import "name2" (instance (;1;) (type 2)))
-  (core module (;0;))
+  (core module (;0;)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
+  )
   (core instance (;0;) (instantiate 0))
   (alias export 0 "name" (type (;3;)))
   (alias export 1 "name" (type (;4;)))
@@ -29,6 +34,9 @@
       (with "import-type-name" (type 3))
       (with "import-type-name0" (type 4))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;3;) "name" (instance 2))
 )

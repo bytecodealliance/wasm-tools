@@ -25,6 +25,10 @@
     (export "i2#the-func" (func 1))
     (export "cabi_realloc" (func 2))
     (export "memory" (memory 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (alias export 0 "the-func" (func (;0;)))
   (core func (;0;) (canon lower (func 0)))
@@ -55,6 +59,9 @@
       (with "import-func-the-func" (func 1))
       (with "import-type-some-type" (type 3))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;2;) "i2" (instance 1))
 )

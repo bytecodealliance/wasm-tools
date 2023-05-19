@@ -10,5 +10,8 @@
       (export (;0;) "console" "pkg:/console/console" (instance (type 0)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "console" "pkg:/console" (type 0))
 )

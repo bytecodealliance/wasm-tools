@@ -5,6 +5,10 @@
       unreachable
     )
     (export "foo#c" (func 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core instance (;0;) (instantiate 0))
   (type (;0;) u8)
@@ -28,6 +32,9 @@
       (with "import-type-a" (type 0))
       (with "import-type-b" (type 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;1;) "foo" (instance 0))
 )

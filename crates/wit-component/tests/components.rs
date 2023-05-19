@@ -158,7 +158,10 @@ fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Ve
 }
 
 fn assert_output(contents: &str, path: &Path) -> Result<()> {
-    let contents = contents.replace("\r\n", "\n");
+    let contents = contents.replace("\r\n", "\n").replace(
+        concat!("\"", env!("CARGO_PKG_VERSION"), "\""),
+        "\"$CARGO_PKG_VERSION\"",
+    );
     if std::env::var_os("BLESS").is_some() {
         fs::write(path, contents)?;
     } else {

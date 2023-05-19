@@ -36,5 +36,8 @@
       (export (;0;) "import-and-export" "pkg:/import-and-export/import-and-export" (component (type 2)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "import-and-export" "pkg:/import-and-export" (type 0))
 )

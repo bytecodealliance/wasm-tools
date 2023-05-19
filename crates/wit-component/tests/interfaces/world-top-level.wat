@@ -37,5 +37,8 @@
       (export (;2;) "foo" "pkg:/world-top-level/foo" (component (type 2)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "world-top-level" "pkg:/world-top-level" (type 0))
 )

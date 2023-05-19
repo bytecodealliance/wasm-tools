@@ -28,5 +28,8 @@
       (export (;2;) "baz" "pkg:/use-chain/baz" (instance (type 4)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "use-chain" "pkg:/use-chain" (type 0))
 )

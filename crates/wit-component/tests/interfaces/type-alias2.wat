@@ -28,5 +28,8 @@
       (export (;0;) "my-world" "pkg:/type-alias2/my-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "type-alias2" "pkg:/type-alias2" (type 0))
 )

@@ -33,5 +33,8 @@
       (export (;2;) "baz" "pkg:/multiple-use/baz" (instance (type 5)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "multiple-use" "pkg:/multiple-use" (type 0))
 )

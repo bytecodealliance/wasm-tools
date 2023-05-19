@@ -53,6 +53,10 @@
     (export "foo#c" (func 8))
     (export "cabi_post_foo#c" (func 9))
     (export "bar#a" (func 10))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core instance (;0;) (instantiate 0))
   (alias core export 0 "memory" (core memory (;0;)))
@@ -128,5 +132,8 @@
   (type (;9;) (func (result 8)))
   (alias core export 0 "c" (core func (;10;)))
   (func (;8;) (type 9) (canon lift (core func 10) (memory 0)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;9;) "c" (func 8))
 )

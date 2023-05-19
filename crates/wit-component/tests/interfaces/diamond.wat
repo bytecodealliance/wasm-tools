@@ -84,5 +84,8 @@
       (export (;2;) "w1" "pkg:/diamond/w1" (component (type 3)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "diamond" "pkg:/diamond" (type 0))
 )

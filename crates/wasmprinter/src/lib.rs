@@ -346,11 +346,39 @@ impl Printer {
                     }
                 }
                 Payload::CustomSection(c) => {
+                    let mut printed = false;
                     let mut printers = mem::take(&mut self.printers);
                     if let Some(printer) = printers.get_mut(c.name()) {
                         printer(self, c.data_offset(), c.data())?;
+                        printed = true;
                     }
                     self.printers = printers;
+
+                    // Attempt to print this custom section if it wasn't already
+                    // handled specifically above. Note that custom sections are
+                    // allowed to be invalid, so any parse error here is ignored
+                    // and resets the output to what it was when this started.
+                    // Otherwise I/O errors and other things are plumbed through
+                    // in case they happen.
+                    if printed {
+                        continue;
+                    }
+                    let cur = self.result.len();
+                    let err = match self.print_custom_section(c.clone()) {
+                        Ok(()) => continue,
+                        Err(e) => e,
+                    };
+                    if !err.is::<BinaryReaderError>() {
+                        return Err(err);
+                    }
+                    self.result.truncate(cur);
+                    let msg = format!("failed to parse custom section `{}`: {err}", c.name());
+                    for line in msg.lines() {
+                        self.newline(c.data_offset());
+                        self.result.push_str(";; ");
+                        self.result.push_str(line);
+                    }
+                    self.newline(c.range().end);
                 }
                 Payload::TypeSection(s) => self.print_types(states.last_mut().unwrap(), s)?,
                 Payload::ImportSection(s) => {
@@ -2460,6 +2488,38 @@ impl Printer {
         self.result.push('\\');
         self.result.push(to_hex((byte >> 4) & 0xf));
         self.result.push(to_hex(byte & 0xf));
+    }
+
+    fn print_custom_section(&mut self, section: CustomSectionReader<'_>) -> Result<()> {
+        match section.name() {
+            "producers" => {
+                self.newline(section.range().start);
+                self.print_producers_section(ProducersSectionReader::new(
+                    section.data(),
+                    section.data_offset(),
+                )?)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn print_producers_section(&mut self, section: ProducersSectionReader<'_>) -> Result<()> {
+        self.start_group("@producers");
+        for field in section {
+            let field = field?;
+            for value in field.values.into_iter_with_offsets() {
+                let (offset, value) = value?;
+                self.newline(offset);
+                self.start_group(field.name);
+                self.result.push_str(" ");
+                self.print_str(value.name)?;
+                self.result.push_str(" ");
+                self.print_str(value.version)?;
+                self.end_group();
+            }
+        }
+        self.end_group();
+        Ok(())
     }
 }
 

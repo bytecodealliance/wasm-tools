@@ -62,5 +62,8 @@
       (export (;0;) "w1" "pkg:/join/w1" (component (type 0)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;5;) "join" "pkg:/join" (type 4))
 )

@@ -3,6 +3,10 @@
     (type (;0;) (func))
     (func (;0;) (type 0))
     (export "the_entrypoint" (func 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func))
@@ -21,5 +25,8 @@
   (type (;0;) (func))
   (alias core export 2 "entrypoint" (core func (;1;)))
   (func (;0;) (type 0) (canon lift (core func 1)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "entrypoint" (func 0))
 )

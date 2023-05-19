@@ -128,5 +128,8 @@
       (export (;0;) "records-world" "pkg:/records/records-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "records" "pkg:/records" (type 0))
 )
