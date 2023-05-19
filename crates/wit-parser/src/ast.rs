@@ -1147,3 +1147,22 @@ impl SourceMap {
         self.sources.iter().map(|src| src.path.as_path())
     }
 }
+
+pub(crate) enum AstUsePath {
+    Name(String),
+    Package(crate::PackageName, String),
+}
+
+pub(crate) fn parse_use_path(s: &str) -> Result<AstUsePath> {
+    let mut tokens = Tokenizer::new(s, 0)?;
+    let path = UsePath::parse(&mut tokens)?;
+    if tokens.next()?.is_some() {
+        bail!("trailing tokens in path specifier");
+    }
+    Ok(match path {
+        UsePath::Id(id) => AstUsePath::Name(id.name.to_string()),
+        UsePath::Package { id, name } => {
+            AstUsePath::Package(id.package_name(), name.name.to_string())
+        }
+    })
+}

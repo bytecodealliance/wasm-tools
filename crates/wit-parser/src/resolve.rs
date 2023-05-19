@@ -1,4 +1,5 @@
 use crate::ast::lex::Span;
+use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
     Error, Function, Interface, InterfaceId, PackageName, Results, Type, TypeDef, TypeDefKind,
     TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem, WorldKey,
@@ -500,37 +501,58 @@ impl Resolve {
         Some(base)
     }
 
-    /// Attempts to locate a default world for the `pkg` specified within this
-    /// [`Resolve`]. Optionally takes a string-based `world` "specifier" to
-    /// resolve the world.
+    /// Attempts to locate a world given the "default" package `pkg` and the
+    /// optional string specifier `world`.
     ///
-    /// This is intended for use by bindings generators and such as the default
-    /// logic for locating a world within a package used for binding. The
-    /// `world` argument is typically a user-specified argument (which again is
-    /// optional and not required) where the `pkg` is determined ambiently by
-    /// the integration.
+    /// This method is intended to be used by bindings generation tools to
+    /// select a world from either `pkg` or a package in this `Resolve`.
     ///
-    /// If `world` is `None` (e.g. not specified by a user) then the package
-    /// must have exactly one `default world` within its documents, otherwise an
-    /// error will be returned. If `world` is `Some` then it's a `.`-separated
-    /// name where the first element is the name of the document and the second,
-    /// optional, element is the name of the `world`. For example the name `foo`
-    /// would mean the `default world` of the `foo` document. The name `foo.bar`
-    /// would mean the world named `bar` in the `foo` document.
+    /// If `world` is `None` then `pkg` must have precisely one world which will
+    /// be returned.
+    ///
+    /// If `world` is `Some` then it can either be:
+    ///
+    /// * A kebab-name of a world contained within `pkg` which is being
+    ///   selected, such as `"the-world"`.
+    ///
+    /// * An ID-based form of a world which is selected within this `Resolve`,
+    ///   ignoring `pkg`. For example `"wasi:http/proxy"`.
+    ///
+    /// If successful the corresponding `WorldId` is returned, otherwise an
+    /// error is returned.
     pub fn select_world(&self, pkg: PackageId, world: Option<&str>) -> Result<WorldId> {
+        let world = match world {
+            Some(world) => world,
+            None => {
+                let pkg = &self.packages[pkg];
+                match pkg.worlds.len() {
+                    0 => bail!("no worlds found in package `{}`", pkg.name),
+                    1 => return Ok(*pkg.worlds.values().next().unwrap()),
+                    _ => bail!(
+                        "multiple worlds found in package `{}`: one must be explicitly chosen",
+                        pkg.name
+                    ),
+                }
+            }
+        };
+
+        let path = parse_use_path(world)
+            .with_context(|| format!("failed to parse world specifier `{world}`"))?;
+        let (pkg, world) = match path {
+            AstUsePath::Name(name) => (pkg, name),
+            AstUsePath::Package(pkg, interface) => (
+                *self
+                    .package_names
+                    .get(&pkg)
+                    .ok_or_else(|| anyhow!("unknown package `{pkg}`"))?,
+                interface,
+            ),
+        };
         let pkg = &self.packages[pkg];
-        match world {
-            Some(world) => pkg
-                .worlds
-                .get(world)
-                .copied()
-                .ok_or_else(|| anyhow!("no world named `{world}` in package")),
-            None => match pkg.worlds.len() {
-                0 => bail!("no worlds found in package"),
-                1 => Ok(*pkg.worlds.values().next().unwrap()),
-                _ => bail!("multiple worlds found in package: one must be explicitly chosen"),
-            },
-        }
+        pkg.worlds
+            .get(&world)
+            .copied()
+            .ok_or_else(|| anyhow!("no world named `{world}` in package"))
     }
 
     /// Assigns a human readable name to the `WorldKey` specified.
