@@ -1,0 +1,7 @@
+world a {
+    include self.b
+}
+
+default world b {
+    include self.a
+}

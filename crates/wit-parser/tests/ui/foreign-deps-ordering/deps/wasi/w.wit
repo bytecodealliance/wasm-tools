@@ -1,0 +1,5 @@
+default world wasi-cmd {
+    import wasi-clocks: pkg.clocks.wasi-clocks
+    import wasi-filesystem: pkg.filesystem.wasi-filesystem
+    export output: func() -> string
+}

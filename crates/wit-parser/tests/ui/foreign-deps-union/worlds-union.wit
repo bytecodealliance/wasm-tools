@@ -1,0 +1,14 @@
+interface irre {
+     use pkg.bar.irrelevant-name.{a-name}
+     use wasi.clocks.{timestamp}
+}
+
+world another-world {
+     import name: self.irre
+}
+
+default world union-my-world {
+     include wasi.w.wasi-cmd
+     include some-pkg.some-doc.some-world
+     include self.another-world
+}
