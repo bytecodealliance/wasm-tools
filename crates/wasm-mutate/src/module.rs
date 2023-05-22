@@ -67,7 +67,10 @@ impl TryFrom<wasmparser::Type> for TypeInfo {
                     .collect(),
             })),
             wasmparser::Type::Array(_) => {
-                unimplemented!("Array and struct types are not supported yet.")
+                unimplemented!("Array types are not supported yet.")
+            }
+            wasmparser::Type::Struct(_) => {
+                unimplemented!("Struct types are not supported yet.")
             }
         }
     }
