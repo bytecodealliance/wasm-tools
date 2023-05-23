@@ -1,0 +1,8 @@
+missing libraries: [
+    (
+        "foo",
+        [
+            "bar",
+        ],
+    ),
+]
