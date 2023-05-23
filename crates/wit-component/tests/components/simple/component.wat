@@ -36,6 +36,10 @@
     (export "c" (func $c))
     (export "cabi_post_c" (func 5))
     (export "d" (func $d))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core instance (;0;) (instantiate 0))
   (alias core export 0 "memory" (core memory (;0;)))
@@ -53,5 +57,8 @@
   (alias core export 0 "c" (core func (;4;)))
   (alias core export 0 "cabi_post_c" (core func (;5;)))
   (func (;4;) (type 2) (canon lift (core func 4) (memory 0) (realloc 0) string-encoding=utf8 (post-return 5)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;5;) "c" (func 4))
 )

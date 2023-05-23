@@ -12,6 +12,10 @@
     (export "canonical_abi_realloc" (func 0))
     (export "canonical_abi_free" (func 1))
     (export "memory" (memory 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
@@ -90,6 +94,9 @@
   (instance (;0;) (instantiate 0
       (with "import-func-foo" (func 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;1;) "new" (instance 0))
 )

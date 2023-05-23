@@ -10,5 +10,8 @@
       (export (;0;) "foo" "pkg:/single-named-result/foo" (instance (type 0)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "single-named-result" "pkg:/single-named-result" (type 0))
 )

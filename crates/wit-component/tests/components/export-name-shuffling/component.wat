@@ -3,6 +3,10 @@
     (type (;0;) (func))
     (func (;0;) (type 0))
     (export "name#a" (func 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core instance (;0;) (instantiate 0))
   (component (;0;)
@@ -31,6 +35,9 @@
       (with "import-type-foo" (type 2))
       (with "import-type-foo0" (type 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;3;) "name" (instance 2))
 )

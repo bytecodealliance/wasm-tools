@@ -3,6 +3,10 @@
     (type (;0;) (func))
     (func (;0;) (type 0))
     (export "the_entrypoint" (func 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func))
@@ -30,6 +34,9 @@
   (instance (;0;) (instantiate 0
       (with "import-func-entrypoint" (func 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;1;) "new" (instance 0))
 )

@@ -17,6 +17,10 @@
     (type (;0;) (func))
     (import "foo" "foo" (func (;0;) (type 0)))
     (import "foo" "bar" (func (;1;) (type 0)))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func))
@@ -45,6 +49,9 @@
     (export "0" (func $adapt-foo-foo))
     (export "1" (func $adapt-foo-bar))
     (export "$imports" (table 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core module (;3;)
     (type (;0;) (func))
@@ -52,6 +59,9 @@
     (import "" "1" (func (;1;) (type 0)))
     (import "" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func 0 1)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core instance (;0;) (instantiate 2))
   (alias core export 0 "0" (core func (;0;)))
@@ -82,6 +92,9 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias core export 5 "foo" (core func (;4;)))
   (alias core export 5 "bar" (core func (;5;)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (core instance (;6;)
     (export "$imports" (table 0))
     (export "0" (func 4))

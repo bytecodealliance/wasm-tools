@@ -13,5 +13,8 @@
       (export (;0;) "interface" "pkg:/print-keyword/interface" (instance (type 0)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "print-keyword" "pkg:/print-keyword" (type 0))
 )

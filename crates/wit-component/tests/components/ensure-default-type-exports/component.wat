@@ -24,6 +24,10 @@
     (export "memory" (memory 0))
     (export "cabi_realloc" (func 1))
     (export "a" (func 2))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (alias export 0 "a" (func (;0;)))
   (core func (;0;) (canon lower (func 0)))
@@ -39,5 +43,8 @@
   (type (;1;) (func (param "b" u8)))
   (alias core export 1 "a" (core func (;2;)))
   (func (;1;) (type 1) (canon lift (core func 2)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;2;) "a" (func 1))
 )

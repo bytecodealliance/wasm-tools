@@ -34,5 +34,8 @@
       (export (;0;) "a" "pkg:/foo/a" (component (type 3)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;3;) "foo" "pkg:/foo" (type 2))
 )

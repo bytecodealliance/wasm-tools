@@ -74,5 +74,8 @@
       (export (;0;) "flags-world" "pkg:/flags/flags-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "flags" "pkg:/flags" (type 0))
 )

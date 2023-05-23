@@ -38,5 +38,8 @@
       (export (;1;) "simple" "pkg:/worlds-with-types/simple" (component (type 2)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "worlds-with-types" "pkg:/worlds-with-types" (type 0))
 )

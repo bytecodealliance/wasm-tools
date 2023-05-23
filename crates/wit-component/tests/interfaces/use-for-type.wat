@@ -24,5 +24,8 @@
       (export (;2;) "baz" "pkg:/use-for-type/baz" (instance (type 3)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "use-for-type" "pkg:/use-for-type" (type 0))
 )

@@ -20,5 +20,8 @@
       (export (;1;) "console" "pkg:/simple-use/console" (instance (type 2)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "simple-use" "pkg:/simple-use" (type 0))
 )

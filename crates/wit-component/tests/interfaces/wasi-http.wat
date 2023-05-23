@@ -544,5 +544,8 @@
       (export (;0;) "proxy" "pkg:/proxy/proxy" (component (type 0)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;7;) "proxy" "pkg:/proxy" (type 6))
 )

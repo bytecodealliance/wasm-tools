@@ -22,6 +22,10 @@
     (import "wasi-snapshot-preview1" "random_get" (func (;2;) (type 2)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
@@ -55,6 +59,9 @@
     (export "0" (func $adapt-wasi-snapshot-preview1-proc_exit))
     (export "1" (func $adapt-wasi-snapshot-preview1-random_get))
     (export "$imports" (table 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core module (;3;)
     (type (;0;) (func (param i32)))
@@ -63,6 +70,9 @@
     (import "" "1" (func (;1;) (type 1)))
     (import "" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func 0 1)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core instance (;0;) (instantiate 2))
   (alias export 0 "foo" (func (;0;)))
@@ -94,6 +104,9 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias core export 5 "proc_exit" (core func (;4;)))
   (alias core export 5 "random_get" (core func (;5;)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (core instance (;6;)
     (export "$imports" (table 0))
     (export "0" (func 4))
