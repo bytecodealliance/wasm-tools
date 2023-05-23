@@ -1,0 +1,3 @@
+(assert_invalid
+  (module (type (array i32)))
+  "array indexed types not supported without the gc feature")
