@@ -1,0 +1,74 @@
+(module
+  (type $a (;0;) (struct))
+  (type $b (;1;) (struct))
+  (type $f1 (;2;) (func (param (ref 0))))
+  (type $f2 (;3;) (func (result (ref 1))))
+  (type (;4;) (func (param (ref 0))))
+  (type (;5;) (func (result (ref 0))))
+  (type (;6;) (func))
+  (func (;0;) (type $f1) (param (ref 0)))
+  (func (;1;) (type 4) (param (ref 0)))
+  (func (;2;) (type $f1) (param (ref 0)))
+  (func (;3;) (type $f1) (param (ref 0)))
+  (func (;4;) (type 5) (result (ref 0))
+    unreachable
+  )
+  (func (;5;) (type 6)
+    (local (ref 0))
+  )
+  (func (;6;) (type 6)
+    unreachable
+    unreachable
+    i32.const 0
+    select (result (ref 0))
+    block (type $f1) (param (ref 0)) ;; label = @1
+      unreachable
+    end
+    block (result (ref 1)) ;; label = @1
+      unreachable
+    end
+    block $f1 (type $f1) (param (ref 0)) ;; label = @1
+      unreachable
+    end
+    block $f2 (result (ref 1)) ;; label = @1
+      unreachable
+    end
+    loop (type $f1) (param (ref 0)) ;; label = @1
+      unreachable
+    end
+    loop (result (ref 1)) ;; label = @1
+      unreachable
+    end
+    loop $f1 (type $f1) (param (ref 0)) ;; label = @1
+      unreachable
+    end
+    loop $f2 (result (ref 1)) ;; label = @1
+      unreachable
+    end
+    drop
+    if (type $f1) (param (ref 0)) ;; label = @1
+      unreachable
+    else
+      unreachable
+    end
+    if (result (ref 1)) ;; label = @1
+      unreachable
+    else
+      unreachable
+    end
+    drop
+    if $f1 (type $f1) (param (ref 0)) ;; label = @1
+      unreachable
+    else
+      unreachable
+    end
+    if $f2 (result (ref 1)) ;; label = @1
+      unreachable
+    else
+      unreachable
+    end
+    drop
+  )
+  (global (;0;) (ref null 0) ref.null 0)
+  (global (;1;) (ref null 1) ref.null 1)
+)
