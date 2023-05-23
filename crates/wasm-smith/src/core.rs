@@ -625,7 +625,7 @@ impl Module {
                     if self.funcs.len() >= self.config.max_funcs() {
                         continue;
                     } else if let Some((sig_idx, func_type)) = make_func_type(*sig_idx) {
-                        let entity = EntityType::Func(sig_idx as u32, Rc::clone(&func_type));
+                        let entity = EntityType::Func(sig_idx, Rc::clone(&func_type));
                         if type_size_budget < entity.size() {
                             continue;
                         }
@@ -828,7 +828,7 @@ impl Module {
         arbitrary_loop(
             u,
             self.config.min_tables() as usize,
-            self.config.max_tables() as usize,
+            self.config.max_tables(),
             |u| {
                 if !self.can_add_local_or_import_table() {
                     return Ok(false);
@@ -845,7 +845,7 @@ impl Module {
         arbitrary_loop(
             u,
             self.config.min_memories() as usize,
-            self.config.max_memories() as usize,
+            self.config.max_memories(),
             |u| {
                 if !self.can_add_local_or_import_memory() {
                     return Ok(false);
@@ -1002,7 +1002,7 @@ impl Module {
             return Ok(());
         }
 
-        let mut choices = Vec::with_capacity(self.funcs.len() as usize);
+        let mut choices = Vec::with_capacity(self.funcs.len());
 
         for (func_idx, ty) in self.funcs() {
             if ty.params.is_empty() && ty.results.is_empty() {
@@ -1654,7 +1654,7 @@ fn convert_reftype(ty: wasmparser::RefType) -> RefType {
             wasmparser::HeapType::Struct => HeapType::Struct,
             wasmparser::HeapType::Array => HeapType::Array,
             wasmparser::HeapType::I31 => HeapType::I31,
-            wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i.into()),
+            wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i),
         },
     }
 }

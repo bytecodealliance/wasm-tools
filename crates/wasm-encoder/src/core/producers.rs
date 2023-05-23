@@ -25,6 +25,7 @@ use crate::{CustomSection, Encode, Section, SectionId};
 /// let wasm_bytes = module.finish();
 /// ```
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub struct ProducersSection {
     bytes: Vec<u8>,
     num_fields: u32,
@@ -47,14 +48,7 @@ impl ProducersSection {
     }
 }
 
-impl Default for ProducersSection {
-    fn default() -> Self {
-        Self {
-            bytes: Vec::new(),
-            num_fields: 0,
-        }
-    }
-}
+
 
 impl Encode for ProducersSection {
     fn encode(&self, sink: &mut Vec<u8>) {
@@ -78,6 +72,7 @@ impl Section for ProducersSection {
 
 /// The value of a field in the producers custom section
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub struct ProducersField {
     bytes: Vec<u8>,
     num_values: u32,
@@ -100,14 +95,7 @@ impl ProducersField {
     }
 }
 
-impl Default for ProducersField {
-    fn default() -> Self {
-        Self {
-            bytes: Vec::new(),
-            num_values: 0,
-        }
-    }
-}
+
 
 impl Encode for ProducersField {
     fn encode(&self, sink: &mut Vec<u8>) {

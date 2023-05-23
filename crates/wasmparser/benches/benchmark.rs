@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use wasmparser::{
-    DataKind, ElementKind, HeapType, Parser, Payload, ValType, Validator, VisitOperator,
+    DataKind, ElementKind, Parser, Payload, Validator, VisitOperator,
     WasmFeatures,
 };
 

@@ -94,7 +94,7 @@ impl BinaryReaderError {
     }
 
     pub(crate) fn add_context(&mut self, mut context: String) {
-        context.push_str("\n");
+        context.push('\n');
         self.inner.message.insert_str(0, &context);
     }
 }
@@ -700,10 +700,10 @@ impl<'a> BinaryReader<'a> {
         match u32::try_from(idx) {
             Ok(idx) => Ok(BlockType::FuncType(idx)),
             Err(_) => {
-                return Err(BinaryReaderError::new(
+                Err(BinaryReaderError::new(
                     "invalid function type",
                     self.original_position(),
-                ));
+                ))
             }
         }
     }
@@ -758,7 +758,7 @@ impl<'a> BinaryReader<'a> {
         T: VisitOperator<'a>,
     {
         let pos = self.original_position();
-        let code = self.read_u8()? as u8;
+        let code = self.read_u8()?;
         Ok(match code {
             0x00 => visitor.visit_unreachable(),
             0x01 => visitor.visit_nop(),

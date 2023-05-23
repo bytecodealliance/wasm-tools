@@ -44,7 +44,7 @@ fn shrink_to_empty_allowed() -> Result<()> {
 #[test]
 fn smoke_test() -> Result<()> {
     let info = WasmShrink::default().attempts(100).run(wasm(), |wasm| {
-        let wat = wasmprinter::print_bytes(&wasm)?;
+        let wat = wasmprinter::print_bytes(wasm)?;
         Ok(wat.contains("local.get"))
     })?;
 

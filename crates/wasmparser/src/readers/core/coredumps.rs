@@ -158,8 +158,8 @@ impl<'a> FromReader<'a> for CoreDumpStackSection<'a> {
             frames.push(CoreDumpStackFrame::from_reader(reader)?);
         }
         Ok(CoreDumpStackSection {
-            name: name,
-            frames: frames,
+            name,
+            frames,
         })
     }
 }

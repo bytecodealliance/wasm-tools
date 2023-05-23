@@ -30,7 +30,6 @@ fuzz_target!(|data: &[u8]| {
     // Tail calls aren't implemented in wasmtime, so don't try to run them
     // there.
     if config.tail_call_enabled {
-        return;
     }
 
     #[cfg(feature = "wasmtime")]

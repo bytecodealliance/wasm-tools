@@ -53,7 +53,7 @@ fn main() {
                 }
             }
             let contents = std::fs::read(test).unwrap();
-            if skip_test(&test, &contents) {
+            if skip_test(test, &contents) {
                 None
             } else {
                 Some((test, contents))
@@ -153,7 +153,7 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "gc/let.wat",
         "/proposals/gc/",
     ];
-    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
+    let test_path = test.to_str().unwrap().replace('\\', "/"); // for windows paths
     if broken.iter().any(|x| test_path.contains(x)) {
         return true;
     }
@@ -235,7 +235,7 @@ impl TestState {
                 wast::lexer::Token::Whitespace(ws) => ws,
                 _ => continue,
             };
-            if ws.starts_with("\n") || ws == " " {
+            if ws.starts_with('\n') || ws == " " {
                 continue;
             }
             let offset = ws.as_ptr() as usize - string.as_ptr() as usize;
@@ -294,7 +294,7 @@ impl TestState {
                 err.set_text(contents);
             }
             s.push_str("\n\n\t--------------------------------\n\n\t");
-            s.push_str(&format!("{:?}", error).replace("\n", "\n\t"));
+            s.push_str(&format!("{:?}", error).replace('\n', "\n\t"));
         }
         bail!("{}", s)
     }
@@ -449,19 +449,19 @@ impl TestState {
                 for diff in diff::lines(&snapshot, &contents) {
                     match diff {
                         diff::Result::Left(s) => {
-                            result.push_str("-");
+                            result.push('-');
                             result.push_str(s);
                         }
                         diff::Result::Right(s) => {
-                            result.push_str("+");
+                            result.push('+');
                             result.push_str(s);
                         }
                         diff::Result::Both(s, _) => {
-                            result.push_str(" ");
+                            result.push(' ');
                             result.push_str(s);
                         }
                     }
-                    result.push_str("\n");
+                    result.push('\n');
                 }
                 anyhow::bail!(
                     "snapshot does not match the expected result, try `env BLESS=1`\n{}",
@@ -489,7 +489,7 @@ impl TestState {
             .find(|((_, actual), expected)| actual != expected);
         let pos = match difference {
             Some(((pos, _), _)) => format!("at byte {} ({0:#x})", pos),
-            None => format!("by being too small"),
+            None => "by being too small".to_string(),
         };
         let mut msg = format!("error: actual wasm differs {} from expected wasm\n", pos);
 
@@ -500,8 +500,8 @@ impl TestState {
             msg.push_str(&format!("       | + {:#04x}\n", actual[pos]));
         }
 
-        if let Ok(actual) = self.dump(&actual) {
-            if let Ok(expected) = self.dump(&expected) {
+        if let Ok(actual) = self.dump(actual) {
+            if let Ok(expected) = self.dump(expected) {
                 let mut actual = actual.lines();
                 let mut expected = expected.lines();
                 let mut differences = 0;
@@ -518,7 +518,7 @@ impl TestState {
 
                     if actual_state == expected_state {
                         if differences > 0 && !last_dots {
-                            msg.push_str(&format!(" ...\n"));
+                            msg.push_str(&" ...\n".to_string());
                             last_dots = true;
                         }
                         continue;
@@ -772,5 +772,5 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("global is immutable");
     }
 
-    return false;
+    false
 }

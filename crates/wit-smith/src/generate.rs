@@ -47,7 +47,7 @@ impl Generator {
         while packages.len() < self.config.max_packages && (packages.is_empty() || u.arbitrary()?) {
             let name = gen_unique_name(u, &mut names)?;
             let (sources, documents) = self.gen_package(u)?;
-            if documents.len() > 0 {
+            if !documents.is_empty() {
                 self.packages.push((name.clone(), documents));
             }
             packages.push(Package { name, sources });
@@ -65,7 +65,7 @@ impl Generator {
             let (doc, interfaces) = self.gen_document(u)?;
             map.push(format!("{name}.wit").as_ref(), &name, doc);
             count += 1;
-            if interfaces.len() > 0 {
+            if !interfaces.is_empty() {
                 self.documents.push((name, interfaces));
             }
         }
@@ -94,7 +94,7 @@ impl Generator {
                     self.next_interface_id += 1;
                     let (src, types) =
                         self.gen_interface(u, Some(&name), &mut has_default_interface)?;
-                    if types.len() > 0 {
+                    if !types.is_empty() {
                         self.interfaces
                             .push((name, id, src.starts_with("default"), types));
                     }
@@ -159,35 +159,35 @@ impl Generator {
             Choice::Interfaces => {
                 dst.push_str("self.");
                 let (name, id, _default, types) = u.choose(&self.interfaces)?;
-                dst.push_str("%");
+                dst.push('%');
                 dst.push_str(name);
                 Some((*id, types))
             }
             Choice::Documents => {
                 dst.push_str("pkg.");
                 let (name, ifaces) = u.choose(&self.documents)?;
-                dst.push_str("%");
+                dst.push('%');
                 dst.push_str(name);
                 let (name, id, default, types) = u.choose(ifaces)?;
                 if !*default || !u.arbitrary()? {
-                    dst.push_str(".");
-                    dst.push_str("%");
+                    dst.push('.');
+                    dst.push('%');
                     dst.push_str(name);
                 }
                 Some((*id, types))
             }
             Choice::Packages => {
                 let (name, docs) = u.choose(&self.packages)?;
-                dst.push_str("%");
+                dst.push('%');
                 dst.push_str(name);
-                dst.push_str(".");
+                dst.push('.');
                 let (name, ifaces) = u.choose(docs)?;
-                dst.push_str("%");
+                dst.push('%');
                 dst.push_str(name);
                 let (name, id, default, types) = u.choose(ifaces)?;
                 if !*default || !u.arbitrary()? {
-                    dst.push_str(".");
-                    dst.push_str("%");
+                    dst.push('.');
+                    dst.push('%');
                     dst.push_str(name);
                 }
                 Some((*id, types))
@@ -223,9 +223,9 @@ impl<'a> InterfaceGenerator<'a> {
         }
         ret.push_str("interface ");
         if let Some(name) = name {
-            ret.push_str("%");
+            ret.push('%');
             ret.push_str(name);
-            ret.push_str(" ");
+            ret.push(' ');
         }
         ret.push_str("{\n");
 
@@ -263,7 +263,7 @@ impl<'a> InterfaceGenerator<'a> {
             ret.push_str("\n\n");
         }
 
-        ret.push_str("}");
+        ret.push('}');
         Ok(ret)
     }
 
@@ -377,10 +377,10 @@ impl<'a> InterfaceGenerator<'a> {
 
         for part in parts {
             ret.push_str(&part);
-            ret.push_str("\n");
+            ret.push('\n');
         }
 
-        ret.push_str("}");
+        ret.push('}');
 
         Ok(ret)
     }
@@ -395,7 +395,7 @@ impl<'a> InterfaceGenerator<'a> {
         part.push_str(&path);
         part.push_str(".{");
         let (name, size) = u.choose(types)?;
-        part.push_str("%");
+        part.push('%');
         part.push_str(name);
         let name = if self.unique_names.contains(name) || u.arbitrary()? {
             part.push_str(" as %");
@@ -407,7 +407,7 @@ impl<'a> InterfaceGenerator<'a> {
             name.clone()
         };
         self.types_in_interface.push((name, *size));
-        part.push_str("}");
+        part.push('}');
         Ok(true)
     }
 
@@ -436,7 +436,7 @@ impl<'a> InterfaceGenerator<'a> {
                     self.gen_type(u, &mut fuel, &mut ret)?;
                     ret.push_str(",\n");
                 }
-                ret.push_str("}");
+                ret.push('}');
             }
             Kind::Variant => {
                 ret.push_str("variant %");
@@ -446,13 +446,13 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     if u.arbitrary()? {
-                        ret.push_str("(");
+                        ret.push('(');
                         self.gen_type(u, &mut fuel, &mut ret)?;
-                        ret.push_str(")");
+                        ret.push(')');
                     }
                     ret.push_str(",\n");
                 }
-                ret.push_str("}");
+                ret.push('}');
             }
             Kind::Union => {
                 ret.push_str("union %");
@@ -463,7 +463,7 @@ impl<'a> InterfaceGenerator<'a> {
                     self.gen_type(u, &mut fuel, &mut ret)?;
                     ret.push_str(",\n");
                 }
-                ret.push_str("}");
+                ret.push('}');
             }
             Kind::Enum => {
                 ret.push_str("enum %");
@@ -474,7 +474,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(",\n");
                 }
-                ret.push_str("}");
+                ret.push('}');
             }
             Kind::Flags => {
                 ret.push_str("flags %");
@@ -485,7 +485,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(",\n");
                 }
-                ret.push_str("}");
+                ret.push('}');
             }
             Kind::Anonymous => {
                 ret.push_str("type %");
@@ -557,7 +557,7 @@ impl<'a> InterfaceGenerator<'a> {
                         Some(fuel) => fuel,
                         None => continue,
                     };
-                    dst.push_str("%");
+                    dst.push('%');
                     dst.push_str(name);
                 }
                 Kind::Tuple => {
@@ -573,7 +573,7 @@ impl<'a> InterfaceGenerator<'a> {
                         }
                         self.gen_type(u, fuel, dst)?;
                     }
-                    dst.push_str(">");
+                    dst.push('>');
                 }
                 Kind::Option => {
                     *fuel = match fuel.checked_sub(1) {
@@ -582,7 +582,7 @@ impl<'a> InterfaceGenerator<'a> {
                     };
                     dst.push_str("option<");
                     self.gen_type(u, fuel, dst)?;
-                    dst.push_str(">");
+                    dst.push('>');
                 }
                 Kind::List => {
                     *fuel = match fuel.checked_sub(1) {
@@ -591,7 +591,7 @@ impl<'a> InterfaceGenerator<'a> {
                     };
                     dst.push_str("list<");
                     self.gen_type(u, fuel, dst)?;
-                    dst.push_str(">");
+                    dst.push('>');
                 }
                 Kind::Result => {
                     *fuel = match fuel.checked_sub(2) {
@@ -603,21 +603,21 @@ impl<'a> InterfaceGenerator<'a> {
                     let err = u.arbitrary()?;
                     match (ok, err) {
                         (true, true) => {
-                            dst.push_str("<");
+                            dst.push('<');
                             self.gen_type(u, fuel, dst)?;
                             dst.push_str(", ");
                             self.gen_type(u, fuel, dst)?;
-                            dst.push_str(">");
+                            dst.push('>');
                         }
                         (true, false) => {
-                            dst.push_str("<");
+                            dst.push('<');
                             self.gen_type(u, fuel, dst)?;
-                            dst.push_str(">");
+                            dst.push('>');
                         }
                         (false, true) => {
                             dst.push_str("<_, ");
                             self.gen_type(u, fuel, dst)?;
-                            dst.push_str(">");
+                            dst.push('>');
                         }
                         (false, false) => {}
                     }
@@ -651,18 +651,18 @@ impl<'a> InterfaceGenerator<'a> {
     }
 
     fn gen_params(&mut self, u: &mut Unstructured<'_>, dst: &mut String) -> Result<()> {
-        dst.push_str("(");
+        dst.push('(');
         let mut fuel = self.config.max_type_size;
         for i in 0..u.int_in_range(0..=self.config.max_type_parts)? {
             if i > 0 {
                 dst.push_str(", ");
             }
-            dst.push_str("%");
+            dst.push('%');
             dst.push_str(&self.gen_unique_name(u)?);
             dst.push_str(": ");
             self.gen_type(u, &mut fuel, dst)?;
         }
-        dst.push_str(")");
+        dst.push(')');
         Ok(())
     }
 
@@ -706,7 +706,7 @@ fn gen_name(u: &mut Unstructured<'_>) -> Result<String> {
 }
 
 fn shuffle<T>(u: &mut Unstructured<'_>, mut slice: &mut [T]) -> Result<()> {
-    while slice.len() > 0 {
+    while !slice.is_empty() {
         let pos = u.int_in_range(0..=slice.len() - 1)?;
         slice.swap(0, pos);
         slice = &mut slice[1..];

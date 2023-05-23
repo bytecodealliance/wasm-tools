@@ -733,7 +733,7 @@ impl Printer {
         }
         self.print_storage_type(ty.element_type)?;
         if ty.mutable {
-            self.result.push_str(")");
+            self.result.push(')');
         }
         Ok(0)
     }
@@ -775,13 +775,13 @@ impl Printer {
                 _ => {
                     self.result.push_str("(ref null ");
                     self.print_heaptype(ty.heap_type())?;
-                    self.result.push_str(")");
+                    self.result.push(')');
                 }
             }
         } else {
             self.result.push_str("(ref ");
             self.print_heaptype(ty.heap_type())?;
-            self.result.push_str(")");
+            self.result.push(')');
         }
         Ok(())
     }
@@ -798,7 +798,7 @@ impl Printer {
             HeapType::Struct => self.result.push_str("struct"),
             HeapType::Array => self.result.push_str("array"),
             HeapType::I31 => self.result.push_str("i31"),
-            HeapType::Indexed(i) => self.result.push_str(&format!("{}", u32::from(i))),
+            HeapType::Indexed(i) => self.result.push_str(&format!("{}", i)),
         }
         Ok(())
     }
@@ -921,7 +921,7 @@ impl Printer {
             match &table.init {
                 TableInit::RefNull => {}
                 TableInit::Expr(expr) => {
-                    self.result.push_str(" ");
+                    self.result.push(' ');
                     self.print_const_expr(state, expr)?;
                 }
             }
@@ -1569,10 +1569,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_component_type<'a>(
+    fn print_component_type(
         &mut self,
         states: &mut Vec<State>,
-        decls: Vec<ComponentTypeDeclaration<'a>>,
+        decls: Vec<ComponentTypeDeclaration<'_>>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
         self.newline_unknown_pos();
@@ -1607,10 +1607,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_instance_type<'a>(
+    fn print_instance_type(
         &mut self,
         states: &mut Vec<State>,
-        decls: Vec<InstanceTypeDeclaration<'a>>,
+        decls: Vec<InstanceTypeDeclaration<'_>>,
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
         self.newline_unknown_pos();
@@ -1713,10 +1713,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_component_type_def<'a>(
+    fn print_component_type_def(
         &mut self,
         states: &mut Vec<State>,
-        ty: ComponentType<'a>,
+        ty: ComponentType<'_>,
     ) -> Result<()> {
         self.start_group("type ");
         {
@@ -1739,11 +1739,11 @@ impl Printer {
                 self.print_instance_type(states, decls.into_vec())?;
             }
             ComponentType::Resource { rep, dtor } => {
-                self.result.push_str(" ");
+                self.result.push(' ');
                 self.start_group("resource");
                 self.result.push_str(" (rep ");
                 self.print_valtype(rep)?;
-                self.result.push_str(")");
+                self.result.push(')');
                 if let Some(dtor) = dtor {
                     self.result.push_str("(dtor (func ");
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
@@ -1759,10 +1759,10 @@ impl Printer {
         Ok(())
     }
 
-    fn print_component_types<'a>(
+    fn print_component_types(
         &mut self,
         states: &mut Vec<State>,
-        parser: ComponentTypeSectionReader<'a>,
+        parser: ComponentTypeSectionReader<'_>,
     ) -> Result<()> {
         for ty in parser.into_iter_with_offsets() {
             let (offset, ty) = ty?;
@@ -1815,7 +1815,7 @@ impl Printer {
             ComponentTypeRef::Module(idx) => {
                 self.start_group("core module ");
                 if index {
-                    self.print_name(&state.core.module_names, state.core.modules as u32)?;
+                    self.print_name(&state.core.module_names, state.core.modules)?;
                     self.result.push(' ');
                     state.core.modules += 1;
                 }
@@ -1922,7 +1922,7 @@ impl Printer {
         self.print_component_external_kind(state, export.kind, export.index)?;
         if let Some(ty) = &export.ty {
             self.result.push(' ');
-            self.print_component_import_ty(state, &ty, false)?;
+            self.print_component_import_ty(state, ty, false)?;
         }
         self.end_group();
         Ok(())

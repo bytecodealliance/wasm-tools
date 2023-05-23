@@ -353,7 +353,7 @@ impl<'a> UsePath<'a> {
                 };
                 Ok(UsePath::Dependency { dep, doc, iface })
             }
-            other => return Err(err_expected(tokens, "`self`, `pkg`, or identifier", other).into()),
+            other => Err(err_expected(tokens, "`self`, `pkg`, or identifier", other).into()),
         }
     }
 }
@@ -367,7 +367,7 @@ pub struct Id<'a> {
 impl<'a> From<&'a str> for Id<'a> {
     fn from(s: &'a str) -> Id<'a> {
         Id {
-            name: s.into(),
+            name: s,
             span: Span { start: 0, end: 0 },
         }
     }
@@ -810,12 +810,12 @@ impl<'a> Type<'a> {
 
             // `foo`
             Some((span, Token::Id)) => Ok(Type::Name(Id {
-                name: tokens.parse_id(span)?.into(),
+                name: tokens.parse_id(span)?,
                 span,
             })),
             // `%foo`
             Some((span, Token::ExplicitId)) => Ok(Type::Name(Id {
-                name: tokens.parse_explicit_id(span)?.into(),
+                name: tokens.parse_explicit_id(span)?,
                 span,
             })),
 

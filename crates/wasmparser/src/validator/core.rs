@@ -22,7 +22,9 @@ use std::{collections::HashSet, sync::Arc};
 // Component sections are unordered and allow for duplicates,
 // so this isn't used for components.
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
+#[derive(Default)]
 pub enum Order {
+    #[default]
     Initial,
     Type,
     Import,
@@ -39,11 +41,7 @@ pub enum Order {
     Data,
 }
 
-impl Default for Order {
-    fn default() -> Order {
-        Order::Initial
-    }
-}
+
 
 #[derive(Default)]
 pub(crate) struct ModuleState {
@@ -845,8 +843,8 @@ impl Module {
     }
 
     fn eq_indexed_types(&self, n1: u32, n2: u32, types: &TypeList) -> bool {
-        let n1 = self.type_at(types, n1.into(), 0).unwrap();
-        let n2 = self.type_at(types, n2.into(), 0).unwrap();
+        let n1 = self.type_at(types, n1, 0).unwrap();
+        let n2 = self.type_at(types, n2, 0).unwrap();
         match (n1, n2) {
             (Type::Func(f1), Type::Func(f2)) => self.eq_fns(f1, f2, types),
             (Type::Array(a1), Type::Array(a2)) => {
@@ -887,8 +885,8 @@ impl Module {
             match (ty1, ty2) {
                 (HeapType::Indexed(n1), HeapType::Indexed(n2)) => {
                     // Check whether the defined types are (structurally) equivalent.
-                    let n1 = self.type_at(types, n1.into(), 0);
-                    let n2 = self.type_at(types, n2.into(), 0);
+                    let n1 = self.type_at(types, n1, 0);
+                    let n2 = self.type_at(types, n2, 0);
                     match (n1, n2) {
                         (Ok(Type::Func(n1)), Ok(Type::Func(n2))) => self.eq_fns(n1, n2, types),
                         (Ok(Type::Array(n1)), Ok(Type::Array(n2))) => {
@@ -904,10 +902,10 @@ impl Module {
                     }
                 }
                 (HeapType::Indexed(n1), HeapType::Func) => {
-                    self.func_type_at(n1.into(), types, 0).is_ok()
+                    self.func_type_at(n1, types, 0).is_ok()
                 }
                 (HeapType::Indexed(n1), HeapType::Array) => {
-                    match self.type_at(types, n1.into(), 0) {
+                    match self.type_at(types, n1, 0) {
                         Ok(Type::Array(_)) => true,
                         _ => false,
                     }

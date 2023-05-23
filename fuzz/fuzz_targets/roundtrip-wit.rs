@@ -81,7 +81,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, wasm: &[u8]) {
         for (name, doc) in pkg.documents.iter() {
             let doc = DocumentPrinter::default().print(resolve, *doc).unwrap();
             write_file(&format!("{file}-{pkg_name}-{name}.wit"), &doc);
-            map.push(format!("{name}.wit").as_ref(), &name, doc);
+            map.push(format!("{name}.wit").as_ref(), name, doc);
         }
         let unresolved = map.parse(&pkg.name, pkg.url.as_deref()).unwrap();
         let id = new_resolve.push(unresolved, &new_deps).unwrap();
@@ -109,6 +109,6 @@ fn write_file(path: &str, contents: impl AsRef<[u8]>) {
     if path.extension().and_then(|s| s.to_str()) == Some("wasm") {
         let path = path.with_extension("wat");
         log::debug!("writing file {}", path.display());
-        std::fs::write(path, wasmprinter::print_bytes(&contents).unwrap()).unwrap();
+        std::fs::write(path, wasmprinter::print_bytes(contents).unwrap()).unwrap();
     }
 }

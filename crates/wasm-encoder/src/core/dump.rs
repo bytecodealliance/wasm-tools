@@ -57,7 +57,7 @@ impl CoreDumpSection {
     }
 
     /// View the encoded section as a CustomSection.
-    fn as_custom<'a>(&'a self) -> CustomSection<'a> {
+    fn as_custom(&self) -> CustomSection<'_> {
         let mut data = vec![0];
         self.name.encode(&mut data);
         CustomSection {
@@ -267,7 +267,7 @@ impl CoreDumpStackSection {
     }
 
     /// View the encoded section as a CustomSection.
-    pub fn as_custom<'a>(&'a self) -> CustomSection<'a> {
+    pub fn as_custom(&self) -> CustomSection<'_> {
         let mut data = vec![0];
         self.name.encode(&mut data);
         self.count.encode(&mut data);

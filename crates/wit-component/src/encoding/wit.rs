@@ -185,7 +185,7 @@ impl Encoder<'_> {
             let url = format!("pkg:/{}/{name}", doc.name);
             encoder
                 .outer
-                .export(&name, &url, ComponentTypeRef::Component(idx));
+                .export(name, &url, ComponentTypeRef::Component(idx));
         }
 
         Ok(self.component.component_type(&encoder.outer))

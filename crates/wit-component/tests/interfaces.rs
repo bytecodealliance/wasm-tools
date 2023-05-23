@@ -76,7 +76,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
             } else {
                 root.with_extension("wit.print")
             };
-            let output = DocumentPrinter::default().print(&resolve, *doc)?;
+            let output = DocumentPrinter::default().print(resolve, *doc)?;
             assert_output(&expected, &output)?;
         }
     }
@@ -94,10 +94,10 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 
 fn assert_output(expected: &Path, actual: &str) -> Result<()> {
     if std::env::var_os("BLESS").is_some() {
-        fs::write(&expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
+        fs::write(expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {
         assert_eq!(
-            fs::read_to_string(&expected)
+            fs::read_to_string(expected)
                 .with_context(|| format!("failed to read {expected:?}"))?
                 .replace("\r\n", "\n"),
             actual,

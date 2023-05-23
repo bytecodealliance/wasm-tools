@@ -196,6 +196,6 @@ impl Printer {
         for _ in 0..depth {
             s.push_str("  ");
         }
-        return s;
+        s
     }
 }

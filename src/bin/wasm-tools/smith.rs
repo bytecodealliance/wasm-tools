@@ -224,7 +224,7 @@ impl Opts {
         } else {
             let json = match &self.config {
                 Some(path) => {
-                    let json = std::fs::read_to_string(&path).with_context(|| {
+                    let json = std::fs::read_to_string(path).with_context(|| {
                         format!("failed to read json config: {}", path.display())
                     })?;
                     serde_json::from_str(&json).with_context(|| {

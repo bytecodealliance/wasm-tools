@@ -369,7 +369,7 @@ pub fn validate_adapter_module<'a>(
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
         if name == BARE_FUNC_MODULE_NAME {
-            validate_imports_top_level(&resolve, world, &funcs, &types)?;
+            validate_imports_top_level(resolve, world, &funcs, &types)?;
             let funcs = resolve.worlds[world]
                 .imports
                 .iter()
@@ -430,10 +430,10 @@ pub fn validate_adapter_module<'a>(
     Ok(ret)
 }
 
-fn validate_imports_top_level<'a>(
+fn validate_imports_top_level(
     resolve: &Resolve,
     world: WorldId,
-    funcs: &IndexMap<&'a str, u32>,
+    funcs: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<()> {
     for (name, ty) in funcs {

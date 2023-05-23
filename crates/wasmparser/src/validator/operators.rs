@@ -471,19 +471,17 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         };
         let actual = if self.operands.len() == control.height && control.unreachable {
             MaybeType::Bot
+        } else if self.operands.len() == control.height {
+            let desc = match expected {
+                Some(ty) => ty_to_str(ty),
+                None => "a type",
+            };
+            bail!(
+                self.offset,
+                "type mismatch: expected {desc} but nothing on stack"
+            )
         } else {
-            if self.operands.len() == control.height {
-                let desc = match expected {
-                    Some(ty) => ty_to_str(ty),
-                    None => "a type",
-                };
-                bail!(
-                    self.offset,
-                    "type mismatch: expected {desc} but nothing on stack"
-                )
-            } else {
-                self.operands.pop().unwrap()
-            }
+            self.operands.pop().unwrap()
         };
         if let Some(expected) = expected {
             match (actual, expected) {

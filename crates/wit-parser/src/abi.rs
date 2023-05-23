@@ -1058,7 +1058,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         // `self.return_pointer`) so we use that to read
                         // the result of the function from memory.
                         AbiVariant::GuestImport => {
-                            assert!(sig.results.len() == 0);
+                            assert!(sig.results.is_empty());
                             self.return_pointer.take().unwrap()
                         }
 
@@ -1886,7 +1886,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 }
 
                 TypeDefKind::Enum(e) => {
-                    self.stack.push(addr.clone());
+                    self.stack.push(addr);
                     self.load_intrepr(offset, e.tag());
                     self.lift(ty);
                 }

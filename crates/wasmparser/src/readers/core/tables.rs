@@ -47,10 +47,8 @@ impl<'a> FromReader<'a> for Table<'a> {
             false
         };
 
-        if has_init_expr {
-            if reader.read_u8()? != 0x00 {
-                bail!(reader.original_position() - 1, "invalid table encoding");
-            }
+        if has_init_expr && reader.read_u8()? != 0x00 {
+            bail!(reader.original_position() - 1, "invalid table encoding");
         }
 
         let ty = reader.read::<TableType>()?;

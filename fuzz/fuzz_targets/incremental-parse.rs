@@ -14,7 +14,7 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
 
     // Concatenate everything together, create our expected iterator of
     // payloads, and then write out `input.wasm` if debugging is enabled.
-    let everything = data.iter().flat_map(|a| a).copied().collect::<Vec<_>>();
+    let everything = data.iter().flatten().copied().collect::<Vec<_>>();
     let mut expected = Parser::new(0).parse_all(&everything);
     if log::log_enabled!(log::Level::Debug) {
         std::fs::write("input.wasm", &everything).unwrap();
@@ -53,8 +53,7 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
                 let expected = expected
                     .next()
                     .expect("full parse stopped early")
-                    .err()
-                    .expect("full parse didn't return an error");
+                    .expect_err("full parse didn't return an error");
                 assert_eq!(expected.offset(), actual.offset());
                 assert_eq!(expected.message(), actual.message());
                 break;

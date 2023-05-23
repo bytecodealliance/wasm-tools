@@ -9,7 +9,7 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
     drop(env_logger::try_init());
-    write_file("wasm1.wat", &string);
+    write_file("wasm1.wat", string);
     // Weed out `(module binary ...)` because when we print the bytes and
     // convert it back to binary it's not guaranteed to be exactly the same.
     // (think of something like an over-long LEB encoding)

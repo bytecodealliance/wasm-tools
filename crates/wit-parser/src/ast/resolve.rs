@@ -293,7 +293,7 @@ impl<'a> Resolver<'a> {
                         None => {
                             let name = default_interface_name.ok_or_else(|| Error {
                                 span: doc.span,
-                                msg: format!("no `default` interface in document to use from"),
+                                msg: "no `default` interface in document to use from".to_string(),
                             })?;
                             ast::Id {
                                 span: doc.span,
@@ -347,7 +347,7 @@ impl<'a> Resolver<'a> {
                 if prev.is_some() {
                     return Err(Error {
                         span: interface.name.span,
-                        msg: format!("cannot specify more than one `default` interface"),
+                        msg: "cannot specify more than one `default` interface".to_string(),
                     }
                     .into());
                 }
@@ -368,7 +368,7 @@ impl<'a> Resolver<'a> {
                 if prev.is_some() {
                     return Err(Error {
                         span: world.name.span,
-                        msg: format!("cannot specify more than one `default` world"),
+                        msg: "cannot specify more than one `default` world".to_string(),
                     }
                     .into());
                 }
@@ -712,7 +712,7 @@ impl<'a> Resolver<'a> {
                     }),
                     None => bail!(Error {
                         span: iface.span,
-                        msg: format!("interface does not exist"),
+                        msg: "interface does not exist".to_string(),
                     }),
                 }
             }
@@ -732,14 +732,14 @@ impl<'a> Resolver<'a> {
                             .into()),
                             None => bail!(Error {
                                 span: id.span,
-                                msg: format!("interface does not exist"),
+                                msg: "interface does not exist".to_string(),
                             }),
                         }
                     }
                     None => self.documents[doc_id].default_interface.ok_or_else(|| {
                         Error {
                             span: doc.span,
-                            msg: format!("document does not specify a default interface"),
+                            msg: "document does not specify a default interface".to_string(),
                         }
                         .into()
                     }),

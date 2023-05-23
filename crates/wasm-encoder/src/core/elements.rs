@@ -102,7 +102,7 @@ impl ElementSection {
     }
 
     /// Define an element segment.
-    pub fn segment<'a>(&mut self, segment: ElementSegment<'a>) -> &mut Self {
+    pub fn segment(&mut self, segment: ElementSegment<'_>) -> &mut Self {
         let expr_bit = match segment.elements {
             Elements::Expressions(_) => 0b100u32,
             Elements::Functions(_) => 0b000u32,
@@ -184,7 +184,7 @@ impl ElementSection {
     /// Encode a passive element segment.
     ///
     /// Passive segments are part of the bulk memory proposal.
-    pub fn passive<'a>(&mut self, element_type: RefType, elements: Elements<'a>) -> &mut Self {
+    pub fn passive(&mut self, element_type: RefType, elements: Elements<'_>) -> &mut Self {
         self.segment(ElementSegment {
             mode: ElementMode::Passive,
             element_type,
@@ -195,7 +195,7 @@ impl ElementSection {
     /// Encode a declared element segment.
     ///
     /// Declared segments are part of the bulk memory proposal.
-    pub fn declared<'a>(&mut self, element_type: RefType, elements: Elements<'a>) -> &mut Self {
+    pub fn declared(&mut self, element_type: RefType, elements: Elements<'_>) -> &mut Self {
         self.segment(ElementSegment {
             mode: ElementMode::Declared,
             element_type,

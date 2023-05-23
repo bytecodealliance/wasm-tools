@@ -1124,7 +1124,7 @@ mod test {
             validate: true,
         })?;
 
-        let wat = wasmprinter::print_bytes(&encoded)?;
+        let wat = wasmprinter::print_bytes(encoded)?;
         assert_eq!(r#"(component)"#, wat);
 
         Ok(())
@@ -1144,7 +1144,7 @@ mod test {
             validate: true,
         })?;
 
-        let wat = wasmprinter::print_bytes(&encoded)?.replace("\r\n", "\n");
+        let wat = wasmprinter::print_bytes(encoded)?.replace("\r\n", "\n");
         assert_eq!(
             r#"(component
   (type (;0;)
@@ -1173,7 +1173,7 @@ mod test {
             validate: true,
         })?;
 
-        let wat = wasmprinter::print_bytes(&encoded)?.replace("\r\n", "\n");
+        let wat = wasmprinter::print_bytes(encoded)?.replace("\r\n", "\n");
         assert_eq!(
             r#"(component
   (component (;0;))
@@ -1236,7 +1236,7 @@ mod test {
             validate: true,
         })?;
 
-        let wat = wasmprinter::print_bytes(&encoded)?.replace("\r\n", "\n");
+        let wat = wasmprinter::print_bytes(encoded)?.replace("\r\n", "\n");
         assert_eq!(
             r#"(component
   (type (;0;)

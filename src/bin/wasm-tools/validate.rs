@@ -114,7 +114,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
     ];
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
-        let (enable, part) = if let Some(part) = part.strip_prefix("-") {
+        let (enable, part) = if let Some(part) = part.strip_prefix('-') {
             (false, part)
         } else {
             (true, part)

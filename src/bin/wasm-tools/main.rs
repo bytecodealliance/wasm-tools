@@ -120,10 +120,10 @@ fn print_error(color: ColorChoice, err: anyhow::Error) -> Result<()> {
         writeln!(
             stderr,
             "{i:>5}: {}",
-            err.to_string().replace("\n", "\n       ")
+            err.to_string().replace('\n', "\n       ")
         )?;
     }
-    return Ok(());
+    Ok(())
 }
 
 /// If CARGO_VERSION_INFO is set, use it, otherwise use CARGO_PKG_VERSION.

@@ -132,7 +132,7 @@ impl DocumentPrinter {
             writeln!(&mut self.output, "}}")?;
         }
 
-        if amt_to_import > 0 && types_to_declare.len() > 0 {
+        if amt_to_import > 0 && !types_to_declare.is_empty() {
             self.output.push_str("\n");
         }
 

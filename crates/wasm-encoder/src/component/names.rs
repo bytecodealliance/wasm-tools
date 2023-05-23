@@ -128,7 +128,7 @@ impl ComponentNameSection {
     }
 
     /// View the encoded section as a CustomSection.
-    pub fn as_custom<'a>(&'a self) -> CustomSection<'a> {
+    pub fn as_custom(&self) -> CustomSection<'_> {
         CustomSection {
             name: "component-name".into(),
             data: Cow::Borrowed(&self.bytes),

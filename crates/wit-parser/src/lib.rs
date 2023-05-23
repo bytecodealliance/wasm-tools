@@ -176,17 +176,15 @@ impl UnresolvedPackage {
             .and_then(|s| s.to_str())
             .ok_or_else(|| anyhow!("path doesn't end in a valid package name {path:?}"))?;
         let cx = || format!("failed to read directory {path:?}");
-        for entry in path.read_dir().with_context(&cx)? {
-            let entry = entry.with_context(&cx)?;
+        for entry in path.read_dir().with_context(cx)? {
+            let entry = entry.with_context(cx)?;
             let path = entry.path();
-            let ty = entry.file_type().with_context(&cx)?;
+            let ty = entry.file_type().with_context(cx)?;
             if ty.is_dir() {
                 continue;
             }
-            if ty.is_symlink() {
-                if path.is_dir() {
-                    continue;
-                }
+            if ty.is_symlink() && path.is_dir() {
+                continue;
             }
             let filename = match path.file_name().and_then(|s| s.to_str()) {
                 Some(name) => name,

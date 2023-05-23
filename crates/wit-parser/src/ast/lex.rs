@@ -134,7 +134,7 @@ impl<'a> Tokenizer<'a> {
 
     pub fn parse_id(&self, span: Span) -> Result<&'a str> {
         let ret = self.get_span(span);
-        validate_id(span.start, &ret)?;
+        validate_id(span.start, ret)?;
         Ok(ret)
     }
 

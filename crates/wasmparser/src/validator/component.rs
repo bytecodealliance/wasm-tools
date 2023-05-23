@@ -391,7 +391,7 @@ impl ComponentState {
                 if let Some(dtor) = dtor {
                     let ty = component.core_function_at(dtor, offset)?;
                     let ty = types[ty].as_func_type().unwrap();
-                    if ty.params() != [rep] || ty.results() != [] {
+                    if ty.params() != [rep] || !ty.results().is_empty() {
                         bail!(
                             offset,
                             "core function {dtor} has wrong signature for a destructor"
@@ -1099,7 +1099,7 @@ impl ComponentState {
         }
     }
 
-    fn resource_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<TypeId> {
+    fn resource_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
         let id = self.type_at(idx, false, offset)?;
         match &types[id] {
             Type::Resource(_) => Ok(id),

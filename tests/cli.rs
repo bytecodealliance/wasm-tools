@@ -106,13 +106,13 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
     assert_output(
         bless,
         &output.stdout,
-        &test.with_extension(&format!("{extension}.stdout")),
+        &test.with_extension(format!("{extension}.stdout")),
     )
     .context("failed to check stdout expectation (auto-update with BLESS=1)")?;
     assert_output(
         bless,
         &output.stderr,
-        &test.with_extension(&format!("{extension}.stderr")),
+        &test.with_extension(format!("{extension}.stderr")),
     )
     .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
     Ok(())

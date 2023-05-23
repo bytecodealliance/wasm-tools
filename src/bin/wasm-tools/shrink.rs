@@ -176,9 +176,9 @@ impl IsInteresting for OutputIsInteresting {
     }
 }
 
-fn make_predicate<'a>(
-    predicate_script: &'a Path,
-) -> impl FnMut(&[u8]) -> Result<OutputIsInteresting> + 'a {
+fn make_predicate(
+    predicate_script: &Path,
+) -> impl FnMut(&[u8]) -> Result<OutputIsInteresting> + '_ {
     move |wasm| {
         let tmp = NamedTempFile::new().context("Failed to create a temporary file.")?;
         std::fs::write(tmp.path(), wasm).with_context(|| {
@@ -188,7 +188,7 @@ fn make_predicate<'a>(
             )
         })?;
 
-        let output = std::process::Command::new(&predicate_script)
+        let output = std::process::Command::new(predicate_script)
             .arg(tmp.path())
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())

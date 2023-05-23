@@ -499,7 +499,7 @@ impl<'a> Module<'a> {
             | HeapType::Struct
             | HeapType::Array
             | HeapType::I31 => {}
-            HeapType::Indexed(i) => self.ty(i.into()),
+            HeapType::Indexed(i) => self.ty(i),
         }
     }
 
@@ -1142,7 +1142,7 @@ impl Encoder {
             HeapType::Array => wasm_encoder::HeapType::Array,
             HeapType::I31 => wasm_encoder::HeapType::I31,
             HeapType::Indexed(idx) => {
-                wasm_encoder::HeapType::Indexed(self.types.remap(idx.into()).try_into().unwrap())
+                wasm_encoder::HeapType::Indexed(self.types.remap(idx).try_into().unwrap())
             }
         }
     }

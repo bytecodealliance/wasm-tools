@@ -114,7 +114,7 @@ impl OutputArg {
         match output {
             Output::Wat(s) => self.output_str(s),
             Output::Wasm { bytes, wat: true } => {
-                self.output_str(&wasmprinter::print_bytes(&bytes)?)
+                self.output_str(&wasmprinter::print_bytes(bytes)?)
             }
             Output::Wasm { bytes, wat: false } => {
                 match &self.output {
@@ -156,7 +156,7 @@ impl OutputArg {
     pub fn output_writer(&self, color: ColorChoice) -> Result<Box<dyn WriteColor>> {
         match &self.output {
             Some(output) => {
-                let writer = BufWriter::new(File::create(&output)?);
+                let writer = BufWriter::new(File::create(output)?);
                 if color == ColorChoice::AlwaysAnsi {
                     Ok(Box::new(Ansi::new(writer)))
                 } else {

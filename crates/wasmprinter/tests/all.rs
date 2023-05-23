@@ -8,7 +8,7 @@ fn no_panic() {
         "#,
     )
     .unwrap();
-    wasmprinter::print_bytes(&bytes).unwrap();
+    wasmprinter::print_bytes(bytes).unwrap();
 
     let bytes = wat::parse_str(
         r#"
@@ -18,7 +18,7 @@ fn no_panic() {
         "#,
     )
     .unwrap();
-    wasmprinter::print_bytes(&bytes).unwrap();
+    wasmprinter::print_bytes(bytes).unwrap();
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn code_section_overflow() {
         "#,
     )
     .unwrap();
-    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    let err = wasmprinter::print_bytes(bytes).unwrap_err();
     assert!(
         err.to_string().contains("unexpected end-of-file"),
         "{:?}",
@@ -69,7 +69,7 @@ fn locals_overflow() {
         "#,
     )
     .unwrap();
-    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    let err = wasmprinter::print_bytes(bytes).unwrap_err();
     assert!(
         err.to_string().contains("maximum number of locals"),
         "{:?}",
@@ -97,7 +97,7 @@ fn memarg_too_big() {
         "#,
     )
     .unwrap();
-    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    let err = wasmprinter::print_bytes(bytes).unwrap_err();
     assert!(
         err.to_string().contains("alignment in memarg too large"),
         "{:?}",
@@ -115,7 +115,7 @@ fn no_panic_dangling_else() {
         "#,
     )
     .unwrap();
-    wasmprinter::print_bytes(&bytes).unwrap();
+    wasmprinter::print_bytes(bytes).unwrap();
 }
 
 #[test]
@@ -128,8 +128,8 @@ fn dangling_if() {
         "#,
     )
     .unwrap();
-    let wat = wasmprinter::print_bytes(&bytes).unwrap();
-    wat::parse_str(&wat).unwrap();
+    let wat = wasmprinter::print_bytes(bytes).unwrap();
+    wat::parse_str(wat).unwrap();
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn no_oom() {
     }
     s.push(')');
     let bytes = wat::parse_str(&s).unwrap();
-    let wat = wasmprinter::print_bytes(&bytes).unwrap();
+    let wat = wasmprinter::print_bytes(bytes).unwrap();
     assert!(wat.len() < 500_000_000);
 }
 
@@ -161,7 +161,7 @@ fn dont_reserve_the_world() {
         "#,
     )
     .unwrap();
-    let err = wasmprinter::print_bytes(&bytes).unwrap_err();
+    let err = wasmprinter::print_bytes(bytes).unwrap_err();
     assert!(
         err.to_string()
             .contains("functions which exceeds the limit"),
@@ -186,10 +186,10 @@ fn label_shadowing_block() {
       )
     "#;
     let bytes = wat::parse_str(MODULE).unwrap();
-    let result = wasmprinter::print_bytes(&bytes).unwrap();
+    let result = wasmprinter::print_bytes(bytes).unwrap();
     assert_eq!(
-        result.replace(" ", "").trim(),
-        MODULE.replace(" ", "").trim()
+        result.replace(' ', "").trim(),
+        MODULE.replace(' ', "").trim()
     );
 }
 
@@ -209,10 +209,10 @@ fn label_shadowing_block_confusion() {
       )
     "#;
     let bytes = wat::parse_str(MODULE).unwrap();
-    let result = wasmprinter::print_bytes(&bytes).unwrap();
+    let result = wasmprinter::print_bytes(bytes).unwrap();
     assert_eq!(
-        result.replace(" ", "").trim(),
-        MODULE.replace(" ", "").trim()
+        result.replace(' ', "").trim(),
+        MODULE.replace(' ', "").trim()
     );
 }
 
@@ -228,10 +228,10 @@ fn label_shadowing_locals() {
       )
     "#;
     let bytes = wat::parse_str(MODULE).unwrap();
-    let result = wasmprinter::print_bytes(&bytes).unwrap();
+    let result = wasmprinter::print_bytes(bytes).unwrap();
     assert_eq!(
-        result.replace(" ", "").trim(),
-        MODULE.replace(" ", "").trim()
+        result.replace(' ', "").trim(),
+        MODULE.replace(' ', "").trim()
     );
 }
 

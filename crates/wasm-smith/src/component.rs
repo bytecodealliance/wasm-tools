@@ -612,9 +612,9 @@ impl ComponentBuilder {
         Ok(Step::StillBuilding)
     }
 
-    fn arbitrary_type_ref<'a>(
+    fn arbitrary_type_ref(
         &self,
-        u: &mut Unstructured<'a>,
+        u: &mut Unstructured<'_>,
         for_import: bool,
         for_type_def: bool,
     ) -> Result<Option<ComponentTypeRef>> {

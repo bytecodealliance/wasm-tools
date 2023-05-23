@@ -825,7 +825,7 @@ impl CodeBuilder<'_> {
         if module.config.multi_value_enabled() {
             for (i, ty) in module.func_types() {
                 if self.types_on_stack(&ty.params) {
-                    options.push(Box::new(move |_| Ok(BlockType::FunctionType(i as u32))));
+                    options.push(Box::new(move |_| Ok(BlockType::FunctionType(i))));
                 }
             }
         }
@@ -933,7 +933,7 @@ impl CodeBuilder<'_> {
             }
         }
 
-        self.locals.extend(self.extra_locals.drain(..));
+        self.locals.append(&mut self.extra_locals);
 
         Ok(instructions)
     }
@@ -1198,7 +1198,7 @@ fn delegate(
 ) -> Result<()> {
     // There will always be at least the function's return frame and try
     // control frame if we are emitting delegate
-    let n = builder.allocs.controls.iter().count();
+    let n = builder.allocs.controls.len();
     debug_assert!(n >= 2);
     // Delegate must target an outer control from the try block, and is
     // encoded with relative depth from the outer control
@@ -1218,7 +1218,7 @@ fn catch_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.exceptions_enabled()
         && (control_kind == ControlKind::Try || control_kind == ControlKind::Catch)
         && end_valid(module, builder)
-        && module.tags.len() > 0
+        && !module.tags.is_empty()
 }
 
 fn catch(
@@ -1543,12 +1543,12 @@ fn call(
         .filter(|(func_ty, _)| builder.types_on_stack(&func_ty.params))
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
-    assert!(candidates.len() > 0);
+    assert!(!candidates.is_empty());
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
     builder.pop_operands(&ty.params);
     builder.push_operands(&ty.results);
-    instructions.push(Instruction::Call(func_idx as u32));
+    instructions.push(Instruction::Call(func_idx));
     Ok(())
 }
 
@@ -1589,7 +1589,7 @@ fn call_indirect(
     builder.push_operands(&ty.results);
     let table = *u.choose(&builder.allocs.funcref_tables)?;
     instructions.push(Instruction::CallIndirect {
-        ty: *type_idx as u32,
+        ty: *type_idx,
         table,
     });
     Ok(())
@@ -1623,12 +1623,12 @@ fn return_call(
         })
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
-    assert!(candidates.len() > 0);
+    assert!(!candidates.is_empty());
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
     builder.pop_operands(&ty.params);
     builder.push_operands(&ty.results);
-    instructions.push(Instruction::ReturnCall(func_idx as u32));
+    instructions.push(Instruction::ReturnCall(func_idx));
     Ok(())
 }
 
@@ -1675,7 +1675,7 @@ fn return_call_indirect(
     builder.push_operands(&ty.results);
     let table = *u.choose(&builder.allocs.funcref_tables)?;
     instructions.push(Instruction::ReturnCallIndirect {
-        ty: *type_idx as u32,
+        ty: *type_idx,
         table,
     });
     Ok(())
@@ -1704,13 +1704,13 @@ fn throw(
         .filter(|(k, _)| builder.types_on_stack(k))
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
-    assert!(candidates.len() > 0);
+    assert!(!candidates.is_empty());
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (tag_idx, tag_type) = module.tags().nth(candidates[i] as usize).unwrap();
     // Tags have no results, throwing cannot return
-    assert!(tag_type.func_type.results.len() == 0);
+    assert!(tag_type.func_type.results.is_empty());
     builder.pop_operands(&tag_type.func_type.params);
-    instructions.push(Instruction::Throw(tag_idx as u32));
+    instructions.push(Instruction::Throw(tag_idx));
     Ok(())
 }
 
@@ -1890,7 +1890,7 @@ fn local_tee(
 
 #[inline]
 fn global_get_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.globals.len() > 0
+    !module.globals.is_empty()
 }
 
 fn global_get(
@@ -1899,7 +1899,7 @@ fn global_get(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    debug_assert!(module.globals.len() > 0);
+    debug_assert!(!module.globals.is_empty());
     let global_idx = u.int_in_range(0..=module.globals.len() - 1)?;
     builder
         .allocs
@@ -1939,18 +1939,18 @@ fn global_set(
 
 #[inline]
 fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.memories.len() > 0
+    !module.memories.is_empty()
 }
 
 #[inline]
 fn have_memory_and_offset(_module: &Module, builder: &mut CodeBuilder) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
-        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
+    (!builder.allocs.memory32.is_empty() && builder.type_on_stack(ValType::I32))
+        || (!builder.allocs.memory64.is_empty() && builder.type_on_stack(ValType::I64))
 }
 
 #[inline]
 fn have_data(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.data.len() > 0
+    !module.data.is_empty()
 }
 
 fn i32_load(
@@ -2229,8 +2229,8 @@ fn i64_load_32_u(
 
 #[inline]
 fn store_valid(_module: &Module, builder: &mut CodeBuilder, f: impl Fn() -> ValType) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.types_on_stack(&[ValType::I32, f()]))
-        || (builder.allocs.memory64.len() > 0 && builder.types_on_stack(&[ValType::I64, f()]))
+    (!builder.allocs.memory32.is_empty() && builder.types_on_stack(&[ValType::I32, f()]))
+        || (!builder.allocs.memory64.is_empty() && builder.types_on_stack(&[ValType::I64, f()]))
 }
 
 #[inline]
@@ -2441,8 +2441,8 @@ fn memory_size(
 
 #[inline]
 fn memory_grow_valid(_module: &Module, builder: &mut CodeBuilder) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
-        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
+    (!builder.allocs.memory32.is_empty() && builder.type_on_stack(ValType::I32))
+        || (!builder.allocs.memory64.is_empty() && builder.type_on_stack(ValType::I64))
 }
 
 fn memory_grow(
@@ -2468,9 +2468,9 @@ fn memory_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
         && have_data(module, builder)
         && !module.config.disallow_traps() // Non-trapping memory init not yet implemented
-        && (builder.allocs.memory32.len() > 0
+        && (!builder.allocs.memory32.is_empty()
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
-            || (builder.allocs.memory64.len() > 0
+            || (!builder.allocs.memory64.is_empty()
                 && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])))
 }
 
@@ -2497,9 +2497,9 @@ fn memory_init(
 fn memory_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled()
         && !module.config.disallow_traps() // Non-trapping memory fill generation not yet implemented
-        && (builder.allocs.memory32.len() > 0
+        && (!builder.allocs.memory32.is_empty()
             && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
-            || (builder.allocs.memory64.len() > 0
+            || (!builder.allocs.memory64.is_empty()
                 && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I64])))
 }
 
@@ -2533,24 +2533,24 @@ fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     }
 
     if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64])
-        && builder.allocs.memory64.len() > 0
+        && !builder.allocs.memory64.is_empty()
     {
         return true;
     }
     if builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
-        && builder.allocs.memory32.len() > 0
+        && !builder.allocs.memory32.is_empty()
     {
         return true;
     }
     if builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])
-        && builder.allocs.memory32.len() > 0
-        && builder.allocs.memory64.len() > 0
+        && !builder.allocs.memory32.is_empty()
+        && !builder.allocs.memory64.is_empty()
     {
         return true;
     }
     if builder.types_on_stack(&[ValType::I32, ValType::I64, ValType::I32])
-        && builder.allocs.memory32.len() > 0
-        && builder.allocs.memory64.len() > 0
+        && !builder.allocs.memory32.is_empty()
+        && !builder.allocs.memory64.is_empty()
     {
         return true;
     }
@@ -4517,7 +4517,7 @@ fn ref_null(
 
 #[inline]
 fn ref_func_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && builder.allocs.referenced_functions.len() > 0
+    module.config.reference_types_enabled() && !builder.allocs.referenced_functions.is_empty()
 }
 
 fn ref_func(
@@ -4603,7 +4603,7 @@ fn table_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
     && !module.config.disallow_traps() // Non-trapping table.get generation not yet implemented
         && builder.type_on_stack(ValType::I32)
-        && module.tables.len() > 0
+        && !module.tables.is_empty()
 }
 
 fn table_get(
@@ -4622,7 +4622,7 @@ fn table_get(
 
 #[inline]
 fn table_size_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && module.tables.len() > 0
+    module.config.reference_types_enabled() && !module.tables.is_empty()
 }
 
 fn table_size(
@@ -4664,7 +4664,7 @@ fn table_grow(
 fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled()
     && !module.config.disallow_traps() // Non-trapping table.copy generation not yet implemented
-        && module.tables.len() > 0
+        && !module.tables.is_empty()
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
 }
 
@@ -4717,7 +4717,7 @@ fn table_init(
 
 #[inline]
 fn elem_drop_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && module.elems.len() > 0
+    module.config.reference_types_enabled() && !module.elems.is_empty()
 }
 
 fn elem_drop(

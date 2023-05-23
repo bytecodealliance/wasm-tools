@@ -7,7 +7,7 @@ use wasmparser::{Validator, WasmFeatures};
 
 fuzz_target!(|data: &[u8]| {
     drop(env_logger::try_init());
-    let byte1 = match data.get(0) {
+    let byte1 = match data.first() {
         Some(byte) => byte,
         None => return,
     };

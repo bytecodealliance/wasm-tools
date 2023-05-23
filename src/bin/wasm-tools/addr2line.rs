@@ -62,7 +62,7 @@ impl Opts {
         let mut output = self.io.output_writer()?;
 
         for addr in self.addresses.iter() {
-            self.addr2line(&addr, code_start, &cx, &mut output)
+            self.addr2line(addr, code_start, &cx, &mut output)
                 .with_context(|| format!("failed to find frames for `{addr}`"))?;
         }
 
@@ -98,7 +98,7 @@ impl Opts {
     ) -> Result<()> {
         // Support either `0x` or `@` prefixes for hex addresses since 0x is
         // standard and @ is used by wasmprinter (and web browsers I think?)
-        let addr = if let Some(hex) = addr.strip_prefix("0x").or_else(|| addr.strip_prefix("@")) {
+        let addr = if let Some(hex) = addr.strip_prefix("0x").or_else(|| addr.strip_prefix('@')) {
             u64::from_str_radix(hex, 16)?
         } else {
             addr.parse()?
@@ -150,7 +150,7 @@ impl Opts {
                     write!(out, ":{column}")?;
                 }
             }
-            writeln!(out, "")?;
+            writeln!(out)?;
         }
         if first {
             writeln!(out, "{addr:#x}: no dwarf frames found for this address")?;

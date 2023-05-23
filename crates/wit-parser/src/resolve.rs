@@ -164,7 +164,7 @@ impl Resolve {
                     if !visiting.insert(dep) {
                         bail!(Error {
                             span: *span,
-                            msg: format!("package depends on itself"),
+                            msg: "package depends on itself".to_string(),
                         });
                     }
                     visit(dep, deps, pkgs, order, visiting)?;
@@ -249,7 +249,7 @@ impl Resolve {
             self.packages.len()
         );
 
-        let mut map = MergeMap::new(&resolve, &self)?;
+        let mut map = MergeMap::new(&resolve, self)?;
         map.build()?;
         let MergeMap {
             package_map,
@@ -773,11 +773,11 @@ impl Remap {
             let iface_id = match &unresolved_iface.name {
                 Some(name) => *document.interfaces.get(name).ok_or_else(|| Error {
                     span,
-                    msg: format!("interface not defined in document"),
+                    msg: "interface not defined in document".to_string(),
                 })?,
                 None => document.default_interface.ok_or_else(|| Error {
                     span,
-                    msg: format!("default interface not specified in document"),
+                    msg: "default interface not specified in document".to_string(),
                 })?,
             };
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
@@ -812,7 +812,7 @@ impl Remap {
                 .get(name)
                 .ok_or_else(|| Error {
                     span,
-                    msg: format!("type not defined in interface"),
+                    msg: "type not defined in interface".to_string(),
                 })?;
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);
@@ -1146,9 +1146,9 @@ impl<'a> WorldElaborator<'a, '_> {
 
         let mut msg = format!("{} of `{}`", desc(import), self.name_of(id, import));
         if self.resolving_stack.is_empty() {
-            msg.push_str(" ");
+            msg.push(' ');
         } else {
-            msg.push_str("\n");
+            msg.push('\n');
         }
         for (i, import) in self.resolving_stack.iter().rev() {
             writeln!(
@@ -1449,7 +1449,7 @@ impl<'a> MergeMap<'a> {
                     // if either is unnamed it won't be present in
                     // `interface_map` so this'll return an error.
                     _ => {
-                        if self.interface_map.get(&from) != Some(&into) {
+                        if self.interface_map.get(from) != Some(into) {
                             bail!("interfaces are not the same");
                         }
                     }

@@ -119,7 +119,7 @@ fn add_adapters(
         let wasm = read_core_module(&adapter, resolve, pkg)?;
         let stem = adapter.file_stem().unwrap().to_str().unwrap();
         let name = stem.trim_start_matches("adapt-");
-        encoder = encoder.adapter(&name, &wasm)?;
+        encoder = encoder.adapter(name, &wasm)?;
     }
     Ok(encoder)
 }
@@ -146,7 +146,7 @@ fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Ve
     producers.add("processed-by", "my-fake-bindgen", "123.45");
 
     let encoded =
-        wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8, Some(&producers))?;
+        wit_component::metadata::encode(resolve, world, StringEncoding::UTF8, Some(&producers))?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type".into(),

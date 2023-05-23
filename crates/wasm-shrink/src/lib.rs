@@ -10,7 +10,7 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 use wasm_mutate::WasmMutate;
 
 #[rustfmt::skip]
-static EMPTY_WASM: &'static [u8] = &[
+static EMPTY_WASM: &[u8] = &[
     // Magic.
     0x00, b'a', b's', b'm',
     // Version.

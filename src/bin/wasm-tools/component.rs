@@ -321,7 +321,7 @@ impl WitOpts {
         let decoded = match &self.input {
             Some(input) => match input.extension().and_then(|s| s.to_str()) {
                 Some("wat") | Some("wasm") => {
-                    let bytes = wat::parse_file(&input)?;
+                    let bytes = wat::parse_file(input)?;
                     decode_wasm(name, &bytes).context("failed to decode WIT document")?
                 }
                 _ => {
@@ -371,10 +371,10 @@ impl WitOpts {
                     }
                 };
                 let resolve = decoded.resolve();
-                std::fs::create_dir_all(&dir)
+                std::fs::create_dir_all(dir)
                     .with_context(|| format!("failed to create {dir:?}"))?;
                 for (name, doc) in resolve.packages[package].documents.iter() {
-                    let output = DocumentPrinter::default().print(&resolve, *doc)?;
+                    let output = DocumentPrinter::default().print(resolve, *doc)?;
                     let path = dir.join(format!("{name}.wit"));
                     std::fs::write(&path, output)
                         .with_context(|| format!("failed to write {path:?}"))?;
@@ -405,7 +405,7 @@ impl WitOpts {
         };
 
         let resolve = decoded.resolve();
-        let bytes = wit_component::encode(&resolve, pkg)?;
+        let bytes = wit_component::encode(resolve, pkg)?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
                 component_model: true,
@@ -456,10 +456,10 @@ impl WitOpts {
 fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
     let mut resolve = Resolve::default();
     let id = if path.is_dir() {
-        resolve.push_dir(&path)?.0
+        resolve.push_dir(path)?.0
     } else {
         let contents =
-            std::fs::read(&path).with_context(|| format!("failed to read file {path:?}"))?;
+            std::fs::read(path).with_context(|| format!("failed to read file {path:?}"))?;
         if is_wasm(&contents) {
             let bytes = wat::parse_bytes(&contents).map_err(|mut e| {
                 e.set_path(path);
@@ -476,7 +476,7 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
                 Ok(s) => s,
                 Err(_) => bail!("input file is not valid utf-8"),
             };
-            let pkg = UnresolvedPackage::parse(&path, text)?;
+            let pkg = UnresolvedPackage::parse(path, text)?;
             resolve.push(pkg, &Default::default())?
         }
     };
@@ -498,9 +498,9 @@ fn is_wasm(bytes: &[u8]) -> bool {
         Err(_) => return true,
     };
 
-    let mut lexer = Lexer::new(text);
+    let lexer = Lexer::new(text);
 
-    while let Some(next) = lexer.next() {
+    for next in lexer {
         match next {
             Ok(Token::Whitespace(_)) | Ok(Token::BlockComment(_)) | Ok(Token::LineComment(_)) => {}
             Ok(Token::LParen(_)) => return true,

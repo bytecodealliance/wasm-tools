@@ -300,7 +300,6 @@ impl State {
         let generation_start = std::time::Instant::now();
 
         let threads = (0..self.corpus.len())
-            .into_iter()
             .map(|usize| {
                 let state = self.clone();
                 let artifact_folder = artifact_folders[usize].clone();

@@ -731,21 +731,21 @@ impl FuncType {
 
     pub(crate) fn desc(&self) -> String {
         let mut s = String::new();
-        s.push_str("[");
+        s.push('[');
         for (i, param) in self.params().iter().enumerate() {
             if i > 0 {
-                s.push_str(" ");
+                s.push(' ');
             }
             write!(s, "{param}").unwrap();
         }
         s.push_str("] -> [");
         for (i, result) in self.results().iter().enumerate() {
             if i > 0 {
-                s.push_str(" ");
+                s.push(' ');
             }
             write!(s, "{result}").unwrap();
         }
-        s.push_str("]");
+        s.push(']');
         s
     }
 }

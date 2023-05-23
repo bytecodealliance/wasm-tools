@@ -6,9 +6,9 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
         Ok(_) => return,
         Err(e) => e,
     };
-    drop(std::fs::write("test.wasm", &bytes));
+    drop(std::fs::write("test.wasm", bytes));
     if let Ok(text) = wasmprinter::print_bytes(bytes) {
-        drop(std::fs::write("test.wat", &text));
+        drop(std::fs::write("test.wat", text));
     }
 
     panic!("Wasm failed to validate: {:?}", err);
