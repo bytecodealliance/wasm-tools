@@ -22,5 +22,8 @@
       (export (;0;) "the-world" "pkg:/simple-world/the-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "simple-world" "pkg:/simple-world" (type 0))
 )

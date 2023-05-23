@@ -50,5 +50,8 @@
       (export (;0;) "foo-world" "pkg:/reference-out-of-order/foo-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "reference-out-of-order" "pkg:/reference-out-of-order" (type 0))
 )

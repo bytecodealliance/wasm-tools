@@ -518,10 +518,14 @@ pub mod kw {
     custom_keyword!(core);
     custom_keyword!(true_ = "true");
     custom_keyword!(false_ = "false");
+    custom_keyword!(language);
+    custom_keyword!(sdk);
+    custom_keyword!(processed_by = "processed-by");
 }
 
 /// Common annotations used to parse WebAssembly text files.
 pub mod annotation {
     annotation!(custom);
     annotation!(name);
+    annotation!(producers);
 }

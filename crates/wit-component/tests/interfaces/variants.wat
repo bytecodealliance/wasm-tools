@@ -198,5 +198,8 @@
       (export (;0;) "variants-world" "pkg:/variants/variants-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "variants" "pkg:/variants" (type 0))
 )

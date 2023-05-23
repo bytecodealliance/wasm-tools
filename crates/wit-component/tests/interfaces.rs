@@ -93,6 +93,10 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 }
 
 fn assert_output(expected: &Path, actual: &str) -> Result<()> {
+    let actual = actual.replace(
+        concat!("\"", env!("CARGO_PKG_VERSION"), "\""),
+        "\"$CARGO_PKG_VERSION\"",
+    );
     if std::env::var_os("BLESS").is_some() {
         fs::write(&expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {

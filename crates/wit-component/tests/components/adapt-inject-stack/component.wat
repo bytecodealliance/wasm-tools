@@ -11,6 +11,10 @@
     (import "old" "get_sum" (func (;0;) (type 0)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
@@ -102,6 +106,9 @@
     (export "0" (func $indirect-new-get-two))
     (export "1" (func $adapt-old-get_sum))
     (export "$imports" (table 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core module (;3;)
     (type (;0;) (func (param i32)))
@@ -110,6 +117,9 @@
     (import "" "1" (func (;1;) (type 1)))
     (import "" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func 0 1)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core instance (;0;) (instantiate 2))
   (alias core export 0 "1" (core func (;0;)))
@@ -137,6 +147,9 @@
   (alias export 0 "get-two" (func (;0;)))
   (core func (;2;) (canon lower (func 0) (memory 0)))
   (alias core export 5 "get_sum" (core func (;3;)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (core instance (;6;)
     (export "$imports" (table 0))
     (export "0" (func 2))

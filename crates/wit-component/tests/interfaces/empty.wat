@@ -24,5 +24,8 @@
       (export (;1;) "actually-empty-world" "pkg:/empty/actually-empty-world" (component (type 2)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "empty" "pkg:/empty" (type 0))
 )

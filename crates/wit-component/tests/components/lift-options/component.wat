@@ -92,6 +92,10 @@
     (export "cabi_post_foo#o" (func 18))
     (export "foo#p" (func 19))
     (export "cabi_post_foo#p" (func 20))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core instance (;0;) (instantiate 0))
   (alias core export 0 "memory" (core memory (;0;)))
@@ -274,6 +278,9 @@
       (with "import-type-r-no-string" (type 7))
       (with "import-type-v-no-string" (type 9))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
   (export (;1;) "foo" (instance 0))
 )

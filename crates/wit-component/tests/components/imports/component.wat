@@ -55,6 +55,10 @@
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (export "cabi_realloc" (func 8))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func (param i32 i32)))
@@ -74,6 +78,9 @@
     (export "0" (func $indirect-bar-bar1))
     (export "1" (func $indirect-baz-baz1))
     (export "$imports" (table 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core module (;2;)
     (type (;0;) (func (param i32 i32)))
@@ -81,6 +88,9 @@
     (import "" "1" (func (;1;) (type 0)))
     (import "" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func 0 1)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core instance (;0;) (instantiate 1))
   (alias export 2 "foo1" (func (;0;)))
@@ -124,6 +134,9 @@
   (core func (;9;) (canon lower (func 6) (memory 0) string-encoding=utf8))
   (alias export 1 "baz1" (func (;7;)))
   (core func (;10;) (canon lower (func 7) (memory 0) string-encoding=utf8))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (core instance (;5;)
     (export "$imports" (table 0))
     (export "0" (func 9))

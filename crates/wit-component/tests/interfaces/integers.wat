@@ -96,5 +96,8 @@
       (export (;0;) "integers-world" "pkg:/integers/integers-world" (component (type 1)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;1;) "integers" "pkg:/integers" (type 0))
 )

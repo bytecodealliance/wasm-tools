@@ -39,6 +39,10 @@
     (export "bar#a" (func 4))
     (export "bar#b" (func 5))
     (export "cabi_post_bar#b" (func 6))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
@@ -50,12 +54,18 @@
     (table (;0;) 1 1 funcref)
     (export "0" (func $indirect-foo-a))
     (export "$imports" (table 0))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (import "" "0" (func (;0;) (type 0)))
     (import "" "$imports" (table (;0;) 1 1 funcref))
     (elem (;0;) (i32.const 0) func 0)
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
   )
   (core instance (;0;) (instantiate 1))
   (alias core export 0 "0" (core func (;0;)))
@@ -107,5 +117,8 @@
   (alias core export 2 "a" (core func (;6;)))
   (alias core export 2 "cabi_post_a" (core func (;7;)))
   (func (;3;) (type 4) (canon lift (core func 6) (memory 0) (realloc 1) string-encoding=utf8 (post-return 7)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;4;) "a" (func 3))
 )

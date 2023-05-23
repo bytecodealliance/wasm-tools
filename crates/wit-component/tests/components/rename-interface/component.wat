@@ -19,9 +19,16 @@
   (core module (;0;)
     (type (;0;) (func))
     (import "other-name" "a" (func (;0;) (type 0)))
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+      (processed-by "my-fake-bindgen" "123.45")
+    )
   )
   (alias export 1 "a" (func (;0;)))
   (core func (;0;) (canon lower (func 0)))
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (core instance (;0;)
     (export "a" (func 0))
   )

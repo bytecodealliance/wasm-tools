@@ -50,5 +50,8 @@
       (export (;2;) "foo" "pkg:/foo/foo" (instance (type 4)))
     )
   )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
   (export (;3;) "foo" "pkg:/foo" (type 2))
 )
