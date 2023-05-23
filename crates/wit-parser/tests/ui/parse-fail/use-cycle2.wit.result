@@ -1,4 +1,4 @@
-interface `foo` depends on itself
+interface or world `foo` depends on itself
      --> tests/ui/parse-fail/use-cycle2.wit:4:22
       |
     4 |   use pkg.use-cycle2.foo.{bar}

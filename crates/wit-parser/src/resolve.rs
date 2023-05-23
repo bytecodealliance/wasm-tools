@@ -1,13 +1,14 @@
 use crate::ast::lex::Span;
 use crate::{
-    Document, DocumentId, Error, Function, Interface, InterfaceId, Results, Type, TypeDef,
-    TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
+    Document, DocumentId, Error, Function, IncludeName, Interface, InterfaceId, Results, Type,
+    TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
+use std::iter::Enumerate;
 use std::mem;
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -90,7 +91,10 @@ impl Resolve {
                 .with_context(|| format!("failed to parse package: {}", path.display()))?;
             pkg.url = url;
 
+            log::info!("---- Resolving foreign deps for package: {}", pkg.name);
+
             let mut deps = Vec::new();
+            // load all dependencies of this package
             pkg.source_map.rewrite_error(|| {
                 for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
                     let path = path.join("deps").join(dep);
@@ -610,6 +614,8 @@ impl Remap {
         unresolved: UnresolvedPackage,
         deps: &HashMap<String, PackageId>,
     ) -> Result<PackageId> {
+        // This step will resolve all foreign deps of `unresolved` and then transfer all
+        // foreign documents, worlds, interfaces and types into `Resolve`.
         self.process_foreign_deps(resolve, &unresolved, deps)?;
 
         let foreign_types = self.types.len();
@@ -654,14 +660,23 @@ impl Remap {
         // This is done after types/interfaces are fully settled so the
         // transitive relation between interfaces, through types, is understood
         // here.
-        assert_eq!(unresolved.worlds.len(), unresolved.world_spans.len());
+        assert_eq!(unresolved.worlds.len(), unresolved.world_item_spans.len());
         for ((id, mut world), (import_spans, export_spans)) in unresolved
             .worlds
             .into_iter()
+            .zip(unresolved.world_item_spans)
             .skip(foreign_worlds)
-            .zip(unresolved.world_spans)
         {
             self.update_world(&mut world, resolve, &import_spans, &export_spans)?;
+
+            // Resolve all includes of the world
+            let includes = mem::take(&mut world.includes);
+            let include_names = mem::take(&mut world.include_names);
+            for (index, include_world) in includes.into_iter().enumerate() {
+                let names = &include_names[index];
+                self.resolve_include(&mut world, include_world, names, resolve)?;
+            }
+
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(new_id);
@@ -709,15 +724,33 @@ impl Remap {
         Ok(pkgid)
     }
 
+    // TODO: drawing connection between dummy interfaces and actual interfaces
+    // update this to also connect the Worlds
+    // Add a case for world
     fn process_foreign_deps(
         &mut self,
         resolve: &mut Resolve,
         unresolved: &UnresolvedPackage,
         deps: &HashMap<String, PackageId>,
     ) -> Result<()> {
-        // First, connect all references to foreign documents to actual
-        // documents within `resolve`, building up the initial entries of
-        // the `self.documents` mapping.
+        log::trace!("processing foreign deps. Deps are: {:?}", deps);
+
+        self.resolve_foreign_docs(unresolved, deps, resolve)?;
+        self.resolve_foreign_worlds(unresolved, resolve)?;
+        self.resolve_foreign_ifaces(unresolved, resolve)?;
+
+        Ok(())
+    }
+
+    /// Connect all references to foreign documents to actual
+    /// documents within `resolve`, building up the initial entries of
+    /// the `self.documents` mapping.
+    fn resolve_foreign_docs(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        deps: &HashMap<String, Id<Package>>,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
         let mut document_to_package = HashMap::new();
         for (i, (pkg, docs)) in unresolved.foreign_deps.iter().enumerate() {
             for (doc, unresolved_doc_id) in docs {
@@ -747,15 +780,53 @@ impl Remap {
             assert_eq!(self.documents.len(), unresolved_doc_id.index());
             self.documents.push(docid);
         }
-        for (id, _) in unresolved.documents.iter().skip(self.documents.len()) {
-            assert!(
-                document_to_package.get(&id).is_none(),
-                "found foreign document after local documents"
-            );
+        Ok(
+            for (id, _) in unresolved.documents.iter().skip(self.documents.len()) {
+                assert!(
+                    document_to_package.get(&id).is_none(),
+                    "found foreign document after local documents"
+                );
+            },
+        )
+    }
+
+    /// Resolve foreign worlds
+    fn resolve_foreign_worlds(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
+        for (unresolved_world_id, unresolved_world) in unresolved.worlds.iter() {
+            let doc_id = match self.documents.get(unresolved_world.document.index()) {
+                Some(i) => *i,
+                // All foreign worlds are defined first, so the first one
+                // which is defined in a non-foreign document means that all
+                // further interfaces will be non-foreign as well.
+                None => break,
+            };
+
+            let document = &resolve.documents[doc_id];
+            let world_span = unresolved.world_spans[unresolved_world_id.index()];
+            let name = &unresolved_world.name;
+            let world_id = *document.worlds.get(name).ok_or_else(|| Error {
+                span: world_span,
+                msg: format!("world not defined in document: `{name}`"),
+            })?;
+            assert_eq!(self.worlds.len(), unresolved_world_id.index());
+            self.worlds.push(world_id);
         }
 
-        // Next, for all documents that are referenced in this `Resolve`
-        // determine the mapping of all interfaces that they refer to.
+        Ok(())
+    }
+
+    /// Iterate through interfaces adn type from the UnresolvedPackage, and resolve each
+    /// foreign interface and type to from the document. Skip over local interfaces and
+    /// types.
+    fn resolve_foreign_ifaces(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
             let doc_id = match self.documents.get(unresolved_iface.document.index()) {
                 Some(i) => *i,
@@ -783,15 +854,11 @@ impl Remap {
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(iface_id);
         }
-
         for (_, iface) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
             if self.documents.get(iface.document.index()).is_some() {
                 panic!("found foreign interface after local interfaces");
             }
         }
-
-        // And finally iterate over all foreign-defined types and determine
-        // what they map to.
         for (unresolved_type_id, unresolved_ty) in unresolved.types.iter() {
             // All "Unknown" types should appear first so once we're no longer
             // in unknown territory it's package-defined types so break out of
@@ -817,14 +884,13 @@ impl Remap {
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);
         }
-
-        for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
-            if let TypeDefKind::Unknown = ty.kind {
-                panic!("unknown type after defined type");
-            }
-        }
-
-        Ok(())
+        Ok(
+            for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
+                if let TypeDefKind::Unknown = ty.kind {
+                    panic!("unknown type after defined type");
+                }
+            },
+        )
     }
 
     fn update_typedef(&self, ty: &mut TypeDef) {
@@ -1065,6 +1131,43 @@ impl Remap {
         if let Some(default) = &mut doc.default_world {
             *default = self.worlds[default.index()];
         }
+    }
+
+    fn resolve_include(
+        &self,
+        world: &mut World,
+        include_world: WorldId,
+        names: &[IncludeName],
+        resolve: &Resolve,
+    ) -> Result<()> {
+        let include_world_id = self.worlds[include_world.index()];
+        let include_world = &resolve.worlds[include_world_id];
+        // copy the imports and exports from the included world into the current world
+        for import in include_world.imports.iter() {
+            if let Some(name) = names.iter().find(|n| n.name == import.0.clone()) {
+                if let Some(rename) = &name.as_ {
+                    let prev = world.imports.insert(rename.clone(), import.1.clone());
+                }
+            } else {
+                let prev = world.imports.insert(import.0.clone(), import.1.clone());
+            }
+        }
+
+        for export in include_world.exports.iter() {
+            if let Some(name) = names.iter().find(|n| n.name == export.0.clone()) {
+                if let Some(rename) = &name.as_ {
+                    let prev: Option<WorldItem> =
+                        world.exports.insert(rename.clone(), export.1.clone());
+                }
+            } else {
+                let prev = world.exports.insert(export.0.clone(), export.1.clone());
+            }
+        }
+
+        // TODO: deduplicate the imports and exports
+
+        // TODO: rename
+        Ok(())
     }
 }
 

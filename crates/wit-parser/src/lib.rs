@@ -7,8 +7,8 @@ use std::path::Path;
 
 pub mod abi;
 mod ast;
-use ast::lex::Span;
 pub use ast::SourceMap;
+use ast::{lex::Span, UseName};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -102,11 +102,15 @@ pub struct UnresolvedPackage {
     pub foreign_deps: IndexMap<String, IndexMap<String, DocumentId>>,
 
     unknown_type_spans: Vec<Span>,
-    world_spans: Vec<(Vec<Span>, Vec<Span>)>,
+    world_spans: Vec<Span>,
+    world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
     document_spans: Vec<Span>,
     interface_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     source_map: SourceMap,
+    // unknown_worlds: Vec<WorldId>,
+    // unknown_worlds_names: IndexMap<WorldId, Vec<UseName<'a>>>,
+    // unknown_worlds_spans: Vec<Span>,
 }
 
 #[derive(Debug)]
@@ -169,6 +173,8 @@ impl UnresolvedPackage {
     ///
     /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
     /// `path` into the returned package.
+    ///
+    /// This function will not load *.wit files from subdirectories.
     pub fn parse_dir(path: &Path) -> Result<Self> {
         let mut map = SourceMap::default();
         let name = path
@@ -251,6 +257,21 @@ pub struct World {
 
     /// The document that owns this world.
     pub document: DocumentId,
+
+    /// The includes
+    pub includes: Vec<WorldId>,
+
+    /// The includes renaming
+    pub include_names: Vec<Vec<IncludeName>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IncludeName {
+    /// The name of the item
+    pub name: String,
+
+    /// The name to be replaced with
+    pub as_: Option<String>,
 }
 
 #[derive(Debug, Clone)]

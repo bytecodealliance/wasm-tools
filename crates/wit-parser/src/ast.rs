@@ -30,7 +30,12 @@ impl<'a> Ast<'a> {
 
     fn for_each_path<'b>(
         &'b self,
-        mut f: impl FnMut(Option<&'b Id<'a>>, &'b UsePath<'a>, Option<&[UseName<'a>]>) -> Result<()>,
+        mut f: impl FnMut(
+            Option<&'b Id<'a>>,
+            &'b UsePath<'a>,
+            Option<&[UseName<'a>]>,
+            WorldOrInterface,
+        ) -> Result<()>,
     ) -> Result<()> {
         for item in self.items.iter() {
             match item {
@@ -41,27 +46,36 @@ impl<'a> Ast<'a> {
                     // exports first.
                     let mut imports = Vec::new();
                     let mut exports = Vec::new();
-                    for item in world.items.iter() {
-                        match item {
-                            WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                    for world_item in world.items.iter() {
+                        match world_item {
+                            WorldItem::Use(u) => {
+                                f(None, &u.from, Some(&u.names), WorldOrInterface::Interface)?
+                            }
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
-                            WorldItem::Include(i) => f(None, &i.from, None)?,
+                            WorldItem::Include(i) => {
+                                f(Some(&world.name), &i.from, None, WorldOrInterface::World)?
+                            }
                         }
                     }
 
                     let mut visit_kind = |kind: &'b ExternKind<'a>| match kind {
                         ExternKind::Interface(_, items) => {
-                            for item in items {
-                                match item {
-                                    InterfaceItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                            for iface_item in items {
+                                match iface_item {
+                                    InterfaceItem::Use(u) => f(
+                                        None,
+                                        &u.from,
+                                        Some(&u.names),
+                                        WorldOrInterface::Interface,
+                                    )?,
                                     _ => {}
                                 }
                             }
                             Ok(())
                         }
-                        ExternKind::Path(path) => f(None, path, None),
+                        ExternKind::Path(path) => f(None, path, None, WorldOrInterface::Interface),
                         ExternKind::Func(_) => Ok(()),
                     };
 
@@ -73,9 +87,14 @@ impl<'a> Ast<'a> {
                     }
                 }
                 AstItem::Interface(i) => {
-                    for item in i.items.iter() {
-                        match item {
-                            InterfaceItem::Use(u) => f(Some(&i.name), &u.from, Some(&u.names))?,
+                    for iface_item in i.items.iter() {
+                        match iface_item {
+                            InterfaceItem::Use(u) => f(
+                                Some(&i.name),
+                                &u.from,
+                                Some(&u.names),
+                                WorldOrInterface::Interface,
+                            )?,
                             _ => {}
                         }
                     }
@@ -89,6 +108,11 @@ impl<'a> Ast<'a> {
 pub enum AstItem<'a> {
     Interface(Interface<'a>),
     World(World<'a>),
+}
+
+pub enum WorldOrInterface {
+    World,
+    Interface,
 }
 
 impl<'a> AstItem<'a> {
@@ -231,8 +255,12 @@ impl<'a> ExternKind<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct Include<'a> {
+    /// The path to the world to include
     from: UsePath<'a>,
+
+    /// The names of the imports and exports to be replaced with
     names: Vec<UseName<'a>>,
 }
 
@@ -312,6 +340,7 @@ pub struct Use<'a> {
     pub names: Vec<UseName<'a>>,
 }
 
+#[derive(Debug)]
 pub enum UsePath<'a> {
     Self_(Id<'a>),
     Package {
@@ -325,8 +354,12 @@ pub enum UsePath<'a> {
     },
 }
 
+#[derive(Debug, Clone)]
 pub struct UseName<'a> {
+    /// The name of the item
     pub name: Id<'a>,
+
+    /// The name to be replaced with
     pub as_: Option<Id<'a>>,
 }
 
@@ -1026,7 +1059,7 @@ impl SourceMap {
     ///
     /// All files previously added are considered documents of the package to be
     /// returned.
-    pub fn parse(self, name: &str, url: Option<&str>) -> Result<UnresolvedPackage> {
+    pub fn parse<'a>(self, name: &str, url: Option<&str>) -> Result<UnresolvedPackage> {
         let mut doc = self.rewrite_error(|| {
             let mut resolver = Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();

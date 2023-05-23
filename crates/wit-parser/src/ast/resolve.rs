@@ -19,12 +19,16 @@ pub struct Resolver<'a> {
     interface_types: Vec<IndexMap<&'a str, (TypeOrItem, Span)>>,
     foreign_deps: IndexMap<&'a str, IndexMap<&'a str, DocumentId>>,
     type_lookup: IndexMap<&'a str, (TypeOrItem, Span)>,
+    unknown_worlds: Vec<WorldId>,
+    unknown_worlds_names: IndexMap<WorldId, Vec<ast::UseName<'a>>>,
 
     unknown_type_spans: Vec<Span>,
-    world_spans: Vec<(Vec<Span>, Vec<Span>)>,
+    world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
     document_spans: Vec<Span>,
     interface_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
+    unknown_world_spans: Vec<Span>,
+    world_spans: Vec<Span>,
 }
 
 #[derive(Copy, Clone)]
@@ -53,6 +57,7 @@ enum TypeItem<'a, 'b> {
     Def(&'b ast::TypeDef<'a>),
 }
 
+#[derive(Debug)]
 enum TypeOrItem {
     Type(TypeId),
     Item(&'static str),
@@ -77,13 +82,17 @@ impl<'a> Resolver<'a> {
     pub(crate) fn resolve(&mut self, name: &str, url: Option<&str>) -> Result<UnresolvedPackage> {
         self.populate_foreign_deps();
 
+        log::trace!("unknown worlds are: {:?}", self.unknown_worlds);
+        log::trace!("unknown world names are: {:?}", self.unknown_worlds_names);
+
         // Determine the dependencies between documents in the current package
         // we're parsing to perform a topological sort and how to visit the
-        // documents in order.
+        // documents in order. Notice that this only traverses documents in the same
+        // package, not foreign dependencies.
         let mut doc_deps = IndexMap::new();
         for (name, ast) in self.asts.iter() {
             let mut deps = Vec::new();
-            ast.for_each_path(|_, path, _names| {
+            ast.for_each_path(|_, path, _names, _| {
                 let doc = match path {
                     ast::UsePath::Package { doc, iface: _ } => doc,
                     _ => return Ok(()),
@@ -131,11 +140,15 @@ impl<'a> Resolver<'a> {
                 })
                 .collect(),
             unknown_type_spans: mem::take(&mut self.unknown_type_spans),
-            world_spans: mem::take(&mut self.world_spans),
+            world_item_spans: mem::take(&mut self.world_item_spans),
             document_spans: mem::take(&mut self.document_spans),
             interface_spans: mem::take(&mut self.interface_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
+            world_spans: mem::take(&mut self.world_spans),
+            // unknown_worlds: mem::take(&mut self.unknown_worlds),
+            // unknown_worlds_names: mem::take(&mut self.unknown_worlds_names),
+            // unknown_worlds_spans: mem::take(&mut self.unknown_world_spans),
         })
     }
 
@@ -148,8 +161,10 @@ impl<'a> Resolver<'a> {
     /// `resolve_path`.
     fn populate_foreign_deps(&mut self) {
         for (_, ast) in self.asts.iter() {
-            ast.for_each_path(|_, path, names| {
-                let (dep, doc, iface) = match path {
+            ast.for_each_path(|_, path, names, astitem| {
+                // TODO: caller needs to tell this function whether its a iface or world
+                // do something with the world -> creating a dummy world and put it in World::includes
+                let (dep, doc, iface_or_world) = match path {
                     ast::UsePath::Dependency { dep, doc, iface } => (dep, doc, iface),
                     _ => return Ok(()),
                 };
@@ -173,65 +188,131 @@ impl<'a> Resolver<'a> {
                     })
                 });
 
-                let iface = match iface {
-                    Some(iface) => {
-                        let item = self.document_interfaces[doc.index()]
-                            .entry(iface.name)
-                            .or_insert_with(|| {
-                                self.interface_types.push(IndexMap::new());
-                                self.interface_spans.push(iface.span);
-                                let id = self.interfaces.alloc(Interface {
-                                    name: Some(iface.name.to_string()),
-                                    types: IndexMap::new(),
-                                    docs: Docs::default(),
-                                    document: doc,
-                                    functions: IndexMap::new(),
-                                });
-                                DocumentItem::Interface(id)
+                match astitem {
+                    // if it's an interface, create an empty interface.
+                    ast::WorldOrInterface::Interface => {
+                        let iface =
+                            match iface_or_world {
+                                Some(id) => {
+                                    let item = self.document_interfaces[doc.index()]
+                                        .entry(id.name)
+                                        .or_insert_with(|| {
+                                            log::trace!(
+                                                "creating an interface for foreign dep: {}",
+                                                id.name,
+                                            );
+                                            self.interface_types.push(IndexMap::new());
+                                            self.interface_spans.push(id.span);
+                                            let id = self.interfaces.alloc(Interface {
+                                                name: Some(id.name.to_string()),
+                                                types: IndexMap::new(),
+                                                docs: Docs::default(),
+                                                document: doc,
+                                                functions: IndexMap::new(),
+                                            });
+                                            DocumentItem::Interface(id)
+                                        });
+                                    match item {
+                                        DocumentItem::Interface(id) => *id,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                                None => *self.documents[doc].default_interface.get_or_insert_with(
+                                    || {
+                                        log::trace!("creating a default interface for foreign dep");
+                                        self.interface_types.push(IndexMap::new());
+                                        self.interface_spans.push(doc_span);
+                                        self.interfaces.alloc(Interface {
+                                            name: None,
+                                            types: IndexMap::new(),
+                                            docs: Docs::default(),
+                                            document: doc,
+                                            functions: IndexMap::new(),
+                                        })
+                                    },
+                                ),
+                            };
+
+                        let names = match names {
+                            Some(names) => names,
+                            None => return Ok(()),
+                        };
+                        let lookup = &mut self.interface_types[iface.index()];
+                        for name in names {
+                            // If this name has already been defined then use that prior
+                            // definition, otherwise create a new type with an unknown
+                            // representation and insert it into the various maps.
+                            if lookup.contains_key(name.name.name) {
+                                continue;
+                            }
+                            let id = self.types.alloc(TypeDef {
+                                docs: Docs::default(),
+                                kind: TypeDefKind::Unknown,
+                                name: Some(name.name.name.to_string()),
+                                owner: TypeOwner::Interface(iface),
                             });
-                        match item {
-                            DocumentItem::Interface(id) => *id,
-                            _ => unreachable!(),
+                            self.unknown_type_spans.push(name.name.span);
+                            lookup.insert(name.name.name, (TypeOrItem::Type(id), name.name.span));
+                            self.interfaces[iface]
+                                .types
+                                .insert(name.name.name.to_string(), id);
                         }
                     }
-                    None => *self.documents[doc]
-                        .default_interface
-                        .get_or_insert_with(|| {
-                            self.interface_types.push(IndexMap::new());
-                            self.interface_spans.push(doc_span);
-                            self.interfaces.alloc(Interface {
-                                name: None,
-                                types: IndexMap::new(),
-                                docs: Docs::default(),
-                                document: doc,
-                                functions: IndexMap::new(),
-                            })
-                        }),
-                };
 
-                let names = match names {
-                    Some(names) => names,
-                    None => return Ok(()),
-                };
-                let lookup = &mut self.interface_types[iface.index()];
-                for name in names {
-                    // If this name has already been defined then use that prior
-                    // definition, otherwise create a new type with an unknown
-                    // representation and insert it into the various maps.
-                    if lookup.contains_key(name.name.name) {
-                        continue;
+                    // if it's a world, create an empty world.
+                    ast::WorldOrInterface::World => {
+                        let id = match iface_or_world {
+                            Some(id) => {
+                                let item = self.document_interfaces[doc.index()]
+                                    .entry(id.name)
+                                    .or_insert_with(|| {
+                                        log::trace!(
+                                            "creating a world for foreign dep: {}",
+                                            id.name,
+                                        );
+                                        self.world_spans.push(id.span);
+                                        self.world_item_spans.push((vec![], vec![])); // put a dummy span and it will never be used.
+                                        let id = self.worlds.alloc(World {
+                                            name: id.name.to_string(),
+                                            docs: Docs::default(),
+                                            imports: Default::default(),
+                                            exports: Default::default(),
+                                            document: doc,
+                                            includes: Default::default(),
+                                            include_names: Default::default(),
+                                        });
+                                        self.unknown_worlds.push(id);
+                                        DocumentItem::World(id)
+                                    });
+                                match item {
+                                    DocumentItem::World(id) => *id,
+                                    _ => unreachable!(),
+                                }
+                            }
+                            None => {
+                                *self.documents[doc].default_world.get_or_insert_with(|| {
+                                    log::trace!("creating a default world for foreign dep");
+                                    self.world_spans.push(doc_span);
+                                    self.world_item_spans.push((vec![], vec![])); // put a dummy span and it will never be used.
+                                    let empty_world = World {
+                                        name: Default::default(),
+                                        docs: Docs::default(),
+                                        imports: Default::default(),
+                                        exports: Default::default(),
+                                        document: doc,
+                                        includes: Default::default(),
+                                        include_names: Default::default(),
+                                    };
+                                    let id = self.worlds.alloc(empty_world);
+                                    self.unknown_worlds.push(id);
+                                    id
+                                })
+                            }
+                        };
+                        if let Some(names) = names {
+                            self.unknown_worlds_names.insert(id.clone(), names.to_vec());
+                        }
                     }
-                    let id = self.types.alloc(TypeDef {
-                        docs: Docs::default(),
-                        kind: TypeDefKind::Unknown,
-                        name: Some(name.name.name.to_string()),
-                        owner: TypeOwner::Interface(iface),
-                    });
-                    self.unknown_type_spans.push(name.name.span);
-                    lookup.insert(name.name.name, (TypeOrItem::Type(id), name.name.span));
-                    self.interfaces[iface]
-                        .types
-                        .insert(name.name.name.to_string(), id);
                 }
 
                 Ok(())
@@ -268,16 +349,16 @@ impl<'a> Resolver<'a> {
         }
 
         // Walk all `UsePath` entries in this AST and record dependencies
-        // between interfaces. These are dependencies specified via `use
-        // self...` or via `use pkg.this-doc...`.
-        ast.for_each_path(|iface, path, _names| {
+        // between interfaces and worlds. These are dependencies specified via `use
+        // self...` or via `use pkg.this-doc...` , or via `include self...`
+        ast.for_each_path(|iface_or_world, path, _names, _| {
             // If this import isn't contained within an interface then it's in a
             // world and it doesn't need to participate in our topo-sort.
-            let iface = match iface {
+            let id = match iface_or_world {
                 Some(name) => name,
                 None => return Ok(()),
             };
-            let deps = &mut deps[iface.name];
+            let deps = &mut deps[id.name];
             match path {
                 // Self-deps are what we're mostly interested in here.
                 ast::UsePath::Self_(name) => deps.push(name.clone()),
@@ -310,8 +391,8 @@ impl<'a> Resolver<'a> {
             }
             Ok(())
         })?;
-        let order = toposort("interface", &deps)?;
-        log::debug!("toposort for interfaces in `{name}` is {order:?}");
+        let order = toposort("interface or world", &deps)?;
+        log::debug!("toposort for interfaces and worlds in `{name}` is {order:?}");
 
         // Allocate a document ID and then start processing all of the
         // interfaces as defined by our `order` to insert new interfaces into
@@ -328,6 +409,9 @@ impl<'a> Resolver<'a> {
         self.document_lookup.insert(name, document_id);
 
         let mut worlds = Vec::new();
+
+        // Process all interfaces and worlds in topological order,
+        // First we process all interfaces
         for name in order {
             let interface = match names.remove(&name).unwrap() {
                 ast::AstItem::Interface(i) => i,
@@ -383,6 +467,9 @@ impl<'a> Resolver<'a> {
         Ok(document_id)
     }
 
+    /// Resolve the world's imports and exports
+    ///
+    /// The actual foreign deps are solved in `resolve::process_foreign_deps` method.
     fn resolve_world(&mut self, document: DocumentId, world: &ast::World<'a>) -> Result<WorldId> {
         let docs = self.docs(&world.docs);
         let world_id = self.worlds.alloc(World {
@@ -391,19 +478,32 @@ impl<'a> Resolver<'a> {
             name: world.name.name.to_string(),
             exports: IndexMap::new(),
             imports: IndexMap::new(),
+            includes: Default::default(),
+            include_names: Default::default(),
         });
         self.document_interfaces[document.index()]
             .insert(world.name.name, DocumentItem::World(world_id));
 
+        // resolve use, type and include items
         self.resolve_types(
             TypeOwner::World(world_id),
             world.items.iter().filter_map(|i| match i {
                 ast::WorldItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::WorldItem::Type(t) => Some(TypeItem::Def(t)),
-                ast::WorldItem::Include(_) => None, // TODO: come back
+                ast::WorldItem::Include(_) => None, // TODO: go back to here!
                 ast::WorldItem::Import(_) | ast::WorldItem::Export(_) => None,
             }),
         )?;
+
+        // resolve include items
+        let items = world.items.iter().filter_map(|i| match i {
+            ast::WorldItem::Include(i) => Some(i),
+            _ => None,
+        });
+        for include in items {
+            let path = self.resolve_include(TypeOwner::World(world_id), include)?;
+            // TODO: come back
+        }
 
         let mut export_spans = Vec::new();
         let mut import_spans = Vec::new();
@@ -489,7 +589,7 @@ impl<'a> Resolver<'a> {
             assert!(prev.is_none());
             spans.push(name.span);
         }
-        self.world_spans.push((import_spans, export_spans));
+        self.world_item_spans.push((import_spans, export_spans));
         self.type_lookup.clear();
 
         Ok(world_id)
@@ -654,6 +754,9 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    /// For each name in the `use`, resolve the path of the use,
+    /// find the type id of the name from the original interface,
+    /// and then create a new type.
     fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<()> {
         let use_from = self.resolve_path(&u.from)?;
         for name in u.names.iter() {
@@ -683,6 +786,26 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    /// For each name in the `include`, resolve the path of the include, add it to the self.includes
+    fn resolve_include(&mut self, owner: TypeOwner, i: &ast::Include<'a>) -> Result<()> {
+        let include_from = self.resolve_world_path(&i.from)?;
+        let world_id = match owner {
+            TypeOwner::World(id) => id,
+            _ => unreachable!(),
+        };
+        self.worlds[world_id].includes.push(include_from);
+        self.worlds[world_id].include_names.push(
+            i.names
+                .iter()
+                .map(|n| IncludeName {
+                    name: n.name.name.to_string(),
+                    as_: n.as_.as_ref().map(|n| n.name.to_string()),
+                })
+                .collect(),
+        );
+        Ok(())
+    }
+
     fn resolve_function(
         &mut self,
         docs: &ast::Docs<'_>,
@@ -701,6 +824,7 @@ impl<'a> Resolver<'a> {
         })
     }
 
+    /// Resolve the path of `use`.
     fn resolve_path(&self, path: &ast::UsePath<'a>) -> Result<InterfaceId> {
         match path {
             ast::UsePath::Self_(iface) => {
@@ -755,7 +879,69 @@ impl<'a> Resolver<'a> {
                         DocumentItem::Interface(id) => Ok(id),
                         DocumentItem::World(_) => unreachable!(),
                     },
-                    None => Ok(self.documents[doc].default_interface.unwrap()),
+                    None => Ok(self.documents[doc].default_interface.ok_or_else(|| Error {
+                        span: dep.span,
+                        msg: format!("document does not specify a default interface"),
+                    })?),
+                }
+            }
+        }
+    }
+
+    fn resolve_world_path(&self, path: &ast::UsePath<'a>) -> Result<WorldId> {
+        match path {
+            ast::UsePath::Self_(iface) => {
+                match self.document_interfaces.last().unwrap().get(iface.name) {
+                    Some(DocumentItem::Interface(_)) => bail!(Error {
+                        span: iface.span,
+                        msg: format!(
+                            "name `{}` is defined as an interface, not a world",
+                            iface.name
+                        ),
+                    }),
+                    Some(DocumentItem::World(id)) => Ok(*id),
+                    None => bail!(Error {
+                        span: iface.span,
+                        msg: format!("world does not exist"),
+                    }),
+                }
+            }
+            ast::UsePath::Package { doc, iface } => {
+                let doc_id = self.document_lookup[doc.name];
+                match iface {
+                    // If `iface` was provided then it must have been previously
+                    // processed
+                    Some(id) => {
+                        let lookup = &self.document_interfaces[doc_id.index()];
+                        match lookup.get(id.name) {
+                            Some(DocumentItem::Interface(_)) => bail!(Error {
+                                span: id.span,
+                                msg: format!("cannot import from interface `{}`", id.name),
+                            }),
+                            Some(DocumentItem::World(id)) => Ok(*id),
+                            None => bail!(Error {
+                                span: id.span,
+                                msg: format!("world does not exist"),
+                            }),
+                        }
+                    }
+                    None => self.documents[doc_id].default_world.ok_or_else(|| {
+                        Error {
+                            span: doc.span,
+                            msg: format!("document does not specify a default world"),
+                        }
+                        .into()
+                    }),
+                }
+            }
+            ast::UsePath::Dependency { dep, doc, iface } => {
+                let doc = self.foreign_deps[dep.name][doc.name];
+                match iface {
+                    Some(name) => match self.document_interfaces[doc.index()][name.name] {
+                        DocumentItem::Interface(_) => unreachable!(),
+                        DocumentItem::World(id) => Ok(id),
+                    },
+                    None => Ok(self.documents[doc].default_world.unwrap()),
                 }
             }
         }

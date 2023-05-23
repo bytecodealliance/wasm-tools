@@ -144,6 +144,8 @@ impl<'a> ComponentInfo<'a> {
             docs: Default::default(),
             imports: Default::default(),
             exports: Default::default(),
+            includes: Default::default(),
+            include_names: Default::default(),
             document: doc,
         });
         resolve.documents[doc]
@@ -710,6 +712,8 @@ impl WitPackageDecoder<'_> {
             docs: Default::default(),
             imports: Default::default(),
             exports: Default::default(),
+            includes: Default::default(),
+            include_names: Default::default(),
             document,
         };
 

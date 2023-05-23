@@ -1,5 +1,5 @@
-error: interface and world `b` depends on itself
-     --> ./crates/wit-parser/tests/ui/parse-fail/include-cycle.wit:2:18
+interface or world `b` depends on itself
+     --> tests/ui/parse-fail/include-cycle.wit:2:18
       |
     2 |     include self.b
-      |
+      |                  ^
