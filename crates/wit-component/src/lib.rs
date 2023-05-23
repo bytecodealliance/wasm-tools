@@ -26,8 +26,7 @@ pub use dummy::dummy_module;
 mod dummy;
 
 /// Supported string encoding formats.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
 pub enum StringEncoding {
     /// Strings are encoded with UTF-8.
     #[default]
@@ -37,8 +36,6 @@ pub enum StringEncoding {
     /// Strings are encoded with compact UTF-16 (i.e. Latin1+UTF-16).
     CompactUTF16,
 }
-
-
 
 impl Display for StringEncoding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

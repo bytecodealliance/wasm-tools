@@ -13,8 +13,7 @@ fuzz_target!(|data: &[u8]| {
     //
     // TODO: remove this `false && ...` once this fuzzer works again for
     // components.
-    let generate_component = false
-        && u.ratio::<u8>(1, 10).unwrap_or(false);
+    let generate_component = false && u.ratio::<u8>(1, 10).unwrap_or(false);
     let (wasm_bytes, config) = if generate_component {
         match wasm_tools_fuzz::generate_valid_component(&mut u, |c, u| {
             c.max_components = u.int_in_range(0..=1_000)?;

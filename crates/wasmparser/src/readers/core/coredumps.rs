@@ -157,10 +157,7 @@ impl<'a> FromReader<'a> for CoreDumpStackSection<'a> {
         for _ in 0..reader.read_var_u32()? {
             frames.push(CoreDumpStackFrame::from_reader(reader)?);
         }
-        Ok(CoreDumpStackSection {
-            name,
-            frames,
-        })
+        Ok(CoreDumpStackSection { name, frames })
     }
 }
 

@@ -699,12 +699,10 @@ impl<'a> BinaryReader<'a> {
         let idx = self.read_var_s33()?;
         match u32::try_from(idx) {
             Ok(idx) => Ok(BlockType::FuncType(idx)),
-            Err(_) => {
-                Err(BinaryReaderError::new(
-                    "invalid function type",
-                    self.original_position(),
-                ))
-            }
+            Err(_) => Err(BinaryReaderError::new(
+                "invalid function type",
+                self.original_position(),
+            )),
         }
     }
 

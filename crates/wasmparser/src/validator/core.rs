@@ -21,8 +21,7 @@ use std::{collections::HashSet, sync::Arc};
 //
 // Component sections are unordered and allow for duplicates,
 // so this isn't used for components.
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
-#[derive(Default)]
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug, Default)]
 pub enum Order {
     #[default]
     Initial,
@@ -40,8 +39,6 @@ pub enum Order {
     Code,
     Data,
 }
-
-
 
 #[derive(Default)]
 pub(crate) struct ModuleState {
@@ -901,15 +898,11 @@ impl Module {
                         _ => false,
                     }
                 }
-                (HeapType::Indexed(n1), HeapType::Func) => {
-                    self.func_type_at(n1, types, 0).is_ok()
-                }
-                (HeapType::Indexed(n1), HeapType::Array) => {
-                    match self.type_at(types, n1, 0) {
-                        Ok(Type::Array(_)) => true,
-                        _ => false,
-                    }
-                }
+                (HeapType::Indexed(n1), HeapType::Func) => self.func_type_at(n1, types, 0).is_ok(),
+                (HeapType::Indexed(n1), HeapType::Array) => match self.type_at(types, n1, 0) {
+                    Ok(Type::Array(_)) => true,
+                    _ => false,
+                },
                 (_, _) => ty1 == ty2,
             }
         };

@@ -113,9 +113,7 @@ impl OutputArg {
     pub fn output(&self, output: Output<'_>) -> Result<()> {
         match output {
             Output::Wat(s) => self.output_str(s),
-            Output::Wasm { bytes, wat: true } => {
-                self.output_str(&wasmprinter::print_bytes(bytes)?)
-            }
+            Output::Wasm { bytes, wat: true } => self.output_str(&wasmprinter::print_bytes(bytes)?),
             Output::Wasm { bytes, wat: false } => {
                 match &self.output {
                     Some(path) => {
