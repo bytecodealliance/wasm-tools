@@ -306,7 +306,7 @@ impl WasmFeatures {
                         if self.gc {
                             Ok(())
                         } else {
-                            Err("gc proposal is not enabled for this heap type")
+                            Err("heap types not supported without the gc feature")
                         }
                     }
                 }

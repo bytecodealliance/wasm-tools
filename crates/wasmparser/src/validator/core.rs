@@ -514,6 +514,12 @@ impl Module {
                 Type::Func(t)
             }
             crate::Type::Array(t) => {
+                if !features.gc {
+                    return Err(BinaryReaderError::new(
+                        "array indexed types not supported without the gc feature",
+                        offset,
+                    ));
+                }
                 match t.element_type {
                     crate::StorageType::I8 | crate::StorageType::I16 => {}
                     crate::StorageType::Val(value_type) => {
