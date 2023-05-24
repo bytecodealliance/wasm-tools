@@ -265,22 +265,50 @@ impl WasmFeatures {
                 }
             }
             ValType::Ref(r) => {
-                if self.reference_types {
-                    if !self.function_references {
-                        match (r.heap_type(), r.is_nullable()) {
-                            (_, false) => {
-                                Err("function references required for non-nullable types")
-                            }
-                            (HeapType::Indexed(_), _) => {
-                                Err("function references required for index reference types")
-                            }
-                            _ => Ok(()),
+                if !self.reference_types {
+                    return Err("reference types support is not enabled");
+                }
+                match (r.heap_type(), r.is_nullable()) {
+                    // funcref/externref only require `reference-types`
+                    (HeapType::Func, true) | (HeapType::Extern, true) => Ok(()),
+
+                    // non-nullable func/extern references requires the
+                    // `function-references` proposal
+                    (HeapType::Func | HeapType::Extern, false) => {
+                        if self.function_references {
+                            Ok(())
+                        } else {
+                            Err("function references required for non-nullable types")
                         }
-                    } else {
-                        Ok(())
                     }
-                } else {
-                    Err("reference types support is not enabled")
+                    // indexed types require at least the function-references
+                    // proposal
+                    (HeapType::Indexed(_), _) => {
+                        if self.function_references {
+                            Ok(())
+                        } else {
+                            Err("function references required for index reference types")
+                        }
+                    }
+
+                    // types added in the gc proposal
+                    (
+                        HeapType::Any
+                        | HeapType::None
+                        | HeapType::Eq
+                        | HeapType::Struct
+                        | HeapType::Array
+                        | HeapType::I31
+                        | HeapType::NoExtern
+                        | HeapType::NoFunc,
+                        _,
+                    ) => {
+                        if self.gc {
+                            Ok(())
+                        } else {
+                            Err("gc proposal is not enabled for this heap type")
+                        }
+                    }
                 }
             }
             ValType::V128 => {
