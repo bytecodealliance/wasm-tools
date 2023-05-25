@@ -1,3 +1,5 @@
+package foo:records
+
 interface records {
   record empty {
   }
@@ -55,6 +57,6 @@ interface records {
 }
 
 world records-world {
-  import records: self.records
-  export records2: self.records
+  import records
+  export records
 }

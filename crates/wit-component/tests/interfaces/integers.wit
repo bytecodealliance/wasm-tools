@@ -1,3 +1,5 @@
+package foo:foo
+
 interface integers {
   a1: func(x: u8)
   a2: func(x: s8)
@@ -21,5 +23,5 @@ interface integers {
 }
 
 world integers-world {
-  import integers: self.integers
+  import integers
 }

@@ -1,3 +1,5 @@
+package foo:foo
+
 interface lists {
   variant other-variant {
     a,
@@ -90,5 +92,5 @@ interface lists {
 }
 
 world lists-world {
-  import lists: self.lists
+  import lists
 }

@@ -1,5 +1,5 @@
-interface does not exist
-     --> tests/ui/parse-fail/unresolved-use9.wit:5:14
+interface `bar` does not exist
+     --> tests/ui/parse-fail/unresolved-use9.wit:7:9
       |
-    5 |     use self.bar.{i32}
-      |              ^--
+    7 |     use bar.{i32}
+      |         ^--

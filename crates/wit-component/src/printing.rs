@@ -4,18 +4,23 @@ use wit_parser::*;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
-pub struct DocumentPrinter {
+pub struct WitPrinter {
     output: Output,
 }
 
-impl DocumentPrinter {
-    /// Print the given `*.wit` document to a string.
-    pub fn print(&mut self, resolve: &Resolve, docid: DocumentId) -> Result<String> {
-        let doc = &resolve.documents[docid];
-        for (name, id) in doc.interfaces.iter() {
-            if Some(*id) == doc.default_interface {
-                self.output.push_str("default ");
-            }
+impl WitPrinter {
+    /// Print the given WIT package to a string.
+    pub fn print(&mut self, resolve: &Resolve, pkgid: PackageId) -> Result<String> {
+        let pkg = &resolve.packages[pkgid];
+        self.output.push_str("package ");
+        self.print_name(&pkg.name.namespace);
+        self.output.push_str(":");
+        self.print_name(&pkg.name.name);
+        if let Some(version) = &pkg.name.version {
+            self.output.push_str(&format!("@{version}"));
+        }
+        self.output.push_str("\n\n");
+        for (name, id) in pkg.interfaces.iter() {
             self.output.push_str("interface ");
             self.print_name(name);
             self.output.push_str(" {\n");
@@ -23,10 +28,7 @@ impl DocumentPrinter {
             writeln!(&mut self.output, "}}\n")?;
         }
 
-        for (name, id) in doc.worlds.iter() {
-            if Some(*id) == doc.default_world {
-                self.output.push_str("default ");
-            }
+        for (name, id) in pkg.worlds.iter() {
             self.output.push_str("world ");
             self.print_name(name);
             self.output.push_str(" {\n");
@@ -101,9 +103,9 @@ impl DocumentPrinter {
         }
 
         // Generate a `use` statement for all imported types.
-        let my_doc = match owner {
-            TypeOwner::Interface(id) => resolve.interfaces[id].document,
-            TypeOwner::World(id) => resolve.worlds[id].document,
+        let my_pkg = match owner {
+            TypeOwner::Interface(id) => resolve.interfaces[id].package.unwrap(),
+            TypeOwner::World(id) => resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         };
         let amt_to_import = types_to_import.len();
@@ -115,7 +117,7 @@ impl DocumentPrinter {
                 // this time.
                 _ => unreachable!(),
             };
-            self.print_path_to_interface(resolve, id, my_doc)?;
+            self.print_path_to_interface(resolve, id, my_pkg)?;
             write!(&mut self.output, ".{{")?;
             for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
                 if i > 0 {
@@ -181,19 +183,22 @@ impl DocumentPrinter {
 
     fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
         let world = &resolve.worlds[id];
-        let docid = world.document;
+        let pkgid = world.package.unwrap();
         let mut types = Vec::new();
         for (name, import) in world.imports.iter() {
             match import {
-                WorldItem::Type(t) => types.push((name.as_str(), *t)),
+                WorldItem::Type(t) => match name {
+                    WorldKey::Name(s) => types.push((s.as_str(), *t)),
+                    WorldKey::Interface(_) => unreachable!(),
+                },
                 _ => {
-                    self.print_world_item(resolve, name, import, docid, "import")?;
+                    self.print_world_item(resolve, name, import, pkgid, "import")?;
                 }
             }
         }
         self.print_types(resolve, TypeOwner::World(id), types.into_iter())?;
         for (name, export) in world.exports.iter() {
-            self.print_world_item(resolve, name, export, docid, "export")?;
+            self.print_world_item(resolve, name, export, pkgid, "export")?;
         }
         Ok(())
     }
@@ -201,32 +206,40 @@ impl DocumentPrinter {
     fn print_world_item(
         &mut self,
         resolve: &Resolve,
-        name: &str,
+        name: &WorldKey,
         item: &WorldItem,
-        cur_doc: DocumentId,
+        cur_pkg: PackageId,
         desc: &str,
     ) -> Result<()> {
         self.output.push_str(desc);
         self.output.push_str(" ");
-        self.print_name(name);
-        self.output.push_str(": ");
-        match item {
-            WorldItem::Interface(id) => {
-                if resolve.interfaces[*id].name.is_some() {
-                    self.print_path_to_interface(resolve, *id, cur_doc)?;
-                    self.output.push_str("\n");
-                } else {
-                    writeln!(self.output, "interface {{")?;
-                    self.print_interface(resolve, *id)?;
-                    writeln!(self.output, "}}")?;
+        match name {
+            WorldKey::Name(name) => {
+                self.print_name(name);
+                self.output.push_str(": ");
+                match item {
+                    WorldItem::Interface(id) => {
+                        assert!(resolve.interfaces[*id].name.is_none());
+                        writeln!(self.output, "interface {{")?;
+                        self.print_interface(resolve, *id)?;
+                        writeln!(self.output, "}}")?;
+                    }
+                    WorldItem::Function(f) => {
+                        self.print_function(resolve, f)?;
+                        self.output.push_str("\n");
+                    }
+                    // Types are handled separately
+                    WorldItem::Type(_) => unreachable!(),
                 }
             }
-            WorldItem::Function(f) => {
-                self.print_function(resolve, f)?;
+            WorldKey::Interface(id) => {
+                match item {
+                    WorldItem::Interface(id2) => assert_eq!(id, id2),
+                    _ => unreachable!(),
+                }
+                self.print_path_to_interface(resolve, *id, cur_pkg)?;
                 self.output.push_str("\n");
             }
-            // Types are handled separately
-            WorldItem::Type(_) => unreachable!(),
         }
         Ok(())
     }
@@ -235,24 +248,22 @@ impl DocumentPrinter {
         &mut self,
         resolve: &Resolve,
         interface: InterfaceId,
-        cur_doc: DocumentId,
+        cur_pkg: PackageId,
     ) -> Result<()> {
-        let cur_pkg = resolve.documents[cur_doc].package;
         let iface = &resolve.interfaces[interface];
-        let iface_doc = &resolve.documents[iface.document];
-        if iface.document == cur_doc {
-            self.output.push_str("self");
-        } else if cur_pkg == iface_doc.package {
-            self.output.push_str("pkg.");
-            self.print_name(&iface_doc.name);
+        if iface.package == Some(cur_pkg) {
+            self.print_name(iface.name.as_ref().unwrap());
         } else {
-            let iface_pkg = &resolve.packages[iface_doc.package.unwrap()];
-            self.print_name(&iface_pkg.name);
-            self.output.push_str(".");
-            self.print_name(&iface_doc.name);
+            let pkg = &resolve.packages[iface.package.unwrap()].name;
+            self.print_name(&pkg.namespace);
+            self.output.push_str(":");
+            self.print_name(&pkg.name);
+            self.output.push_str("/");
+            self.print_name(iface.name.as_ref().unwrap());
+            if let Some(version) = &pkg.version {
+                self.output.push_str(&format!("@{version}"));
+            }
         }
-        self.output.push_str(".");
-        self.print_name(iface.name.as_ref().unwrap());
         Ok(())
     }
 
@@ -619,7 +630,7 @@ fn is_keyword(name: &str) -> bool {
         | "float32" | "float64" | "char" | "record" | "flags" | "variant" | "enum" | "union"
         | "bool" | "string" | "option" | "result" | "future" | "stream" | "list" | "_" | "as"
         | "from" | "static" | "interface" | "tuple" | "implements" | "world" | "import"
-        | "export" | "default" | "pkg" | "self" => true,
+        | "export" | "default" | "pkg" | "self" | "package" => true,
         _ => false,
     }
 }

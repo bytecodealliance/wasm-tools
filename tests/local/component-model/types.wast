@@ -107,7 +107,7 @@
       (export "A" (func))
     ))
   )
-  "export name `A` conflicts with previous export name `a`")
+  "export name `A` conflicts with previous name `a`")
 
 (assert_invalid
   (component
@@ -116,7 +116,7 @@
       (import "a" (func))
     ))
   )
-  "import name `a` conflicts with previous import name `A`")
+  "import name `a` conflicts with previous name `A`")
 
 (assert_invalid
   (component $c
@@ -195,7 +195,7 @@
       (export "FOO-bar-BAZ" (func))
     ))
   )
-  "export name `FOO-bar-BAZ` conflicts with previous export name `foo-BAR-baz`")
+  "export name `FOO-bar-BAZ` conflicts with previous name `foo-BAR-baz`")
 
 (assert_invalid
   (component $c

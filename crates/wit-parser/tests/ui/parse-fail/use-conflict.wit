@@ -1,9 +1,11 @@
 // parse-fail
 
+package foo:foo
+
 interface foo {
   type x = u32
 }
 
 interface bar {
-  use self.foo.{x, x}
+  use foo.{x, x}
 }

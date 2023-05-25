@@ -1,3 +1,5 @@
-default interface the-default {
+package foo:foreign-pkg
+
+interface the-default {
   type some-type = u32
 }

@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   type a = u32
 
@@ -8,10 +10,10 @@ interface foo {
 }
 
 interface bar {
-  use self.foo.{c}
+  use foo.{c}
 }
 
 interface baz {
-  use self.bar.{c}
+  use bar.{c}
 }
 

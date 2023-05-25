@@ -1,3 +1,5 @@
+package foo:floats
+
 interface floats {
   float32-param: func(x: float32)
   float64-param: func(x: float64)
@@ -6,5 +8,5 @@ interface floats {
 }
 
 world floats-world {
-  import floats: self.floats
+  import floats
 }

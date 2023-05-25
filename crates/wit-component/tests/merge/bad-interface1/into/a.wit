@@ -1,3 +1,5 @@
+package foo:into
+
 interface a {
-  use foo.a.{b}
+  use foo:foo/a.{b}
 }

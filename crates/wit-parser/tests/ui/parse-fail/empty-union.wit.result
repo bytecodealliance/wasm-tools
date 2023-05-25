@@ -1,5 +1,5 @@
 empty union
-     --> tests/ui/parse-fail/empty-union.wit:4:9
+     --> tests/ui/parse-fail/empty-union.wit:5:9
       |
-    4 |   union t {}
+    5 |   union t {}
       |         ^

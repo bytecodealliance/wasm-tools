@@ -1,3 +1,5 @@
-default interface foo {
+package foo:only-from-dep
+
+interface a {
   type a = u32
 }

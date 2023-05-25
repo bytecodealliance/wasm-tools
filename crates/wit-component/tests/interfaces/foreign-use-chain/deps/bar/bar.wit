@@ -1,5 +1,7 @@
-default interface the-name {
-  use self.the-interface.{the-type as bar}
+package foo:bar
+
+interface bar {
+  use the-interface.{the-type as bar}
 }
 
 interface the-interface {

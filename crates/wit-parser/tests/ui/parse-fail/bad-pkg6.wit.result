@@ -1,5 +1,5 @@
-interface not defined in document
-     --> tests/ui/parse-fail/bad-pkg6/root.wit:2:15
+failed to find package `foo:bar` in `deps` directory
+     --> tests/ui/parse-fail/bad-pkg6/root.wit:3:7
       |
-    2 |   use bar.baz.nonexistent.{}
-      |               ^----------
+    3 |   use foo:bar/baz.{}
+      |       ^------

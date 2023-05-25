@@ -1,8 +1,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
+use std::borrow::Cow;
 use std::path::Path;
-use std::{borrow::Cow, collections::HashMap};
 use wasm_encoder::{CustomSection, Encode, Section};
 use wit_component::*;
 use wit_parser::{Resolve, SourceMap};
@@ -19,13 +19,13 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
     write_file("doc1.wasm", &wasm);
-    let (resolve, _pkg) = match wit_component::decode("root", &wasm).unwrap() {
+    let (resolve, _pkg) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
     roundtrip_through_printing("doc1", &resolve, &wasm);
 
-    let (resolve2, pkg2) = match wit_component::decode("root", &wasm).unwrap() {
+    let (resolve2, pkg2) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
@@ -65,27 +65,23 @@ fuzz_target!(|data: &[u8]| {
         .validate_all(&wasm)
         .unwrap();
 
-        wit_component::decode("root", &wasm).unwrap();
+        wit_component::decode(&wasm).unwrap();
     }
 });
 
 fn roundtrip_through_printing(file: &str, resolve: &Resolve, wasm: &[u8]) {
     // For all packages in `resolve` print them all to a string, then re-parse
     // them and insert them into a `new_resolve`.
-    let mut new_deps = HashMap::new();
     let mut new_resolve = Resolve::default();
     let mut last = None;
-    for (_, pkg) in resolve.packages.iter() {
+    for (id, pkg) in resolve.packages.iter() {
         let mut map = SourceMap::new();
         let pkg_name = &pkg.name;
-        for (name, doc) in pkg.documents.iter() {
-            let doc = DocumentPrinter::default().print(resolve, *doc).unwrap();
-            write_file(&format!("{file}-{pkg_name}-{name}.wit"), &doc);
-            map.push(format!("{name}.wit").as_ref(), &name, doc);
-        }
-        let unresolved = map.parse(&pkg.name, pkg.url.as_deref()).unwrap();
-        let id = new_resolve.push(unresolved, &new_deps).unwrap();
-        new_deps.insert(pkg.name.clone(), id);
+        let doc = WitPrinter::default().print(resolve, id).unwrap();
+        write_file(&format!("{file}-{pkg_name}.wit"), &doc);
+        map.push(format!("{pkg_name}.wit").as_ref(), doc);
+        let unresolved = map.parse().unwrap();
+        let id = new_resolve.push(unresolved).unwrap();
         last = Some(id);
     }
 

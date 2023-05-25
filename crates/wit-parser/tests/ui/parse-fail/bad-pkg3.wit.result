@@ -1,5 +1,5 @@
-default interface not specified in document
-     --> tests/ui/parse-fail/bad-pkg3/root.wit:2:11
+interface not found in package
+     --> tests/ui/parse-fail/bad-pkg3/root.wit:4:15
       |
-    2 |   use bar.baz.{}
-      |           ^--
+    4 |   use foo:bar/baz.{}
+      |               ^--

@@ -1,5 +1,7 @@
 // parse-fail
 
+package foo:foo
+
 world foo {
-  import foo: pkg.unresolved-interface4
+  import some:dependency/iface
 }

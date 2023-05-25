@@ -1,4 +1,6 @@
-default interface the-default {
+package foo:some-pkg
+
+interface the-default {
   type from-default = string
 }
 

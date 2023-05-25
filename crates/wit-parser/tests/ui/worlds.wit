@@ -1,40 +1,37 @@
+package foo:foo
+
 interface foo {}
 interface bar {}
 
 world the-world {
-  import foo: self.foo
-  import bar: self.bar
+  import foo
+  import bar
   import baz: interface {
     foo: func()
   }
-  export foo2: self.foo
-  export bar2: self.bar
+  export foo
+  export bar
   export baz2: interface {
     foo: func()
   }
 }
 
-default world a-different-world {
-  import foo: self.foo
+world a-different-world {
+  import foo
 }
 
 interface i1 {
   type t = u32
 }
 interface i2 {
-  use self.i1.{t}
+  use i1.{t}
 }
 interface i3 {
-  use self.i2.{t}
+  use i2.{t}
 }
 
 world test {
-  import i3: self.i3
-
-  export i4: self.i1
-
-  // This should insert an implicit dependency on `i2` as an import, and then
-  // i2's dependency on i1 should be wired up to i3's implicit imported
-  // dependency on i1.
-  export i5: self.i3
+  import i3
+  export i1
+  export i3
 }

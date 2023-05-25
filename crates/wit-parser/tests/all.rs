@@ -106,7 +106,7 @@ impl Runner<'_> {
         let result = if test.is_dir() {
             resolve.push_dir(test).map(|(id, _)| id)
         } else {
-            UnresolvedPackage::parse_file(test).and_then(|p| resolve.push(p, &Default::default()))
+            UnresolvedPackage::parse_file(test).and_then(|p| resolve.push(p))
         };
 
         let result = if test.iter().any(|s| s == "parse-fail") {

@@ -1,3 +1,5 @@
+package foo:variants
+
 interface variants {
   union u1 {
     u32,
@@ -98,5 +100,5 @@ interface variants {
 }
 
 world variants-world {
-  import variants: self.variants
+  import variants
 }

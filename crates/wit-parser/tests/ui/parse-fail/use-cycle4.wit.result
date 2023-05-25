@@ -1,5 +1,5 @@
 interface `bar` depends on itself
-     --> tests/ui/parse-fail/use-cycle4.wit:4:12
+     --> tests/ui/parse-fail/use-cycle4.wit:10:11
       |
-    4 |   use self.bar.{y}
-      |            ^--
+   10 | interface bar {
+      |           ^--

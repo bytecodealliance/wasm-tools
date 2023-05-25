@@ -1,5 +1,5 @@
 // parse-fail
 
-world foo {
-  import foo: pkg.foo.bar
-}
+package foo:foo
+
+use bar as foo

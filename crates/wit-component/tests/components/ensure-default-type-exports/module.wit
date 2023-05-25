@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   type foo = u8
 
@@ -8,8 +10,8 @@ interface foo {
   a: func(b: bar)
 }
 
-default world my-world {
-  import foo: self.foo
+world module {
+  import foo
 
   export a: func(b: u8)
 }

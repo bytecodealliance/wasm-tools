@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
-  use bar.nonexistent.{}
+  use foo:bar/nonexistent.{}
 }

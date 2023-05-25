@@ -1,3 +1,4 @@
+package foo:foo
 interface foo {
-  use bar.baz.nonexistent.{}
+  use foo:bar/baz.{}
 }

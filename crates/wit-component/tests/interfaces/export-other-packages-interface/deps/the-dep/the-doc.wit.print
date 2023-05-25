@@ -1,5 +1,0 @@
-interface the-interface {
-  type t = u8
-
-}
-

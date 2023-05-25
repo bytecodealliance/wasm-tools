@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
-  use pkg.bar.{the-name}
+  use bar.{the-name}
 }

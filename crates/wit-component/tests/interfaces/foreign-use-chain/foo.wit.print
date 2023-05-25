@@ -1,4 +1,6 @@
+package foo:foo
+
 world foo {
-  import the-interface: bar.bar.the-interface
-  import bar: bar.bar.the-name
+  import foo:bar/the-interface
+  import foo:bar/bar
 }

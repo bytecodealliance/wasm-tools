@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
 }
 
@@ -7,7 +9,7 @@ interface bar {
 }
 
 interface baz {
-  use self.bar.{t}
+  use bar.{t}
 
   record bar {
     a: t,

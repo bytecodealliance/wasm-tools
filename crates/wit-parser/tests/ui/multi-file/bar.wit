@@ -1,9 +1,11 @@
-default interface irrelevant-name {
+package foo:multi-file
+
+interface irrelevant-name {
   record a-name {}
 }
 
 interface depends-on-later-item {
-  use self.depend-on-me.{x}
+  use depend-on-me.{x}
 }
 
 interface depend-on-me {
@@ -11,8 +13,8 @@ interface depend-on-me {
 }
 
 world more-depends-on-later-things {
-  import foo: self.later-interface
-  export bar: self.later-interface
+  import later-interface
+  export later-interface
 }
 
 interface later-interface {

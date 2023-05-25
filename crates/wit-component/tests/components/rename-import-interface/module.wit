@@ -1,7 +1,9 @@
+package foo:foo
+
 interface foo {
   the-func: func()
 }
 
-default world the-world {
-  import bar: self.foo
+world module {
+  import foo
 }

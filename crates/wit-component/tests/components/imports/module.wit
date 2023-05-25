@@ -1,4 +1,6 @@
-default world my-world {
+package foo:foo
+
+world module {
   import bar: interface {
     record x {
         a: u8

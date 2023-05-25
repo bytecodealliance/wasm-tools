@@ -1,13 +1,15 @@
+package foo:foo
+
 interface foo {
   record bar {}
 
   a: func() -> bar
 }
 
-default world the-world {
-  import different-name: self.foo
+world module {
+  import foo
   import other-name: interface {
-    use self.foo.{bar}
+    use foo.{bar}
 
     a: func() -> bar
   }

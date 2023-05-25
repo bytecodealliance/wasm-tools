@@ -1,3 +1,5 @@
+package foo:foo
+
 interface i {
   record some-type {
   }
@@ -6,9 +8,9 @@ interface i {
 }
 
 
-default world the-world {
-  use self.i.{some-type as other-name}
+world module {
+  use i.{some-type as other-name}
 
-  import i1: self.i
-  export i2: self.i
+  import i
+  export i
 }

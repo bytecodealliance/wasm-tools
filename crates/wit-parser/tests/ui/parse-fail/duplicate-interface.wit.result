@@ -1,5 +1,5 @@
-name `foo` previously defined in document
-     --> tests/ui/parse-fail/duplicate-interface.wit:4:11
+duplicate item named `foo`
+     --> tests/ui/parse-fail/duplicate-interface.wit:6:11
       |
-    4 | interface foo {}
+    6 | interface foo {}
       |           ^--

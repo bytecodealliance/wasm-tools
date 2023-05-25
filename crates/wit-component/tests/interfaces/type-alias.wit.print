@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   type a = u8
 
@@ -7,6 +9,6 @@ interface foo {
 }
 
 world my-world {
-  import foo: self.foo
-  export foo2: self.foo
+  import foo
+  export foo
 }

@@ -1,4 +1,6 @@
-default interface foo {
+package foo:dep
+
+interface foo {
   enum a {
     b
   }

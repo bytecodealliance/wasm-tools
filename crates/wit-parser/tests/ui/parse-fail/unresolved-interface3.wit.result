@@ -1,5 +1,5 @@
-document `foo` does not exist
-     --> tests/ui/parse-fail/unresolved-interface3.wit:4:19
+interface `bar` does not exist
+     --> tests/ui/parse-fail/unresolved-interface3.wit:5:5
       |
-    4 |   import foo: pkg.foo.bar
-      |                   ^--
+    5 | use bar as foo
+      |     ^--

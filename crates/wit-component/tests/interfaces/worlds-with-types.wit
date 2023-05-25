@@ -1,3 +1,5 @@
+package foo:foo
+
 world simple {
   record foo {
   }
@@ -13,7 +15,7 @@ interface import-me {
 }
 
 world with-imports {
-  use self.import-me.{foo}
+  use import-me.{foo}
 
   import a: func(a: foo)
   export b: func(a: foo)

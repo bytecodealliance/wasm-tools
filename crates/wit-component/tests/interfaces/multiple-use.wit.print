@@ -1,3 +1,5 @@
+package foo:multiuse
+
 interface foo {
   type t2 = u8
 
@@ -11,8 +13,8 @@ interface bar {
 }
 
 interface baz {
-  use self.foo.{t1}
-  use self.bar.{u}
-  use self.foo.{t2}
+  use foo.{t1}
+  use bar.{u}
+  use foo.{t2}
 }
 

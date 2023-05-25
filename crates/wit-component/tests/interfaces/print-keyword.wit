@@ -1,3 +1,5 @@
+package foo:foo
+
 interface %interface {
   type %type = u32
   type %world = %type

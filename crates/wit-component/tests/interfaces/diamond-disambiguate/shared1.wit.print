@@ -1,5 +1,0 @@
-interface shared {
-  type t1 = u8
-
-}
-

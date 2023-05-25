@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   record r {
       s: string
@@ -33,6 +35,6 @@ interface foo {
   p: func() -> list<v-no-string>
 }
 
-default world my-world {
-  import foo: self.foo
+world module {
+  import foo
 }

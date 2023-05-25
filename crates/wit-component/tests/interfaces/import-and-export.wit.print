@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   foo: func()
 }
@@ -7,6 +9,6 @@ interface bar {
 }
 
 world import-and-export {
-  import foo: self.foo
-  export bar: self.bar
+  import foo
+  export bar
 }

@@ -1,3 +1,0 @@
-default world my-world {
-  export a: func(x: string) -> string
-}

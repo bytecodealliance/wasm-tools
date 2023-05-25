@@ -46,6 +46,10 @@ pub enum Token {
     GreaterThan,
     RArrow,
     Star,
+    At,
+    Slash,
+    Plus,
+    Minus,
 
     Use,
     Type,
@@ -79,16 +83,15 @@ pub enum Token {
     Static,
     Interface,
     Tuple,
-    Implements,
     Import,
     Export,
     World,
-    Default,
-    Pkg,
-    Self_,
+    Package,
 
     Id,
     ExplicitId,
+
+    Integer,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -174,6 +177,7 @@ impl<'a> Tokenizer<'a> {
                             break;
                         }
                     }
+                    Comment
                 // eat a block comment if it's `/*...`
                 } else if self.eatc('*') {
                     let mut depth = 1;
@@ -188,11 +192,10 @@ impl<'a> Tokenizer<'a> {
                             _ => {}
                         }
                     }
+                    Comment
                 } else {
-                    return Err(Error::Unexpected(start, ch));
+                    Slash
                 }
-
-                Comment
             }
             '=' => Equals,
             ',' => Comma,
@@ -206,13 +209,15 @@ impl<'a> Tokenizer<'a> {
             '<' => LessThan,
             '>' => GreaterThan,
             '*' => Star,
+            '@' => At,
             '-' => {
                 if self.eatc('>') {
                     RArrow
                 } else {
-                    return Err(Error::Unexpected(start, '-'));
+                    Minus
                 }
             }
+            '+' => Plus,
             '%' => {
                 let mut iter = self.chars.clone();
                 if let Some((_, ch)) = iter.next() {
@@ -272,16 +277,26 @@ impl<'a> Tokenizer<'a> {
                     "static" => Static,
                     "interface" => Interface,
                     "tuple" => Tuple,
-                    "implements" => Implements,
                     "world" => World,
                     "import" => Import,
                     "export" => Export,
-                    "default" => Default,
-                    "pkg" => Pkg,
-                    "self" => Self_,
+                    "package" => Package,
                     _ => Id,
                 }
             }
+
+            ch if ch.is_ascii_digit() => {
+                let mut iter = self.chars.clone();
+                while let Some((_, ch)) = iter.next() {
+                    if !ch.is_ascii_digit() {
+                        break;
+                    }
+                    self.chars = iter.clone();
+                }
+
+                Integer
+            }
+
             ch => return Err(Error::Unexpected(start, ch)),
         };
         let end = match self.chars.clone().next() {
@@ -504,18 +519,20 @@ impl Token {
             ExplicitId => "an '%' identifier",
             RArrow => "`->`",
             Star => "`*`",
+            At => "`@`",
+            Slash => "`/`",
+            Plus => "`+`",
+            Minus => "`-`",
             As => "keyword `as`",
             From_ => "keyword `from`",
             Static => "keyword `static`",
             Interface => "keyword `interface`",
             Tuple => "keyword `tuple`",
-            Implements => "keyword `implements`",
             Import => "keyword `import`",
             Export => "keyword `export`",
             World => "keyword `world`",
-            Default => "keyword `default`",
-            Self_ => "keyword `self`",
-            Pkg => "keyword `pkg`",
+            Package => "keyword `package`",
+            Integer => "an integer",
         }
     }
 }

@@ -1,9 +1,11 @@
+package foo:foo
+
 interface foo {
   type a = u8
   type b = a
   c: func(a: a) -> b
 }
 
-default world the-world {
-  export foo: self.foo
+world module {
+  export foo
 }

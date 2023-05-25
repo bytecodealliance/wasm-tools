@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
-use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
-use wit_parser::{PackageId, Resolve};
+use wit_component::{ComponentEncoder, DecodedWasm, StringEncoding, WitPrinter};
+use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 /// Tests the encoding of components.
 ///
@@ -56,12 +56,20 @@ fn component_encoding_via_flags() -> Result<()> {
         let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
         encoder = add_adapters(encoder, &path, &resolve, pkg)?;
         let component_path = path.join("component.wat");
-        let component_wit_path = path.join("component.wit");
+        let component_wit_path = path.join("component.wit.print");
         let error_path = path.join("error.txt");
 
         let bytes = match encoder.encode() {
-            Ok(bytes) => bytes,
+            Ok(bytes) => {
+                if test_case.starts_with("error-") {
+                    bail!("expected an error but got success");
+                }
+                bytes
+            }
             Err(err) => {
+                if !test_case.starts_with("error-") {
+                    return Err(err.into());
+                }
                 assert_output(&format!("{err:?}"), &error_path)?;
                 continue;
             }
@@ -69,12 +77,17 @@ fn component_encoding_via_flags() -> Result<()> {
 
         let wat = wasmprinter::print_bytes(&bytes)?;
         assert_output(&wat, &component_path)?;
-        let (doc, resolve) = match wit_component::decode("component", &bytes)? {
+        let (pkg, resolve) = match wit_component::decode(&bytes)? {
             DecodedWasm::WitPackage(..) => unreachable!(),
-            DecodedWasm::Component(resolve, world) => (resolve.worlds[world].document, resolve),
+            DecodedWasm::Component(resolve, world) => {
+                (resolve.worlds[world].package.unwrap(), resolve)
+            }
         };
-        let wit = DocumentPrinter::default().print(&resolve, doc)?;
+        let wit = WitPrinter::default().print(&resolve, pkg)?;
         assert_output(&wit, &component_wit_path)?;
+
+        UnresolvedPackage::parse(&component_wit_path, &wit)
+            .context("failed to parse printed WIT")?;
 
         // Check that the producer data got piped through properly
         let metadata = wasm_metadata::Metadata::from_binary(&bytes)?;
@@ -132,13 +145,9 @@ fn add_adapters(
 fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Vec<u8>> {
     let mut wasm = wat::parse_file(path)?;
     let name = path.file_stem().and_then(|s| s.to_str()).unwrap();
-    let doc = *resolve.packages[pkg]
-        .documents
-        .get(name)
-        .ok_or_else(|| anyhow!("failed to find document named `{name}`"))?;
-    let world = resolve.documents[doc]
-        .default_world
-        .ok_or_else(|| anyhow!("failed to find default world in document `{name}`"))?;
+    let world = resolve
+        .select_world(pkg, Some(name))
+        .context("failed to select a world")?;
 
     // Add this producer data to the wit-component metadata so we can make sure it gets through the
     // translation:

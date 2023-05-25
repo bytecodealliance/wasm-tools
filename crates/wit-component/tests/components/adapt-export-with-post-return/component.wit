@@ -1,7 +1,0 @@
-interface new {
-  foo: func() -> string
-}
-
-default world component {
-  export new: self.new
-}

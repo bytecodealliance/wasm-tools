@@ -1,3 +1,5 @@
+package foo:functions
+
 interface functions {
   f1: func()
   f2: func(a: u32)

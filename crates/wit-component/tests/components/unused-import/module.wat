@@ -1,3 +1,3 @@
 (module
-  (import "foo" "name" (func (param i32)))
+  (import "foo:foo/foo" "name" (func (param i32)))
 )

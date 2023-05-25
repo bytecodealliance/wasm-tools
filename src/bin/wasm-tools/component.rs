@@ -1,13 +1,13 @@
 //! The WebAssembly component tool command line interface.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::borrow::Cow;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use wasm_encoder::{Encode, Section};
 use wasm_tools::Output;
-use wit_component::{ComponentEncoder, DecodedWasm, DocumentPrinter, StringEncoding};
+use wit_component::{ComponentEncoder, DecodedWasm, StringEncoding, WitPrinter};
 use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 /// WebAssembly wit-based component tooling.
@@ -249,31 +249,6 @@ pub struct WitOpts {
     #[clap(flatten)]
     output: wasm_tools::OutputArg,
 
-    /// If a WIT package is being parsed, then this is the optionally specified
-    /// name of the WIT package. If not specified this is automatically inferred
-    /// from the filename.
-    #[clap(long)]
-    name: Option<String>,
-
-    /// When printing a WIT package, the default mode, this option is used to
-    /// indicate which document is printed within the package if more than one
-    /// document is present.
-    #[clap(short, long, conflicts_with = "wasm", conflicts_with = "wat")]
-    document: Option<String>,
-
-    /// Emit a full WIT package into the specified directory when printing the
-    /// text form.
-    ///
-    /// This is incompatible with `-o`.
-    #[clap(
-        long,
-        conflicts_with = "output",
-        conflicts_with = "wasm",
-        conflicts_with = "wat",
-        conflicts_with = "document"
-    )]
-    out_dir: Option<PathBuf>,
-
     /// Emit a WebAssembly binary representation instead of the WIT text format.
     #[clap(short, long, conflicts_with = "wat")]
     wasm: bool,
@@ -296,14 +271,6 @@ impl WitOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let name = match &self.name {
-            Some(name) => name.as_str(),
-            None => match &self.input {
-                Some(path) => path.file_stem().unwrap().to_str().unwrap(),
-                None => "component",
-            },
-        };
-
         // First up determine the actual `DecodedWasm` as the input. This could
         // come from a number of sources:
         //
@@ -322,7 +289,7 @@ impl WitOpts {
             Some(input) => match input.extension().and_then(|s| s.to_str()) {
                 Some("wat") | Some("wasm") => {
                     let bytes = wat::parse_file(&input)?;
-                    decode_wasm(name, &bytes).context("failed to decode WIT document")?
+                    decode_wasm(&bytes).context("failed to decode WIT document")?
                 }
                 _ => {
                     let (resolve, id) = parse_wit(input)?;
@@ -341,7 +308,7 @@ impl WitOpts {
                         e
                     })?;
 
-                    decode_wasm(name, &bytes).context("failed to decode WIT document")?
+                    decode_wasm(&bytes).context("failed to decode WIT document")?
                 } else {
                     let stdin = match std::str::from_utf8(&stdin) {
                         Ok(s) => s,
@@ -349,7 +316,7 @@ impl WitOpts {
                     };
                     let mut resolve = Resolve::default();
                     let pkg = UnresolvedPackage::parse("<stdin>".as_ref(), stdin)?;
-                    let id = resolve.push(pkg, &Default::default())?;
+                    let id = resolve.push(pkg)?;
                     DecodedWasm::WitPackage(resolve, id)
                 }
             }
@@ -357,55 +324,18 @@ impl WitOpts {
 
         // Now that the WIT document has been decoded, it's time to emit it.
         // This interprets all of the output options and performs such a task.
-        match &self.out_dir {
-            Some(dir) => {
-                assert!(self.output.output_path().is_none());
-                assert!(!self.wasm && !self.wat);
-                assert!(self.document.is_none());
-                let package = match &decoded {
-                    DecodedWasm::WitPackage(_, package) => *package,
-
-                    DecodedWasm::Component(resolve, world) => {
-                        let doc = resolve.worlds[*world].document;
-                        resolve.documents[doc].package.unwrap()
-                    }
-                };
-                let resolve = decoded.resolve();
-                std::fs::create_dir_all(&dir)
-                    .with_context(|| format!("failed to create {dir:?}"))?;
-                for (name, doc) in resolve.packages[package].documents.iter() {
-                    let output = DocumentPrinter::default().print(&resolve, *doc)?;
-                    let path = dir.join(format!("{name}.wit"));
-                    std::fs::write(&path, output)
-                        .with_context(|| format!("failed to write {path:?}"))?;
-                }
-            }
-            None => {
-                if self.wasm || self.wat {
-                    self.emit_wasm(&decoded)?;
-                } else {
-                    self.emit_wit(&decoded)?;
-                }
-            }
+        if self.wasm || self.wat {
+            self.emit_wasm(&decoded)?;
+        } else {
+            self.emit_wit(&decoded)?;
         }
         Ok(())
     }
 
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(self.wasm || self.wat);
-        assert!(self.out_dir.is_none());
-        assert!(self.document.is_none());
 
-        let pkg = match decoded {
-            DecodedWasm::WitPackage(_resolve, pkg) => *pkg,
-            DecodedWasm::Component(resolve, world) => {
-                let doc = resolve.worlds[*world].document;
-                resolve.documents[doc].package.unwrap()
-            }
-        };
-
-        let resolve = decoded.resolve();
-        let bytes = wit_component::encode(&resolve, pkg)?;
+        let bytes = wit_component::encode(decoded.resolve(), decoded.package())?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
                 component_model: true,
@@ -422,32 +352,11 @@ impl WitOpts {
 
     fn emit_wit(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(!self.wasm && !self.wat);
-        assert!(self.out_dir.is_none());
         if self.wat {
             bail!("the `--wat` option can only be combined with `--wasm`");
         }
 
-        let doc = match decoded {
-            DecodedWasm::WitPackage(resolve, pkg) => {
-                let pkg = &resolve.packages[*pkg];
-                match &self.document {
-                    Some(name) => *pkg
-                        .documents
-                        .get(name)
-                        .ok_or_else(|| anyhow!("no document named `{name}` found in package"))?,
-                    None => match pkg.documents.len() {
-                        1 => *pkg.documents.iter().next().unwrap().1,
-                        _ => bail!(
-                            "more than document found in package, \
-                             specify which to print with `-d name`"
-                        ),
-                    },
-                }
-            }
-            DecodedWasm::Component(resolve, world) => resolve.worlds[*world].document,
-        };
-
-        let output = DocumentPrinter::default().print(decoded.resolve(), doc)?;
+        let output = WitPrinter::default().print(decoded.resolve(), decoded.package())?;
         self.output.output(Output::Wat(&output))?;
         Ok(())
     }
@@ -465,7 +374,7 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
                 e.set_path(path);
                 e
             })?;
-            match wit_component::decode("root-package-name", &bytes)? {
+            match wit_component::decode(&bytes)? {
                 DecodedWasm::Component(..) => {
                     bail!("specified path is a component, not a wit package")
                 }
@@ -477,7 +386,7 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
                 Err(_) => bail!("input file is not valid utf-8"),
             };
             let pkg = UnresolvedPackage::parse(&path, text)?;
-            resolve.push(pkg, &Default::default())?
+            resolve.push(pkg)?
         }
     };
     Ok((resolve, id))
@@ -511,9 +420,9 @@ fn is_wasm(bytes: &[u8]) -> bool {
     false
 }
 
-fn decode_wasm(name: &str, bytes: &[u8]) -> Result<DecodedWasm> {
+fn decode_wasm(bytes: &[u8]) -> Result<DecodedWasm> {
     if wasmparser::Parser::is_component(bytes) {
-        wit_component::decode(name, bytes)
+        wit_component::decode(bytes)
     } else {
         let (_wasm, bindgen) = wit_component::metadata::decode(bytes)?;
         Ok(DecodedWasm::Component(bindgen.resolve, bindgen.world))

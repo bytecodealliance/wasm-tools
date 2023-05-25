@@ -1,5 +1,5 @@
-interface does not exist
-     --> tests/ui/parse-fail/unknown-interface.wit:4:20
+interface `bar` does not exist
+     --> tests/ui/parse-fail/unknown-interface.wit:6:10
       |
-    4 |   import bar: self.bar
-      |                    ^--
+    6 |   import bar
+      |          ^--

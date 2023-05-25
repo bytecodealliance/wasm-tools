@@ -1,4 +1,6 @@
-interface only-into {
+package foo:foo
+
+interface shared-only-into {
   variant v {
     c1,
   }
@@ -11,9 +13,9 @@ interface shared {
 }
 
 world shared-world {
-  import a: self.shared
+  import shared
 
-  export b: self.shared
+  export shared
 
   type c = u32
 

@@ -1,1 +1,2 @@
-default interface i {}
+package foo:different-pkg
+interface i {}

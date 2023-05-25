@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   variant v-no-string {
     s(u32),
@@ -25,5 +27,5 @@ interface foo {
 }
 
 world foo-world {
-  import foo: self.foo
+  import foo
 }

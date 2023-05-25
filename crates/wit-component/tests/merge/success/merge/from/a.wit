@@ -1,5 +1,0 @@
-interface a {
-  use foo.only-from.only-from.{r}
-  foo: func()
-}
-

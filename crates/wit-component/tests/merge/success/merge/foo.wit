@@ -1,0 +1,47 @@
+package foo:foo
+
+interface shared-only-into {
+  variant v {
+    c1,
+  }
+
+  bar: func(x: v)
+}
+
+interface shared {
+  type a = u32
+
+}
+
+interface only-into {
+  record r {
+  }
+
+  foo: func() -> r
+}
+
+interface shared-only-from {
+  use foo:only-from-dep/a.{a}
+
+  variant v {
+    c1,
+  }
+
+  bar: func(x: v)
+}
+
+interface only-from {
+  record r {
+  }
+
+  foo: func() -> r
+}
+
+world shared-world {
+  import shared
+  import d: interface {
+  }
+  type c = u32
+
+  export shared
+}

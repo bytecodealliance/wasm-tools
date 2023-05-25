@@ -1,3 +1,4 @@
-default interface the-iface {
+package foo:a
+interface the-name {
   type ty = u8
 }

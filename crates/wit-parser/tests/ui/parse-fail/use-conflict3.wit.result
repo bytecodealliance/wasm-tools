@@ -1,5 +1,5 @@
 name `x` is defined more than once
-     --> tests/ui/parse-fail/use-conflict3.wit:10:3
+     --> tests/ui/parse-fail/use-conflict3.wit:12:3
       |
-   10 |   x: func()
+   12 |   x: func()
       |   ^

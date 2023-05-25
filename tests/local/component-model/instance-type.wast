@@ -180,7 +180,7 @@
     (type (instance
       (export "a" (func))
       (export "a" (func)))))
-  "export name `a` conflicts with previous export name `a`")
+  "export name `a` conflicts with previous name `a`")
 
 (assert_invalid
   (component

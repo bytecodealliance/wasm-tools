@@ -210,6 +210,6 @@ mod test {
     #[test]
     fn it_encodes_an_empty_component() {
         let bytes = Component::new().finish();
-        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x0c, 0x00, 0x01, 0x00]);
+        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x0d, 0x00, 0x01, 0x00]);
     }
 }

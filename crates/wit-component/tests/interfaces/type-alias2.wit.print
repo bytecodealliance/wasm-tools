@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   flags a {
     b,
@@ -9,5 +11,5 @@ interface foo {
 }
 
 world my-world {
-  export foo: self.foo
+  export foo
 }

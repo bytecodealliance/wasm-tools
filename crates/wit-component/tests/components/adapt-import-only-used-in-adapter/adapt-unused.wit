@@ -2,8 +2,8 @@ interface adapter-imports {
   foo: func(x: string)
 }
 
-default world the-world {
-  import adapter-imports: self.adapter-imports
+world adapt-unused {
+  import adapter-imports
 
   export adapter-bar: func(x: string)
 }

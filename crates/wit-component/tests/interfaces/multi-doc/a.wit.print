@@ -1,8 +1,0 @@
-interface b {
-  use pkg.b.a.{the-type}
-}
-
-interface a {
-  use self.b.{the-type}
-}
-

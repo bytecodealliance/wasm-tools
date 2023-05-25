@@ -1,3 +1,4 @@
+package foo:foo
 interface foo {
-  use bar.baz.{a-name}
+  use foo:bar/baz.{a-name}
 }

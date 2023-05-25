@@ -1,5 +1,5 @@
-interface `bar` does not exist
-     --> tests/ui/parse-fail/unresolved-use1.wit:4:12
+interface `bar` not found in package
+     --> tests/ui/parse-fail/unresolved-use1.wit:6:7
       |
-    4 |   use self.bar.{x}
-      |            ^--
+    6 |   use bar.{x}
+      |       ^--

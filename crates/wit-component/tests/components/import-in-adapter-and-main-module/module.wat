@@ -1,9 +1,9 @@
 (module
-  (import "shared-dependency" "f1" (func))
-  (import "shared-dependency" "f2" (func))
+  (import "foo:shared-dependency/doc" "f1" (func))
+  (import "foo:shared-dependency/doc" "f2" (func))
 
-  (import "shared-dependency" "g1" (func (param i32)))
-  (import "shared-dependency" "g2" (func (param i32)))
+  (import "foo:shared-dependency/doc" "g1" (func (param i32)))
+  (import "foo:shared-dependency/doc" "g2" (func (param i32)))
 
   (import "old" "adapter-f1" (func))
 

@@ -768,9 +768,7 @@ pub struct ComponentExportType<'a> {
     /// Where this export was defined.
     pub span: Span,
     /// The name of this export.
-    pub name: &'a str,
-    /// The optional URL of this export.
-    pub url: Option<&'a str>,
+    pub name: ComponentExternName<'a>,
     /// The signature of the item.
     pub item: ItemSig<'a>,
 }
@@ -781,19 +779,13 @@ impl<'a> Parse<'a> for ComponentExportType<'a> {
         let id = parser.parse()?;
         let debug_name = parser.parse()?;
         let name = parser.parse()?;
-        let url = parser.parse()?;
         let item = parser.parens(|p| {
             let mut item = p.parse::<ItemSigNoName<'_>>()?.0;
             item.id = id;
             item.name = debug_name;
             Ok(item)
         })?;
-        Ok(Self {
-            span,
-            name,
-            url,
-            item,
-        })
+        Ok(Self { span, name, item })
     }
 }
 

@@ -1,7 +1,9 @@
 // parse-fail
 
+package foo:foo
+
 interface foo {
-  use self.bar.{x}
+  use bar.{x}
 }
 
 interface bar {

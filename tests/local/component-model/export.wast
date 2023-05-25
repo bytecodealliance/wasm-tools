@@ -43,25 +43,11 @@
 
 (component
   (import "a" (func))
-  (export "b" "https://example.com" (func 0))
+  (export (interface "wasi:http/types@2.0.0") (func 0))
 )
 
-;; Empty URLs are treated as no URL
+;; import/exports can overlap on ids
 (component
-  (import "a" (func))
-  (export "b" "" (func 0))
+  (import (interface "wasi:http/types@2.0.0") (func))
+  (export (interface "wasi:http/types@2.0.0") (func 0))
 )
-
-(assert_invalid
-  (component
-    (import "a" (func))
-    (export "b" "foo" (func 0))
-  )
-  "relative URL without a base")
-
-(assert_invalid
-  (component
-    (import "a" "https://example.com" (func))
-    (import "b" "https://example.com" (func))
-  )
-  "duplicate import URL `https://example.com/`")

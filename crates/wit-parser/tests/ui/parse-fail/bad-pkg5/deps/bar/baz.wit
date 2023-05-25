@@ -1,2 +1,3 @@
-default interface irrelevant-name {
+package foo:bar
+interface baz {
 }

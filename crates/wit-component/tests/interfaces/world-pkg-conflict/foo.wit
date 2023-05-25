@@ -1,7 +1,9 @@
-world a {
+package foo:foo
+
+world c {
 
 }
 
 interface foo {
-  use pkg.bar.{t}
+  use a.{t}
 }

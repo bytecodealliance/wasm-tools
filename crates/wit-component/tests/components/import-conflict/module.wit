@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   a: func()
 }
@@ -10,8 +12,8 @@ interface baz {
   baz: func(x: list<u8>) -> list<u8>
 }
 
-default world my-world {
-  import bar: self.bar
-  import baz: self.baz
-  import foo: self.foo
+world module {
+  import bar
+  import baz
+  import foo
 }

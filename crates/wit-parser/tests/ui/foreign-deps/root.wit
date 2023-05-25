@@ -1,31 +1,44 @@
+package foo:root
+
 interface foo {
-  use wasi.clocks.{timestamp}
-  use wasi.filesystem.{stat}
+  use foo:wasi/clocks.{timestamp}
+  use foo:wasi/filesystem.{stat}
 }
 
 world my-world {
-  import wasi-fs: wasi.filesystem
-  import wasi-clocks: wasi.clocks
+  import foo:wasi/filesystem
+  import foo:wasi/clocks
 
-  export saas: corp.saas
+  export foo:corp/saas
+}
+
+use foo:wasi/filesystem as filesystem
+use foo:wasi/clocks as clocks
+
+world my-world2 {
+  import filesystem
+  import clocks
+  export foo
+  export foo:corp/saas
 }
 
 interface bar {
-  use some-pkg.some-doc.{from-default}
-  use some-pkg.some-doc.some-interface.{another-type}
-  use some-pkg.some-doc.some-interface.{}
-  use some-pkg.some-doc.another-interface.{yet-another-type}
-  use different-pkg.the-doc.{}
+  use filesystem.{}
+  use foo:some-pkg/the-default.{from-default}
+  use foo:some-pkg/some-interface.{another-type}
+  use foo:some-pkg/some-interface.{}
+  use foo:some-pkg/another-interface.{yet-another-type}
+  use foo:different-pkg/i.{}
 }
 
 world bars-world {
-  import foo: some-pkg.some-doc
-  import bar: another-pkg.other-doc.other-interface
+  import foo:some-pkg/the-default
+  import foo:another-pkg/other-interface
 }
 
 interface use1 {
-  use foreign-pkg.the-doc.{some-type}
+  use foo:foreign-pkg/the-default.{some-type}
 }
 interface use2 {
-  use foreign-pkg.the-doc.{some-type}
+  use foo:foreign-pkg/the-default.{some-type}
 }

@@ -1,4 +1,6 @@
-default world foo {
+package foo:foo
+
+world module {
   import foo: interface {
     log: func(s: string)
   }

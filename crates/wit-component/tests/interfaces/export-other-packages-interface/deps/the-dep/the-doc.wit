@@ -1,4 +1,6 @@
-default interface the-interface {
+package foo:the-dep
+
+interface the-interface {
   type t = u8
 }
 

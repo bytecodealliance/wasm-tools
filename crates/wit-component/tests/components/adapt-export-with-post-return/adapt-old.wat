@@ -13,7 +13,7 @@
   (global $__stack_pointer (mut i32) i32.const 0)
   (global $allocation_state (mut i32) i32.const 0)
 
-  (func (export "new#foo") (result i32)
+  (func (export "foo:foo/new#foo") (result i32)
     ;; This is a dummy, non-working implementation, just to make gc.rs do what
     ;; we want, which is to treat this adapter as if it uses the main module's
     ;; allocator to allocate and free memory.
@@ -24,7 +24,7 @@
     unreachable
   )
 
-  (func (export "cabi_post_new#foo") (param i32)
+  (func (export "cabi_post_foo:foo/new#foo") (param i32)
     ;; another dummy implementation
 
     (call $free (i32.const 0) (i32.const 0) (i32.const 0))

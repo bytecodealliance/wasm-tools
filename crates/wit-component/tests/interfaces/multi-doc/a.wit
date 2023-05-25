@@ -1,7 +1,9 @@
-default interface a {
-  use self.b.{the-type}
+package foo:foo
+
+interface a {
+  use b.{the-type}
 }
 
-interface b {
-  use pkg.b.{the-type}
+interface b2 {
+  use b.{the-type}
 }

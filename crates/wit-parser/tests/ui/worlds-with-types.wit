@@ -1,3 +1,5 @@
+package foo:foo
+
 world foo {
   type a = u32
   type b = a
@@ -11,9 +13,9 @@ interface disambiguate {
 }
 
 world bar {
-  import disambiguate2: self.disambiguate
+  import disambiguate
 
-  use self.disambiguate.{t}
+  use disambiguate.{t}
 
   export foo: func() -> t
 }

@@ -1,3 +1,4 @@
+package foo:foo
 world a {
   type a = u32
   import a: func()

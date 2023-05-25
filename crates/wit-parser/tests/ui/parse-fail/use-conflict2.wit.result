@@ -1,5 +1,5 @@
 name `x` is defined more than once
-     --> tests/ui/parse-fail/use-conflict2.wit:10:8
+     --> tests/ui/parse-fail/use-conflict2.wit:12:8
       |
-   10 |   type x = s64
+   12 |   type x = s64
       |        ^

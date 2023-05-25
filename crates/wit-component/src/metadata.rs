@@ -39,9 +39,9 @@ use indexmap::IndexMap;
 use wasm_encoder::Encode;
 use wasm_metadata::Producers;
 use wasmparser::BinaryReader;
-use wit_parser::{Document, Package, Resolve, World, WorldId, WorldItem};
+use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
 
-const CURRENT_VERSION: u8 = 0x02;
+const CURRENT_VERSION: u8 = 0x03;
 
 /// The result of decoding binding information from a WebAssembly binary.
 ///
@@ -62,29 +62,22 @@ impl Default for Bindgen {
     fn default() -> Bindgen {
         let mut resolve = Resolve::default();
         let package = resolve.packages.alloc(Package {
-            name: "root".to_string(),
-            url: None,
-            documents: Default::default(),
-        });
-        let document = resolve.documents.alloc(Document {
-            name: "root".to_string(),
+            name: PackageName {
+                namespace: "root".to_string(),
+                name: "root".to_string(),
+                version: None,
+            },
             interfaces: Default::default(),
             worlds: Default::default(),
-            default_world: None,
-            default_interface: None,
-            package: Some(package),
         });
         let world = resolve.worlds.alloc(World {
             name: "root".to_string(),
             docs: Default::default(),
             imports: Default::default(),
             exports: Default::default(),
-            document,
+            package: Some(package),
         });
         resolve.packages[package]
-            .documents
-            .insert("root".to_string(), document);
-        resolve.documents[document]
             .worlds
             .insert("root".to_string(), world);
         Bindgen {
@@ -160,8 +153,7 @@ pub fn encode(
     producers: Option<&Producers>,
 ) -> Result<Vec<u8>> {
     let world = &resolve.worlds[world];
-    let doc = &resolve.documents[world.document];
-    let pkg = &resolve.packages[doc.package.unwrap()];
+    let pkg = &resolve.packages[world.package.unwrap()];
 
     assert!(
         resolve
@@ -179,11 +171,9 @@ pub fn encode(
         StringEncoding::UTF16 => 0x01,
         StringEncoding::CompactUTF16 => 0x02,
     });
-    pkg.name.encode(&mut ret);
-    doc.name.encode(&mut ret);
     world.name.encode(&mut ret);
     // This appends a wasm binary encoded Component to the ret:
-    let mut component_builder = crate::encoding::encode_component(resolve, doc.package.unwrap())?;
+    let mut component_builder = crate::encoding::encode_component(resolve, world.package.unwrap())?;
 
     if let Some(p) = producers {
         component_builder.add_producers(p);
@@ -205,16 +195,13 @@ impl Bindgen {
             0x02 => StringEncoding::CompactUTF16,
             byte => bail!("invalid string encoding {byte:#x}"),
         };
-        let pkg_name = reader.read_string()?;
-        let doc_name = reader.read_string()?;
         let world_name = reader.read_string()?;
 
-        let (resolve, pkg) = match crate::decode(pkg_name, &data[reader.original_position()..])? {
+        let (resolve, pkg) = match crate::decode(&data[reader.original_position()..])? {
             DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
             DecodedWasm::Component(..) => bail!("expected an encoded wit package"),
         };
-        let doc = resolve.packages[pkg].documents[doc_name];
-        let world = resolve.documents[doc].worlds[world_name];
+        let world = resolve.packages[pkg].worlds[world_name];
         let metadata = ModuleMetadata::new(&resolve, world, encoding);
         let producers = wasm_metadata::Producers::from_wasm(&data[reader.original_position()..])?;
         Ok(Bindgen {
@@ -234,7 +221,7 @@ impl Bindgen {
     ///
     /// Note that at this time there's no support for changing string encodings
     /// between metadata.
-    pub fn merge(&mut self, other: Bindgen) -> Result<()> {
+    pub fn merge(&mut self, other: Bindgen) -> Result<WorldId> {
         let Bindgen {
             resolve,
             world,
@@ -285,7 +272,7 @@ impl Bindgen {
             }
         }
 
-        Ok(())
+        Ok(world)
     }
 }
 
@@ -297,6 +284,7 @@ impl ModuleMetadata {
 
         let world = &resolve.worlds[world];
         for (name, item) in world.imports.iter() {
+            let name = resolve.name_world_key(name);
             match item {
                 WorldItem::Function(_) => {
                     let prev = ret
@@ -317,15 +305,16 @@ impl ModuleMetadata {
         }
 
         for (name, item) in world.exports.iter() {
+            let name = resolve.name_world_key(name);
             match item {
                 WorldItem::Function(func) => {
                     let name = func.core_export_name(None).into_owned();
-                    let prev = ret.export_encodings.insert(name, encoding);
+                    let prev = ret.export_encodings.insert(name.clone(), encoding);
                     assert!(prev.is_none());
                 }
                 WorldItem::Interface(i) => {
                     for (_, func) in resolve.interfaces[*i].functions.iter() {
-                        let name = func.core_export_name(Some(name)).into_owned();
+                        let name = func.core_export_name(Some(&name)).into_owned();
                         let prev = ret.export_encodings.insert(name, encoding);
                         assert!(prev.is_none());
                     }

@@ -1,3 +1,5 @@
+package foo:types
+
 interface types {
   type t1 = u8
   type t2 = u16

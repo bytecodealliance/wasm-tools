@@ -1,4 +1,6 @@
-use crate::{BinaryReader, ComponentTypeRef, FromReader, Result, SectionLimited};
+use crate::{
+    BinaryReader, ComponentExternName, ComponentTypeRef, FromReader, Result, SectionLimited,
+};
 
 /// Represents the kind of an external items of a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,9 +69,7 @@ impl ComponentExternalKind {
 #[derive(Debug, Clone)]
 pub struct ComponentExport<'a> {
     /// The name of the exported item.
-    pub name: &'a str,
-    /// The optional URL of the exported item.
-    pub url: &'a str,
+    pub name: ComponentExternName<'a>,
     /// The kind of the export.
     pub kind: ComponentExternalKind,
     /// The index of the exported item.
@@ -85,7 +85,6 @@ impl<'a> FromReader<'a> for ComponentExport<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(ComponentExport {
             name: reader.read()?,
-            url: reader.read()?,
             kind: reader.read()?,
             index: reader.read()?,
             ty: match reader.read_u8()? {

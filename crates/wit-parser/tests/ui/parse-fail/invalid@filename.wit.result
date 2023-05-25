@@ -1,4 +1,0 @@
-failed to start resolving path: tests/ui/parse-fail/invalid@filename.wit
-
-Caused by:
-    name of document isn't a valid WIT identifier `invalid@filename`: invalid character in identifier '@'

@@ -1,0 +1,19 @@
+package foo:foo
+
+interface name {
+  record r1 {}
+
+  record r2 {
+    x: r1
+  }
+}
+
+world module {
+  import name
+  export name
+
+  export name: interface {
+    use name.{r2}
+    a: func()
+  }
+}

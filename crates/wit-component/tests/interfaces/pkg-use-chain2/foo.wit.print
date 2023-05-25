@@ -1,4 +1,21 @@
+package foo:foo
+
+interface other {
+  record name {
+  }
+
+}
+
+interface bar {
+  use other.{name as the-name}
+
+  enum name {
+    a,
+  }
+
+}
+
 interface foo {
-  use pkg.bar.d.{the-name}
+  use bar.{the-name}
 }
 

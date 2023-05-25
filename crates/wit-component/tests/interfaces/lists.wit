@@ -1,3 +1,5 @@
+package foo:foo
+
 interface lists {
   record other-record {
     a1: u32,
@@ -90,5 +92,5 @@ interface lists {
 }
 
 world lists-world {
-  import lists: self.lists
+  import lists
 }

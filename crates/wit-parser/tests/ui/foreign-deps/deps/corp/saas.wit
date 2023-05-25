@@ -1,2 +1,4 @@
-default interface saas {
+package foo:corp
+
+interface saas {
 }

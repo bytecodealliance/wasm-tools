@@ -1,5 +1,7 @@
+package foo:into
+
 interface b {
-  use foo.only-into.only-into.{r}
+  use foo:foo/only-into.{r}
 
   foo: func()
 }

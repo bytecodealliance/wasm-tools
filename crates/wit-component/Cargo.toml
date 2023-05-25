@@ -21,7 +21,6 @@ anyhow = { workspace = true }
 log = "0.4.17"
 bitflags = "1.3.2"
 indexmap = { workspace = true }
-url = { workspace = true }
 wat = { workspace = true, optional = true }
 
 [dev-dependencies]

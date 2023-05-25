@@ -1,5 +1,7 @@
-default interface name {
-  use self.a.{a}
+package foo:chain
+
+interface def {
+  use a.{a}
 
   enum name {
     other,

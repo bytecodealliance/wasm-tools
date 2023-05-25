@@ -3,6 +3,8 @@
 containing stuff, and also some code blocks, wit and other.
 
 ```wit
+package foo:foo
+
 interface foo {
 ```
 

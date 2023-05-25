@@ -1,5 +1,8 @@
-dependency on `nonexistent` doesn't exist at: tests/ui/parse-fail/bad-pkg1/deps/nonexistent
-     --> tests/ui/parse-fail/bad-pkg1/root.wit:2:7
-      |
-    2 |   use nonexistent.foo.{}
-      |       ^----------
+failed to parse package: tests/ui/parse-fail/bad-pkg1
+
+Caused by:
+    interface `nonexistent` not found in package
+         --> tests/ui/parse-fail/bad-pkg1/root.wit:4:7
+          |
+        4 |   use nonexistent.{}
+          |       ^----------

@@ -1,3 +1,5 @@
+package foo:records
+
 interface records {
   record scalars {
     a: u32,
@@ -55,6 +57,6 @@ interface records {
 }
 
 world records-world {
-  import records: self.records
-  export records2: self.records
+  import records
+  export records
 }

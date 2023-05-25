@@ -1,3 +1,5 @@
+package foo:foo
+
 interface foo {
   x: func()
   y: func() -> x

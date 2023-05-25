@@ -1,8 +1,0 @@
-interface new {
-  read: func(amt: u32) -> list<u8>
-}
-
-default world component {
-  import new: self.new
-  export entrypoint: func(args: list<string>)
-}

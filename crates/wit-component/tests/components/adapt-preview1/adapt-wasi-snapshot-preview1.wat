@@ -2,7 +2,7 @@
 ;; interface
 
 (module
-  (import "my-wasi" "proc-exit" (func $proc_exit (param i32)))
+  (import "foo:foo/my-wasi" "proc-exit" (func $proc_exit (param i32)))
   (func (export "proc_exit") (param i32)
     local.get 0
     call $proc_exit

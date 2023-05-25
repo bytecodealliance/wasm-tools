@@ -1,3 +1,3 @@
 (module
-  (import "bar" "the-func" (func))
+  (import "foo:foo/foo" "the-func" (func))
 )

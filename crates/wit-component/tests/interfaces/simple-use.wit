@@ -1,3 +1,5 @@
+package foo:foo
+
 interface types {
   enum level {
     info,
@@ -6,6 +8,6 @@ interface types {
 }
 
 interface console {
-  use self.types.{level}
+  use types.{level}
   log: func(level: level, msg: string)
 }

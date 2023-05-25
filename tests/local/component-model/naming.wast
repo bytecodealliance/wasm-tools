@@ -1,10 +1,7 @@
-(assert_invalid
-  (component
-    (func (import "a"))
-    (component)
-    (instance (instantiate 0 (with "NotKebab-Case" (func 0))))
-  )
-  "instantiation argument name `NotKebab-Case` is not in kebab case"
+(component
+  (func (import "a"))
+  (component)
+  (instance (instantiate 0 (with "NotKebab-Case" (func 0))))
 )
 
 (assert_invalid
@@ -12,7 +9,7 @@
     (import "f" (func))
     (instance (export "1" (func 0)))
   )
-  "instance export name `1` is not in kebab case"
+  "`1` is not in kebab case"
 )
 
 (assert_invalid
@@ -20,7 +17,7 @@
     (instance)
     (alias export 0 "Xml" (func))
   )
-  "alias export name `Xml` is not in kebab case"
+  "instance 0 has no export named `Xml`"
 )
 
 (assert_invalid
@@ -63,40 +60,40 @@
   (component
     (type (func (result "uP" string)))
   )
-  "function result name `uP` is not in kebab case"
+  "name `uP` is not in kebab case"
 )
 
 (assert_invalid
   (component
     (type (component (export "NevEr" (func))))
   )
-  "export name `NevEr` is not in kebab case"
+  "`NevEr` is not in kebab case"
 )
 
 (assert_invalid
   (component
     (type (component (import "GonnA" (func))))
   )
-  "import name `GonnA` is not in kebab case"
+  "`GonnA` is not in kebab case"
 )
 
 (assert_invalid
   (component
     (type (instance (export "lET" (func))))
   )
-  "export name `lET` is not in kebab case"
+  "`lET` is not in kebab case"
 )
 
 (assert_invalid
   (component
     (instance (export "YoU"))
   )
-  "export name `YoU` is not in kebab case"
+  "`YoU` is not in kebab case"
 )
 
 (assert_invalid
   (component
     (instance (import "DOWn"))
   )
-  "import name `DOWn` is not in kebab case"
+  "`DOWn` is not in kebab case"
 )

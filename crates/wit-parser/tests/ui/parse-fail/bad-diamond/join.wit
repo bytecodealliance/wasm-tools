@@ -1,4 +1,0 @@
-world foo {
-  import a: pkg.a
-  import b: pkg.b
-}

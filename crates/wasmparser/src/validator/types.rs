@@ -4,7 +4,7 @@ use super::{
     component::{ComponentState, ExternKind},
     core::Module,
 };
-use crate::validator::names::{KebabName, KebabString};
+use crate::validator::names::KebabString;
 use crate::{
     ArrayType, BinaryReaderError, Export, ExternalKind, FuncType, GlobalType, Import, MemoryType,
     PrimitiveValType, RefType, Result, TableType, TypeRef, ValType,
@@ -21,7 +21,6 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
-use url::Url;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -533,13 +532,13 @@ pub struct ComponentType {
     ///
     /// Each import has its own kebab-name and an optional URL listed. Note that
     /// the set of import names is disjoint with the set of export names.
-    pub imports: IndexMap<KebabName, (Option<Url>, ComponentEntityType)>,
+    pub imports: IndexMap<String, ComponentEntityType>,
 
     /// The exports of the component type.
     ///
     /// Each export has its own kebab-name and an optional URL listed. Note that
     /// the set of export names is disjoint with the set of import names.
-    pub exports: IndexMap<KebabName, (Option<Url>, ComponentEntityType)>,
+    pub exports: IndexMap<String, ComponentEntityType>,
 
     /// Universally quantified resources required to be provided when
     /// instantiating this component type.
@@ -588,7 +587,7 @@ pub struct ComponentInstanceType {
     /// The list of exports, keyed by name, that this instance has.
     ///
     /// An optional URL and type of each export is provided as well.
-    pub exports: IndexMap<KebabName, (Option<Url>, ComponentEntityType)>,
+    pub exports: IndexMap<String, ComponentEntityType>,
 
     /// The list of "defined resources" or those which are closed over in
     /// this instance type.
@@ -1245,13 +1244,18 @@ impl<'a> TypesRef<'a> {
     }
 
     /// Gets the component entity type for the given component import.
-    pub fn component_entity_type_of_extern(&self, name: &str) -> Option<ComponentEntityType> {
+    pub fn component_entity_type_of_import(&self, name: &str) -> Option<ComponentEntityType> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => {
-                let key = KebabName::new(name.to_string())?;
-                Some(component.externs.get(&key)?.1)
-            }
+            TypesRefKind::Component(component) => Some(*component.imports.get(name)?),
+        }
+    }
+
+    /// Gets the component entity type for the given component export.
+    pub fn component_entity_type_of_export(&self, name: &str) -> Option<ComponentEntityType> {
+        match &self.kind {
+            TypesRefKind::Module(_) => None,
+            TypesRefKind::Component(component) => Some(*component.exports.get(name)?),
         }
     }
 }
@@ -1513,10 +1517,14 @@ impl Types {
         self.as_ref().entity_type_from_export(export)
     }
 
-    /// Gets the component entity type for the given component import or export
-    /// name.
-    pub fn component_entity_type_of_extern(&self, name: &str) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_of_extern(name)
+    /// Gets the component entity type for the given component import name.
+    pub fn component_entity_type_of_import(&self, name: &str) -> Option<ComponentEntityType> {
+        self.as_ref().component_entity_type_of_import(name)
+    }
+
+    /// Gets the component entity type for the given component export name.
+    pub fn component_entity_type_of_export(&self, name: &str) -> Option<ComponentEntityType> {
+        self.as_ref().component_entity_type_of_export(name)
     }
 
     /// Attempts to lookup the type id that `ty` is an alias of.
@@ -1802,7 +1810,7 @@ impl TypeAlloc {
             // defined resources, so doing this all in one go should be
             // equivalent.
             Type::Component(i) => {
-                for (_, ty) in i.imports.values().chain(i.exports.values()) {
+                for ty in i.imports.values().chain(i.exports.values()) {
                     self.free_variables_component_entity(ty, set);
                 }
                 for (id, _path) in i.imported_resources.iter().chain(&i.defined_resources) {
@@ -1814,7 +1822,7 @@ impl TypeAlloc {
             // types but then remove those defined by this component instance
             // itself.
             Type::ComponentInstance(i) => {
-                for (_, ty) in i.exports.values() {
+                for ty in i.exports.values() {
                     self.free_variables_component_entity(ty, set);
                 }
                 for id in i.defined_resources.iter() {
@@ -2014,7 +2022,7 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
 
             Type::Component(i) => {
                 let mut tmp = i.clone();
-                for (_, ty) in tmp.imports.values_mut().chain(tmp.exports.values_mut()) {
+                for ty in tmp.imports.values_mut().chain(tmp.exports.values_mut()) {
                     if self.remap_component_entity(ty, map) {
                         any_changed = true;
                     }
@@ -2035,7 +2043,7 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
 
             Type::ComponentInstance(i) => {
                 let mut tmp = i.clone();
-                for (_, ty) in tmp.exports.values_mut() {
+                for ty in tmp.exports.values_mut() {
                     if self.remap_component_entity(ty, map) {
                         any_changed = true;
                     }
@@ -2397,9 +2405,9 @@ impl<'a> SubtypeCx<'a> {
                 let b = self.b[*b_id].as_component_instance_type().unwrap();
 
                 let mut exports = Vec::with_capacity(b.exports.len());
-                for (k, (_, b)) in b.exports.iter() {
+                for (k, b) in b.exports.iter() {
                     match a.exports.get(k) {
-                        Some((_, a)) => exports.push((*a, *b)),
+                        Some(a) => exports.push((*a, *b)),
                         None => bail!(offset, "missing expected export `{k}`"),
                     }
                 }
@@ -2483,7 +2491,7 @@ impl<'a> SubtypeCx<'a> {
                     .unwrap()
                     .imports
                     .iter()
-                    .map(|(name, (_url, ty))| (name.clone(), ty.clone()))
+                    .map(|(name, ty)| (name.clone(), ty.clone()))
                     .collect();
                 self.swap();
                 let mut import_mapping =
@@ -2495,7 +2503,7 @@ impl<'a> SubtypeCx<'a> {
                         .unwrap()
                         .exports
                         .iter()
-                        .map(|(name, (_url, ty))| (name.clone(), ty.clone()))
+                        .map(|(name, ty)| (name.clone(), ty.clone()))
                         .collect::<IndexMap<_, _>>();
                     for ty in a_exports.values_mut() {
                         this.a.remap_component_entity(ty, &mut import_mapping);
@@ -2533,7 +2541,7 @@ impl<'a> SubtypeCx<'a> {
     /// `ExternKind::Import` or all defined resources for `ExternKind::Export`).
     pub fn open_instance_type(
         &mut self,
-        a: &IndexMap<KebabName, ComponentEntityType>,
+        a: &IndexMap<String, ComponentEntityType>,
         b: TypeId,
         kind: ExternKind,
         offset: usize,
@@ -2580,7 +2588,8 @@ impl<'a> SubtypeCx<'a> {
         'outer: for (resource, path) in resources.iter() {
             // Lookup the first path item in `imports` and the corresponding
             // entry in `args` by name.
-            let (name, (_url, mut ty)) = entities.get_index(path[0]).unwrap();
+            let (name, ty) = entities.get_index(path[0]).unwrap();
+            let mut ty = *ty;
             let mut arg = a.get(name);
 
             // Lookup all the subsequent `path` entries, if any, by index in
@@ -2591,7 +2600,7 @@ impl<'a> SubtypeCx<'a> {
                     ComponentEntityType::Instance(id) => id,
                     _ => unreachable!(),
                 };
-                let (name, (_url, next_ty)) = self.b[id]
+                let (name, next_ty) = self.b[id]
                     .as_component_instance_type()
                     .unwrap()
                     .exports
@@ -2603,8 +2612,7 @@ impl<'a> SubtypeCx<'a> {
                         .as_component_instance_type()
                         .unwrap()
                         .exports
-                        .get(name)
-                        .map(|(_url, ty)| ty),
+                        .get(name),
                     _ => continue 'outer,
                 };
             }
@@ -2644,7 +2652,7 @@ impl<'a> SubtypeCx<'a> {
         // values from `a` to expected items in `b`. Once the list is created
         // the substitution check is performed on each element.
         let mut to_typecheck = Vec::new();
-        for (name, (_, expected)) in entities.iter() {
+        for (name, expected) in entities.iter() {
             match a.get(name) {
                 Some(arg) => to_typecheck.push((arg.clone(), expected.clone())),
                 None => bail!(offset, "missing {} named `{name}`", kind.desc()),
