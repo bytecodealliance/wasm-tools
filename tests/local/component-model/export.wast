@@ -43,11 +43,11 @@
 
 (component
   (import "a" (func))
-  (export (interface "wasi:http/types@2.0") (func 0))
+  (export (interface "wasi:http/types@2.0.0") (func 0))
 )
 
 ;; import/exports can overlap on ids
 (component
-  (import (interface "wasi:http/types@2.0") (func))
-  (export (interface "wasi:http/types@2.0") (func 0))
+  (import (interface "wasi:http/types@2.0.0") (func))
+  (export (interface "wasi:http/types@2.0.0") (func 0))
 )

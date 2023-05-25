@@ -2,6 +2,7 @@
 //! component model.
 
 use crate::{ComponentExternName, Result};
+use semver::Version;
 use std::borrow::Borrow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -239,7 +240,7 @@ enum ParsedKebabName {
 }
 
 /// Created via [`KebabName::kind`] and classifies a name.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum KebabNameKind<'a> {
     /// `a-b-c`
     Normal(&'a KebabStr),
@@ -263,7 +264,7 @@ pub enum KebabNameKind<'a> {
         namespace: &'a KebabStr,
         package: &'a KebabStr,
         interface: &'a KebabStr,
-        version: Option<&'a str>,
+        version: Option<Version>,
     },
 }
 
@@ -315,14 +316,8 @@ impl KebabName {
                 validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
                 if let Some(at) = at {
                     let version = &s[at + 1..];
-                    let dot = find(version, '.')?;
-                    let major = &version[..dot];
-                    let minor = &version[dot + 1..];
-                    if major.parse::<u32>().is_err() {
-                        bail!(offset, "`{major}` is not a number")
-                    }
-                    if minor.parse::<u32>().is_err() {
-                        bail!(offset, "`{minor}` is not a number")
+                    if let Err(e) = version.parse::<Version>() {
+                        bail!(offset, "failed to parse version: {e}")
                     }
                 }
                 ParsedKebabName::Id {
@@ -366,7 +361,7 @@ impl KebabName {
                 let package = KebabStr::new_unchecked(&self.raw[colon + 1..slash]);
                 let interface =
                     KebabStr::new_unchecked(&self.raw[slash + 1..at.unwrap_or(self.raw.len())]);
-                let version = at.map(|i| &self.raw[i + 1..]);
+                let version = at.map(|i| Version::parse(&self.raw[i + 1..]).unwrap());
                 KebabNameKind::Id {
                     namespace,
                     package,

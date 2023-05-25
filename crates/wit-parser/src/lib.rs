@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
+use semver::Version;
 use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
@@ -106,7 +107,7 @@ pub struct PackageName {
     /// The kebab-name of this package, which is always specified.
     pub name: String,
     /// Optional major/minor version information.
-    pub version: Option<(u32, u32)>,
+    pub version: Option<Version>,
 }
 
 impl PackageName {
@@ -115,8 +116,8 @@ impl PackageName {
     pub fn interface_id(&self, interface: &str) -> String {
         let mut s = String::new();
         s.push_str(&format!("{}:{}/{interface}", self.namespace, self.name));
-        if let Some((major, minor)) = self.version {
-            s.push_str(&format!("@{major}.{minor}"));
+        if let Some(version) = &self.version {
+            s.push_str(&format!("@{version}"));
         }
         s
     }
@@ -125,8 +126,8 @@ impl PackageName {
 impl fmt::Display for PackageName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.namespace, self.name)?;
-        if let Some((major, minor)) = self.version {
-            write!(f, "@{major}.{minor}")?;
+        if let Some(version) = &self.version {
+            write!(f, "@{version}")?;
         }
         Ok(())
     }

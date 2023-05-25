@@ -1,6 +1,7 @@
 use crate::{Error, UnresolvedPackage};
 use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
+use semver::Version;
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
@@ -115,7 +116,7 @@ struct PackageName<'a> {
     span: Span,
     namespace: Id<'a>,
     name: Id<'a>,
-    version: Option<(Span, u32, u32)>,
+    version: Option<(Span, Version)>,
 }
 
 impl<'a> PackageName<'a> {
@@ -127,7 +128,10 @@ impl<'a> PackageName<'a> {
         Ok(PackageName {
             span: Span {
                 start: namespace.span.start,
-                end: version.map(|(s, _, _)| s.end).unwrap_or(name.span.end),
+                end: version
+                    .as_ref()
+                    .map(|(s, _)| s.end)
+                    .unwrap_or(name.span.end),
             },
             namespace,
             name,
@@ -139,7 +143,7 @@ impl<'a> PackageName<'a> {
         crate::PackageName {
             namespace: self.namespace.name.to_string(),
             name: self.name.name.to_string(),
-            version: self.version.map(|(_, a, b)| (a, b)),
+            version: self.version.as_ref().map(|(_, v)| v.clone()),
         }
     }
 }
@@ -742,19 +746,54 @@ fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>> {
     }
 }
 
-fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, u32, u32)>> {
-    Ok(if tokens.eat(Token::At)? {
-        let major = tokens.expect(Token::Integer)?;
-        tokens.expect(Token::Period)?;
-        let minor = tokens.expect(Token::Integer)?;
-        let span = Span {
-            start: major.start,
-            end: minor.end,
-        };
-        Some((span, tokens.parse_u32(major)?, tokens.parse_u32(minor)?))
-    } else {
-        None
-    })
+fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version)>> {
+    if !tokens.eat(Token::At)? {
+        return Ok(None);
+    }
+    let start = tokens.expect(Token::Integer)?.start;
+    tokens.expect(Token::Period)?;
+    tokens.expect(Token::Integer)?;
+    tokens.expect(Token::Period)?;
+    let end = tokens.expect(Token::Integer)?.end;
+    let mut span = Span { start, end };
+    eat_ids(tokens, Token::Minus, &mut span)?;
+    eat_ids(tokens, Token::Plus, &mut span)?;
+    let string = tokens.get_span(span);
+    let version = Version::parse(string).map_err(|e| Error {
+        span,
+        msg: e.to_string(),
+    })?;
+    return Ok(Some((span, version)));
+
+    fn eat_ids(tokens: &mut Tokenizer<'_>, prefix: Token, end: &mut Span) -> Result<()> {
+        if !tokens.eat(prefix)? {
+            return Ok(());
+        }
+        loop {
+            match tokens.next()? {
+                Some((span, Token::Id)) | Some((span, Token::Integer)) => end.end = span.end,
+                other => break Err(err_expected(tokens, "an id or integer", other).into()),
+            }
+
+            // If there's no trailing period, then this semver identifier is
+            // done.
+            let mut clone = tokens.clone();
+            if !clone.eat(Token::Period)? {
+                break Ok(());
+            }
+
+            // If there's more to the identifier, then eat the period for real
+            // and continue
+            if clone.eat(Token::Id)? || clone.eat(Token::Integer)? {
+                tokens.eat(Token::Period)?;
+                continue;
+            }
+
+            // Otherwise for something like `use foo:bar/baz@1.2.3+foo.{` stop
+            // the parsing here.
+            break Ok(());
+        }
+    }
 }
 
 fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {

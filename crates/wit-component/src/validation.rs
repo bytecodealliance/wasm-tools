@@ -455,10 +455,7 @@ fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
             PackageName {
                 namespace: namespace.as_str().to_string(),
                 name: package.as_str().to_string(),
-                version: version.map(|v| {
-                    let dot = v.find('.').unwrap();
-                    (v[..dot].parse().unwrap(), v[dot + 1..].parse().unwrap())
-                }),
+                version,
             },
             interface.as_str(),
         ),

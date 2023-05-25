@@ -20,6 +20,7 @@ pulldown-cmark = { version = "0.8", default-features = false }
 unicode-xid = "0.2.2"
 log = { workspace = true }
 url = { workspace = true }
+semver = { workspace = true }
 
 [dev-dependencies]
 rayon = "1"

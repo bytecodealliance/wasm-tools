@@ -48,6 +48,8 @@ pub enum Token {
     Star,
     At,
     Slash,
+    Plus,
+    Minus,
 
     Use,
     Type,
@@ -146,11 +148,6 @@ impl<'a> Tokenizer<'a> {
         Ok(id_part)
     }
 
-    pub fn parse_u32(&self, span: Span) -> Result<u32> {
-        let ret = self.get_span(span);
-        Ok(ret.parse()?)
-    }
-
     pub fn next(&mut self) -> Result<Option<(Span, Token)>, Error> {
         loop {
             match self.next_raw()? {
@@ -217,9 +214,10 @@ impl<'a> Tokenizer<'a> {
                 if self.eatc('>') {
                     RArrow
                 } else {
-                    return Err(Error::Unexpected(start, '-'));
+                    Minus
                 }
             }
+            '+' => Plus,
             '%' => {
                 let mut iter = self.chars.clone();
                 if let Some((_, ch)) = iter.next() {
@@ -523,6 +521,8 @@ impl Token {
             Star => "`*`",
             At => "`@`",
             Slash => "`/`",
+            Plus => "`+`",
+            Minus => "`-`",
             As => "keyword `as`",
             From_ => "keyword `from`",
             Static => "keyword `static`",

@@ -270,10 +270,7 @@ impl WitPackageDecoder<'_> {
                 } if interface.as_str() == "wit" => PackageName {
                     namespace: namespace.to_string(),
                     name: package.to_string(),
-                    version: version.map(|v| {
-                        let dot = v.find('.').unwrap();
-                        (v[..dot].parse().unwrap(), v[dot + 1..].parse().unwrap())
-                    }),
+                    version,
                 },
                 _ => bail!("package name is not a valid id: {name}"),
             },
@@ -563,10 +560,7 @@ impl WitPackageDecoder<'_> {
         let package_name = PackageName {
             name: name.to_string(),
             namespace: namespace.to_string(),
-            version: version.map(|v| {
-                let dot = v.find('.').unwrap();
-                (v[..dot].parse().unwrap(), v[dot + 1..].parse().unwrap())
-            }),
+            version,
         };
         // Lazily create a `Package` as necessary, along with the interface.
         let package = self

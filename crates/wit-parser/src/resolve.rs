@@ -495,8 +495,8 @@ impl Resolve {
         base.push_str(&package.name.name);
         base.push_str("/");
         base.push_str(interface.name.as_ref()?);
-        if let Some((major, minor)) = package.name.version {
-            base.push_str(&format!("@{major}.{minor}"));
+        if let Some(version) = &package.name.version {
+            base.push_str(&format!("@{version}"));
         }
         Some(base)
     }

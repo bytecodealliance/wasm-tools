@@ -16,8 +16,8 @@ impl WitPrinter {
         self.print_name(&pkg.name.namespace);
         self.output.push_str(":");
         self.print_name(&pkg.name.name);
-        if let Some((major, minor)) = &pkg.name.version {
-            self.output.push_str(&format!("@{major}.{minor}"));
+        if let Some(version) = &pkg.name.version {
+            self.output.push_str(&format!("@{version}"));
         }
         self.output.push_str("\n\n");
         for (name, id) in pkg.interfaces.iter() {
@@ -260,8 +260,8 @@ impl WitPrinter {
             self.print_name(&pkg.name);
             self.output.push_str("/");
             self.print_name(iface.name.as_ref().unwrap());
-            if let Some((major, minor)) = pkg.version {
-                self.output.push_str(&format!("@{major}.{minor}"));
+            if let Some(version) = &pkg.version {
+                self.output.push_str(&format!("@{version}"));
             }
         }
         Ok(())
