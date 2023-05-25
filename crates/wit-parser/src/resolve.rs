@@ -7,7 +7,7 @@ use crate::{
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
 use std::path::{Path, PathBuf};
 
@@ -83,7 +83,9 @@ impl Resolve {
         // this `Resolve`.
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
-        visit(&pkg, &deps, &mut order, &mut visiting)?;
+        for pkg in deps.values().chain([&pkg]) {
+            visit(&pkg, &deps, &mut order, &mut visiting)?;
+        }
 
         // Using the topological ordering insert each package incrementally.
         // Additionally note that the last item visited here is the root
@@ -100,8 +102,8 @@ impl Resolve {
 
         return Ok((last.unwrap(), files));
 
-        fn parse_deps_dir(path: &Path) -> Result<HashMap<PackageName, UnresolvedPackage>> {
-            let mut ret = HashMap::new();
+        fn parse_deps_dir(path: &Path) -> Result<BTreeMap<PackageName, UnresolvedPackage>> {
+            let mut ret = BTreeMap::new();
             // If there's no `deps` dir, then there's no deps, so return the
             // empty set.
             if !path.exists() {
@@ -122,7 +124,7 @@ impl Resolve {
 
         fn visit<'a>(
             pkg: &'a UnresolvedPackage,
-            deps: &'a HashMap<PackageName, UnresolvedPackage>,
+            deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
             order: &mut IndexSet<PackageName>,
             visiting: &mut HashSet<&'a PackageName>,
         ) -> Result<()> {
