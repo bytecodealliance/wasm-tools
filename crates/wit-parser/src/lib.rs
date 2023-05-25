@@ -7,8 +7,8 @@ use std::path::Path;
 
 pub mod abi;
 mod ast;
+use ast::lex::Span;
 pub use ast::SourceMap;
-use ast::{lex::Span, UseName};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -108,9 +108,7 @@ pub struct UnresolvedPackage {
     interface_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     source_map: SourceMap,
-    // unknown_worlds: Vec<WorldId>,
-    // unknown_worlds_names: IndexMap<WorldId, Vec<UseName<'a>>>,
-    // unknown_worlds_spans: Vec<Span>,
+    unknown_world_spans: Vec<Span>,
 }
 
 #[derive(Debug)]
@@ -274,7 +272,7 @@ pub struct IncludeName {
     pub as_: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.

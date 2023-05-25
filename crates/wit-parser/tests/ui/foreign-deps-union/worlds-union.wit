@@ -5,6 +5,7 @@ interface irre {
 
 world another-world {
      import name: self.irre
+     export empty: another-pkg.other-doc.other-interface
 }
 
 default world union-my-world {

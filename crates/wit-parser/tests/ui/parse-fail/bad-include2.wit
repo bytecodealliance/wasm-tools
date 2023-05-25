@@ -1,0 +1,9 @@
+// parse-fail
+
+world bar {
+    include self.foo
+}
+
+default world foo {
+  include self.bar
+}

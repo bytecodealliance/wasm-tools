@@ -1,0 +1,5 @@
+include of world `my-world-b` has imports `a2`, which shadows the previous imports
+     --> tests/ui/parse-fail/worlds-union-dedup-same-path.wit:13:18
+      |
+   13 |     include self.my-world-a
+      |                  ^---------

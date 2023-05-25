@@ -1,0 +1,4 @@
+
+world qux {
+    import a: pkg.a.a
+}

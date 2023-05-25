@@ -1,0 +1,4 @@
+
+world bad { 
+    import bad: bar.a.a
+}

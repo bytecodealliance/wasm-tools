@@ -1,0 +1,21 @@
+interface a1 { }
+interface a2 { }
+interface b1 { }
+interface b2 { }
+interface c { }
+interface d { }
+
+world my-world-a {
+    import a1: self.a1
+    import b1: self.b1
+}
+
+world my-world-b {
+    import a2: self.a1
+    import b2: self.b1
+}
+
+world union-my-world {
+    include self.my-world-a with { a1 as a2, b1 as b2 }
+    include self.my-world-b
+}

@@ -1,0 +1,5 @@
+interface or world `foo` depends on itself
+     --> tests/ui/parse-fail/bad-include2.wit:4:18
+      |
+    4 |     include self.foo
+      |                  ^--

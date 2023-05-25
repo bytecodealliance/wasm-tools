@@ -8,7 +8,6 @@ use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
-use std::iter::Enumerate;
 use std::mem;
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -90,8 +89,6 @@ impl Resolve {
             let mut pkg = UnresolvedPackage::parse_dir(&pkg_root)
                 .with_context(|| format!("failed to parse package: {}", path.display()))?;
             pkg.url = url;
-
-            log::info!("---- Resolving foreign deps for package: {}", pkg.name);
 
             let mut deps = Vec::new();
             // load all dependencies of this package
@@ -661,6 +658,7 @@ impl Remap {
         // transitive relation between interfaces, through types, is understood
         // here.
         assert_eq!(unresolved.worlds.len(), unresolved.world_item_spans.len());
+        let unresolved_world_spans = unresolved.unknown_world_spans;
         for ((id, mut world), (import_spans, export_spans)) in unresolved
             .worlds
             .into_iter()
@@ -674,7 +672,8 @@ impl Remap {
             let include_names = mem::take(&mut world.include_names);
             for (index, include_world) in includes.into_iter().enumerate() {
                 let names = &include_names[index];
-                self.resolve_include(&mut world, include_world, names, resolve)?;
+                let span = unresolved_world_spans[include_world.index()];
+                self.resolve_include(&mut world, include_world, names, span, resolve)?;
             }
 
             let new_id = resolve.worlds.alloc(world);
@@ -724,21 +723,15 @@ impl Remap {
         Ok(pkgid)
     }
 
-    // TODO: drawing connection between dummy interfaces and actual interfaces
-    // update this to also connect the Worlds
-    // Add a case for world
     fn process_foreign_deps(
         &mut self,
         resolve: &mut Resolve,
         unresolved: &UnresolvedPackage,
         deps: &HashMap<String, PackageId>,
     ) -> Result<()> {
-        log::trace!("processing foreign deps. Deps are: {:?}", deps);
-
         self.resolve_foreign_docs(unresolved, deps, resolve)?;
         self.resolve_foreign_worlds(unresolved, resolve)?;
         self.resolve_foreign_ifaces(unresolved, resolve)?;
-
         Ok(())
     }
 
@@ -1138,35 +1131,67 @@ impl Remap {
         world: &mut World,
         include_world: WorldId,
         names: &[IncludeName],
+        span: Span,
         resolve: &Resolve,
     ) -> Result<()> {
         let include_world_id = self.worlds[include_world.index()];
         let include_world = &resolve.worlds[include_world_id];
+
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
-            if let Some(name) = names.iter().find(|n| n.name == import.0.clone()) {
+            let name = if let Some(name) = names.iter().find(|n| n.name == import.0.clone()) {
                 if let Some(rename) = &name.as_ {
-                    let prev = world.imports.insert(rename.clone(), import.1.clone());
+                    rename.clone()
+                } else {
+                    name.name.clone()
                 }
             } else {
-                let prev = world.imports.insert(import.0.clone(), import.1.clone());
+                import.0.clone()
+            };
+            // check if world.imports already has the same world item
+            let item = world.imports.iter().find(|i| i.1 == import.1);
+            if item.is_some() && item.unwrap().0 != &name {
+                bail!(Error {
+                    msg: format!("include of world `{}` has imports `{}`, which shadows the previous imports", include_world.name, name),
+                    span: span
+                })
+            }
+
+            let prev = world.imports.insert(name.clone(), import.1.clone());
+            if prev.is_some() && &prev.unwrap() != import.1 {
+                bail!(Error {
+                    msg: format!("include of world `{}` has imports `{}`, which shadows the previous imports", include_world.name, name),
+                    span: span
+                })
             }
         }
 
         for export in include_world.exports.iter() {
-            if let Some(name) = names.iter().find(|n| n.name == export.0.clone()) {
+            let name = if let Some(name) = names.iter().find(|n| n.name == export.0.clone()) {
                 if let Some(rename) = &name.as_ {
-                    let prev: Option<WorldItem> =
-                        world.exports.insert(rename.clone(), export.1.clone());
+                    rename.clone()
+                } else {
+                    name.name.clone()
                 }
             } else {
-                let prev = world.exports.insert(export.0.clone(), export.1.clone());
+                export.0.clone()
+            };
+            // check if world.exports already has the same world item
+            let item = world.exports.iter().find(|i| i.1 == export.1);
+            if item.is_some() && item.unwrap().0 != &name {
+                bail!(Error {
+                    msg: format!("include of world `{}` has exports `{}`, which shadows the previous exports", include_world.name, name),
+                    span: span
+                })
+            }
+            let prev: Option<WorldItem> = world.exports.insert(name.clone(), export.1.clone());
+            if prev.is_some() && &prev.unwrap() != export.1 {
+                bail!(Error {
+                    msg: format!("include of world `{}` has exports `{}`, which shadows the previous exports", include_world.name, name),
+                    span: span
+                })
             }
         }
-
-        // TODO: deduplicate the imports and exports
-
-        // TODO: rename
         Ok(())
     }
 }

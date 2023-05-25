@@ -1,0 +1,4 @@
+world foo {
+  include bar.baz.qux
+  include pkg.bad.bad
+}

@@ -82,9 +82,6 @@ impl<'a> Resolver<'a> {
     pub(crate) fn resolve(&mut self, name: &str, url: Option<&str>) -> Result<UnresolvedPackage> {
         self.populate_foreign_deps();
 
-        log::trace!("unknown worlds are: {:?}", self.unknown_worlds);
-        log::trace!("unknown world names are: {:?}", self.unknown_worlds_names);
-
         // Determine the dependencies between documents in the current package
         // we're parsing to perform a topological sort and how to visit the
         // documents in order. Notice that this only traverses documents in the same
@@ -146,9 +143,7 @@ impl<'a> Resolver<'a> {
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
             world_spans: mem::take(&mut self.world_spans),
-            // unknown_worlds: mem::take(&mut self.unknown_worlds),
-            // unknown_worlds_names: mem::take(&mut self.unknown_worlds_names),
-            // unknown_worlds_spans: mem::take(&mut self.unknown_world_spans),
+            unknown_world_spans: mem::take(&mut self.unknown_world_spans),
         })
     }
 
@@ -162,8 +157,6 @@ impl<'a> Resolver<'a> {
     fn populate_foreign_deps(&mut self) {
         for (_, ast) in self.asts.iter() {
             ast.for_each_path(|_, path, names, astitem| {
-                // TODO: caller needs to tell this function whether its a iface or world
-                // do something with the world -> creating a dummy world and put it in World::includes
                 let (dep, doc, iface_or_world) = match path {
                     ast::UsePath::Dependency { dep, doc, iface } => (dep, doc, iface),
                     _ => return Ok(()),
@@ -175,7 +168,6 @@ impl<'a> Resolver<'a> {
                 });
                 let doc_span = doc.span;
                 let doc = *deps.entry(doc.name).or_insert_with(|| {
-                    log::trace!("creating a document for foreign dep: {}", dep.name);
                     self.document_interfaces.push(IndexMap::new());
                     self.document_spans.push(doc_span);
                     self.documents.alloc(Document {
@@ -197,10 +189,6 @@ impl<'a> Resolver<'a> {
                                     let item = self.document_interfaces[doc.index()]
                                         .entry(id.name)
                                         .or_insert_with(|| {
-                                            log::trace!(
-                                                "creating an interface for foreign dep: {}",
-                                                id.name,
-                                            );
                                             self.interface_types.push(IndexMap::new());
                                             self.interface_spans.push(id.span);
                                             let id = self.interfaces.alloc(Interface {
@@ -219,7 +207,6 @@ impl<'a> Resolver<'a> {
                                 }
                                 None => *self.documents[doc].default_interface.get_or_insert_with(
                                     || {
-                                        log::trace!("creating a default interface for foreign dep");
                                         self.interface_types.push(IndexMap::new());
                                         self.interface_spans.push(doc_span);
                                         self.interfaces.alloc(Interface {
@@ -266,10 +253,6 @@ impl<'a> Resolver<'a> {
                                 let item = self.document_interfaces[doc.index()]
                                     .entry(id.name)
                                     .or_insert_with(|| {
-                                        log::trace!(
-                                            "creating a world for foreign dep: {}",
-                                            id.name,
-                                        );
                                         self.world_spans.push(id.span);
                                         self.world_item_spans.push((vec![], vec![])); // put a dummy span and it will never be used.
                                         let id = self.worlds.alloc(World {
@@ -291,7 +274,6 @@ impl<'a> Resolver<'a> {
                             }
                             None => {
                                 *self.documents[doc].default_world.get_or_insert_with(|| {
-                                    log::trace!("creating a default world for foreign dep");
                                     self.world_spans.push(doc_span);
                                     self.world_item_spans.push((vec![], vec![])); // put a dummy span and it will never be used.
                                     let empty_world = World {
@@ -490,7 +472,7 @@ impl<'a> Resolver<'a> {
             world.items.iter().filter_map(|i| match i {
                 ast::WorldItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::WorldItem::Type(t) => Some(TypeItem::Def(t)),
-                ast::WorldItem::Include(_) => None, // TODO: go back to here!
+                ast::WorldItem::Include(_) => None,
                 ast::WorldItem::Import(_) | ast::WorldItem::Export(_) => None,
             }),
         )?;
@@ -501,8 +483,7 @@ impl<'a> Resolver<'a> {
             _ => None,
         });
         for include in items {
-            let path = self.resolve_include(TypeOwner::World(world_id), include)?;
-            // TODO: come back
+            self.resolve_include(TypeOwner::World(world_id), include)?;
         }
 
         let mut export_spans = Vec::new();
@@ -788,11 +769,12 @@ impl<'a> Resolver<'a> {
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
     fn resolve_include(&mut self, owner: TypeOwner, i: &ast::Include<'a>) -> Result<()> {
-        let include_from = self.resolve_world_path(&i.from)?;
+        let (include_from, span) = self.resolve_world_path(&i.from)?;
         let world_id = match owner {
             TypeOwner::World(id) => id,
             _ => unreachable!(),
         };
+        self.unknown_world_spans.push(span);
         self.worlds[world_id].includes.push(include_from);
         self.worlds[world_id].include_names.push(
             i.names
@@ -888,7 +870,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_world_path(&self, path: &ast::UsePath<'a>) -> Result<WorldId> {
+    fn resolve_world_path(&self, path: &ast::UsePath<'a>) -> Result<(WorldId, Span)> {
         match path {
             ast::UsePath::Self_(iface) => {
                 match self.document_interfaces.last().unwrap().get(iface.name) {
@@ -899,7 +881,7 @@ impl<'a> Resolver<'a> {
                             iface.name
                         ),
                     }),
-                    Some(DocumentItem::World(id)) => Ok(*id),
+                    Some(DocumentItem::World(id)) => Ok((*id, iface.span)),
                     None => bail!(Error {
                         span: iface.span,
                         msg: format!("world does not exist"),
@@ -918,20 +900,23 @@ impl<'a> Resolver<'a> {
                                 span: id.span,
                                 msg: format!("cannot import from interface `{}`", id.name),
                             }),
-                            Some(DocumentItem::World(id)) => Ok(*id),
+                            Some(DocumentItem::World(world_id)) => Ok((*world_id, doc.span)),
                             None => bail!(Error {
                                 span: id.span,
                                 msg: format!("world does not exist"),
                             }),
                         }
                     }
-                    None => self.documents[doc_id].default_world.ok_or_else(|| {
-                        Error {
-                            span: doc.span,
-                            msg: format!("document does not specify a default world"),
-                        }
-                        .into()
-                    }),
+                    None => self.documents[doc_id]
+                        .default_world
+                        .ok_or_else(|| {
+                            Error {
+                                span: doc.span,
+                                msg: format!("document does not specify a default world"),
+                            }
+                            .into()
+                        })
+                        .map(|id| (id, doc.span)),
                 }
             }
             ast::UsePath::Dependency { dep, doc, iface } => {
@@ -939,9 +924,9 @@ impl<'a> Resolver<'a> {
                 match iface {
                     Some(name) => match self.document_interfaces[doc.index()][name.name] {
                         DocumentItem::Interface(_) => unreachable!(),
-                        DocumentItem::World(id) => Ok(id),
+                        DocumentItem::World(id) => Ok((id, dep.span)),
                     },
-                    None => Ok(self.documents[doc].default_world.unwrap()),
+                    None => Ok((self.documents[doc].default_world.unwrap(), dep.span)),
                 }
             }
         }

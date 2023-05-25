@@ -1,0 +1,5 @@
+include of world `bad` has imports `bad`, which shadows the previous imports
+     --> tests/ui/parse-fail/bad-pkg7/root.wit:3:15
+      |
+    3 |   include pkg.bad.bad
+      |               ^--

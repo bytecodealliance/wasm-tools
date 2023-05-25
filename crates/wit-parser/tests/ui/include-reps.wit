@@ -1,0 +1,13 @@
+interface a {}
+interface b {}
+
+world bar {
+    import a: self.a
+    export b: self.b
+}
+
+default world foo {
+  include self.bar
+  include self.bar
+  include self.bar
+}
