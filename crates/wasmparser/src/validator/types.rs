@@ -287,7 +287,7 @@ impl Type {
     }
 
     pub(crate) fn type_size(&self) -> u32 {
-        // TODO calculate actual size for func, array, struct (#1036)
+        // TODO(#1036): calculate actual size for func, array, struct
         match self {
             Self::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
             Self::Array(_) => 2, // 2 is a guess.

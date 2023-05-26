@@ -137,8 +137,8 @@ pub fn type_def(t: &mut dyn Translator, ty: Type, s: &mut TypeSection) -> Result
             );
             Ok(())
         }
-        Type::Array(_) => unimplemented!("Array types are not supported yet."),
-        Type::Struct(_) => unimplemented!("Struct types are not supported yet."),
+        Type::Array(_) => Err(Error::unsupported("Array types are not supported yet.")),
+        Type::Struct(_) => Err(Error::unsupported("Struct types are not supported yet.")),
     }
 }
 
