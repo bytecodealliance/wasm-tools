@@ -760,10 +760,10 @@ impl WitPrinter {
 fn is_keyword(name: &str) -> bool {
     match name {
         "use" | "type" | "func" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64"
-        | "float32" | "float64" | "char" | "record" | "flags" | "variant" | "enum" | "union"
-        | "bool" | "string" | "option" | "result" | "future" | "stream" | "list" | "_" | "as"
-        | "from" | "static" | "interface" | "tuple" | "implements" | "world" | "import"
-        | "export" | "shared" | "default" | "pkg" | "self" | "package" => true,
+        | "float32" | "float64" | "char" | "resource" | "record" | "flags" | "variant" | "enum"
+        | "union" | "bool" | "string" | "option" | "result" | "future" | "stream" | "list"
+        | "_" | "as" | "from" | "static" | "interface" | "tuple" | "implements" | "world"
+        | "import" | "export" | "shared" | "default" | "pkg" | "self" | "package" => true,
         _ => false,
     }
 }
