@@ -66,6 +66,8 @@ pub enum Token {
     Float64,
     Char,
     Record,
+    Resource,
+    Shared,
     Flags,
     Variant,
     Enum,
@@ -259,6 +261,8 @@ impl<'a> Tokenizer<'a> {
                     "float32" => Float32,
                     "float64" => Float64,
                     "char" => Char,
+                    "resource" => Resource,
+                    "shared" => Shared,
                     "record" => Record,
                     "flags" => Flags,
                     "variant" => Variant,
@@ -502,6 +506,8 @@ impl Token {
             Float32 => "keyword `float32`",
             Float64 => "keyword `float64`",
             Char => "keyword `char`",
+            Shared => "keyword `shared`",
+            Resource => "keyword `resource`",
             Record => "keyword `record`",
             Flags => "keyword `flags`",
             Variant => "keyword `variant`",
@@ -663,6 +669,19 @@ fn test_tokenizer() {
             Token::Func,
             Token::LeftParen,
             Token::RightParen
+        ]
+    );
+
+    assert_eq!(collect("resource").unwrap(), vec![Token::Resource]);
+
+    assert_eq!(collect("shared").unwrap(), vec![Token::Shared]);
+    assert_eq!(
+        collect("shared<some-id>").unwrap(),
+        vec![
+            Token::Shared,
+            Token::LessThan,
+            Token::Id,
+            Token::GreaterThan
         ]
     );
 
