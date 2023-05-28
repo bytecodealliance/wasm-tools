@@ -84,7 +84,6 @@ enum Key {
     Variant(Vec<(String, Option<Type>)>),
     Handle(Handle),
     Record(Vec<(String, Type)>),
-    Resource(Vec<(String, Type)>),
     Flags(Vec<String>),
     Tuple(Vec<Type>),
     Enum(Vec<String>),

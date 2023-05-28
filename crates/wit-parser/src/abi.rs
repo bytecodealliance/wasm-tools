@@ -1643,7 +1643,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     });
                     self.write_fields_to_memory(record.fields.iter().map(|f| &f.ty), addr, offset);
                 }
-                TypeDefKind::Resource(resource) => {
+                TypeDefKind::Resource(_) => {
                     todo!()
                 }
                 TypeDefKind::Tuple(tuple) => {
