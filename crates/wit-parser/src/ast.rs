@@ -36,7 +36,12 @@ impl<'a> Ast<'a> {
 
     fn for_each_path<'b>(
         &'b self,
-        mut f: impl FnMut(Option<&'b Id<'a>>, &'b UsePath<'a>, Option<&'b [UseName<'a>]>) -> Result<()>,
+        mut f: impl FnMut(
+            Option<&'b Id<'a>>,
+            &'b UsePath<'a>,
+            Option<&'b [UseName<'a>]>,
+            WorldOrInterface,
+        ) -> Result<()>,
     ) -> Result<()> {
         for item in self.items.iter() {
             match item {
@@ -49,11 +54,15 @@ impl<'a> Ast<'a> {
                     let mut exports = Vec::new();
                     for item in world.items.iter() {
                         match item {
-                            WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                            WorldItem::Use(u) => {
+                                f(None, &u.from, Some(&u.names), WorldOrInterface::Interface)?
+                            }
+                            WorldItem::Include(i) => {
+                                f(Some(&world.name), &i.from, None, WorldOrInterface::World)?
+                            }
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
-                            WorldItem::Include(i) => f(Some(&world.name), &i.from, None)?,
                         }
                     }
 
@@ -61,13 +70,18 @@ impl<'a> Ast<'a> {
                         ExternKind::Interface(_, items) => {
                             for item in items {
                                 match item {
-                                    InterfaceItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                                    InterfaceItem::Use(u) => f(
+                                        None,
+                                        &u.from,
+                                        Some(&u.names),
+                                        WorldOrInterface::Interface,
+                                    )?,
                                     _ => {}
                                 }
                             }
                             Ok(())
                         }
-                        ExternKind::Path(path) => f(None, path, None),
+                        ExternKind::Path(path) => f(None, path, None, WorldOrInterface::Interface),
                         ExternKind::Func(..) => Ok(()),
                     };
 
@@ -81,13 +95,18 @@ impl<'a> Ast<'a> {
                 AstItem::Interface(i) => {
                     for item in i.items.iter() {
                         match item {
-                            InterfaceItem::Use(u) => f(Some(&i.name), &u.from, Some(&u.names))?,
+                            InterfaceItem::Use(u) => f(
+                                Some(&i.name),
+                                &u.from,
+                                Some(&u.names),
+                                WorldOrInterface::Interface,
+                            )?,
                             _ => {}
                         }
                     }
                 }
                 AstItem::Use(u) => {
-                    f(None, &u.item, None)?;
+                    f(None, &u.item, None, WorldOrInterface::Interface)?;
                 }
             }
         }
@@ -107,7 +126,7 @@ impl<'a> AstItem<'a> {
             Some((_span, Token::Interface)) => Interface::parse(tokens, docs).map(Self::Interface),
             Some((_span, Token::World)) => World::parse(tokens, docs).map(Self::World),
             Some((_span, Token::Use)) => ToplevelUse::parse(tokens).map(Self::Use),
-            other => Err(err_expected(tokens, "`world`, `interface`or `use`", other).into()),
+            other => Err(err_expected(tokens, "`world`, `interface` or `use`", other).into()),
         }
     }
 }
@@ -330,6 +349,12 @@ impl<'a> Interface<'a> {
         }
         Ok(items)
     }
+}
+
+#[derive(Debug)]
+pub enum WorldOrInterface {
+    World,
+    Interface,
 }
 
 enum InterfaceItem<'a> {

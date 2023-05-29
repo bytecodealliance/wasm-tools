@@ -132,7 +132,7 @@ impl Resolve {
                 return Ok(());
             }
             pkg.source_map.rewrite_error(|| {
-                for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
+                for (i, (dep, _)) in pkg.foreign_iface_deps.iter().enumerate() {
                     let span = pkg.foreign_dep_spans[i];
                     if !visiting.insert(dep) {
                         bail!(Error {
@@ -625,14 +625,23 @@ impl Remap {
         // This is done after types/interfaces are fully settled so the
         // transitive relation between interfaces, through types, is understood
         // here.
-        assert_eq!(unresolved.worlds.len(), unresolved.world_spans.len());
+        assert_eq!(unresolved.worlds.len(), unresolved.world_item_spans.len());
+        let unresolved_world_spans = unresolved.foreign_world_spans;
         for ((id, mut world), (import_spans, export_spans)) in unresolved
             .worlds
             .into_iter()
+            .zip(unresolved.world_item_spans)
             .skip(foreign_worlds)
-            .zip(unresolved.world_spans)
         {
             self.update_world(&mut world, resolve, &import_spans, &export_spans)?;
+
+            // Resolve all includes of the world
+            let includes = mem::take(&mut world.includes);
+            for include_world in includes.into_iter() {
+                let span = unresolved_world_spans[include_world.index()];
+                self.resolve_include(&mut world, include_world, span, resolve)?;
+            }
+
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(new_id);
@@ -678,10 +687,47 @@ impl Remap {
         resolve: &mut Resolve,
         unresolved: &UnresolvedPackage,
     ) -> Result<()> {
+        // Invert the `foreign_deps` map to be keyed by world id to get
+        // used in the loops below.
+        let mut world_to_package = HashMap::new();
+        for (i, (pkg_name, worlds)) in unresolved.foreign_world_deps.iter().enumerate() {
+            for (world, unresolved_world_id) in worlds {
+                let prev = world_to_package.insert(
+                    *unresolved_world_id,
+                    (pkg_name, world, unresolved.foreign_dep_spans[i]),
+                );
+                assert!(prev.is_none());
+            }
+        }
+
+        for (unresolved_world_id, _) in unresolved.worlds.iter() {
+            let (pkg_name, world, span) = match world_to_package.get(&unresolved_world_id) {
+                Some(items) => *items,
+                None => break,
+            };
+
+            let pkgid = resolve
+                .package_names
+                .get(pkg_name)
+                .copied()
+                .ok_or_else(|| Error {
+                    span,
+                    msg: format!("package not found"),
+                })?;
+            let pkg = &resolve.packages[pkgid];
+            let span = unresolved.world_spans[unresolved_world_id.index()];
+            let world_id = pkg.worlds.get(world).copied().ok_or_else(|| Error {
+                span,
+                msg: format!("world not found in package"),
+            })?;
+            assert_eq!(self.worlds.len(), unresolved_world_id.index());
+            self.worlds.push(world_id);
+        }
+
         // Invert the `foreign_deps` map to be keyed by interface id to get
         // used in the loops below.
         let mut interface_to_package = HashMap::new();
-        for (i, (pkg_name, interfaces)) in unresolved.foreign_deps.iter().enumerate() {
+        for (i, (pkg_name, interfaces)) in unresolved.foreign_iface_deps.iter().enumerate() {
             for (interface, unresolved_interface_id) in interfaces {
                 let prev = interface_to_package.insert(
                     *unresolved_interface_id,
@@ -1024,6 +1070,59 @@ impl Remap {
                 self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
             }
         });
+    }
+
+    fn resolve_include(
+        &self,
+        world: &mut World,
+        include_world: WorldId,
+        span: Span,
+        resolve: &Resolve,
+    ) -> Result<()> {
+        let include_world_id = self.worlds[include_world.index()];
+        let include_world = &resolve.worlds[include_world_id];
+
+        // copy the imports and exports from the included world into the current world
+        for import in include_world.imports.iter() {
+            let name = import.0.clone();
+
+            // check if world.imports already has the same world item
+            // let item = world.imports.iter().find(|i| i.1 == import.1);
+            // if item.is_some() && item.unwrap().0 != &name {
+            //     bail!(Error {
+            //         msg: format!("include of world `{}` has imports `{}`, which shadows the previous imports", include_world.name, name),
+            //         span: span
+            //     })
+            // }
+
+            let prev = world.imports.insert(name.clone(), import.1.clone());
+            // if prev.is_some() && &prev.unwrap() != import.1 {
+            //     bail!(Error {
+            //         msg: format!("include of world `{}` has imports `{}`, which shadows the previous imports", include_world.name, name),
+            //         span: span
+            //     })
+            // }
+        }
+
+        for export in include_world.exports.iter() {
+            let name = export.0.clone();
+            // check if world.exports already has the same world item
+            let item = world.exports.iter().find(|i| i.1 == export.1);
+            // if item.is_some() && item.unwrap().0 != &name {
+            //     bail!(Error {
+            //         msg: format!("include of world `{}` has exports `{}`, which shadows the previous exports", include_world.name, name),
+            //         span: span
+            //     })
+            // }
+            let prev: Option<WorldItem> = world.exports.insert(name.clone(), export.1.clone());
+            // if prev.is_some() && &prev.unwrap() != export.1 {
+            //     bail!(Error {
+            //         msg: format!("include of world `{}` has exports `{}`, which shadows the previous exports", include_world.name, name),
+            //         span: span
+            //     })
+            // }
+        }
+        Ok(())
     }
 }
 

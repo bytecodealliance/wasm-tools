@@ -46,5 +46,5 @@ interface use2 {
 world unionw-world {
   include my-world
   include my-world2
-  include bars-world
+  include foo:wasi/wasi
 }

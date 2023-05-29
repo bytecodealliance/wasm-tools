@@ -20,11 +20,6 @@ use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wit_parser::*;
 
 fn main() {
-    // print process id
-    println!("process id: {}", std::process::id());
-    // sleep for 10 seconds
-    std::thread::sleep(std::time::Duration::from_secs(10));
-    
     env_logger::init();
     let tests = find_tests();
     let filter = std::env::args().nth(1);

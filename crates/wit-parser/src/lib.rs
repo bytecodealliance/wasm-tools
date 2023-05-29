@@ -86,12 +86,15 @@ pub struct UnresolvedPackage {
     /// interface name followed by the identifier within `self.interfaces`. The
     /// fields of `self.interfaces` describes the required types that are from
     /// each foreign interface.
-    pub foreign_deps: IndexMap<PackageName, IndexMap<String, InterfaceId>>,
+    pub foreign_iface_deps: IndexMap<PackageName, IndexMap<String, InterfaceId>>,
+    pub foreign_world_deps: IndexMap<PackageName, IndexMap<String, WorldId>>,
 
     unknown_type_spans: Vec<Span>,
-    world_spans: Vec<(Vec<Span>, Vec<Span>)>,
+    world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
     interface_spans: Vec<Span>,
+    world_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
+    foreign_world_spans: Vec<Span>,
     source_map: SourceMap,
 }
 
@@ -235,6 +238,9 @@ pub struct World {
 
     /// The package that owns this world.
     pub package: Option<PackageId>,
+
+    /// All the included worlds from this world.
+    pub includes: Vec<WorldId>,
 }
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
@@ -258,7 +264,7 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
