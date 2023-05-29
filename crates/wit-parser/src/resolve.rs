@@ -1,8 +1,8 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
-    Error, Function, Interface, InterfaceId, PackageName, Results, Type, TypeDef, TypeDefKind,
-    TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem, WorldKey,
+    AstItem, Error, Function, Interface, InterfaceId, PackageName, Results, Type, TypeDef,
+    TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem, WorldKey,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -132,7 +132,7 @@ impl Resolve {
                 return Ok(());
             }
             pkg.source_map.rewrite_error(|| {
-                for (i, (dep, _)) in pkg.foreign_iface_deps.iter().enumerate() {
+                for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
                     let span = pkg.foreign_dep_spans[i];
                     if !visiting.insert(dep) {
                         bail!(Error {
@@ -690,13 +690,25 @@ impl Remap {
         // Invert the `foreign_deps` map to be keyed by world id to get
         // used in the loops below.
         let mut world_to_package = HashMap::new();
-        for (i, (pkg_name, worlds)) in unresolved.foreign_world_deps.iter().enumerate() {
-            for (world, unresolved_world_id) in worlds {
-                let prev = world_to_package.insert(
-                    *unresolved_world_id,
-                    (pkg_name, world, unresolved.foreign_dep_spans[i]),
-                );
-                assert!(prev.is_none());
+        let mut interface_to_package = HashMap::new();
+        for (i, (pkg_name, worlds_or_ifaces)) in unresolved.foreign_deps.iter().enumerate() {
+            for (name, item) in worlds_or_ifaces {
+                match item {
+                    AstItem::Interface(unresolved_interface_id) => {
+                        let prev = interface_to_package.insert(
+                            *unresolved_interface_id,
+                            (pkg_name, name, unresolved.foreign_dep_spans[i]),
+                        );
+                        assert!(prev.is_none());
+                    }
+                    AstItem::World(unresolved_world_id) => {
+                        let prev = world_to_package.insert(
+                            *unresolved_world_id,
+                            (pkg_name, name, unresolved.foreign_dep_spans[i]),
+                        );
+                        assert!(prev.is_none());
+                    }
+                }
             }
         }
 
@@ -722,19 +734,6 @@ impl Remap {
             })?;
             assert_eq!(self.worlds.len(), unresolved_world_id.index());
             self.worlds.push(world_id);
-        }
-
-        // Invert the `foreign_deps` map to be keyed by interface id to get
-        // used in the loops below.
-        let mut interface_to_package = HashMap::new();
-        for (i, (pkg_name, interfaces)) in unresolved.foreign_iface_deps.iter().enumerate() {
-            for (interface, unresolved_interface_id) in interfaces {
-                let prev = interface_to_package.insert(
-                    *unresolved_interface_id,
-                    (pkg_name, interface, unresolved.foreign_dep_spans[i]),
-                );
-                assert!(prev.is_none());
-            }
         }
 
         // Connect all interfaces referred to in `interface_to_package`, which
@@ -1085,42 +1084,12 @@ impl Remap {
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
             let name = import.0.clone();
-
-            // check if world.imports already has the same world item
-            // let item = world.imports.iter().find(|i| i.1 == import.1);
-            // if item.is_some() && item.unwrap().0 != &name {
-            //     bail!(Error {
-            //         msg: format!("include of world `{}` has imports `{}`, which shadows the previous imports", include_world.name, name),
-            //         span: span
-            //     })
-            // }
-
-            let prev = world.imports.insert(name.clone(), import.1.clone());
-            // if prev.is_some() && &prev.unwrap() != import.1 {
-            //     bail!(Error {
-            //         msg: format!("include of world `{}` has imports `{}`, which shadows the previous imports", include_world.name, name),
-            //         span: span
-            //     })
-            // }
+            world.imports.insert(name.clone(), import.1.clone());
         }
 
         for export in include_world.exports.iter() {
             let name = export.0.clone();
-            // check if world.exports already has the same world item
-            let item = world.exports.iter().find(|i| i.1 == export.1);
-            // if item.is_some() && item.unwrap().0 != &name {
-            //     bail!(Error {
-            //         msg: format!("include of world `{}` has exports `{}`, which shadows the previous exports", include_world.name, name),
-            //         span: span
-            //     })
-            // }
-            let prev: Option<WorldItem> = world.exports.insert(name.clone(), export.1.clone());
-            // if prev.is_some() && &prev.unwrap() != export.1 {
-            //     bail!(Error {
-            //         msg: format!("include of world `{}` has exports `{}`, which shadows the previous exports", include_world.name, name),
-            //         span: span
-            //     })
-            // }
+            world.exports.insert(name.clone(), export.1.clone());
         }
         Ok(())
     }

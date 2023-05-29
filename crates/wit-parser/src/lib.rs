@@ -86,16 +86,21 @@ pub struct UnresolvedPackage {
     /// interface name followed by the identifier within `self.interfaces`. The
     /// fields of `self.interfaces` describes the required types that are from
     /// each foreign interface.
-    pub foreign_iface_deps: IndexMap<PackageName, IndexMap<String, InterfaceId>>,
-    pub foreign_world_deps: IndexMap<PackageName, IndexMap<String, WorldId>>,
+    pub foreign_deps: IndexMap<PackageName, IndexMap<String, AstItem>>,
 
     unknown_type_spans: Vec<Span>,
     world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
     interface_spans: Vec<Span>,
     world_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
-    foreign_world_spans: Vec<Span>,
     source_map: SourceMap,
+    foreign_world_spans: Vec<Span>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AstItem {
+    Interface(InterfaceId),
+    World(WorldId),
 }
 
 /// A structure used to keep track of the name of a package, containing optional

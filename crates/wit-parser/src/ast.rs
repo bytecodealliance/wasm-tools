@@ -106,7 +106,7 @@ impl<'a> Ast<'a> {
                     }
                 }
                 AstItem::Use(u) => {
-                    f(None, &u.item, None, WorldOrInterface::Interface)?;
+                    f(None, &u.item, None, WorldOrInterface::Unknown)?;
                 }
             }
         }
@@ -355,6 +355,7 @@ impl<'a> Interface<'a> {
 pub enum WorldOrInterface {
     World,
     Interface,
+    Unknown,
 }
 
 enum InterfaceItem<'a> {
