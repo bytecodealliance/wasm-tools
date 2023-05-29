@@ -8,7 +8,7 @@ interface shared-only-into {
   bar: func(x: v)
 }
 
-interface shared {
+interface shared-items {
   type a = u32
 
 }
@@ -38,10 +38,10 @@ interface only-from {
 }
 
 world shared-world {
-  import shared
+  import shared-items
   import d: interface {
   }
   type c = u32
 
-  export shared
+  export shared-items
 }
