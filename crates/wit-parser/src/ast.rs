@@ -53,6 +53,7 @@ impl<'a> Ast<'a> {
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
+                            WorldItem::Include(i) => f(Some(&world.name), &i.from, None)?,
                         }
                     }
 
@@ -106,7 +107,7 @@ impl<'a> AstItem<'a> {
             Some((_span, Token::Interface)) => Interface::parse(tokens, docs).map(Self::Interface),
             Some((_span, Token::World)) => World::parse(tokens, docs).map(Self::World),
             Some((_span, Token::Use)) => ToplevelUse::parse(tokens).map(Self::Use),
-            other => Err(err_expected(tokens, "`world`, `interface` or `use`", other).into()),
+            other => Err(err_expected(tokens, "`world`, `interface`or `use`", other).into()),
         }
     }
 }
@@ -199,6 +200,7 @@ enum WorldItem<'a> {
     Export(Export<'a>),
     Use(Use<'a>),
     Type(TypeDef<'a>),
+    Include(Include<'a>),
 }
 
 impl<'a> WorldItem<'a> {
@@ -217,9 +219,10 @@ impl<'a> WorldItem<'a> {
             }
             Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Include)) => Include::parse(tokens).map(WorldItem::Include),
             other => Err(err_expected(
                 tokens,
-                "`import`, `export`, `use`, or type definition",
+                "`import`, `export`, `include`, `use`, or type definition",
                 other,
             )
             .into()),
@@ -410,6 +413,18 @@ impl<'a> Use<'a> {
             }
         }
         Ok(Use { from, names })
+    }
+}
+
+struct Include<'a> {
+    from: UsePath<'a>,
+}
+
+impl<'a> Include<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        tokens.expect(Token::Include)?;
+        let from = UsePath::parse(tokens)?;
+        Ok(Include { from })
     }
 }
 
