@@ -49,12 +49,12 @@ impl From<wasmparser::RefType> for PrimitiveTypeInfo {
     }
 }
 
-impl TryFrom<wasmparser::Type> for TypeInfo {
+impl TryFrom<wasmparser::StructuralType> for TypeInfo {
     type Error = Error;
 
-    fn try_from(value: wasmparser::Type) -> Result<Self> {
+    fn try_from(value: wasmparser::StructuralType) -> Result<Self> {
         match value {
-            wasmparser::Type::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
+            wasmparser::StructuralType::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
                 params: ft
                     .params()
                     .iter()
@@ -66,10 +66,10 @@ impl TryFrom<wasmparser::Type> for TypeInfo {
                     .map(|&t| PrimitiveTypeInfo::from(t))
                     .collect(),
             })),
-            wasmparser::Type::Array(_) => {
+            wasmparser::StructuralType::Array(_) => {
                 Err(Error::unsupported("Array types are not supported yet."))
             }
-            wasmparser::Type::Struct(_) => {
+            wasmparser::StructuralType::Struct(_) => {
                 Err(Error::unsupported("Struct types are not supported yet."))
             }
         }

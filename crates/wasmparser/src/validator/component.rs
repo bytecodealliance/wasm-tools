@@ -18,7 +18,8 @@ use crate::{
     },
     BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
     ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType, GlobalType,
-    InstantiationArgKind, MemoryType, Result, TableType, TypeBounds, ValType, WasmFeatures,
+    InstantiationArgKind, MemoryType, Result, StructuralType, SubType, TableType, TypeBounds,
+    ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -257,7 +258,11 @@ impl ComponentState {
         check_limit: bool,
     ) -> Result<()> {
         let ty = match ty {
-            crate::CoreType::Func(ty) => Type::Func(ty),
+            crate::CoreType::Func(ty) => Type::Sub(SubType {
+                is_final: false,
+                supertype_idxs: vec![],
+                structural_type: StructuralType::Func(ty),
+            }),
             crate::CoreType::Module(decls) => Type::Module(Box::new(Self::create_module_type(
                 components,
                 decls.into_vec(),
@@ -680,11 +685,7 @@ impl ComponentState {
 
             // Core wasm constructs are always valid with respect to
             // exported types, since they have none.
-            Type::Module(_)
-            | Type::Instance(_)
-            | Type::Func(_)
-            | Type::Array(_)
-            | Type::Struct(_) => true,
+            Type::Module(_) | Type::Instance(_) | Type::Sub(_) => true,
 
             // Resource types, in isolation, are always valid to import
             // or export since they're either attached to an import or
@@ -952,7 +953,11 @@ impl ComponentState {
 
         self.check_options(None, &info, &options, types, offset)?;
 
-        let lowered_ty = Type::Func(info.into_func_type());
+        let lowered_ty = Type::Sub(SubType {
+            is_final: false,
+            supertype_idxs: vec![],
+            structural_type: StructuralType::Func(info.into_func_type()),
+        });
 
         let id = types.push_ty(lowered_ty);
         self.core_funcs.push(id);
@@ -967,7 +972,11 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let core_ty = Type::Func(FuncType::new([rep], [ValType::I32]));
+        let core_ty = Type::Sub(SubType {
+            is_final: false,
+            supertype_idxs: vec![],
+            structural_type: StructuralType::Func(FuncType::new([rep], [ValType::I32])),
+        });
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
     }
@@ -989,7 +998,11 @@ impl ComponentState {
             ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {}
             _ => bail!(offset, "type-to-drop must be an own or borrow type"),
         }
-        let core_ty = Type::Func(FuncType::new([ValType::I32], []));
+        let core_ty = Type::Sub(SubType {
+            is_final: false,
+            supertype_idxs: vec![],
+            structural_type: StructuralType::Func(FuncType::new([ValType::I32], [])),
+        });
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
     }
@@ -1001,7 +1014,11 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let core_ty = Type::Func(FuncType::new([ValType::I32], [rep]));
+        let core_ty = Type::Sub(SubType {
+            is_final: false,
+            supertype_idxs: vec![],
+            structural_type: StructuralType::Func(FuncType::new([ValType::I32], [rep])),
+        });
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
     }

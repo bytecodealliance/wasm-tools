@@ -233,15 +233,16 @@ impl TypeSection {
     }
 
     /// Define an array type in this type section.
-    pub fn array(&mut self, ty: StorageType, mutable: bool) -> &mut Self {
-        self.field(ty, mutable)
+    pub fn array(&mut self, ty: &StorageType, mutable: bool) -> &mut Self {
+        self.bytes.push(0x5e);
+        self.field(ty, mutable);
+        self.num_added += 1;
+        self
     }
 
-    fn field(&mut self, ty: StorageType, mutable: bool) -> &mut Self {
-        self.bytes.push(0x5e);
+    fn field(&mut self, ty: &StorageType, mutable: bool) -> &mut Self {
         ty.encode(&mut self.bytes);
         self.bytes.push(mutable as u8);
-        self.num_added += 1;
         self
     }
 
@@ -250,9 +251,27 @@ impl TypeSection {
         self.bytes.push(0x5f);
         fields.len().encode(&mut self.bytes);
         for f in fields.iter() {
-            self.field(f.ty, f.mutable);
+            self.field(&f.ty, f.mutable);
         }
         self.num_added += 1;
+        self
+    }
+
+    /// Define an explicit subtype in this type section.
+    /// Must be followed by the definition of the structural type (func, array, struct).
+    pub fn subtype(&mut self, is_final: bool, supertype_idxs: &Vec<u32>) -> &mut Self {
+        if !is_final && supertype_idxs.is_empty() {
+            return self;
+        }
+        if is_final {
+            self.bytes.push(0x4e);
+        } else {
+            self.bytes.push(0x50);
+        }
+        supertype_idxs.len().encode(&mut self.bytes);
+        for idx in supertype_idxs.iter() {
+            idx.encode(&mut self.bytes);
+        }
         self
     }
 }

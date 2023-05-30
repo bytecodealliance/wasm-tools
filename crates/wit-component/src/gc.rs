@@ -178,7 +178,7 @@ type WorklistFunc<'a> = fn(&mut Module<'a>, u32) -> Result<()>;
 #[derive(Default)]
 struct Module<'a> {
     // Definitions found when parsing a module
-    types: Vec<wasmparser::Type>,
+    types: Vec<SubType>,
     tables: Vec<Table<'a>>,
     globals: Vec<Global<'a>>,
     memories: Vec<Memory<'a>>,
@@ -508,16 +508,16 @@ impl<'a> Module<'a> {
             return;
         }
         self.worklist.push((ty, |me, ty| {
-            match me.types[ty as usize].clone() {
-                Type::Func(ty) => {
+            match me.types[ty as usize].clone().structural_type {
+                StructuralType::Func(ty) => {
                     for param in ty.params().iter().chain(ty.results()) {
                         me.valty(*param);
                     }
                 }
-                Type::Array(ArrayType(ty)) => {
+                StructuralType::Array(ArrayType(ty)) => {
                     me.storagety(ty.element_type);
                 }
-                Type::Struct(ty) => {
+                StructuralType::Struct(ty) => {
                     for field in ty.fields.iter() {
                         me.storagety(field.element_type);
                     }
@@ -534,7 +534,7 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn live_types(&self) -> impl Iterator<Item = (u32, &wasmparser::Type)> + '_ {
+    fn live_types(&self) -> impl Iterator<Item = (u32, &SubType)> + '_ {
         live_iter(&self.live_types, self.types.iter())
     }
 
@@ -574,8 +574,9 @@ impl<'a> Module<'a> {
         let mut empty_type = None;
         for (i, ty) in self.live_types() {
             map.types.push(i);
-            match ty {
-                Type::Func(ty) => {
+            types.subtype(ty.is_final, &ty.supertype_idxs);
+            match &ty.structural_type {
+                StructuralType::Func(ty) => {
                     types.function(
                         ty.params().iter().copied().map(|t| map.valty(t)),
                         ty.results().iter().copied().map(|t| map.valty(t)),
@@ -588,10 +589,10 @@ impl<'a> Module<'a> {
                         empty_type = Some(map.types.remap(i));
                     }
                 }
-                Type::Array(ArrayType(ty)) => {
-                    types.array(map.storagety(ty.element_type), ty.mutable);
+                StructuralType::Array(ArrayType(ty)) => {
+                    types.array(&map.storagety(ty.element_type), ty.mutable);
                 }
-                Type::Struct(ty) => {
+                StructuralType::Struct(ty) => {
                     let fs = ty
                         .fields
                         .iter()

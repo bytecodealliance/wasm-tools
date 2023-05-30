@@ -1,0 +1,5 @@
+(module
+  (type $a (;0;) (func))
+  (type $b (;1;) (sub $a (;0;) (func)))
+  (type (;2;) (sub final $a (;0;) (func)))
+)

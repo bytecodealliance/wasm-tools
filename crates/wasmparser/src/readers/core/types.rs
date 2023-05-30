@@ -13,8 +13,11 @@
  * limitations under the License.
  */
 
-use crate::limits::{MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS};
-use crate::{BinaryReader, FromReader, Result, SectionLimited};
+use crate::limits::{
+    MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
+    MAX_WASM_SUPERTYPES,
+};
+use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
 use std::fmt::{self, Debug, Write};
 
 /// Represents the types of values in a WebAssembly module.
@@ -49,6 +52,12 @@ pub enum StorageType {
 const _: () = {
     assert!(std::mem::size_of::<ValType>() == 4);
 };
+
+pub(crate) trait Matches {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>;
+}
 
 impl From<RefType> for ValType {
     fn from(ty: RefType) -> ValType {
@@ -85,6 +94,18 @@ impl ValType {
             0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x65 | 0x69
             | 0x68 | 0x6D | 0x67 | 0x66 | 0x6A => true,
             _ => false,
+        }
+    }
+}
+
+impl Matches for ValType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        match (self, other) {
+            (ValType::Ref(r1), ValType::Ref(r2)) => r1.matches(r2, type_at),
+            (s, o) => Ok(s == o),
         }
     }
 }
@@ -510,6 +531,17 @@ impl RefType {
     }
 }
 
+impl Matches for RefType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        Ok((*self == *other)
+            || (other.is_nullable() || !self.is_nullable())
+                && self.heap_type().matches(&other.heap_type(), type_at)?)
+    }
+}
+
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read()? {
@@ -595,6 +627,51 @@ pub enum HeapType {
     I31,
 }
 
+impl Matches for HeapType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        match (self, other) {
+            (HeapType::Indexed(a), HeapType::Indexed(b)) => {
+                Ok(*a == *b || type_at(*a)?.matches(type_at(*b)?, type_at)?)
+            }
+            (HeapType::Indexed(a), HeapType::Func) => match (type_at(*a)?).structural_type {
+                StructuralType::Func(_) => Ok(true),
+                _ => Ok(false),
+            },
+            (HeapType::Indexed(a), HeapType::Array) => match (type_at(*a)?).structural_type {
+                StructuralType::Array(_) => Ok(true),
+                _ => Ok(false),
+            },
+            (HeapType::Indexed(a), HeapType::Struct) => match (type_at(*a)?).structural_type {
+                StructuralType::Struct(_) => Ok(true),
+                _ => Ok(false),
+            },
+            (HeapType::Indexed(a), HeapType::Eq | HeapType::Any) => {
+                match (type_at(*a)?).structural_type {
+                    StructuralType::Array(_) | StructuralType::Struct(_) => Ok(true),
+                    _ => Ok(false),
+                }
+            }
+            (HeapType::I31, HeapType::Eq | HeapType::Any) => Ok(true),
+            (HeapType::Eq, HeapType::Any) => Ok(true),
+            (HeapType::None, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
+                StructuralType::Array(_) | StructuralType::Struct(_) => Ok(true),
+                _ => Ok(false),
+            },
+            (HeapType::None, HeapType::I31 | HeapType::Eq | HeapType::Any) => Ok(true),
+            (HeapType::NoExtern, HeapType::Extern) => Ok(true),
+            (HeapType::NoFunc, HeapType::Func) => Ok(true),
+            (HeapType::NoFunc, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
+                StructuralType::Func(_) => Ok(true),
+                _ => Ok(false),
+            },
+            (a, b) => Ok(a == b),
+        }
+    }
+}
+
 impl<'a> FromReader<'a> for HeapType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
@@ -651,15 +728,38 @@ impl<'a> FromReader<'a> for HeapType {
     }
 }
 
-/// Represents a type in a WebAssembly module.
+/// Represents a structural type in a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum Type {
+pub enum StructuralType {
     /// The type is for a function.
     Func(FuncType),
     /// The type is for an array.
     Array(ArrayType),
     /// The type is for a struct.
     Struct(StructType),
+}
+
+/// Represents a subtype of possible other types in a WebAssembly module.
+#[derive(Debug, Clone)]
+pub struct SubType {
+    /// Is the subtype final.
+    pub is_final: bool,
+    /// The list of supertype indexes. As of GC MVP, there can be at most one supertype.
+    pub supertype_idxs: Vec<u32>,
+    /// The structural type of the subtype.
+    pub structural_type: StructuralType,
+}
+
+impl Matches for SubType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        Ok((!other.is_final || self.is_final)
+            && self
+                .structural_type
+                .matches(&other.structural_type, type_at)?)
+    }
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -689,6 +789,20 @@ pub struct FieldType {
 pub struct StructType {
     /// Struct fields.
     pub fields: Box<[FieldType]>,
+}
+
+impl Matches for StructuralType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        match (self, other) {
+            (StructuralType::Func(a), StructuralType::Func(b)) => a.matches(b, type_at),
+            (StructuralType::Array(a), StructuralType::Array(b)) => a.matches(b, type_at),
+            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.matches(b, type_at),
+            _ => Ok(false),
+        }
+    }
 }
 
 impl Debug for FuncType {
@@ -759,6 +873,74 @@ impl FuncType {
         }
         s.push_str("]");
         s
+    }
+}
+
+impl Matches for FuncType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        let r = self.params().len() == other.params().len()
+            && self.results().len() == other.results().len()
+            // Note: matching functions are contravariant in their parameter types.
+            && self
+                .params()
+                .iter()
+                .zip(other.params())
+                .fold(Ok(true), |r, (a, b)| Ok(r? && b.matches(a, type_at)?))?
+            && self
+                .results()
+                .iter()
+                .zip(other.results())
+                .fold(Ok(true), |r, (a, b)| Ok(r? && a.matches(b, type_at)?))?;
+        Ok(r)
+    }
+}
+
+impl Matches for ArrayType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        self.0.matches(&other.0, type_at)
+    }
+}
+
+impl Matches for FieldType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        Ok((other.mutable || !self.mutable)
+            && self.element_type.matches(&other.element_type, type_at)?)
+    }
+}
+
+impl Matches for StorageType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        match (self, other) {
+            (Self::Val(a), Self::Val(b)) => a.matches(b, type_at),
+            (a, b) => Ok(*a == *b),
+        }
+    }
+}
+
+impl Matches for StructType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+    where
+        F: Fn(u32) -> Result<&'a SubType>,
+    {
+        let r = self.fields.len() == other.fields.len()
+            && self
+                .fields
+                .iter()
+                .zip(other.fields.iter())
+                .fold(Ok(true), |r, (a, b)| Ok(r? && a.matches(b, type_at)?))?;
+        Ok(r)
     }
 }
 
@@ -840,15 +1022,50 @@ pub struct TagType {
 }
 
 /// A reader for the type section of a WebAssembly module.
-pub type TypeSectionReader<'a> = SectionLimited<'a, Type>;
+pub type TypeSectionReader<'a> = SectionLimited<'a, SubType>;
 
-impl<'a> FromReader<'a> for Type {
+impl<'a> FromReader<'a> for StructuralType {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        read_structural_type(reader.read_u8()?, reader)
+    }
+}
+
+fn read_structural_type(
+    op_code: u8,
+    reader: &mut BinaryReader,
+) -> Result<StructuralType, BinaryReaderError> {
+    Ok(match op_code {
+        0x60 => StructuralType::Func(reader.read()?),
+        0x5e => StructuralType::Array(reader.read()?),
+        0x5f => StructuralType::Struct(reader.read()?),
+        x => return reader.invalid_leading_byte(x, "type"),
+    })
+}
+
+impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
-            0x60 => Type::Func(reader.read()?),
-            0x5e => Type::Array(reader.read()?),
-            0x5f => Type::Struct(reader.read()?),
-            x => return reader.invalid_leading_byte(x, "type"),
+            0x50 => {
+                let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
+                SubType {
+                    is_final: false,
+                    supertype_idxs: idx_iter.collect::<Result<Vec<_>>>()?,
+                    structural_type: read_structural_type(reader.read_u8()?, reader)?,
+                }
+            }
+            0x4e => {
+                let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
+                SubType {
+                    is_final: true,
+                    supertype_idxs: idx_iter.collect::<Result<Vec<_>>>()?,
+                    structural_type: read_structural_type(reader.read_u8()?, reader)?,
+                }
+            }
+            op_code => SubType {
+                is_final: false,
+                supertype_idxs: vec![],
+                structural_type: read_structural_type(op_code, reader)?,
+            },
         })
     }
 }

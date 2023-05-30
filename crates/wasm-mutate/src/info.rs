@@ -93,7 +93,7 @@ impl<'a> ModuleInfo<'a> {
 
                     // Save function types
                     for ty in reader {
-                        let typeinfo = TypeInfo::try_from(ty?).unwrap();
+                        let typeinfo = TypeInfo::try_from(ty?.structural_type).unwrap();
                         info.types_map.push(typeinfo);
                     }
                 }

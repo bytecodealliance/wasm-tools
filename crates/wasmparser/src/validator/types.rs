@@ -7,7 +7,8 @@ use super::{
 use crate::validator::names::KebabString;
 use crate::{
     ArrayType, BinaryReaderError, Export, ExternalKind, FuncType, GlobalType, Import, MemoryType,
-    PrimitiveValType, RefType, Result, StructType, TableType, TypeRef, ValType,
+    PrimitiveValType, RefType, Result, StructType, StructuralType, SubType, TableType, TypeRef,
+    ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -168,12 +169,8 @@ const _: () = {
 /// A unified type definition for validating WebAssembly modules and components.
 #[derive(Debug)]
 pub enum Type {
-    /// The definition is for a core function type.
-    Func(FuncType),
-    /// The definition is for a core array type.
-    Array(ArrayType),
-    /// The definition is for a core struct type.
-    Struct(StructType),
+    /// The definition is for a sub type.
+    Sub(SubType),
     /// The definition is for a core module type.
     ///
     /// This variant is only supported when parsing a component.
@@ -208,7 +205,11 @@ impl Type {
     /// Converts the type to a core function type.
     pub fn as_func_type(&self) -> Option<&FuncType> {
         match self {
-            Self::Func(ty) => Some(ty),
+            Type::Sub(SubType {
+                is_final: _,
+                supertype_idxs: _,
+                structural_type: StructuralType::Func(ft),
+            }) => Some(ft),
             _ => None,
         }
     }
@@ -216,7 +217,11 @@ impl Type {
     /// Converts the type to an array type.
     pub fn as_array_type(&self) -> Option<&ArrayType> {
         match self {
-            Self::Array(ty) => Some(ty),
+            Self::Sub(SubType {
+                is_final: _,
+                supertype_idxs: _,
+                structural_type: StructuralType::Array(ty),
+            }) => Some(ty),
             _ => None,
         }
     }
@@ -224,7 +229,11 @@ impl Type {
     /// Converts the type to a struct type.
     pub fn as_struct_type(&self) -> Option<&StructType> {
         match self {
-            Self::Struct(ty) => Some(ty),
+            Self::Sub(SubType {
+                is_final: _,
+                supertype_idxs: _,
+                structural_type: StructuralType::Struct(ty),
+            }) => Some(ty),
             _ => None,
         }
     }
@@ -288,9 +297,13 @@ impl Type {
     pub(crate) fn type_size(&self) -> u32 {
         // TODO(#1036): calculate actual size for func, array, struct
         match self {
-            Self::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
-            Self::Array(_) => 2, // 2 is a guess.
-            Self::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
+            Self::Sub(ty) => {
+                1 + match ty.clone().structural_type {
+                    StructuralType::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
+                    StructuralType::Array(_) => 2,
+                    StructuralType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
+                }
+            }
             Self::Module(ty) => ty.type_size,
             Self::Instance(ty) => ty.type_size,
             Self::Component(ty) => ty.type_size,
@@ -1041,7 +1054,11 @@ impl<'a> TypesRef<'a> {
     /// been parsed yet.
     pub fn func_type_at(&self, index: u32) -> Option<&'a FuncType> {
         match self.type_at(index, true)? {
-            Type::Func(ty) => Some(ty),
+            Type::Sub(SubType {
+                is_final: _,
+                supertype_idxs: _,
+                structural_type: StructuralType::Func(ft),
+            }) => Some(ft),
             _ => None,
         }
     }
@@ -1115,7 +1132,11 @@ impl<'a> TypesRef<'a> {
         };
 
         match &self.list[*id] {
-            Type::Func(ty) => Some(ty),
+            Type::Sub(SubType {
+                is_final: _,
+                supertype_idxs: _,
+                structural_type: StructuralType::Func(ft),
+            }) => Some(ft),
             _ => None,
         }
     }
@@ -1809,11 +1830,7 @@ impl TypeAlloc {
     pub fn free_variables_type_id(&self, id: TypeId, set: &mut IndexSet<ResourceId>) {
         match &self[id] {
             // Core wasm constructs cannot reference resources.
-            Type::Func(_)
-            | Type::Array(_)
-            | Type::Struct(_)
-            | Type::Module(_)
-            | Type::Instance(_) => {}
+            Type::Sub(_) | Type::Module(_) | Type::Instance(_) => {}
 
             // Recurse on the imports/exports of components, but remove the
             // imported and defined resources within the component itself.
@@ -2034,11 +2051,7 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
         let ty = match &self[*id] {
             // Core wasm functions/modules/instances don't have resource types
             // in them.
-            Type::Func(_)
-            | Type::Array(_)
-            | Type::Struct(_)
-            | Type::Module(_)
-            | Type::Instance(_) => return false,
+            Type::Sub(_) | Type::Module(_) | Type::Instance(_) => return false,
 
             Type::Component(i) => {
                 let mut tmp = i.clone();
