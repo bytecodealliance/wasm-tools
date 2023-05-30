@@ -680,7 +680,11 @@ impl ComponentState {
 
             // Core wasm constructs are always valid with respect to
             // exported types, since they have none.
-            Type::Module(_) | Type::Instance(_) | Type::Func(_) | Type::Array(_) => true,
+            Type::Module(_)
+            | Type::Instance(_)
+            | Type::Func(_)
+            | Type::Array(_)
+            | Type::Struct(_) => true,
 
             // Resource types, in isolation, are always valid to import
             // or export since they're either attached to an import or

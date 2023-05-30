@@ -1,0 +1,12 @@
+(module
+  (type (;0;) (struct))
+  (type (;1;) (struct (field i32)))
+  (type (;2;) (struct (field (mut i32))))
+  (type (;3;) (struct (field i32) (field i32)))
+  (type (;4;) (struct (field i32) (field (mut i32))))
+  (type (;5;) (struct (field (mut i32)) (field (mut i32))))
+  (type $a (;6;) (struct (field f32)))
+  (type $b (;7;) (struct (field f32)))
+  (type (;8;) (struct (field externref)))
+  (type (;9;) (struct (field externref) (field funcref)))
+)

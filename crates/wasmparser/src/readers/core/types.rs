@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::limits::{MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS};
+use crate::limits::{MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS};
 use crate::{BinaryReader, FromReader, Result, SectionLimited};
 use std::fmt::{self, Debug, Write};
 
@@ -658,7 +658,8 @@ pub enum Type {
     Func(FuncType),
     /// The type is for an array.
     Array(ArrayType),
-    // Struct(StructType),
+    /// The type is for a struct.
+    Struct(StructType),
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -672,11 +673,22 @@ pub struct FuncType {
 
 /// Represents a type of an array in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ArrayType {
+pub struct ArrayType(pub FieldType);
+
+/// Represents a field type of an array or a struct.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct FieldType {
     /// Array element type.
     pub element_type: StorageType,
     /// Are elements mutable.
     pub mutable: bool,
+}
+
+/// Represents a type of a struct in a WebAssembly module.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct StructType {
+    /// Struct fields.
+    pub fields: Box<[FieldType]>,
 }
 
 impl Debug for FuncType {
@@ -835,6 +847,7 @@ impl<'a> FromReader<'a> for Type {
         Ok(match reader.read_u8()? {
             0x60 => Type::Func(reader.read()?),
             0x5e => Type::Array(reader.read()?),
+            0x5f => Type::Struct(reader.read()?),
             x => return reader.invalid_leading_byte(x, "type"),
         })
     }
@@ -855,11 +868,11 @@ impl<'a> FromReader<'a> for FuncType {
     }
 }
 
-impl<'a> FromReader<'a> for ArrayType {
+impl<'a> FromReader<'a> for FieldType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let element_type = reader.read()?;
         let mutable = reader.read_u8()?;
-        Ok(ArrayType {
+        Ok(FieldType {
             element_type,
             mutable: match mutable {
                 0 => false,
@@ -869,6 +882,21 @@ impl<'a> FromReader<'a> for ArrayType {
                     "invalid mutability byte for array type"
                 ),
             },
+        })
+    }
+}
+
+impl<'a> FromReader<'a> for ArrayType {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(ArrayType(FieldType::from_reader(reader)?))
+    }
+}
+
+impl<'a> FromReader<'a> for StructType {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let fields = reader.read_iter(MAX_WASM_STRUCT_FIELDS, "struct fields")?;
+        Ok(StructType {
+            fields: fields.collect::<Result<_>>()?,
         })
     }
 }
