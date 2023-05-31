@@ -1,6 +1,7 @@
 use crate::config::Config;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use indexmap::IndexMap;
+use semver::Version;
 use std::collections::hash_map::{Entry, HashMap};
 use std::collections::HashSet;
 use std::fmt::Write;
@@ -35,7 +36,7 @@ pub struct Package {
 pub struct PackageName {
     pub namespace: String,
     pub name: String,
-    pub version: Option<(u32, u32)>,
+    pub version: Option<Version>,
 }
 
 impl Generator {
@@ -68,7 +69,7 @@ impl Generator {
         let namespace = gen_unique_name(u, names)?;
         let name = gen_unique_name(u, names)?;
         let version = if u.arbitrary()? {
-            Some((u.arbitrary()?, u.arbitrary()?))
+            Some(gen_version(u)?)
         } else {
             None
         };
@@ -204,8 +205,8 @@ impl Generator {
                 s.push_str(":");
                 s.push_str("%");
                 s.push_str(&ret.name.name);
-                if let Some((a, b)) = ret.name.version {
-                    s.push_str(&format!("@{a}.{b}"));
+                if let Some(version) = &ret.name.version {
+                    s.push_str(&format!("@{version}"));
                 }
                 s.push_str("\n\n");
             }
@@ -284,8 +285,8 @@ impl Generator {
                 let i = &ifaces[i];
                 dst.push_str("%");
                 dst.push_str(&i.name);
-                if let Some((a, b)) = &pkg.version {
-                    dst.push_str(&format!("@{a}.{b}"));
+                if let Some(version) = &pkg.version {
+                    dst.push_str(&format!("@{version}"));
                 }
                 Some((&i.name, i.id, &i.types))
             }
@@ -886,4 +887,22 @@ impl File {
         let prev = self.interfaces.insert(def.name.clone(), def);
         assert!(prev.is_none());
     }
+}
+
+fn gen_version(u: &mut Unstructured<'_>) -> Result<Version> {
+    Ok(Version {
+        major: u.int_in_range(0..=10)?,
+        minor: u.int_in_range(0..=10)?,
+        patch: u.int_in_range(0..=10)?,
+        pre: if u.arbitrary()? {
+            semver::Prerelease::new("alpha.0").unwrap()
+        } else {
+            semver::Prerelease::EMPTY
+        },
+        build: if u.arbitrary()? {
+            semver::BuildMetadata::new("1.2.0").unwrap()
+        } else {
+            semver::BuildMetadata::EMPTY
+        },
+    })
 }
