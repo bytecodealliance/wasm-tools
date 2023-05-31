@@ -246,6 +246,18 @@ pub struct World {
 
     /// All the included worlds from this world.
     pub includes: Vec<WorldId>,
+
+    /// All the included worlds names
+    pub include_names: Vec<Vec<IncludeName>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IncludeName {
+    /// The name of the item
+    pub name: String,
+
+    /// The name to be replaced with
+    pub as_: String,
 }
 
 /// The key to the import/export maps of a world. Either a kebab-name or a

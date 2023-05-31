@@ -141,6 +141,7 @@ impl<'a> ComponentInfo<'a> {
             exports: Default::default(),
             package: None,
             includes: Default::default(),
+            include_names: Default::default(),
         });
         let mut decoder = WitPackageDecoder {
             resolve,
@@ -754,6 +755,7 @@ impl WitPackageDecoder<'_> {
             imports: Default::default(),
             exports: Default::default(),
             includes: Default::default(),
+            include_names: Default::default(),
             package: None,
         };
 

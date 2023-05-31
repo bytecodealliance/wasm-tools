@@ -444,13 +444,40 @@ impl<'a> Use<'a> {
 
 struct Include<'a> {
     from: UsePath<'a>,
+    names: Vec<IncludeName<'a>>,
+}
+
+struct IncludeName<'a> {
+    name: Id<'a>,
+    as_: Id<'a>,
 }
 
 impl<'a> Include<'a> {
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
-        Ok(Include { from })
+
+        let mut names = Vec::new();
+
+        match tokens.clone().next()? {
+            Some((_span, Token::With)) => {
+                tokens.expect(Token::With)?;
+                tokens.expect(Token::LeftBrace)?;
+                while !tokens.eat(Token::RightBrace)? {
+                    let name = parse_id(tokens)?;
+                    tokens.eat(Token::As)?;
+                    let as_ = parse_id(tokens)?;
+                    let name = IncludeName { name, as_ };
+                    names.push(name);
+                    if !tokens.eat(Token::Comma)? {
+                        tokens.expect(Token::RightBrace)?;
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(Include { from, names })
     }
 }
 

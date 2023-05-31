@@ -76,6 +76,7 @@ impl Default for Bindgen {
             imports: Default::default(),
             exports: Default::default(),
             includes: Default::default(),
+            include_names: Default::default(),
             package: Some(package),
         });
         resolve.packages[package]

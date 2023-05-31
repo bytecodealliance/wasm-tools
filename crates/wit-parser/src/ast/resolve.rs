@@ -287,7 +287,8 @@ impl<'a> Resolver<'a> {
             exports: IndexMap::new(),
             imports: IndexMap::new(),
             package: None,
-            includes: Vec::new(),
+            includes: Default::default(),
+            include_names: Default::default(),
         })
     }
 
@@ -847,6 +848,15 @@ impl<'a> Resolver<'a> {
             _ => unreachable!(),
         };
         self.worlds[world_id].includes.push(include_from);
+        self.worlds[world_id].include_names.push(
+            i.names
+                .iter()
+                .map(|n| IncludeName {
+                    name: n.name.name.to_string(),
+                    as_: n.as_.name.to_string(),
+                })
+                .collect(),
+        );
         Ok(())
     }
 

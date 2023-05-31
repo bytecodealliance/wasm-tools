@@ -1,8 +1,9 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
-    AstItem, Error, Function, Interface, InterfaceId, PackageName, Results, Type, TypeDef,
-    TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem, WorldKey,
+    AstItem, Error, Function, IncludeName, Interface, InterfaceId, PackageName, Results, Type,
+    TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
+    WorldKey,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -637,9 +638,11 @@ impl Remap {
 
             // Resolve all includes of the world
             let includes = mem::take(&mut world.includes);
-            for include_world in includes.into_iter() {
+            let include_names = mem::take(&mut world.include_names);
+            for (index, include_world) in includes.into_iter().enumerate() {
                 let span = unresolved_world_spans[include_world.index()];
-                self.resolve_include(&mut world, include_world, span, resolve)?;
+                let names = &include_names[index];
+                self.resolve_include(&mut world, include_world, names, span, resolve)?;
             }
 
             let new_id = resolve.worlds.alloc(world);
@@ -1082,6 +1085,7 @@ impl Remap {
         &self,
         world: &mut World,
         include_world: WorldId,
+        names: &[IncludeName],
         span: Span,
         resolve: &Resolve,
     ) -> Result<()> {
@@ -1093,6 +1097,15 @@ impl Remap {
             let name = import.0;
             match name {
                 WorldKey::Name(n) => {
+                    let n = if let Some(found) = names
+                        .into_iter()
+                        .find(|include_name| include_name.name == n.clone())
+                    {
+                        found.as_.clone()
+                    } else {
+                        n.clone()
+                    };
+
                     let prev = world
                         .imports
                         .insert(WorldKey::Name(n.clone()), import.1.clone());
@@ -1113,6 +1126,14 @@ impl Remap {
             let name = export.0;
             match name {
                 WorldKey::Name(n) => {
+                    let n = if let Some(found) = names
+                        .into_iter()
+                        .find(|include_name| include_name.name == n.clone())
+                    {
+                        found.as_.clone()
+                    } else {
+                        n.clone()
+                    };
                     let prev = world
                         .exports
                         .insert(WorldKey::Name(n.clone()), export.1.clone());
