@@ -106,6 +106,8 @@ impl<'a> Ast<'a> {
                     }
                 }
                 AstItem::Use(u) => {
+                    // At the top-level, we don't know if this is a world or an interface
+                    // It is up to the resolver to decides how to handle this ambiguity.
                     f(None, &u.item, None, WorldOrInterface::Unknown)?;
                 }
             }

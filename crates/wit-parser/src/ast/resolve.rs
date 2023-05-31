@@ -231,20 +231,30 @@ impl<'a> Resolver<'a> {
                     IndexMap::new()
                 });
                 let id = *deps.entry(name.name).or_insert_with(|| {
-                    log::trace!(
-                        "creating an interface for foreign dep: {}/{}",
-                        id.package_name(),
-                        name.name
-                    );
                     match world_or_iface {
                         WorldOrInterface::World => {
+                            log::trace!(
+                                "creating a world for foreign dep: {}/{}",
+                                id.package_name(),
+                                name.name
+                            );
                             AstItem::World(self.alloc_world(name.span, true))
                         }
                         WorldOrInterface::Interface => {
+                            log::trace!(
+                                "creating an interface for foreign dep: {}/{}",
+                                id.package_name(),
+                                name.name
+                            );
                             AstItem::Interface(self.alloc_interface(name.span))
                         }
                         WorldOrInterface::Unknown => {
-                            // TODO: fix me
+                            log::trace!(
+                                "creating an interface for foreign dep: {}/{}",
+                                id.package_name(),
+                                name.name
+                            );
+                            // Currently top-level `use` always assumes an interface
                             AstItem::Interface(self.alloc_interface(name.span))
                         }
                     }
