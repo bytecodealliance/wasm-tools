@@ -244,10 +244,10 @@ pub struct World {
     /// The package that owns this world.
     pub package: Option<PackageId>,
 
-    /// All the included worlds from this world.
+    /// All the included worlds from this world. Empty if this is fully resolved
     pub includes: Vec<WorldId>,
 
-    /// All the included worlds names
+    /// All the included worlds names. Empty if this is fully resolved
     pub include_names: Vec<Vec<IncludeName>>,
 }
 
