@@ -14,3 +14,4 @@ wit-parser = { workspace = true }
 clap = { workspace = true, optional = true }
 indexmap = { workspace = true }
 log = { workspace = true }
+semver = { workspace = true }
