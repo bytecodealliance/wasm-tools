@@ -407,7 +407,7 @@ impl<'a> Resolver<'a> {
                             bail!(Error {
                                 span: used_name.span,
                                 msg: format!(
-                                    "interface `{name}` not found in package",
+                                    "interface or world `{name}` not found in package",
                                     name = used_name.name
                                 ),
                             })
@@ -900,7 +900,7 @@ impl<'a> Resolver<'a> {
     ) -> Result<InterfaceId> {
         match item {
             AstItem::Interface(id) => Ok(*id),
-            AstItem::World(id) => {
+            AstItem::World(_) => {
                 bail!(Error {
                     span: span,
                     msg: format!("name `{}` is defined as a world, not an interface", name),
@@ -912,7 +912,7 @@ impl<'a> Resolver<'a> {
     fn extract_world_from_item(&self, item: &AstItem, name: &str, span: Span) -> Result<WorldId> {
         match item {
             AstItem::World(id) => Ok(*id),
-            AstItem::Interface(id) => {
+            AstItem::Interface(_) => {
                 bail!(Error {
                     span: span,
                     msg: format!("name `{}` is defined as an interface, not a world", name),

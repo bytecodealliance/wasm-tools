@@ -1,7 +1,7 @@
 failed to parse package: tests/ui/parse-fail/bad-pkg1
 
 Caused by:
-    interface `nonexistent` not found in package
+    interface or world `nonexistent` not found in package
          --> tests/ui/parse-fail/bad-pkg1/root.wit:4:7
           |
         4 |   use nonexistent.{}

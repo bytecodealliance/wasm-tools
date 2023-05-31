@@ -736,6 +736,13 @@ impl Remap {
             self.worlds.push(world_id);
         }
 
+        for (id, _) in unresolved.worlds.iter().skip(self.worlds.len()) {
+            assert!(
+                world_to_package.get(&id).is_none(),
+                "found foreign world after local world"
+            );
+        }
+
         // Connect all interfaces referred to in `interface_to_package`, which
         // are at the front of `unresolved.interfaces`, to interfaces already
         // contained within `resolve`.
@@ -1075,7 +1082,7 @@ impl Remap {
         &self,
         world: &mut World,
         include_world: WorldId,
-        _span: Span,
+        span: Span,
         resolve: &Resolve,
     ) -> Result<()> {
         let include_world_id = self.worlds[include_world.index()];
@@ -1083,13 +1090,43 @@ impl Remap {
 
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
-            let name = import.0.clone();
-            world.imports.insert(name.clone(), import.1.clone());
+            let name = import.0;
+            match name {
+                WorldKey::Name(n) => {
+                    let prev = world
+                        .imports
+                        .insert(WorldKey::Name(n.clone()), import.1.clone());
+                    if prev.is_some() {
+                        bail!(Error {
+                            msg: format!("import of `{}` shadows previously imported items", n),
+                            span,
+                        })
+                    }
+                }
+                i => {
+                    world.imports.insert(i.clone(), import.1.clone());
+                }
+            };
         }
 
         for export in include_world.exports.iter() {
-            let name = export.0.clone();
-            world.exports.insert(name.clone(), export.1.clone());
+            let name = export.0;
+            match name {
+                WorldKey::Name(n) => {
+                    let prev = world
+                        .exports
+                        .insert(WorldKey::Name(n.clone()), export.1.clone());
+                    if prev.is_some() {
+                        bail!(Error {
+                            msg: format!("export of `{}` shadows previously exported items", n),
+                            span,
+                        })
+                    }
+                }
+                i => {
+                    world.exports.insert(i.clone(), export.1.clone());
+                }
+            }
         }
         Ok(())
     }
