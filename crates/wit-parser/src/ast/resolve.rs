@@ -1,10 +1,8 @@
 use super::{Error, ParamList, ResultList, ValueKind, WorldOrInterface};
 use crate::ast::toposort::toposort;
-use crate::ast::Ast;
 use crate::*;
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use log::debug;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 

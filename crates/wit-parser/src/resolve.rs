@@ -1075,7 +1075,7 @@ impl Remap {
         &self,
         world: &mut World,
         include_world: WorldId,
-        span: Span,
+        _span: Span,
         resolve: &Resolve,
     ) -> Result<()> {
         let include_world_id = self.worlds[include_world.index()];
