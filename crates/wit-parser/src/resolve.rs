@@ -715,40 +715,29 @@ impl Remap {
             }
         }
 
-        for (unresolved_world_id, _) in unresolved.worlds.iter() {
-            let (pkg_name, world, span) = match world_to_package.get(&unresolved_world_id) {
-                Some(items) => *items,
-                None => break,
-            };
-
-            let pkgid = resolve
-                .package_names
-                .get(pkg_name)
-                .copied()
-                .ok_or_else(|| Error {
-                    span,
-                    msg: format!("package not found"),
-                })?;
-            let pkg = &resolve.packages[pkgid];
-            let span = unresolved.world_spans[unresolved_world_id.index()];
-            let world_id = pkg.worlds.get(world).copied().ok_or_else(|| Error {
-                span,
-                msg: format!("world not found in package"),
-            })?;
-            assert_eq!(self.worlds.len(), unresolved_world_id.index());
-            self.worlds.push(world_id);
-        }
-
-        for (id, _) in unresolved.worlds.iter().skip(self.worlds.len()) {
-            assert!(
-                world_to_package.get(&id).is_none(),
-                "found foreign world after local world"
-            );
-        }
-
         // Connect all interfaces referred to in `interface_to_package`, which
         // are at the front of `unresolved.interfaces`, to interfaces already
         // contained within `resolve`.
+        self.process_foreign_interfaces(unresolved, &interface_to_package, resolve)?;
+
+        // Connect all worlds referred to in `world_to_package`, which
+        // are at the front of `unresolved.worlds`, to worlds already
+        // contained within `resolve`.
+        self.process_foreign_worlds(unresolved, &world_to_package, resolve)?;
+
+        // Finally, iterate over all foreign-defined types and determine
+        // what they map to.
+        self.process_foreign_types(unresolved, resolve)?;
+
+        Ok(())
+    }
+
+    fn process_foreign_interfaces(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        interface_to_package: &HashMap<Id<Interface>, (&PackageName, &String, Span)>,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
             let (pkg_name, interface, span) = match interface_to_package.get(&unresolved_iface_id) {
                 Some(items) => *items,
@@ -782,16 +771,60 @@ impl Remap {
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(iface_id);
         }
-
         for (id, _) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
             assert!(
                 interface_to_package.get(&id).is_none(),
                 "found foreign interface after local interface"
             );
         }
+        Ok(())
+    }
 
-        // And finally iterate over all foreign-defined types and determine
-        // what they map to.
+    fn process_foreign_worlds(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        world_to_package: &HashMap<Id<World>, (&PackageName, &String, Span)>,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
+        for (unresolved_world_id, _) in unresolved.worlds.iter() {
+            let (pkg_name, world, span) = match world_to_package.get(&unresolved_world_id) {
+                Some(items) => *items,
+                // Same as above, all worlds are foreign until we find a
+                // non-foreign one.
+                None => break,
+            };
+
+            let pkgid = resolve
+                .package_names
+                .get(pkg_name)
+                .copied()
+                .ok_or_else(|| Error {
+                    span,
+                    msg: format!("package not found"),
+                })?;
+            let pkg = &resolve.packages[pkgid];
+            let span = unresolved.world_spans[unresolved_world_id.index()];
+            let world_id = pkg.worlds.get(world).copied().ok_or_else(|| Error {
+                span,
+                msg: format!("world not found in package"),
+            })?;
+            assert_eq!(self.worlds.len(), unresolved_world_id.index());
+            self.worlds.push(world_id);
+        }
+        for (id, _) in unresolved.worlds.iter().skip(self.worlds.len()) {
+            assert!(
+                world_to_package.get(&id).is_none(),
+                "found foreign world after local world"
+            );
+        }
+        Ok(())
+    }
+
+    fn process_foreign_types(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
         for (unresolved_type_id, unresolved_ty) in unresolved.types.iter() {
             // All "Unknown" types should appear first so once we're no longer
             // in unknown territory it's package-defined types so break out of
@@ -817,13 +850,11 @@ impl Remap {
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);
         }
-
         for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
             if let TypeDefKind::Unknown = ty.kind {
                 panic!("unknown type after defined type");
             }
         }
-
         Ok(())
     }
 
