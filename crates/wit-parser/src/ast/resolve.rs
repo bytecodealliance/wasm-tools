@@ -652,7 +652,7 @@ impl<'a> Resolver<'a> {
                         assert!(prev.is_none());
                     }
                     ValueKind::Static(_) => {
-                        unreachable!("static functions are only supported in resources")
+                        bail!("static functions are only supported in resources")
                     }
                 },
                 ast::InterfaceItem::Use(_) | ast::InterfaceItem::TypeDef(_) => {}
