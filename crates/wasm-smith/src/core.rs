@@ -610,7 +610,10 @@ impl Module {
                     new_index
                 }
                 Some((wasmparser::Type::Array(_array_type), _index_store)) => {
-                    unimplemented!("Array and struct types are not supported yet.");
+                    unimplemented!("Array types are not supported yet.");
+                }
+                Some((wasmparser::Type::Struct(_struct_type), _index_store)) => {
+                    unimplemented!("Struct types are not supported yet.");
                 }
             };
             match &new_types[serialized_sig_idx - first_type_index] {

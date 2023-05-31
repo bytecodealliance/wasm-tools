@@ -133,7 +133,10 @@ fn smoke_test_imports_config() {
                         match ty.unwrap() {
                             wasmparser::Type::Func(ft) => sig_types.push(ft),
                             wasmparser::Type::Array(_) => {
-                                unimplemented!("Array and struct types are not supported yet.")
+                                unimplemented!("Array types are not supported yet.")
+                            }
+                            wasmparser::Type::Struct(_) => {
+                                unimplemented!("Struct types are not supported yet.")
                             }
                         }
                     }

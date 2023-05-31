@@ -8,9 +8,9 @@ use super::{
 use crate::limits::*;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
-    Global, GlobalType, HeapType, MemoryType, RefType, Result, StorageType, Table, TableInit,
-    TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType,
+    ArrayType, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
+    FuncType, Global, GlobalType, HeapType, MemoryType, RefType, Result, StorageType, Table,
+    TableInit, TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures, WasmFuncType,
     WasmModuleResources,
 };
 use indexmap::IndexMap;
@@ -520,13 +520,25 @@ impl Module {
                         offset,
                     ));
                 }
-                match t.element_type {
-                    crate::StorageType::I8 | crate::StorageType::I16 => {}
-                    crate::StorageType::Val(value_type) => {
+                match t.0.element_type {
+                    StorageType::I8 | StorageType::I16 => {}
+                    StorageType::Val(value_type) => {
                         self.check_value_type(value_type, features, offset)?;
                     }
                 };
                 Type::Array(t)
+            }
+            crate::Type::Struct(t) => {
+                if !features.gc {
+                    return Err(BinaryReaderError::new(
+                        "struct indexed types not supported without the gc feature",
+                        offset,
+                    ));
+                }
+                for ty in t.fields.iter() {
+                    self.check_storage_type(ty.element_type, features, offset)?;
+                }
+                Type::Struct(t)
             }
         };
 
@@ -798,6 +810,21 @@ impl Module {
             .collect::<Result<_>>()
     }
 
+    fn check_storage_type(
+        &self,
+        ty: StorageType,
+        features: &WasmFeatures,
+        offset: usize,
+    ) -> Result<()> {
+        match ty {
+            StorageType::I8 | StorageType::I16 => {}
+            StorageType::Val(value_type) => {
+                self.check_value_type(value_type, features, offset)?;
+            }
+        }
+        Ok(())
+    }
+
     fn check_value_type(&self, ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
         match features.check_value_type(ty) {
             Ok(()) => Ok(()),
@@ -855,7 +882,7 @@ impl Module {
         let n2 = self.type_at(types, n2.into(), 0).unwrap();
         match (n1, n2) {
             (Type::Func(f1), Type::Func(f2)) => self.eq_fns(f1, f2, types),
-            (Type::Array(a1), Type::Array(a2)) => {
+            (Type::Array(ArrayType(a1)), Type::Array(ArrayType(a2))) => {
                 a1.mutable == a2.mutable
                     && match (a1.element_type, a2.element_type) {
                         (StorageType::Val(vt1), StorageType::Val(vt2)) => {
@@ -897,7 +924,7 @@ impl Module {
                     let n2 = self.type_at(types, n2.into(), 0);
                     match (n1, n2) {
                         (Ok(Type::Func(n1)), Ok(Type::Func(n2))) => self.eq_fns(n1, n2, types),
-                        (Ok(Type::Array(n1)), Ok(Type::Array(n2))) => {
+                        (Ok(Type::Array(ArrayType(n1))), Ok(Type::Array(ArrayType(n2)))) => {
                             (n1.mutable == n2.mutable || n2.mutable)
                                 && match (n1.element_type, n2.element_type) {
                                     (StorageType::Val(vt1), StorageType::Val(vt2)) => {

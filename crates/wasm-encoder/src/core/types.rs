@@ -1,6 +1,15 @@
 use crate::{encode_section, Encode, Section, SectionId};
 
-/// Array or struct field type.
+/// Field type in structural types (structs, arrays).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct FieldType {
+    /// Storage type of the field.
+    pub ty: StorageType,
+    /// Is the field mutable.
+    pub mutable: bool,
+}
+
+/// Storage type for structural type fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum StorageType {
     /// The `i8` type.
@@ -225,9 +234,24 @@ impl TypeSection {
 
     /// Define an array type in this type section.
     pub fn array(&mut self, ty: StorageType, mutable: bool) -> &mut Self {
+        self.field(ty, mutable)
+    }
+
+    fn field(&mut self, ty: StorageType, mutable: bool) -> &mut Self {
         self.bytes.push(0x5e);
         ty.encode(&mut self.bytes);
         self.bytes.push(mutable as u8);
+        self.num_added += 1;
+        self
+    }
+
+    /// Define a struct type in this type section.
+    pub fn struct_(&mut self, fields: Vec<FieldType>) -> &mut Self {
+        self.bytes.push(0x5f);
+        fields.len().encode(&mut self.bytes);
+        for f in fields.iter() {
+            self.field(f.ty, f.mutable);
+        }
         self.num_added += 1;
         self
     }

@@ -675,6 +675,12 @@ impl Printer {
                 self.end_group();
                 Type::Array(ty)
             }
+            Type::Struct(ty) => {
+                self.start_group("struct");
+                self.print_struct_type(&ty)?;
+                self.end_group();
+                Type::Struct(ty)
+            }
         };
         self.end_group(); // `type` itself
         state.core.types.push(Some(ty));
@@ -716,6 +722,7 @@ impl Printer {
         match state.core.types.get(idx as usize) {
             Some(Some(Type::Func(ty))) => self.print_func_type(state, ty, names_for).map(Some),
             Some(Some(Type::Array(ty))) => self.print_array_type(ty).map(Some),
+            Some(Some(Type::Struct(ty))) => self.print_struct_type(ty).map(Some),
             Some(None) | None => Ok(None),
         }
     }
@@ -754,7 +761,7 @@ impl Printer {
         Ok(ty.params().len() as u32)
     }
 
-    fn print_array_type(&mut self, ty: &ArrayType) -> Result<u32> {
+    fn print_field_type(&mut self, ty: &FieldType) -> Result<u32> {
         self.result.push(' ');
         if ty.mutable {
             self.result.push_str("(mut ");
@@ -762,6 +769,19 @@ impl Printer {
         self.print_storage_type(ty.element_type)?;
         if ty.mutable {
             self.result.push_str(")");
+        }
+        Ok(0)
+    }
+
+    fn print_array_type(&mut self, ty: &ArrayType) -> Result<u32> {
+        self.print_field_type(&ty.0)
+    }
+
+    fn print_struct_type(&mut self, ty: &StructType) -> Result<u32> {
+        for field in ty.fields.iter() {
+            self.result.push_str(" (field");
+            self.print_field_type(field)?;
+            self.result.push(')');
         }
         Ok(0)
     }
