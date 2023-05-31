@@ -851,7 +851,6 @@ impl<'a> Resolver<'a> {
     fn resolve_include(&mut self, owner: TypeOwner, i: &ast::Include<'a>) -> Result<()> {
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
-        self.foreign_dep_spans.push(span);
         self.foreign_world_spans.push(span);
         let world_id = match owner {
             TypeOwner::World(id) => id,
