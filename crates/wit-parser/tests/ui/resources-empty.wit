@@ -1,0 +1,9 @@
+package foo:resources-empty
+
+interface resources-empty {
+  t1: func(a: shared<r1>) -> ()
+
+  resource r1 {
+  }
+}
+

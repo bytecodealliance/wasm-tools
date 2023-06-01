@@ -1,4 +1,4 @@
-package foo:shared
+package foo:shared-items
 
 world foo {
   import foo: interface {
