@@ -904,9 +904,11 @@ impl WitPackageDecoder<'_> {
             | TypeDefKind::List(_)
             | TypeDefKind::Tuple(_)
             | TypeDefKind::Option(_)
-            | TypeDefKind::Result(_) => {}
+            | TypeDefKind::Result(_)
+            | TypeDefKind::Handle(_) => {}
 
-            TypeDefKind::Record(_)
+            TypeDefKind::Resource(_)
+            | TypeDefKind::Record(_)
             | TypeDefKind::Enum(_)
             | TypeDefKind::Variant(_)
             | TypeDefKind::Union(_)

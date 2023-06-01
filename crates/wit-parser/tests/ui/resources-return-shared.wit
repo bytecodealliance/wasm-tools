@@ -1,0 +1,11 @@
+package foo:resources1
+
+interface resources1 {
+  t1: func(a: shared<r1>) -> ()
+
+  resource r1 {
+    //TODO: Fix so it will allow references to itself if it's inside a handle
+    //f1: func() -> shared<r1>
+  }
+}
+

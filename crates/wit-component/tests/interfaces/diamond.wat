@@ -7,7 +7,7 @@
           (export (;1;) "the-enum" (type (eq 0)))
         )
       )
-      (export (;0;) (interface "foo:foo/shared") (instance (type 0)))
+      (export (;0;) (interface "foo:foo/shared-items") (instance (type 0)))
       (type (;1;)
         (component
           (type (;0;)
@@ -16,7 +16,7 @@
               (export (;1;) "the-enum" (type (eq 0)))
             )
           )
-          (import (interface "foo:foo/shared") (instance (;0;) (type 0)))
+          (import (interface "foo:foo/shared-items") (instance (;0;) (type 0)))
           (alias export 0 "the-enum" (type (;1;)))
           (type (;2;)
             (instance
@@ -43,7 +43,7 @@
               (export (;1;) "the-enum" (type (eq 0)))
             )
           )
-          (import (interface "foo:foo/shared") (instance (;0;) (type 0)))
+          (import (interface "foo:foo/shared-items") (instance (;0;) (type 0)))
           (alias export 0 "the-enum" (type (;1;)))
           (type (;2;)
             (instance
@@ -70,7 +70,7 @@
               (export (;1;) "the-enum" (type (eq 0)))
             )
           )
-          (import (interface "foo:foo/shared") (instance (;0;) (type 0)))
+          (import (interface "foo:foo/shared-items") (instance (;0;) (type 0)))
           (alias export 0 "the-enum" (type (;1;)))
           (type (;2;)
             (instance

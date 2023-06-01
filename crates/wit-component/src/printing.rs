@@ -291,6 +291,12 @@ impl WitPrinter {
                 }
 
                 match &ty.kind {
+                    TypeDefKind::Handle(h) => {
+                        self.print_handle_type(resolve, h)?;
+                    }
+                    TypeDefKind::Resource(_) => {
+                        bail!("resolve has an unnamed resource type");
+                    }
                     TypeDefKind::Tuple(t) => {
                         self.print_tuple_type(resolve, t)?;
                     }
@@ -329,6 +335,18 @@ impl WitPrinter {
                     }
                     TypeDefKind::Unknown => unreachable!(),
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn print_handle_type(&mut self, resolve: &Resolve, handle: &Handle) -> Result<()> {
+        match handle {
+            Handle::Shared(ty) => {
+                self.output.push_str("shared<");
+                self.print_type_name(resolve, ty)?;
+                self.output.push_str(">");
             }
         }
 
@@ -412,6 +430,12 @@ impl WitPrinter {
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
                 match &ty.kind {
+                    TypeDefKind::Handle(h) => {
+                        self.declare_handle(resolve, ty.name.as_deref(), h)?
+                    }
+                    TypeDefKind::Resource(r) => {
+                        self.declare_resource(resolve, ty.name.as_deref(), r)?
+                    }
                     TypeDefKind::Record(r) => {
                         self.declare_record(resolve, ty.name.as_deref(), r)?
                     }
@@ -447,6 +471,115 @@ impl WitPrinter {
                 }
             }
         }
+        Ok(())
+    }
+
+    fn declare_handle(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        handle: &Handle,
+    ) -> Result<()> {
+        match name {
+            Some(name) => {
+                self.print_name(name);
+                self.output.push_str(" = ");
+
+                match handle {
+                    Handle::Shared(ty) => {
+                        self.output.push_str("shared<");
+                        self.print_type_name(resolve, ty)?;
+                        self.output.push_str(">");
+                    }
+                }
+
+                self.output.push_str("\n\n");
+
+                Ok(())
+            }
+            None => bail!("document has unnamed handle type"),
+        }
+    }
+
+    fn declare_resource(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        resource: &Resource,
+    ) -> Result<()> {
+        match name {
+            Some(name) => {
+                self.output.push_str("resource ");
+                self.print_name(name);
+                self.output.push_str(" {\n");
+                for function in &resource.methods {
+                    self.declare_function(resolve, Some(name), function)?;
+                }
+                self.output.push_str(" }\n\n");
+                Ok(())
+            }
+            None => bail!("document has unnamed resource type"),
+        }
+    }
+
+    fn declare_function(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        function: &Function,
+    ) -> Result<()> {
+        match function.kind {
+            FunctionKind::Static => {
+                self.output.push_str("static ");
+            }
+            _ => {}
+        }
+
+        self.print_name(&function.name);
+        self.output.push_str(": func(");
+
+        match function.kind {
+            FunctionKind::Method => match name {
+                Some(name) => {
+                    self.output.push_str(&format!("self: shared<{name}>"));
+                }
+                None => bail!("document has unnamed resource type"),
+            },
+            _ => {}
+        }
+
+        for (name, ty) in &function.params {
+            self.print_name(&name);
+            self.output.push_str(": ");
+            self.print_type_name(resolve, &ty)?;
+            self.output.push_str(", ");
+        }
+
+        self.output.push_str(") ");
+
+        self.output.push_str("-> ");
+
+        match &function.results {
+            Results::Named(results) => {
+                self.output.push_str("(");
+
+                if results.len() > 0 {
+                    for (name, ty) in results {
+                        self.print_name(&name);
+                        self.output.push_str(": ");
+                        self.print_type_name(resolve, &ty)?;
+                        self.output.push_str(", ");
+                    }
+                }
+                self.output.push_str(")");
+            }
+            Results::Anon(ty) => {
+                self.print_type_name(resolve, &ty)?;
+            }
+        }
+
+        self.output.push_str(";\n");
+
         Ok(())
     }
 
@@ -627,10 +760,10 @@ impl WitPrinter {
 fn is_keyword(name: &str) -> bool {
     match name {
         "use" | "type" | "func" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64"
-        | "float32" | "float64" | "char" | "record" | "flags" | "variant" | "enum" | "union"
-        | "bool" | "string" | "option" | "result" | "future" | "stream" | "list" | "_" | "as"
-        | "from" | "static" | "interface" | "tuple" | "implements" | "world" | "import"
-        | "export" | "default" | "pkg" | "self" | "package" => true,
+        | "float32" | "float64" | "char" | "resource" | "record" | "flags" | "variant" | "enum"
+        | "union" | "bool" | "string" | "option" | "result" | "future" | "stream" | "list"
+        | "shared" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "implements"
+        | "world" | "import" | "export" | "default" | "pkg" | "self" | "package" => true,
         _ => false,
     }
 }

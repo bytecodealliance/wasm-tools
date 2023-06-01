@@ -307,6 +307,8 @@ pub struct TypeDef {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeDefKind {
     Record(Record),
+    Resource(Resource),
+    Handle(Handle),
     Flags(Flags),
     Tuple(Tuple),
     Variant(Variant),
@@ -331,6 +333,10 @@ impl TypeDefKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             TypeDefKind::Record(_) => "record",
+            TypeDefKind::Resource(_) => "resource",
+            TypeDefKind::Handle(handle) => match handle {
+                Handle::Shared(_) => "shared",
+            },
             TypeDefKind::Flags(_) => "flags",
             TypeDefKind::Tuple(_) => "tuple",
             TypeDefKind::Variant(_) => "variant",
@@ -356,6 +362,11 @@ pub enum TypeOwner {
     /// This type wasn't inherently defined anywhere, such as a `list<T>`, which
     /// doesn't need an owner.
     None,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub enum Handle {
+    Shared(Type),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -387,6 +398,11 @@ pub enum Int {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Record {
     pub fields: Vec<Field>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Resource {
+    pub methods: Vec<Function>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -519,7 +535,7 @@ pub struct Stream {
     pub end: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Docs {
     pub contents: Option<String>,
 }
@@ -591,7 +607,7 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function {
     pub docs: Docs,
     pub name: String,
@@ -600,15 +616,19 @@ pub struct Function {
     pub results: Results,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FunctionKind {
     Freestanding,
+    Method,
+    Static,
 }
 
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
             FunctionKind::Freestanding => &self.name,
+            FunctionKind::Method => &self.name,
+            FunctionKind::Static => &self.name,
         }
     }
 

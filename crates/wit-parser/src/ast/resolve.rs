@@ -82,6 +82,7 @@ enum AstItem {
 #[derive(PartialEq, Eq, Hash)]
 enum Key {
     Variant(Vec<(String, Option<Type>)>),
+    Handle(Handle),
     Record(Vec<(String, Type)>),
     Flags(Vec<String>),
     Tuple(Vec<Type>),
@@ -650,6 +651,9 @@ impl<'a> Resolver<'a> {
                             .insert(value.name.name.to_string(), func);
                         assert!(prev.is_none());
                     }
+                    ValueKind::Static(_) => {
+                        bail!("static functions are only supported in resources")
+                    }
                 },
                 ast::InterfaceItem::Use(_) | ast::InterfaceItem::TypeDef(_) => {}
             }
@@ -854,6 +858,52 @@ impl<'a> Resolver<'a> {
                 let ty = self.resolve_type(list)?;
                 TypeDefKind::List(ty)
             }
+            ast::Type::Handle(handle) => match handle {
+                ast::Handle::Shared { ty } => {
+                    let ty = self.resolve_type(ty)?;
+                    TypeDefKind::Handle(Handle::Shared(ty))
+                }
+            },
+            ast::Type::Resource(resource) => {
+                let methods = resource
+                    .methods
+                    .iter()
+                    .map(|value| {
+                        let (func, kind) = match &value.kind {
+                            ValueKind::Func(func) => (func, FunctionKind::Method),
+                            ValueKind::Static(func) => (func, FunctionKind::Static),
+                        };
+
+                        let params = func
+                            .params
+                            .iter()
+                            .map(|(id, ty)| (id.name.to_owned(), self.resolve_type(ty).unwrap()))
+                            .collect();
+
+                        let results = match &func.results {
+                            ResultList::Named(results) => {
+                                let results = results
+                                    .into_iter()
+                                    .map(|(id, ty)| {
+                                        (id.name.to_owned(), self.resolve_type(&ty).unwrap())
+                                    })
+                                    .collect();
+                                Results::Named(results)
+                            }
+                            ResultList::Anon(ty) => Results::Anon(self.resolve_type(&ty).unwrap()),
+                        };
+
+                        Ok(Function {
+                            docs: self.docs(&value.docs),
+                            name: value.name.name.to_string(),
+                            kind: kind,
+                            params: params,
+                            results: results,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                TypeDefKind::Resource(Resource { methods })
+            }
             ast::Type::Record(record) => {
                 let fields = record
                     .fields
@@ -986,6 +1036,8 @@ impl<'a> Resolver<'a> {
                     .map(|case| (case.name.clone(), case.ty))
                     .collect::<Vec<_>>(),
             ),
+            TypeDefKind::Handle(h) => Key::Handle(*h),
+            TypeDefKind::Resource(_) => unreachable!("anonymous resources aren't supported"),
             TypeDefKind::Record(r) => Key::Record(
                 r.fields
                     .iter()
@@ -1074,6 +1126,30 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         | ast::Type::Enum(_) => {}
         ast::Type::Name(name) => deps.push(name.clone()),
         ast::Type::List(list) => collect_deps(list, deps),
+        ast::Type::Handle(handle) => match handle {
+            ast::Handle::Shared { ty } => collect_deps(ty, deps),
+        },
+        ast::Type::Resource(resource) => {
+            for method in resource.methods.iter() {
+                let func = match &method.kind {
+                    ValueKind::Func(func) => func,
+                    ValueKind::Static(func) => func,
+                };
+
+                for (_, ty) in func.params.iter() {
+                    collect_deps(ty, deps);
+                }
+
+                match &func.results {
+                    ResultList::Named(results) => {
+                        for (_, ty) in results.iter() {
+                            collect_deps(ty, deps);
+                        }
+                    }
+                    ResultList::Anon(ty) => collect_deps(&ty, deps),
+                }
+            }
+        }
         ast::Type::Record(record) => {
             for field in record.fields.iter() {
                 collect_deps(&field.ty, deps);

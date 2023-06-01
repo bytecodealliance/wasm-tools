@@ -1,13 +1,13 @@
 package foo:foo
 
-interface shared {
+interface shared-items {
   type a = u32
 }
 
 world foo {
-  import shared: interface {}
+  import shared-items: interface {}
   export a-name: interface {
-    use shared.{a}
+    use shared-items.{a}
   }
 }
 

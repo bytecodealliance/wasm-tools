@@ -772,6 +772,10 @@ impl Resolve {
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::Type(t) => self.push_wasm(variant, t, result),
 
+                TypeDefKind::Handle(_) => todo!(),
+
+                TypeDefKind::Resource(_) => todo!(),
+
                 TypeDefKind::Record(r) => {
                     for field in r.fields.iter() {
                         self.push_wasm(variant, &field.ty, result);
@@ -899,6 +903,8 @@ impl Resolve {
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::List(_) => true,
                 TypeDefKind::Type(t) => self.needs_post_return(t),
+                TypeDefKind::Handle(_) => true,
+                TypeDefKind::Resource(_) => true,
                 TypeDefKind::Record(r) => r.fields.iter().any(|f| self.needs_post_return(&f.ty)),
                 TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.needs_post_return(t)),
                 TypeDefKind::Union(t) => t.cases.iter().any(|t| self.needs_post_return(&t.ty)),
@@ -1285,6 +1291,10 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         self.emit(&ListLower { element, realloc });
                     }
                 }
+                TypeDefKind::Handle(_) => todo!(),
+                TypeDefKind::Resource(_) => {
+                    todo!();
+                }
                 TypeDefKind::Record(record) => {
                     self.emit(&RecordLower {
                         record,
@@ -1468,6 +1478,12 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         self.emit(&ListLift { element, ty: id });
                     }
                 }
+                TypeDefKind::Handle(_) => {
+                    todo!();
+                }
+                TypeDefKind::Resource(_) => {
+                    todo!();
+                }
                 TypeDefKind::Record(record) => {
                     let mut temp = Vec::new();
                     self.resolve.push_wasm(self.variant, ty, &mut temp);
@@ -1615,6 +1631,8 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 TypeDefKind::Type(t) => self.write_to_memory(t, addr, offset),
                 TypeDefKind::List(_) => self.write_list_to_memory(ty, addr, offset),
 
+                TypeDefKind::Handle(_) => todo!(),
+
                 // Decompose the record into its components and then write all
                 // the components into memory one-by-one.
                 TypeDefKind::Record(record) => {
@@ -1624,6 +1642,9 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         name: self.resolve.types[id].name.as_deref().unwrap(),
                     });
                     self.write_fields_to_memory(record.fields.iter().map(|f| &f.ty), addr, offset);
+                }
+                TypeDefKind::Resource(_) => {
+                    todo!()
                 }
                 TypeDefKind::Tuple(tuple) => {
                     self.emit(&TupleLower { tuple, ty: id });
@@ -1814,6 +1835,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
 
                 TypeDefKind::List(_) => self.read_list_from_memory(ty, addr, offset),
 
+                TypeDefKind::Handle(_) => {
+                    todo!();
+                }
+
+                TypeDefKind::Resource(_) => {
+                    todo!();
+                }
+
                 // Read and lift each field individually, adjusting the offset
                 // as we go along, then aggregate all the fields into the
                 // record.
@@ -1825,6 +1854,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         name: self.resolve.types[id].name.as_deref().unwrap(),
                     });
                 }
+
                 TypeDefKind::Tuple(tuple) => {
                     self.read_fields_from_memory(&tuple.types, addr, offset);
                     self.emit(&TupleLift { tuple, ty: id });
@@ -2029,6 +2059,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     self.emit(&Instruction::GuestDeallocateList { element });
                 }
 
+                TypeDefKind::Handle(_) => {
+                    todo!()
+                }
+
+                TypeDefKind::Resource(_) => {
+                    todo!()
+                }
+
                 TypeDefKind::Record(record) => {
                     self.deallocate_fields(
                         &record.fields.iter().map(|f| f.ty).collect::<Vec<_>>(),
@@ -2036,6 +2074,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         offset,
                     );
                 }
+
                 TypeDefKind::Tuple(tuple) => {
                     self.deallocate_fields(&tuple.types, addr, offset);
                 }

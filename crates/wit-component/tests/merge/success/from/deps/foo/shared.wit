@@ -10,14 +10,14 @@ interface shared-only-from {
   use foo:only-from-dep/a.{a}
 }
 
-interface shared {
+interface shared-items {
   type a = u32
 }
 
 world shared-world {
-  import shared
+  import shared-items
 
-  export shared
+  export shared-items
 
   type c = u32
 

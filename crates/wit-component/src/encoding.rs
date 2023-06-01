@@ -286,6 +286,12 @@ impl TypeContents {
     fn for_type(resolve: &Resolve, ty: &Type) -> Self {
         match ty {
             Type::Id(id) => match &resolve.types[*id].kind {
+                TypeDefKind::Handle(h) => match h {
+                    wit_parser::Handle::Shared(ty) => Self::for_type(resolve, ty),
+                },
+                TypeDefKind::Resource(..) => {
+                    todo!();
+                }
                 TypeDefKind::Record(r) => Self::for_types(resolve, r.fields.iter().map(|f| &f.ty)),
                 TypeDefKind::Tuple(t) => Self::for_types(resolve, t.types.iter()),
                 TypeDefKind::Flags(_) => Self::empty(),

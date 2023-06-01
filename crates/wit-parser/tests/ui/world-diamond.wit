@@ -1,17 +1,17 @@
 package foo:foo
 
-interface shared {
+interface shared-items {
   type foo = u32
 }
 
 interface i1 {
-  use shared.{foo}
+  use shared-items.{foo}
 
   a: func() -> foo
 }
 
 interface i2 {
-  use shared.{foo}
+  use shared-items.{foo}
 
   a: func() -> foo
 }
