@@ -1151,61 +1151,49 @@ impl Remap {
 
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
-            let name = import.0;
-            match name {
-                WorldKey::Name(n) => {
-                    let n = if let Some(found) = names
-                        .into_iter()
-                        .find(|include_name| include_name.name == n.clone())
-                    {
-                        found.as_.clone()
-                    } else {
-                        n.clone()
-                    };
-
-                    let prev = world
-                        .imports
-                        .insert(WorldKey::Name(n.clone()), import.1.clone());
-                    if prev.is_some() {
-                        bail!(Error {
-                            msg: format!("import of `{}` shadows previously imported items", n),
-                            span,
-                        })
-                    }
-                }
-                i => {
-                    world.imports.insert(i.clone(), import.1.clone());
-                }
-            };
+            self.resolve_include_item(names, &mut world.imports, import, span, "import")?;
         }
 
         for export in include_world.exports.iter() {
-            let name = export.0;
-            match name {
-                WorldKey::Name(n) => {
-                    let n = if let Some(found) = names
-                        .into_iter()
-                        .find(|include_name| include_name.name == n.clone())
-                    {
-                        found.as_.clone()
-                    } else {
-                        n.clone()
-                    };
-                    let prev = world
-                        .exports
-                        .insert(WorldKey::Name(n.clone()), export.1.clone());
-                    if prev.is_some() {
-                        bail!(Error {
-                            msg: format!("export of `{}` shadows previously exported items", n),
-                            span,
-                        })
-                    }
-                }
-                i => {
-                    world.exports.insert(i.clone(), export.1.clone());
+            self.resolve_include_item(names, &mut world.exports, export, span, "export")?;
+        }
+        Ok(())
+    }
+
+    fn resolve_include_item(
+        &self,
+        names: &[IncludeName],
+        items: &mut IndexMap<WorldKey, WorldItem>,
+        item: (&WorldKey, &WorldItem),
+        span: Span,
+        item_type: &str,
+    ) -> Result<()> {
+        match item.0 {
+            WorldKey::Name(n) => {
+                let n = if let Some(found) = names
+                    .into_iter()
+                    .find(|include_name| include_name.name == n.clone())
+                {
+                    found.as_.clone()
+                } else {
+                    n.clone()
+                };
+
+                let prev = items.insert(WorldKey::Name(n.clone()), item.1.clone());
+                if prev.is_some() {
+                    bail!(Error {
+                        msg: format!("{item_type} of `{n}` shadows previously {item_type}ed items"),
+                        span,
+                    })
                 }
             }
-        }
+            key => {
+                let prev = items.insert(key.clone(), item.1.clone());
+                if let Some(prev) = prev {
+                    assert_eq!(prev, item.1.clone());
+                }
+            }
+        };
         Ok(())
     }
 }
