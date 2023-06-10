@@ -114,7 +114,9 @@ impl Resolve {
                 let path = dep.path();
 
                 // Files in deps dir are ignored
-                if path.is_file() { continue };
+                if path.is_file() {
+                    continue;
+                };
 
                 let pkg = UnresolvedPackage::parse_dir(&path)
                     .with_context(|| format!("failed to parse package: {}", path.display()))?;
