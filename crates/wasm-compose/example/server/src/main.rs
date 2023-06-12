@@ -8,9 +8,11 @@ use tide::{
     utils::After,
     Request, Response, StatusCode,
 };
-use wasi_host::wasi;
-use wasi_cap_std_sync::WasiCtxBuilder;
+
 use wasmtime::{component::*, Config, Engine, Store};
+use wasmtime_wasi::preview2::{wasi, Table, WasiCtx, WasiCtxBuilder, WasiView};
+
+use exports::example::service::*;
 
 wasmtime::component::bindgen!({
     path: "../service.wit",
@@ -122,20 +124,20 @@ impl ServerApp {
         // Create a new store for the request
         let state = req.state();
         let mut linker = Linker::new(&state.engine);
-        let wasi_ctx = WasiCtxBuilder::new()
-            .inherit_stdio()
-            .build();
-        
-        wasi::environment::add_to_linker(&mut linker, |x| x)?;
-        wasi::filesystem::add_to_linker(&mut linker, |x| x)?;
-        wasi::preopens::add_to_linker(&mut linker, |x| x)?;
-        wasi::streams::add_to_linker(&mut linker, |x| x)?;
-        wasi::exit::add_to_linker(&mut linker, |x| x)?;
+        wasi::filesystem::filesystem::add_to_linker(&mut linker, |x| x)?;
+        wasi::io::streams::add_to_linker(&mut linker, |x| x)?;
+        wasi::cli_base::environment::add_to_linker(&mut linker, |x| x)?;
+        wasi::cli_base::preopens::add_to_linker(&mut linker, |x| x)?;
+        wasi::cli_base::exit::add_to_linker(&mut linker, |x| x)?;
+        wasi::cli_base::stdin::add_to_linker(&mut linker, |x| x)?;
+        wasi::cli_base::stdout::add_to_linker(&mut linker, |x| x)?;
+        wasi::cli_base::stderr::add_to_linker(&mut linker, |x| x)?;
 
-        let mut store = Store::new(&state.engine, wasi_ctx);
+        let wasi_view = ServerWasiView::new()?;
+        let mut store = Store::new(&state.engine, wasi_view);
         let (service, _) = Service::instantiate_async(&mut store, &state.component, &linker).await?;
         service
-            .handler
+            .example_service_handler()
             .call_execute(
                 &mut store,
                 handler::Request {
@@ -146,6 +148,38 @@ impl ServerApp {
             .await?
             .map(TryInto::try_into)
             .map_err(handler::Error::into_tide)?
+    }
+}
+
+struct ServerWasiView {
+    table: Table,
+    ctx: WasiCtx,
+}
+
+impl ServerWasiView {
+    fn new() -> Result<Self, anyhow::Error> {
+        let mut table = Table::new();
+        let ctx = WasiCtxBuilder::new().inherit_stdio().build(&mut table)?;
+
+        Ok(Self { table, ctx })
+    }
+}
+
+impl WasiView for ServerWasiView {
+    fn table(&self) -> &Table {
+        &self.table
+    }
+
+    fn table_mut(&mut self) -> &mut Table {
+        &mut self.table
+    }
+
+    fn ctx(&self) -> &WasiCtx {
+        &self.ctx
+    }
+
+    fn ctx_mut(&mut self) -> &mut WasiCtx {
+        &mut self.ctx
     }
 }
 
