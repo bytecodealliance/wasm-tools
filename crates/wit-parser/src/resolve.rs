@@ -113,10 +113,12 @@ impl Resolve {
                 let dep = dep.context("failed to read directory iterator")?;
                 let path = dep.path();
 
-                // Files in deps dir are ignored
+                // Files in deps dir are ignored for now to avoid accidentally
+                // including things like `.DS_Store` files in the call below to
+                // `parse_dir`.
                 if path.is_file() {
                     continue;
-                };
+                }
 
                 let pkg = UnresolvedPackage::parse_dir(&path)
                     .with_context(|| format!("failed to parse package: {}", path.display()))?;
