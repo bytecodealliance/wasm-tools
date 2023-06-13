@@ -462,26 +462,22 @@ impl<'a> Include<'a> {
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
 
-        let mut names = Vec::new();
-
-        match tokens.clone().next()? {
-            Some((_span, Token::With)) => {
-                tokens.expect(Token::With)?;
-                tokens.expect(Token::LeftBrace)?;
-                while !tokens.eat(Token::RightBrace)? {
+        let names = if tokens.eat(Token::With)? {
+            parse_list(
+                tokens,
+                Token::LeftBrace,
+                Token::RightBrace,
+                |_docs, tokens| {
                     let name = parse_id(tokens)?;
-                    tokens.eat(Token::As)?;
+                    tokens.expect(Token::As)?;
                     let as_ = parse_id(tokens)?;
-                    let name = IncludeName { name, as_ };
-                    names.push(name);
-                    if !tokens.eat(Token::Comma)? {
-                        tokens.expect(Token::RightBrace)?;
-                        break;
-                    }
-                }
-            }
-            _ => {}
-        }
+                    Ok(IncludeName { name, as_ })
+                },
+            )?
+        } else {
+            Vec::new()
+        };
+
         Ok(Include { from, names })
     }
 }
