@@ -11,13 +11,16 @@ use wit_parser::*;
 
 pub struct Generator {
     config: Config,
-    packages: PackageList,
+    packages_lists: PackageIfaceList,
+    package_worlds: PackageWorldList,
     next_interface_id: u32,
 }
 
 type TypeList = Vec<(String, usize)>;
 type InterfaceList = IndexMap<String, FileInterface>;
-type PackageList = Vec<(PackageName, InterfaceList)>;
+type WorldList = IndexMap<String, FileWorld>;
+type PackageIfaceList = Vec<(PackageName, InterfaceList)>;
+type PackageWorldList = Vec<(PackageName, WorldList)>;
 
 struct InterfaceGenerator<'a> {
     gen: &'a Generator,
@@ -43,7 +46,8 @@ impl Generator {
     pub fn new(config: Config) -> Generator {
         Generator {
             config,
-            packages: Default::default(),
+            packages_lists: Default::default(),
+            package_worlds: Default::default(),
             next_interface_id: 0,
         }
     }
@@ -52,9 +56,12 @@ impl Generator {
         let mut packages = Vec::new();
         let mut names = HashSet::new();
         while packages.len() < self.config.max_packages && (packages.is_empty() || u.arbitrary()?) {
-            let (pkg, interfaces) = self.gen_package(u, &mut names)?;
+            let (pkg, interfaces, worlds) = self.gen_package(u, &mut names)?;
             if interfaces.len() > 0 {
-                self.packages.push((pkg.name.clone(), interfaces));
+                self.packages_lists.push((pkg.name.clone(), interfaces));
+            }
+            if worlds.len() > 0 {
+                self.package_worlds.push((pkg.name.clone(), worlds));
             }
             packages.push(pkg);
         }
@@ -65,7 +72,7 @@ impl Generator {
         &mut self,
         u: &mut Unstructured<'_>,
         names: &mut HashSet<String>,
-    ) -> Result<(Package, InterfaceList)> {
+    ) -> Result<(Package, InterfaceList, WorldList)> {
         let namespace = gen_unique_name(u, names)?;
         let name = gen_unique_name(u, names)?;
         let version = if u.arbitrary()? {
@@ -114,6 +121,7 @@ impl Generator {
                             .map(|(k, _)| (k.clone(), Definition::Package))
                             .collect(),
                         interfaces: package.interfaces.clone(),
+                        worlds: package.worlds.clone(),
                     });
                     files.last_mut().unwrap()
                 }
@@ -124,6 +132,20 @@ impl Generator {
                     log::debug!("new world `{name}` in {i}");
                     let world = self.gen_world(u, &name, file)?;
                     file.items.push(world);
+                    let world = FileWorld {
+                        name,
+                    };
+                    // this world is defined at the package level, and it must be unique.
+                    let prev = package
+                        .worlds
+                        .insert(world.name.clone(), world.clone());
+                    assert!(prev.is_none());
+
+                    // this is also defined at the file level, and it must be unique here too.
+                    let prev = file
+                        .worlds
+                        .insert(world.name.clone(), world.clone());
+                    assert!(prev.is_none());
                 }
                 Generate::Interface => {
                     let name = file.gen_unique_package_name(u, &mut package_names)?;
@@ -163,7 +185,7 @@ impl Generator {
                 Generate::Use => {
                     let mut piece = String::new();
                     piece.push_str("use ");
-                    let (name, id, types) = match self.gen_path(u, &mut package, &mut piece)? {
+                    let (name, id, types) = match self.gen_interface_path(u, &mut package, &mut piece)? {
                         Some(i) => i,
                         None => continue,
                     };
@@ -218,7 +240,7 @@ impl Generator {
             log::trace!("{s}");
             ret.sources.push(format!("wit{i}.wit").as_ref(), &s);
         }
-        Ok((ret, package.interfaces))
+        Ok((ret, package.interfaces, package.worlds))
     }
 
     fn gen_world(
@@ -241,7 +263,56 @@ impl Generator {
         Ok((ret, gen.types_in_interface))
     }
 
-    fn gen_path<'a>(
+    fn gen_world_path<'a>(
+        &'a self,
+        u: &mut Unstructured<'_>,
+        file: &'a mut File,
+        dst: &mut String,
+    ) -> Result<Option<&'a str>> {
+        enum Choice {
+            Worlds,
+            Packages,
+        }
+        let mut choices = Vec::new();
+        if !file.worlds.is_empty() {
+            choices.push(Choice::Worlds);
+        }
+        if !self.package_worlds.is_empty() {
+            choices.push(Choice::Packages);
+        }
+        if choices.is_empty() {
+            return Ok(None);
+        }
+        match u.choose(&choices)? {
+            Choice::Worlds => {
+                let i = u.int_in_range(0..=file.worlds.len() - 1)?;
+                let (name, _) = file.worlds.iter().nth(i).unwrap();
+                file.namespace.insert(name.clone(), Definition::File);
+                dst.push_str("%");
+                dst.push_str(name);
+                Ok(Some(name))
+            }
+            Choice::Packages => {
+                let (pkg, worlds) = u.choose(&self.package_worlds)?;
+                dst.push_str("%");
+                dst.push_str(&pkg.namespace);
+                dst.push_str(":");
+                dst.push_str("%");
+                dst.push_str(&pkg.name);
+                dst.push_str("/");
+                let i = u.int_in_range(0..=worlds.len() - 1)?;
+                let w = &worlds[i];
+                dst.push_str("%");
+                dst.push_str(&w.name);
+                if let Some(version) = &pkg.version {
+                    dst.push_str(&format!("@{version}"));
+                }
+                Ok(Some(&w.name))
+            }
+        }
+    }
+
+    fn gen_interface_path<'a>(
         &'a self,
         u: &mut Unstructured<'_>,
         file: &'a mut File,
@@ -255,7 +326,7 @@ impl Generator {
         if !file.interfaces.is_empty() {
             choices.push(Choice::Interfaces);
         }
-        if !self.packages.is_empty() {
+        if !self.packages_lists.is_empty() {
             choices.push(Choice::Packages);
         }
         if choices.is_empty() {
@@ -274,7 +345,7 @@ impl Generator {
                 Some((&i.name, i.id, &i.types))
             }
             Choice::Packages => {
-                let (pkg, ifaces) = u.choose(&self.packages)?;
+                let (pkg, ifaces) = u.choose(&self.packages_lists)?;
                 dst.push_str("%");
                 dst.push_str(&pkg.namespace);
                 dst.push_str(":");
@@ -376,6 +447,7 @@ impl<'a> InterfaceGenerator<'a> {
             AnonInterface(Direction),
             Type,
             Use,
+            Include,
         }
 
         let mut parts = Vec::new();
@@ -389,6 +461,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ItemKind::Interface(dir) => (Some(dir), false),
                 ItemKind::Type => (None, true),
                 ItemKind::Use => (None, false),
+                ItemKind::Include => (None, false),
             };
 
             let mut part = String::new();
@@ -416,7 +489,7 @@ impl<'a> InterfaceGenerator<'a> {
                     self.gen_func_sig(u, &mut part)?;
                 }
                 ItemKind::Interface(dir) => {
-                    let id = match self.gen.gen_path(u, self.file, &mut part)? {
+                    let id = match self.gen.gen_interface_path(u, self.file, &mut part)? {
                         Some((_name, id, _types)) => id,
                         // If an interface couldn't be chosen or wasn't
                         // chosen then skip this import. A unique name was
@@ -456,6 +529,12 @@ impl<'a> InterfaceGenerator<'a> {
                         continue;
                     }
                 }
+
+                ItemKind::Include => {
+                    if !self.gen_include(u, &mut part)? {
+                        continue;
+                    }
+                }
             }
             parts.push(part);
         }
@@ -474,7 +553,7 @@ impl<'a> InterfaceGenerator<'a> {
 
     fn gen_use(&mut self, u: &mut Unstructured<'_>, part: &mut String) -> Result<bool> {
         let mut path = String::new();
-        let (_name, _id, types) = match self.gen.gen_path(u, self.file, &mut path)? {
+        let (_name, _id, types) = match self.gen.gen_interface_path(u, self.file, &mut path)? {
             Some(types) => types,
             None => return Ok(false),
         };
@@ -496,6 +575,19 @@ impl<'a> InterfaceGenerator<'a> {
         };
         self.types_in_interface.push((name, size));
         part.push_str("}");
+        Ok(true)
+    }
+
+    fn gen_include(&mut self, u: &mut Unstructured<'_>, part: &mut String) -> Result<bool> {
+        let mut path = String::new();
+        let _ = match self.gen.gen_world_path(u, self.file, &mut path)? {
+            Some(name) => name,
+            None => return Ok(false),
+        };
+        part.push_str("include ");
+        part.push_str(&path);
+
+        // TODO: add `with`
         Ok(true)
     }
 
@@ -806,6 +898,12 @@ struct File {
     items: Vec<String>,
     namespace: HashMap<String, Definition>,
     interfaces: IndexMap<String, FileInterface>,
+    worlds: IndexMap<String, FileWorld>,
+}
+
+#[derive(Clone)]
+struct FileWorld {
+    name: String,
 }
 
 #[derive(Clone)]
