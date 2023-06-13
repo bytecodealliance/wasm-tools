@@ -16,7 +16,7 @@ Tooling for parsing `*.wit` files and working with their contents.
 id-arena = "2"
 anyhow = { workspace = true }
 indexmap = { workspace = true }
-pulldown-cmark = { version = "0.8", default-features = false }
+pulldown-cmark = { version = "0.9.3", default-features = false }
 unicode-xid = "0.2.2"
 log = { workspace = true }
 url = { workspace = true }
