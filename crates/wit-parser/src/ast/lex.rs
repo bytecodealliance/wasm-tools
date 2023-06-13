@@ -94,6 +94,9 @@ pub enum Token {
     ExplicitId,
 
     Integer,
+
+    Include,
+    With,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -285,6 +288,8 @@ impl<'a> Tokenizer<'a> {
                     "import" => Import,
                     "export" => Export,
                     "package" => Package,
+                    "include" => Include,
+                    "with" => With,
                     _ => Id,
                 }
             }
@@ -539,6 +544,8 @@ impl Token {
             World => "keyword `world`",
             Package => "keyword `package`",
             Integer => "an integer",
+            Include => "keyword `include`",
+            With => "keyword `with`",
         }
     }
 }

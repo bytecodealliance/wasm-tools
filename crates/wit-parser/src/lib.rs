@@ -86,13 +86,21 @@ pub struct UnresolvedPackage {
     /// interface name followed by the identifier within `self.interfaces`. The
     /// fields of `self.interfaces` describes the required types that are from
     /// each foreign interface.
-    pub foreign_deps: IndexMap<PackageName, IndexMap<String, InterfaceId>>,
+    pub foreign_deps: IndexMap<PackageName, IndexMap<String, AstItem>>,
 
     unknown_type_spans: Vec<Span>,
-    world_spans: Vec<(Vec<Span>, Vec<Span>)>,
+    world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
     interface_spans: Vec<Span>,
+    world_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     source_map: SourceMap,
+    foreign_world_spans: Vec<Span>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AstItem {
+    Interface(InterfaceId),
+    World(WorldId),
 }
 
 /// A structure used to keep track of the name of a package, containing optional
@@ -235,6 +243,21 @@ pub struct World {
 
     /// The package that owns this world.
     pub package: Option<PackageId>,
+
+    /// All the included worlds from this world. Empty if this is fully resolved
+    pub includes: Vec<WorldId>,
+
+    /// All the included worlds names. Empty if this is fully resolved
+    pub include_names: Vec<Vec<IncludeName>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IncludeName {
+    /// The name of the item
+    pub name: String,
+
+    /// The name to be replaced with
+    pub as_: String,
 }
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
@@ -258,7 +281,7 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.

@@ -3,6 +3,20 @@
     (component
       (type (;0;)
         (component
+          (type (;0;) (func))
+          (import "foo" (func (;0;) (type 0)))
+        )
+      )
+      (export (;0;) (interface "foo:foo/just-import") (component (type 0)))
+      (type (;1;)
+        (component
+          (type (;0;) (func))
+          (export (;0;) "foo" (func (type 0)))
+        )
+      )
+      (export (;1;) (interface "foo:foo/just-export") (component (type 1)))
+      (type (;2;)
+        (component
           (type (;0;)
             (instance)
           )
@@ -20,21 +34,7 @@
           (export (;3;) "bar2" (func (type 4)))
         )
       )
-      (export (;0;) (interface "foo:foo/foo") (component (type 0)))
-      (type (;1;)
-        (component
-          (type (;0;) (func))
-          (import "foo" (func (;0;) (type 0)))
-        )
-      )
-      (export (;1;) (interface "foo:foo/just-import") (component (type 1)))
-      (type (;2;)
-        (component
-          (type (;0;) (func))
-          (export (;0;) "foo" (func (type 0)))
-        )
-      )
-      (export (;2;) (interface "foo:foo/just-export") (component (type 2)))
+      (export (;2;) (interface "foo:foo/foo") (component (type 2)))
     )
   )
   (@producers

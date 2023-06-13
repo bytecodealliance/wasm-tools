@@ -10,17 +10,6 @@
       (export (;0;) (interface "foo:foo/import-me") (instance (type 0)))
       (type (;1;)
         (component
-          (type (;0;) (record))
-          (import "foo" (type (;1;) (eq 0)))
-          (import "bar" (type (;2;) (eq 1)))
-          (type (;3;) (func (param "a" 1) (result 2)))
-          (import "a" (func (;0;) (type 3)))
-          (export (;1;) "b" (func (type 3)))
-        )
-      )
-      (export (;0;) (interface "foo:foo/simple") (component (type 1)))
-      (type (;2;)
-        (component
           (type (;0;)
             (instance
               (type (;0;) u32)
@@ -35,7 +24,18 @@
           (export (;1;) "b" (func (type 3)))
         )
       )
-      (export (;1;) (interface "foo:foo/with-imports") (component (type 2)))
+      (export (;0;) (interface "foo:foo/with-imports") (component (type 1)))
+      (type (;2;)
+        (component
+          (type (;0;) (record))
+          (import "foo" (type (;1;) (eq 0)))
+          (import "bar" (type (;2;) (eq 1)))
+          (type (;3;) (func (param "a" 1) (result 2)))
+          (import "a" (func (;0;) (type 3)))
+          (export (;1;) "b" (func (type 3)))
+        )
+      )
+      (export (;1;) (interface "foo:foo/simple") (component (type 2)))
     )
   )
   (@producers

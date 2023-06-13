@@ -7,12 +7,9 @@ interface shared-items {
 
 }
 
-world w1 {
+world w3 {
   import shared-items
-  import foo: interface {
-    use shared-items.{the-enum}
-  }
-  import bar: interface {
+  export bar: interface {
     use shared-items.{the-enum}
   }
 }
@@ -25,9 +22,12 @@ world w2 {
     use shared-items.{the-enum}
   }
 }
-world w3 {
+world w1 {
   import shared-items
-  export bar: interface {
+  import foo: interface {
+    use shared-items.{the-enum}
+  }
+  import bar: interface {
     use shared-items.{the-enum}
   }
 }
