@@ -389,7 +389,7 @@ pub enum TypeOwner {
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Handle {
-    Shared(Type),
+    Shared(TypeId),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]

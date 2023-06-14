@@ -345,7 +345,12 @@ impl WitPrinter {
         match handle {
             Handle::Shared(ty) => {
                 self.output.push_str("shared<");
-                self.print_type_name(resolve, ty)?;
+                let ty = &resolve.types[*ty];
+                self.print_name(
+                    ty.name
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                );
                 self.output.push_str(">");
             }
         }
@@ -484,15 +489,7 @@ impl WitPrinter {
             Some(name) => {
                 self.print_name(name);
                 self.output.push_str(" = ");
-
-                match handle {
-                    Handle::Shared(ty) => {
-                        self.output.push_str("shared<");
-                        self.print_type_name(resolve, ty)?;
-                        self.output.push_str(">");
-                    }
-                }
-
+                self.print_handle_type(resolve, handle)?;
                 self.output.push_str("\n\n");
 
                 Ok(())

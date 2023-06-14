@@ -878,7 +878,7 @@ impl Remap {
         use crate::TypeDefKind::*;
         match &mut ty.kind {
             Handle(handle) => match handle {
-                crate::Handle::Shared(ty) => self.update_ty(ty),
+                crate::Handle::Shared(ty) => *ty = self.types[ty.index()],
             },
             Resource(r) => {
                 for function in r.methods.iter_mut() {

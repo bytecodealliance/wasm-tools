@@ -966,29 +966,18 @@ impl<'a> Resolver<'a> {
             ast::Type::Char => TypeDefKind::Type(Type::Char),
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
-                let id = match self.type_lookup.get(name.name) {
-                    Some((TypeOrItem::Type(id), _)) => *id,
-                    Some((TypeOrItem::Item(s), _)) => bail!(Error {
-                        span: name.span,
-                        msg: format!("cannot use {s} `{name}` as a type", name = name.name),
-                    }),
-                    None => bail!(Error {
-                        span: name.span,
-                        msg: format!("name `{name}` is not defined", name = name.name),
-                    }),
-                };
+                let id = self.resolve_type_name(name)?;
                 TypeDefKind::Type(Type::Id(id))
             }
             ast::Type::List(list) => {
                 let ty = self.resolve_type(list)?;
                 TypeDefKind::List(ty)
             }
-            ast::Type::Handle(handle) => match handle {
-                ast::Handle::Shared { ty } => {
-                    let ty = self.resolve_type(ty)?;
-                    TypeDefKind::Handle(Handle::Shared(ty))
+            ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
+                ast::Handle::Shared { resource } => {
+                    Handle::Shared(self.validate_resource(resource)?)
                 }
-            },
+            }),
             ast::Type::Resource(resource) => {
                 let methods = resource
                     .methods
@@ -1135,6 +1124,35 @@ impl<'a> Resolver<'a> {
         })
     }
 
+    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId> {
+        match self.type_lookup.get(name.name) {
+            Some((TypeOrItem::Type(id), _)) => Ok(*id),
+            Some((TypeOrItem::Item(s), _)) => bail!(Error {
+                span: name.span,
+                msg: format!("cannot use {s} `{name}` as a type", name = name.name),
+            }),
+            None => bail!(Error {
+                span: name.span,
+                msg: format!("name `{name}` is not defined", name = name.name),
+            }),
+        }
+    }
+
+    fn validate_resource(&mut self, name: &ast::Id<'_>) -> Result<TypeId> {
+        let id = self.resolve_type_name(name)?;
+        let mut cur = id;
+        loop {
+            match self.types[cur].kind {
+                TypeDefKind::Resource(_) => break Ok(id),
+                TypeDefKind::Type(Type::Id(ty)) => cur = ty,
+                _ => bail!(Error {
+                    span: name.span,
+                    msg: format!("type `{}` is not a resource", name.name),
+                }),
+            }
+        }
+    }
+
     fn resolve_type(&mut self, ty: &super::Type<'_>) -> Result<Type> {
         let kind = self.resolve_type_def(ty)?;
         Ok(self.anon_type_def(TypeDef {
@@ -1252,7 +1270,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         ast::Type::Name(name) => deps.push(name.clone()),
         ast::Type::List(list) => collect_deps(list, deps),
         ast::Type::Handle(handle) => match handle {
-            ast::Handle::Shared { ty } => collect_deps(ty, deps),
+            ast::Handle::Shared { resource } => deps.push(resource.clone()),
         },
         ast::Type::Resource(resource) => {
             for method in resource.methods.iter() {
