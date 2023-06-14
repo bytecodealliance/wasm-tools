@@ -206,9 +206,8 @@ impl Type {
     pub fn as_func_type(&self) -> Option<&FuncType> {
         match self {
             Type::Sub(SubType {
-                is_final: _,
-                supertype_idxs: _,
                 structural_type: StructuralType::Func(ft),
+                ..
             }) => Some(ft),
             _ => None,
         }
