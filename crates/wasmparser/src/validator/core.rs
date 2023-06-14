@@ -525,7 +525,7 @@ impl Module {
             ));
         }
         for type_index in ty.supertype_idxs.iter() {
-            // check the supertype exists, is not final and the subtype matches it
+            // Check the supertype exists, is not final, and the subtype matches it.
             match self.type_at(types, *type_index, offset)? {
                 Type::Sub(st) => {
                     if st.is_final {
