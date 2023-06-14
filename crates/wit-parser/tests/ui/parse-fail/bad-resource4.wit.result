@@ -1,0 +1,5 @@
+type `foo` is not a resource
+     --> tests/ui/parse-fail/bad-resource4.wit:5:19
+      |
+    5 |   type t = shared<foo>
+      |                   ^--

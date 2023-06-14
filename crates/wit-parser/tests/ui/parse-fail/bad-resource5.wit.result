@@ -1,0 +1,5 @@
+type `t` is not a resource
+     --> tests/ui/parse-fail/bad-resource5.wit:6:19
+      |
+    6 |   type b = shared<t>
+      |                   ^
