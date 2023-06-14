@@ -6,12 +6,12 @@ publish = false
 
 [dependencies]
 flate2 = "1.0.24"
-wit-bindgen = { version = "0.5.0", default_features = false }
+wit-bindgen = { version = "0.6.0", default_features = false }
 
 [lib]
 crate-type = ["cdylib"]
 
 [package.metadata.component]
-target = { path = "../service.wit", world = "service.middleware" }
+target = { path = "../service.wit", world = "middleware" }
 
 [workspace]

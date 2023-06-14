@@ -87,7 +87,7 @@ Follow the [installation instructions](https://github.com/bytecodealliance/cargo
 to install `cargo component` locally.
 
 > *Note*: `cargo component` is under active development. This example has been tested
-> with git sha [`012daba`](https://github.com/bytecodealliance/cargo-component/commit/012daba27c48e1ce19b27f09730d51e9018f5135)
+> with git sha [`df2eb26`](https://github.com/bytecodealliance/cargo-component/commit/df2eb2633fa6d0c234372fb0471b8e9867d135c6)
 > and may not work with other versions of `cargo component`.
 
 Additionally, it is assumed that `wasm-tools` has been installed from the
