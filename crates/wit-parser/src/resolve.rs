@@ -205,7 +205,7 @@ impl Resolve {
                     crate::Handle::Shared(_) => true,
                 },
 
-                TypeDefKind::Resource(_) => false,
+                TypeDefKind::Resource => false,
                 TypeDefKind::Record(r) => r.fields.iter().all(|f| self.all_bits_valid(&f.ty)),
                 TypeDefKind::Tuple(t) => t.types.iter().all(|t| self.all_bits_valid(t)),
 
@@ -880,23 +880,7 @@ impl Remap {
             Handle(handle) => match handle {
                 crate::Handle::Shared(ty) => *ty = self.types[ty.index()],
             },
-            Resource(r) => {
-                for function in r.methods.iter_mut() {
-                    for (_, ty) in function.params.iter_mut() {
-                        self.update_ty(ty);
-                    }
-                    match &mut function.results {
-                        Results::Named(results) => {
-                            for (_, ty) in results {
-                                self.update_ty(ty);
-                            }
-                        }
-                        Results::Anon(ty) => {
-                            self.update_ty(ty);
-                        }
-                    }
-                }
-            }
+            Resource => {}
             Record(r) => {
                 for field in r.fields.iter_mut() {
                     self.update_ty(&mut field.ty);

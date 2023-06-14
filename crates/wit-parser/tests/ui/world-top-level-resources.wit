@@ -1,14 +1,14 @@
 package foo:foo
 
 interface types {
-  resource request { 
-    foo: func(),  
-    bar: func(arg: list<u32>) 
+  resource request {
+    foo: func()
+    bar: func(arg: list<u32>)
   }
 
-  resource response { 
-    foo: func(),
-    bar: func(arg: list<u32>) 
+  resource response {
+    foo: func()
+    bar: func(arg: list<u32>)
   }
 }
 

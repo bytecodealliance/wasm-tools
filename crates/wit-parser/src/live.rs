@@ -61,21 +61,7 @@ impl LiveTypes {
             TypeDefKind::Handle(handle) => match handle {
                 crate::Handle::Shared(ty) => self.add_type_id(resolve, *ty),
             },
-            TypeDefKind::Resource(r) => {
-                for function in r.methods.iter() {
-                    for (_, ty) in &function.params {
-                        self.add_type(resolve, ty);
-                    }
-                    match &function.results {
-                        crate::Results::Named(results) => {
-                            for (_, ty) in results {
-                                self.add_type(resolve, ty);
-                            }
-                        }
-                        crate::Results::Anon(ty) => self.add_type(resolve, ty),
-                    }
-                }
-            }
+            TypeDefKind::Resource => {}
             TypeDefKind::Record(r) => {
                 for field in r.fields.iter() {
                     self.add_type(resolve, &field.ty);

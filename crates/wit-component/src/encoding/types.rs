@@ -153,7 +153,7 @@ pub trait ValtypeEncoder<'a> {
                     TypeDefKind::Future(_) => todo!("encoding for future type"),
                     TypeDefKind::Stream(_) => todo!("encoding for stream type"),
                     TypeDefKind::Unknown => unreachable!(),
-                    TypeDefKind::Resource(_) => todo!(),
+                    TypeDefKind::Resource => todo!(),
                     TypeDefKind::Handle(_) => todo!(),
                 };
 

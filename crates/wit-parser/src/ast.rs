@@ -365,7 +365,7 @@ pub enum WorldOrInterface {
 
 enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
-    Value(Value<'a>),
+    Func(NamedFunc<'a>),
     Use(Use<'a>),
 }
 
@@ -543,7 +543,58 @@ enum Handle<'a> {
 }
 
 struct Resource<'a> {
-    methods: Vec<Value<'a>>,
+    funcs: Vec<ResourceFunc<'a>>,
+}
+
+enum ResourceFunc<'a> {
+    Method(NamedFunc<'a>),
+    Static(NamedFunc<'a>),
+    Constructor(NamedFunc<'a>),
+}
+
+impl<'a> ResourceFunc<'a> {
+    fn parse(docs: Docs<'a>, tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        match tokens.clone().next()? {
+            Some((_span, Token::Static)) => {
+                tokens.expect(Token::Static)?;
+                Ok(ResourceFunc::Static(NamedFunc::parse(tokens, docs)?))
+            }
+            Some((span, Token::Constructor)) => {
+                tokens.expect(Token::Constructor)?;
+                tokens.expect(Token::LeftParen)?;
+                let params = parse_list_trailer(tokens, Token::RightParen, |_docs, tokens| {
+                    let name = parse_id(tokens)?;
+                    tokens.expect(Token::Colon)?;
+                    let ty = Type::parse(tokens)?;
+                    Ok((name, ty))
+                })?;
+                Ok(ResourceFunc::Constructor(NamedFunc {
+                    docs,
+                    name: Id {
+                        span,
+                        name: "constructor",
+                    },
+                    func: Func {
+                        params,
+                        results: ResultList::Named(Vec::new()),
+                    },
+                }))
+            }
+            Some((_span, Token::Id | Token::ExplicitId)) => {
+                Ok(ResourceFunc::Method(NamedFunc::parse(tokens, docs)?))
+            }
+            other => {
+                Err(err_expected(tokens, "`static`, `constructor` or identifier", other).into())
+            }
+        }
+    }
+
+    fn named_func(&self) -> &NamedFunc<'a> {
+        use ResourceFunc::*;
+        match self {
+            Method(f) | Static(f) | Constructor(f) => f,
+        }
+    }
 }
 
 struct Record<'a> {
@@ -596,10 +647,10 @@ struct Stream<'a> {
     end: Option<Box<Type<'a>>>,
 }
 
-struct Value<'a> {
+struct NamedFunc<'a> {
     docs: Docs<'a>,
     name: Id<'a>,
-    kind: ValueKind<'a>,
+    func: Func<'a>,
 }
 
 struct Union<'a> {
@@ -617,11 +668,6 @@ type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 enum ResultList<'a> {
     Named(ParamList<'a>),
     Anon(Type<'a>),
-}
-
-enum ValueKind<'a> {
-    Func(Func<'a>),
-    Static(Func<'a>),
 }
 
 struct Func<'a> {
@@ -662,15 +708,6 @@ impl<'a> Func<'a> {
     }
 }
 
-impl<'a> ValueKind<'a> {
-    fn parse_func(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
-        Func::parse(tokens).map(ValueKind::Func)
-    }
-    fn parse_static(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
-        Func::parse(tokens).map(ValueKind::Static)
-    }
-}
-
 impl<'a> InterfaceItem<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<InterfaceItem<'a>> {
         match tokens.clone().next()? {
@@ -694,7 +731,7 @@ impl<'a> InterfaceItem<'a> {
                 TypeDef::parse_union(tokens, docs).map(InterfaceItem::TypeDef)
             }
             Some((_span, Token::Id)) | Some((_span, Token::ExplicitId)) => {
-                Value::parse(tokens, docs).map(InterfaceItem::Value)
+                NamedFunc::parse(tokens, docs).map(InterfaceItem::Func)
             }
             Some((_span, Token::Use)) => Use::parse(tokens).map(InterfaceItem::Use),
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
@@ -731,14 +768,13 @@ impl<'a> TypeDef<'a> {
     fn parse_resource(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::Resource)?;
         let name = parse_id(tokens)?;
-        let ty = Type::Resource(Resource {
-            methods: parse_list(
-                tokens,
-                Token::LeftBrace,
-                Token::RightBrace,
-                |docs, tokens| Ok(Value::parse(tokens, docs)?),
-            )?,
-        });
+        let mut funcs = Vec::new();
+        if tokens.eat(Token::LeftBrace)? {
+            while !tokens.eat(Token::RightBrace)? {
+                funcs.push(ResourceFunc::parse(parse_docs(tokens)?, tokens)?);
+            }
+        }
+        let ty = Type::Resource(Resource { funcs });
         Ok(TypeDef { docs, name, ty })
     }
 
@@ -823,35 +859,12 @@ impl<'a> TypeDef<'a> {
     }
 }
 
-impl<'a> Value<'a> {
+impl<'a> NamedFunc<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
-        let name = match tokens.next()? {
-            Some((_, Token::Static)) => None,
-            Some((span, Token::Id)) => Some(Id {
-                name: tokens.parse_id(span)?,
-                span,
-            }),
-            Some((span, Token::ExplicitId)) => Some(Id {
-                name: tokens.parse_explicit_id(span)?,
-                span,
-            }),
-            other => Err(err_expected(tokens, "static or an identifier", other))?,
-        };
-
-        let (name, kind) = match name {
-            Some(name) => {
-                tokens.expect(Token::Colon)?;
-                let kind = ValueKind::parse_func(tokens)?;
-                (name, kind)
-            }
-            None => {
-                let name = parse_id(tokens)?;
-                tokens.expect(Token::Colon)?;
-                let kind = ValueKind::parse_static(tokens)?;
-                (name, kind)
-            }
-        };
-        Ok(Value { docs, name, kind })
+        let name = parse_id(tokens)?;
+        tokens.expect(Token::Colon)?;
+        let func = Func::parse(tokens)?;
+        Ok(NamedFunc { docs, name, func })
     }
 }
 

@@ -774,7 +774,7 @@ impl Resolve {
 
                 TypeDefKind::Handle(_) => todo!(),
 
-                TypeDefKind::Resource(_) => todo!(),
+                TypeDefKind::Resource => todo!(),
 
                 TypeDefKind::Record(r) => {
                     for field in r.fields.iter() {
@@ -904,7 +904,7 @@ impl Resolve {
                 TypeDefKind::List(_) => true,
                 TypeDefKind::Type(t) => self.needs_post_return(t),
                 TypeDefKind::Handle(_) => true,
-                TypeDefKind::Resource(_) => true,
+                TypeDefKind::Resource => true,
                 TypeDefKind::Record(r) => r.fields.iter().any(|f| self.needs_post_return(&f.ty)),
                 TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.needs_post_return(t)),
                 TypeDefKind::Union(t) => t.cases.iter().any(|t| self.needs_post_return(&t.ty)),
@@ -1292,7 +1292,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     }
                 }
                 TypeDefKind::Handle(_) => todo!(),
-                TypeDefKind::Resource(_) => {
+                TypeDefKind::Resource => {
                     todo!();
                 }
                 TypeDefKind::Record(record) => {
@@ -1481,7 +1481,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 TypeDefKind::Handle(_) => {
                     todo!();
                 }
-                TypeDefKind::Resource(_) => {
+                TypeDefKind::Resource => {
                     todo!();
                 }
                 TypeDefKind::Record(record) => {
@@ -1643,7 +1643,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     });
                     self.write_fields_to_memory(record.fields.iter().map(|f| &f.ty), addr, offset);
                 }
-                TypeDefKind::Resource(_) => {
+                TypeDefKind::Resource => {
                     todo!()
                 }
                 TypeDefKind::Tuple(tuple) => {
@@ -1839,7 +1839,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     todo!();
                 }
 
-                TypeDefKind::Resource(_) => {
+                TypeDefKind::Resource => {
                     todo!();
                 }
 
@@ -2063,7 +2063,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                     todo!()
                 }
 
-                TypeDefKind::Resource(_) => {
+                TypeDefKind::Resource => {
                     todo!()
                 }
 

@@ -330,7 +330,7 @@ pub struct TypeDef {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeDefKind {
     Record(Record),
-    Resource(Resource),
+    Resource,
     Handle(Handle),
     Flags(Flags),
     Tuple(Tuple),
@@ -356,7 +356,7 @@ impl TypeDefKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             TypeDefKind::Record(_) => "record",
-            TypeDefKind::Resource(_) => "resource",
+            TypeDefKind::Resource => "resource",
             TypeDefKind::Handle(handle) => match handle {
                 Handle::Shared(_) => "shared",
             },
@@ -421,11 +421,6 @@ pub enum Int {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Record {
     pub fields: Vec<Field>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Resource {
-    pub methods: Vec<Function>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -642,16 +637,19 @@ pub struct Function {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FunctionKind {
     Freestanding,
-    Method,
-    Static,
+    Method(TypeId),
+    Static(TypeId),
+    Constructor(TypeId),
 }
 
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
             FunctionKind::Freestanding => &self.name,
-            FunctionKind::Method => &self.name,
-            FunctionKind::Static => &self.name,
+            FunctionKind::Method(_) | FunctionKind::Static(_) => {
+                &self.name[self.name.find('.').unwrap() + 1..]
+            }
+            FunctionKind::Constructor(_) => "constructor",
         }
     }
 
