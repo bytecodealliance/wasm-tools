@@ -6,7 +6,6 @@ interface foo {
   type b = a
 
   type c = b
-
 }
 
 interface bar {

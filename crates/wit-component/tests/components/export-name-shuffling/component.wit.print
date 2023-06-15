@@ -4,6 +4,7 @@ world root {
   export foo:foo/name
   export name: interface {
     use foo:foo/name.{foo}
+
     a: func(f: foo)
   }
 }

@@ -2,6 +2,7 @@ package foo:into
 
 interface b {
   use foo:foo/only-into.{r}
+
   foo: func()
 }
 

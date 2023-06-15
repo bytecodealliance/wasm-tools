@@ -4,6 +4,7 @@ world root {
   import foo: interface {
     a: func() -> string
   }
+
   export bar: interface {
     a: func()
 
