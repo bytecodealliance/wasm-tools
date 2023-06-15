@@ -760,7 +760,7 @@ fn is_keyword(name: &str) -> bool {
         | "float32" | "float64" | "char" | "resource" | "record" | "flags" | "variant" | "enum"
         | "union" | "bool" | "string" | "option" | "result" | "future" | "stream" | "list"
         | "shared" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "implements"
-        | "world" | "import" | "export" | "default" | "pkg" | "self" | "package" => true,
+        | "world" | "import" | "export" | "default" | "pkg" | "self" | "package" | "with" => true,
         _ => false,
     }
 }
