@@ -26,3 +26,14 @@ interface foo {
     method: func(thing: shared<e>)
   }
 }
+
+world w {
+  resource a
+
+  resource b {
+  }
+
+  resource c {
+    constructor()
+  }
+}

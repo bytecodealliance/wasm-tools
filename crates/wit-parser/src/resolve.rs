@@ -1,9 +1,9 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
-    AstItem, Error, Function, IncludeName, Interface, InterfaceId, PackageName, Results, Type,
-    TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem,
-    WorldKey,
+    AstItem, Error, Function, FunctionKind, IncludeName, Interface, InterfaceId, PackageName,
+    Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId,
+    WorldItem, WorldKey,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -949,6 +949,12 @@ impl Remap {
     }
 
     fn update_function(&self, func: &mut Function) {
+        match &mut func.kind {
+            FunctionKind::Freestanding => {}
+            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
+                *id = self.types[id.index()];
+            }
+        }
         for (_, ty) in func.params.iter_mut() {
             self.update_ty(ty);
         }

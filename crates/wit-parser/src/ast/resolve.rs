@@ -619,6 +619,7 @@ impl<'a> Resolver<'a> {
                     ..
                 }) => {
                     for func in r.funcs.iter() {
+                        import_spans.push(func.named_func().name.span);
                         let func = self.resolve_resource_func(func, name)?;
                         let prev = self.worlds[world_id]
                             .imports
