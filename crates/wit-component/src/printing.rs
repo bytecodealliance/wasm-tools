@@ -10,7 +10,7 @@ pub struct WitPrinter {
 
     // Count of how many items in this current block have been printed to print
     // a blank line between each item, but not the first item.
-    items: usize,
+    any_items: bool,
 }
 
 impl WitPrinter {
@@ -45,15 +45,15 @@ impl WitPrinter {
     }
 
     fn new_item(&mut self) {
-        if self.items > 0 {
+        if self.any_items {
             self.output.push_str("\n");
         }
-        self.items += 1;
+        self.any_items = true;
     }
 
     /// Print the given WebAssembly interface to a string.
     fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
-        let prev_items = mem::replace(&mut self.items, 0);
+        let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
 
         self.print_types(
@@ -73,7 +73,7 @@ impl WitPrinter {
             self.output.push_str("\n");
         }
 
-        self.items = prev_items;
+        self.any_items = prev_items;
 
         Ok(())
     }
@@ -122,7 +122,7 @@ impl WitPrinter {
             TypeOwner::None => unreachable!(),
         };
         for (owner, tys) in types_to_import {
-            self.items += 1;
+            self.any_items = true;
             write!(&mut self.output, "use ")?;
             let id = match owner {
                 TypeOwner::Interface(id) => id,
@@ -192,7 +192,7 @@ impl WitPrinter {
     }
 
     fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
-        let prev_items = mem::replace(&mut self.items, 0);
+        let prev_items = mem::replace(&mut self.any_items, false);
         let world = &resolve.worlds[id];
         let pkgid = world.package.unwrap();
         let mut types = Vec::new();
@@ -207,7 +207,7 @@ impl WitPrinter {
                     // Don't put a blank line between imports, but count
                     // imports as having printed something so if anything comes
                     // after them then a blank line is printed after imports.
-                    self.items += 1;
+                    self.any_items = true;
                 }
             }
         }
@@ -218,7 +218,7 @@ impl WitPrinter {
         for (name, export) in world.exports.iter() {
             self.print_world_item(resolve, name, export, pkgid, "export")?;
         }
-        self.items = prev_items;
+        self.any_items = prev_items;
         Ok(())
     }
 
