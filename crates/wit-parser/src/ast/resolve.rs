@@ -1,4 +1,4 @@
-use super::{Error, ParamList, ResultList, ValueKind, WorldOrInterface};
+use super::{Error, ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::{bail, Result};
@@ -598,11 +598,6 @@ impl<'a> Resolver<'a> {
         let mut exported_interfaces = HashSet::new();
         for item in world.items.iter() {
             let (docs, kind, desc, spans, interfaces) = match item {
-                // handled in `resolve_types`
-                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) | ast::WorldItem::Include(_) => {
-                    continue
-                }
-
                 ast::WorldItem::Import(import) => (
                     &import.docs,
                     &import.kind,
@@ -617,6 +612,30 @@ impl<'a> Resolver<'a> {
                     &mut export_spans,
                     &mut exported_interfaces,
                 ),
+
+                ast::WorldItem::Type(ast::TypeDef {
+                    name,
+                    ty: ast::Type::Resource(r),
+                    ..
+                }) => {
+                    for func in r.funcs.iter() {
+                        import_spans.push(func.named_func().name.span);
+                        let func = self.resolve_resource_func(func, name)?;
+                        let prev = self.worlds[world_id]
+                            .imports
+                            .insert(WorldKey::Name(func.name.clone()), WorldItem::Function(func));
+                        // Resource names themselves are unique, and methods are
+                        // uniquely named, so this should be possible to assert
+                        // at this point and never trip.
+                        assert!(prev.is_none());
+                    }
+                    continue;
+                }
+
+                // handled in `resolve_types`
+                ast::WorldItem::Use(_) | ast::WorldItem::Type(_) | ast::WorldItem::Include(_) => {
+                    continue
+                }
             };
             let key = match kind {
                 ast::ExternKind::Interface(name, _) | ast::ExternKind::Func(name, _) => {
@@ -682,7 +701,8 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface(id))
             }
             ast::ExternKind::Func(name, func) => {
-                let func = self.resolve_function(docs, name.name, func)?;
+                let func =
+                    self.resolve_function(docs, name.name, func, FunctionKind::Freestanding)?;
                 Ok(WorldItem::Function(func))
             }
         }
@@ -702,7 +722,7 @@ impl<'a> Resolver<'a> {
             fields.iter().filter_map(|i| match i {
                 ast::InterfaceItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::InterfaceItem::TypeDef(t) => Some(TypeItem::Def(t)),
-                ast::InterfaceItem::Value(_) => None,
+                ast::InterfaceItem::Func(_) => None,
             }),
         )?;
 
@@ -719,23 +739,36 @@ impl<'a> Resolver<'a> {
 
         // Finally process all function definitions now that all types are
         // defined.
+        let mut funcs = Vec::new();
         for field in fields {
             match field {
-                ast::InterfaceItem::Value(value) => match &value.kind {
-                    ValueKind::Func(func) => {
-                        self.define_interface_name(&value.name, TypeOrItem::Item("function"))?;
-                        let func = self.resolve_function(&value.docs, value.name.name, func)?;
-                        let prev = self.interfaces[interface_id]
-                            .functions
-                            .insert(value.name.name.to_string(), func);
-                        assert!(prev.is_none());
+                ast::InterfaceItem::Func(f) => {
+                    self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
+                    funcs.push(self.resolve_function(
+                        &f.docs,
+                        &f.name.name,
+                        &f.func,
+                        FunctionKind::Freestanding,
+                    )?);
+                }
+                ast::InterfaceItem::Use(_) => {}
+                ast::InterfaceItem::TypeDef(ast::TypeDef {
+                    name,
+                    ty: ast::Type::Resource(r),
+                    ..
+                }) => {
+                    for func in r.funcs.iter() {
+                        funcs.push(self.resolve_resource_func(func, name)?);
                     }
-                    ValueKind::Static(_) => {
-                        bail!("static functions are only supported in resources")
-                    }
-                },
-                ast::InterfaceItem::Use(_) | ast::InterfaceItem::TypeDef(_) => {}
+                }
+                ast::InterfaceItem::TypeDef(_) => {}
             }
+        }
+        for func in funcs {
+            let prev = self.interfaces[interface_id]
+                .functions
+                .insert(func.name.clone(), func);
+            assert!(prev.is_none());
         }
 
         let lookup = mem::take(&mut self.type_lookup);
@@ -866,19 +899,48 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    fn resolve_resource_func(
+        &mut self,
+        func: &ast::ResourceFunc<'_>,
+        resource: &ast::Id<'_>,
+    ) -> Result<Function> {
+        let resource_id = match self.type_lookup.get(resource.name) {
+            Some((TypeOrItem::Type(id), _)) => *id,
+            _ => panic!("type lookup for resource failed"),
+        };
+        let (name, kind);
+        match func {
+            ast::ResourceFunc::Method(f) => {
+                name = format!("[method]{}.{}", resource.name, f.name.name);
+                kind = FunctionKind::Method(resource_id);
+            }
+            ast::ResourceFunc::Static(f) => {
+                name = format!("[static]{}.{}", resource.name, f.name.name);
+                kind = FunctionKind::Static(resource_id);
+            }
+            ast::ResourceFunc::Constructor(_) => {
+                name = format!("[constructor]{}", resource.name);
+                kind = FunctionKind::Constructor(resource_id);
+            }
+        }
+        let named_func = func.named_func();
+        self.resolve_function(&named_func.docs, &name, &named_func.func, kind)
+    }
+
     fn resolve_function(
         &mut self,
         docs: &ast::Docs<'_>,
         name: &str,
         func: &ast::Func,
+        kind: FunctionKind,
     ) -> Result<Function> {
         let docs = self.docs(docs);
-        let params = self.resolve_params(&func.params)?;
-        let results = self.resolve_results(&func.results)?;
+        let params = self.resolve_params(&func.params, &kind)?;
+        let results = self.resolve_results(&func.results, &kind)?;
         Ok(Function {
             docs,
             name: name.to_string(),
-            kind: FunctionKind::Freestanding,
+            kind,
             params,
             results,
         })
@@ -979,44 +1041,33 @@ impl<'a> Resolver<'a> {
                 }
             }),
             ast::Type::Resource(resource) => {
-                let methods = resource
-                    .methods
-                    .iter()
-                    .map(|value| {
-                        let (func, kind) = match &value.kind {
-                            ValueKind::Func(func) => (func, FunctionKind::Method),
-                            ValueKind::Static(func) => (func, FunctionKind::Static),
-                        };
-
-                        let params = func
-                            .params
-                            .iter()
-                            .map(|(id, ty)| (id.name.to_owned(), self.resolve_type(ty).unwrap()))
-                            .collect();
-
-                        let results = match &func.results {
-                            ResultList::Named(results) => {
-                                let results = results
-                                    .into_iter()
-                                    .map(|(id, ty)| {
-                                        (id.name.to_owned(), self.resolve_type(&ty).unwrap())
-                                    })
-                                    .collect();
-                                Results::Named(results)
+                // Validate here that the resource doesn't have any duplicate-ly
+                // named methods and that there's at most one constructor.
+                let mut ctors = 0;
+                let mut names = HashSet::new();
+                for func in resource.funcs.iter() {
+                    match func {
+                        ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
+                            if !names.insert(&f.name.name) {
+                                bail!(Error {
+                                    span: f.name.span,
+                                    msg: format!("duplicate function name `{}`", f.name.name),
+                                })
                             }
-                            ResultList::Anon(ty) => Results::Anon(self.resolve_type(&ty).unwrap()),
-                        };
+                        }
+                        ast::ResourceFunc::Constructor(f) => {
+                            ctors += 1;
+                            if ctors > 1 {
+                                bail!(Error {
+                                    span: f.name.span,
+                                    msg: format!("duplicate constructors"),
+                                })
+                            }
+                        }
+                    }
+                }
 
-                        Ok(Function {
-                            docs: self.docs(&value.docs),
-                            name: value.name.name.to_string(),
-                            kind: kind,
-                            params: params,
-                            results: results,
-                        })
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                TypeDefKind::Resource(Resource { methods })
+                TypeDefKind::Resource
             }
             ast::Type::Record(record) => {
                 let fields = record
@@ -1143,7 +1194,7 @@ impl<'a> Resolver<'a> {
         let mut cur = id;
         loop {
             match self.types[cur].kind {
-                TypeDefKind::Resource(_) => break Ok(id),
+                TypeDefKind::Resource => break Ok(id),
                 TypeDefKind::Type(Type::Id(ty)) => cur = ty,
                 _ => bail!(Error {
                     span: name.span,
@@ -1154,6 +1205,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_type(&mut self, ty: &super::Type<'_>) -> Result<Type> {
+        // Resources must be declared at the top level to have their methods
+        // processed appropriately, but resources also shouldn't show up
+        // recursively so assert that's not happening here.
+        match ty {
+            ast::Type::Resource(_) => unreachable!(),
+            _ => {}
+        }
         let kind = self.resolve_type_def(ty)?;
         Ok(self.anon_type_def(TypeDef {
             kind,
@@ -1180,7 +1238,7 @@ impl<'a> Resolver<'a> {
                     .collect::<Vec<_>>(),
             ),
             TypeDefKind::Handle(h) => Key::Handle(*h),
-            TypeDefKind::Resource(_) => unreachable!("anonymous resources aren't supported"),
+            TypeDefKind::Resource => unreachable!("anonymous resources aren't supported"),
             TypeDefKind::Record(r) => Key::Record(
                 r.fields
                     .iter()
@@ -1235,17 +1293,65 @@ impl<'a> Resolver<'a> {
         Docs { contents: docs }
     }
 
-    fn resolve_params(&mut self, params: &ParamList<'_>) -> Result<Params> {
-        params
-            .iter()
-            .map(|(name, ty)| Ok((name.name.to_string(), self.resolve_type(ty)?)))
-            .collect::<Result<_>>()
+    fn resolve_params(&mut self, params: &ParamList<'_>, kind: &FunctionKind) -> Result<Params> {
+        let mut ret = Vec::new();
+        match *kind {
+            // These kinds of methods don't have any adjustments to the
+            // parameters, so do nothing here.
+            FunctionKind::Freestanding | FunctionKind::Constructor(_) | FunctionKind::Static(_) => {
+            }
+
+            // Methods automatically get a `self` initial argument so insert
+            // that here before processing the normal parameters.
+            FunctionKind::Method(id) => {
+                let shared = self.anon_type_def(TypeDef {
+                    docs: Docs::default(),
+                    kind: TypeDefKind::Handle(Handle::Shared(id)),
+                    name: None,
+                    owner: TypeOwner::None,
+                });
+                ret.push(("self".to_string(), shared));
+            }
+        }
+        for (name, ty) in params {
+            ret.push((name.name.to_string(), self.resolve_type(ty)?));
+        }
+        Ok(ret)
     }
 
-    fn resolve_results(&mut self, results: &ResultList<'_>) -> Result<Results> {
-        match results {
-            ResultList::Named(rs) => Ok(Results::Named(self.resolve_params(rs)?)),
-            ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
+    fn resolve_results(
+        &mut self,
+        results: &ResultList<'_>,
+        kind: &FunctionKind,
+    ) -> Result<Results> {
+        match *kind {
+            // These kinds of methods don't have any adjustments to the return
+            // values, so plumb them through as-is.
+            FunctionKind::Freestanding | FunctionKind::Method(_) | FunctionKind::Static(_) => {
+                match results {
+                    ResultList::Named(rs) => Ok(Results::Named(
+                        self.resolve_params(rs, &FunctionKind::Freestanding)?,
+                    )),
+                    ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
+                }
+            }
+
+            // Constructors are alwys parsed as 0 returned types but they're
+            // automatically translated as a single return type of the type that
+            // it's a constructor for.
+            FunctionKind::Constructor(id) => {
+                match results {
+                    ResultList::Named(rs) => assert!(rs.is_empty()),
+                    ResultList::Anon(_) => unreachable!(),
+                }
+                let shared = self.anon_type_def(TypeDef {
+                    docs: Docs::default(),
+                    kind: TypeDefKind::Handle(Handle::Shared(id)),
+                    name: None,
+                    owner: TypeOwner::None,
+                });
+                Ok(Results::Anon(shared))
+            }
         }
     }
 }
@@ -1272,27 +1378,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         ast::Type::Handle(handle) => match handle {
             ast::Handle::Shared { resource } => deps.push(resource.clone()),
         },
-        ast::Type::Resource(resource) => {
-            for method in resource.methods.iter() {
-                let func = match &method.kind {
-                    ValueKind::Func(func) => func,
-                    ValueKind::Static(func) => func,
-                };
-
-                for (_, ty) in func.params.iter() {
-                    collect_deps(ty, deps);
-                }
-
-                match &func.results {
-                    ResultList::Named(results) => {
-                        for (_, ty) in results.iter() {
-                            collect_deps(ty, deps);
-                        }
-                    }
-                    ResultList::Anon(ty) => collect_deps(&ty, deps),
-                }
-            }
-        }
+        ast::Type::Resource(_) => {}
         ast::Type::Record(record) => {
             for field in record.fields.iter() {
                 collect_deps(&field.ty, deps);

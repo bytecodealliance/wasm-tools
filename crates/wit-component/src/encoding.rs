@@ -289,7 +289,7 @@ impl TypeContents {
                 TypeDefKind::Handle(h) => match h {
                     wit_parser::Handle::Shared(_) => Self::empty(),
                 },
-                TypeDefKind::Resource(..) => Self::empty(),
+                TypeDefKind::Resource => Self::empty(),
                 TypeDefKind::Record(r) => Self::for_types(resolve, r.fields.iter().map(|f| &f.ty)),
                 TypeDefKind::Tuple(t) => Self::for_types(resolve, t.types.iter()),
                 TypeDefKind::Flags(_) => Self::empty(),

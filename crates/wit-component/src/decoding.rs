@@ -911,7 +911,7 @@ impl WitPackageDecoder<'_> {
             | TypeDefKind::Result(_)
             | TypeDefKind::Handle(_) => {}
 
-            TypeDefKind::Resource(_)
+            TypeDefKind::Resource
             | TypeDefKind::Record(_)
             | TypeDefKind::Enum(_)
             | TypeDefKind::Variant(_)

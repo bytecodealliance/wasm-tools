@@ -1,0 +1,39 @@
+package foo:bar
+
+interface foo {
+  resource a {
+  }
+
+  resource b {
+    constructor()
+  }
+
+  resource c {
+    constructor(x: u32)
+  }
+
+  resource d {
+    constructor(x: u32)
+
+    a: func()
+
+    static b: func()
+  }
+
+  resource e {
+    constructor(other: shared<e>)
+
+    method: func(thing: shared<e>)
+  }
+}
+
+world w {
+  resource a
+
+  resource b {
+  }
+
+  resource c {
+    constructor()
+  }
+}

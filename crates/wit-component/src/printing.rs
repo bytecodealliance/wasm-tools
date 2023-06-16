@@ -313,7 +313,7 @@ impl WitPrinter {
                     TypeDefKind::Handle(h) => {
                         self.print_handle_type(resolve, h)?;
                     }
-                    TypeDefKind::Resource(_) => {
+                    TypeDefKind::Resource => {
                         bail!("resolve has an unnamed resource type");
                     }
                     TypeDefKind::Tuple(t) => {
@@ -457,9 +457,7 @@ impl WitPrinter {
                     TypeDefKind::Handle(h) => {
                         self.declare_handle(resolve, ty.name.as_deref(), h)?
                     }
-                    TypeDefKind::Resource(r) => {
-                        self.declare_resource(resolve, ty.name.as_deref(), r)?
-                    }
+                    TypeDefKind::Resource => self.declare_resource(resolve, ty.name.as_deref())?,
                     TypeDefKind::Record(r) => {
                         self.declare_record(resolve, ty.name.as_deref(), r)?
                     }
@@ -517,86 +515,16 @@ impl WitPrinter {
         }
     }
 
-    fn declare_resource(
-        &mut self,
-        resolve: &Resolve,
-        name: Option<&str>,
-        resource: &Resource,
-    ) -> Result<()> {
+    fn declare_resource(&mut self, _resolve: &Resolve, name: Option<&str>) -> Result<()> {
         match name {
             Some(name) => {
                 self.output.push_str("resource ");
                 self.print_name(name);
-                self.output.push_str(" {\n");
-                for function in &resource.methods {
-                    self.declare_function(resolve, Some(name), function)?;
-                }
-                self.output.push_str(" }\n\n");
+                self.output.push_str("\n\n");
                 Ok(())
             }
             None => bail!("document has unnamed resource type"),
         }
-    }
-
-    fn declare_function(
-        &mut self,
-        resolve: &Resolve,
-        name: Option<&str>,
-        function: &Function,
-    ) -> Result<()> {
-        match function.kind {
-            FunctionKind::Static => {
-                self.output.push_str("static ");
-            }
-            _ => {}
-        }
-
-        self.print_name(&function.name);
-        self.output.push_str(": func(");
-
-        match function.kind {
-            FunctionKind::Method => match name {
-                Some(name) => {
-                    self.output.push_str(&format!("self: shared<{name}>"));
-                }
-                None => bail!("document has unnamed resource type"),
-            },
-            _ => {}
-        }
-
-        for (name, ty) in &function.params {
-            self.print_name(&name);
-            self.output.push_str(": ");
-            self.print_type_name(resolve, &ty)?;
-            self.output.push_str(", ");
-        }
-
-        self.output.push_str(") ");
-
-        self.output.push_str("-> ");
-
-        match &function.results {
-            Results::Named(results) => {
-                self.output.push_str("(");
-
-                if results.len() > 0 {
-                    for (name, ty) in results {
-                        self.print_name(&name);
-                        self.output.push_str(": ");
-                        self.print_type_name(resolve, &ty)?;
-                        self.output.push_str(", ");
-                    }
-                }
-                self.output.push_str(")");
-            }
-            Results::Anon(ty) => {
-                self.print_type_name(resolve, &ty)?;
-            }
-        }
-
-        self.output.push_str(";\n");
-
-        Ok(())
     }
 
     fn declare_record(
