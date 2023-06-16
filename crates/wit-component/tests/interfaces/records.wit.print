@@ -58,5 +58,6 @@ interface records {
 
 world records-world {
   import records
+
   export records
 }

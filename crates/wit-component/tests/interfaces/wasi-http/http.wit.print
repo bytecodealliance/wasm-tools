@@ -129,11 +129,13 @@ interface types {
 
 interface outgoing-handler {
   use types.{outgoing-request, request-options, future-incoming-response}
+
   handle: func(request: outgoing-request, options: option<request-options>) -> future-incoming-response
 }
 
 interface incoming-handler {
   use types.{incoming-request, response-outparam}
+
   handle: func(request: incoming-request, response-out: response-outparam)
 }
 
@@ -144,5 +146,6 @@ world proxy {
   import wasi:io/streams
   import types
   import outgoing-handler
+
   export incoming-handler
 }

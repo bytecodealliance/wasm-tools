@@ -1,11 +1,16 @@
 use anyhow::{anyhow, bail, Result};
 use std::fmt::{self, Write};
+use std::mem;
 use wit_parser::*;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
 pub struct WitPrinter {
     output: Output,
+
+    // Count of how many items in this current block have been printed to print
+    // a blank line between each item, but not the first item.
+    any_items: bool,
 }
 
 impl WitPrinter {
@@ -39,8 +44,16 @@ impl WitPrinter {
         Ok(std::mem::take(&mut self.output).into())
     }
 
+    fn new_item(&mut self) {
+        if self.any_items {
+            self.output.push_str("\n");
+        }
+        self.any_items = true;
+    }
+
     /// Print the given WebAssembly interface to a string.
     fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
+        let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
 
         self.print_types(
@@ -52,15 +65,15 @@ impl WitPrinter {
                 .map(|(name, id)| (name.as_str(), *id)),
         )?;
 
-        for (i, (name, func)) in interface.functions.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str("\n");
-            }
+        for (name, func) in interface.functions.iter() {
+            self.new_item();
             self.print_name(name);
             self.output.push_str(": ");
             self.print_function(resolve, func)?;
             self.output.push_str("\n");
         }
+
+        self.any_items = prev_items;
 
         Ok(())
     }
@@ -108,8 +121,8 @@ impl WitPrinter {
             TypeOwner::World(id) => resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         };
-        let amt_to_import = types_to_import.len();
         for (owner, tys) in types_to_import {
+            self.any_items = true;
             write!(&mut self.output, "use ")?;
             let id = match owner {
                 TypeOwner::Interface(id) => id,
@@ -134,11 +147,8 @@ impl WitPrinter {
             writeln!(&mut self.output, "}}")?;
         }
 
-        if amt_to_import > 0 && types_to_declare.len() > 0 {
-            self.output.push_str("\n");
-        }
-
         for id in types_to_declare {
+            self.new_item();
             self.declare_type(resolve, &Type::Id(id))?;
         }
 
@@ -182,6 +192,7 @@ impl WitPrinter {
     }
 
     fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
+        let prev_items = mem::replace(&mut self.any_items, false);
         let world = &resolve.worlds[id];
         let pkgid = world.package.unwrap();
         let mut types = Vec::new();
@@ -193,13 +204,21 @@ impl WitPrinter {
                 },
                 _ => {
                     self.print_world_item(resolve, name, import, pkgid, "import")?;
+                    // Don't put a blank line between imports, but count
+                    // imports as having printed something so if anything comes
+                    // after them then a blank line is printed after imports.
+                    self.any_items = true;
                 }
             }
         }
         self.print_types(resolve, TypeOwner::World(id), types.into_iter())?;
+        if !world.exports.is_empty() {
+            self.new_item();
+        }
         for (name, export) in world.exports.iter() {
             self.print_world_item(resolve, name, export, pkgid, "export")?;
         }
+        self.any_items = prev_items;
         Ok(())
     }
 
@@ -466,7 +485,7 @@ impl WitPrinter {
                             self.print_name(name);
                             self.output.push_str(" = ");
                             self.print_type_name(resolve, inner)?;
-                            self.output.push_str("\n\n");
+                            self.output.push_str("\n");
                         }
                         None => bail!("unnamed type in document"),
                     },
@@ -490,7 +509,7 @@ impl WitPrinter {
                 self.print_name(name);
                 self.output.push_str(" = ");
                 self.print_handle_type(resolve, handle)?;
-                self.output.push_str("\n\n");
+                self.output.push_str("\n");
 
                 Ok(())
             }
@@ -597,7 +616,7 @@ impl WitPrinter {
                     self.print_type_name(resolve, &field.ty)?;
                     self.output.push_str(",\n");
                 }
-                self.output.push_str("}\n\n");
+                self.output.push_str("}\n");
                 Ok(())
             }
             None => bail!("document has unnamed record type"),
@@ -615,7 +634,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_tuple_type(resolve, tuple)?;
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
         Ok(())
     }
@@ -630,7 +649,7 @@ impl WitPrinter {
                     self.print_name(&flag.name);
                     self.output.push_str(",\n");
                 }
-                self.output.push_str("}\n\n");
+                self.output.push_str("}\n");
             }
             None => bail!("document has unnamed flags type"),
         }
@@ -659,7 +678,7 @@ impl WitPrinter {
             }
             self.output.push_str(",\n");
         }
-        self.output.push_str("}\n\n");
+        self.output.push_str("}\n");
         Ok(())
     }
 
@@ -681,7 +700,7 @@ impl WitPrinter {
             self.print_type_name(resolve, &case.ty)?;
             self.output.push_str(",\n");
         }
-        self.output.push_str("}\n\n");
+        self.output.push_str("}\n");
         Ok(())
     }
 
@@ -696,7 +715,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_option_type(resolve, payload)?;
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
         Ok(())
     }
@@ -712,7 +731,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_result_type(resolve, result)?;
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
         Ok(())
     }
@@ -729,7 +748,7 @@ impl WitPrinter {
             self.print_name(&case.name);
             self.output.push_str(",\n");
         }
-        self.output.push_str("}\n\n");
+        self.output.push_str("}\n");
         Ok(())
     }
 
@@ -739,7 +758,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = list<");
             self.print_type_name(resolve, ty)?;
-            self.output.push_str(">\n\n");
+            self.output.push_str(">\n");
             return Ok(());
         }
 

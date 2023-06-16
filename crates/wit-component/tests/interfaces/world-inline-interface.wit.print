@@ -3,6 +3,7 @@ package foo:foo
 world has-inline {
   import foo: interface {
   }
+
   export bar: interface {
   }
 }

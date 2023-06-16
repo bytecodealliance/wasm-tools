@@ -10,5 +10,6 @@ interface foo {
 
 world my-world {
   import foo
+
   export foo
 }

@@ -7,6 +7,7 @@ world empty-world {
   import empty
   import empty: interface {
   }
+
   export empty
   export empty2: interface {
   }
