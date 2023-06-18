@@ -841,9 +841,8 @@ impl ComponentState {
                 types.remap_component_entity(ty, &mut mapping);
             }
             for (id, path) in mem::take(&mut new_ty.explicit_resources) {
-                new_ty
-                    .explicit_resources
-                    .insert(mapping.resources[&id], path);
+                let id = mapping.resources.get(&id).copied().unwrap_or(id);
+                new_ty.explicit_resources.insert(id, path);
             }
             *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
         }
