@@ -1,11 +1,5 @@
 package foo:foo
 
-world just-import {
-  import foo: func()
-}
-world just-export {
-  export foo: func()
-}
 world foo {
   import some-interface: interface {
   }
@@ -16,4 +10,10 @@ world foo {
   }
   export foo2: func()
   export bar2: func() -> u32
+}
+world just-import {
+  import foo: func()
+}
+world just-export {
+  export foo: func()
 }

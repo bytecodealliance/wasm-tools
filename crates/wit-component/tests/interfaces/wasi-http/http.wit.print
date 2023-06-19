@@ -4,28 +4,6 @@ interface types {
   use wasi:io/streams.{input-stream, output-stream}
   use wasi:poll/poll.{pollable}
 
-  type status-code = u16
-
-  variant scheme {
-    HTTP,
-    HTTPS,
-    other(string),
-  }
-
-  type response-outparam = u32
-
-  record request-options {
-    connect-timeout-ms: option<u32>,
-    first-byte-timeout-ms: option<u32>,
-    between-bytes-timeout-ms: option<u32>,
-  }
-
-  type outgoing-stream = output-stream
-
-  type outgoing-response = u32
-
-  type outgoing-request = u32
-
   variant method {
     get,
     head,
@@ -39,19 +17,11 @@ interface types {
     other(string),
   }
 
-  type incoming-stream = input-stream
-
-  type incoming-response = u32
-
-  type incoming-request = u32
-
-  type future-incoming-response = u32
-
-  type fields = u32
-
-  type trailers = fields
-
-  type headers = fields
+  variant scheme {
+    HTTP,
+    HTTPS,
+    other(string),
+  }
 
   variant error {
     invalid-url(string),
@@ -59,6 +29,36 @@ interface types {
     protocol-error(string),
     unexpected-error(string),
   }
+
+  type fields = u32
+
+  type headers = fields
+
+  type trailers = fields
+
+  type incoming-stream = input-stream
+
+  type outgoing-stream = output-stream
+
+  type incoming-request = u32
+
+  type outgoing-request = u32
+
+  record request-options {
+    connect-timeout-ms: option<u32>,
+    first-byte-timeout-ms: option<u32>,
+    between-bytes-timeout-ms: option<u32>,
+  }
+
+  type response-outparam = u32
+
+  type status-code = u16
+
+  type incoming-response = u32
+
+  type outgoing-response = u32
+
+  type future-incoming-response = u32
 
   drop-fields: func(fields: fields)
 
@@ -127,16 +127,16 @@ interface types {
   listen-to-future-incoming-response: func(f: future-incoming-response) -> pollable
 }
 
-interface outgoing-handler {
-  use types.{outgoing-request, request-options, future-incoming-response}
-
-  handle: func(request: outgoing-request, options: option<request-options>) -> future-incoming-response
-}
-
 interface incoming-handler {
   use types.{incoming-request, response-outparam}
 
   handle: func(request: incoming-request, response-out: response-outparam)
+}
+
+interface outgoing-handler {
+  use types.{outgoing-request, request-options, future-incoming-response}
+
+  handle: func(request: outgoing-request, options: option<request-options>) -> future-incoming-response
 }
 
 world proxy {

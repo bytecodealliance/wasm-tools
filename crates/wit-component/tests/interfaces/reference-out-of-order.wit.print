@@ -1,8 +1,8 @@
 package foo:foo
 
 interface foo {
-  variant v-no-string {
-    s(u32),
+  record r {
+    s: string,
   }
 
   variant v {
@@ -13,8 +13,8 @@ interface foo {
     s: u32,
   }
 
-  record r {
-    s: string,
+  variant v-no-string {
+    s(u32),
   }
 
   a: func(x: r)

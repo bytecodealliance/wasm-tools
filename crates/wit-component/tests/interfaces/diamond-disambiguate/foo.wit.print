@@ -1,11 +1,11 @@
 package foo:foo
 
-interface shared2 {
-  type t2 = u8
-}
-
 interface shared1 {
   type t1 = u8
+}
+
+interface shared2 {
+  type t2 = u8
 }
 
 world w1 {

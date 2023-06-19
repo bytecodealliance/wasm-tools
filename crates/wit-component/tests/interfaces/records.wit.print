@@ -1,6 +1,9 @@
 package foo:records
 
 interface records {
+  record empty {
+  }
+
   record scalars {
     a: u32,
     b: u32,
@@ -18,13 +21,6 @@ interface records {
     i,
   }
 
-  type int-typedef = s32
-
-  type tuple-typedef2 = tuple<int-typedef>
-
-  record empty {
-  }
-
   record aggregates {
     a: scalars,
     b: u32,
@@ -32,6 +28,10 @@ interface records {
     d: string,
     e: really-flags,
   }
+
+  type int-typedef = s32
+
+  type tuple-typedef2 = tuple<int-typedef>
 
   tuple-arg: func(x: tuple<char, u32>)
 

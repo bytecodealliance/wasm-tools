@@ -5,15 +5,15 @@ interface b {
   }
 }
 
+interface a {
+  use b.{the-type}
+}
+
 interface b2 {
   use b.{the-type}
 }
 
 interface a2 {
-  use b.{the-type}
-}
-
-interface a {
   use b.{the-type}
 }
 
