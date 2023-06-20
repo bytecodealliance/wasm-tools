@@ -1127,3 +1127,13 @@
     (export "t2" (instance (type $t2')))
   ))
 )
+
+(component
+  (type (component
+    (type (instance
+      (export "bar" (type (sub resource)))
+      (export "[static]bar.a" (func))
+    ))
+    (export "x" (instance (type 0)))
+  ))
+)
