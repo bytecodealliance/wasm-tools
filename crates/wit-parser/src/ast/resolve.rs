@@ -1029,6 +1029,12 @@ impl<'a> Resolver<'a> {
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
+                if let TypeDefKind::Resource = &self.types[id].kind {
+                    bail!(Error {
+                        span: name.span,
+                        msg: format!("muse use `shared<..>` to refer to a resource"),
+                    })
+                }
                 TypeDefKind::Type(Type::Id(id))
             }
             ast::Type::List(list) => {

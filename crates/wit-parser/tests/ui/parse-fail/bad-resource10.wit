@@ -1,0 +1,8 @@
+package foo:bar
+
+interface foo {
+  resource a
+
+  // NB: this will start working when `a` is sugar for `own<a>`
+  b: func() -> a
+}

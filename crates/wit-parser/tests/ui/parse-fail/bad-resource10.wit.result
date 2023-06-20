@@ -1,0 +1,5 @@
+muse use `shared<..>` to refer to a resource
+     --> tests/ui/parse-fail/bad-resource10.wit:7:16
+      |
+    7 |   b: func() -> a
+      |                ^
