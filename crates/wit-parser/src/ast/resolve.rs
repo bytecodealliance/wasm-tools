@@ -1035,11 +1035,22 @@ impl<'a> Resolver<'a> {
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
 
-                // Default to own handle if a resource is used without explicitly stating the handle type.
-                if let TypeDefKind::Resource = &self.types[id].kind {
-                    TypeDefKind::Handle(Handle::Own(id))
-                } else {
-                    TypeDefKind::Type(Type::Id(id))
+                match self.types[id].kind {
+                    // If this resolved type is for sure a resource, then inject
+                    // an implicit `own` handle as this name is resolved.
+                    TypeDefKind::Resource => TypeDefKind::Handle(Handle::Own(id)),
+
+                    // This should never happen because `Unknown` types only
+                    // show up in `use`, which isn't being resolved here.
+                    TypeDefKind::Unknown => unreachable!(),
+
+                    // Everything else becomes "simply" a type. Note that in the
+                    // case that `id` points to a resource defined in a foreign
+                    // package (e.g. it, at this time, transitively points to
+                    // `Unknown`) then the name-is-`own` translation happens
+                    // later during the next `resolve` phase when
+                    // `UnresolvedPackage` is processed.
+                    _ => TypeDefKind::Type(Type::Id(id)),
                 }
             }
             ast::Type::List(list) => {

@@ -1,9 +1,9 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
-    AstItem, Error, Function, FunctionKind, IncludeName, Interface, InterfaceId, PackageName,
-    Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId,
-    WorldItem, WorldKey,
+    AstItem, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
+    PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
+    WorldId, WorldItem, WorldKey,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -281,7 +281,7 @@ impl Resolve {
         for (id, mut ty) in types {
             let new_id = type_map.get(&id).copied().unwrap_or_else(|| {
                 moved_types.push(id);
-                remap.update_typedef(&mut ty);
+                remap.update_typedef(self, &mut ty);
                 self.types.alloc(ty)
             });
             assert_eq!(remap.types.len(), id.index());
@@ -292,7 +292,7 @@ impl Resolve {
         for (id, mut iface) in interfaces {
             let new_id = interface_map.get(&id).copied().unwrap_or_else(|| {
                 moved_interfaces.push(id);
-                remap.update_interface(&mut iface);
+                remap.update_interface(self, &mut iface);
                 self.interfaces.alloc(iface)
             });
             assert_eq!(remap.interfaces.len(), id.index());
@@ -303,11 +303,11 @@ impl Resolve {
         for (id, mut world) in worlds {
             let new_id = world_map.get(&id).copied().unwrap_or_else(|| {
                 moved_worlds.push(id);
-                let update = |map: &mut IndexMap<WorldKey, WorldItem>| {
+                let mut update = |map: &mut IndexMap<WorldKey, WorldItem>| {
                     for (mut name, mut item) in mem::take(map) {
                         remap.update_world_key(&mut name);
                         match &mut item {
-                            WorldItem::Function(f) => remap.update_function(f),
+                            WorldItem::Function(f) => remap.update_function(self, f),
                             WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
                             WorldItem::Type(i) => *i = remap.types[i.index()],
                         }
@@ -610,7 +610,7 @@ impl Remap {
         // owner of a type isn't updated here due to interfaces not being known
         // yet.
         for (id, mut ty) in unresolved.types.into_iter().skip(foreign_types) {
-            self.update_typedef(&mut ty);
+            self.update_typedef(resolve, &mut ty);
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
             self.types.push(new_id);
@@ -619,7 +619,7 @@ impl Remap {
         // Next transfer all interfaces into `Resolve`, updating type ids
         // referenced along the way.
         for (id, mut iface) in unresolved.interfaces.into_iter().skip(foreign_interfaces) {
-            self.update_interface(&mut iface);
+            self.update_interface(resolve, &mut iface);
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(new_id);
@@ -887,58 +887,63 @@ impl Remap {
         Ok(())
     }
 
-    fn update_typedef(&self, ty: &mut TypeDef) {
+    fn update_typedef(&self, resolve: &mut Resolve, ty: &mut TypeDef) {
         // NB: note that `ty.owner` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         use crate::TypeDefKind::*;
         match &mut ty.kind {
             Handle(handle) => match handle {
-                crate::Handle::Own(ty) => *ty = self.types[ty.index()],
-                crate::Handle::Borrow(ty) => *ty = self.types[ty.index()],
+                crate::Handle::Own(ty) | crate::Handle::Borrow(ty) => self.update_type_id(ty),
             },
             Resource => {}
             Record(r) => {
                 for field in r.fields.iter_mut() {
-                    self.update_ty(&mut field.ty);
+                    self.update_ty(resolve, &mut field.ty);
                 }
             }
             Tuple(t) => {
                 for ty in t.types.iter_mut() {
-                    self.update_ty(ty);
+                    self.update_ty(resolve, ty);
                 }
             }
             Variant(v) => {
                 for case in v.cases.iter_mut() {
                     if let Some(t) = &mut case.ty {
-                        self.update_ty(t);
+                        self.update_ty(resolve, t);
                     }
                 }
             }
-            Option(t) => self.update_ty(t),
+            Option(t) => self.update_ty(resolve, t),
             Result(r) => {
                 if let Some(ty) = &mut r.ok {
-                    self.update_ty(ty);
+                    self.update_ty(resolve, ty);
                 }
                 if let Some(ty) = &mut r.err {
-                    self.update_ty(ty);
+                    self.update_ty(resolve, ty);
                 }
             }
             Union(u) => {
                 for case in u.cases.iter_mut() {
-                    self.update_ty(&mut case.ty);
+                    self.update_ty(resolve, &mut case.ty);
                 }
             }
-            List(t) => self.update_ty(t),
-            Future(Some(t)) => self.update_ty(t),
+            List(t) => self.update_ty(resolve, t),
+            Future(Some(t)) => self.update_ty(resolve, t),
             Stream(t) => {
                 if let Some(ty) = &mut t.element {
-                    self.update_ty(ty);
+                    self.update_ty(resolve, ty);
                 }
                 if let Some(ty) = &mut t.end {
-                    self.update_ty(ty);
+                    self.update_ty(resolve, ty);
                 }
             }
-            Type(t) => self.update_ty(t),
+
+            // Note that `update_ty` is specifically not used here as typedefs
+            // because for the `type a = b` form that doesn't force `a` to be a
+            // handle type if `b` is a resource type, instead `a` is
+            // simultaneously usable as a resource and a handle type
+            Type(crate::Type::Id(id)) => self.update_type_id(id),
+            Type(_) => {}
 
             // nothing to do for these as they're just names or empty
             Flags(_) | Enum(_) | Future(None) => {}
@@ -947,47 +952,75 @@ impl Remap {
         }
     }
 
-    fn update_ty(&self, ty: &mut Type) {
-        if let Type::Id(id) = ty {
-            *id = self.types[id.index()];
+    fn update_ty(&self, resolve: &mut Resolve, ty: &mut Type) {
+        let id = match ty {
+            Type::Id(id) => id,
+            _ => return,
+        };
+        self.update_type_id(id);
+
+        // If `id` points to a `Resource` type then this means that what was
+        // just discovered was a cross-package dependency where a reference to
+        // a resource should implicitly become an `own` handle for said
+        // resource. The resource is injected here as necessary.
+        let mut cur = *id;
+        let points_to_resource = loop {
+            match resolve.types[cur].kind {
+                TypeDefKind::Type(Type::Id(id)) => cur = id,
+                TypeDefKind::Resource => break true,
+                _ => break false,
+            }
+        };
+
+        if points_to_resource {
+            *id = resolve.types.alloc(TypeDef {
+                name: None,
+                owner: TypeOwner::None,
+                kind: TypeDefKind::Handle(Handle::Own(*id)),
+                docs: Default::default(),
+            });
         }
     }
 
-    fn update_interface(&self, iface: &mut Interface) {
+    fn update_type_id(&self, id: &mut TypeId) {
+        *id = self.types[id.index()];
+    }
+
+    fn update_interface(&self, resolve: &mut Resolve, iface: &mut Interface) {
         // NB: note that `iface.doc` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         for (_name, ty) in iface.types.iter_mut() {
-            *ty = self.types[ty.index()];
+            self.update_type_id(ty);
         }
         for (_, func) in iface.functions.iter_mut() {
-            self.update_function(func);
+            self.update_function(resolve, func);
         }
     }
 
-    fn update_function(&self, func: &mut Function) {
+    fn update_function(&self, resolve: &mut Resolve, func: &mut Function) {
         match &mut func.kind {
             FunctionKind::Freestanding => {}
             FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-                *id = self.types[id.index()];
+                self.update_type_id(id);
             }
         }
         for (_, ty) in func.params.iter_mut() {
-            self.update_ty(ty);
+            self.update_ty(resolve, ty);
         }
         match &mut func.results {
             Results::Named(named) => {
                 for (_, ty) in named.iter_mut() {
-                    self.update_ty(ty);
+                    self.update_ty(resolve, ty);
                 }
             }
-            Results::Anon(ty) => self.update_ty(ty),
+            Results::Anon(ty) => self.update_ty(resolve, ty),
         }
     }
 
     fn update_world(
         &self,
         world: &mut World,
-        resolve: &Resolve,
+        resolve: &mut Resolve,
         import_spans: &[Span],
         export_spans: &[Span],
     ) -> Result<()> {
@@ -1018,7 +1051,7 @@ impl Remap {
                     self.add_world_import(resolve, world, name, id);
                 }
                 WorldItem::Function(mut f) => {
-                    self.update_function(&mut f);
+                    self.update_function(resolve, &mut f);
                     import_funcs.push((name.unwrap_name(), f, *span));
                 }
                 WorldItem::Type(id) => {
@@ -1047,7 +1080,7 @@ impl Remap {
                     self.add_world_export(resolve, world, name, id);
                 }
                 WorldItem::Function(mut f) => {
-                    self.update_function(&mut f);
+                    self.update_function(resolve, &mut f);
                     let name = match name {
                         WorldKey::Name(name) => name,
                         WorldKey::Interface(_) => unreachable!(),
