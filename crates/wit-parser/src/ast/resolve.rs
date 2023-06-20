@@ -78,6 +78,10 @@ pub struct Resolver<'a> {
     foreign_dep_spans: Vec<Span>,
 
     foreign_world_spans: Vec<Span>,
+
+    /// A list of `TypeDefKind::Unknown` types which are required to be
+    /// resources when this package is resolved against its dependencies.
+    required_resource_types: Vec<(TypeId, Span)>,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -209,6 +213,7 @@ impl<'a> Resolver<'a> {
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
             foreign_world_spans: mem::take(&mut self.foreign_world_spans),
+            required_resource_types: mem::take(&mut self.required_resource_types),
         })
     }
 
@@ -1203,6 +1208,10 @@ impl<'a> Resolver<'a> {
             match self.types[cur].kind {
                 TypeDefKind::Resource => break Ok(id),
                 TypeDefKind::Type(Type::Id(ty)) => cur = ty,
+                TypeDefKind::Unknown => {
+                    self.required_resource_types.push((cur, name.span));
+                    break Ok(id);
+                }
                 _ => bail!(Error {
                     span: name.span,
                     msg: format!("type `{}` is not a resource", name.name),

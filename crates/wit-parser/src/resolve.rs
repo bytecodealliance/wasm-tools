@@ -744,6 +744,20 @@ impl Remap {
         // what they map to.
         self.process_foreign_types(unresolved, resolve)?;
 
+        for (id, span) in unresolved.required_resource_types.iter() {
+            let mut id = self.types[id.index()];
+            loop {
+                match resolve.types[id].kind {
+                    TypeDefKind::Type(Type::Id(i)) => id = i,
+                    TypeDefKind::Resource => break,
+                    _ => bail!(Error {
+                        span: *span,
+                        msg: format!("type is not a resource"),
+                    }),
+                }
+            }
+        }
+
         Ok(())
     }
 
