@@ -24,7 +24,14 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
         let unresolved = pkg.sources.parse().unwrap();
         let id = match resolve.push(unresolved) {
             Ok(id) => id,
-            Err(e) => panic!("bad wit parse: {e:?}"),
+            Err(e) => {
+                if e.to_string()
+                    .contains("both an imported and exported copy of the same interface")
+                {
+                    return Err(arbitrary::Error::IncorrectFormat);
+                }
+                panic!("bad wit parse: {e:?}")
+            }
         };
         last = Some(id);
     }

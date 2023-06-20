@@ -6,6 +6,6 @@
   )
   (core instance $m (;0;) (instantiate $m))
   (alias core export $m "dtor" (core func (;0;)))
-  (type $x (;0;) (resource (rep i32)(dtor (func 0))))
+  (type $x (;0;) (resource (rep i32) (dtor (func 0))))
   (core func (;1;) (canon resource.new $x))
 )

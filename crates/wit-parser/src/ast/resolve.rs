@@ -1321,7 +1321,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Method(id) => {
                 let shared = self.anon_type_def(TypeDef {
                     docs: Docs::default(),
-                    kind: TypeDefKind::Handle(Handle::Own(id)),
+                    kind: TypeDefKind::Handle(Handle::Borrow(id)),
                     name: None,
                     owner: TypeOwner::None,
                 });
