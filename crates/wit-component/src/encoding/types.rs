@@ -302,11 +302,6 @@ pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
     pub interface: Option<InterfaceId>,
     pub import_types: bool,
-
-    // These maps are used when `interface` is set to `Some` as all the type
-    // information will be per-interface.
-    pub type_map: HashMap<TypeId, u32>,
-    pub func_type_map: HashMap<FunctionKey<'a>, u32>,
 }
 
 impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
@@ -344,18 +339,10 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         self.state.index_of_type_export(id)
     }
     fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-        if self.interface.is_some() {
-            &mut self.type_map
-        } else {
-            &mut self.state.type_map
-        }
+        &mut self.state.type_map
     }
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        if self.interface.is_some() {
-            &mut self.func_type_map
-        } else {
-            &mut self.state.func_type_map
-        }
+        &mut self.state.func_type_map
     }
 }
 

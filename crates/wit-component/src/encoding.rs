@@ -394,8 +394,6 @@ impl<'a> EncodingState<'a> {
         RootTypeEncoder {
             state: self,
             interface,
-            type_map: Default::default(),
-            func_type_map: Default::default(),
             import_types: false,
         }
     }
@@ -705,9 +703,6 @@ impl<'a> EncodingState<'a> {
                 func_index,
             ));
         }
-        // Save the map from `TypeId` to type index in the current component for
-        // use in a moment.
-        let mut type_map = root.type_map;
 
         // Next a nested component is created which will import the functions
         // above and then reexport them. The purpose of them is to "re-type" the
@@ -735,12 +730,24 @@ impl<'a> EncodingState<'a> {
         types_to_import.add_interface(resolve, export);
         for ty in types_to_import.iter() {
             if let TypeOwner::Interface(owner) = resolve.types[ty].owner {
-                if owner != export {
-                    let idx = nested.state.index_of_type_export(ty);
-                    type_map.insert(ty, idx);
-                    nested.interface = owner;
-                    nested.encode_valtype(resolve, &Type::Id(ty))?;
+                if owner == export {
+                    // Here this deals with the current exported interface which
+                    // is handled below.
+                    continue;
                 }
+
+                // Ensure that `self` has encoded this type before. If so this
+                // is a noop but otherwise it generates the type here.
+                nested
+                    .state
+                    .root_type_encoder(Some(export))
+                    .encode_valtype(resolve, &Type::Id(ty))?;
+
+                // Next generate the same type but this time within the
+                // component itself. The type generated above (or prior) will be
+                // used to satisfy this type import.
+                nested.interface = owner;
+                nested.encode_valtype(resolve, &Type::Id(ty))?;
             }
         }
         nested.interface = export;
@@ -763,10 +770,10 @@ impl<'a> EncodingState<'a> {
 
         // Swap the `nested.type_map` which was previously from `TypeId` to
         // `u32` to instead being from `u32` to `TypeId`. This reverse map is
-        // then used in conjunction with `type_map` to satisfy all type imports
-        // of the nested component generated. The type import's index in the
-        // inner component is translated to a `TypeId` via `reverse_map` which
-        // is then translated back to our own index space via `type_map`.
+        // then used in conjunction with `self.type_map` to satisfy all type
+        // imports of the nested component generated. The type import's index in
+        // the inner component is translated to a `TypeId` via `reverse_map`
+        // which is then translated back to our own index space via `type_map`.
         let reverse_map = nested
             .type_map
             .drain()
@@ -774,7 +781,7 @@ impl<'a> EncodingState<'a> {
             .collect::<HashMap<_, _>>();
         for (name, idx) in nested.imports.drain(..) {
             let id = reverse_map[&idx];
-            let idx = type_map[&id];
+            let idx = nested.state.type_map[&id];
             imports.push((name, ComponentExportKind::Type, idx))
         }
 
