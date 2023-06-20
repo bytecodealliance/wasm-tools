@@ -4,11 +4,11 @@
       (type (;0;)
         (instance)
       )
-      (export (;0;) (interface "foo:foo/foo") (instance (type 0)))
+      (export (;0;) (interface "foo:foo/bar") (instance (type 0)))
       (type (;1;)
         (instance)
       )
-      (export (;1;) (interface "foo:foo/bar") (instance (type 1)))
+      (export (;1;) (interface "foo:foo/foo") (instance (type 1)))
     )
   )
   (@producers

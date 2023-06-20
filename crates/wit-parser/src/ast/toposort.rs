@@ -64,22 +64,30 @@ pub fn toposort<'a>(
     let mut heap = BinaryHeap::new();
 
     // Seed the `heap` with edges that have no outbound edges
+    //
+    // The heap here is keyed by `(usize, &str, usize)` where the first `usize`
+    // is unique which is what determines the order of the heap. The other two
+    // fields are metadata used when pulling from the heap. The first `usize` is
+    // the index of the item within the original dependency map which should
+    // reflect the original source order of the item. Note that this is stored
+    // in reverse order to ensure that when there are multiple items in the heap
+    // the first item in the original order is popped first.
     for (i, dep) in deps.keys().enumerate() {
         if states[i].outbound_remaining == 0 {
-            heap.push((*dep, i));
+            heap.push((deps.len() - i, *dep, i));
         }
     }
 
     // Drain the binary heap which represents all nodes that have had all their
     // dependencies processed. Iteratively add to the heap as well as nodes are
     // removed.
-    while let Some((node, i)) = heap.pop() {
+    while let Some((_order, node, i)) = heap.pop() {
         order.push(node);
         for i in mem::take(&mut states[i].reverse_deps) {
             states[i].outbound_remaining -= 1;
             if states[i].outbound_remaining == 0 {
                 let (dep, _) = deps.get_index(i).unwrap();
-                heap.push((*dep, i));
+                heap.push((deps.len() - i, *dep, i));
             }
         }
     }
@@ -200,5 +208,18 @@ mod tests {
         two.insert("b", vec![id("a"), id("a")]);
         two.insert("a", vec![]);
         assert_eq!(toposort("", &two).unwrap(), ["a", "b"]);
+    }
+
+    #[test]
+    fn preserve_order() {
+        let mut order = IndexMap::new();
+        order.insert("a", vec![]);
+        order.insert("b", vec![]);
+        assert_eq!(toposort("", &order).unwrap(), ["a", "b"]);
+
+        let mut order = IndexMap::new();
+        order.insert("b", vec![]);
+        order.insert("a", vec![]);
+        assert_eq!(toposort("", &order).unwrap(), ["b", "a"]);
     }
 }

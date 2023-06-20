@@ -1,5 +1,12 @@
 package foo:foo
 
+interface only-into {
+  record r {
+  }
+
+  foo: func() -> r
+}
+
 interface shared-only-into {
   variant v {
     c1,
@@ -12,7 +19,7 @@ interface shared-items {
   type a = u32
 }
 
-interface only-into {
+interface only-from {
   record r {
   }
 
@@ -27,13 +34,6 @@ interface shared-only-from {
   }
 
   bar: func(x: v)
-}
-
-interface only-from {
-  record r {
-  }
-
-  foo: func() -> r
 }
 
 world shared-world {

@@ -4,9 +4,9 @@
       (type (;0;)
         (instance
           (type (;0;) u8)
-          (export (;1;) "t2" (type (eq 0)))
+          (export (;1;) "t1" (type (eq 0)))
           (type (;2;) u8)
-          (export (;3;) "t1" (type (eq 2)))
+          (export (;3;) "t2" (type (eq 2)))
         )
       )
       (export (;0;) (interface "foo:multiuse/foo") (instance (type 0)))

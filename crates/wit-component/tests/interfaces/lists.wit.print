@@ -1,19 +1,6 @@
 package foo:foo
 
 interface lists {
-  variant other-variant {
-    a,
-    b(u32),
-    c(string),
-  }
-
-  variant some-variant {
-    a(string),
-    b,
-    c(u32),
-    d(list<other-variant>),
-  }
-
   record other-record {
     a1: u32,
     a2: u64,
@@ -30,6 +17,19 @@ interface lists {
     c2: u64,
     c3: s32,
     c4: s64,
+  }
+
+  variant other-variant {
+    a,
+    b(u32),
+    c(string),
+  }
+
+  variant some-variant {
+    a(string),
+    b,
+    c(u32),
+    d(list<other-variant>),
   }
 
   type load-store-all-sizes = list<tuple<string, u8, s8, u16, s16, u32, s32, u64, s64, float32, float64, char>>
