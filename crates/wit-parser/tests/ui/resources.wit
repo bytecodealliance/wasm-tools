@@ -21,9 +21,9 @@ interface foo {
   }
 
   resource e {
-    constructor(other: shared<e>)
+    constructor(other: own<e>, other2: borrow<e>)
 
-    method: func(thing: shared<e>)
+    method: func(thing: own<e>, thing2: borrow<e>)
   }
 }
 

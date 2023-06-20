@@ -59,7 +59,8 @@ impl LiveTypes {
             | TypeDefKind::Option(t)
             | TypeDefKind::Future(Some(t)) => self.add_type(resolve, t),
             TypeDefKind::Handle(handle) => match handle {
-                crate::Handle::Shared(ty) => self.add_type_id(resolve, *ty),
+                crate::Handle::Own(ty) => self.add_type_id(resolve, *ty),
+                crate::Handle::Borrow(ty) => self.add_type_id(resolve, *ty),
             },
             TypeDefKind::Resource => {}
             TypeDefKind::Record(r) => {

@@ -1029,15 +1029,22 @@ impl<'a> Resolver<'a> {
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
-                TypeDefKind::Type(Type::Id(id))
+
+                // Default to own handle if a resource is used without explicitly stating the handle type.
+                if let TypeDefKind::Resource = &self.types[id].kind {
+                    TypeDefKind::Handle(Handle::Own(id))
+                } else {
+                    TypeDefKind::Type(Type::Id(id))
+                }
             }
             ast::Type::List(list) => {
                 let ty = self.resolve_type(list)?;
                 TypeDefKind::List(ty)
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
-                ast::Handle::Shared { resource } => {
-                    Handle::Shared(self.validate_resource(resource)?)
+                ast::Handle::Own { resource } => Handle::Own(self.validate_resource(resource)?),
+                ast::Handle::Borrow { resource } => {
+                    Handle::Borrow(self.validate_resource(resource)?)
                 }
             }),
             ast::Type::Resource(resource) => {
@@ -1306,7 +1313,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Method(id) => {
                 let shared = self.anon_type_def(TypeDef {
                     docs: Docs::default(),
-                    kind: TypeDefKind::Handle(Handle::Shared(id)),
+                    kind: TypeDefKind::Handle(Handle::Own(id)),
                     name: None,
                     owner: TypeOwner::None,
                 });
@@ -1346,7 +1353,7 @@ impl<'a> Resolver<'a> {
                 }
                 let shared = self.anon_type_def(TypeDef {
                     docs: Docs::default(),
-                    kind: TypeDefKind::Handle(Handle::Shared(id)),
+                    kind: TypeDefKind::Handle(Handle::Own(id)),
                     name: None,
                     owner: TypeOwner::None,
                 });
@@ -1376,7 +1383,8 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         ast::Type::Name(name) => deps.push(name.clone()),
         ast::Type::List(list) => collect_deps(list, deps),
         ast::Type::Handle(handle) => match handle {
-            ast::Handle::Shared { resource } => deps.push(resource.clone()),
+            ast::Handle::Own { resource } => deps.push(resource.clone()),
+            ast::Handle::Borrow { resource } => deps.push(resource.clone()),
         },
         ast::Type::Resource(_) => {}
         ast::Type::Record(record) => {

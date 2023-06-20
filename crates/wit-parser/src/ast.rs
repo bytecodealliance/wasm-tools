@@ -539,7 +539,8 @@ enum Type<'a> {
 }
 
 enum Handle<'a> {
-    Shared { resource: Id<'a> },
+    Own { resource: Id<'a> },
+    Borrow { resource: Id<'a> },
 }
 
 struct Resource<'a> {
@@ -1049,12 +1050,20 @@ impl<'a> Type<'a> {
                 Ok(Type::Stream(Stream { element, end }))
             }
 
-            // shared<T>
-            Some((_span, Token::Shared)) => {
+            // own<T>
+            Some((_span, Token::Own)) => {
                 tokens.expect(Token::LessThan)?;
                 let resource = parse_id(tokens)?;
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::Handle(Handle::Shared { resource }))
+                Ok(Type::Handle(Handle::Own { resource }))
+            }
+
+            // borrow<T>
+            Some((_span, Token::Borrow)) => {
+                tokens.expect(Token::LessThan)?;
+                let resource = parse_id(tokens)?;
+                tokens.expect(Token::GreaterThan)?;
+                Ok(Type::Handle(Handle::Borrow { resource }))
             }
 
             // `foo`
