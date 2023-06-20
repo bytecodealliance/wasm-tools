@@ -362,8 +362,19 @@ impl WitPrinter {
 
     fn print_handle_type(&mut self, resolve: &Resolve, handle: &Handle) -> Result<()> {
         match handle {
-            Handle::Shared(ty) => {
-                self.output.push_str("shared<");
+            Handle::Own(ty) => {
+                self.output.push_str("own<");
+                let ty = &resolve.types[*ty];
+                self.print_name(
+                    ty.name
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                );
+                self.output.push_str(">");
+            }
+
+            Handle::Borrow(ty) => {
+                self.output.push_str("borrow<");
                 let ty = &resolve.types[*ty];
                 self.print_name(
                     ty.name
@@ -706,7 +717,7 @@ fn is_keyword(name: &str) -> bool {
         "use" | "type" | "func" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64"
         | "float32" | "float64" | "char" | "resource" | "record" | "flags" | "variant" | "enum"
         | "union" | "bool" | "string" | "option" | "result" | "future" | "stream" | "list"
-        | "shared" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "world"
+        | "own" | "borrow" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "world"
         | "import" | "export" | "package" | "with" => true,
         _ => false,
     }
