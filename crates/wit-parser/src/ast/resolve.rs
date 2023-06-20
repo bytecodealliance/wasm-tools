@@ -1214,7 +1214,7 @@ impl<'a> Resolver<'a> {
                 }
                 _ => bail!(Error {
                     span: name.span,
-                    msg: format!("type `{}` is not a resource", name.name),
+                    msg: format!("type `{}` used in a handle must be a resource", name.name),
                 }),
             }
         }

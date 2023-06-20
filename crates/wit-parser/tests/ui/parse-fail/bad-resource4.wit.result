@@ -1,4 +1,4 @@
-type `foo` is not a resource
+type `foo` used in a handle must be a resource
      --> tests/ui/parse-fail/bad-resource4.wit:5:19
       |
     5 |   type t = borrow<foo>

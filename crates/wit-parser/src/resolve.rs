@@ -752,7 +752,7 @@ impl Remap {
                     TypeDefKind::Resource => break,
                     _ => bail!(Error {
                         span: *span,
-                        msg: format!("type is not a resource"),
+                        msg: format!("type used in a handle must be a resource"),
                     }),
                 }
             }
