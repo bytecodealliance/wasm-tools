@@ -1,0 +1,5 @@
+interface transitively depends on both an imported and exported copy of the same interface
+     --> tests/ui/parse-fail/import-and-export5.wit:13:10
+      |
+   13 |   export anon: interface {
+      |          ^---
