@@ -1029,7 +1029,13 @@ impl<'a> Resolver<'a> {
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
-                TypeDefKind::Type(Type::Id(id))
+
+                // Default to own handle if a resource is used without explicitly stating the handle type.
+                if let TypeDefKind::Resource = &self.types[id].kind {
+                    TypeDefKind::Handle(Handle::Own(id))
+                } else {
+                    TypeDefKind::Type(Type::Id(id))
+                }
             }
             ast::Type::List(list) => {
                 let ty = self.resolve_type(list)?;
