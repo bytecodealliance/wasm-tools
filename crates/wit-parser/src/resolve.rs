@@ -590,6 +590,17 @@ pub struct Remap {
     pub interfaces: Vec<InterfaceId>,
     pub worlds: Vec<WorldId>,
     pub packages: Vec<PackageId>,
+
+    /// A cache of anonymous `own<T>` handles for resource types.
+    ///
+    /// The appending operation of `Remap` is the one responsible for
+    /// translating references to `T` where `T` is a resource into `own<T>`
+    /// instead. This map is used to deduplicate the `own<T>` types generated
+    /// to generate as few as possible.
+    ///
+    /// The key of this map is the resource id `T` in the new resolve, and
+    /// the value is the `own<T>` type pointing to `T`.
+    own_handles: HashMap<TypeId, TypeId>,
 }
 
 impl Remap {
@@ -613,6 +624,23 @@ impl Remap {
             self.update_typedef(resolve, &mut ty);
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
+
+            let new_id = match resolve.types[new_id] {
+                // If this is an `own<T>` handle then either replace it with a
+                // preexisting `own<T>` handle which may have been generated in
+                // `update_ty`. If that doesn't exist though then insert it into
+                // the `own_handles` cache.
+                TypeDef {
+                    name: None,
+                    owner: TypeOwner::None,
+                    kind: TypeDefKind::Handle(Handle::Own(id)),
+                    docs: _,
+                } => *self.own_handles.entry(id).or_insert(new_id),
+
+                // Everything not-related to `own<T>` doesn't get its ID
+                // modified.
+                _ => new_id,
+            };
             self.types.push(new_id);
         }
 
@@ -887,7 +915,7 @@ impl Remap {
         Ok(())
     }
 
-    fn update_typedef(&self, resolve: &mut Resolve, ty: &mut TypeDef) {
+    fn update_typedef(&mut self, resolve: &mut Resolve, ty: &mut TypeDef) {
         // NB: note that `ty.owner` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         use crate::TypeDefKind::*;
@@ -952,7 +980,7 @@ impl Remap {
         }
     }
 
-    fn update_ty(&self, resolve: &mut Resolve, ty: &mut Type) {
+    fn update_ty(&mut self, resolve: &mut Resolve, ty: &mut Type) {
         let id = match ty {
             Type::Id(id) => id,
             _ => return,
@@ -960,9 +988,9 @@ impl Remap {
         self.update_type_id(id);
 
         // If `id` points to a `Resource` type then this means that what was
-        // just discovered was a cross-package dependency where a reference to
-        // a resource should implicitly become an `own` handle for said
-        // resource. The resource is injected here as necessary.
+        // just discovered was a reference to what will implicitly become an
+        // `own<T>` handle. This `own` handle is implicitly allocated here
+        // and handled during the merging process.
         let mut cur = *id;
         let points_to_resource = loop {
             match resolve.types[cur].kind {
@@ -973,11 +1001,13 @@ impl Remap {
         };
 
         if points_to_resource {
-            *id = resolve.types.alloc(TypeDef {
-                name: None,
-                owner: TypeOwner::None,
-                kind: TypeDefKind::Handle(Handle::Own(*id)),
-                docs: Default::default(),
+            *id = *self.own_handles.entry(*id).or_insert_with(|| {
+                resolve.types.alloc(TypeDef {
+                    name: None,
+                    owner: TypeOwner::None,
+                    kind: TypeDefKind::Handle(Handle::Own(*id)),
+                    docs: Default::default(),
+                })
             });
         }
     }
@@ -986,7 +1016,7 @@ impl Remap {
         *id = self.types[id.index()];
     }
 
-    fn update_interface(&self, resolve: &mut Resolve, iface: &mut Interface) {
+    fn update_interface(&mut self, resolve: &mut Resolve, iface: &mut Interface) {
         // NB: note that `iface.doc` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         for (_name, ty) in iface.types.iter_mut() {
@@ -997,7 +1027,7 @@ impl Remap {
         }
     }
 
-    fn update_function(&self, resolve: &mut Resolve, func: &mut Function) {
+    fn update_function(&mut self, resolve: &mut Resolve, func: &mut Function) {
         match &mut func.kind {
             FunctionKind::Freestanding => {}
             FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
@@ -1018,7 +1048,7 @@ impl Remap {
     }
 
     fn update_world(
-        &self,
+        &mut self,
         world: &mut World,
         resolve: &mut Resolve,
         import_spans: &[Span],

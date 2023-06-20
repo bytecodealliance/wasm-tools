@@ -87,7 +87,7 @@ pub struct Resolver<'a> {
 #[derive(PartialEq, Eq, Hash)]
 enum Key {
     Variant(Vec<(String, Option<Type>)>),
-    Handle(Handle),
+    BorrowHandle(TypeId),
     Record(Vec<(String, Type)>),
     Flags(Vec<String>),
     Tuple(Vec<Type>),
@@ -1034,24 +1034,7 @@ impl<'a> Resolver<'a> {
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
-
-                match self.types[id].kind {
-                    // If this resolved type is for sure a resource, then inject
-                    // an implicit `own` handle as this name is resolved.
-                    TypeDefKind::Resource => TypeDefKind::Handle(Handle::Own(id)),
-
-                    // This should never happen because `Unknown` types only
-                    // show up in `use`, which isn't being resolved here.
-                    TypeDefKind::Unknown => unreachable!(),
-
-                    // Everything else becomes "simply" a type. Note that in the
-                    // case that `id` points to a resource defined in a foreign
-                    // package (e.g. it, at this time, transitively points to
-                    // `Unknown`) then the name-is-`own` translation happens
-                    // later during the next `resolve` phase when
-                    // `UnresolvedPackage` is processed.
-                    _ => TypeDefKind::Type(Type::Id(id)),
-                }
+                TypeDefKind::Type(Type::Id(id))
             }
             ast::Type::List(list) => {
                 let ty = self.resolve_type(list)?;
@@ -1264,7 +1247,12 @@ impl<'a> Resolver<'a> {
                     .map(|case| (case.name.clone(), case.ty))
                     .collect::<Vec<_>>(),
             ),
-            TypeDefKind::Handle(h) => Key::Handle(*h),
+            TypeDefKind::Handle(Handle::Borrow(h)) => Key::BorrowHandle(*h),
+            // An anonymous `own<T>` type is the same as a reference to the type
+            // `T`, so avoid creating anonymous type and return that here
+            // directly. Note that this additionally avoids creating distinct
+            // anonymous types for `list<T>` and `list<own<T>>` for example.
+            TypeDefKind::Handle(Handle::Own(id)) => return Type::Id(*id),
             TypeDefKind::Resource => unreachable!("anonymous resources aren't supported"),
             TypeDefKind::Record(r) => Key::Record(
                 r.fields
@@ -1371,13 +1359,7 @@ impl<'a> Resolver<'a> {
                     ResultList::Named(rs) => assert!(rs.is_empty()),
                     ResultList::Anon(_) => unreachable!(),
                 }
-                let shared = self.anon_type_def(TypeDef {
-                    docs: Docs::default(),
-                    kind: TypeDefKind::Handle(Handle::Own(id)),
-                    name: None,
-                    owner: TypeOwner::None,
-                });
-                Ok(Results::Anon(shared))
+                Ok(Results::Anon(Type::Id(id)))
             }
         }
     }
