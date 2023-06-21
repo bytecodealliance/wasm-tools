@@ -1031,10 +1031,10 @@ impl<'a> FromReader<'a> for StructuralType {
 }
 
 fn read_structural_type(
-    op_code: u8,
+    opcode: u8,
     reader: &mut BinaryReader,
 ) -> Result<StructuralType, BinaryReaderError> {
-    Ok(match op_code {
+    Ok(match opcode {
         0x60 => StructuralType::Func(reader.read()?),
         0x5e => StructuralType::Array(reader.read()?),
         0x5f => StructuralType::Struct(reader.read()?),
@@ -1061,10 +1061,10 @@ impl<'a> FromReader<'a> for SubType {
                     structural_type: read_structural_type(reader.read_u8()?, reader)?,
                 }
             }
-            op_code => SubType {
+            opcode => SubType {
                 is_final: false,
                 supertype_idxs: vec![],
-                structural_type: read_structural_type(op_code, reader)?,
+                structural_type: read_structural_type(opcode, reader)?,
             },
         })
     }
