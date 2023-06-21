@@ -649,16 +649,13 @@ impl Remap {
             .zip(unresolved.world_item_spans)
             .skip(foreign_worlds)
         {
-            self.update_world(&mut world, resolve, &import_spans, &export_spans)?;
-
-            // Resolve all includes of the world
-            let includes = mem::take(&mut world.includes);
-            let include_names = mem::take(&mut world.include_names);
-            for (index, include_world) in includes.into_iter().enumerate() {
-                let span = include_world_spans[index];
-                let names = &include_names[index];
-                self.resolve_include(&mut world, include_world, names, span, resolve)?;
-            }
+            self.update_world(
+                &mut world,
+                resolve,
+                &import_spans,
+                &export_spans,
+                &include_world_spans,
+            )?;
 
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
@@ -990,6 +987,7 @@ impl Remap {
         resolve: &Resolve,
         import_spans: &[Span],
         export_spans: &[Span],
+        include_world_spans: &[Span],
     ) -> Result<()> {
         // NB: this function is more more complicated than the prior versions
         // of merging an item because this is the location that elaboration of
@@ -1058,6 +1056,15 @@ impl Remap {
             }
         }
 
+        // Resolve all includes of the world
+        let includes = mem::take(&mut world.includes);
+        let include_names = mem::take(&mut world.include_names);
+        for (index, include_world) in includes.into_iter().enumerate() {
+            let span = include_world_spans[index];
+            let names = &include_names[index];
+            self.resolve_include(world, include_world, names, span, resolve)?;
+        }
+
         for (name, id, span) in import_types {
             let prev = world
                 .imports
@@ -1065,6 +1072,14 @@ impl Remap {
             if prev.is_some() {
                 bail!(Error {
                     msg: format!("export of type `{name}` shadows previously imported interface"),
+                    span,
+                })
+            }
+
+            // check if this type has name conflict with any of the exported item.
+            if world.exports.contains_key(&WorldKey::Name(name.clone())) {
+                bail!(Error {
+                    msg: format!("import type `{name}` conflicts with prior export of interface",),
                     span,
                 })
             }
@@ -1082,7 +1097,18 @@ impl Remap {
                     span,
                 })
             }
+
+            // check if this function has name conflict with any of the exported item.
+            if world.exports.contains_key(&WorldKey::Name(name.clone())) {
+                bail!(Error {
+                    msg: format!(
+                        "import of function `{name}` conflicts with prior export of interface",
+                    ),
+                    span,
+                })
+            }
         }
+
         for (name, func, span) in export_funcs {
             let prev = world
                 .exports
@@ -1091,6 +1117,16 @@ impl Remap {
                 bail!(Error {
                     msg: format!(
                         "export of function `{name}` shadows previously exported interface"
+                    ),
+                    span,
+                })
+            }
+
+            // check if this function has name conflict with any of the import item.
+            if world.imports.contains_key(&WorldKey::Name(name.clone())) {
+                bail!(Error {
+                    msg: format!(
+                        "export of function `{name}` conflicts with prior import of interface",
                     ),
                     span,
                 })
