@@ -642,7 +642,7 @@ impl Remap {
         // transitive relation between interfaces, through types, is understood
         // here.
         assert_eq!(unresolved.worlds.len(), unresolved.world_item_spans.len());
-        let unresolved_world_spans = unresolved.foreign_world_spans;
+        let include_world_spans = unresolved.include_world_spans;
         for ((id, mut world), (import_spans, export_spans)) in unresolved
             .worlds
             .into_iter()
@@ -655,7 +655,7 @@ impl Remap {
             let includes = mem::take(&mut world.includes);
             let include_names = mem::take(&mut world.include_names);
             for (index, include_world) in includes.into_iter().enumerate() {
-                let span = unresolved_world_spans[include_world.index()];
+                let span = include_world_spans[index];
                 let names = &include_names[index];
                 self.resolve_include(&mut world, include_world, names, span, resolve)?;
             }

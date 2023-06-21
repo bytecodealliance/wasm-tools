@@ -77,7 +77,7 @@ pub struct Resolver<'a> {
     /// introduced to print an error message if necessary.
     foreign_dep_spans: Vec<Span>,
 
-    foreign_world_spans: Vec<Span>,
+    include_world_spans: Vec<Span>,
 
     /// A list of `TypeDefKind::Unknown` types which are required to be
     /// resources when this package is resolved against its dependencies.
@@ -212,7 +212,7 @@ impl<'a> Resolver<'a> {
             world_spans: mem::take(&mut self.world_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
-            foreign_world_spans: mem::take(&mut self.foreign_world_spans),
+            include_world_spans: mem::take(&mut self.include_world_spans),
             required_resource_types: mem::take(&mut self.required_resource_types),
         })
     }
@@ -886,7 +886,7 @@ impl<'a> Resolver<'a> {
     fn resolve_include(&mut self, owner: TypeOwner, i: &ast::Include<'a>) -> Result<()> {
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
-        self.foreign_world_spans.push(span);
+        self.include_world_spans.push(span);
         let world_id = match owner {
             TypeOwner::World(id) => id,
             _ => unreachable!(),
