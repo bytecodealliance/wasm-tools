@@ -647,7 +647,7 @@ impl Printer {
                 self.end_group();
                 Some(SubType {
                     is_final: false,
-                    supertype_idxs: vec![],
+                    supertype_idx: None,
                     structural_type: StructuralType::Func(ty),
                 })
             }
@@ -673,7 +673,7 @@ impl Printer {
     }
 
     fn print_sub(&mut self, state: &State, ty: &SubType, names_for: Option<u32>) -> Result<u32> {
-        let r = if ty.is_final || !ty.supertype_idxs.is_empty() {
+        let r = if ty.is_final || !ty.supertype_idx.is_none() {
             self.start_group("sub");
             self.print_sub_type(state, ty)?;
             let r = self.print_structural(state, &ty.structural_type, names_for)?;
@@ -748,9 +748,8 @@ impl Printer {
 
         match state.core.types.get(idx as usize) {
             Some(Some(SubType {
-                is_final: _,
-                supertype_idxs: _,
                 structural_type: StructuralType::Func(ty),
+                ..
             })) => self.print_func_type(state, ty, names_for).map(Some),
             Some(Some(_)) => unreachable!("the core type must be a func"),
             Some(None) | None => Ok(None),
@@ -821,7 +820,7 @@ impl Printer {
         if ty.is_final {
             self.result.push_str("final ");
         }
-        for idx in &ty.supertype_idxs {
+        for idx in &ty.supertype_idx {
             self.print_name(&state.core.type_names, *idx)?;
             self.result.push(' ');
         }

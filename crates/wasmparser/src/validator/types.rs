@@ -217,9 +217,8 @@ impl Type {
     pub fn as_array_type(&self) -> Option<&ArrayType> {
         match self {
             Self::Sub(SubType {
-                is_final: _,
-                supertype_idxs: _,
                 structural_type: StructuralType::Array(ty),
+                ..
             }) => Some(ty),
             _ => None,
         }
@@ -229,9 +228,8 @@ impl Type {
     pub fn as_struct_type(&self) -> Option<&StructType> {
         match self {
             Self::Sub(SubType {
-                is_final: _,
-                supertype_idxs: _,
                 structural_type: StructuralType::Struct(ty),
+                ..
             }) => Some(ty),
             _ => None,
         }
@@ -1054,9 +1052,8 @@ impl<'a> TypesRef<'a> {
     pub fn func_type_at(&self, index: u32) -> Option<&'a FuncType> {
         match self.type_at(index, true)? {
             Type::Sub(SubType {
-                is_final: _,
-                supertype_idxs: _,
                 structural_type: StructuralType::Func(ft),
+                ..
             }) => Some(ft),
             _ => None,
         }
@@ -1132,9 +1129,8 @@ impl<'a> TypesRef<'a> {
 
         match &self.list[*id] {
             Type::Sub(SubType {
-                is_final: _,
-                supertype_idxs: _,
                 structural_type: StructuralType::Func(ft),
+                ..
             }) => Some(ft),
             _ => None,
         }

@@ -260,7 +260,7 @@ impl ComponentState {
         let ty = match ty {
             crate::CoreType::Func(ty) => Type::Sub(SubType {
                 is_final: false,
-                supertype_idxs: vec![],
+                supertype_idx: None,
                 structural_type: StructuralType::Func(ty),
             }),
             crate::CoreType::Module(decls) => Type::Module(Box::new(Self::create_module_type(
@@ -955,7 +955,7 @@ impl ComponentState {
 
         let lowered_ty = Type::Sub(SubType {
             is_final: false,
-            supertype_idxs: vec![],
+            supertype_idx: None,
             structural_type: StructuralType::Func(info.into_func_type()),
         });
 
@@ -974,7 +974,7 @@ impl ComponentState {
         let rep = self.check_local_resource(resource, types, offset)?;
         let core_ty = Type::Sub(SubType {
             is_final: false,
-            supertype_idxs: vec![],
+            supertype_idx: None,
             structural_type: StructuralType::Func(FuncType::new([rep], [ValType::I32])),
         });
         self.core_funcs.push(types.push_ty(core_ty));
@@ -1000,7 +1000,7 @@ impl ComponentState {
         }
         let core_ty = Type::Sub(SubType {
             is_final: false,
-            supertype_idxs: vec![],
+            supertype_idx: None,
             structural_type: StructuralType::Func(FuncType::new([ValType::I32], [])),
         });
         self.core_funcs.push(types.push_ty(core_ty));
@@ -1016,7 +1016,7 @@ impl ComponentState {
         let rep = self.check_local_resource(resource, types, offset)?;
         let core_ty = Type::Sub(SubType {
             is_final: false,
-            supertype_idxs: vec![],
+            supertype_idx: None,
             structural_type: StructuralType::Func(FuncType::new([ValType::I32], [rep])),
         });
         self.core_funcs.push(types.push_ty(core_ty));

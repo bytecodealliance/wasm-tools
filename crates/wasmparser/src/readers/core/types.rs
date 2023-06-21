@@ -745,7 +745,7 @@ pub struct SubType {
     /// Is the subtype final.
     pub is_final: bool,
     /// The list of supertype indexes. As of GC MVP, there can be at most one supertype.
-    pub supertype_idxs: Vec<u32>,
+    pub supertype_idx: Option<u32>,
     /// The structural type of the subtype.
     pub structural_type: StructuralType,
 }
@@ -1044,26 +1044,41 @@ fn read_structural_type(
 
 impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let pos = reader.original_position();
         Ok(match reader.read_u8()? {
             0x50 => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
+                let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
+                if idxs.len() > 1 {
+                    return Err(BinaryReaderError::new(
+                        "multiple supertypes not supported",
+                        pos,
+                    ));
+                }
                 SubType {
                     is_final: false,
-                    supertype_idxs: idx_iter.collect::<Result<Vec<_>>>()?,
+                    supertype_idx: idxs.first().copied(),
                     structural_type: read_structural_type(reader.read_u8()?, reader)?,
                 }
             }
             0x4e => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
+                let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
+                if idxs.len() > 1 {
+                    return Err(BinaryReaderError::new(
+                        "multiple supertypes not supported",
+                        pos,
+                    ));
+                }
                 SubType {
                     is_final: true,
-                    supertype_idxs: idx_iter.collect::<Result<Vec<_>>>()?,
+                    supertype_idx: idxs.first().copied(),
                     structural_type: read_structural_type(reader.read_u8()?, reader)?,
                 }
             }
             opcode => SubType {
                 is_final: false,
-                supertype_idxs: vec![],
+                supertype_idx: None,
                 structural_type: read_structural_type(opcode, reader)?,
             },
         })

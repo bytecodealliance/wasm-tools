@@ -574,7 +574,7 @@ impl<'a> Module<'a> {
         let mut empty_type = None;
         for (i, ty) in self.live_types() {
             map.types.push(i);
-            types.subtype(ty.is_final, &ty.supertype_idxs);
+            types.subtype(ty.is_final, &ty.supertype_idx);
             match &ty.structural_type {
                 StructuralType::Func(ty) => {
                     types.function(

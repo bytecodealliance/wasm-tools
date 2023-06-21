@@ -259,8 +259,8 @@ impl TypeSection {
 
     /// Define an explicit subtype in this type section.
     /// Must be followed by the definition of the structural type (func, array, struct).
-    pub fn subtype(&mut self, is_final: bool, supertype_idxs: &Vec<u32>) -> &mut Self {
-        if !is_final && supertype_idxs.is_empty() {
+    pub fn subtype(&mut self, is_final: bool, supertype_idx: &Option<u32>) -> &mut Self {
+        if !is_final && supertype_idx.is_none() {
             return self;
         }
         if is_final {
@@ -268,9 +268,11 @@ impl TypeSection {
         } else {
             self.bytes.push(0x50);
         }
-        supertype_idxs.len().encode(&mut self.bytes);
-        for idx in supertype_idxs.iter() {
-            idx.encode(&mut self.bytes);
+        if supertype_idx.is_some() {
+            1.encode(&mut self.bytes);
+            for idx in supertype_idx {
+                idx.encode(&mut self.bytes);
+            }
         }
         self
     }

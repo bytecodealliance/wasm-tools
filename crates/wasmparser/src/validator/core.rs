@@ -518,15 +518,9 @@ impl Module {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<Type> {
-        if ty.supertype_idxs.len() > 1 {
-            return Err(BinaryReaderError::new(
-                "subtypes with multiple supertypes not supported",
-                offset,
-            ));
-        }
-        for type_index in ty.supertype_idxs.iter() {
+        if let Some(type_index) = ty.supertype_idx {
             // Check the supertype exists, is not final, and the subtype matches it.
-            match self.type_at(types, *type_index, offset)? {
+            match self.type_at(types, type_index, offset)? {
                 Type::Sub(st) => {
                     if st.is_final {
                         return Err(BinaryReaderError::new(
