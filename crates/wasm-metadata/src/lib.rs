@@ -1039,13 +1039,10 @@ impl CustomLicense {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
 
         writeln!(f, "{spaces}{}:", self.id)?;
-
-        writeln!(f, "{spaces}    name:")?;
-        writeln!(f, "{spaces}        {}", self.name)?;
+        writeln!(f, "{spaces}    name: {}", self.name)?;
 
         if let Some(reference) = &self.reference {
-            writeln!(f, "{spaces}    reference:")?;
-            writeln!(f, "{spaces}        {reference}")?;
+            writeln!(f, "{spaces}    reference: {reference}")?;
         }
 
         writeln!(f, "{spaces}    text:")?;
