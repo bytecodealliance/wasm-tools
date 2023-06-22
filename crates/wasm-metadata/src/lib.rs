@@ -929,7 +929,7 @@ impl RegistryMetadata {
         if let Some(authors) = &self.authors {
             writeln!(f, "{spaces}authors:")?;
             for author in authors {
-                writeln!(f, "{spaces}        {author}")?;
+                writeln!(f, "{spaces}    {author}")?;
             }
         }
 
