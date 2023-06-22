@@ -851,12 +851,42 @@ impl RegistryMetadata {
             )),
         }
     }
+
+    /// Get authors
+    pub fn get_authors(&self) -> Option<&Vec<String>> {
+        self.authors.as_ref()
+    }
+
+    /// Get description
+    pub fn get_description(&self) -> Option<&String> {
+        self.description.as_ref()
+    }
+
+    /// Get license
+    pub fn get_license(&self) -> Option<&String> {
+        self.license.as_ref()
+    }
+
+    /// Get custom_licenses
+    pub fn get_custom_licenses(&self) -> Option<&Vec<CustomLicense>> {
+        self.custom_licenses.as_ref()
+    }
+
+    /// Get links
+    pub fn get_links(&self) -> Option<&Vec<Link>> {
+        self.links.as_ref()
+    }
+
+    /// Get categories
+    pub fn get_categories(&self) -> Option<&Vec<String>> {
+        self.categories.as_ref()
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Link {
-    ty: LinkType,
-    value: String,
+    pub ty: LinkType,
+    pub value: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -873,42 +903,23 @@ pub struct CustomLicense {
     /// License Identifier
     /// Provides a locally unique identifier to refer to licenses that are not found on the SPDX License List.
     /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#101-license-identifier-field
-    id: String,
+    pub id: String,
 
     /// License Name
     /// Provide a common name of the license that is not on the SPDX list.
     /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#103-license-name-field
-    name: String,
+    pub name: String,
 
     /// Extracted Text
     /// Provides a copy of the actual text of the license reference extracted from the package or file that is associated with the License Identifier to aid in future analysis.
     /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#102-extracted-text-field
-    text: String,
+    pub text: String,
 
     /// License Cross Reference
     /// Provides a pointer to the official source of a license that is not included in the SPDX License List, that is referenced by the License Identifier.
     /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#104-license-cross-reference-field
     #[serde(skip_serializing_if = "Option::is_none")]
-    reference: Option<String>,
-}
-
-#[cfg(feature = "clap")]
-fn parse_link(s: &str) -> Result<Link> {
-    s.split_once('=')
-        .map(|(k, v)| {
-            let ty = match k {
-                "Documentation" => LinkType::Funding,
-                "Homepage" => LinkType::Homepage,
-                "Repository" => LinkType::Repository,
-                "Funding" => LinkType::Funding,
-                custom => LinkType::Custom(custom.to_owned()),
-            };
-            Link {
-                ty,
-                value: v.to_string(),
-            }
-        })
-        .ok_or_else(|| anyhow::anyhow!("expected LINK=VALUE"))
+    pub reference: Option<String>,
 }
 
 #[cfg(test)]
