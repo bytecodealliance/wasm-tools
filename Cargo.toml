@@ -48,7 +48,6 @@ semver = "1.0.0"
 wasm-encoder = { version = "0.29.0", path = "crates/wasm-encoder" }
 wasm-compose = { version = "0.2.17", path = "crates/wasm-compose" }
 wasm-metadata = { version = "0.8.0", path = "crates/wasm-metadata" }
-registry-metadata = { version = "0.1.0", path = "crates/registry-metadata" }
 wasm-mutate = { version = "0.2.27", path = "crates/wasm-mutate" }
 wasm-shrink = { version = "0.1.28", path = "crates/wasm-shrink" }
 wasm-smith = { version = "0.12.10", path = "crates/wasm-smith" }
@@ -111,9 +110,6 @@ wast = { workspace = true, optional = true }
 # Dependencies of `metadata`
 wasm-metadata = { workspace = true, features = ["clap"], optional = true }
 
-# Dependencies of `registry`
-registry-metadata = { workspace = true, features = ["clap"], optional = true }
-
 # Dependencies of `wit-smith`
 wit-smith = { workspace = true, features = ["clap"], optional = true }
 
@@ -154,7 +150,6 @@ default = [
   'metadata',
   'wit-smith',
   'addr2line',
-  'registry',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -177,6 +172,5 @@ component = [
   'dep:wasmparser',
 ]
 metadata = ['dep:wasmparser', 'wasm-metadata', 'serde_json']
-registry = ['dep:wasmparser', 'registry-metadata', 'serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
