@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::fmt;
 use std::mem;
 use std::ops::Range;
@@ -141,7 +142,7 @@ impl Producers {
     /// Merge into an existing wasm module. Rewrites the module with this producers section
     /// merged into its existing one, or adds this producers section if none is present.
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(&None, self, input)
+        rewrite_wasm(&None, self, None, input)
     }
 
     fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
@@ -202,6 +203,10 @@ pub struct AddMetadata {
     /// Add an SDK and its version to the producers section
     #[cfg_attr(feature="clap", clap(long, value_parser = parse_key_value, value_name="NAME=VERSION"))]
     pub sdk: Vec<(String, String)>,
+
+    /// Add an registry metadata to the registry-metadata section
+    #[cfg_attr(feature="clap", clap(long, value_parser = parse_registry_metadata_value, value_name="PATH"))]
+    pub registry_metadata: Option<RegistryMetadata>,
 }
 
 #[cfg(feature = "clap")]
@@ -211,18 +216,33 @@ fn parse_key_value(s: &str) -> Result<(String, String)> {
         .ok_or_else(|| anyhow::anyhow!("expected KEY=VALUE"))
 }
 
+#[cfg(feature = "clap")]
+fn parse_registry_metadata_value(s: &str) -> Result<RegistryMetadata> {
+    let contents = std::fs::read(s)?;
+
+    let registry_metadata = serde_json::from_slice(&contents)?;
+
+    Ok(registry_metadata)
+}
+
 impl AddMetadata {
     /// Process a WebAssembly binary. Supports both core WebAssembly modules, and WebAssembly
     /// components. The module and component will have, at very least, an empty name and producers
     /// section created.
     pub fn to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(&self.name, &Producers::from_meta(self), input)
+        rewrite_wasm(
+            &self.name,
+            &Producers::from_meta(self),
+            self.registry_metadata.as_ref(),
+            input,
+        )
     }
 }
 
 fn rewrite_wasm(
     add_name: &Option<String>,
     add_producers: &Producers,
+    add_registry_metadata: Option<&RegistryMetadata>,
     input: &[u8],
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
@@ -291,6 +311,19 @@ fn rewrite_wasm(
                 names.section()?.as_custom().append_to(&mut output);
             }
 
+            CustomSection(c) if c.name() == "registry-metadata" && stack.len() == 0 => {
+                // Pass section through if a new registry metadata isn't provided, otherwise ignore and overwrite with new
+                if add_registry_metadata.is_none() {
+                    let registry: RegistryMetadata = serde_json::from_slice(&c.data())?;
+
+                    let registry_metadata = wasm_encoder::CustomSection {
+                        name: Cow::Borrowed("registry-metadata"),
+                        data: Cow::Owned(serde_json::to_vec(&registry)?),
+                    };
+                    registry_metadata.append_to(&mut output);
+                }
+            }
+
             // All other sections get passed through unmodified:
             _ => {
                 if let Some((id, range)) = payload.as_section() {
@@ -319,6 +352,13 @@ fn rewrite_wasm(
         // Encode into output:
         producers.section().append_to(&mut output);
     }
+    if add_registry_metadata.is_some() {
+        let registry_metadata = wasm_encoder::CustomSection {
+            name: Cow::Borrowed("registry-metadata"),
+            data: Cow::Owned(serde_json::to_vec(&add_registry_metadata)?),
+        };
+        registry_metadata.append_to(&mut output);
+    }
     Ok(output)
 }
 
@@ -332,6 +372,8 @@ pub enum Metadata {
         name: Option<String>,
         /// The component's producers section, if any.
         producers: Option<Producers>,
+        /// The component's registry metadata section, if any.
+        registry_metadata: Option<RegistryMetadata>,
         /// All child modules and components inside the component.
         children: Vec<Box<Metadata>>,
         /// Byte range of the module in the parent binary
@@ -343,6 +385,8 @@ pub enum Metadata {
         name: Option<String>,
         /// The module's producers section, if any.
         producers: Option<Producers>,
+        /// The module's registry metadata section, if any.
+        registry_metadata: Option<RegistryMetadata>,
         /// Byte range of the module in the parent binary
         range: Range<usize>,
     },
@@ -406,6 +450,13 @@ impl Metadata {
                         .expect("non-empty metadata stack")
                         .set_producers(producers);
                 }
+                CustomSection(c) if c.name() == "registry-metadata" => {
+                    let registry: RegistryMetadata = serde_json::from_slice(&c.data())?;
+                    metadata
+                        .last_mut()
+                        .expect("non-empty metadata stack")
+                        .set_registry_metadata(registry);
+                }
 
                 _ => {}
             }
@@ -419,6 +470,7 @@ impl Metadata {
         Metadata::Component {
             name: None,
             producers: None,
+            registry_metadata: None,
             children: Vec::new(),
             range,
         }
@@ -428,6 +480,7 @@ impl Metadata {
         Metadata::Module {
             name: None,
             producers: None,
+            registry_metadata: None,
             range,
         }
     }
@@ -441,6 +494,16 @@ impl Metadata {
         match self {
             Metadata::Module { producers, .. } => *producers = Some(p),
             Metadata::Component { producers, .. } => *producers = Some(p),
+        }
+    }
+    fn set_registry_metadata(&mut self, r: RegistryMetadata) {
+        match self {
+            Metadata::Module {
+                registry_metadata, ..
+            } => *registry_metadata = Some(r),
+            Metadata::Component {
+                registry_metadata, ..
+            } => *registry_metadata = Some(r),
         }
     }
     fn push_child(&mut self, child: Self) {
@@ -672,6 +735,126 @@ fn indirect_name_map(
     Ok(out)
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
+pub struct RegistryMetadata {
+    /// List of authors who has created this package.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authors: Option<Vec<String>>,
+
+    /// Package description in markdown format.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+
+    /// SPDX License Expression
+    /// https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
+    /// SPDX License List: https://spdx.org/licenses/
+    #[serde(skip_serializing_if = "Option::is_none")]
+    license: Option<String>,
+
+    /// A list of custom licenses that should be referenced to from the license expression.
+    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/
+    #[serde(skip_serializing_if = "Option::is_none")]
+    custom_licenses: Option<Vec<CustomLicense>>,
+
+    /// A list of links that can contain predefined link types or custom links for use with tooling or registries.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    links: Option<Vec<Link>>,
+
+    /// A list of categories that a package should be listed under when uploaded to a registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    categories: Option<Vec<String>>,
+}
+
+impl RegistryMetadata {
+    /// Merge into an existing wasm module. Rewrites the module with this registry-metadata section
+    /// overwriting its existing one, or adds this registry-metadata section if none is present.
+    pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
+        rewrite_wasm(&None, &Producers::empty(), Some(&self), input)
+    }
+
+    ///// Merge with another section
+    //fn merge(&mut self, other: &Self) {
+    //    match (&mut self.authors, &other.authors) {
+    //        (None, Some(other)) => {
+    //            self.authors = Some(other.to_owned());
+    //        }
+    //
+    //        (Some(authors), Some(new_authors)) => {
+    //            authors.extend_from_slice(&new_authors);
+    //        }
+    //
+    //        (None, None) => {}
+    //        (Some(_), None) => {}
+    //    }
+    //
+    //    if other.license.is_some() {
+    //        self.license = other.license.clone();
+    //    }
+    //
+    //    if other.description.is_some() {
+    //        self.description = other.description.clone();
+    //    }
+    //}
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct Link {
+    ty: LinkType,
+    value: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub enum LinkType {
+    Documentation,
+    Homepage,
+    Repository,
+    Funding,
+    Custom(String),
+}
+
+#[derive(Debug, Deserialize, Serialize, Default, Clone, PartialEq)]
+pub struct CustomLicense {
+    /// License Identifier
+    /// Provides a locally unique identifier to refer to licenses that are not found on the SPDX License List.
+    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#101-license-identifier-field
+    id: String,
+
+    /// License Name
+    /// Provide a common name of the license that is not on the SPDX list.
+    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#103-license-name-field
+    name: String,
+
+    /// Extracted Text
+    /// Provides a copy of the actual text of the license reference extracted from the package or file that is associated with the License Identifier to aid in future analysis.
+    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#102-extracted-text-field
+    text: String,
+
+    /// License Cross Reference
+    /// Provides a pointer to the official source of a license that is not included in the SPDX License List, that is referenced by the License Identifier.
+    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#104-license-cross-reference-field
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
+}
+
+#[cfg(feature = "clap")]
+fn parse_link(s: &str) -> Result<Link> {
+    s.split_once('=')
+        .map(|(k, v)| {
+            let ty = match k {
+                "Documentation" => LinkType::Funding,
+                "Homepage" => LinkType::Homepage,
+                "Repository" => LinkType::Repository,
+                "Funding" => LinkType::Funding,
+                custom => LinkType::Custom(custom.to_owned()),
+            };
+            Link {
+                ty,
+                value: v.to_string(),
+            }
+        })
+        .ok_or_else(|| anyhow::anyhow!("expected LINK=VALUE"))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -684,6 +867,7 @@ mod test {
             language: vec!["bar".to_owned()],
             processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
             sdk: vec![],
+            registry_metadata: None,
         };
         let module = add.to_wasm(&module).unwrap();
 
@@ -692,6 +876,7 @@ mod test {
             Metadata::Module {
                 name,
                 producers,
+                registry_metadata,
                 range,
             } => {
                 assert_eq!(name, Some("foo".to_owned()));
@@ -717,6 +902,7 @@ mod test {
             language: vec!["bar".to_owned()],
             processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
             sdk: vec![],
+            registry_metadata: None,
         };
         let component = add.to_wasm(&component).unwrap();
 
@@ -725,6 +911,7 @@ mod test {
             Metadata::Component {
                 name,
                 producers,
+                registry_metadata,
                 children,
                 range,
             } => {
@@ -753,6 +940,7 @@ mod test {
             language: vec!["bar".to_owned()],
             processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
             sdk: vec![],
+            registry_metadata: None,
         };
         let module = add.to_wasm(&module).unwrap();
 
@@ -794,6 +982,7 @@ mod test {
                     Metadata::Module {
                         name,
                         producers,
+                        registry_metadata,
                         range,
                     } => {
                         assert_eq!(name, &Some("foo".to_owned()));
