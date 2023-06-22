@@ -804,6 +804,7 @@ impl RegistryMetadata {
         Ok(None)
     }
 
+    /// Gets the registry-matadata from a slice of bytes
     pub fn from_bytes(bytes: &[u8], offset: usize) -> Result<Self> {
         let registry: RegistryMetadata = serde_json::from_slice(&bytes[offset..])?;
         return Ok(registry);
@@ -837,30 +838,34 @@ impl RegistryMetadata {
             }
         }
 
-        match &self.custom_licenses {
-            Some(custom_licenses) => {
-                for license in &licenses {
-                    let mut match_found = false;
-                    for custom_license in custom_licenses {
-                        // Ignore license id casing
-                        if custom_license.id.to_lowercase() == *license {
-                            match_found = true;
+        if !licenses.is_empty() {
+            match &self.custom_licenses {
+                Some(custom_licenses) => {
+                    for license in &licenses {
+                        let mut match_found = false;
+                        for custom_license in custom_licenses {
+                            // Ignore license id casing
+                            if custom_license.id.to_lowercase() == *license {
+                                match_found = true;
+                            }
+                        }
+
+                        if !match_found {
+                            return Err(anyhow::anyhow!(
+                                "No matching reference for licence '{license}' was defined"
+                            ));
                         }
                     }
-
-                    if !match_found {
-                        return Err(anyhow::anyhow!(
-                            "No matching reference for licence '{license}' was defined"
-                        ));
-                    }
                 }
-
-                Ok(())
+                None => {
+                    return Err(anyhow::anyhow!(
+                        "Reference to custom license exists but no custom license was given"
+                    ));
+                }
             }
-            None => Err(anyhow::anyhow!(
-                "Reference to custom section exists but no custom sections was given"
-            )),
         }
+
+        Ok(())
     }
 
     /// Get authors
