@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
 use serde::{Deserialize, Serialize};
+use spdx::Expression;
 use std::borrow::Cow;
 use std::fmt;
 use std::mem;
@@ -765,13 +766,85 @@ pub struct RegistryMetadata {
     categories: Option<Vec<String>>,
 }
 
+const LICENSE_REF: &str = "LicenseRef-";
+
 impl RegistryMetadata {
     /// Merge into an existing wasm module. Rewrites the module with this registry-metadata section
     /// overwriting its existing one, or adds this registry-metadata section if none is present.
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
         rewrite_wasm(&None, &Producers::empty(), Some(&self), input)
     }
+    pub fn from_wasm(bytes: &[u8]) -> Result<Option<Self>> {
+        let mut depth = 0;
+        for payload in Parser::new(0).parse_all(bytes) {
+            let payload = payload?;
+            use wasmparser::Payload::*;
+            match payload {
+                ModuleSection { .. } | ComponentSection { .. } => depth += 1,
+                End { .. } => depth -= 1,
+                CustomSection(c) if c.name() == "registry-metadata" && depth == 0 => {
+                    let registry: RegistryMetadata = serde_json::from_slice(&c.data())?;
+                    return Ok(Some(registry));
+                }
+                _ => {}
+            }
+        }
+        Ok(None)
+    }
 
+    pub fn validate(&self) -> Result<()> {
+        let Some(license) = &self.license else {
+            return Ok(())
+        };
+
+        let expression = Expression::parse(license)?;
+
+        let mut licenses = Vec::new();
+
+        for license in expression.iter() {
+            match license {
+                spdx::expression::ExprNode::Op(_) => continue,
+                spdx::expression::ExprNode::Req(req) => {
+                    if let spdx::LicenseItem::Spdx { .. } = req.req.license {
+                        // Continue if it's a license that exists on the Spdx license list
+                        continue;
+                    }
+
+                    let license_id = req.req.to_string();
+
+                    if license_id.starts_with(LICENSE_REF) {
+                        // Strip "LicenseRef-", convert to lowercase and then append
+                        licenses.push(license_id[LICENSE_REF.len()..].to_lowercase());
+                    }
+                }
+            }
+        }
+
+        match &self.custom_licenses {
+            Some(custom_licenses) => {
+                for license in &licenses {
+                    let mut match_found = false;
+                    for custom_license in custom_licenses {
+                        // Ignore license id casing
+                        if custom_license.id.to_lowercase() == *license {
+                            match_found = true;
+                        }
+                    }
+
+                    if !match_found {
+                        return Err(anyhow::anyhow!(
+                            "No matching reference for licence '{license}' was defined"
+                        ));
+                    }
+                }
+
+                Ok(())
+            }
+            None => Err(anyhow::anyhow!(
+                "Reference to custom section exists but no custom sections was given"
+            )),
+        }
+    }
     ///// Merge with another section
     //fn merge(&mut self, other: &Self) {
     //    match (&mut self.authors, &other.authors) {
