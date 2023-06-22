@@ -925,43 +925,42 @@ impl RegistryMetadata {
 
     fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
-        writeln!(f, "{spaces}resource-metadata:")?;
 
         if let Some(authors) = &self.authors {
-            writeln!(f, "{spaces}    authors:")?;
+            writeln!(f, "{spaces}authors:")?;
             for author in authors {
                 writeln!(f, "{spaces}        {author}")?;
             }
         }
 
         if let Some(license) = &self.license {
-            writeln!(f, "{spaces}    license:")?;
-            writeln!(f, "{spaces}        {license}")?;
+            writeln!(f, "{spaces}license:")?;
+            writeln!(f, "{spaces}    {license}")?;
         }
 
         if let Some(links) = &self.links {
-            writeln!(f, "{spaces}    links:")?;
+            writeln!(f, "{spaces}links:")?;
             for link in links {
-                writeln!(f, "{spaces}        {link}")?;
+                writeln!(f, "{spaces}    {link}")?;
             }
         }
 
         if let Some(categories) = &self.categories {
-            writeln!(f, "{spaces}    categories:")?;
+            writeln!(f, "{spaces}categories:")?;
             for category in categories {
-                writeln!(f, "{spaces}        {category}")?;
+                writeln!(f, "{spaces}    {category}")?;
             }
         }
 
         if let Some(description) = &self.description {
-            writeln!(f, "{spaces}    description:")?;
-            writeln!(f, "{spaces}        {description}")?;
+            writeln!(f, "{spaces}description:")?;
+            writeln!(f, "{spaces}    {description}")?;
         }
 
         if let Some(custom_licenses) = &self.custom_licenses {
-            writeln!(f, "{spaces}    custom_licenses:")?;
+            writeln!(f, "{spaces}custom_licenses:")?;
             for license in custom_licenses {
-                license.display(f, indent + 8)?;
+                license.display(f, indent + 4)?;
             }
         }
 
