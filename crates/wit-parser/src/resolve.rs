@@ -1036,13 +1036,15 @@ impl Remap {
         }
 
         let mut export_funcs = Vec::new();
+        let mut export_interfaces = IndexMap::new();
         for ((mut name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans)
         {
             self.update_world_key(&mut name);
             match item {
                 WorldItem::Interface(id) => {
                     let id = self.interfaces[id.index()];
-                    self.add_world_export(resolve, world, name, id);
+                    let prev = export_interfaces.insert(id, (name, *span));
+                    assert!(prev.is_none());
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
@@ -1055,6 +1057,8 @@ impl Remap {
                 WorldItem::Type(_) => unreachable!(),
             }
         }
+
+        self.add_world_exports(resolve, world, &export_interfaces)?;
 
         // Resolve all includes of the world
         let includes = mem::take(&mut world.includes);
@@ -1158,34 +1162,150 @@ impl Remap {
         if world.imports.contains_key(&key) {
             return;
         }
-
-        foreach_interface_dep(resolve, id, |dep| {
+        let ok = foreach_interface_dep(resolve, id, |dep| {
             self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
+            true
         });
+        assert!(ok);
         let prev = world.imports.insert(key, WorldItem::Interface(id));
         assert!(prev.is_none());
     }
 
-    fn add_world_export(
+    /// This function adds all of the interfaces in `export_interfaces` to the
+    /// list of exports of the `world` specified.
+    ///
+    /// This method is more involved than adding imports because it is fallible.
+    /// Chiefly what can happen is that the dependencies of all exports must be
+    /// satisfied by other exports or imports, but not both. For example given a
+    /// situation such as:
+    ///
+    /// ```wit
+    /// interface a {
+    ///     type t = u32
+    /// }
+    /// interface b {
+    ///     use a.{t}
+    /// }
+    /// interface c {
+    ///     use a.{t}
+    ///     use b.{t as t2}
+    /// }
+    /// ```
+    ///
+    /// where `c` depends on `b` and `a` where `b` depends on `a`, then the
+    /// purpose of this method is to reject this world:
+    ///
+    /// ```wit
+    /// world foo {
+    ///     export a
+    ///     export c
+    /// }
+    /// ```
+    ///
+    /// The reasoning here is unfortunately subtle and is additionally the
+    /// subject of WebAssembly/component-model#208. Effectively the `c`
+    /// interface depends on `b`, but it's not listed explicitly as an import,
+    /// so it's then implicitly added as an import. This then transitively
+    /// depends on `a` so it's also added as an import. At this point though `c`
+    /// also depends on `a`, and it's also exported, so naively it should depend
+    /// on the export and not implicitly add an import. This means though that
+    /// `c` has access to two copies of `a`, one imported and one exported. This
+    /// is not valid, especially in the face of resource types.
+    ///
+    /// Overall this method is tasked with rejecting the above world by walking
+    /// over all the exports and adding their dependencies. Each dependency is
+    /// recorded with whether it's required to be imported, and then if an
+    /// export is added for something that's required to be an error then the
+    /// operation fails.
+    fn add_world_exports(
         &self,
         resolve: &Resolve,
         world: &mut World,
-        key: WorldKey,
-        id: InterfaceId,
-    ) {
-        if world
-            .exports
-            .insert(key, WorldItem::Interface(id))
-            .is_some()
-        {
-            return;
-        }
-
-        foreach_interface_dep(resolve, id, |dep| {
-            if !world.exports.contains_key(&WorldKey::Interface(dep)) {
-                self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
+        export_interfaces: &IndexMap<InterfaceId, (WorldKey, Span)>,
+    ) -> Result<()> {
+        let mut required_imports = HashSet::new();
+        for (id, (key, span)) in export_interfaces.iter() {
+            let ok = add_world_export(
+                resolve,
+                world,
+                export_interfaces,
+                &mut required_imports,
+                *id,
+                key,
+                true,
+            );
+            if !ok {
+                bail!(Error {
+                    // FIXME: this is not a great error message and basically no
+                    // one will know what to do when it gets printed. Improving
+                    // this error message, however, is a chunk of work that may
+                    // not be best spent doing this at this time, so I'm writing
+                    // this comment instead.
+                    //
+                    // More-or-less what should happen here is that a "path"
+                    // from this interface to the conflicting interface should
+                    // be printed. It should be explained why an import is being
+                    // injected, why that's conflicting with an export, and
+                    // ideally with a suggestion of "add this interface to the
+                    // export list to fix this error".
+                    //
+                    // That's a lot of info that's not easy to get at without
+                    // more refactoring, so it's left to a future date in the
+                    // hopes that most folks won't actually run into this for
+                    // the time being.
+                    msg: format!(
+                        "interface transitively depends on an interface in \
+                         incompatible ways",
+                    ),
+                    span: *span,
+                });
             }
-        });
+        }
+        return Ok(());
+
+        fn add_world_export(
+            resolve: &Resolve,
+            world: &mut World,
+            export_interfaces: &IndexMap<InterfaceId, (WorldKey, Span)>,
+            required_imports: &mut HashSet<InterfaceId>,
+            id: InterfaceId,
+            key: &WorldKey,
+            add_export: bool,
+        ) -> bool {
+            if world.exports.contains_key(key) {
+                if add_export {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            let ok = foreach_interface_dep(resolve, id, |dep| {
+                let key = WorldKey::Interface(dep);
+                let add_export = add_export && export_interfaces.contains_key(&dep);
+                add_world_export(
+                    resolve,
+                    world,
+                    export_interfaces,
+                    required_imports,
+                    dep,
+                    &key,
+                    add_export,
+                )
+            });
+            if !ok {
+                return false;
+            }
+            if add_export {
+                if required_imports.contains(&id) {
+                    return false;
+                }
+                world.exports.insert(key.clone(), WorldItem::Interface(id));
+            } else {
+                required_imports.insert(id);
+                world.imports.insert(key.clone(), WorldItem::Interface(id));
+            }
+            true
+        }
     }
 
     fn resolve_include(
@@ -1251,8 +1371,8 @@ impl Remap {
 fn foreach_interface_dep(
     resolve: &Resolve,
     interface: InterfaceId,
-    mut f: impl FnMut(InterfaceId),
-) {
+    mut f: impl FnMut(InterfaceId) -> bool,
+) -> bool {
     for (_, ty) in resolve.interfaces[interface].types.iter() {
         let ty = match resolve.types[*ty].kind {
             TypeDefKind::Type(Type::Id(id)) => id,
@@ -1264,9 +1384,12 @@ fn foreach_interface_dep(
             TypeOwner::World(_) => unreachable!(),
         };
         if dep != interface {
-            f(dep);
+            if !f(dep) {
+                return false;
+            }
         }
     }
+    true
 }
 
 struct MergeMap<'a> {
