@@ -865,7 +865,7 @@ impl RegistryMetadata {
 
                         if !match_found {
                             return Err(anyhow::anyhow!(
-                                "No matching reference for licence '{license}' was defined"
+                                "No matching reference for license '{license}' was defined"
                             ));
                         }
                     }
