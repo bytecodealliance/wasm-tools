@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use spdx::Expression;
 use std::borrow::Cow;
 use std::fmt;
+use std::fmt::Display;
 use std::mem;
 use std::ops::Range;
 use wasm_encoder::{ComponentSection as _, ComponentSectionId, Encode, Section};
@@ -518,7 +519,10 @@ impl Metadata {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
         match self {
             Metadata::Module {
-                name, producers, ..
+                name,
+                producers,
+                registry_metadata,
+                ..
             } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}module {name}:")?;
@@ -528,11 +532,15 @@ impl Metadata {
                 if let Some(producers) = producers {
                     producers.display(f, indent + 4)?;
                 }
+                if let Some(registry_metadata) = registry_metadata {
+                    registry_metadata.display(f, indent + 4)?;
+                }
                 Ok(())
             }
             Metadata::Component {
                 name,
                 producers,
+                registry_metadata,
                 children,
                 ..
             } => {
@@ -543,6 +551,9 @@ impl Metadata {
                 }
                 if let Some(producers) = producers {
                     producers.display(f, indent + 4)?;
+                }
+                if let Some(registry_metadata) = registry_metadata {
+                    registry_metadata.display(f, indent + 4)?;
                 }
                 for c in children {
                     c.display(f, indent + 4)?;
@@ -911,6 +922,57 @@ impl RegistryMetadata {
     pub fn set_categories(&mut self, categories: Option<Vec<String>>) {
         self.categories = categories;
     }
+
+    fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
+        let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
+        writeln!(f, "{spaces}resource-metadata:")?;
+
+        if let Some(authors) = &self.authors {
+            writeln!(f, "{spaces}    authors:")?;
+            for author in authors {
+                writeln!(f, "{spaces}        {author}")?;
+            }
+        }
+
+        if let Some(license) = &self.license {
+            writeln!(f, "{spaces}    license:")?;
+            writeln!(f, "{spaces}        {license}")?;
+        }
+
+        if let Some(links) = &self.links {
+            writeln!(f, "{spaces}    links:")?;
+            for link in links {
+                writeln!(f, "{spaces}        {link}")?;
+            }
+        }
+
+        if let Some(categories) = &self.categories {
+            writeln!(f, "{spaces}    categories:")?;
+            for category in categories {
+                writeln!(f, "{spaces}        {category}")?;
+            }
+        }
+
+        if let Some(description) = &self.description {
+            writeln!(f, "{spaces}    description:")?;
+            writeln!(f, "{spaces}        {description}")?;
+        }
+
+        if let Some(custom_licenses) = &self.custom_licenses {
+            writeln!(f, "{spaces}    custom_licenses:")?;
+            for license in custom_licenses {
+                license.display(f, indent + 8)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for RegistryMetadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.display(f, 0)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -919,13 +981,34 @@ pub struct Link {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+impl Display for Link {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.ty, self.value)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
 pub enum LinkType {
     Documentation,
     Homepage,
     Repository,
     Funding,
     Custom(String),
+}
+
+impl Display for LinkType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            LinkType::Documentation => "Documentation",
+            LinkType::Homepage => "Homepage",
+            LinkType::Repository => "Repository",
+            LinkType::Funding => "Funding",
+            LinkType::Custom(s) => s.as_str(),
+        };
+
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone, PartialEq)]
@@ -950,6 +1033,33 @@ pub struct CustomLicense {
     /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#104-license-cross-reference-field
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
+}
+
+impl CustomLicense {
+    fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
+        let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
+
+        writeln!(f, "{spaces}{}:", self.id)?;
+
+        writeln!(f, "{spaces}    name:")?;
+        writeln!(f, "{spaces}        {}", self.name)?;
+
+        if let Some(reference) = &self.reference {
+            writeln!(f, "{spaces}    reference:")?;
+            writeln!(f, "{spaces}        {reference}")?;
+        }
+
+        writeln!(f, "{spaces}    text:")?;
+        writeln!(f, "{spaces}        {}", self.text)?;
+
+        Ok(())
+    }
+}
+
+impl Display for CustomLicense {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.display(f, 0)
+    }
 }
 
 #[cfg(test)]
