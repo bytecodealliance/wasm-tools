@@ -1254,8 +1254,8 @@ impl Remap {
                     // hopes that most folks won't actually run into this for
                     // the time being.
                     msg: format!(
-                        "interface transitively depends on both an \
-                         imported and exported copy of the same interface"
+                        "interface transitively depends on an interface in \
+                         incompatible ways",
                     ),
                     span: *span,
                 });

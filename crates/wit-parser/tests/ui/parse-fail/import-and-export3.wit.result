@@ -1,4 +1,4 @@
-interface transitively depends on both an imported and exported copy of the same interface
+interface transitively depends on an interface in incompatible ways
      --> tests/ui/parse-fail/import-and-export3.wit:36:10
       |
    36 |   export i3
