@@ -857,9 +857,19 @@ impl RegistryMetadata {
         self.authors.as_ref()
     }
 
+    /// Set authors
+    pub fn set_authors(&mut self, authors: Option<Vec<String>>) {
+        self.authors = authors;
+    }
+
     /// Get description
     pub fn get_description(&self) -> Option<&String> {
         self.description.as_ref()
+    }
+
+    /// Set description
+    pub fn set_description(&mut self, description: Option<String>) {
+        self.description = description;
     }
 
     /// Get license
@@ -867,9 +877,19 @@ impl RegistryMetadata {
         self.license.as_ref()
     }
 
+    /// Set license
+    pub fn set_license(&mut self, license: Option<String>) {
+        self.license = license;
+    }
+
     /// Get custom_licenses
     pub fn get_custom_licenses(&self) -> Option<&Vec<CustomLicense>> {
         self.custom_licenses.as_ref()
+    }
+
+    /// Set custom_licenses
+    pub fn set_custom_licenses(&mut self, custom_licenses: Option<Vec<CustomLicense>>) {
+        self.custom_licenses = custom_licenses;
     }
 
     /// Get links
@@ -877,9 +897,19 @@ impl RegistryMetadata {
         self.links.as_ref()
     }
 
+    /// Set links
+    pub fn set_links(&mut self, links: Option<Vec<Link>>) {
+        self.links = links;
+    }
+
     /// Get categories
     pub fn get_categories(&self) -> Option<&Vec<String>> {
         self.categories.as_ref()
+    }
+
+    /// Set categories
+    pub fn set_categories(&mut self, categories: Option<Vec<String>>) {
+        self.categories = categories;
     }
 }
 
