@@ -811,36 +811,49 @@ impl RegistryMetadata {
     }
 
     pub fn validate(&self) -> Result<()> {
-        let Some(license) = &self.license else {
-            return Ok(())
-        };
+        fn validate_expression(expression: &str) -> Result<Vec<String>> {
+            let expression = Expression::parse(expression)?;
 
-        let expression = Expression::parse(license)?;
+            let mut licenses = Vec::new();
 
-        let mut licenses = Vec::new();
+            for license in expression.iter() {
+                match license {
+                    spdx::expression::ExprNode::Op(_) => continue,
+                    spdx::expression::ExprNode::Req(req) => {
+                        if let spdx::LicenseItem::Spdx { .. } = req.req.license {
+                            // Continue if it's a license that exists on the Spdx license list
+                            continue;
+                        }
 
-        for license in expression.iter() {
-            match license {
-                spdx::expression::ExprNode::Op(_) => continue,
-                spdx::expression::ExprNode::Req(req) => {
-                    if let spdx::LicenseItem::Spdx { .. } = req.req.license {
-                        // Continue if it's a license that exists on the Spdx license list
-                        continue;
-                    }
+                        let license_id = req.req.to_string();
 
-                    let license_id = req.req.to_string();
-
-                    if license_id.starts_with(LICENSE_REF) {
-                        // Strip "LicenseRef-", convert to lowercase and then append
-                        licenses.push(license_id[LICENSE_REF.len()..].to_lowercase());
+                        if license_id.starts_with(LICENSE_REF) {
+                            // Strip "LicenseRef-", convert to lowercase and then append
+                            licenses.push(license_id[LICENSE_REF.len()..].to_lowercase());
+                        }
                     }
                 }
             }
+
+            Ok(licenses)
         }
 
-        if !licenses.is_empty() {
-            match &self.custom_licenses {
-                Some(custom_licenses) => {
+        match (&self.license, &self.custom_licenses) {
+            (None, Some(custom_licenses)) => {
+                let ids = custom_licenses
+                    .iter()
+                    .map(|license| license.id.clone())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+
+                return Err(anyhow::anyhow!(
+                    "{ids} are defined but nevered referenced in license expression"
+                ));
+            }
+            (Some(license), Some(custom_licenses)) => {
+                let licenses = validate_expression(license.as_str())?;
+
+                if !licenses.is_empty() {
                     for license in &licenses {
                         let mut match_found = false;
                         for custom_license in custom_licenses {
@@ -857,12 +870,17 @@ impl RegistryMetadata {
                         }
                     }
                 }
-                None => {
+            }
+            (Some(license), None) => {
+                let licenses = validate_expression(license.as_str())?;
+
+                if !licenses.is_empty() {
                     return Err(anyhow::anyhow!(
                         "Reference to custom license exists but no custom license was given"
                     ));
                 }
             }
+            (None, None) => {}
         }
 
         Ok(())
