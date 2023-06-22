@@ -221,7 +221,7 @@ fn parse_key_value(s: &str) -> Result<(String, String)> {
 fn parse_registry_metadata_value(s: &str) -> Result<RegistryMetadata> {
     let contents = std::fs::read(s)?;
 
-    let registry_metadata = serde_json::from_slice(&contents)?;
+    let registry_metadata = RegistryMetadata::from_bytes(&contents, 0)?;
 
     Ok(registry_metadata)
 }
@@ -315,7 +315,7 @@ fn rewrite_wasm(
             CustomSection(c) if c.name() == "registry-metadata" && stack.len() == 0 => {
                 // Pass section through if a new registry metadata isn't provided, otherwise ignore and overwrite with new
                 if add_registry_metadata.is_none() {
-                    let registry: RegistryMetadata = serde_json::from_slice(&c.data())?;
+                    let registry: RegistryMetadata = RegistryMetadata::from_bytes(&c.data(), 0)?;
 
                     let registry_metadata = wasm_encoder::CustomSection {
                         name: Cow::Borrowed("registry-metadata"),
@@ -452,7 +452,7 @@ impl Metadata {
                         .set_producers(producers);
                 }
                 CustomSection(c) if c.name() == "registry-metadata" => {
-                    let registry: RegistryMetadata = serde_json::from_slice(&c.data())?;
+                    let registry: RegistryMetadata = RegistryMetadata::from_bytes(&c.data(), 0)?;
                     metadata
                         .last_mut()
                         .expect("non-empty metadata stack")
@@ -774,6 +774,7 @@ impl RegistryMetadata {
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
         rewrite_wasm(&None, &Producers::empty(), Some(&self), input)
     }
+
     pub fn from_wasm(bytes: &[u8]) -> Result<Option<Self>> {
         let mut depth = 0;
         for payload in Parser::new(0).parse_all(bytes) {
@@ -783,13 +784,18 @@ impl RegistryMetadata {
                 ModuleSection { .. } | ComponentSection { .. } => depth += 1,
                 End { .. } => depth -= 1,
                 CustomSection(c) if c.name() == "registry-metadata" && depth == 0 => {
-                    let registry: RegistryMetadata = serde_json::from_slice(&c.data())?;
+                    let registry = RegistryMetadata::from_bytes(&c.data(), 0)?;
                     return Ok(Some(registry));
                 }
                 _ => {}
             }
         }
         Ok(None)
+    }
+
+    pub fn from_bytes(bytes: &[u8], offset: usize) -> Result<Self> {
+        let registry: RegistryMetadata = serde_json::from_slice(&bytes[offset..])?;
+        return Ok(registry);
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -845,29 +851,6 @@ impl RegistryMetadata {
             )),
         }
     }
-    ///// Merge with another section
-    //fn merge(&mut self, other: &Self) {
-    //    match (&mut self.authors, &other.authors) {
-    //        (None, Some(other)) => {
-    //            self.authors = Some(other.to_owned());
-    //        }
-    //
-    //        (Some(authors), Some(new_authors)) => {
-    //            authors.extend_from_slice(&new_authors);
-    //        }
-    //
-    //        (None, None) => {}
-    //        (Some(_), None) => {}
-    //    }
-    //
-    //    if other.license.is_some() {
-    //        self.license = other.license.clone();
-    //    }
-    //
-    //    if other.description.is_some() {
-    //        self.description = other.description.clone();
-    //    }
-    //}
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
