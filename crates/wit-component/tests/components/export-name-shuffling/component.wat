@@ -19,7 +19,6 @@
   (type (;1;) (func (param "f" 0)))
   (alias core export 0 "name#a" (core func (;0;)))
   (func (;0;) (type 1) (canon lift (core func 0)))
-  (alias export 1 "foo" (type (;2;)))
   (component (;1;)
     (type (;0;) (record))
     (import "import-type-foo" (type (;1;) (eq 0)))
@@ -32,7 +31,7 @@
   )
   (instance (;2;) (instantiate 1
       (with "import-func-a" (func 0))
-      (with "import-type-foo" (type 2))
+      (with "import-type-foo" (type 0))
       (with "import-type-foo0" (type 0))
     )
   )

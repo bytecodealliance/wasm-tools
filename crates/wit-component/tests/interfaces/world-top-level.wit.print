@@ -5,6 +5,7 @@ world foo {
   }
   import foo: func()
   import bar: func(arg: u32)
+
   export another-interface: interface {
   }
   export foo2: func()

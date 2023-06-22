@@ -8,6 +8,5 @@ interface %interface {
   record %record {
     %variant: %world,
   }
-
 }
 

@@ -10,5 +10,6 @@ interface bar {
 
 world import-and-export {
   import foo
+
   export bar
 }

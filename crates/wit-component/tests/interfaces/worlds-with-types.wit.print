@@ -2,11 +2,11 @@ package foo:foo
 
 interface import-me {
   type foo = u32
-
 }
 
 world simple {
   import a: func(a: foo) -> bar
+
   record foo {
   }
 
@@ -18,5 +18,6 @@ world with-imports {
   import import-me
   import a: func(a: foo)
   use import-me.{foo}
+
   export b: func(a: foo)
 }

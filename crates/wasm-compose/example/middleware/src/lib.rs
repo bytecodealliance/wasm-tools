@@ -1,7 +1,5 @@
-use bindings::{
-    downstream,
-    handler::{Error, Handler, Request, Response},
-};
+use bindings::example::service::handler as downstream;
+use bindings::exports::example::service::handler::{Error, Handler, Request, Response};
 use flate2::{write::GzEncoder, Compression};
 use std::io::Write;
 

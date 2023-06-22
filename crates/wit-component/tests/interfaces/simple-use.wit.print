@@ -5,11 +5,11 @@ interface types {
     info,
     debug,
   }
-
 }
 
 interface console {
   use types.{level}
+
   log: func(level: level, msg: string)
 }
 

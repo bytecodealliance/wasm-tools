@@ -5,12 +5,12 @@ edition = "2021"
 publish = false
 
 [dependencies]
-wit-bindgen = { version = "0.5.0", default_features = false }
+wit-bindgen = { version = "0.6.0", default_features = false }
 
 [lib]
 crate-type = ["cdylib"]
 
 [package.metadata.component]
-target = { path = "../service.wit" }
+target = { path = "../service.wit",  world = "service" }
 
 [workspace]

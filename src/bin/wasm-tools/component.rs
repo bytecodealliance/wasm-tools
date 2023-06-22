@@ -43,10 +43,14 @@ fn parse_optionally_name_file(s: &str) -> (&str, &str) {
         Some(path) => (name_or_path, path),
         None => {
             let name = Path::new(name_or_path)
-                .file_stem()
+                .file_name()
                 .unwrap()
                 .to_str()
                 .unwrap();
+            let name = match name.find('.') {
+                Some(i) => &name[..i],
+                None => name,
+            };
             (name, name_or_path)
         }
     }

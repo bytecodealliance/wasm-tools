@@ -3,10 +3,10 @@
     (component
       (type (;0;)
         (instance
-          (type (;0;) (record))
-          (export (;1;) "ty" (type (eq 0)))
-          (type (;2;) (enum "b"))
-          (export (;3;) "a" (type (eq 2)))
+          (type (;0;) (enum "b"))
+          (export (;1;) "a" (type (eq 0)))
+          (type (;2;) (record))
+          (export (;3;) "ty" (type (eq 2)))
         )
       )
       (import (interface "foo:dep/foo") (instance (;0;) (type 0)))
@@ -22,10 +22,10 @@
         (component
           (type (;0;)
             (instance
-              (type (;0;) (record))
-              (export (;1;) "ty" (type (eq 0)))
-              (type (;2;) (enum "b"))
-              (export (;3;) "a" (type (eq 2)))
+              (type (;0;) (enum "b"))
+              (export (;1;) "a" (type (eq 0)))
+              (type (;2;) (record))
+              (export (;3;) "ty" (type (eq 2)))
             )
           )
           (import (interface "foo:dep/foo") (instance (;0;) (type 0)))

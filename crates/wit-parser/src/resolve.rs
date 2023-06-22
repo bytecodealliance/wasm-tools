@@ -1,8 +1,9 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
-    Error, Function, Interface, InterfaceId, PackageName, Results, Type, TypeDef, TypeDefKind,
-    TypeId, TypeOwner, UnresolvedPackage, World, WorldId, WorldItem, WorldKey,
+    AstItem, Error, Function, FunctionKind, IncludeName, Interface, InterfaceId, PackageName,
+    Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World, WorldId,
+    WorldItem, WorldKey,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -112,6 +113,14 @@ impl Resolve {
             for dep in path.read_dir().context("failed to read directory")? {
                 let dep = dep.context("failed to read directory iterator")?;
                 let path = dep.path();
+
+                // Files in deps dir are ignored for now to avoid accidentally
+                // including things like `.DS_Store` files in the call below to
+                // `parse_dir`.
+                if path.is_file() {
+                    continue;
+                }
+
                 let pkg = UnresolvedPackage::parse_dir(&path)
                     .with_context(|| format!("failed to parse package: {}", path.display()))?;
                 let prev = ret.insert(pkg.name.clone(), pkg);
@@ -193,10 +202,11 @@ impl Resolve {
                 TypeDefKind::Type(t) => self.all_bits_valid(t),
 
                 TypeDefKind::Handle(h) => match h {
-                    crate::Handle::Shared(_) => true,
+                    crate::Handle::Own(_) => true,
+                    crate::Handle::Borrow(_) => true,
                 },
 
-                TypeDefKind::Resource(_) => false,
+                TypeDefKind::Resource => false,
                 TypeDefKind::Record(r) => r.fields.iter().all(|f| self.all_bits_valid(&f.ty)),
                 TypeDefKind::Tuple(t) => t.types.iter().all(|t| self.all_bits_valid(t)),
 
@@ -631,14 +641,25 @@ impl Remap {
         // This is done after types/interfaces are fully settled so the
         // transitive relation between interfaces, through types, is understood
         // here.
-        assert_eq!(unresolved.worlds.len(), unresolved.world_spans.len());
+        assert_eq!(unresolved.worlds.len(), unresolved.world_item_spans.len());
+        let unresolved_world_spans = unresolved.foreign_world_spans;
         for ((id, mut world), (import_spans, export_spans)) in unresolved
             .worlds
             .into_iter()
+            .zip(unresolved.world_item_spans)
             .skip(foreign_worlds)
-            .zip(unresolved.world_spans)
         {
             self.update_world(&mut world, resolve, &import_spans, &export_spans)?;
+
+            // Resolve all includes of the world
+            let includes = mem::take(&mut world.includes);
+            let include_names = mem::take(&mut world.include_names);
+            for (index, include_world) in includes.into_iter().enumerate() {
+                let span = unresolved_world_spans[include_world.index()];
+                let names = &include_names[index];
+                self.resolve_include(&mut world, include_world, names, span, resolve)?;
+            }
+
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(new_id);
@@ -684,22 +705,68 @@ impl Remap {
         resolve: &mut Resolve,
         unresolved: &UnresolvedPackage,
     ) -> Result<()> {
-        // Invert the `foreign_deps` map to be keyed by interface id to get
+        // Invert the `foreign_deps` map to be keyed by world id to get
         // used in the loops below.
+        let mut world_to_package = HashMap::new();
         let mut interface_to_package = HashMap::new();
-        for (i, (pkg_name, interfaces)) in unresolved.foreign_deps.iter().enumerate() {
-            for (interface, unresolved_interface_id) in interfaces {
-                let prev = interface_to_package.insert(
-                    *unresolved_interface_id,
-                    (pkg_name, interface, unresolved.foreign_dep_spans[i]),
-                );
-                assert!(prev.is_none());
+        for (i, (pkg_name, worlds_or_ifaces)) in unresolved.foreign_deps.iter().enumerate() {
+            for (name, item) in worlds_or_ifaces {
+                match item {
+                    AstItem::Interface(unresolved_interface_id) => {
+                        let prev = interface_to_package.insert(
+                            *unresolved_interface_id,
+                            (pkg_name, name, unresolved.foreign_dep_spans[i]),
+                        );
+                        assert!(prev.is_none());
+                    }
+                    AstItem::World(unresolved_world_id) => {
+                        let prev = world_to_package.insert(
+                            *unresolved_world_id,
+                            (pkg_name, name, unresolved.foreign_dep_spans[i]),
+                        );
+                        assert!(prev.is_none());
+                    }
+                }
             }
         }
 
         // Connect all interfaces referred to in `interface_to_package`, which
         // are at the front of `unresolved.interfaces`, to interfaces already
         // contained within `resolve`.
+        self.process_foreign_interfaces(unresolved, &interface_to_package, resolve)?;
+
+        // Connect all worlds referred to in `world_to_package`, which
+        // are at the front of `unresolved.worlds`, to worlds already
+        // contained within `resolve`.
+        self.process_foreign_worlds(unresolved, &world_to_package, resolve)?;
+
+        // Finally, iterate over all foreign-defined types and determine
+        // what they map to.
+        self.process_foreign_types(unresolved, resolve)?;
+
+        for (id, span) in unresolved.required_resource_types.iter() {
+            let mut id = self.types[id.index()];
+            loop {
+                match resolve.types[id].kind {
+                    TypeDefKind::Type(Type::Id(i)) => id = i,
+                    TypeDefKind::Resource => break,
+                    _ => bail!(Error {
+                        span: *span,
+                        msg: format!("type used in a handle must be a resource"),
+                    }),
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn process_foreign_interfaces(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        interface_to_package: &HashMap<Id<Interface>, (&PackageName, &String, Span)>,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
             let (pkg_name, interface, span) = match interface_to_package.get(&unresolved_iface_id) {
                 Some(items) => *items,
@@ -733,16 +800,60 @@ impl Remap {
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(iface_id);
         }
-
         for (id, _) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
             assert!(
                 interface_to_package.get(&id).is_none(),
                 "found foreign interface after local interface"
             );
         }
+        Ok(())
+    }
 
-        // And finally iterate over all foreign-defined types and determine
-        // what they map to.
+    fn process_foreign_worlds(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        world_to_package: &HashMap<Id<World>, (&PackageName, &String, Span)>,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
+        for (unresolved_world_id, _) in unresolved.worlds.iter() {
+            let (pkg_name, world, span) = match world_to_package.get(&unresolved_world_id) {
+                Some(items) => *items,
+                // Same as above, all worlds are foreign until we find a
+                // non-foreign one.
+                None => break,
+            };
+
+            let pkgid = resolve
+                .package_names
+                .get(pkg_name)
+                .copied()
+                .ok_or_else(|| Error {
+                    span,
+                    msg: format!("package not found"),
+                })?;
+            let pkg = &resolve.packages[pkgid];
+            let span = unresolved.world_spans[unresolved_world_id.index()];
+            let world_id = pkg.worlds.get(world).copied().ok_or_else(|| Error {
+                span,
+                msg: format!("world not found in package"),
+            })?;
+            assert_eq!(self.worlds.len(), unresolved_world_id.index());
+            self.worlds.push(world_id);
+        }
+        for (id, _) in unresolved.worlds.iter().skip(self.worlds.len()) {
+            assert!(
+                world_to_package.get(&id).is_none(),
+                "found foreign world after local world"
+            );
+        }
+        Ok(())
+    }
+
+    fn process_foreign_types(
+        &mut self,
+        unresolved: &UnresolvedPackage,
+        resolve: &mut Resolve,
+    ) -> Result<(), anyhow::Error> {
         for (unresolved_type_id, unresolved_ty) in unresolved.types.iter() {
             // All "Unknown" types should appear first so once we're no longer
             // in unknown territory it's package-defined types so break out of
@@ -768,13 +879,11 @@ impl Remap {
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);
         }
-
         for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
             if let TypeDefKind::Unknown = ty.kind {
                 panic!("unknown type after defined type");
             }
         }
-
         Ok(())
     }
 
@@ -784,25 +893,10 @@ impl Remap {
         use crate::TypeDefKind::*;
         match &mut ty.kind {
             Handle(handle) => match handle {
-                crate::Handle::Shared(ty) => self.update_ty(ty),
+                crate::Handle::Own(ty) => *ty = self.types[ty.index()],
+                crate::Handle::Borrow(ty) => *ty = self.types[ty.index()],
             },
-            Resource(r) => {
-                for function in r.methods.iter_mut() {
-                    for (_, ty) in function.params.iter_mut() {
-                        self.update_ty(ty);
-                    }
-                    match &mut function.results {
-                        Results::Named(results) => {
-                            for (_, ty) in results {
-                                self.update_ty(ty);
-                            }
-                        }
-                        Results::Anon(ty) => {
-                            self.update_ty(ty);
-                        }
-                    }
-                }
-            }
+            Resource => {}
             Record(r) => {
                 for field in r.fields.iter_mut() {
                     self.update_ty(&mut field.ty);
@@ -871,6 +965,12 @@ impl Remap {
     }
 
     fn update_function(&self, func: &mut Function) {
+        match &mut func.kind {
+            FunctionKind::Freestanding => {}
+            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
+                *id = self.types[id.index()];
+            }
+        }
         for (_, ty) in func.params.iter_mut() {
             self.update_ty(ty);
         }
@@ -1050,6 +1150,65 @@ impl Remap {
                 self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
             }
         });
+    }
+
+    fn resolve_include(
+        &self,
+        world: &mut World,
+        include_world: WorldId,
+        names: &[IncludeName],
+        span: Span,
+        resolve: &Resolve,
+    ) -> Result<()> {
+        let include_world_id = self.worlds[include_world.index()];
+        let include_world = &resolve.worlds[include_world_id];
+
+        // copy the imports and exports from the included world into the current world
+        for import in include_world.imports.iter() {
+            self.resolve_include_item(names, &mut world.imports, import, span, "import")?;
+        }
+
+        for export in include_world.exports.iter() {
+            self.resolve_include_item(names, &mut world.exports, export, span, "export")?;
+        }
+        Ok(())
+    }
+
+    fn resolve_include_item(
+        &self,
+        names: &[IncludeName],
+        items: &mut IndexMap<WorldKey, WorldItem>,
+        item: (&WorldKey, &WorldItem),
+        span: Span,
+        item_type: &str,
+    ) -> Result<()> {
+        match item.0 {
+            WorldKey::Name(n) => {
+                let n = if let Some(found) = names
+                    .into_iter()
+                    .find(|include_name| include_name.name == n.clone())
+                {
+                    found.as_.clone()
+                } else {
+                    n.clone()
+                };
+
+                let prev = items.insert(WorldKey::Name(n.clone()), item.1.clone());
+                if prev.is_some() {
+                    bail!(Error {
+                        msg: format!("{item_type} of `{n}` shadows previously {item_type}ed items"),
+                        span,
+                    })
+                }
+            }
+            key => {
+                let prev = items.insert(key.clone(), item.1.clone());
+                if let Some(prev) = prev {
+                    assert_eq!(prev, item.1.clone());
+                }
+            }
+        };
+        Ok(())
     }
 }
 

@@ -67,7 +67,8 @@ pub enum Token {
     Char,
     Record,
     Resource,
-    Shared,
+    Own,
+    Borrow,
     Flags,
     Variant,
     Enum,
@@ -89,11 +90,15 @@ pub enum Token {
     Export,
     World,
     Package,
+    Constructor,
 
     Id,
     ExplicitId,
 
     Integer,
+
+    Include,
+    With,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -262,7 +267,8 @@ impl<'a> Tokenizer<'a> {
                     "float64" => Float64,
                     "char" => Char,
                     "resource" => Resource,
-                    "shared" => Shared,
+                    "own" => Own,
+                    "borrow" => Borrow,
                     "record" => Record,
                     "flags" => Flags,
                     "variant" => Variant,
@@ -285,6 +291,9 @@ impl<'a> Tokenizer<'a> {
                     "import" => Import,
                     "export" => Export,
                     "package" => Package,
+                    "constructor" => Constructor,
+                    "include" => Include,
+                    "with" => With,
                     _ => Id,
                 }
             }
@@ -506,7 +515,8 @@ impl Token {
             Float32 => "keyword `float32`",
             Float64 => "keyword `float64`",
             Char => "keyword `char`",
-            Shared => "keyword `shared`",
+            Own => "keyword `own`",
+            Borrow => "keyword `borrow`",
             Resource => "keyword `resource`",
             Record => "keyword `record`",
             Flags => "keyword `flags`",
@@ -538,7 +548,10 @@ impl Token {
             Export => "keyword `export`",
             World => "keyword `world`",
             Package => "keyword `package`",
+            Constructor => "keyword `constructor`",
             Integer => "an integer",
+            Include => "keyword `include`",
+            With => "keyword `with`",
         }
     }
 }
@@ -674,11 +687,17 @@ fn test_tokenizer() {
 
     assert_eq!(collect("resource").unwrap(), vec![Token::Resource]);
 
-    assert_eq!(collect("shared").unwrap(), vec![Token::Shared]);
+    assert_eq!(collect("own").unwrap(), vec![Token::Own]);
     assert_eq!(
-        collect("shared<some-id>").unwrap(),
+        collect("own<some-id>").unwrap(),
+        vec![Token::Own, Token::LessThan, Token::Id, Token::GreaterThan]
+    );
+
+    assert_eq!(collect("borrow").unwrap(), vec![Token::Borrow]);
+    assert_eq!(
+        collect("borrow<some-id>").unwrap(),
         vec![
-            Token::Shared,
+            Token::Borrow,
             Token::LessThan,
             Token::Id,
             Token::GreaterThan
