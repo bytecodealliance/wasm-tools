@@ -1,10 +1,52 @@
 use crate::{encode_section, Encode, Section, SectionId};
 
+/// Represents a subtype of possible other types in a WebAssembly module.
+#[derive(Debug, Clone)]
+pub struct SubType {
+    /// Is the subtype final.
+    pub is_final: bool,
+    /// The list of supertype indexes. As of GC MVP, there can be at most one supertype.
+    pub supertype_idx: Option<u32>,
+    /// The structural type of the subtype.
+    pub structural_type: StructuralType,
+}
+
+/// Represents a structural type in a WebAssembly module.
+#[derive(Debug, Clone)]
+pub enum StructuralType {
+    /// The type is for a function.
+    Func(FuncType),
+    /// The type is for an array.
+    Array(ArrayType),
+    /// The type is for a struct.
+    Struct(StructType),
+}
+
+/// Represents a type of a function in a WebAssembly module.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct FuncType {
+    /// The combined parameters and result types.
+    params_results: Box<[ValType]>,
+    /// The number of parameter types.
+    len_params: usize,
+}
+
+/// Represents a type of an array in a WebAssembly module.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct ArrayType(pub FieldType);
+
+/// Represents a type of a struct in a WebAssembly module.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct StructType {
+    /// Struct fields.
+    pub fields: Box<[FieldType]>,
+}
+
 /// Field type in structural types (structs, arrays).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct FieldType {
     /// Storage type of the field.
-    pub ty: StorageType,
+    pub element_type: StorageType,
     /// Is the field mutable.
     pub mutable: bool,
 }
@@ -41,6 +83,35 @@ pub enum ValType {
     /// generalization here is due to the implementation of the
     /// function-references proposal.
     Ref(RefType),
+}
+
+impl FuncType {
+    /// Creates a new [`FuncType`] from the given `params` and `results`.
+    pub fn new<P, R>(params: P, results: R) -> Self
+    where
+        P: IntoIterator<Item = ValType>,
+        R: IntoIterator<Item = ValType>,
+    {
+        let mut buffer = params.into_iter().collect::<Vec<_>>();
+        let len_params = buffer.len();
+        buffer.extend(results);
+        Self {
+            params_results: buffer.into(),
+            len_params,
+        }
+    }
+
+    /// Returns a shared slice to the parameter types of the [`FuncType`].
+    #[inline]
+    pub fn params(&self) -> &[ValType] {
+        &self.params_results[..self.len_params]
+    }
+
+    /// Returns a shared slice to the result types of the [`FuncType`].
+    #[inline]
+    pub fn results(&self) -> &[ValType] {
+        &self.params_results[self.len_params..]
+    }
 }
 
 impl ValType {
@@ -251,7 +322,7 @@ impl TypeSection {
         self.bytes.push(0x5f);
         fields.len().encode(&mut self.bytes);
         for f in fields.iter() {
-            self.field(&f.ty, f.mutable);
+            self.field(&f.element_type, f.mutable);
         }
         self.num_added += 1;
         self
@@ -259,21 +330,37 @@ impl TypeSection {
 
     /// Define an explicit subtype in this type section.
     /// Must be followed by the definition of the structural type (func, array, struct).
-    pub fn subtype(&mut self, is_final: bool, supertype_idx: &Option<u32>) -> &mut Self {
-        if !is_final && supertype_idx.is_none() {
+    pub fn subtype(&mut self, ty: &SubType, is_empty_func_type: &mut bool) -> &mut Self {
+        if !ty.is_final && ty.supertype_idx.is_none() {
             return self;
         }
-        if is_final {
+        if ty.is_final {
             self.bytes.push(0x4e);
         } else {
             self.bytes.push(0x50);
         }
-        if supertype_idx.is_some() {
+        if ty.supertype_idx.is_some() {
             1.encode(&mut self.bytes);
-            for idx in supertype_idx {
+            if let Some(idx) = ty.supertype_idx {
                 idx.encode(&mut self.bytes);
             }
         }
+
+        match &ty.structural_type {
+            StructuralType::Func(ty) => {
+                self.function(ty.params().iter().copied(), ty.results().iter().copied());
+                if ty.params().is_empty() && ty.results().is_empty() {
+                    *is_empty_func_type = true;
+                }
+            }
+            StructuralType::Array(ArrayType(ty)) => {
+                self.array(&ty.element_type, ty.mutable);
+            }
+            StructuralType::Struct(ty) => {
+                self.struct_(ty.fields.to_vec());
+            }
+        }
+
         self
     }
 }
