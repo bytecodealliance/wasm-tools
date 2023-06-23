@@ -331,15 +331,13 @@ impl TypeSection {
     /// Define an explicit subtype in this type section.
     /// Must be followed by the definition of the structural type (func, array, struct).
     pub fn subtype(&mut self, ty: &SubType, is_empty_func_type: &mut bool) -> &mut Self {
-        if !ty.is_final && ty.supertype_idx.is_none() {
-            return self;
-        }
         if ty.is_final {
             self.bytes.push(0x4e);
-        } else {
+        } else if ty.supertype_idx.is_some() {
             self.bytes.push(0x50);
         }
         if ty.supertype_idx.is_some() {
+            // for both final and non-final
             1.encode(&mut self.bytes);
             if let Some(idx) = ty.supertype_idx {
                 idx.encode(&mut self.bytes);
