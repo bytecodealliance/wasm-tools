@@ -16,6 +16,7 @@ pub enum Opts {
     New(NewOpts),
     Wit(WitOpts),
     Embed(EmbedOpts),
+    Targets(TargetsOpts),
 }
 
 impl Opts {
@@ -24,6 +25,7 @@ impl Opts {
             Opts::New(new) => new.run(),
             Opts::Wit(wit) => wit.run(),
             Opts::Embed(embed) => embed.run(),
+            Opts::Targets(targets) => targets.run(),
         }
     }
 
@@ -32,6 +34,7 @@ impl Opts {
             Opts::New(new) => new.general_opts(),
             Opts::Wit(wit) => wit.general_opts(),
             Opts::Embed(embed) => embed.general_opts(),
+            Opts::Targets(targets) => targets.general_opts(),
         }
     }
 }
@@ -362,6 +365,42 @@ impl WitOpts {
 
         let output = WitPrinter::default().print(decoded.resolve(), decoded.package())?;
         self.output.output(Output::Wat(&output))?;
+        Ok(())
+    }
+}
+
+/// Tool for verifying whether a component conforms to a world.
+#[derive(Parser)]
+pub struct TargetsOpts {
+    #[clap(flatten)]
+    general: wasm_tools::GeneralOpts,
+   
+    /// The WIT package containing the `world` used to test a component for conformance.
+    ///
+    /// This can either be a directory or a path to a single `*.wit` file.
+    wit: PathBuf,
+    
+    /// The world used to test whether a component conforms to its signature.
+    #[clap(short, long)]
+    world: Option<String>,
+
+    #[clap(flatten)]
+    input: wasm_tools::InputArg,
+}
+
+impl TargetsOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        &self.general
+    }
+
+    /// Executes the application.
+    fn run(self) -> Result<()> {
+        let (resolve, package_id) = parse_wit(&self.wit)?;
+        let world = resolve.select_world(package_id, self.world.as_deref())?;
+        let component_to_test = self.input.parse_wasm()?;
+
+        wit_component::targets(&resolve, world, &component_to_test)?;
+
         Ok(())
     }
 }
