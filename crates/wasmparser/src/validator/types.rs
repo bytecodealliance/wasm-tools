@@ -2693,20 +2693,7 @@ impl<'a> SubtypeCx<'a> {
                     // satisfied. This is then used afterwards when performing
                     // type substitution to remap all component-local types to
                     // those that were provided in the imports.
-                    match (expected, actual) {
-                        (
-                            ComponentEntityType::Type {
-                                created: expected, ..
-                            },
-                            ComponentEntityType::Type {
-                                created: actual, ..
-                            },
-                        ) => {
-                            let prev = type_map.insert(expected, actual);
-                            assert!(prev.is_none());
-                        }
-                        _ => {}
-                    }
+                    self.register_type_renamings(actual, expected, &mut type_map);
                     continue;
                 }
                 Err(e) => e,
@@ -3007,6 +2994,40 @@ impl<'a> SubtypeCx<'a> {
             Ok(())
         } else {
             bail!(offset, "expected primitive `{b}` found primitive `{a}`")
+        }
+    }
+
+    fn register_type_renamings(
+        &self,
+        actual: ComponentEntityType,
+        expected: ComponentEntityType,
+        type_map: &mut HashMap<TypeId, TypeId>,
+    ) {
+        match (expected, actual) {
+            (
+                ComponentEntityType::Type {
+                    created: expected, ..
+                },
+                ComponentEntityType::Type {
+                    created: actual, ..
+                },
+            ) => {
+                let prev = type_map.insert(expected, actual);
+                assert!(prev.is_none());
+            }
+            (ComponentEntityType::Instance(expected), ComponentEntityType::Instance(actual)) => {
+                let actual = self.a[actual].as_component_instance_type().unwrap();
+                for (name, expected) in self.b[expected]
+                    .as_component_instance_type()
+                    .unwrap()
+                    .exports
+                    .iter()
+                {
+                    let actual = actual.exports[name];
+                    self.register_type_renamings(actual, *expected, type_map);
+                }
+            }
+            _ => {}
         }
     }
 }
