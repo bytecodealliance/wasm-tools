@@ -30,7 +30,7 @@ arbitrary = "1.1.0"
 clap = { version = "4.0.0", features = ["derive"] }
 criterion = "0.3.3"
 env_logger = "0.9"
-indexmap = "1.9.1"
+indexmap = "2.0.0"
 leb128 = "0.2.4"
 libfuzzer-sys = "0.4.0"
 log = "0.4.17"

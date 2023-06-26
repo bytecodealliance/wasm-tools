@@ -14,7 +14,7 @@ use wasmparser::{
 /// Spec: https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md
 #[derive(Debug, Serialize)]
 pub struct Producers(
-    #[serde(serialize_with = "indexmap::serde_seq::serialize")]
+    #[serde(serialize_with = "indexmap::map::serde_seq::serialize")]
     IndexMap<String, IndexMap<String, String>>,
 );
 
