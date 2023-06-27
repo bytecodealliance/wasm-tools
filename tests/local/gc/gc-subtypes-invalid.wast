@@ -6,7 +6,7 @@
     (type $b (sub final $a (func)))
     (type $c (sub $b (func)))
   )
-  "supertype must not be final"
+  "subtype must match supertype"
 )
 (assert_invalid
   (module

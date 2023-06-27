@@ -522,15 +522,7 @@ impl Module {
             // Check the supertype exists, is not final, and the subtype matches it.
             match self.type_at(types, type_index, offset)? {
                 Type::Sub(st) => {
-                    if st.is_final {
-                        return Err(BinaryReaderError::new(
-                            "supertype must not be final",
-                            offset,
-                        ));
-                    }
-                    if !&ty.structural_type.matches(&st.structural_type, &|idx| {
-                        self.subtype_at(types, idx, offset)
-                    })? {
+                    if !&ty.matches(st, &|idx| self.subtype_at(types, idx, offset))? {
                         return Err(BinaryReaderError::new(
                             "subtype must match supertype",
                             offset,

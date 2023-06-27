@@ -760,7 +760,7 @@ impl Matches for SubType {
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
-        Ok((!other.is_final || self.is_final)
+        Ok(!other.is_final
             && self
                 .structural_type
                 .matches(&other.structural_type, type_at)?)
