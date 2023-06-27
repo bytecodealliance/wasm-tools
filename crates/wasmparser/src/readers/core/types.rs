@@ -655,12 +655,17 @@ impl Matches for HeapType {
                 }
             }
             (HeapType::Eq, HeapType::Any) => Ok(true),
-            (HeapType::I31 | HeapType::Array | HeapType::Struct, HeapType::Eq | HeapType::Any) => Ok(true),
+            (HeapType::I31 | HeapType::Array | HeapType::Struct, HeapType::Eq | HeapType::Any) => {
+                Ok(true)
+            }
             (HeapType::None, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
                 StructuralType::Array(_) | StructuralType::Struct(_) => Ok(true),
                 _ => Ok(false),
             },
-            (HeapType::None, HeapType::I31 | HeapType::Eq | HeapType::Any | HeapType::Array | HeapType::Struct) => Ok(true),
+            (
+                HeapType::None,
+                HeapType::I31 | HeapType::Eq | HeapType::Any | HeapType::Array | HeapType::Struct,
+            ) => Ok(true),
             (HeapType::NoExtern, HeapType::Extern) => Ok(true),
             (HeapType::NoFunc, HeapType::Func) => Ok(true),
             (HeapType::NoFunc, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
