@@ -654,13 +654,13 @@ impl Matches for HeapType {
                     _ => Ok(false),
                 }
             }
-            (HeapType::I31, HeapType::Eq | HeapType::Any) => Ok(true),
             (HeapType::Eq, HeapType::Any) => Ok(true),
+            (HeapType::I31 | HeapType::Array | HeapType::Struct, HeapType::Eq | HeapType::Any) => Ok(true),
             (HeapType::None, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
                 StructuralType::Array(_) | StructuralType::Struct(_) => Ok(true),
                 _ => Ok(false),
             },
-            (HeapType::None, HeapType::I31 | HeapType::Eq | HeapType::Any) => Ok(true),
+            (HeapType::None, HeapType::I31 | HeapType::Eq | HeapType::Any | HeapType::Array | HeapType::Struct) => Ok(true),
             (HeapType::NoExtern, HeapType::Extern) => Ok(true),
             (HeapType::NoFunc, HeapType::Func) => Ok(true),
             (HeapType::NoFunc, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
@@ -888,12 +888,12 @@ impl Matches for FuncType {
                 .params()
                 .iter()
                 .zip(other.params())
-                .fold(Ok(true), |r, (a, b)| Ok(r? && b.matches(a, type_at)?))?
+                .try_fold(true, |r, (a, b)| Ok(r && b.matches(a, type_at)?))?
             && self
                 .results()
                 .iter()
                 .zip(other.results())
-                .fold(Ok(true), |r, (a, b)| Ok(r? && a.matches(b, type_at)?))?;
+                .try_fold(true, |r, (a, b)| Ok(r && a.matches(b, type_at)?))?;
         Ok(r)
     }
 }
@@ -934,12 +934,13 @@ impl Matches for StructType {
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
-        let r = self.fields.len() == other.fields.len()
+        // Note: Structure types support width and depth subtyping.
+        let r = self.fields.len() >= other.fields.len()
             && self
                 .fields
                 .iter()
                 .zip(other.fields.iter())
-                .fold(Ok(true), |r, (a, b)| Ok(r? && a.matches(b, type_at)?))?;
+                .try_fold(true, |r, (a, b)| Ok(r && a.matches(b, type_at)?))?;
         Ok(r)
     }
 }
