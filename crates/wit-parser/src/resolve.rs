@@ -1318,6 +1318,21 @@ impl Remap {
     ) -> Result<()> {
         let include_world_id = self.worlds[include_world.index()];
         let include_world = &resolve.worlds[include_world_id];
+        let mut names_ = names.clone().to_owned();
+
+        // remove all imports and exports that match the names we're including
+        for import in include_world.imports.iter() {
+            self.remove_matching_name(import, &mut names_);
+        }
+        for export in include_world.exports.iter() {
+            self.remove_matching_name(export, &mut names_);
+        }
+        if !names_.is_empty() {
+            bail!(Error {
+                msg: format!("no import or export kebab-name `{}`. Note that an ID does not support renaming", names_[0].name),
+                span: span,
+            });
+        }
 
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
@@ -1365,6 +1380,15 @@ impl Remap {
             }
         };
         Ok(())
+    }
+
+    fn remove_matching_name(&self, item: (&WorldKey, &WorldItem), names: &mut Vec<IncludeName>) {
+        match item.0 {
+            WorldKey::Name(n) => {
+                names.retain(|name| name.name != n.clone());
+            }
+            _ => {}
+        }
     }
 }
 
