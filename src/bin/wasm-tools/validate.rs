@@ -139,10 +139,17 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
             }
 
             name => {
-                let (_, accessor) = FEATURES
-                    .iter()
-                    .find(|(n, _)| *n == name)
-                    .ok_or_else(|| anyhow!("unknown feature `{}`", name))?;
+                let (_, accessor) = FEATURES.iter().find(|(n, _)| *n == name).ok_or_else(|| {
+                    anyhow!(
+                        "unknown feature `{}`\nValid features: {}",
+                        name,
+                        FEATURES
+                            .iter()
+                            .map(|(name, _)| *name)
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
+                })?;
                 *accessor(&mut ret) = enable;
             }
         }
