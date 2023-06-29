@@ -1010,12 +1010,12 @@ impl Display for Link {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(untagged)]
 pub enum LinkType {
     Documentation,
     Homepage,
     Repository,
     Funding,
+    #[serde(untagged)]
     Custom(String),
 }
 
@@ -1083,6 +1083,8 @@ impl Display for CustomLicense {
 
 #[cfg(test)]
 mod test {
+    use std::vec;
+
     use super::*;
     #[test]
     fn add_to_empty_module() {
@@ -1093,7 +1095,28 @@ mod test {
             language: vec!["bar".to_owned()],
             processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
             sdk: vec![],
-            registry_metadata: None,
+            registry_metadata: Some(RegistryMetadata {
+                authors: Some(vec!["foo".to_owned()]),
+                description: Some("foo bar baz".to_owned()),
+                license: Some("MIT OR LicenseRef-FOO".to_owned()),
+                custom_licenses: Some(vec![CustomLicense {
+                    id: "FOO".to_owned(),
+                    name: "Foo".to_owned(),
+                    text: "Foo License".to_owned(),
+                    reference: Some("https://exaple.com/license/foo".to_owned()),
+                }]),
+                links: Some(vec![
+                    Link {
+                        ty: LinkType::Custom("CustomFoo".to_owned()),
+                        value: "https://example.com/custom".to_owned(),
+                    },
+                    Link {
+                        ty: LinkType::Homepage,
+                        value: "https://example.com".to_owned(),
+                    },
+                ]),
+                categories: Some(vec!["Tools".to_owned()]),
+            }),
         };
         let module = add.to_wasm(&module).unwrap();
 
@@ -1112,8 +1135,50 @@ mod test {
                     producers.get("processed-by").unwrap().get("baz").unwrap(),
                     "1.0"
                 );
+
+                let registry_metadata = registry_metadata.unwrap();
+
+                assert!(registry_metadata.validate().is_ok());
+
+                assert_eq!(registry_metadata.authors.unwrap(), vec!["foo".to_owned()]);
+                assert_eq!(
+                    registry_metadata.description.unwrap(),
+                    "foo bar baz".to_owned()
+                );
+
+                assert_eq!(
+                    registry_metadata.license.unwrap(),
+                    "MIT OR LicenseRef-FOO".to_owned()
+                );
+                assert_eq!(
+                    registry_metadata.custom_licenses.unwrap(),
+                    vec![CustomLicense {
+                        id: "FOO".to_owned(),
+                        name: "Foo".to_owned(),
+                        text: "Foo License".to_owned(),
+                        reference: Some("https://exaple.com/license/foo".to_owned()),
+                    }]
+                );
+                assert_eq!(
+                    registry_metadata.links.unwrap(),
+                    vec![
+                        Link {
+                            ty: LinkType::Custom("CustomFoo".to_owned()),
+                            value: "https://example.com/custom".to_owned(),
+                        },
+                        Link {
+                            ty: LinkType::Homepage,
+                            value: "https://example.com".to_owned(),
+                        },
+                    ]
+                );
+                assert_eq!(
+                    registry_metadata.categories.unwrap(),
+                    vec!["Tools".to_owned()]
+                );
+
                 assert_eq!(range.start, 0);
-                assert_eq!(range.end, 71);
+                assert_eq!(range.end, 422);
             }
             _ => panic!("metadata should be module"),
         }
@@ -1128,7 +1193,28 @@ mod test {
             language: vec!["bar".to_owned()],
             processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
             sdk: vec![],
-            registry_metadata: None,
+            registry_metadata: Some(RegistryMetadata {
+                authors: Some(vec!["foo".to_owned()]),
+                description: Some("foo bar baz".to_owned()),
+                license: Some("MIT OR LicenseRef-FOO".to_owned()),
+                custom_licenses: Some(vec![CustomLicense {
+                    id: "FOO".to_owned(),
+                    name: "Foo".to_owned(),
+                    text: "Foo License".to_owned(),
+                    reference: Some("https://exaple.com/license/foo".to_owned()),
+                }]),
+                links: Some(vec![
+                    Link {
+                        ty: LinkType::Custom("CustomFoo".to_owned()),
+                        value: "https://example.com/custom".to_owned(),
+                    },
+                    Link {
+                        ty: LinkType::Homepage,
+                        value: "https://example.com".to_owned(),
+                    },
+                ]),
+                categories: Some(vec!["Tools".to_owned()]),
+            }),
         };
         let component = add.to_wasm(&component).unwrap();
 
@@ -1149,8 +1235,50 @@ mod test {
                     producers.get("processed-by").unwrap().get("baz").unwrap(),
                     "1.0"
                 );
+
+                let registry_metadata = registry_metadata.unwrap();
+
+                assert!(registry_metadata.validate().is_ok());
+
+                assert_eq!(registry_metadata.authors.unwrap(), vec!["foo".to_owned()]);
+                assert_eq!(
+                    registry_metadata.description.unwrap(),
+                    "foo bar baz".to_owned()
+                );
+
+                assert_eq!(
+                    registry_metadata.license.unwrap(),
+                    "MIT OR LicenseRef-FOO".to_owned()
+                );
+                assert_eq!(
+                    registry_metadata.custom_licenses.unwrap(),
+                    vec![CustomLicense {
+                        id: "FOO".to_owned(),
+                        name: "Foo".to_owned(),
+                        text: "Foo License".to_owned(),
+                        reference: Some("https://exaple.com/license/foo".to_owned()),
+                    }]
+                );
+                assert_eq!(
+                    registry_metadata.links.unwrap(),
+                    vec![
+                        Link {
+                            ty: LinkType::Custom("CustomFoo".to_owned()),
+                            value: "https://example.com/custom".to_owned(),
+                        },
+                        Link {
+                            ty: LinkType::Homepage,
+                            value: "https://example.com".to_owned(),
+                        },
+                    ]
+                );
+                assert_eq!(
+                    registry_metadata.categories.unwrap(),
+                    vec!["Tools".to_owned()]
+                );
+
                 assert_eq!(range.start, 0);
-                assert_eq!(range.end, 81);
+                assert_eq!(range.end, 432);
             }
             _ => panic!("metadata should be component"),
         }
@@ -1166,7 +1294,10 @@ mod test {
             language: vec!["bar".to_owned()],
             processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
             sdk: vec![],
-            registry_metadata: None,
+            registry_metadata: Some(RegistryMetadata {
+                authors: Some(vec!["Foo".to_owned()]),
+                ..Default::default()
+            }),
         };
         let module = add.to_wasm(&module).unwrap();
 
@@ -1218,8 +1349,15 @@ mod test {
                             producers.get("processed-by").unwrap().get("baz").unwrap(),
                             "1.0"
                         );
+
+                        let registry_metadata = registry_metadata.as_ref().unwrap();
+                        assert_eq!(
+                            registry_metadata.authors.as_ref().unwrap(),
+                            &["Foo".to_owned()]
+                        );
+
                         assert_eq!(range.start, 10);
-                        assert_eq!(range.end, 81);
+                        assert_eq!(range.end, 120);
                     }
                     _ => panic!("child is a module"),
                 }
@@ -1306,6 +1444,34 @@ mod test {
                     producers.get("processed-by").unwrap().get("baz").unwrap(),
                     "420"
                 );
+            }
+            _ => panic!("metadata should be module"),
+        }
+    }
+
+    #[test]
+    fn overwrite_registry_metadata() {
+        let wat = "(module)";
+        let module = wat::parse_str(wat).unwrap();
+        let registry_metadata = RegistryMetadata {
+            authors: Some(vec!["Foo".to_owned()]),
+            ..Default::default()
+        };
+        let module = registry_metadata.add_to_wasm(&module).unwrap();
+
+        let registry_metadata = RegistryMetadata {
+            authors: Some(vec!["Bar".to_owned()]),
+            ..Default::default()
+        };
+        let module = registry_metadata.add_to_wasm(&module).unwrap();
+
+        let metadata = Metadata::from_binary(&module).unwrap();
+        match metadata {
+            Metadata::Module {
+                registry_metadata, ..
+            } => {
+                let registry_metadata = registry_metadata.expect("some registry_metadata");
+                assert_eq!(registry_metadata.authors.unwrap(), vec!["Bar".to_owned()]);
             }
             _ => panic!("metadata should be module"),
         }
