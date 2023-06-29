@@ -382,6 +382,20 @@ def_instruction! {
             ty: TypeId,
         } : [record.fields.len()] => [1],
 
+        /// Create an `i32` from a handle.
+        HandleLower {
+            handle: &'a Handle,
+            name: &'a str,
+            ty: TypeId,
+        } : [1] => [1],
+
+        /// Create a handle from an `i32`.
+        HandleLift {
+            handle: &'a Handle,
+            name: &'a str,
+            ty: TypeId,
+        } : [1] => [1],
+
         /// Pops a tuple value off the stack, decomposes the tuple to all of
         /// its fields, and then pushes the fields onto the stack.
         TupleLower {
@@ -1293,7 +1307,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         self.emit(&ListLower { element, realloc });
                     }
                 }
-                TypeDefKind::Handle(_) => todo!(),
+                TypeDefKind::Handle(handle) => {
+                    let (Handle::Own(ty) | Handle::Borrow(ty)) = handle;
+                    self.emit(&HandleLower {
+                        handle,
+                        ty: id,
+                        name: self.resolve.types[*ty].name.as_deref().unwrap(),
+                    });
+                }
                 TypeDefKind::Resource => {
                     todo!();
                 }
@@ -1480,8 +1501,13 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         self.emit(&ListLift { element, ty: id });
                     }
                 }
-                TypeDefKind::Handle(_) => {
-                    todo!();
+                TypeDefKind::Handle(handle) => {
+                    let (Handle::Own(ty) | Handle::Borrow(ty)) = handle;
+                    self.emit(&HandleLift {
+                        handle,
+                        ty: id,
+                        name: self.resolve.types[*ty].name.as_deref().unwrap(),
+                    });
                 }
                 TypeDefKind::Resource => {
                     todo!();
