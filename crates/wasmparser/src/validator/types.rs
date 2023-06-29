@@ -1035,6 +1035,22 @@ impl<'a> TypesRef<'a> {
         self.type_from_id(self.id_from_type_index(index, core)?)
     }
 
+    /// Returns the number of core types defined so far.
+    pub fn core_type_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(module) => module.types.len() as u32,
+            TypesRefKind::Component(component) => component.core_types.len() as u32,
+        }
+    }
+
+    /// Returns the number of component types defined so far.
+    pub fn component_type_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_module) => 0,
+            TypesRefKind::Component(component) => component.types.len() as u32,
+        }
+    }
+
     /// Gets a defined core function type at the given type index.
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
@@ -1059,6 +1075,14 @@ impl<'a> TypesRef<'a> {
         tables.get(index as usize).copied()
     }
 
+    /// Returns the number of tables defined so far.
+    pub fn table_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(module) => module.tables.len() as u32,
+            TypesRefKind::Component(component) => component.core_tables.len() as u32,
+        }
+    }
+
     /// Gets the type of a memory at the given memory index.
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
@@ -1072,6 +1096,14 @@ impl<'a> TypesRef<'a> {
         memories.get(index as usize).copied()
     }
 
+    /// Returns the number of memories defined so far.
+    pub fn memory_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(module) => module.memories.len() as u32,
+            TypesRefKind::Component(component) => component.core_memories.len() as u32,
+        }
+    }
+
     /// Gets the type of a global at the given global index.
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
@@ -1083,6 +1115,14 @@ impl<'a> TypesRef<'a> {
         };
 
         globals.get(index as usize).copied()
+    }
+
+    /// Returns the number of globals defined so far.
+    pub fn global_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(module) => module.globals.len() as u32,
+            TypesRefKind::Component(component) => component.core_globals.len() as u32,
+        }
     }
 
     /// Gets the type of a tag at the given tag index.
@@ -1102,21 +1142,32 @@ impl<'a> TypesRef<'a> {
         )
     }
 
+    /// Returns the number of tags defined so far.
+    pub fn tag_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(module) => module.tags.len() as u32,
+            TypesRefKind::Component(component) => component.core_tags.len() as u32,
+        }
+    }
+
     /// Gets the type of a core function at the given function index.
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
     /// been parsed yet.
-    pub fn function_at(&self, index: u32) -> Option<&'a FuncType> {
-        let id = match &self.kind {
+    pub fn function_at(&self, index: u32) -> Option<TypeId> {
+        Some(match &self.kind {
             TypesRefKind::Module(module) => {
-                &module.types[*module.functions.get(index as usize)? as usize]
+                module.types[*module.functions.get(index as usize)? as usize]
             }
-            TypesRefKind::Component(component) => component.core_funcs.get(index as usize)?,
-        };
+            TypesRefKind::Component(component) => *component.core_funcs.get(index as usize)?,
+        })
+    }
 
-        match &self.list[*id] {
-            Type::Func(ty) => Some(ty),
-            _ => None,
+    /// Returns the number of functions defined so far.
+    pub fn function_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(module) => module.functions.len() as u32,
+            TypesRefKind::Component(component) => component.core_funcs.len() as u32,
         }
     }
 
@@ -1135,14 +1186,18 @@ impl<'a> TypesRef<'a> {
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
     /// been parsed yet.
-    pub fn component_function_at(&self, index: u32) -> Option<&'a ComponentFuncType> {
+    pub fn component_function_at(&self, index: u32) -> Option<TypeId> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => Some(
-                self.list[*component.funcs.get(index as usize)?]
-                    .as_component_func_type()
-                    .unwrap(),
-            ),
+            TypesRefKind::Component(component) => Some(*component.funcs.get(index as usize)?),
+        }
+    }
+
+    /// Returns the number of component functions defined so far.
+    pub fn component_function_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_module) => 0,
+            TypesRefKind::Component(component) => component.funcs.len() as u32,
         }
     }
 
@@ -1161,20 +1216,32 @@ impl<'a> TypesRef<'a> {
         }
     }
 
+    /// Returns the number of core wasm modules defined so far.
+    pub fn module_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_module) => 0,
+            TypesRefKind::Component(component) => component.core_modules.len() as u32,
+        }
+    }
+
     /// Gets the type of a module instance at the given module instance index.
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
     /// been parsed yet.
-    pub fn instance_at(&self, index: u32) -> Option<&'a InstanceType> {
+    pub fn instance_at(&self, index: u32) -> Option<TypeId> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => {
-                let id = component.core_instances.get(index as usize)?;
-                match &self.list[*id] {
-                    Type::Instance(ty) => Some(ty),
-                    _ => None,
-                }
+                Some(*component.core_instances.get(index as usize)?)
             }
+        }
+    }
+
+    /// Returns the number of core wasm instances defined so far.
+    pub fn instance_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_module) => 0,
+            TypesRefKind::Component(component) => component.core_instances.len() as u32,
         }
     }
 
@@ -1182,14 +1249,18 @@ impl<'a> TypesRef<'a> {
     ///
     /// Returns `None` if the type index is out of bounds or the type has not
     /// been parsed yet.
-    pub fn component_at(&self, index: u32) -> Option<&'a ComponentType> {
+    pub fn component_at(&self, index: u32) -> Option<TypeId> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => Some(
-                self.list[*component.components.get(index as usize)?]
-                    .as_component_type()
-                    .unwrap(),
-            ),
+            TypesRefKind::Component(component) => Some(*component.components.get(index as usize)?),
+        }
+    }
+
+    /// Returns the number of components defined so far.
+    pub fn component_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_module) => 0,
+            TypesRefKind::Component(component) => component.components.len() as u32,
         }
     }
 
@@ -1201,6 +1272,14 @@ impl<'a> TypesRef<'a> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
             TypesRefKind::Component(component) => component.instances.get(index as usize).copied(),
+        }
+    }
+
+    /// Returns the number of component instances defined so far.
+    pub fn component_instance_count(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_module) => 0,
+            TypesRefKind::Component(component) => component.instances.len() as u32,
         }
     }
 
@@ -1397,7 +1476,7 @@ impl Types {
     /// Gets the type of a core function at the given function index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn function_at(&self, index: u32) -> Option<&FuncType> {
+    pub fn function_at(&self, index: u32) -> Option<TypeId> {
         self.as_ref().function_at(index)
     }
 
@@ -1432,7 +1511,7 @@ impl Types {
     /// Gets the type of a component function at the given function index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn component_function_at(&self, index: u32) -> Option<&ComponentFuncType> {
+    pub fn component_function_at(&self, index: u32) -> Option<TypeId> {
         self.as_ref().component_function_at(index)
     }
 
@@ -1462,7 +1541,7 @@ impl Types {
     /// Gets the type of a module instance at the given module instance index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn instance_at(&self, index: u32) -> Option<&InstanceType> {
+    pub fn instance_at(&self, index: u32) -> Option<TypeId> {
         self.as_ref().instance_at(index)
     }
 
@@ -1477,7 +1556,7 @@ impl Types {
     /// Gets the type of a component at the given component index.
     ///
     /// Returns `None` if the index is out of bounds.
-    pub fn component_at(&self, index: u32) -> Option<&ComponentType> {
+    pub fn component_at(&self, index: u32) -> Option<TypeId> {
         self.as_ref().component_at(index)
     }
 

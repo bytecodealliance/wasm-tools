@@ -419,7 +419,8 @@ pub fn validate_adapter_module<'a>(
             Some(idx) => *idx,
             None => bail!("adapter module did not export `{name}`"),
         };
-        let actual = types.function_at(idx).unwrap();
+        let id = types.function_at(idx).unwrap();
+        let actual = types.type_from_id(id).unwrap().as_func_type().unwrap();
         if ty == actual {
             continue;
         }
@@ -548,7 +549,8 @@ fn validate_exported_item(
         let expected_export_name = func.core_export_name(name);
         match exports.get(expected_export_name.as_ref()) {
             Some(func_index) => {
-                let ty = types.function_at(*func_index).unwrap();
+                let id = types.function_at(*func_index).unwrap();
+                let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
                 validate_func(resolve, ty, func, AbiVariant::GuestExport)
             }
             None => bail!(
