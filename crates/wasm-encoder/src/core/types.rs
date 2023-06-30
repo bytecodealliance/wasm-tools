@@ -329,7 +329,6 @@ impl TypeSection {
     }
 
     /// Define an explicit subtype in this type section.
-    /// Must be followed by the definition of the structural type (func, array, struct).
     pub fn subtype(&mut self, ty: &SubType, is_empty_func_type: &mut bool) -> &mut Self {
         if ty.is_final {
             self.bytes.push(0x4e);
