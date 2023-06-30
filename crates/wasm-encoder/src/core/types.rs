@@ -330,17 +330,17 @@ impl TypeSection {
 
     /// Define an explicit subtype in this type section.
     pub fn subtype(&mut self, ty: &SubType) -> &mut Self {
+        // In the GC spec, supertypes is a vector, not an option.
+        let st = match ty.supertype_idx {
+            Some(idx) => vec![idx],
+            None => vec![],
+        };
         if ty.is_final {
             self.bytes.push(0x4e);
-        } else if ty.supertype_idx.is_some() {
+            st.encode(&mut self.bytes);
+        } else if !st.is_empty() {
             self.bytes.push(0x50);
-        }
-        if ty.supertype_idx.is_some() {
-            // for both final and non-final
-            1.encode(&mut self.bytes);
-            if let Some(idx) = ty.supertype_idx {
-                idx.encode(&mut self.bytes);
-            }
+            st.encode(&mut self.bytes);
         }
 
         match &ty.structural_type {
