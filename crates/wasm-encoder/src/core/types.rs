@@ -336,13 +336,7 @@ impl TypeSection {
         } else if ty.supertype_idx.is_some() {
             self.bytes.push(0x50);
         }
-        if ty.supertype_idx.is_some() {
-            // for both final and non-final
-            1.encode(&mut self.bytes);
-            if let Some(idx) = ty.supertype_idx {
-                idx.encode(&mut self.bytes);
-            }
-        }
+        ty.supertype_idx.encode(&mut self.bytes);
 
         match &ty.structural_type {
             StructuralType::Func(ty) => {
