@@ -574,14 +574,15 @@ impl<'a> Module<'a> {
         let mut empty_type = None;
         for (i, ty) in self.live_types() {
             map.types.push(i);
-            let mut is_empty_func_type = false;
-            types.subtype(&map.subtype(&ty), &mut is_empty_func_type);
+            types.subtype(&map.subtype(&ty));
 
             // Keep track of the "empty type" to see if we can reuse an
             // existing one or one needs to be injected if a `start`
             // function is calculated at the end.
-            if is_empty_func_type {
-                empty_type = Some(map.types.remap(i));
+            if let StructuralType::Func(ty) = &ty.structural_type {
+                if ty.params().is_empty() && ty.results().is_empty() {
+                    empty_type = Some(map.types.remap(i));
+                }
             }
         }
 

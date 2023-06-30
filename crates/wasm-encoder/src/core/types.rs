@@ -329,7 +329,7 @@ impl TypeSection {
     }
 
     /// Define an explicit subtype in this type section.
-    pub fn subtype(&mut self, ty: &SubType, is_empty_func_type: &mut bool) -> &mut Self {
+    pub fn subtype(&mut self, ty: &SubType) -> &mut Self {
         if ty.is_final {
             self.bytes.push(0x4e);
         } else if ty.supertype_idx.is_some() {
@@ -346,9 +346,6 @@ impl TypeSection {
         match &ty.structural_type {
             StructuralType::Func(ty) => {
                 self.function(ty.params().iter().copied(), ty.results().iter().copied());
-                if ty.params().is_empty() && ty.results().is_empty() {
-                    *is_empty_func_type = true;
-                }
             }
             StructuralType::Array(ArrayType(ty)) => {
                 self.array(&ty.element_type, ty.mutable);
