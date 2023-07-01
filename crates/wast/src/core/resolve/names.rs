@@ -3,6 +3,7 @@ use crate::core::*;
 use crate::names::{resolve_error, Namespace};
 use crate::token::{Id, Index};
 use crate::Error;
+use std::collections::HashMap;
 
 pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
     let mut resolver = Resolver::default();
@@ -25,7 +26,7 @@ pub struct Resolver<'a> {
     tags: Namespace<'a>,
     datas: Namespace<'a>,
     elems: Namespace<'a>,
-    fields: Namespace<'a>,
+    fields: HashMap<u32, Namespace<'a>>,
     type_info: Vec<TypeInfo<'a>>,
 }
 
@@ -46,16 +47,41 @@ impl<'a> Resolver<'a> {
     }
 
     fn register_type(&mut self, ty: &Type<'a>) -> Result<(), Error> {
+        let type_index = self.types.register(ty.id, "type")?;
+
         match &ty.def {
             // For GC structure types we need to be sure to populate the
             // field namespace here as well.
             //
-            // The field namespace is global, but the resolved indices
-            // are relative to the struct they are defined in
+            // The field namespace is relative to the struct fields are defined in
             TypeDef::Struct(r#struct) => {
                 for (i, field) in r#struct.fields.iter().enumerate() {
                     if let Some(id) = field.id {
-                        self.fields.register_specific(id, i as u32, "field")?;
+                        if let Some(parent_type_index) = ty
+                            .parent
+                            .map(|index| self.types.get_index(&index))
+                            .flatten()
+                        {
+                            if let Some(parent_field_ns) = self.fields.get(&parent_type_index) {
+                                let field_idx =
+                                    parent_field_ns.resolve(&mut Index::Id(id), "field")?;
+                                if field_idx != i as u32 {
+                                    return Err(Error::new(
+                                        id.span(),
+                                        format!(
+                                            "field index mismatch for `{}`: expected {}, got {}",
+                                            id.name(),
+                                            field_idx,
+                                            i
+                                        ),
+                                    ));
+                                }
+                            }
+                        }
+                        self.fields
+                            .entry(type_index)
+                            .or_insert(Namespace::default())
+                            .register_specific(id, i as u32, "field")?;
                     }
                 }
             }
@@ -75,7 +101,6 @@ impl<'a> Resolver<'a> {
             _ => self.type_info.push(TypeInfo::Other),
         }
 
-        self.types.register(ty.id, "type")?;
         Ok(())
     }
 
@@ -610,8 +635,12 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
-                self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
-                self.resolver.fields.resolve(&mut s.field, "field")?;
+                let type_index = self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
+                self.resolver
+                    .fields
+                    .get(&type_index)
+                    .unwrap()
+                    .resolve(&mut s.field, "field")?;
             }
 
             ArrayNewFixed(a) => {

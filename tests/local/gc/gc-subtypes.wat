@@ -97,4 +97,7 @@
   (type $y0 (sub $v0 (array (ref noextern))))
   (type $y01 (sub $u0 (array (ref noextern))))
   (type $z0 (sub $u0 (array nullexternref)))
+
+  (type $A (struct (field $vt (mut i32))))
+  (type $B (sub $A (struct (field $vt (mut i32)))))
 )
