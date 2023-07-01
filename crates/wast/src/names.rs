@@ -51,11 +51,13 @@ impl<'a> Namespace<'a> {
     }
 
     pub fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
-        if let Some(_prev) = self.names.insert(name, index) {
-            return Err(Error::new(
-                name.span(),
-                format!("duplicate identifier for {}", desc),
-            ));
+        if let Some(prev) = self.names.insert(name, index) {
+            if prev != index {
+                return Err(Error::new(
+                    name.span(),
+                    format!("duplicate identifier for {}", desc),
+                ));
+            }
         }
         Ok(())
     }
