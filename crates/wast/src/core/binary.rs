@@ -641,10 +641,10 @@ impl Encode for Func<'_> {
     }
 }
 
-impl Encode for Vec<Local<'_>> {
+impl Encode for Box<[Local<'_>]> {
     fn encode(&self, e: &mut Vec<u8>) {
         let mut locals_compressed = Vec::<(u32, ValType)>::new();
-        for local in self {
+        for local in self.iter() {
             if let Some((cnt, prev)) = locals_compressed.last_mut() {
                 if *prev == local.ty {
                     *cnt += 1;
@@ -919,7 +919,7 @@ fn find_names<'a>(
                 locals, expression, ..
             } = &f.kind
             {
-                for local in locals {
+                for local in locals.iter() {
                     if let Some(name) = get_name(&local.id, &local.name) {
                         local_names.push((local_idx, name));
                     }
