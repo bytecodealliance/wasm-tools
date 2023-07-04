@@ -280,14 +280,14 @@ impl<'a> CompositionGraphBuilder<'a> {
                         dependent.path().unwrap(),
                         import_name,
                         import_type,
-                        dependent.types.as_ref(),
+                        dependent.types.as_ref().as_ref(),
                     )?),
                     None => self.find_compatible_instance(
                         instance,
                         dependency.dependent,
                         import_name,
                         import_type,
-                        dependent.types.as_ref(),
+                        dependent.types.as_ref().as_ref(),
                     )?,
                 };
 
