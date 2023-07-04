@@ -54,7 +54,21 @@ struct CompositionGraphBuilder<'a> {
 impl<'a> CompositionGraphBuilder<'a> {
     fn new(root_path: &Path, config: &'a Config) -> Result<Self> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_file(ROOT_COMPONENT_NAME, root_path)?)?;
+        graph.add_component(Component::from_file(
+            ROOT_COMPONENT_NAME.to_string(),
+            root_path,
+        )?)?;
+
+        // If definition components are provided, parse them, populating
+        // them into dependencies
+        for def in &config.definitions {
+            let component = Component::from_file("", root_path.parent().unwrap().join(def))?;
+            for (expt_name, _) in &component.exports {
+                let mut dep_component = component.clone();
+                dep_component.name = expt_name.to_string();
+                graph.add_component(dep_component)?;
+            }
+        }
 
         Ok(Self {
             config,
@@ -87,7 +101,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 path = dep.path.display()
             );
             return Ok(Some(Component::from_file(
-                name,
+                name.to_string(),
                 self.config.dir.join(&dep.path),
             )?));
         }
@@ -116,7 +130,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 continue;
             }
 
-            return Ok(Some(Component::from_file(name, &path)?));
+            return Ok(Some(Component::from_file(name.to_string(), &path)?));
         }
 
         Ok(None)
@@ -269,14 +283,14 @@ impl<'a> CompositionGraphBuilder<'a> {
                         dependent.path().unwrap(),
                         import_name,
                         import_type,
-                        dependent.types.as_ref(),
+                        dependent.types.as_ref().as_ref(),
                     )?),
                     None => self.find_compatible_instance(
                         instance,
                         dependency.dependent,
                         import_name,
                         import_type,
-                        dependent.types.as_ref(),
+                        dependent.types.as_ref().as_ref(),
                     )?,
                 };
 

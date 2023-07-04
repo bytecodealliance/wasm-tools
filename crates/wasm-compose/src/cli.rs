@@ -20,6 +20,10 @@ pub struct WasmComposeCommand {
     #[clap(long, short = 'c', value_name = "CONFIG")]
     pub config: Option<PathBuf>,
 
+    /// Definition components whose exports define import dependencies to fulfill from.
+    #[clap(long = "definitions", short = 'd', value_name = "DEFS")]
+    pub defs: Vec<PathBuf>,
+
     /// A path to search for imports.
     #[clap(long = "search-path", short = 'p', value_name = "PATH")]
     pub paths: Vec<PathBuf>,
@@ -93,6 +97,7 @@ impl WasmComposeCommand {
             }
         };
 
+        config.definitions.extend(self.defs.iter().cloned());
         config.search_paths.extend(self.paths.iter().cloned());
         config.skip_validation |= self.skip_validation;
         config.disallow_imports |= self.disallow_imports;

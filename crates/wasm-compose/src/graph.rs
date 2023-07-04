@@ -7,6 +7,7 @@ use std::{
     borrow::Cow,
     collections::{hash_map::Entry, HashMap, HashSet},
     path::{Path, PathBuf},
+    rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
@@ -27,6 +28,7 @@ pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
 }
 
 /// Represents a component in a composition graph.
+#[derive(Clone)]
 pub struct Component<'a> {
     /// The name of the component.
     pub(crate) name: String,
@@ -35,7 +37,7 @@ pub struct Component<'a> {
     /// The raw bytes of the component.
     pub(crate) bytes: Cow<'a, [u8]>,
     /// The type information of the component.
-    pub(crate) types: Types,
+    pub(crate) types: Rc<Types>,
     /// The import map of the component.
     pub(crate) imports: IndexMap<String, ComponentTypeRef>,
     /// The export map of the component.
@@ -158,7 +160,7 @@ impl<'a> Component<'a> {
                                     name,
                                     path,
                                     bytes,
-                                    types,
+                                    types: Rc::from(types),
                                     imports,
                                     exports,
                                 });
@@ -192,7 +194,7 @@ impl<'a> Component<'a> {
 
     /// Gets the type information of the component.
     pub fn types(&self) -> TypesRef {
-        self.types.as_ref()
+        self.types.as_ref().as_ref()
     }
 
     /// Gets an export from the component for the given export index.
@@ -289,7 +291,7 @@ impl<'a> Component<'a> {
                     &ComponentEntityType::Instance(
                         self.types.component_instance_at(*index).unwrap(),
                     ),
-                    self.types.as_ref(),
+                    self.types.as_ref().as_ref(),
                     &ComponentEntityType::Instance(ty),
                     types,
                 )
@@ -312,7 +314,12 @@ impl<'a> Component<'a> {
             match self.exports.get_full(k.as_str()) {
                 Some((ai, _, _)) => {
                     let (_, a) = self.export_entity_type(ExportIndex(ai)).unwrap();
-                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), b, types) {
+                    if !ComponentEntityType::is_subtype_of(
+                        &a,
+                        self.types.as_ref().as_ref(),
+                        b,
+                        types,
+                    ) {
                         return false;
                     }
                 }
@@ -752,9 +759,9 @@ impl<'a> CompositionGraph<'a> {
 
             if !ComponentEntityType::is_subtype_of(
                 &export_ty,
-                source_component.types.as_ref(),
+                source_component.types.as_ref().as_ref(),
                 &import_ty,
-                target_component.types.as_ref(),
+                target_component.types.as_ref().as_ref(),
             ) {
                 bail!(
                     "source {export_ty} export `{export_name}` is not compatible with target {import_ty} import `{import_name}`",
@@ -771,7 +778,9 @@ impl<'a> CompositionGraph<'a> {
                 ),
             };
 
-            if !source_component.is_instance_subtype_of(ty, target_component.types.as_ref()) {
+            if !source_component
+                .is_instance_subtype_of(ty, target_component.types.as_ref().as_ref())
+            {
                 bail!(
                     "source instance is not compatible with target {import_ty} import `{import_name}`",
                     import_ty = type_desc(import_ty)
