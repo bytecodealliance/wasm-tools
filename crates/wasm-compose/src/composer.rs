@@ -101,7 +101,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 path = dep.path.display()
             );
             return Ok(Some(Component::from_file(
-                name.to_string(),
+                name,
                 self.config.dir.join(&dep.path),
             )?));
         }
@@ -130,7 +130,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 continue;
             }
 
-            return Ok(Some(Component::from_file(name.to_string(), &path)?));
+            return Ok(Some(Component::from_file(name, &path)?));
         }
 
         Ok(None)
@@ -283,14 +283,14 @@ impl<'a> CompositionGraphBuilder<'a> {
                         dependent.path().unwrap(),
                         import_name,
                         import_type,
-                        dependent.types.as_ref().as_ref(),
+                        dependent.types.as_ref(),
                     )?),
                     None => self.find_compatible_instance(
                         instance,
                         dependency.dependent,
                         import_name,
                         import_type,
-                        dependent.types.as_ref().as_ref(),
+                        dependent.types.as_ref(),
                     )?,
                 };
 

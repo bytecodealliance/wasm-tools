@@ -194,7 +194,7 @@ impl<'a> Component<'a> {
 
     /// Gets the type information of the component.
     pub fn types(&self) -> TypesRef {
-        self.types.as_ref().as_ref()
+        self.types.as_ref()
     }
 
     /// Gets an export from the component for the given export index.
@@ -291,7 +291,7 @@ impl<'a> Component<'a> {
                     &ComponentEntityType::Instance(
                         self.types.component_instance_at(*index).unwrap(),
                     ),
-                    self.types.as_ref().as_ref(),
+                    self.types.as_ref(),
                     &ComponentEntityType::Instance(ty),
                     types,
                 )
@@ -314,12 +314,7 @@ impl<'a> Component<'a> {
             match self.exports.get_full(k.as_str()) {
                 Some((ai, _, _)) => {
                     let (_, a) = self.export_entity_type(ExportIndex(ai)).unwrap();
-                    if !ComponentEntityType::is_subtype_of(
-                        &a,
-                        self.types.as_ref().as_ref(),
-                        b,
-                        types,
-                    ) {
+                    if !ComponentEntityType::is_subtype_of(&a, self.types.as_ref(), b, types) {
                         return false;
                     }
                 }
@@ -759,9 +754,9 @@ impl<'a> CompositionGraph<'a> {
 
             if !ComponentEntityType::is_subtype_of(
                 &export_ty,
-                source_component.types.as_ref().as_ref(),
+                source_component.types.as_ref(),
                 &import_ty,
-                target_component.types.as_ref().as_ref(),
+                target_component.types.as_ref(),
             ) {
                 bail!(
                     "source {export_ty} export `{export_name}` is not compatible with target {import_ty} import `{import_name}`",
@@ -778,9 +773,7 @@ impl<'a> CompositionGraph<'a> {
                 ),
             };
 
-            if !source_component
-                .is_instance_subtype_of(ty, target_component.types.as_ref().as_ref())
-            {
+            if !source_component.is_instance_subtype_of(ty, target_component.types.as_ref()) {
                 bail!(
                     "source instance is not compatible with target {import_ty} import `{import_name}`",
                     import_ty = type_desc(import_ty)
