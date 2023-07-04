@@ -54,10 +54,7 @@ struct CompositionGraphBuilder<'a> {
 impl<'a> CompositionGraphBuilder<'a> {
     fn new(root_path: &Path, config: &'a Config) -> Result<Self> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_file(
-            ROOT_COMPONENT_NAME.to_string(),
-            root_path,
-        )?)?;
+        graph.add_component(Component::from_file(ROOT_COMPONENT_NAME, root_path)?)?;
 
         // If definition components are provided, parse them, populating
         // them into dependencies
