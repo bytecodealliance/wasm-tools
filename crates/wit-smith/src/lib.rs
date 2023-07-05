@@ -25,9 +25,10 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
         let id = match resolve.push(unresolved) {
             Ok(id) => id,
             Err(e) => {
-                if e.to_string()
-                    .contains("both an imported and exported copy of the same interface")
-                {
+                if e.to_string().contains(
+                    "interface transitively depends on an interface in \
+                     incompatible ways",
+                ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
                 panic!("bad wit parse: {e:?}")
