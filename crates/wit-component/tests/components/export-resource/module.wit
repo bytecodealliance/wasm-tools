@@ -1,0 +1,11 @@
+package foo:bar
+
+world module {
+  export foo: interface {
+    resource a {
+      constructor()
+
+      static other-new: func() -> a
+    }
+  }
+}

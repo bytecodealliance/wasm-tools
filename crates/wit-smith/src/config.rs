@@ -17,6 +17,8 @@ pub struct Config {
     pub max_type_parts: usize,
     #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().max_files_per_package))]
     pub max_files_per_package: usize,
+    #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().max_resource_items))]
+    pub max_resource_items: usize,
 }
 
 impl Default for Config {
@@ -29,6 +31,7 @@ impl Default for Config {
             max_pkg_items: 10,
             max_type_parts: 10,
             max_files_per_package: 10,
+            max_resource_items: 10,
         }
     }
 }
@@ -43,6 +46,7 @@ impl Arbitrary<'_> for Config {
             max_world_items: u.int_in_range(0..=10)?,
             max_pkg_items: u.int_in_range(0..=10)?,
             max_type_parts: u.int_in_range(1..=10)?,
+            max_resource_items: u.int_in_range(0..=10)?,
         })
     }
 }

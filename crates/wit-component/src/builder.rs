@@ -169,6 +169,11 @@ impl ComponentBuilder {
         (inc(&mut self.types), self.types().function())
     }
 
+    pub fn resource(&mut self, rep: ValType, dtor: Option<u32>) -> u32 {
+        self.types().resource(rep, dtor);
+        inc(&mut self.types)
+    }
+
     pub fn alias_type_export(&mut self, instance: u32, name: &str) -> u32 {
         self.aliases().alias(Alias::InstanceExport {
             instance,
@@ -199,6 +204,21 @@ impl ComponentBuilder {
 
     pub fn add_producers(&mut self, producers: &Producers) {
         self.producers.merge(producers)
+    }
+
+    pub fn resource_drop(&mut self, ty: ComponentValType) -> u32 {
+        self.canonical_functions().resource_drop(ty);
+        inc(&mut self.core_funcs)
+    }
+
+    pub fn resource_new(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().resource_new(ty);
+        inc(&mut self.core_funcs)
+    }
+
+    pub fn resource_rep(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().resource_rep(ty);
+        inc(&mut self.core_funcs)
     }
 }
 

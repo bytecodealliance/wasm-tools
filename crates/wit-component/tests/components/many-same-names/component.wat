@@ -38,9 +38,9 @@
     (import "import-type-r2" (type (;3;) (eq 2)))
     (type (;4;) (func))
     (import "import-func-a" (func (;0;) (type 4)))
-    (type (;5;) (func))
-    (export (;1;) "a" (func 0) (func (type 5)))
-    (export (;6;) "r2" (type 3))
+    (export (;5;) "r2" (type 3))
+    (type (;6;) (func))
+    (export (;1;) "a" (func 0) (func (type 6)))
   )
   (instance (;3;) (instantiate 1
       (with "import-func-a" (func 0))

@@ -5,4 +5,5 @@ interface foo {
 
   type t1 = a
   type t2 = borrow<a>
+  type t3 = borrow<t1>
 }

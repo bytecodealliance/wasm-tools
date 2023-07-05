@@ -111,7 +111,29 @@ impl Encoder<'_> {
             let mut component = InterfaceEncoder::new(self.resolve);
             log::trace!("encoding world {}", world.name);
 
-            for (name, import) in world.imports.iter() {
+            // This sort is similar in purpose to the sort below in
+            // `encode_instance`, but different in its sort. The purpose here is
+            // to ensure that when a document is either printed as WIT or
+            // encoded as wasm that decoding from those artifacts produces the
+            // same WIT package. Namely both encoding processes should encode
+            // things in the same order.
+            //
+            // When printing worlds in WIT freestanding function imports are
+            // printed first, then types. Resource functions are attached to
+            // types which means that they all come last. Sort all
+            // resource-related functions here to the back of the `imports` list
+            // while keeping everything else in front, using a stable sort to
+            // preserve preexisting ordering.
+            let mut imports = world.imports.iter().collect::<Vec<_>>();
+            imports.sort_by_key(|(_name, import)| match import {
+                WorldItem::Function(f) => match f.kind {
+                    FunctionKind::Freestanding => 0,
+                    _ => 1,
+                },
+                _ => 0,
+            });
+
+            for (name, import) in imports {
                 let name = self.resolve.name_world_key(name);
                 log::trace!("encoding import {name}");
                 let ty = match import {
@@ -229,10 +251,36 @@ impl InterfaceEncoder<'_> {
     fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
         self.push_instance();
         let iface = &self.resolve.interfaces[interface];
+        let mut type_order = IndexSet::new();
         for (_, id) in iface.types.iter() {
             self.encode_valtype(self.resolve, &Type::Id(*id))?;
+            type_order.insert(*id);
         }
-        for (name, func) in iface.functions.iter() {
+
+        // Sort functions based on whether or not they're associated with
+        // resources.
+        //
+        // This is done here to ensure that when a WIT package is printed as WIT
+        // then decoded, or if it's printed as Wasm then decoded, the final
+        // result is the same. When printing via WIT resource methods are
+        // attached to the resource types themselves meaning that they'll appear
+        // intermingled with the rest of the types, namely first before all
+        // other functions. The purpose of this sort is to perform a stable sort
+        // over all functions by shuffling the resource-related functions first,
+        // in order of when their associated resource was encoded, and putting
+        // freestanding functions last.
+        //
+        // Note that this is not actually required for correctness, it's
+        // basically here to make fuzzing happy.
+        let mut funcs = iface.functions.iter().collect::<Vec<_>>();
+        funcs.sort_by_key(|(_name, func)| match func.kind {
+            FunctionKind::Freestanding => type_order.len(),
+            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
+                type_order.get_index_of(&id).unwrap()
+            }
+        });
+
+        for (name, func) in funcs {
             let ty = self.encode_func_type(self.resolve, func)?;
             self.ty
                 .as_mut()
@@ -296,6 +344,24 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
                         .export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 }
                 Some(ret)
+            }
+        }
+    }
+    fn export_resource(&mut self, name: &'a str) -> u32 {
+        let type_ref = ComponentTypeRef::Type(TypeBounds::SubResource);
+        match &mut self.ty {
+            Some(ty) => {
+                assert!(!self.import_types);
+                ty.export(name, type_ref);
+                ty.type_count() - 1
+            }
+            None => {
+                if self.import_types {
+                    self.outer.import(name, type_ref);
+                } else {
+                    self.outer.export(name, type_ref);
+                }
+                self.outer.type_count() - 1
             }
         }
     }

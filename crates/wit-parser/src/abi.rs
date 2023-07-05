@@ -1,6 +1,6 @@
 use crate::sizealign::align_to;
 use crate::{
-    Enum, Flags, FlagsRepr, Function, Int, Record, Resolve, Result_, Results, Tuple, Type,
+    Enum, Flags, FlagsRepr, Function, Handle, Int, Record, Resolve, Result_, Results, Tuple, Type,
     TypeDefKind, TypeId, Union, Variant,
 };
 
@@ -381,6 +381,20 @@ def_instruction! {
             name: &'a str,
             ty: TypeId,
         } : [record.fields.len()] => [1],
+
+        /// Create an `i32` from a handle.
+        HandleLower {
+            handle: &'a Handle,
+            name: &'a str,
+            ty: TypeId,
+        } : [1] => [1],
+
+        /// Create a handle from an `i32`.
+        HandleLift {
+            handle: &'a Handle,
+            name: &'a str,
+            ty: TypeId,
+        } : [1] => [1],
 
         /// Pops a tuple value off the stack, decomposes the tuple to all of
         /// its fields, and then pushes the fields onto the stack.
@@ -772,7 +786,9 @@ impl Resolve {
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::Type(t) => self.push_wasm(variant, t, result),
 
-                TypeDefKind::Handle(_) => todo!(),
+                TypeDefKind::Handle(Handle::Own(_) | Handle::Borrow(_)) => {
+                    result.push(WasmType::I32);
+                }
 
                 TypeDefKind::Resource => todo!(),
 
@@ -903,8 +919,8 @@ impl Resolve {
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::List(_) => true,
                 TypeDefKind::Type(t) => self.needs_post_return(t),
-                TypeDefKind::Handle(_) => true,
-                TypeDefKind::Resource => true,
+                TypeDefKind::Handle(_) => false,
+                TypeDefKind::Resource => false,
                 TypeDefKind::Record(r) => r.fields.iter().any(|f| self.needs_post_return(&f.ty)),
                 TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.needs_post_return(t)),
                 TypeDefKind::Union(t) => t.cases.iter().any(|t| self.needs_post_return(&t.ty)),
@@ -1291,7 +1307,14 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         self.emit(&ListLower { element, realloc });
                     }
                 }
-                TypeDefKind::Handle(_) => todo!(),
+                TypeDefKind::Handle(handle) => {
+                    let (Handle::Own(ty) | Handle::Borrow(ty)) = handle;
+                    self.emit(&HandleLower {
+                        handle,
+                        ty: id,
+                        name: self.resolve.types[*ty].name.as_deref().unwrap(),
+                    });
+                }
                 TypeDefKind::Resource => {
                     todo!();
                 }
@@ -1478,8 +1501,13 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                         self.emit(&ListLift { element, ty: id });
                     }
                 }
-                TypeDefKind::Handle(_) => {
-                    todo!();
+                TypeDefKind::Handle(handle) => {
+                    let (Handle::Own(ty) | Handle::Borrow(ty)) = handle;
+                    self.emit(&HandleLift {
+                        handle,
+                        ty: id,
+                        name: self.resolve.types[*ty].name.as_deref().unwrap(),
+                    });
                 }
                 TypeDefKind::Resource => {
                     todo!();

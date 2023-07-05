@@ -99,6 +99,7 @@ impl<'a> ComponentInfo<'a> {
             foreign_packages: Default::default(),
             iface_to_package_index: Default::default(),
             named_interfaces: Default::default(),
+            resources: Default::default(),
         };
 
         let mut pkg = None;
@@ -150,6 +151,7 @@ impl<'a> ComponentInfo<'a> {
             foreign_packages: Default::default(),
             iface_to_package_index: Default::default(),
             named_interfaces: Default::default(),
+            resources: Default::default(),
         };
         let mut package = Package {
             // Similar to `world_name` above this is arbitrarily chosen as it's
@@ -237,6 +239,15 @@ struct WitPackageDecoder<'a> {
     iface_to_package_index: HashMap<InterfaceId, usize>,
     named_interfaces: HashMap<String, InterfaceId>,
 
+    /// A map which tracks named resources to what their corresponding `TypeId`
+    /// is. This first layer of key in this map is the owner scope of a
+    /// resource, more-or-less the `world` or `interface` that it's defined
+    /// within. The second layer of this map is keyed by name of the resource
+    /// and points to the actual ID of the resource.
+    ///
+    /// This map is populated in `register_type_export`.
+    resources: HashMap<TypeOwner, HashMap<String, TypeId>>,
+
     /// A map from a type id to what it's been translated to.
     type_map: HashMap<types::TypeId, TypeId>,
 }
@@ -316,6 +327,7 @@ impl WitPackageDecoder<'_> {
             .types
             .component_entity_type_of_import(import.name.as_str())
             .unwrap();
+        let owner = TypeOwner::World(world);
         let (name, item) = match ty {
             types::ComponentEntityType::Instance(i) => {
                 let ty = match self.info.types.type_from_id(i) {
@@ -337,7 +349,7 @@ impl WitPackageDecoder<'_> {
                     _ => unreachable!(),
                 };
                 let func = self
-                    .convert_function(name, ty)
+                    .convert_function(name, ty, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
@@ -346,7 +358,7 @@ impl WitPackageDecoder<'_> {
                 created,
             } => {
                 let id = self
-                    .register_type_export(name, TypeOwner::World(world), referenced, created)
+                    .register_type_export(name, owner, referenced, created)
                     .with_context(|| format!("failed to decode type from export `{name}`"))?;
                 (WorldKey::Name(name.to_string()), WorldItem::Type(id))
             }
@@ -373,7 +385,7 @@ impl WitPackageDecoder<'_> {
                     _ => unreachable!(),
                 };
                 let func = self
-                    .convert_function(name, ty)
+                    .convert_function(name, ty, TypeOwner::World(world))
                     .with_context(|| format!("failed to decode function from export `{name}`"))?;
 
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
@@ -418,18 +430,13 @@ impl WitPackageDecoder<'_> {
             Some(id) => (true, *id),
             None => (false, self.extract_dep_interface(name)?),
         };
-
+        let owner = TypeOwner::Interface(interface);
         for (name, ty) in ty.exports.iter() {
             match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
                 } => {
-                    let def = match self.info.types.type_from_id(referenced) {
-                        Some(types::Type::Defined(ty)) => ty,
-                        _ => unreachable!(),
-                    };
-
                     match self.resolve.interfaces[interface]
                         .types
                         .get(name.as_str())
@@ -453,7 +460,11 @@ impl WitPackageDecoder<'_> {
                         // is not strictly necessary but assists with
                         // roundtripping assertions during fuzzing.
                         Some(id) => {
-                            self.register_defined(id, def)?;
+                            match self.info.types.type_from_id(referenced) {
+                                Some(types::Type::Defined(ty)) => self.register_defined(id, ty)?,
+                                Some(types::Type::Resource(_)) => {}
+                                _ => unreachable!(),
+                            }
                             let prev = self.type_map.insert(created, id);
                             assert!(prev.is_none());
                         }
@@ -477,7 +488,7 @@ impl WitPackageDecoder<'_> {
                             }
                             let id = self.register_type_export(
                                 name.as_str(),
-                                TypeOwner::Interface(interface),
+                                owner,
                                 referenced,
                                 created,
                             )?;
@@ -508,7 +519,7 @@ impl WitPackageDecoder<'_> {
                     if is_local {
                         bail!("instance function export `{name}` not defined in interface");
                     }
-                    let func = self.convert_function(name.as_str(), def)?;
+                    let func = self.convert_function(name.as_str(), def, owner)?;
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
@@ -639,6 +650,7 @@ impl WitPackageDecoder<'_> {
             package: None,
         };
 
+        let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());
         for (name, ty) in ty.exports.iter() {
             match *ty {
                 types::ComponentEntityType::Type {
@@ -646,12 +658,7 @@ impl WitPackageDecoder<'_> {
                     created,
                 } => {
                     let ty = self
-                        .register_type_export(
-                            name.as_str(),
-                            TypeOwner::Interface(self.resolve.interfaces.next_id()),
-                            referenced,
-                            created,
-                        )
+                        .register_type_export(name.as_str(), owner, referenced, created)
                         .with_context(|| format!("failed to register type export '{name}'"))?;
                     let prev = interface.types.insert(name.to_string(), ty);
                     assert!(prev.is_none());
@@ -663,7 +670,7 @@ impl WitPackageDecoder<'_> {
                         _ => unreachable!(),
                     };
                     let func = self
-                        .convert_function(name.as_str(), ty)
+                        .convert_function(name.as_str(), ty, owner)
                         .with_context(|| format!("failed to convert function '{name}'"))?;
                     let prev = interface.functions.insert(name.to_string(), func);
                     assert!(prev.is_none());
@@ -712,10 +719,6 @@ impl WitPackageDecoder<'_> {
         referenced: types::TypeId,
         created: types::TypeId,
     ) -> Result<TypeId> {
-        let ty = match self.info.types.type_from_id(referenced) {
-            Some(types::Type::Defined(ty)) => ty,
-            _ => unreachable!(),
-        };
         let kind = match self.find_alias(referenced) {
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
@@ -724,9 +727,13 @@ impl WitPackageDecoder<'_> {
 
             // ... or this `TypeId`'s source definition has never
             // been seen before, so declare the full type.
-            None => self
-                .convert_defined(ty)
-                .context("failed to convert unaliased type")?,
+            None => match self.info.types.type_from_id(referenced) {
+                Some(types::Type::Defined(ty)) => self
+                    .convert_defined(ty)
+                    .context("failed to convert unaliased type")?,
+                Some(types::Type::Resource(_)) => TypeDefKind::Resource,
+                _ => unreachable!(),
+            },
         };
         let ty = self.resolve.types.alloc(TypeDef {
             name: Some(name.to_string()),
@@ -734,6 +741,18 @@ impl WitPackageDecoder<'_> {
             docs: Default::default(),
             owner,
         });
+
+        // If this is a resource then doubly-register it in `self.resources` so
+        // the ID allocated here can be looked up via name later on during
+        // `convert_function`.
+        if let TypeDefKind::Resource = self.resolve.types[ty].kind {
+            let prev = self
+                .resources
+                .entry(owner)
+                .or_insert(HashMap::new())
+                .insert(name.to_string(), ty);
+            assert!(prev.is_none());
+        }
 
         let prev = self.type_map.insert(created, ty);
         assert!(prev.is_none());
@@ -759,6 +778,7 @@ impl WitPackageDecoder<'_> {
             package: None,
         };
 
+        let owner = TypeOwner::World(self.resolve.worlds.next_id());
         for (name, ty) in ty.imports.iter() {
             let (name, item) = match ty {
                 types::ComponentEntityType::Instance(idx) => {
@@ -785,12 +805,8 @@ impl WitPackageDecoder<'_> {
                     created,
                     referenced,
                 } => {
-                    let ty = self.register_type_export(
-                        name.as_str(),
-                        TypeOwner::World(self.resolve.worlds.next_id()),
-                        *referenced,
-                        *created,
-                    )?;
+                    let ty =
+                        self.register_type_export(name.as_str(), owner, *referenced, *created)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Type(ty))
                 }
                 types::ComponentEntityType::Func(idx) => {
@@ -798,7 +814,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(name.as_str(), ty)?;
+                    let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
                 _ => bail!("component import `{name}` is not an instance, func, or type"),
@@ -833,7 +849,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentFunc(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let func = self.convert_function(name.as_str(), ty)?;
+                    let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
 
@@ -847,7 +863,13 @@ impl WitPackageDecoder<'_> {
         Ok(id)
     }
 
-    fn convert_function(&mut self, name: &str, ty: &types::ComponentFuncType) -> Result<Function> {
+    fn convert_function(
+        &mut self,
+        name: &str,
+        ty: &types::ComponentFuncType,
+        owner: TypeOwner,
+    ) -> Result<Function> {
+        let name = KebabName::new(ComponentExternName::Kebab(name), 0).unwrap();
         let params = ty
             .params
             .iter()
@@ -875,7 +897,26 @@ impl WitPackageDecoder<'_> {
         };
         Ok(Function {
             docs: Default::default(),
-            kind: FunctionKind::Freestanding,
+            kind: match name.kind() {
+                KebabNameKind::Normal(_) => FunctionKind::Freestanding,
+                KebabNameKind::Constructor(resource) => {
+                    FunctionKind::Constructor(self.resources[&owner][resource.as_str()])
+                }
+                KebabNameKind::Method { resource, .. } => {
+                    FunctionKind::Method(self.resources[&owner][resource.as_str()])
+                }
+                KebabNameKind::Static { resource, .. } => {
+                    FunctionKind::Static(self.resources[&owner][resource.as_str()])
+                }
+
+                // Functions shouldn't have ID-based names at this time.
+                KebabNameKind::Id { .. } => unreachable!(),
+            },
+
+            // Note that this name includes "name mangling" such as
+            // `[method]foo.bar` which is intentional. The `FunctionKind`
+            // discriminant calculated above indicates how to interpret this
+            // name.
             name: name.to_string(),
             params,
             results,
@@ -1049,8 +1090,15 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Enum(Enum { cases }))
             }
 
-            types::ComponentDefinedType::Own(_) => unimplemented!(),
-            types::ComponentDefinedType::Borrow(_) => unimplemented!(),
+            types::ComponentDefinedType::Own(id) => {
+                let id = self.type_map[id];
+                Ok(TypeDefKind::Handle(Handle::Own(id)))
+            }
+
+            types::ComponentDefinedType::Borrow(id) => {
+                let id = self.type_map[id];
+                Ok(TypeDefKind::Handle(Handle::Borrow(id)))
+            }
         }
     }
 

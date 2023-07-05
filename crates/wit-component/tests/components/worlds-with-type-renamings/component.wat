@@ -41,9 +41,10 @@
   )
   (alias core export 1 "memory" (core memory (;0;)))
   (alias core export 1 "cabi_realloc" (core func (;1;)))
-  (type (;3;) (func (result 1)))
+  (type (;3;) (record))
+  (type (;4;) (func (result 3)))
   (alias core export 1 "foo:foo/i#the-func" (core func (;2;)))
-  (func (;1;) (type 3) (canon lift (core func 2)))
+  (func (;1;) (type 4) (canon lift (core func 2)))
   (component (;0;)
     (type (;0;) (record))
     (import "import-type-some-type" (type (;1;) (eq 0)))
@@ -56,7 +57,7 @@
   )
   (instance (;1;) (instantiate 0
       (with "import-func-the-func" (func 1))
-      (with "import-type-some-type" (type 1))
+      (with "import-type-some-type" (type 3))
     )
   )
   (@producers

@@ -15,7 +15,7 @@ pub struct Generator {
     next_interface_id: u32,
 }
 
-type TypeList = Vec<(String, usize)>;
+type TypeList = Vec<Type>;
 type InterfaceList = IndexMap<String, FileInterface>;
 type PackageList = Vec<(PackageName, InterfaceList)>;
 
@@ -25,6 +25,13 @@ struct InterfaceGenerator<'a> {
     config: &'a Config,
     unique_names: HashSet<String>,
     types_in_interface: TypeList,
+}
+
+#[derive(Clone)]
+struct Type {
+    name: String,
+    size: usize,
+    is_resource: bool,
 }
 
 pub struct Package {
@@ -337,9 +344,15 @@ impl<'a> InterfaceGenerator<'a> {
                 }
                 Generate::Type => {
                     let name = self.gen_unique_name(u)?;
-                    let (size, typedef) = self.gen_typedef(u, &name)?;
+                    let (ty, mut typedef) = self.gen_typedef(u, &name)?;
+                    let is_resource = ty.is_resource;
+                    self.types_in_interface.push(ty);
+                    if is_resource && u.arbitrary()? {
+                        typedef.push_str(" {\n");
+                        self.gen_resource_funcs(u, &mut typedef)?;
+                        typedef.push_str("}");
+                    }
                     parts.push(typedef);
-                    self.types_in_interface.push((name, size));
                 }
                 Generate::Function => {
                     parts.push(self.gen_func(u)?);
@@ -413,7 +426,7 @@ impl<'a> InterfaceGenerator<'a> {
 
             match kind {
                 ItemKind::Func(_) => {
-                    self.gen_func_sig(u, &mut part)?;
+                    self.gen_func_sig(u, &mut part, false)?;
                 }
                 ItemKind::Interface(dir) => {
                     let id = match self.gen.gen_path(u, self.file, &mut part)? {
@@ -445,10 +458,17 @@ impl<'a> InterfaceGenerator<'a> {
 
                 ItemKind::Type => {
                     let name = name.unwrap();
-                    let (size, typedef) = self.gen_typedef(u, &name)?;
+                    let (ty, typedef) = self.gen_typedef(u, &name)?;
                     assert!(part.is_empty());
                     part = typedef;
-                    self.types_in_interface.push((name, size));
+                    let is_resource = ty.is_resource;
+                    self.types_in_interface.push(ty);
+
+                    if is_resource && u.arbitrary()? {
+                        part.push_str(" {\n");
+                        self.gen_resource_funcs(u, &mut part)?;
+                        part.push_str("}");
+                    }
                 }
 
                 ItemKind::Use => {
@@ -472,6 +492,53 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(ret)
     }
 
+    fn gen_resource_funcs(&mut self, u: &mut Unstructured<'_>, ret: &mut String) -> Result<()> {
+        let mut parts = Vec::new();
+
+        #[derive(Arbitrary)]
+        enum Item {
+            Constructor,
+            Static,
+            Method,
+        }
+
+        let mut has_constructor = false;
+        let mut names = HashSet::new();
+        while parts.len() < self.config.max_resource_items && !u.is_empty() && u.arbitrary()? {
+            match u.arbitrary()? {
+                Item::Constructor if has_constructor => {}
+                Item::Constructor => {
+                    has_constructor = true;
+                    let mut part = format!("constructor");
+                    self.gen_params(u, &mut part, false)?;
+                    parts.push(part);
+                }
+                Item::Static => {
+                    let mut part = format!("static %");
+                    part.push_str(&gen_unique_name(u, &mut names)?);
+                    part.push_str(": ");
+                    self.gen_func_sig(u, &mut part, false)?;
+                    parts.push(part);
+                }
+                Item::Method => {
+                    let mut part = format!("%");
+                    part.push_str(&gen_unique_name(u, &mut names)?);
+                    part.push_str(": ");
+                    self.gen_func_sig(u, &mut part, true)?;
+                    parts.push(part);
+                }
+            }
+        }
+
+        shuffle(u, &mut parts)?;
+
+        for part in parts {
+            ret.push_str(&part);
+            ret.push_str("\n");
+        }
+        Ok(())
+    }
+
     fn gen_use(&mut self, u: &mut Unstructured<'_>, part: &mut String) -> Result<bool> {
         let mut path = String::new();
         let (_name, _id, types) = match self.gen.gen_path(u, self.file, &mut path)? {
@@ -481,25 +548,30 @@ impl<'a> InterfaceGenerator<'a> {
         part.push_str("use ");
         part.push_str(&path);
         part.push_str(".{");
-        let (name, size) = u.choose(types)?;
-        let size = *size;
+        let ty = u.choose(types)?;
         part.push_str("%");
-        part.push_str(name);
-        let name = if self.unique_names.contains(name) || u.arbitrary()? {
+        part.push_str(&ty.name);
+        let size = ty.size;
+        let is_resource = ty.is_resource;
+        let name = if self.unique_names.contains(&ty.name) || u.arbitrary()? {
             part.push_str(" as %");
             let name = self.gen_unique_name(u)?;
             part.push_str(&name);
             name
         } else {
-            assert!(self.unique_names.insert(name.clone()));
-            name.clone()
+            assert!(self.unique_names.insert(ty.name.clone()));
+            ty.name.clone()
         };
-        self.types_in_interface.push((name, size));
+        self.types_in_interface.push(Type {
+            name,
+            size,
+            is_resource,
+        });
         part.push_str("}");
         Ok(true)
     }
 
-    fn gen_typedef(&mut self, u: &mut Unstructured<'_>, name: &str) -> Result<(usize, String)> {
+    fn gen_typedef(&mut self, u: &mut Unstructured<'_>, name: &str) -> Result<(Type, String)> {
         #[derive(Arbitrary)]
         pub enum Kind {
             Record,
@@ -508,10 +580,12 @@ impl<'a> InterfaceGenerator<'a> {
             Enum,
             Union,
             Anonymous,
+            Resource,
         }
 
         let mut fuel = self.config.max_type_size;
         let mut ret = String::new();
+        let mut is_resource = false;
         match u.arbitrary()? {
             Kind::Record => {
                 ret.push_str("record %");
@@ -581,9 +655,19 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str(" = ");
                 self.gen_type(u, &mut fuel, &mut ret)?;
             }
+            Kind::Resource => {
+                is_resource = true;
+                ret.push_str("resource %");
+                ret.push_str(name);
+            }
         }
 
-        Ok((self.config.max_type_size - fuel, ret))
+        let ty = Type {
+            size: self.config.max_type_size - fuel,
+            is_resource,
+            name: name.to_string(),
+        };
+        Ok((ty, ret))
     }
 
     fn gen_type(
@@ -640,13 +724,22 @@ impl<'a> InterfaceGenerator<'a> {
                     if self.types_in_interface.is_empty() {
                         continue;
                     }
-                    let (name, type_size) = u.choose(&self.types_in_interface)?;
-                    *fuel = match fuel.checked_sub(*type_size) {
+                    let ty = u.choose(&self.types_in_interface)?;
+                    *fuel = match fuel.checked_sub(ty.size) {
                         Some(fuel) => fuel,
                         None => continue,
                     };
+                    let own_wrapper = if ty.is_resource && u.arbitrary()? {
+                        dst.push_str("own<");
+                        true
+                    } else {
+                        false
+                    };
                     dst.push_str("%");
-                    dst.push_str(name);
+                    dst.push_str(&ty.name);
+                    if own_wrapper {
+                        dst.push_str(">");
+                    }
                 }
                 Kind::Tuple => {
                     let fields = u.int_in_range(0..=self.config.max_type_parts)?;
@@ -720,16 +813,21 @@ impl<'a> InterfaceGenerator<'a> {
         let mut ret = "%".to_string();
         ret.push_str(&self.gen_unique_name(u)?);
         ret.push_str(": ");
-        self.gen_func_sig(u, &mut ret)?;
+        self.gen_func_sig(u, &mut ret, false)?;
         Ok(ret)
     }
 
-    fn gen_func_sig(&mut self, u: &mut Unstructured<'_>, dst: &mut String) -> Result<()> {
+    fn gen_func_sig(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        dst: &mut String,
+        method: bool,
+    ) -> Result<()> {
         dst.push_str("func");
-        self.gen_params(u, dst)?;
+        self.gen_params(u, dst, method)?;
         if u.arbitrary()? {
             dst.push_str(" -> ");
-            self.gen_params(u, dst)?;
+            self.gen_params(u, dst, false)?;
         } else if u.arbitrary()? {
             dst.push_str(" -> ");
             let mut fuel = self.config.max_type_size;
@@ -738,15 +836,24 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(())
     }
 
-    fn gen_params(&mut self, u: &mut Unstructured<'_>, dst: &mut String) -> Result<()> {
+    fn gen_params(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        dst: &mut String,
+        method: bool,
+    ) -> Result<()> {
         dst.push_str("(");
+        let mut names = HashSet::new();
+        if method {
+            names.insert("self".to_string());
+        }
         let mut fuel = self.config.max_type_size;
         for i in 0..u.int_in_range(0..=self.config.max_type_parts)? {
             if i > 0 {
                 dst.push_str(", ");
             }
             dst.push_str("%");
-            dst.push_str(&self.gen_unique_name(u)?);
+            dst.push_str(&gen_unique_name(u, &mut names)?);
             dst.push_str(": ");
             self.gen_type(u, &mut fuel, dst)?;
         }
