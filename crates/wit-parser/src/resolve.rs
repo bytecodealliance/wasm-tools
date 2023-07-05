@@ -1381,7 +1381,7 @@ impl Remap {
     ) -> Result<()> {
         let include_world_id = self.worlds[include_world.index()];
         let include_world = &resolve.worlds[include_world_id];
-        let mut names_ = names.clone().to_owned();
+        let mut names_ = names.to_owned();
 
         // remove all imports and exports that match the names we're including
         for import in include_world.imports.iter() {

@@ -18,7 +18,7 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 /// the baseline files.
 #[test]
 fn interface_encoding() -> Result<()> {
-    drop(env_logger::init());
+    env_logger::init();
 
     for entry in fs::read_dir("tests/interfaces")? {
         let path = entry?.path();
