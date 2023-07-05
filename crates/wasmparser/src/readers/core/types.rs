@@ -53,8 +53,8 @@ const _: () = {
     assert!(std::mem::size_of::<ValType>() == 4);
 };
 
-pub(crate) trait Matches {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+pub(crate) trait Derives {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>;
 }
@@ -98,13 +98,13 @@ impl ValType {
     }
 }
 
-impl Matches for ValType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for ValType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         match (self, other) {
-            (ValType::Ref(r1), ValType::Ref(r2)) => r1.matches(r2, type_at),
+            (ValType::Ref(r1), ValType::Ref(r2)) => r1.derives(r2, type_at),
             (s, o) => Ok(s == o),
         }
     }
@@ -531,14 +531,14 @@ impl RefType {
     }
 }
 
-impl Matches for RefType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for RefType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         Ok((*self == *other)
             || ((other.is_nullable() || !self.is_nullable())
-                && self.heap_type().matches(&other.heap_type(), type_at)?))
+                && self.heap_type().derives(&other.heap_type(), type_at)?))
     }
 }
 
@@ -627,14 +627,14 @@ pub enum HeapType {
     I31,
 }
 
-impl Matches for HeapType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for HeapType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         match (self, other) {
             (HeapType::Indexed(a), HeapType::Indexed(b)) => {
-                Ok(*a == *b || type_at(*a)?.matches(type_at(*b)?, type_at)?)
+                Ok(*a == *b || type_at(*a)?.derives(type_at(*b)?, type_at)?)
             }
             (HeapType::Indexed(a), HeapType::Func) => match (type_at(*a)?).structural_type {
                 StructuralType::Func(_) => Ok(true),
@@ -672,7 +672,20 @@ impl Matches for HeapType {
                 StructuralType::Func(_) => Ok(true),
                 _ => Ok(false),
             },
-            (a, b) => Ok(a == b),
+            (
+                a @ (HeapType::Func
+                | HeapType::Extern
+                | HeapType::Any
+                | HeapType::Indexed(_)
+                | HeapType::None
+                | HeapType::NoExtern
+                | HeapType::NoFunc
+                | HeapType::Eq
+                | HeapType::Struct
+                | HeapType::Array
+                | HeapType::I31),
+                b,
+            ) => Ok(*a == *b),
         }
     }
 }
@@ -755,15 +768,15 @@ pub struct SubType {
     pub structural_type: StructuralType,
 }
 
-impl Matches for SubType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for SubType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         Ok(!other.is_final
             && self
                 .structural_type
-                .matches(&other.structural_type, type_at)?)
+                .derives(&other.structural_type, type_at)?)
     }
 }
 
@@ -796,16 +809,18 @@ pub struct StructType {
     pub fields: Box<[FieldType]>,
 }
 
-impl Matches for StructuralType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for StructuralType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         match (self, other) {
-            (StructuralType::Func(a), StructuralType::Func(b)) => a.matches(b, type_at),
-            (StructuralType::Array(a), StructuralType::Array(b)) => a.matches(b, type_at),
-            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.matches(b, type_at),
-            _ => Ok(false),
+            (StructuralType::Func(a), StructuralType::Func(b)) => a.derives(b, type_at),
+            (StructuralType::Array(a), StructuralType::Array(b)) => a.derives(b, type_at),
+            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.derives(b, type_at),
+            (StructuralType::Func(_), _) => Ok(false),
+            (StructuralType::Array(_), _) => Ok(false),
+            (StructuralType::Struct(_), _) => Ok(false),
         }
     }
 }
@@ -881,61 +896,62 @@ impl FuncType {
     }
 }
 
-impl Matches for FuncType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for FuncType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         let r = self.params().len() == other.params().len()
             && self.results().len() == other.results().len()
-            // Note: matching functions are contravariant in their parameter types.
+            // Note: per GC spec, deriving function types are contravariant in their parameter types.
+            // Also see https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
             && self
                 .params()
                 .iter()
                 .zip(other.params())
-                .try_fold(true, |r, (a, b)| Ok(r && b.matches(a, type_at)?))?
+                .try_fold(true, |r, (a, b)| Ok(r && b.derives(a, type_at)?))?
             && self
                 .results()
                 .iter()
                 .zip(other.results())
-                .try_fold(true, |r, (a, b)| Ok(r && a.matches(b, type_at)?))?;
+                .try_fold(true, |r, (a, b)| Ok(r && a.derives(b, type_at)?))?;
         Ok(r)
     }
 }
 
-impl Matches for ArrayType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for ArrayType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
-        self.0.matches(&other.0, type_at)
+        self.0.derives(&other.0, type_at)
     }
 }
 
-impl Matches for FieldType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for FieldType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         Ok((other.mutable || !self.mutable)
-            && self.element_type.matches(&other.element_type, type_at)?)
+            && self.element_type.derives(&other.element_type, type_at)?)
     }
 }
 
-impl Matches for StorageType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for StorageType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
         match (self, other) {
-            (Self::Val(a), Self::Val(b)) => a.matches(b, type_at),
-            (a, b) => Ok(*a == *b),
+            (Self::Val(a), Self::Val(b)) => a.derives(b, type_at),
+            (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => Ok(*a == *b),
         }
     }
 }
 
-impl Matches for StructType {
-    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Derives for StructType {
+    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
     where
         F: Fn(u32) -> Result<&'a SubType>,
     {
@@ -945,7 +961,7 @@ impl Matches for StructType {
                 .fields
                 .iter()
                 .zip(other.fields.iter())
-                .try_fold(true, |r, (a, b)| Ok(r && a.matches(b, type_at)?))?;
+                .try_fold(true, |r, (a, b)| Ok(r && a.derives(b, type_at)?))?;
         Ok(r)
     }
 }

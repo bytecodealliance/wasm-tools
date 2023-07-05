@@ -6,7 +6,7 @@ use super::{
     types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
 use crate::limits::*;
-use crate::readers::Matches;
+use crate::readers::Derives;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
@@ -528,7 +528,7 @@ impl Module {
             // Check the supertype exists, is not final, and the subtype matches it.
             match self.type_at(types, type_index, offset)? {
                 Type::Sub(st) => {
-                    if !&ty.matches(st, &|idx| self.subtype_at(types, idx, offset))? {
+                    if !&ty.derives(st, &|idx| self.subtype_at(types, idx, offset))? {
                         return Err(BinaryReaderError::new(
                             "subtype must match supertype",
                             offset,
@@ -920,7 +920,7 @@ impl Module {
     /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
     /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.matches(&ty2, &|idx| self.subtype_at(types, idx, 0))
+        ty1.derives(&ty2, &|idx| self.subtype_at(types, idx, 0))
             .unwrap_or(false)
     }
 
