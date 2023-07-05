@@ -121,3 +121,11 @@
   )
   "subtype must match supertype"
 )
+(assert_invalid
+  (module
+    (type $d (struct))
+    (type $e (sub $d (struct (field (ref null $d)))))
+    (type (sub $e (struct (field (ref 1000)))))
+  )
+  "type index out of bounds"
+)

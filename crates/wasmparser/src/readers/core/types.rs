@@ -537,8 +537,8 @@ impl Matches for RefType {
         F: Fn(u32) -> Result<&'a SubType>,
     {
         Ok((*self == *other)
-            || (other.is_nullable() || !self.is_nullable())
-                && self.heap_type().matches(&other.heap_type(), type_at)?)
+            || ((other.is_nullable() || !self.is_nullable())
+                && self.heap_type().matches(&other.heap_type(), type_at)?))
     }
 }
 
