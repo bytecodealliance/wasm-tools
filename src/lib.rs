@@ -41,18 +41,44 @@ impl GeneralOpts {
 // and then the methods are used to read the arguments,
 #[derive(clap::Parser)]
 pub struct InputOutput {
-    /// Input file to process.
-    ///
-    /// If not provided or if this is `-` then stdin is read entirely and
-    /// processed. Note that for most subcommands this input can either be a
-    /// binary `*.wasm` file or a textual format `*.wat` file.
-    input: Option<PathBuf>,
+    #[clap(flatten)]
+    input: InputArg,
 
     #[clap(flatten)]
     output: OutputArg,
 
     #[clap(flatten)]
     general: GeneralOpts,
+}
+
+#[derive(clap::Parser)]
+pub struct InputArg {
+    /// Input file to process.
+    ///
+    /// If not provided or if this is `-` then stdin is read entirely and
+    /// processed. Note that for most subcommands this input can either be a
+    /// binary `*.wasm` file or a textual format `*.wat` file.
+    input: Option<PathBuf>,
+}
+
+impl InputArg {
+    pub fn parse_wasm(&self) -> Result<Vec<u8>> {
+        if let Some(path) = &self.input {
+            if path != Path::new("-") {
+                let bytes = wat::parse_file(path)?;
+                return Ok(bytes);
+            }
+        }
+        let mut stdin = Vec::new();
+        std::io::stdin()
+            .read_to_end(&mut stdin)
+            .context("failed to read <stdin>")?;
+        let bytes = wat::parse_bytes(&stdin).map_err(|mut e| {
+            e.set_path("<stdin>");
+            e
+        })?;
+        Ok(bytes.into_owned())
+    }
 }
 
 #[derive(clap::Parser)]
@@ -71,21 +97,7 @@ pub enum Output<'a> {
 
 impl InputOutput {
     pub fn parse_input_wasm(&self) -> Result<Vec<u8>> {
-        if let Some(path) = &self.input {
-            if path != Path::new("-") {
-                let bytes = wat::parse_file(path)?;
-                return Ok(bytes);
-            }
-        }
-        let mut stdin = Vec::new();
-        std::io::stdin()
-            .read_to_end(&mut stdin)
-            .context("failed to read <stdin>")?;
-        let bytes = wat::parse_bytes(&stdin).map_err(|mut e| {
-            e.set_path("<stdin>");
-            e
-        })?;
-        Ok(bytes.into_owned())
+        self.input.parse_wasm()
     }
 
     pub fn output(&self, bytes: Output<'_>) -> Result<()> {
@@ -101,7 +113,7 @@ impl InputOutput {
     }
 
     pub fn input_path(&self) -> Option<&Path> {
-        self.input.as_deref()
+        self.input.input.as_deref()
     }
 
     pub fn general_opts(&self) -> &GeneralOpts {
