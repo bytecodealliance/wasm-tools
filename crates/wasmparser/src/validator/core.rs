@@ -518,6 +518,12 @@ impl Module {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<Type> {
+        if !features.gc && (ty.is_final || ty.supertype_idx.is_some()) {
+            return Err(BinaryReaderError::new(
+                "gc proposal must be enabled to use subtypes",
+                offset,
+            ));
+        }
         if let Some(type_index) = ty.supertype_idx {
             // Check the supertype exists, is not final, and the subtype matches it.
             match self.type_at(types, type_index, offset)? {
