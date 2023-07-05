@@ -28,20 +28,15 @@ pub use dummy::dummy_module;
 mod dummy;
 
 /// Supported string encoding formats.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum StringEncoding {
     /// Strings are encoded with UTF-8.
+    #[default]
     UTF8,
     /// Strings are encoded with UTF-16.
     UTF16,
     /// Strings are encoded with compact UTF-16 (i.e. Latin1+UTF-16).
     CompactUTF16,
-}
-
-impl Default for StringEncoding {
-    fn default() -> Self {
-        StringEncoding::UTF8
-    }
 }
 
 impl Display for StringEncoding {

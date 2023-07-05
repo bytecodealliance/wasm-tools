@@ -58,7 +58,7 @@ impl<'a> ComponentInfo<'a> {
                 Payload::ComponentExportSection(s) if depth == 1 => {
                     for export in s {
                         let export = export?;
-                        externs.push((export.name.into(), Extern::Export(export)));
+                        externs.push((export.name, Extern::Export(export)));
                     }
                 }
                 _ => {}
@@ -80,10 +80,10 @@ impl<'a> ComponentInfo<'a> {
                     _ => return false,
                 };
                 match export.kind {
-                    ComponentExternalKind::Type => match self.types.type_at(export.index, false) {
-                        Some(types::Type::Component(_)) => true,
-                        _ => false,
-                    },
+                    ComponentExternalKind::Type => matches!(
+                        self.types.type_at(export.index, false),
+                        Some(types::Type::Component(_))
+                    ),
                     _ => false,
                 }
             })
@@ -417,7 +417,7 @@ impl WitPackageDecoder<'_> {
     /// package.
     ///
     /// This function will internally ensure that `name` is well-structured and
-    /// will fill in any information as necesary. For example with a foreign
+    /// will fill in any information as necessary. For example with a foreign
     /// dependency the foreign package structure, types, etc, all need to be
     /// created. For a local dependency it's instead ensured that all the types
     /// line up with the previous definitions.
@@ -786,7 +786,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentInstance(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let (name, id) = if name.contains("/") {
+                    let (name, id) = if name.contains('/') {
                         // If a name is an interface import then it is either to
                         // a package-local or foreign interface, and both
                         // situations are handled in `register_import`.
@@ -829,7 +829,7 @@ impl WitPackageDecoder<'_> {
                         Some(types::Type::ComponentInstance(ty)) => ty,
                         _ => unreachable!(),
                     };
-                    let (name, id) = if name.contains("/") {
+                    let (name, id) = if name.contains('/') {
                         // Note that despite this being an export this is
                         // calling `register_import`. With a URL this interface
                         // must have been previously defined so this will
@@ -858,7 +858,7 @@ impl WitPackageDecoder<'_> {
             world.exports.insert(name, item);
         }
         let id = self.resolve.worlds.alloc(world);
-        let prev = package.worlds.insert(name.to_string(), id);
+        let prev = package.worlds.insert(name, id);
         assert!(prev.is_none());
         Ok(id)
     }

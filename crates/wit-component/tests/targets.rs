@@ -15,7 +15,7 @@ use wit_parser::{Resolve, UnresolvedPackage, WorldId};
 /// world to use when checking conformance.
 ///
 /// And the output file is:
-/// * `error.txt` - the expected error message if the syntentic
+/// * `error.txt` - the expected error message if the synthetic
 /// component constructed for testing is a invalid component encoding.
 /// NOTE: an invalid encoding here indicates that the targets check has failed.
 ///
@@ -39,7 +39,7 @@ fn targets() -> Result<()> {
         let (resolve, world) = load_test_wit(&path)?;
 
         let component = wat::parse_file(path.join("test.wat"))
-            .with_context(|| format!("failed to parse component WAT"))?;
+            .with_context(|| "failed to parse component WAT".to_string())?;
 
         match wit_component::targets(&resolve, world, &component) {
             Ok(_) => {
@@ -61,10 +61,10 @@ fn targets() -> Result<()> {
 fn assert_output(expected: &Path, actual: &str) -> Result<()> {
     if std::env::var_os("BLESS").is_some() {
         fs::create_dir_all(expected.parent().unwrap())?;
-        fs::write(&expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
+        fs::write(expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {
         assert_eq!(
-            fs::read_to_string(&expected)
+            fs::read_to_string(expected)
                 .with_context(|| format!("failed to read {expected:?}"))?
                 .replace("\r\n", "\n"),
             actual,
@@ -87,7 +87,7 @@ fn load_test_wit(path: &Path) -> Result<(Resolve, WorldId)> {
 
     let world_id = resolve
         .select_world(package_id, Some(TEST_TARGET_WORLD_ID))
-        .with_context(|| format!("failed to select world from package"))?;
+        .with_context(|| "failed to select world from package".to_string())?;
 
     Ok((resolve, world_id))
 }

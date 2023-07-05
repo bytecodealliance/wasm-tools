@@ -546,7 +546,7 @@ impl<'a> EncodingState<'a> {
         for core_wasm_name in info.required_imports.keys() {
             let index = self.import_instance_to_lowered_core_instance(
                 CustomModule::Main,
-                *core_wasm_name,
+                core_wasm_name,
                 &shims,
                 info.metadata,
             );
@@ -1042,8 +1042,7 @@ impl<'a> EncodingState<'a> {
 
         impl NestedComponentTypeEncoder<'_, '_> {
             fn unique_import_name(&mut self, name: &str) -> String {
-                let base = format!("import-type-{name}");
-                let mut name = base.clone();
+                let mut name = format!("import-type-{name}");
                 let mut n = 0;
                 while self.imports.contains_key(&name) {
                     name = format!("{name}{n}");
@@ -1071,7 +1070,7 @@ impl<'a> EncodingState<'a> {
                 | FunctionKind::Constructor(_) => {
                     format!(
                         "import-{}",
-                        f.name.replace("[", "").replace("]", "-").replace(".", "-")
+                        f.name.replace('[', "").replace([']', '.'], "-")
                     )
                 }
             }
