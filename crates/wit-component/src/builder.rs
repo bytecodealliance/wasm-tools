@@ -143,6 +143,7 @@ impl ComponentBuilder {
             ComponentTypeRef::Instance(_) => inc(&mut self.instances),
             ComponentTypeRef::Func(_) => inc(&mut self.funcs),
             ComponentTypeRef::Type(..) => inc(&mut self.types),
+            ComponentTypeRef::Component(_) => inc(&mut self.components),
             _ => unimplemented!(),
         };
         self.imports().import(name, ty);
@@ -188,6 +189,16 @@ impl ComponentBuilder {
         self.flush();
         self.component
             .section(&NestedComponentSection(&builder.component));
+        inc(&mut self.components)
+    }
+
+    pub fn raw_component(&mut self, data: &[u8]) -> u32 {
+        let raw_section = RawSection {
+            id: ComponentSectionId::Component.into(),
+            data,
+        };
+        self.flush();
+        self.component.section(&raw_section);
         inc(&mut self.components)
     }
 
