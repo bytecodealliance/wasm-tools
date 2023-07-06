@@ -188,6 +188,10 @@ pub struct EmbedOpts {
     /// like to work with an interface in the component model.
     #[clap(long)]
     dummy: bool,
+
+    /// Print the output in the WebAssembly text format instead of binary.
+    #[clap(long, short = 't')]
+    wat: bool,
 }
 
 impl EmbedOpts {
@@ -222,7 +226,7 @@ impl EmbedOpts {
 
         self.io.output(Output::Wasm {
             bytes: &wasm,
-            wat: false,
+            wat: self.wat,
         })?;
 
         Ok(())
