@@ -167,14 +167,15 @@ impl Index<'_> {
 
 impl<'a> Parse<'a> for Index<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut l = parser.lookahead1();
-        if l.peek::<Id>() {
+        if parser.peek::<Id>() {
             Ok(Index::Id(parser.parse()?))
-        } else if l.peek::<u32>() {
+        } else if parser.peek::<u32>() {
             let (val, span) = parser.parse()?;
             Ok(Index::Num(val, span))
         } else {
-            Err(l.error())
+            Err(parser.error(format!(
+                "unexpected token, expected an index or an identifier"
+            )))
         }
     }
 }
