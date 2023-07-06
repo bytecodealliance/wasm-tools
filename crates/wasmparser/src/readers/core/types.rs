@@ -539,7 +539,7 @@ impl Inherits for RefType {
     where
         F: Fn(u32) -> &'a SubType,
     {
-        *self == *other
+        self == other
             || ((other.is_nullable() || !self.is_nullable())
                 && self.heap_type().inherits(&other.heap_type(), type_at))
     }
@@ -637,7 +637,7 @@ impl Inherits for HeapType {
     {
         match (self, other) {
             (HeapType::Indexed(a), HeapType::Indexed(b)) => {
-                *a == *b || type_at(*a).inherits(type_at(*b), type_at)
+                a == b || type_at(*a).inherits(type_at(*b), type_at)
             }
             (HeapType::Indexed(a), HeapType::Func) => match type_at(*a).structural_type {
                 StructuralType::Func(_) => true,
@@ -688,7 +688,7 @@ impl Inherits for HeapType {
                 | HeapType::Array
                 | HeapType::I31),
                 b,
-            ) => *a == *b,
+            ) => a == b,
         }
     }
 }
@@ -946,7 +946,7 @@ impl Inherits for StorageType {
     {
         match (self, other) {
             (Self::Val(a), Self::Val(b)) => a.inherits(b, type_at),
-            (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => *a == *b,
+            (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => a == b,
         }
     }
 }
