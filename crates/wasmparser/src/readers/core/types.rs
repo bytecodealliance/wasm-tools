@@ -1068,7 +1068,7 @@ impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let pos = reader.original_position();
         Ok(match reader.read_u8()? {
-            0x50 => {
+            opcode @ (0x4e | 0x50) => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
                 let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
                 if idxs.len() > 1 {
@@ -1078,22 +1078,7 @@ impl<'a> FromReader<'a> for SubType {
                     ));
                 }
                 SubType {
-                    is_final: false,
-                    supertype_idx: idxs.first().copied(),
-                    structural_type: read_structural_type(reader.read_u8()?, reader)?,
-                }
-            }
-            0x4e => {
-                let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
-                let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
-                if idxs.len() > 1 {
-                    return Err(BinaryReaderError::new(
-                        "multiple supertypes not supported",
-                        pos,
-                    ));
-                }
-                SubType {
-                    is_final: true,
+                    is_final: opcode == 0x4e,
                     supertype_idx: idxs.first().copied(),
                     structural_type: read_structural_type(reader.read_u8()?, reader)?,
                 }
