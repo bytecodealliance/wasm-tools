@@ -740,7 +740,8 @@ fn validate_exported_item<'a>(
                 };
                 let dtor = format!("{export_name}#[dtor]{name}");
                 if let Some((_, name, func_idx)) = exports.get_full(dtor.as_str()) {
-                    let ty = types.function_at(*func_idx).unwrap();
+                    let id = types.function_at(*func_idx).unwrap();
+                    let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
                     let expected = FuncType::new([ValType::I32], []);
                     validate_func_sig(name, &expected, &ty)?;
                     info.dtor_export = Some(name);
