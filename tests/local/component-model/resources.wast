@@ -1112,3 +1112,28 @@
     ))
   )
   "resource types are not the same")
+
+(component
+  (type (export "x") (component
+    (type $t' (instance
+      (export "r" (type (sub resource)))
+    ))
+    (export $t "t" (instance (type $t')))
+    (alias export $t "r" (type $r))
+    (type $t2' (instance
+      (export "r2" (type (eq $r)))
+      (export "r" (type (sub resource)))
+    ))
+    (export "t2" (instance (type $t2')))
+  ))
+)
+
+(component
+  (type (component
+    (type (instance
+      (export "bar" (type (sub resource)))
+      (export "[static]bar.a" (func))
+    ))
+    (export "x" (instance (type 0)))
+  ))
+)

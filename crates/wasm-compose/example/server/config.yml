@@ -4,4 +4,4 @@ search-paths:
 instantiations:
   $input:
     arguments:
-      downstream: svc
+      example:service/handler: svc

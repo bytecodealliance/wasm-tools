@@ -1,17 +1,18 @@
 use super::{ComponentEncoder, RequiredOptions};
 use crate::validation::{
-    validate_adapter_module, validate_module, ValidatedAdapter, ValidatedModule,
-    BARE_FUNC_MODULE_NAME,
+    validate_adapter_module, validate_module, RequiredImports, ValidatedAdapter, ValidatedModule,
+    BARE_FUNC_MODULE_NAME, RESOURCE_DROP_BORROW, RESOURCE_DROP_OWN,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use wasmparser::FuncType;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, LiveTypes, Resolve, TypeId, TypeOwner, WorldId, WorldItem, WorldKey,
+    Function, InterfaceId, LiveTypes, Resolve, Type, TypeDefKind, TypeId, TypeOwner, WorldId,
+    WorldItem, WorldKey,
 };
 
 /// Metadata discovered from the state configured in a `ComponentEncoder`.
@@ -29,32 +30,33 @@ pub struct ComponentWorld<'a> {
     /// adapters. Additionally stores the gc'd wasm for each adapter.
     pub adapters: IndexMap<&'a str, (ValidatedAdapter<'a>, Vec<u8>)>,
     /// Map of all imports and descriptions of what they're importing.
-    pub import_map: IndexMap<Option<String>, ImportedInterface<'a>>,
+    pub import_map: IndexMap<Option<String>, ImportedInterface>,
     /// Set of all live types which must be exported either because they're
     /// directly used or because they're transitively used.
     pub live_types: IndexMap<InterfaceId, IndexSet<TypeId>>,
+    /// For each exported interface in the desired world this map lists
+    /// the set of interfaces that it depends on which are also exported.
+    ///
+    /// This set is used to determine when types are imported/used whether they
+    /// come from imports or exports.
+    pub exports_used: HashMap<InterfaceId, HashSet<InterfaceId>>,
 }
 
 #[derive(Debug)]
-pub struct ImportedInterface<'a> {
-    pub direct: Vec<DirectLowering<'a>>,
-    pub indirect: Vec<IndirectLowering<'a>>,
-    /// Required functions on the interface, or the filter on the functions list
-    /// in `interface`.
-    pub required: HashSet<&'a str>,
+pub struct ImportedInterface {
+    pub lowerings: IndexMap<String, Lowering>,
     pub interface: Option<InterfaceId>,
 }
 
 #[derive(Debug)]
-pub struct DirectLowering<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Debug)]
-pub struct IndirectLowering<'a> {
-    pub name: &'a str,
-    pub sig: WasmSignature,
-    pub options: RequiredOptions,
+pub enum Lowering {
+    Direct,
+    Indirect {
+        sig: WasmSignature,
+        options: RequiredOptions,
+    },
+    ResourceDropOwn(TypeId),
+    ResourceDropBorrow(TypeId),
 }
 
 impl<'a> ComponentWorld<'a> {
@@ -77,11 +79,13 @@ impl<'a> ComponentWorld<'a> {
             adapters: IndexMap::new(),
             import_map: IndexMap::new(),
             live_types: Default::default(),
+            exports_used: HashMap::new(),
         };
 
         ret.process_adapters()?;
         ret.process_imports()?;
         ret.process_live_types();
+        ret.process_exports_used();
 
         Ok(ret)
     }
@@ -175,14 +179,14 @@ impl<'a> ComponentWorld<'a> {
                 all_required_imports
                     .entry(k.as_str())
                     .or_insert_with(IndexSet::new)
-                    .extend(v);
+                    .extend(v.funcs.iter().map(|v| v.as_str()));
             }
         }
         for (k, v) in self.info.required_imports.iter() {
             all_required_imports
                 .entry(*k)
                 .or_insert_with(IndexSet::new)
-                .extend(v);
+                .extend(v.funcs.iter().map(|v| v.as_str()));
         }
         for (name, item) in resolve.worlds[world].imports.iter() {
             add_item(
@@ -195,77 +199,50 @@ impl<'a> ComponentWorld<'a> {
         }
         return Ok(());
 
-        fn add_item<'a>(
-            import_map: &mut IndexMap<Option<String>, ImportedInterface<'a>>,
-            resolve: &'a Resolve,
+        fn add_item(
+            import_map: &mut IndexMap<Option<String>, ImportedInterface>,
+            resolve: &Resolve,
             name: &WorldKey,
-            item: &'a WorldItem,
+            item: &WorldItem,
             required: &IndexMap<&str, IndexSet<&str>>,
         ) -> Result<()> {
             let name = resolve.name_world_key(name);
             log::trace!("register import `{name}`");
             let empty = IndexSet::new();
+            let import_map_key = match item {
+                WorldItem::Function(_) | WorldItem::Type(_) => None,
+                WorldItem::Interface(_) => Some(name),
+            };
+            let interface_id = match item {
+                WorldItem::Function(_) | WorldItem::Type(_) => None,
+                WorldItem::Interface(id) => Some(*id),
+            };
+            let required = required
+                .get(import_map_key.as_deref().unwrap_or(BARE_FUNC_MODULE_NAME))
+                .unwrap_or(&empty);
+            let interface = import_map
+                .entry(import_map_key)
+                .or_insert_with(|| ImportedInterface {
+                    interface: interface_id,
+                    lowerings: Default::default(),
+                });
+            assert_eq!(interface.interface, interface_id);
             match item {
                 WorldItem::Function(func) => {
-                    let required = required.get(BARE_FUNC_MODULE_NAME).unwrap_or(&empty);
-                    // If this function isn't actually required then skip it
-                    if !required.contains(name.as_str()) {
-                        return Ok(());
-                    }
-                    let interface = import_map.entry(None).or_insert_with(|| ImportedInterface {
-                        interface: None,
-                        direct: Default::default(),
-                        indirect: Default::default(),
-                        required: Default::default(),
-                    });
-                    assert!(interface.interface.is_none());
-                    add_import(interface, resolve, func)
+                    interface.add_func(required, resolve, func);
+                }
+                WorldItem::Type(ty) => {
+                    interface.add_type(required, resolve, *ty);
                 }
                 WorldItem::Interface(id) => {
-                    let required = required.get(name.as_str()).unwrap_or(&empty);
-                    let interface =
-                        import_map
-                            .entry(Some(name))
-                            .or_insert_with(|| ImportedInterface {
-                                interface: Some(*id),
-                                direct: Default::default(),
-                                indirect: Default::default(),
-                                required: Default::default(),
-                            });
-                    assert_eq!(interface.interface.unwrap(), *id);
-                    for (_name, func) in resolve.interfaces[*id].functions.iter() {
-                        // If this function isn't actually required then skip it
-                        if required.contains(func.name.as_str()) {
-                            add_import(interface, resolve, func)?;
-                        }
+                    for (_name, ty) in resolve.interfaces[*id].types.iter() {
+                        interface.add_type(required, resolve, *ty);
                     }
-                    Ok(())
+                    for (_name, func) in resolve.interfaces[*id].functions.iter() {
+                        interface.add_func(required, resolve, func);
+                    }
                 }
-                WorldItem::Type(_) => Ok(()),
             }
-        }
-
-        fn add_import<'a>(
-            interface: &mut ImportedInterface<'a>,
-            resolve: &'a Resolve,
-            func: &'a Function,
-        ) -> Result<()> {
-            if !interface.required.insert(func.name.as_str()) {
-                return Ok(());
-            }
-            log::trace!("add func {}", func.name);
-            let options = RequiredOptions::for_import(resolve, func);
-            if options.is_empty() {
-                interface.direct.push(DirectLowering { name: &func.name });
-            } else {
-                let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
-                interface.indirect.push(IndirectLowering {
-                    name: &func.name,
-                    sig,
-                    options,
-                });
-            }
-
             Ok(())
         }
     }
@@ -302,7 +279,7 @@ impl<'a> ComponentWorld<'a> {
     fn add_live_imports<S>(
         &self,
         world: WorldId,
-        required: &IndexMap<S, IndexSet<&str>>,
+        required: &IndexMap<S, RequiredImports>,
         live: &mut LiveTypes,
     ) where
         S: Borrow<str> + Hash + Eq,
@@ -316,7 +293,7 @@ impl<'a> ComponentWorld<'a> {
                         Some(set) => set,
                         None => continue,
                     };
-                    if !required.contains(name.as_str()) {
+                    if !required.funcs.contains(name.as_str()) {
                         continue;
                     }
                     log::trace!("add live function import `{name}`");
@@ -329,14 +306,109 @@ impl<'a> ComponentWorld<'a> {
                     };
                     log::trace!("add live interface import `{name}`");
                     for (name, func) in resolve.interfaces[*id].functions.iter() {
-                        if required.contains(name.as_str()) {
+                        if required.funcs.contains(name.as_str()) {
                             log::trace!("add live func `{name}`");
                             live.add_func(resolve, func);
+                        }
+                    }
+                    for (name, ty) in resolve.interfaces[*id].types.iter() {
+                        if required.resources.contains(name.as_str()) {
+                            live.add_type_id(resolve, *ty);
                         }
                     }
                 }
                 WorldItem::Type(id) => live.add_type_id(resolve, *id),
             }
         }
+    }
+
+    fn process_exports_used(&mut self) {
+        let resolve = &self.encoder.metadata.resolve;
+        let world = self.encoder.metadata.world;
+
+        let exports = &resolve.worlds[world].exports;
+        for (_name, item) in exports.iter() {
+            let id = match item {
+                WorldItem::Function(_) => continue,
+                WorldItem::Interface(id) => *id,
+                WorldItem::Type(_) => unreachable!(),
+            };
+            let mut set = HashSet::new();
+
+            for (_name, ty) in resolve.interfaces[id].types.iter() {
+                // Find `other` which `ty` is defined within to determine which
+                // interfaces this interface depends on.
+                let dep = match resolve.types[*ty].kind {
+                    TypeDefKind::Type(Type::Id(id)) => id,
+                    _ => continue,
+                };
+                let other = match resolve.types[dep].owner {
+                    TypeOwner::Interface(id) => id,
+                    _ => continue,
+                };
+                if other == id {
+                    continue;
+                }
+
+                // If this dependency is not exported, then it'll show up
+                // through an import, so we're not interested in it.
+                if !exports.contains_key(&WorldKey::Interface(other)) {
+                    continue;
+                }
+
+                // Otherwise this is a new exported dependency of ours, and
+                // additionally this interface inherits all the transitive
+                // dependencies too.
+                if set.insert(other) {
+                    set.extend(self.exports_used[&other].iter().copied());
+                }
+            }
+            let prev = self.exports_used.insert(id, set);
+            assert!(prev.is_none());
+        }
+    }
+}
+
+impl ImportedInterface {
+    fn add_func(&mut self, required: &IndexSet<&str>, resolve: &Resolve, func: &Function) {
+        if !required.contains(func.name.as_str()) {
+            return;
+        }
+        log::trace!("add func {}", func.name);
+        let options = RequiredOptions::for_import(resolve, func);
+        let lowering = if options.is_empty() {
+            Lowering::Direct
+        } else {
+            let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+            Lowering::Indirect { sig, options }
+        };
+
+        let prev = self.lowerings.insert(func.name.clone(), lowering);
+        assert!(prev.is_none());
+    }
+
+    fn add_type(&mut self, required: &IndexSet<&str>, resolve: &Resolve, id: TypeId) {
+        let ty = &resolve.types[id];
+        match &ty.kind {
+            TypeDefKind::Resource => {}
+            _ => return,
+        }
+        let name = ty.name.as_deref().expect("resources must be named");
+
+        let mut maybe_add = |name: String, lowering: Lowering| {
+            if !required.contains(name.as_str()) {
+                return;
+            }
+            let prev = self.lowerings.insert(name, lowering);
+            assert!(prev.is_none());
+        };
+        maybe_add(
+            format!("{RESOURCE_DROP_OWN}{name}"),
+            Lowering::ResourceDropOwn(id),
+        );
+        maybe_add(
+            format!("{RESOURCE_DROP_BORROW}{name}"),
+            Lowering::ResourceDropBorrow(id),
+        );
     }
 }

@@ -1,11 +1,17 @@
 use anyhow::{anyhow, bail, Result};
+use std::collections::HashMap;
 use std::fmt::{self, Write};
+use std::mem;
 use wit_parser::*;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 #[derive(Default)]
 pub struct WitPrinter {
     output: Output,
+
+    // Count of how many items in this current block have been printed to print
+    // a blank line between each item, but not the first item.
+    any_items: bool,
 }
 
 impl WitPrinter {
@@ -39,9 +45,27 @@ impl WitPrinter {
         Ok(std::mem::take(&mut self.output).into())
     }
 
+    fn new_item(&mut self) {
+        if self.any_items {
+            self.output.push_str("\n");
+        }
+        self.any_items = true;
+    }
+
     /// Print the given WebAssembly interface to a string.
     fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
+        let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
+
+        let mut resource_funcs = HashMap::new();
+        let mut freestanding = Vec::new();
+        for (name, func) in interface.functions.iter() {
+            if let Some(id) = resource_func(func) {
+                resource_funcs.entry(id).or_insert(Vec::new()).push(func);
+            } else {
+                freestanding.push((name, func));
+            }
+        }
 
         self.print_types(
             resolve,
@@ -50,17 +74,18 @@ impl WitPrinter {
                 .types
                 .iter()
                 .map(|(name, id)| (name.as_str(), *id)),
+            &resource_funcs,
         )?;
 
-        for (i, (name, func)) in interface.functions.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str("\n");
-            }
+        for (name, func) in freestanding {
+            self.new_item();
             self.print_name(name);
             self.output.push_str(": ");
             self.print_function(resolve, func)?;
             self.output.push_str("\n");
         }
+
+        self.any_items = prev_items;
 
         Ok(())
     }
@@ -70,6 +95,7 @@ impl WitPrinter {
         resolve: &Resolve,
         owner: TypeOwner,
         types: impl Iterator<Item = (&'a str, TypeId)>,
+        resource_funcs: &HashMap<TypeId, Vec<&Function>>,
     ) -> Result<()> {
         // Partition types defined in this interface into either those imported
         // from foreign interfaces or those defined locally.
@@ -108,8 +134,8 @@ impl WitPrinter {
             TypeOwner::World(id) => resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         };
-        let amt_to_import = types_to_import.len();
         for (owner, tys) in types_to_import {
+            self.any_items = true;
             write!(&mut self.output, "use ")?;
             let id = match owner {
                 TypeOwner::Interface(id) => id,
@@ -134,20 +160,65 @@ impl WitPrinter {
             writeln!(&mut self.output, "}}")?;
         }
 
-        if amt_to_import > 0 && types_to_declare.len() > 0 {
-            self.output.push_str("\n");
-        }
-
         for id in types_to_declare {
-            self.declare_type(resolve, &Type::Id(id))?;
+            self.new_item();
+            match resolve.types[id].kind {
+                TypeDefKind::Resource => self.print_resource(
+                    resolve,
+                    id,
+                    resource_funcs.get(&id).unwrap_or(&Vec::new()),
+                )?,
+                _ => self.declare_type(resolve, &Type::Id(id))?,
+            }
         }
 
         Ok(())
     }
 
+    fn print_resource(&mut self, resolve: &Resolve, id: TypeId, funcs: &[&Function]) -> Result<()> {
+        let ty = &resolve.types[id];
+        self.output.push_str("resource ");
+        self.print_name(ty.name.as_ref().expect("resources must be named"));
+        if funcs.is_empty() {
+            self.output.push_str("\n");
+            return Ok(());
+        }
+        self.output.push_str(" {\n");
+        for func in funcs {
+            match &func.kind {
+                FunctionKind::Constructor(_) => {}
+                FunctionKind::Method(_) => {
+                    self.print_name(func.item_name());
+                    self.output.push_str(": ");
+                }
+                FunctionKind::Static(_) => {
+                    self.output.push_str("static ");
+                    self.print_name(func.item_name());
+                    self.output.push_str(": ");
+                }
+                FunctionKind::Freestanding => unreachable!(),
+            }
+            self.print_function(resolve, func)?;
+            self.output.push_str("\n");
+        }
+        self.output.push_str("}\n");
+
+        Ok(())
+    }
+
     fn print_function(&mut self, resolve: &Resolve, func: &Function) -> Result<()> {
-        self.output.push_str("func(");
-        for (i, (name, ty)) in func.params.iter().enumerate() {
+        // Constructors are named slightly differently.
+        match &func.kind {
+            FunctionKind::Constructor(_) => self.output.push_str("constructor("),
+            _ => self.output.push_str("func("),
+        }
+
+        // Methods don't print their `self` argument
+        let params_to_skip = match &func.kind {
+            FunctionKind::Method(_) => 1,
+            _ => 0,
+        };
+        for (i, (name, ty)) in func.params.iter().skip(params_to_skip).enumerate() {
             if i > 0 {
                 self.output.push_str(", ");
             }
@@ -156,6 +227,11 @@ impl WitPrinter {
             self.print_type_name(resolve, ty)?;
         }
         self.output.push_str(")");
+
+        // constructors don't have their results printed
+        if let FunctionKind::Constructor(_) = func.kind {
+            return Ok(());
+        }
 
         match &func.results {
             Results::Named(rs) => match rs.len() {
@@ -182,9 +258,11 @@ impl WitPrinter {
     }
 
     fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
+        let prev_items = mem::replace(&mut self.any_items, false);
         let world = &resolve.worlds[id];
         let pkgid = world.package.unwrap();
         let mut types = Vec::new();
+        let mut resource_funcs = HashMap::new();
         for (name, import) in world.imports.iter() {
             match import {
                 WorldItem::Type(t) => match name {
@@ -192,14 +270,33 @@ impl WitPrinter {
                     WorldKey::Interface(_) => unreachable!(),
                 },
                 _ => {
+                    if let WorldItem::Function(f) = import {
+                        if let Some(id) = resource_func(f) {
+                            resource_funcs.entry(id).or_insert(Vec::new()).push(f);
+                            continue;
+                        }
+                    }
                     self.print_world_item(resolve, name, import, pkgid, "import")?;
+                    // Don't put a blank line between imports, but count
+                    // imports as having printed something so if anything comes
+                    // after them then a blank line is printed after imports.
+                    self.any_items = true;
                 }
             }
         }
-        self.print_types(resolve, TypeOwner::World(id), types.into_iter())?;
+        self.print_types(
+            resolve,
+            TypeOwner::World(id),
+            types.into_iter(),
+            &resource_funcs,
+        )?;
+        if !world.exports.is_empty() {
+            self.new_item();
+        }
         for (name, export) in world.exports.iter() {
             self.print_world_item(resolve, name, export, pkgid, "export")?;
         }
+        self.any_items = prev_items;
         Ok(())
     }
 
@@ -292,9 +389,9 @@ impl WitPrinter {
 
                 match &ty.kind {
                     TypeDefKind::Handle(h) => {
-                        self.print_handle_type(resolve, h)?;
+                        self.print_handle_type(resolve, h, false)?;
                     }
-                    TypeDefKind::Resource(_) => {
+                    TypeDefKind::Resource => {
                         bail!("resolve has an unnamed resource type");
                     }
                     TypeDefKind::Tuple(t) => {
@@ -341,11 +438,36 @@ impl WitPrinter {
         Ok(())
     }
 
-    fn print_handle_type(&mut self, resolve: &Resolve, handle: &Handle) -> Result<()> {
+    fn print_handle_type(
+        &mut self,
+        resolve: &Resolve,
+        handle: &Handle,
+        force_handle_type_printed: bool,
+    ) -> Result<()> {
         match handle {
-            Handle::Shared(ty) => {
-                self.output.push_str("shared<");
-                self.print_type_name(resolve, ty)?;
+            Handle::Own(ty) => {
+                let ty = &resolve.types[*ty];
+                if force_handle_type_printed {
+                    self.output.push_str("own<");
+                }
+                self.print_name(
+                    ty.name
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                );
+                if force_handle_type_printed {
+                    self.output.push_str(">");
+                }
+            }
+
+            Handle::Borrow(ty) => {
+                self.output.push_str("borrow<");
+                let ty = &resolve.types[*ty];
+                self.print_name(
+                    ty.name
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                );
                 self.output.push_str(">");
             }
         }
@@ -433,9 +555,7 @@ impl WitPrinter {
                     TypeDefKind::Handle(h) => {
                         self.declare_handle(resolve, ty.name.as_deref(), h)?
                     }
-                    TypeDefKind::Resource(r) => {
-                        self.declare_resource(resolve, ty.name.as_deref(), r)?
-                    }
+                    TypeDefKind::Resource => panic!("resources should be processed separately"),
                     TypeDefKind::Record(r) => {
                         self.declare_record(resolve, ty.name.as_deref(), r)?
                     }
@@ -461,7 +581,7 @@ impl WitPrinter {
                             self.print_name(name);
                             self.output.push_str(" = ");
                             self.print_type_name(resolve, inner)?;
-                            self.output.push_str("\n\n");
+                            self.output.push_str("\n");
                         }
                         None => bail!("unnamed type in document"),
                     },
@@ -482,105 +602,21 @@ impl WitPrinter {
     ) -> Result<()> {
         match name {
             Some(name) => {
+                self.output.push_str("type ");
                 self.print_name(name);
                 self.output.push_str(" = ");
-
-                match handle {
-                    Handle::Shared(ty) => {
-                        self.output.push_str("shared<");
-                        self.print_type_name(resolve, ty)?;
-                        self.output.push_str(">");
-                    }
-                }
-
-                self.output.push_str("\n\n");
+                // Note that the `true` here forces owned handles to be printed
+                // as `own<T>`. The purpose of this is because `type a = b`, if
+                // `b` is a resource, is encoded differently as `type a =
+                // own<b>`. By forcing a handle to be printed here it's staying
+                // true to what's in the WIT document.
+                self.print_handle_type(resolve, handle, true)?;
+                self.output.push_str("\n");
 
                 Ok(())
             }
             None => bail!("document has unnamed handle type"),
         }
-    }
-
-    fn declare_resource(
-        &mut self,
-        resolve: &Resolve,
-        name: Option<&str>,
-        resource: &Resource,
-    ) -> Result<()> {
-        match name {
-            Some(name) => {
-                self.output.push_str("resource ");
-                self.print_name(name);
-                self.output.push_str(" {\n");
-                for function in &resource.methods {
-                    self.declare_function(resolve, Some(name), function)?;
-                }
-                self.output.push_str(" }\n\n");
-                Ok(())
-            }
-            None => bail!("document has unnamed resource type"),
-        }
-    }
-
-    fn declare_function(
-        &mut self,
-        resolve: &Resolve,
-        name: Option<&str>,
-        function: &Function,
-    ) -> Result<()> {
-        match function.kind {
-            FunctionKind::Static => {
-                self.output.push_str("static ");
-            }
-            _ => {}
-        }
-
-        self.print_name(&function.name);
-        self.output.push_str(": func(");
-
-        match function.kind {
-            FunctionKind::Method => match name {
-                Some(name) => {
-                    self.output.push_str(&format!("self: shared<{name}>"));
-                }
-                None => bail!("document has unnamed resource type"),
-            },
-            _ => {}
-        }
-
-        for (name, ty) in &function.params {
-            self.print_name(&name);
-            self.output.push_str(": ");
-            self.print_type_name(resolve, &ty)?;
-            self.output.push_str(", ");
-        }
-
-        self.output.push_str(") ");
-
-        self.output.push_str("-> ");
-
-        match &function.results {
-            Results::Named(results) => {
-                self.output.push_str("(");
-
-                if results.len() > 0 {
-                    for (name, ty) in results {
-                        self.print_name(&name);
-                        self.output.push_str(": ");
-                        self.print_type_name(resolve, &ty)?;
-                        self.output.push_str(", ");
-                    }
-                }
-                self.output.push_str(")");
-            }
-            Results::Anon(ty) => {
-                self.print_type_name(resolve, &ty)?;
-            }
-        }
-
-        self.output.push_str(";\n");
-
-        Ok(())
     }
 
     fn declare_record(
@@ -600,7 +636,7 @@ impl WitPrinter {
                     self.print_type_name(resolve, &field.ty)?;
                     self.output.push_str(",\n");
                 }
-                self.output.push_str("}\n\n");
+                self.output.push_str("}\n");
                 Ok(())
             }
             None => bail!("document has unnamed record type"),
@@ -618,7 +654,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_tuple_type(resolve, tuple)?;
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
         Ok(())
     }
@@ -633,7 +669,7 @@ impl WitPrinter {
                     self.print_name(&flag.name);
                     self.output.push_str(",\n");
                 }
-                self.output.push_str("}\n\n");
+                self.output.push_str("}\n");
             }
             None => bail!("document has unnamed flags type"),
         }
@@ -662,7 +698,7 @@ impl WitPrinter {
             }
             self.output.push_str(",\n");
         }
-        self.output.push_str("}\n\n");
+        self.output.push_str("}\n");
         Ok(())
     }
 
@@ -684,7 +720,7 @@ impl WitPrinter {
             self.print_type_name(resolve, &case.ty)?;
             self.output.push_str(",\n");
         }
-        self.output.push_str("}\n\n");
+        self.output.push_str("}\n");
         Ok(())
     }
 
@@ -699,7 +735,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_option_type(resolve, payload)?;
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
         Ok(())
     }
@@ -715,7 +751,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_result_type(resolve, result)?;
-            self.output.push_str("\n\n");
+            self.output.push_str("\n");
         }
         Ok(())
     }
@@ -732,7 +768,7 @@ impl WitPrinter {
             self.print_name(&case.name);
             self.output.push_str(",\n");
         }
-        self.output.push_str("}\n\n");
+        self.output.push_str("}\n");
         Ok(())
     }
 
@@ -742,7 +778,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = list<");
             self.print_type_name(resolve, ty)?;
-            self.output.push_str(">\n\n");
+            self.output.push_str(">\n");
             return Ok(());
         }
 
@@ -757,13 +793,22 @@ impl WitPrinter {
     }
 }
 
+fn resource_func(f: &Function) -> Option<TypeId> {
+    match f.kind {
+        FunctionKind::Freestanding => None,
+        FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
+            Some(id)
+        }
+    }
+}
+
 fn is_keyword(name: &str) -> bool {
     match name {
         "use" | "type" | "func" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64"
         | "float32" | "float64" | "char" | "resource" | "record" | "flags" | "variant" | "enum"
         | "union" | "bool" | "string" | "option" | "result" | "future" | "stream" | "list"
-        | "shared" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "implements"
-        | "world" | "import" | "export" | "default" | "pkg" | "self" | "package" => true,
+        | "own" | "borrow" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "world"
+        | "import" | "export" | "package" | "with" | "include" | "constructor" => true,
         _ => false,
     }
 }

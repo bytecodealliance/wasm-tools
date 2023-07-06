@@ -36,7 +36,12 @@ impl<'a> Ast<'a> {
 
     fn for_each_path<'b>(
         &'b self,
-        mut f: impl FnMut(Option<&'b Id<'a>>, &'b UsePath<'a>, Option<&'b [UseName<'a>]>) -> Result<()>,
+        mut f: impl FnMut(
+            Option<&'b Id<'a>>,
+            &'b UsePath<'a>,
+            Option<&'b [UseName<'a>]>,
+            WorldOrInterface,
+        ) -> Result<()>,
     ) -> Result<()> {
         for item in self.items.iter() {
             match item {
@@ -49,7 +54,12 @@ impl<'a> Ast<'a> {
                     let mut exports = Vec::new();
                     for item in world.items.iter() {
                         match item {
-                            WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                            WorldItem::Use(u) => {
+                                f(None, &u.from, Some(&u.names), WorldOrInterface::Interface)?
+                            }
+                            WorldItem::Include(i) => {
+                                f(Some(&world.name), &i.from, None, WorldOrInterface::World)?
+                            }
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
@@ -60,13 +70,18 @@ impl<'a> Ast<'a> {
                         ExternKind::Interface(_, items) => {
                             for item in items {
                                 match item {
-                                    InterfaceItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                                    InterfaceItem::Use(u) => f(
+                                        None,
+                                        &u.from,
+                                        Some(&u.names),
+                                        WorldOrInterface::Interface,
+                                    )?,
                                     _ => {}
                                 }
                             }
                             Ok(())
                         }
-                        ExternKind::Path(path) => f(None, path, None),
+                        ExternKind::Path(path) => f(None, path, None, WorldOrInterface::Interface),
                         ExternKind::Func(..) => Ok(()),
                     };
 
@@ -80,13 +95,20 @@ impl<'a> Ast<'a> {
                 AstItem::Interface(i) => {
                     for item in i.items.iter() {
                         match item {
-                            InterfaceItem::Use(u) => f(Some(&i.name), &u.from, Some(&u.names))?,
+                            InterfaceItem::Use(u) => f(
+                                Some(&i.name),
+                                &u.from,
+                                Some(&u.names),
+                                WorldOrInterface::Interface,
+                            )?,
                             _ => {}
                         }
                     }
                 }
                 AstItem::Use(u) => {
-                    f(None, &u.item, None)?;
+                    // At the top-level, we don't know if this is a world or an interface
+                    // It is up to the resolver to decides how to handle this ambiguity.
+                    f(None, &u.item, None, WorldOrInterface::Unknown)?;
                 }
             }
         }
@@ -199,6 +221,7 @@ enum WorldItem<'a> {
     Export(Export<'a>),
     Use(Use<'a>),
     Type(TypeDef<'a>),
+    Include(Include<'a>),
 }
 
 impl<'a> WorldItem<'a> {
@@ -220,9 +243,10 @@ impl<'a> WorldItem<'a> {
             }
             Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Include)) => Include::parse(tokens).map(WorldItem::Include),
             other => Err(err_expected(
                 tokens,
-                "`import`, `export`, `use`, or type definition",
+                "`import`, `export`, `include`, `use`, or type definition",
                 other,
             )
             .into()),
@@ -332,9 +356,16 @@ impl<'a> Interface<'a> {
     }
 }
 
+#[derive(Debug)]
+pub enum WorldOrInterface {
+    World,
+    Interface,
+    Unknown,
+}
+
 enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
-    Value(Value<'a>),
+    Func(NamedFunc<'a>),
     Use(Use<'a>),
 }
 
@@ -416,6 +447,41 @@ impl<'a> Use<'a> {
     }
 }
 
+struct Include<'a> {
+    from: UsePath<'a>,
+    names: Vec<IncludeName<'a>>,
+}
+
+struct IncludeName<'a> {
+    name: Id<'a>,
+    as_: Id<'a>,
+}
+
+impl<'a> Include<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        tokens.expect(Token::Include)?;
+        let from = UsePath::parse(tokens)?;
+
+        let names = if tokens.eat(Token::With)? {
+            parse_list(
+                tokens,
+                Token::LeftBrace,
+                Token::RightBrace,
+                |_docs, tokens| {
+                    let name = parse_id(tokens)?;
+                    tokens.expect(Token::As)?;
+                    let as_ = parse_id(tokens)?;
+                    Ok(IncludeName { name, as_ })
+                },
+            )?
+        } else {
+            Vec::new()
+        };
+
+        Ok(Include { from, names })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Id<'a> {
     name: &'a str,
@@ -473,11 +539,63 @@ enum Type<'a> {
 }
 
 enum Handle<'a> {
-    Shared { ty: Box<Type<'a>> },
+    Own { resource: Id<'a> },
+    Borrow { resource: Id<'a> },
 }
 
 struct Resource<'a> {
-    methods: Vec<Value<'a>>,
+    funcs: Vec<ResourceFunc<'a>>,
+}
+
+enum ResourceFunc<'a> {
+    Method(NamedFunc<'a>),
+    Static(NamedFunc<'a>),
+    Constructor(NamedFunc<'a>),
+}
+
+impl<'a> ResourceFunc<'a> {
+    fn parse(docs: Docs<'a>, tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        match tokens.clone().next()? {
+            Some((_span, Token::Static)) => {
+                tokens.expect(Token::Static)?;
+                Ok(ResourceFunc::Static(NamedFunc::parse(tokens, docs)?))
+            }
+            Some((span, Token::Constructor)) => {
+                tokens.expect(Token::Constructor)?;
+                tokens.expect(Token::LeftParen)?;
+                let params = parse_list_trailer(tokens, Token::RightParen, |_docs, tokens| {
+                    let name = parse_id(tokens)?;
+                    tokens.expect(Token::Colon)?;
+                    let ty = Type::parse(tokens)?;
+                    Ok((name, ty))
+                })?;
+                Ok(ResourceFunc::Constructor(NamedFunc {
+                    docs,
+                    name: Id {
+                        span,
+                        name: "constructor",
+                    },
+                    func: Func {
+                        params,
+                        results: ResultList::Named(Vec::new()),
+                    },
+                }))
+            }
+            Some((_span, Token::Id | Token::ExplicitId)) => {
+                Ok(ResourceFunc::Method(NamedFunc::parse(tokens, docs)?))
+            }
+            other => {
+                Err(err_expected(tokens, "`static`, `constructor` or identifier", other).into())
+            }
+        }
+    }
+
+    fn named_func(&self) -> &NamedFunc<'a> {
+        use ResourceFunc::*;
+        match self {
+            Method(f) | Static(f) | Constructor(f) => f,
+        }
+    }
 }
 
 struct Record<'a> {
@@ -530,10 +648,10 @@ struct Stream<'a> {
     end: Option<Box<Type<'a>>>,
 }
 
-struct Value<'a> {
+struct NamedFunc<'a> {
     docs: Docs<'a>,
     name: Id<'a>,
-    kind: ValueKind<'a>,
+    func: Func<'a>,
 }
 
 struct Union<'a> {
@@ -551,11 +669,6 @@ type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 enum ResultList<'a> {
     Named(ParamList<'a>),
     Anon(Type<'a>),
-}
-
-enum ValueKind<'a> {
-    Func(Func<'a>),
-    Static(Func<'a>),
 }
 
 struct Func<'a> {
@@ -596,15 +709,6 @@ impl<'a> Func<'a> {
     }
 }
 
-impl<'a> ValueKind<'a> {
-    fn parse_func(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
-        Func::parse(tokens).map(ValueKind::Func)
-    }
-    fn parse_static(tokens: &mut Tokenizer<'a>) -> Result<ValueKind<'a>> {
-        Func::parse(tokens).map(ValueKind::Static)
-    }
-}
-
 impl<'a> InterfaceItem<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<InterfaceItem<'a>> {
         match tokens.clone().next()? {
@@ -628,7 +732,7 @@ impl<'a> InterfaceItem<'a> {
                 TypeDef::parse_union(tokens, docs).map(InterfaceItem::TypeDef)
             }
             Some((_span, Token::Id)) | Some((_span, Token::ExplicitId)) => {
-                Value::parse(tokens, docs).map(InterfaceItem::Value)
+                NamedFunc::parse(tokens, docs).map(InterfaceItem::Func)
             }
             Some((_span, Token::Use)) => Use::parse(tokens).map(InterfaceItem::Use),
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
@@ -665,14 +769,13 @@ impl<'a> TypeDef<'a> {
     fn parse_resource(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::Resource)?;
         let name = parse_id(tokens)?;
-        let ty = Type::Resource(Resource {
-            methods: parse_list(
-                tokens,
-                Token::LeftBrace,
-                Token::RightBrace,
-                |docs, tokens| Ok(Value::parse(tokens, docs)?),
-            )?,
-        });
+        let mut funcs = Vec::new();
+        if tokens.eat(Token::LeftBrace)? {
+            while !tokens.eat(Token::RightBrace)? {
+                funcs.push(ResourceFunc::parse(parse_docs(tokens)?, tokens)?);
+            }
+        }
+        let ty = Type::Resource(Resource { funcs });
         Ok(TypeDef { docs, name, ty })
     }
 
@@ -757,35 +860,12 @@ impl<'a> TypeDef<'a> {
     }
 }
 
-impl<'a> Value<'a> {
+impl<'a> NamedFunc<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
-        let name = match tokens.next()? {
-            Some((_, Token::Static)) => None,
-            Some((span, Token::Id)) => Some(Id {
-                name: tokens.parse_id(span)?,
-                span,
-            }),
-            Some((span, Token::ExplicitId)) => Some(Id {
-                name: tokens.parse_explicit_id(span)?,
-                span,
-            }),
-            other => Err(err_expected(tokens, "static or an identifier", other))?,
-        };
-
-        let (name, kind) = match name {
-            Some(name) => {
-                tokens.expect(Token::Colon)?;
-                let kind = ValueKind::parse_func(tokens)?;
-                (name, kind)
-            }
-            None => {
-                let name = parse_id(tokens)?;
-                tokens.expect(Token::Colon)?;
-                let kind = ValueKind::parse_static(tokens)?;
-                (name, kind)
-            }
-        };
-        Ok(Value { docs, name, kind })
+        let name = parse_id(tokens)?;
+        tokens.expect(Token::Colon)?;
+        let func = Func::parse(tokens)?;
+        Ok(NamedFunc { docs, name, func })
     }
 }
 
@@ -970,12 +1050,20 @@ impl<'a> Type<'a> {
                 Ok(Type::Stream(Stream { element, end }))
             }
 
-            // shared<T>
-            Some((_span, Token::Shared)) => {
+            // own<T>
+            Some((_span, Token::Own)) => {
                 tokens.expect(Token::LessThan)?;
-                let ty = Box::new(Type::parse(tokens)?);
+                let resource = parse_id(tokens)?;
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::Handle(Handle::Shared { ty }))
+                Ok(Type::Handle(Handle::Own { resource }))
+            }
+
+            // borrow<T>
+            Some((_span, Token::Borrow)) => {
+                tokens.expect(Token::LessThan)?;
+                let resource = parse_id(tokens)?;
+                tokens.expect(Token::GreaterThan)?;
+                Ok(Type::Handle(Handle::Borrow { resource }))
             }
 
             // `foo`

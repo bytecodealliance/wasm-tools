@@ -17,6 +17,9 @@ use wasmparser::{FuncValidatorAllocations, Parser, ValidPayload, Validator, Wasm
 /// # Validate `foo.wasm` with the default Wasm feature proposals.
 /// $ wasm-tools validate foo.wasm
 ///
+/// # Validate `foo.wasm` with more verbose output
+/// $ wasm-tools validate -vv foo.wasm
+///
 /// # Validate `fancy.wasm` with all Wasm feature proposals enabled.
 /// $ wasm-tools validate --features all fancy.wasm
 ///
@@ -30,6 +33,9 @@ pub struct Opts {
     /// The placeholder "all" can be used to enable all wasm features. If a "-"
     /// character is present in front of a feature it will disable that feature.
     /// For example "all,-simd" would enable everything but simd.
+    ///
+    /// Available feature options can be found in the wasmparser crate:
+    /// https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasmparser/src/validator.rs
     #[clap(long, short = 'f', value_parser = parse_features)]
     features: Option<WasmFeatures>,
 
@@ -133,10 +139,17 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
             }
 
             name => {
-                let (_, accessor) = FEATURES
-                    .iter()
-                    .find(|(n, _)| *n == name)
-                    .ok_or_else(|| anyhow!("unknown feature `{}`", name))?;
+                let (_, accessor) = FEATURES.iter().find(|(n, _)| *n == name).ok_or_else(|| {
+                    anyhow!(
+                        "unknown feature `{}`\nValid features: {}",
+                        name,
+                        FEATURES
+                            .iter()
+                            .map(|(name, _)| *name)
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
+                })?;
                 *accessor(&mut ret) = enable;
             }
         }

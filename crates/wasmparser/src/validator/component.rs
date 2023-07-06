@@ -560,6 +560,21 @@ impl ComponentState {
         ty: &ComponentEntityType,
         types: &TypeAlloc,
     ) -> bool {
+        if let ComponentEntityType::Type { created, .. } = ty {
+            // If this is a top-level resource then register it in the
+            // appropriate context so later validation of method-like-names
+            // works out.
+            if let Some(name) = toplevel_name {
+                if let Type::Resource(_) = types[*created] {
+                    let cx = match kind {
+                        ExternKind::Import => &mut self.toplevel_imported_resources,
+                        ExternKind::Export => &mut self.toplevel_exported_resources,
+                    };
+                    cx.register(name, *created);
+                }
+            }
+        }
+
         match self.kind {
             ComponentKind::Component | ComponentKind::ComponentType => {}
             ComponentKind::InstanceType => return true,
@@ -591,19 +606,6 @@ impl ComponentState {
                     }
                     ExternKind::Export => {
                         self.exported_types.insert(*created);
-                    }
-                }
-
-                // If this is a top-level resource then register it in the
-                // appropriate context so later validation of method-like-names
-                // works out.
-                if let Some(name) = toplevel_name {
-                    if let Type::Resource(_) = types[*created] {
-                        let cx = match kind {
-                            ExternKind::Import => &mut self.toplevel_imported_resources,
-                            ExternKind::Export => &mut self.toplevel_exported_resources,
-                        };
-                        cx.register(name, *created);
                     }
                 }
 
@@ -842,9 +844,8 @@ impl ComponentState {
                 types.remap_component_entity(ty, &mut mapping);
             }
             for (id, path) in mem::take(&mut new_ty.explicit_resources) {
-                new_ty
-                    .explicit_resources
-                    .insert(mapping.resources[&id], path);
+                let id = mapping.resources.get(&id).copied().unwrap_or(id);
+                new_ty.explicit_resources.insert(id, path);
             }
             *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
         }

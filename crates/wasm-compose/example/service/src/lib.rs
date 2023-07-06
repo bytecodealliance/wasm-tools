@@ -1,4 +1,4 @@
-use bindings::handler::{Error, Handler, Request, Response};
+use bindings::exports::example::service::handler::{Error, Handler, Request, Response};
 use std::str;
 
 struct Component;

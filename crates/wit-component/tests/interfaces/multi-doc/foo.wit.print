@@ -3,7 +3,10 @@ package foo:foo
 interface b {
   record the-type {
   }
+}
 
+interface a {
+  use b.{the-type}
 }
 
 interface b2 {
@@ -11,10 +14,6 @@ interface b2 {
 }
 
 interface a2 {
-  use b.{the-type}
-}
-
-interface a {
   use b.{the-type}
 }
 

@@ -1826,7 +1826,7 @@ impl Printer {
                 self.print_valtype(rep)?;
                 self.result.push_str(")");
                 if let Some(dtor) = dtor {
-                    self.result.push_str("(dtor (func ");
+                    self.result.push_str(" (dtor (func ");
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
                     self.result.push_str("))");
                 }

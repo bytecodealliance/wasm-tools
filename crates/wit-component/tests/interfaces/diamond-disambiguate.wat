@@ -4,17 +4,17 @@
       (type (;0;)
         (instance
           (type (;0;) u8)
-          (export (;1;) "t2" (type (eq 0)))
-        )
-      )
-      (export (;0;) (interface "foo:foo/shared2") (instance (type 0)))
-      (type (;1;)
-        (instance
-          (type (;0;) u8)
           (export (;1;) "t1" (type (eq 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/shared1") (instance (type 1)))
+      (export (;0;) (interface "foo:foo/shared1") (instance (type 0)))
+      (type (;1;)
+        (instance
+          (type (;0;) u8)
+          (export (;1;) "t2" (type (eq 0)))
+        )
+      )
+      (export (;1;) (interface "foo:foo/shared2") (instance (type 1)))
       (type (;2;)
         (component
           (type (;0;)

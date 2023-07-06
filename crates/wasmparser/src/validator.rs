@@ -1484,7 +1484,8 @@ mod tests {
             })
         );
 
-        match types.function_at(0) {
+        let id = types.function_at(0).unwrap();
+        match types.type_from_id(id).unwrap().as_func_type() {
             Some(ty) => {
                 assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
                 assert_eq!(ty.results(), [ValType::I32]);

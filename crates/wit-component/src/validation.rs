@@ -1,5 +1,5 @@
 use crate::metadata::{Bindgen, ModuleMetadata};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use wasmparser::names::{KebabName, KebabNameKind};
 use wasmparser::{
@@ -8,7 +8,7 @@ use wasmparser::{
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, PackageName, Resolve, WorldId, WorldItem, WorldKey,
+    Function, InterfaceId, PackageName, Resolve, TypeDefKind, TypeId, WorldId, WorldItem, WorldKey,
 };
 
 fn is_canonical_function(name: &str) -> bool {
@@ -40,6 +40,11 @@ pub const MAIN_MODULE_IMPORT_NAME: &str = "__main_module__";
 /// turns into `env`.
 pub const BARE_FUNC_MODULE_NAME: &str = "$root";
 
+pub const RESOURCE_DROP_OWN: &str = "[resource-drop-own]";
+pub const RESOURCE_DROP_BORROW: &str = "[resource-drop-borrow]";
+pub const RESOURCE_REP: &str = "[resource-rep]";
+pub const RESOURCE_NEW: &str = "[resource-new]";
+
 /// Metadata about a validated module and what was found internally.
 ///
 /// All imports to the module are described by the union of `required_imports`
@@ -54,7 +59,7 @@ pub struct ValidatedModule<'a> {
     /// from and the value is the set of functions required from that interface.
     /// This is used to generate an appropriate instance import in the generated
     /// component which imports only the set of required functions.
-    pub required_imports: IndexMap<&'a str, IndexSet<&'a str>>,
+    pub required_imports: IndexMap<&'a str, RequiredImports>,
 
     /// This is the set of imports into the module which were not satisfied by
     /// imported interfaces but are required to be satisfied by adapter modules.
@@ -65,6 +70,15 @@ pub struct ValidatedModule<'a> {
     /// to the precise size required for this module by ensuring it doesn't
     /// export (and subsequently import) extraneous functions.
     pub adapters_required: IndexMap<&'a str, IndexMap<&'a str, FuncType>>,
+
+    /// Resource-related functions required and imported which work over
+    /// exported resources from the final component.
+    ///
+    /// Note that this is disjoint from `required_imports` which handles
+    /// imported resources and this is only for exported resources. Exported
+    /// resources still require intrinsics to be imported into the core module
+    /// itself.
+    pub required_resource_funcs: IndexMap<String, IndexMap<&'a str, ResourceInfo<'a>>>,
 
     /// Whether or not this module exported a linear memory.
     pub has_memory: bool,
@@ -77,6 +91,21 @@ pub struct ValidatedModule<'a> {
 
     /// The original metadata specified for this module.
     pub metadata: &'a ModuleMetadata,
+}
+
+#[derive(Default)]
+pub struct RequiredImports {
+    pub funcs: IndexSet<String>,
+    pub resources: IndexSet<String>,
+}
+
+pub struct ResourceInfo<'a> {
+    pub drop_own_import: Option<&'a str>,
+    pub drop_borrow_import: Option<&'a str>,
+    pub new_import: Option<&'a str>,
+    pub rep_import: Option<&'a str>,
+    pub dtor_export: Option<&'a str>,
+    pub id: TypeId,
 }
 
 /// This function validates the following:
@@ -107,6 +136,7 @@ pub fn validate_module<'a>(
         realloc: None,
         adapter_realloc: None,
         metadata: &metadata.metadata,
+        required_resource_funcs: Default::default(),
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -173,24 +203,30 @@ pub fn validate_module<'a>(
 
     let types = types.unwrap();
     let world = &metadata.resolve.worlds[metadata.world];
+    let mut exported_resource_funcs = Vec::new();
 
     for (name, funcs) in &import_funcs {
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
         if *name == BARE_FUNC_MODULE_NAME {
-            validate_imports_top_level(&metadata.resolve, metadata.world, funcs, &types)?;
-            let funcs = funcs.keys().cloned().collect();
-            let prev = ret.required_imports.insert(BARE_FUNC_MODULE_NAME, funcs);
+            let required =
+                validate_imports_top_level(&metadata.resolve, metadata.world, funcs, &types)?;
+            let prev = ret.required_imports.insert(BARE_FUNC_MODULE_NAME, required);
             assert!(prev.is_none());
+            continue;
+        }
+
+        if let Some(interface_name) = name.strip_prefix("[export]") {
+            exported_resource_funcs.push((name, interface_name, &import_funcs[name]));
             continue;
         }
 
         match world.imports.get(&world_key(&metadata.resolve, name)) {
             Some(WorldItem::Interface(interface)) => {
-                let funcs =
+                let required =
                     validate_imported_interface(&metadata.resolve, *interface, name, funcs, &types)
                         .with_context(|| format!("failed to validate import interface `{name}`"))?;
-                let prev = ret.required_imports.insert(name, funcs);
+                let prev = ret.required_imports.insert(name, required);
                 assert!(prev.is_none());
             }
             None if adapters.contains(name) => {
@@ -200,9 +236,10 @@ pub fn validate_module<'a>(
                     map.insert(func, ty.clone());
                 }
             }
-            None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                bail!("module requires an import interface named `{}`", name)
+            Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
+                bail!("import `{}` is not an interface", name)
             }
+            None => bail!("module requires an import interface named `{name}`"),
         }
     }
 
@@ -213,10 +250,70 @@ pub fn validate_module<'a>(
             &metadata.resolve.name_world_key(name),
             &export_funcs,
             &types,
+            &mut ret,
         )?;
     }
 
+    for (name, interface_name, funcs) in exported_resource_funcs {
+        let world_key = world_key(&metadata.resolve, interface_name);
+        match world.exports.get(&world_key) {
+            Some(WorldItem::Interface(i)) => {
+                validate_exported_interface_resource_imports(
+                    &metadata.resolve,
+                    *i,
+                    name,
+                    funcs,
+                    &types,
+                    &mut ret,
+                )?;
+            }
+            _ => bail!("import from `{name}` does not correspond to exported interface"),
+        }
+    }
+
     Ok(ret)
+}
+
+fn validate_exported_interface_resource_imports<'a>(
+    resolve: &Resolve,
+    interface: InterfaceId,
+    import_module: &str,
+    funcs: &IndexMap<&'a str, u32>,
+    types: &Types,
+    info: &mut ValidatedModule<'a>,
+) -> Result<()> {
+    let is_resource = |name: &str| match resolve.interfaces[interface].types.get(name) {
+        Some(ty) => match resolve.types[*ty].kind {
+            TypeDefKind::Resource => true,
+            _ => false,
+        },
+        None => false,
+    };
+    for (func_name, ty) in funcs {
+        if valid_exported_resource_func(func_name, *ty, types, &is_resource)?.is_none() {
+            bail!("import of `{func_name}` is not a valid resource function");
+        }
+        let info = info.required_resource_funcs.get_mut(import_module).unwrap();
+        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP_OWN) {
+            info[resource_name].drop_own_import = Some(func_name);
+            continue;
+        }
+        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP_BORROW) {
+            info[resource_name].drop_borrow_import = Some(func_name);
+            continue;
+        }
+        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_NEW) {
+            info[resource_name].new_import = Some(func_name);
+            continue;
+        }
+        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_REP) {
+            info[resource_name].rep_import = Some(func_name);
+            continue;
+        }
+
+        unreachable!();
+    }
+    Ok(())
 }
 
 /// Validation information from an "adapter module" which is distinct from a
@@ -227,7 +324,7 @@ pub struct ValidatedAdapter<'a> {
     /// If specified this is the list of required imports from the original set
     /// of possible imports along with the set of functions required from each
     /// imported interface.
-    pub required_imports: IndexMap<String, IndexSet<&'a str>>,
+    pub required_imports: IndexMap<String, RequiredImports>,
 
     /// This is the module and field name of the memory import, if one is
     /// specified.
@@ -370,39 +467,18 @@ pub fn validate_adapter_module<'a>(
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
         if name == BARE_FUNC_MODULE_NAME {
-            validate_imports_top_level(&resolve, world, &funcs, &types)?;
-            let funcs = resolve.worlds[world]
-                .imports
-                .iter()
-                .filter_map(|(name, item)| {
-                    let name = match name {
-                        WorldKey::Name(name) => name,
-                        WorldKey::Interface(_) => return None,
-                    };
-                    match item {
-                        WorldItem::Function(_) if funcs.contains_key(name.as_str()) => {
-                            Some(name.as_str())
-                        }
-                        _ => None,
-                    }
-                })
-                .collect();
+            let required = validate_imports_top_level(&resolve, world, &funcs, &types)?;
             ret.required_imports
-                .insert(BARE_FUNC_MODULE_NAME.to_string(), funcs);
+                .insert(BARE_FUNC_MODULE_NAME.to_string(), required);
             continue;
         }
 
         match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
             Some(WorldItem::Interface(interface)) => {
-                validate_imported_interface(resolve, *interface, name, &funcs, &types)
-                    .with_context(|| format!("failed to validate import interface `{name}`"))?;
-                let funcs = resolve.interfaces[*interface]
-                    .functions
-                    .keys()
-                    .map(|s| s.as_str())
-                    .filter(|s| funcs.contains_key(s))
-                    .collect();
-                let prev = ret.required_imports.insert(name.to_string(), funcs);
+                let required =
+                    validate_imported_interface(resolve, *interface, name, &funcs, &types)
+                        .with_context(|| format!("failed to validate import interface `{name}`"))?;
+                let prev = ret.required_imports.insert(name.to_string(), required);
                 assert!(prev.is_none());
             }
             None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
@@ -419,7 +495,8 @@ pub fn validate_adapter_module<'a>(
             Some(idx) => *idx,
             None => bail!("adapter module did not export `{name}`"),
         };
-        let actual = types.function_at(idx).unwrap();
+        let id = types.function_at(idx).unwrap();
+        let actual = types.type_from_id(id).unwrap().as_func_type().unwrap();
         if ty == actual {
             continue;
         }
@@ -476,17 +553,77 @@ fn validate_imports_top_level<'a>(
     world: WorldId,
     funcs: &IndexMap<&'a str, u32>,
     types: &Types,
-) -> Result<()> {
+) -> Result<RequiredImports> {
+    let is_resource = |name: &str| match resolve.worlds[world]
+        .imports
+        .get(&WorldKey::Name(name.to_string()))
+    {
+        Some(WorldItem::Type(r)) => {
+            matches!(resolve.types[*r].kind, TypeDefKind::Resource)
+        }
+        _ => false,
+    };
+    let mut required = RequiredImports::default();
     for (name, ty) in funcs {
-        let func = match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
-            Some(WorldItem::Function(func)) => func,
+        match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
+            Some(WorldItem::Function(func)) => {
+                let ty = types.func_type_at(*ty).unwrap();
+                validate_func(resolve, ty, func, AbiVariant::GuestImport)?;
+            }
             Some(_) => bail!("expected world top-level import `{name}` to be a function"),
-            None => bail!("no top-level imported function `{name}` specified"),
-        };
-        let ty = types.func_type_at(*ty).unwrap();
-        validate_func(resolve, ty, func, AbiVariant::GuestImport)?;
+            None => match valid_imported_resource_func(name, *ty, types, &is_resource)? {
+                Some(name) => {
+                    required.resources.insert(name.to_string());
+                }
+                None => bail!("no top-level imported function `{name}` specified"),
+            },
+        }
+        required.funcs.insert(name.to_string());
     }
-    Ok(())
+    Ok(required)
+}
+
+fn valid_imported_resource_func<'a>(
+    func_name: &'a str,
+    ty: u32,
+    types: &Types,
+    is_resource: impl Fn(&str) -> bool,
+) -> Result<Option<&'a str>> {
+    if let Some(resource_name) = func_name
+        .strip_prefix(RESOURCE_DROP_OWN)
+        .or_else(|| func_name.strip_prefix(RESOURCE_DROP_BORROW))
+    {
+        if is_resource(resource_name) {
+            let ty = types.func_type_at(ty).unwrap();
+            let expected = FuncType::new([ValType::I32], []);
+            validate_func_sig(func_name, &expected, ty)?;
+            return Ok(Some(resource_name));
+        }
+    }
+    Ok(None)
+}
+
+fn valid_exported_resource_func<'a>(
+    func_name: &'a str,
+    ty: u32,
+    types: &Types,
+    is_resource: impl Fn(&str) -> bool,
+) -> Result<Option<&'a str>> {
+    if let Some(name) = valid_imported_resource_func(func_name, ty, types, &is_resource)? {
+        return Ok(Some(name));
+    }
+    if let Some(resource_name) = func_name
+        .strip_prefix(RESOURCE_REP)
+        .or_else(|| func_name.strip_prefix(RESOURCE_NEW))
+    {
+        if is_resource(resource_name) {
+            let ty = types.func_type_at(ty).unwrap();
+            let expected = FuncType::new([ValType::I32], [ValType::I32]);
+            validate_func_sig(func_name, &expected, ty)?;
+            return Ok(Some(resource_name));
+        }
+    }
+    Ok(None)
 }
 
 fn validate_imported_interface<'a>(
@@ -495,25 +632,38 @@ fn validate_imported_interface<'a>(
     name: &str,
     imports: &IndexMap<&str, u32>,
     types: &Types,
-) -> Result<IndexSet<&'a str>> {
-    let mut funcs = IndexSet::new();
+) -> Result<RequiredImports> {
+    let mut required = RequiredImports::default();
+    let is_resource = |name: &str| {
+        let ty = match resolve.interfaces[interface].types.get(name) {
+            Some(ty) => *ty,
+            None => return false,
+        };
+        match resolve.types[ty].kind {
+            TypeDefKind::Resource => true,
+            _ => false,
+        }
+    };
     for (func_name, ty) in imports {
-        let f = resolve.interfaces[interface]
-            .functions
-            .get(*func_name)
-            .ok_or_else(|| {
-                anyhow!(
-                    "import interface `{name}` is missing function `{func_name}` that is required by the module",
-                )
-            })?;
-
-        let ty = types.func_type_at(*ty).unwrap();
-        validate_func(resolve, ty, f, AbiVariant::GuestImport)?;
-
-        funcs.insert(f.name.as_str());
+        match resolve.interfaces[interface].functions.get(*func_name) {
+            Some(f) => {
+                let ty = types.func_type_at(*ty).unwrap();
+                validate_func(resolve, ty, f, AbiVariant::GuestImport)?;
+            }
+            None => match valid_imported_resource_func(func_name, *ty, types, &is_resource)? {
+                Some(name) => {
+                    required.resources.insert(name.to_string());
+                }
+                None => bail!(
+                    "import interface `{name}` is missing function \
+                         `{func_name}` that is required by the module",
+                ),
+            },
+        }
+        required.funcs.insert(func_name.to_string());
     }
 
-    Ok(funcs)
+    Ok(required)
 }
 
 fn validate_func(
@@ -522,11 +672,18 @@ fn validate_func(
     func: &Function,
     abi: AbiVariant,
 ) -> Result<()> {
-    let expected = wasm_sig_to_func_type(resolve.wasm_signature(abi, func));
-    if ty != &expected {
+    validate_func_sig(
+        &func.name,
+        &wasm_sig_to_func_type(resolve.wasm_signature(abi, func)),
+        ty,
+    )
+}
+
+fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType) -> Result<()> {
+    if ty != expected {
         bail!(
             "type mismatch for function `{}`: expected `{:?} -> {:?}` but found `{:?} -> {:?}`",
-            func.name,
+            name,
             expected.params(),
             expected.results(),
             ty.params(),
@@ -537,18 +694,20 @@ fn validate_func(
     Ok(())
 }
 
-fn validate_exported_item(
-    resolve: &Resolve,
-    item: &WorldItem,
+fn validate_exported_item<'a>(
+    resolve: &'a Resolve,
+    item: &'a WorldItem,
     export_name: &str,
-    exports: &IndexMap<&str, u32>,
+    exports: &IndexMap<&'a str, u32>,
     types: &Types,
+    info: &mut ValidatedModule<'a>,
 ) -> Result<()> {
     let validate = |func: &Function, name: Option<&str>| {
         let expected_export_name = func.core_export_name(name);
         match exports.get(expected_export_name.as_ref()) {
             Some(func_index) => {
-                let ty = types.function_at(*func_index).unwrap();
+                let id = types.function_at(*func_index).unwrap();
+                let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
                 validate_func(resolve, ty, func, AbiVariant::GuestExport)
             }
             None => bail!(
@@ -560,11 +719,40 @@ fn validate_exported_item(
     match item {
         WorldItem::Function(func) => validate(func, None)?,
         WorldItem::Interface(interface) => {
-            for (_, f) in &resolve.interfaces[*interface].functions {
+            let interface = &resolve.interfaces[*interface];
+            for (_, f) in interface.functions.iter() {
                 validate(f, Some(export_name)).with_context(|| {
                     format!("failed to validate exported interface `{export_name}`")
                 })?;
             }
+            let mut map = IndexMap::new();
+            for (name, id) in interface.types.iter() {
+                if !matches!(resolve.types[*id].kind, TypeDefKind::Resource) {
+                    continue;
+                }
+                let mut info = ResourceInfo {
+                    id: *id,
+                    dtor_export: None,
+                    drop_own_import: None,
+                    drop_borrow_import: None,
+                    rep_import: None,
+                    new_import: None,
+                };
+                let dtor = format!("{export_name}#[dtor]{name}");
+                if let Some((_, name, func_idx)) = exports.get_full(dtor.as_str()) {
+                    let id = types.function_at(*func_idx).unwrap();
+                    let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
+                    let expected = FuncType::new([ValType::I32], []);
+                    validate_func_sig(name, &expected, &ty)?;
+                    info.dtor_export = Some(name);
+                }
+                let prev = map.insert(name.as_str(), info);
+                assert!(prev.is_none());
+            }
+            let prev = info
+                .required_resource_funcs
+                .insert(format!("[export]{export_name}"), map);
+            assert!(prev.is_none());
         }
         // not required to have anything exported in the core wasm module
         WorldItem::Type(_) => {}

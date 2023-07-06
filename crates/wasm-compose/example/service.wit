@@ -1,3 +1,5 @@
+package example:service
+
 interface handler {
     record request {
         headers: list<tuple<list<u8>, list<u8>>>,
@@ -16,11 +18,11 @@ interface handler {
     execute: func(req: request) -> result<response, error>
 }
 
-default world service {
-    export handler: self.handler
+world service {
+    export handler
 }
 
 world middleware {
-    import downstream: self.handler
-    export handler: self.handler
+    import handler
+    export handler
 }

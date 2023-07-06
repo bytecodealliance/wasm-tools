@@ -243,6 +243,15 @@ pub trait Parse<'a>: Sized {
     fn parse(parser: Parser<'a>) -> Result<Self>;
 }
 
+impl<'a, T> Parse<'a> for Box<T>
+where
+    T: Parse<'a>,
+{
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(Box::new(parser.parse()?))
+    }
+}
+
 /// A trait for types which be used to "peek" to see if they're the next token
 /// in an input stream of [`Parser`].
 ///
