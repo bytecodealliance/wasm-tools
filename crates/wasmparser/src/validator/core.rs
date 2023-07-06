@@ -6,7 +6,7 @@ use super::{
     types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
 };
 use crate::limits::*;
-use crate::readers::Derives;
+use crate::readers::Inherits;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
@@ -524,11 +524,14 @@ impl Module {
                 offset,
             ));
         }
+
+        self.check_structural_type(&ty.structural_type, features, offset)?;
+
         if let Some(type_index) = ty.supertype_idx {
             // Check the supertype exists, is not final, and the subtype matches it.
             match self.type_at(types, type_index, offset)? {
                 Type::Sub(st) => {
-                    if !&ty.derives(st, &|idx| self.subtype_at(types, idx, offset))? {
+                    if !&ty.inherits(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
                         return Err(BinaryReaderError::new(
                             "subtype must match supertype",
                             offset,
@@ -544,7 +547,6 @@ impl Module {
             };
         }
 
-        self.check_structural_type(&ty.structural_type, features, offset)?;
         Ok(Type::Sub(ty))
     }
 
@@ -920,8 +922,7 @@ impl Module {
     /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
     /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.derives(&ty2, &|idx| self.subtype_at(types, idx, 0))
-            .unwrap_or(false)
+        ty1.inherits(&ty2, &|idx| self.subtype_at(types, idx, 0).unwrap())
     }
 
     fn check_tag_type(

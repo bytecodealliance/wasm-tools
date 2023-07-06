@@ -53,10 +53,10 @@ const _: () = {
     assert!(std::mem::size_of::<ValType>() == 4);
 };
 
-pub(crate) trait Derives {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+pub(crate) trait Inherits {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>;
+        F: Fn(u32) -> &'a SubType;
 }
 
 impl From<RefType> for ValType {
@@ -98,14 +98,17 @@ impl ValType {
     }
 }
 
-impl Derives for ValType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for ValType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (ValType::Ref(r1), ValType::Ref(r2)) => r1.derives(r2, type_at),
-            (s, o) => Ok(s == o),
+            (Self::Ref(r1), Self::Ref(r2)) => r1.inherits(r2, type_at),
+            (
+                s @ (Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 | Self::Ref(_)),
+                o,
+            ) => s == o,
         }
     }
 }
@@ -531,14 +534,14 @@ impl RefType {
     }
 }
 
-impl Derives for RefType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for RefType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
-        Ok((*self == *other)
+        *self == *other
             || ((other.is_nullable() || !self.is_nullable())
-                && self.heap_type().derives(&other.heap_type(), type_at)?))
+                && self.heap_type().inherits(&other.heap_type(), type_at))
     }
 }
 
@@ -627,50 +630,50 @@ pub enum HeapType {
     I31,
 }
 
-impl Derives for HeapType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for HeapType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
             (HeapType::Indexed(a), HeapType::Indexed(b)) => {
-                Ok(*a == *b || type_at(*a)?.derives(type_at(*b)?, type_at)?)
+                *a == *b || type_at(*a).inherits(type_at(*b), type_at)
             }
-            (HeapType::Indexed(a), HeapType::Func) => match (type_at(*a)?).structural_type {
-                StructuralType::Func(_) => Ok(true),
-                _ => Ok(false),
+            (HeapType::Indexed(a), HeapType::Func) => match type_at(*a).structural_type {
+                StructuralType::Func(_) => true,
+                _ => false,
             },
-            (HeapType::Indexed(a), HeapType::Array) => match (type_at(*a)?).structural_type {
-                StructuralType::Array(_) => Ok(true),
-                _ => Ok(false),
+            (HeapType::Indexed(a), HeapType::Array) => match type_at(*a).structural_type {
+                StructuralType::Array(_) => true,
+                _ => false,
             },
-            (HeapType::Indexed(a), HeapType::Struct) => match (type_at(*a)?).structural_type {
-                StructuralType::Struct(_) => Ok(true),
-                _ => Ok(false),
+            (HeapType::Indexed(a), HeapType::Struct) => match type_at(*a).structural_type {
+                StructuralType::Struct(_) => true,
+                _ => false,
             },
             (HeapType::Indexed(a), HeapType::Eq | HeapType::Any) => {
-                match (type_at(*a)?).structural_type {
-                    StructuralType::Array(_) | StructuralType::Struct(_) => Ok(true),
-                    _ => Ok(false),
+                match type_at(*a).structural_type {
+                    StructuralType::Array(_) | StructuralType::Struct(_) => true,
+                    _ => false,
                 }
             }
-            (HeapType::Eq, HeapType::Any) => Ok(true),
+            (HeapType::Eq, HeapType::Any) => true,
             (HeapType::I31 | HeapType::Array | HeapType::Struct, HeapType::Eq | HeapType::Any) => {
-                Ok(true)
+                true
             }
-            (HeapType::None, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
-                StructuralType::Array(_) | StructuralType::Struct(_) => Ok(true),
-                _ => Ok(false),
+            (HeapType::None, HeapType::Indexed(a)) => match type_at(*a).structural_type {
+                StructuralType::Array(_) | StructuralType::Struct(_) => true,
+                _ => false,
             },
             (
                 HeapType::None,
                 HeapType::I31 | HeapType::Eq | HeapType::Any | HeapType::Array | HeapType::Struct,
-            ) => Ok(true),
-            (HeapType::NoExtern, HeapType::Extern) => Ok(true),
-            (HeapType::NoFunc, HeapType::Func) => Ok(true),
-            (HeapType::NoFunc, HeapType::Indexed(a)) => match (type_at(*a)?).structural_type {
-                StructuralType::Func(_) => Ok(true),
-                _ => Ok(false),
+            ) => true,
+            (HeapType::NoExtern, HeapType::Extern) => true,
+            (HeapType::NoFunc, HeapType::Func) => true,
+            (HeapType::NoFunc, HeapType::Indexed(a)) => match type_at(*a).structural_type {
+                StructuralType::Func(_) => true,
+                _ => false,
             },
             (
                 a @ (HeapType::Func
@@ -685,7 +688,7 @@ impl Derives for HeapType {
                 | HeapType::Array
                 | HeapType::I31),
                 b,
-            ) => Ok(*a == *b),
+            ) => *a == *b,
         }
     }
 }
@@ -768,15 +771,15 @@ pub struct SubType {
     pub structural_type: StructuralType,
 }
 
-impl Derives for SubType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for SubType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
-        Ok(!other.is_final
+        !other.is_final
             && self
                 .structural_type
-                .derives(&other.structural_type, type_at)?)
+                .inherits(&other.structural_type, type_at)
     }
 }
 
@@ -809,18 +812,18 @@ pub struct StructType {
     pub fields: Box<[FieldType]>,
 }
 
-impl Derives for StructuralType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for StructuralType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (StructuralType::Func(a), StructuralType::Func(b)) => a.derives(b, type_at),
-            (StructuralType::Array(a), StructuralType::Array(b)) => a.derives(b, type_at),
-            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.derives(b, type_at),
-            (StructuralType::Func(_), _) => Ok(false),
-            (StructuralType::Array(_), _) => Ok(false),
-            (StructuralType::Struct(_), _) => Ok(false),
+            (StructuralType::Func(a), StructuralType::Func(b)) => a.inherits(b, type_at),
+            (StructuralType::Array(a), StructuralType::Array(b)) => a.inherits(b, type_at),
+            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.inherits(b, type_at),
+            (StructuralType::Func(_), _) => false,
+            (StructuralType::Array(_), _) => false,
+            (StructuralType::Struct(_), _) => false,
         }
     }
 }
@@ -896,73 +899,70 @@ impl FuncType {
     }
 }
 
-impl Derives for FuncType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for FuncType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
-        let r = self.params().len() == other.params().len()
+        self.params().len() == other.params().len()
             && self.results().len() == other.results().len()
-            // Note: per GC spec, deriving function types are contravariant in their parameter types.
+            // Note: per GC spec, function subtypes are contravariant in their parameter types.
             // Also see https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
             && self
                 .params()
                 .iter()
                 .zip(other.params())
-                .try_fold(true, |r, (a, b)| Ok(r && b.derives(a, type_at)?))?
+                .fold(true, |r, (a, b)| r && b.inherits(a, type_at))
             && self
                 .results()
                 .iter()
                 .zip(other.results())
-                .try_fold(true, |r, (a, b)| Ok(r && a.derives(b, type_at)?))?;
-        Ok(r)
+                .fold(true, |r, (a, b)| r && a.inherits(b, type_at))
     }
 }
 
-impl Derives for ArrayType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for ArrayType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
-        self.0.derives(&other.0, type_at)
+        self.0.inherits(&other.0, type_at)
     }
 }
 
-impl Derives for FieldType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for FieldType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
-        Ok((other.mutable || !self.mutable)
-            && self.element_type.derives(&other.element_type, type_at)?)
+        (other.mutable || !self.mutable) && self.element_type.inherits(&other.element_type, type_at)
     }
 }
 
-impl Derives for StorageType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for StorageType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (Self::Val(a), Self::Val(b)) => a.derives(b, type_at),
-            (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => Ok(*a == *b),
+            (Self::Val(a), Self::Val(b)) => a.inherits(b, type_at),
+            (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => *a == *b,
         }
     }
 }
 
-impl Derives for StructType {
-    fn derives<'a, F>(&self, other: &Self, type_at: &F) -> Result<bool>
+impl Inherits for StructType {
+    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
-        F: Fn(u32) -> Result<&'a SubType>,
+        F: Fn(u32) -> &'a SubType,
     {
         // Note: Structure types support width and depth subtyping.
-        let r = self.fields.len() >= other.fields.len()
+        self.fields.len() >= other.fields.len()
             && self
                 .fields
                 .iter()
                 .zip(other.fields.iter())
-                .try_fold(true, |r, (a, b)| Ok(r && a.derives(b, type_at)?))?;
-        Ok(r)
+                .fold(true, |r, (a, b)| r && a.inherits(b, type_at))
     }
 }
 
