@@ -97,8 +97,15 @@ impl WasmComposeCommand {
             }
         };
 
-        config.definitions.extend(self.defs.iter().cloned());
-        config.search_paths.extend(self.paths.iter().cloned());
+        // Use paths relative to the current directory; otherwise, the paths are interpreted as
+        // relative to the configuration file.
+        let cur_dir = std::env::current_dir().context("failed to get current directory")?;
+        config
+            .definitions
+            .extend(self.defs.iter().map(|p| cur_dir.join(p)));
+        config
+            .search_paths
+            .extend(self.paths.iter().map(|p| cur_dir.join(p)));
         config.skip_validation |= self.skip_validation;
         config.disallow_imports |= self.disallow_imports;
         Ok(config)
