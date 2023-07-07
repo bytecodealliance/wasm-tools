@@ -2,7 +2,7 @@
       | 01 00 00 00
   0x8 | 01 04       | type section
   0xa | 01          | 1 count
-  0xb | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+  0xb | 60 00 00    | [type 0] SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [] }) }
   0xe | 03 02       | func section
  0x10 | 01          | 1 count
  0x11 | 00          | [func 0] type 0

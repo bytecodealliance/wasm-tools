@@ -56,8 +56,8 @@ impl Mutator for AddTypeMutator {
             // Copy the existing types section over into the encoder.
             let reader = wasmparser::TypeSectionReader::new(old_types.data, 0)?;
             for ty in reader {
-                match ty? {
-                    wasmparser::Type::Func(ty) => {
+                match ty?.structural_type {
+                    wasmparser::StructuralType::Func(ty) => {
                         let params = ty
                             .params()
                             .iter()
@@ -72,10 +72,10 @@ impl Mutator for AddTypeMutator {
                             .collect::<Result<Vec<_>, _>>()?;
                         types.function(params, results);
                     }
-                    wasmparser::Type::Array(_) => {
+                    wasmparser::StructuralType::Array(_) => {
                         return Err(Error::unsupported("Array types are not supported yet."));
                     }
-                    wasmparser::Type::Struct(_) => {
+                    wasmparser::StructuralType::Struct(_) => {
                         return Err(Error::unsupported("Struct types are not supported yet."));
                     }
                 }

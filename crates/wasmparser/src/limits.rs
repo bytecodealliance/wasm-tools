@@ -16,6 +16,7 @@
 // The following limits are imposed by wasmparser on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
 pub const MAX_WASM_TYPES: usize = 1_000_000;
+pub const MAX_WASM_SUPERTYPES: usize = 1;
 pub const MAX_WASM_FUNCTIONS: usize = 1_000_000;
 pub const MAX_WASM_EXPORTS: usize = 100_000;
 pub const MAX_WASM_GLOBALS: usize = 1_000_000;
