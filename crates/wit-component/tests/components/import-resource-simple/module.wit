@@ -4,6 +4,6 @@ world module {
   resource a {
     constructor()
 
-    static other-new: func() -> a
+    other-new: static func() -> a
   }
 }

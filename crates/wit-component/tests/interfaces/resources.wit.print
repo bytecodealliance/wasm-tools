@@ -3,7 +3,7 @@ package foo:bar
 interface foo {
   resource bar {
     constructor()
-    static a: func()
+    a: static func()
     b: func()
   }
 
@@ -40,7 +40,7 @@ interface implicit-own-handles2 {
   }
 
   resource c {
-    static a: func(a: c) -> c
+    a: static func(a: c) -> c
   }
 }
 
@@ -48,7 +48,7 @@ world some-world {
   import anon: interface {
     resource a {
       constructor()
-      static b: func()
+      b: static func()
       c: func()
     }
   }

@@ -3,6 +3,6 @@ package foo:bar
 interface foo {
   resource a {
     a: func()
-    static a: func()
+    a: static func()
   }
 }

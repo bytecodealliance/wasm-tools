@@ -17,7 +17,7 @@ interface foo {
 
     a: func()
 
-    static b: func()
+    b: static func()
   }
 
   resource e {

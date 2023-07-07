@@ -4,7 +4,7 @@ world root {
   import foo: interface {
     resource a {
       constructor()
-      static other-new: func() -> a
+      other-new: static func() -> a
     }
   }
 }
