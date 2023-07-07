@@ -286,9 +286,7 @@ impl<'a> Component<'a> {
                     return false;
                 }
                 ComponentEntityType::is_subtype_of(
-                    &ComponentEntityType::Instance(
-                        self.types.component_instance_at(*index).unwrap(),
-                    ),
+                    &ComponentEntityType::Instance(self.types.component_instance_at(*index)),
                     self.types(),
                     &ComponentEntityType::Instance(ty),
                     types,
@@ -300,13 +298,7 @@ impl<'a> Component<'a> {
     /// Checks to see if an instance of this component would be a
     /// subtype of the given instance type.
     pub(crate) fn is_instance_subtype_of(&self, ty: TypeId, types: TypesRef) -> bool {
-        let exports = types
-            .type_from_id(ty)
-            .unwrap()
-            .as_component_instance_type()
-            .unwrap()
-            .exports
-            .iter();
+        let exports = types[ty].unwrap_component_instance().exports.iter();
 
         for (k, b) in exports {
             match self.exports.get_full(k.as_str()) {

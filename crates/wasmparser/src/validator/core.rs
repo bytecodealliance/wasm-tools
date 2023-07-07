@@ -739,9 +739,13 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        types[self.type_id_at(type_index, offset)?]
-            .as_func_type()
-            .ok_or_else(|| format_err!(offset, "type index {type_index} is not a function type"))
+        match &types[self.type_id_at(type_index, offset)?] {
+            Type::Sub(SubType {
+                structural_type: StructuralType::Func(f),
+                ..
+            }) => Ok(f),
+            _ => bail!(offset, "type index {type_index} is not a function type"),
+        }
     }
 
     pub fn check_type_ref(
@@ -1114,11 +1118,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.types[*self.module.tags.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.types[*self.module.tags.get(at as usize)?].unwrap_func())
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1126,11 +1126,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.types[*self.module.types.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.types[*self.module.types.get(at as usize)?].unwrap_func())
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {
@@ -1182,11 +1178,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?].unwrap_func())
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1194,11 +1186,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?].unwrap_func())
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {
