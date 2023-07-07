@@ -556,10 +556,6 @@ enum ResourceFunc<'a> {
 impl<'a> ResourceFunc<'a> {
     fn parse(docs: Docs<'a>, tokens: &mut Tokenizer<'a>) -> Result<Self> {
         match tokens.clone().next()? {
-            Some((_span, Token::Static)) => {
-                tokens.expect(Token::Static)?;
-                Ok(ResourceFunc::Static(NamedFunc::parse(tokens, docs)?))
-            }
             Some((span, Token::Constructor)) => {
                 tokens.expect(Token::Constructor)?;
                 tokens.expect(Token::LeftParen)?;
@@ -582,11 +578,17 @@ impl<'a> ResourceFunc<'a> {
                 }))
             }
             Some((_span, Token::Id | Token::ExplicitId)) => {
-                Ok(ResourceFunc::Method(NamedFunc::parse(tokens, docs)?))
+                let name = parse_id(tokens)?;
+                tokens.expect(Token::Colon)?;
+                let ctor = if tokens.eat(Token::Static)? {
+                    ResourceFunc::Static
+                } else {
+                    ResourceFunc::Method
+                };
+                let func = Func::parse(tokens)?;
+                Ok(ctor(NamedFunc { docs, name, func }))
             }
-            other => {
-                Err(err_expected(tokens, "`static`, `constructor` or identifier", other).into())
-            }
+            other => Err(err_expected(tokens, "`constructor` or identifier", other).into()),
         }
     }
 

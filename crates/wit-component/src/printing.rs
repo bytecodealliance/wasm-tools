@@ -192,9 +192,9 @@ impl WitPrinter {
                     self.output.push_str(": ");
                 }
                 FunctionKind::Static(_) => {
-                    self.output.push_str("static ");
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
+                    self.output.push_str("static ");
                 }
                 FunctionKind::Freestanding => unreachable!(),
             }
