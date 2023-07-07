@@ -11,6 +11,8 @@
     )
   )
   (import (interface "wasi:cli-base/environment") (instance (;0;) (type 0)))
+  (import "other1" (instance (;0;)))
+  (import "other2" (instance (;0;)))
   (core module (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))

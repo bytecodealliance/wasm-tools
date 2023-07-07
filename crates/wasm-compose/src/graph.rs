@@ -7,7 +7,6 @@ use std::{
     borrow::Cow,
     collections::{hash_map::Entry, HashMap, HashSet},
     path::{Path, PathBuf},
-    rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
@@ -28,7 +27,6 @@ pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
 }
 
 /// Represents a component in a composition graph.
-#[derive(Clone)]
 pub struct Component<'a> {
     /// The name of the component.
     pub(crate) name: String,
@@ -37,7 +35,7 @@ pub struct Component<'a> {
     /// The raw bytes of the component.
     pub(crate) bytes: Cow<'a, [u8]>,
     /// The type information of the component.
-    pub(crate) types: Rc<Types>,
+    pub(crate) types: Types,
     /// The import map of the component.
     pub(crate) imports: IndexMap<String, ComponentTypeRef>,
     /// The export map of the component.
@@ -160,7 +158,7 @@ impl<'a> Component<'a> {
                                     name,
                                     path,
                                     bytes,
-                                    types: Rc::from(types),
+                                    types,
                                     imports,
                                     exports,
                                 });
@@ -194,7 +192,7 @@ impl<'a> Component<'a> {
 
     /// Gets the type information of the component.
     pub fn types(&self) -> TypesRef {
-        self.types.as_ref().as_ref()
+        self.types.as_ref()
     }
 
     /// Gets an export from the component for the given export index.
