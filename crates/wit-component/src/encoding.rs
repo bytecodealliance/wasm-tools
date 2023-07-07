@@ -3,7 +3,7 @@
 //! This module, at a high level, is tasked with transforming a core wasm
 //! module into a component. This will process the imports/exports of the core
 //! wasm module and translate between the `wit-parser` AST and the component
-//! model binary format, producing a final component which sill import
+//! model binary format, producing a final component which will import
 //! `*.wit` defined interfaces and export `*.wit` defined interfaces as well
 //! with everything wired up internally according to the canonical ABI and such.
 //!
