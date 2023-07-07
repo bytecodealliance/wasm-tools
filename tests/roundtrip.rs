@@ -231,8 +231,9 @@ impl TestState {
         // which while they don't actually affect the meaning they do "affect"
         // humans reading the output.
         for token in wast::lexer::Lexer::new(&string).allow_confusing_unicode(true) {
-            let ws = match token? {
-                wast::lexer::Token::Whitespace(ws) => ws,
+            let token = token?;
+            let ws = match token.kind {
+                wast::lexer::TokenKind::Whitespace => token.src(&string),
                 _ => continue,
             };
             if ws.starts_with("\n") || ws == " " {

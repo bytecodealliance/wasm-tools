@@ -444,7 +444,7 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
 /// This briefly lexes past whitespace and comments as a `*.wat` file to see if
 /// we can find a left-paren. If that fails then it's probably `*.wit` instead.
 fn is_wasm(bytes: &[u8]) -> bool {
-    use wast::lexer::{Lexer, Token};
+    use wast::lexer::{Lexer, TokenKind};
 
     if bytes.starts_with(b"\0asm") {
         return true;
@@ -457,9 +457,11 @@ fn is_wasm(bytes: &[u8]) -> bool {
     let mut lexer = Lexer::new(text);
 
     while let Some(next) = lexer.next() {
-        match next {
-            Ok(Token::Whitespace(_)) | Ok(Token::BlockComment(_)) | Ok(Token::LineComment(_)) => {}
-            Ok(Token::LParen(_)) => return true,
+        match next.map(|t| t.kind) {
+            Ok(TokenKind::Whitespace)
+            | Ok(TokenKind::BlockComment)
+            | Ok(TokenKind::LineComment) => {}
+            Ok(TokenKind::LParen) => return true,
             _ => break,
         }
     }
