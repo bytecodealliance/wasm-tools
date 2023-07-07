@@ -1342,6 +1342,11 @@ impl Remap {
                     return false;
                 }
             }
+            // If this is an import and it's already in the `required_imports`
+            // set then we can skip it as we've already visited this interface.
+            if !add_export && required_imports.contains(&id) {
+                return true;
+            }
             let ok = foreach_interface_dep(resolve, id, |dep| {
                 let key = WorldKey::Interface(dep);
                 let add_export = add_export && export_interfaces.contains_key(&dep);
