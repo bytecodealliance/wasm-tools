@@ -114,6 +114,29 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     Interface(&'a str),
+    Implementation(ImplementationImport<'a>),
+}
+/// Various types of implementation imports
+#[derive(Debug, Copy, Clone)]
+pub enum ImplementationImport<'a> {
+  /// Relative path
+  Relative(&'a str)
+}
+
+impl ToString for ImplementationImport<'_> {
+  fn to_string(&self) -> String {
+      match self {
+        Self::Relative(metadata) => metadata.to_string(),
+      }
+  }
+}
+
+impl<'a> FromReader<'a> for ImplementationImport<'a> {
+  fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+    let offset = reader.original_position();
+    let impl_import = reader.read::<&str>()?;
+    Ok(Self::Relative(impl_import))
+  }
 }
 
 impl<'a> ComponentExternName<'a> {
@@ -122,6 +145,11 @@ impl<'a> ComponentExternName<'a> {
         match self {
             ComponentExternName::Kebab(name) => name,
             ComponentExternName::Interface(name) => name,
+            ComponentExternName::Implementation(impl_import) => match impl_import {
+              ImplementationImport::Relative(name) => {
+                name
+              }
+            },
         }
     }
 }
@@ -131,6 +159,7 @@ impl<'a> FromReader<'a> for ComponentExternName<'a> {
         Ok(match reader.read_u8()? {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
+            0x02 => ComponentExternName::Implementation(reader.read()?),
             x => return reader.invalid_leading_byte(x, "import name"),
         })
     }

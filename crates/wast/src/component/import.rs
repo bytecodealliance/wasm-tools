@@ -12,14 +12,39 @@ pub struct ComponentImport<'a> {
     pub name: ComponentExternName<'a>,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
+    /// Info about where to import comes from
+    pub metadata: Option<ImportMetadata<'a>>
+}
+
+///Info About where to find import
+#[derive(Debug, Copy, Clone)]
+pub struct ImportMetadata<'a> {
+  /// Name of import
+  name: &'a str,
+  /// url for import
+  location: &'a str,
+  /// if version is locked
+  locked: bool
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let name = parser.parse()?;
-        let item = parser.parens(|p| p.parse())?;
-        Ok(ComponentImport { span, name, item })
+        match name {
+            ComponentExternName::Kebab(_) | ComponentExternName::Interface(_) => {
+              let item = parser.parens(|p| p.parse())?;
+              return Ok(ComponentImport { span, name, item, metadata: None })
+            },
+            ComponentExternName::Implementation(implImport) => {
+              let item = parser.parens(|p| p.parse())?;
+              match implImport {
+                ImplementationImport::Relative(metadata) => {
+                  Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+                }
+              }
+            },
+        }
     }
 }
 
@@ -30,6 +55,29 @@ pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     /// This is an interface import where the string is an ID.
     Interface(&'a str),
+    /// This is an implementation import where the string is an ID.
+    Implementation(ImplementationImport<'a>),
+}
+
+/// The different names that can be assigned to component import
+#[derive(Debug, Copy, Clone)]
+pub enum ImplementationImport<'a> {
+  /// Relative path
+  Relative(ImportMetadata<'a>)
+}
+
+impl<'a> Parse<'a> for ImplementationImport<'a> {
+  fn parse(parser: Parser<'a>) -> Result<Self> {
+    // let name = parser.parse::<String>()?;
+    Ok(ImplementationImport::Relative(ImportMetadata {
+      name: parser.parse()?,
+      location: parser.parens(|p| {
+        p.parse::<kw::relative>()?;
+        p.parse()
+      })?,
+      locked: false
+    }))
+  }
 }
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
@@ -40,6 +88,10 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
                 p.parse()
             })?))
         } else {
+          if parser.peek2::<LParen>() {
+            let implImport = parser.parse::<ImplementationImport>()?;
+            return Ok(ComponentExternName::Implementation(implImport))
+          }
             Ok(ComponentExternName::Kebab(parser.parse()?))
         }
     }

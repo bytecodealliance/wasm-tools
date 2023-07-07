@@ -466,6 +466,7 @@ pub mod kw {
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(rec);
+    custom_keyword!(relative);
     custom_keyword!(rep);
     custom_keyword!(resource);
     custom_keyword!(resource_new = "resource.new");

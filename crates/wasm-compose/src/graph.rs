@@ -127,6 +127,13 @@ impl<'a> Component<'a> {
                                             | wasmparser::ComponentExternName::Interface(s) => {
                                                 s.to_string()
                                             }
+                                            wasmparser::ComponentExternName::Implementation(impl_import) => {
+                                              match impl_import {
+                                                wasmparser::ImplementationImport::Relative(name) => {
+                                                  name.to_string()
+                                                }
+                                              }
+                                            }
                                         };
                                         imports.insert(name, import.ty);
                                     }
@@ -138,6 +145,11 @@ impl<'a> Component<'a> {
                                             wasmparser::ComponentExternName::Kebab(s)
                                             | wasmparser::ComponentExternName::Interface(s) => {
                                                 s.to_string()
+                                            }
+                                            wasmparser::ComponentExternName::Implementation(impl_import) => {
+                                              match impl_import {
+                                                wasmparser::ImplementationImport::Relative(name) => name.to_string()
+                                              }
                                             }
                                         };
                                         exports.insert(name, (export.kind, export.index));

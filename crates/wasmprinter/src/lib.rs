@@ -1818,11 +1818,15 @@ impl Printer {
         state: &mut State,
         parser: ComponentImportSectionReader,
     ) -> Result<()> {
+        dbg!("PRINTING IMPORTS");
         for import in parser.into_iter_with_offsets() {
+            dbg!("IMPORT LOOP");
+            dbg!(&import);
             let (offset, import) = import?;
             self.newline(offset);
             self.print_component_import(state, &import, true)?;
         }
+        dbg!("END OF LOOP");
 
         Ok(())
     }
@@ -1850,6 +1854,12 @@ impl Printer {
                 self.end_group();
                 Ok(())
             }
+            ComponentExternName::Implementation(s) => {
+              self.start_group("relative ");
+              self.print_str(&s.to_string())?;
+              self.end_group();
+              Ok(())
+          }
         }
     }
 

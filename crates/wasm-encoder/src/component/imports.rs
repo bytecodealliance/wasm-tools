@@ -158,6 +158,15 @@ pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     /// This is an ID along the lines of "wasi:http/types@2.0"
     Interface(&'a str),
+    /// This is an ID along the lines of "wasi:http/types@2.0"
+    Implementation(ImplementationImport<'a>),
+}
+
+/// Various types of implementation imports
+#[derive(Debug, Copy, Clone)]
+pub enum ImplementationImport<'a> {
+  /// Relative path
+  Relative(&'a str)
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -170,6 +179,14 @@ impl Encode for ComponentExternName<'_> {
             ComponentExternName::Interface(name) => {
                 sink.push(0x01);
                 name.encode(sink);
+            }
+            ComponentExternName::Implementation(import) => {
+                match import {
+                  ImplementationImport::Relative(name) => {
+                    sink.push(0x02);
+                    name.encode(sink);
+                  }
+                }
             }
         }
     }
