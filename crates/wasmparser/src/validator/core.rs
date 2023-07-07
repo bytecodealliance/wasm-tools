@@ -248,7 +248,7 @@ impl ModuleState {
         match e.items {
             crate::ElementItems::Functions(reader) => {
                 let count = reader.count();
-                if !e.ty.is_nullable() && count <= 0 {
+                if !e.ty.is_nullable() && count == 0 {
                     return Err(BinaryReaderError::new(
                         "a non-nullable element must come with an initialization expression",
                         offset,

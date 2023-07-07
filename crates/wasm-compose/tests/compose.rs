@@ -94,10 +94,10 @@ fn component_composing() -> Result<()> {
         };
 
         if std::env::var_os("BLESS").is_some() {
-            fs::write(&baseline_path, output + "\n")?;
+            fs::write(baseline_path, output + "\n")?;
         } else {
             assert_eq!(
-                fs::read_to_string(&baseline_path)
+                fs::read_to_string(baseline_path)
                     .with_context(|| format!(
                         "failed to read component baseline `{}`",
                         baseline_path.display()

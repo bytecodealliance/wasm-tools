@@ -30,8 +30,13 @@ pub extern "C" fn wasm_tools_byte_vec_delete(bytes: &mut wasm_tools_byte_vec_t) 
     }
 }
 
+/// Create a new WebAssembly module with the given seed.
+///
+/// # Safety
+///
+/// `seed` must be a valid pointer to `seed_len` bytes of memory.
 #[no_mangle]
-pub extern "C" fn wasm_smith_create(
+pub unsafe extern "C" fn wasm_smith_create(
     seed: *const u8,
     seed_len: usize,
     bytes: &mut wasm_tools_byte_vec_t,

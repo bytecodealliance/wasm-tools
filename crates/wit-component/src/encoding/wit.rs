@@ -107,10 +107,10 @@ impl Encoder<'_> {
         encoder.interface = None;
 
         for (name, world) in self.resolve.packages[self.package].worlds.iter() {
-            let component_ty = encode_world(&self.resolve, *world)?;
+            let component_ty = encode_world(self.resolve, *world)?;
             let idx = encoder.outer.type_count();
             encoder.outer.ty().component(&component_ty);
-            let id = self.resolve.packages[self.package].name.interface_id(&name);
+            let id = self.resolve.packages[self.package].name.interface_id(name);
             encoder.outer.export(&id, ComponentTypeRef::Component(idx));
         }
 

@@ -77,6 +77,10 @@ pub struct Config {
     #[serde(skip)]
     pub dir: PathBuf,
 
+    /// Components whose exports define import dependencies to fulfill from.
+    #[serde(default)]
+    pub definitions: Vec<PathBuf>,
+
     /// The paths to search when automatically resolving dependencies.
     ///
     /// The config directory is always searched first.

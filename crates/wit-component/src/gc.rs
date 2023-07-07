@@ -118,10 +118,10 @@ fn realloc_via_memory_grow() -> wasm_encoder::Function {
 
 #[repr(i32)]
 #[non_exhaustive]
-enum AllocationState {
-    StackUnallocated,
-    StackAllocating,
-    StackAllocated,
+enum StackAllocationState {
+    Unallocated,
+    Allocating,
+    Allocated,
 }
 
 fn allocate_stack_via_realloc(
@@ -136,10 +136,10 @@ fn allocate_stack_via_realloc(
     if let Some(allocation_state) = allocation_state {
         // This means we're lazily allocating the stack, keeping track of state via `$allocation_state`
         func.instruction(&GlobalGet(allocation_state));
-        func.instruction(&I32Const(AllocationState::StackUnallocated as _));
+        func.instruction(&I32Const(StackAllocationState::Unallocated as _));
         func.instruction(&I32Eq);
         func.instruction(&If(wasm_encoder::BlockType::Empty));
-        func.instruction(&I32Const(AllocationState::StackAllocating as _));
+        func.instruction(&I32Const(StackAllocationState::Allocating as _));
         func.instruction(&GlobalSet(allocation_state));
         // We could also set `sp` to zero here to ensure the yet-to-be-allocated stack is empty.  However, we
         // assume it defaults to zero anyway, in which case setting it would be redundant.
@@ -155,7 +155,7 @@ fn allocate_stack_via_realloc(
     func.instruction(&GlobalSet(sp));
 
     if let Some(allocation_state) = allocation_state {
-        func.instruction(&I32Const(AllocationState::StackAllocated as _));
+        func.instruction(&I32Const(StackAllocationState::Allocated as _));
         func.instruction(&GlobalSet(allocation_state));
         func.instruction(&End);
     }
@@ -499,7 +499,7 @@ impl<'a> Module<'a> {
             | HeapType::Struct
             | HeapType::Array
             | HeapType::I31 => {}
-            HeapType::Indexed(i) => self.ty(i.into()),
+            HeapType::Indexed(i) => self.ty(i),
         }
     }
 
@@ -574,7 +574,7 @@ impl<'a> Module<'a> {
         let mut empty_type = None;
         for (i, ty) in self.live_types() {
             map.types.push(i);
-            types.subtype(&map.subtype(&ty));
+            types.subtype(&map.subtype(ty));
 
             // Keep track of the "empty type" to see if we can reuse an
             // existing one or one needs to be injected if a `start`
@@ -1138,9 +1138,7 @@ impl Encoder {
             HeapType::Struct => wasm_encoder::HeapType::Struct,
             HeapType::Array => wasm_encoder::HeapType::Array,
             HeapType::I31 => wasm_encoder::HeapType::I31,
-            HeapType::Indexed(idx) => {
-                wasm_encoder::HeapType::Indexed(self.types.remap(idx.into()).try_into().unwrap())
-            }
+            HeapType::Indexed(idx) => wasm_encoder::HeapType::Indexed(self.types.remap(idx)),
         }
     }
 
