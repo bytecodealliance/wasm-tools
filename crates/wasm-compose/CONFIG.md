@@ -15,6 +15,8 @@ validation of the resulting composed component.
 explicit locations of transitive dependencies.
 * `instantiations` : `map<string, instantiation>` (optional) - a map specifying
 the explicit instantiations of transitive dependencies.
+* `definitions` : `list<string>` (optional) - a list of paths to _definition_
+components.
 
 ## Dependencies
 
@@ -131,3 +133,21 @@ every import.
 
 Configuring instantiations for `wasm-compose` allows for a custom instantiation
 graph to be constructed in the composed component.
+
+## Definition components
+
+A _definition_ component is a component that exports instances that are
+automatically used to satisfy any instance import in the composition with a
+matching name.
+
+A typical use case for definition components is to provide a _virtualized_
+implementation of common interfaces.
+
+For example, a definition component might export a virtualized implementation
+of the `wasi:filesystem/types` interface that serves files via inline data
+segments instead of by accessing the host filesystem.
+
+By providing such a definition component to the composition, any use of the
+WASI filesystem interface by the root component (or its dependencies) will
+automatically use the implementation provided by the definition component
+instead of importing it from the host environment.
