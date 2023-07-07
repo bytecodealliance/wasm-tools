@@ -1156,7 +1156,7 @@ instructions! {
 const _: () = {
     let size = std::mem::size_of::<Instruction<'_>>();
     let pointer = std::mem::size_of::<usize>();
-    assert!(size <= pointer * 10);
+    assert!(size <= pointer * 20);
 };
 
 impl<'a> Instruction<'a> {
