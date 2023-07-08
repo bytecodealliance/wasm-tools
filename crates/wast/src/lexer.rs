@@ -1341,14 +1341,14 @@ mod tests {
         assert_eq!(
             get_float("+nan:0x1"),
             Float::Nan {
-                val: Some(1),
+                val: Some("1".into()),
                 negative: false,
             },
         );
         assert_eq!(
             get_float("nan:0x7f_ffff"),
             Float::Nan {
-                val: Some(0x7fffff),
+                val: Some("7fffff".into()),
                 negative: false,
             },
         );
