@@ -502,10 +502,10 @@ macro_rules! instructions {
 
 instructions! {
     pub enum Instruction<'a> {
-        Block(BlockType<'a>) : [0x02] : "block",
-        If(BlockType<'a>) : [0x04] : "if",
+        Block(Box<BlockType<'a>>) : [0x02] : "block",
+        If(Box<BlockType<'a>>) : [0x04] : "if",
         Else(Option<Id<'a>>) : [0x05] : "else",
-        Loop(BlockType<'a>) : [0x03] : "loop",
+        Loop(Box<BlockType<'a>>) : [0x03] : "loop",
         End(Option<Id<'a>>) : [0x0b] : "end",
 
         Unreachable : [0x00] : "unreachable",
@@ -515,11 +515,11 @@ instructions! {
         BrTable(BrTableIndices<'a>) : [0x0e] : "br_table",
         Return : [0x0f] : "return",
         Call(Index<'a>) : [0x10] : "call",
-        CallIndirect(CallIndirect<'a>) : [0x11] : "call_indirect",
+        CallIndirect(Box<CallIndirect<'a>>) : [0x11] : "call_indirect",
 
         // tail-call proposal
         ReturnCall(Index<'a>) : [0x12] : "return_call",
-        ReturnCallIndirect(CallIndirect<'a>) : [0x13] : "return_call_indirect",
+        ReturnCallIndirect(Box<CallIndirect<'a>>) : [0x13] : "return_call_indirect",
 
         // function-references proposal
         CallRef(Index<'a>) : [0x14] : "call_ref",
@@ -621,8 +621,8 @@ instructions! {
         // gc proposal, concrete casting
         RefTest(RefTest<'a>) : [] : "ref.test",
         RefCast(RefCast<'a>) : [] : "ref.cast",
-        BrOnCast(BrOnCast<'a>) : [] : "br_on_cast",
-        BrOnCastFail(BrOnCastFail<'a>) : [] : "br_on_cast_fail",
+        BrOnCast(Box<BrOnCast<'a>>) : [] : "br_on_cast",
+        BrOnCastFail(Box<BrOnCastFail<'a>>) : [] : "br_on_cast_fail",
 
         // gc proposal extern/any coercion operations
         ExternInternalize : [0xfb, 0x70] : "extern.internalize",
@@ -1118,7 +1118,7 @@ instructions! {
         F64x2PromoteLowF32x4 : [0xfd, 95] : "f64x2.promote_low_f32x4",
 
         // Exception handling proposal
-        Try(BlockType<'a>) : [0x06] : "try",
+        Try(Box<BlockType<'a>>) : [0x06] : "try",
         Catch(Index<'a>) : [0x07] : "catch",
         Throw(Index<'a>) : [0x08] : "throw",
         Rethrow(Index<'a>) : [0x09] : "rethrow",
@@ -1148,6 +1148,16 @@ instructions! {
         I32x4RelaxedDotI8x16I7x16AddS: [0xfd, 0x113]: "i32x4.relaxed_dot_i8x16_i7x16_add_s",
     }
 }
+
+// As shown in #1095 the size of this variant is somewhat performance-sensitive
+// since big `*.wat` files will have a lot of these. This is a small ratchet to
+// make sure that this enum doesn't become larger than it already is, although
+// ideally it also wouldn't be as large as it is now.
+const _: () = {
+    let size = std::mem::size_of::<Instruction<'_>>();
+    let pointer = std::mem::size_of::<usize>();
+    assert!(size <= pointer * 20);
+};
 
 impl<'a> Instruction<'a> {
     pub(crate) fn needs_data_count(&self) -> bool {
@@ -1205,15 +1215,15 @@ impl<'a> Parse<'a> for FuncBindType<'a> {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct LetType<'a> {
-    pub block: BlockType<'a>,
-    pub locals: Vec<Local<'a>>,
+    pub block: Box<BlockType<'a>>,
+    pub locals: Box<[Local<'a>]>,
 }
 
 impl<'a> Parse<'a> for LetType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(LetType {
             block: parser.parse()?,
-            locals: Local::parse_remainder(parser)?,
+            locals: Local::parse_remainder(parser)?.into(),
         })
     }
 }

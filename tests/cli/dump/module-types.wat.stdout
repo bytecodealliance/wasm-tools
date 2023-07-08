@@ -2,7 +2,7 @@
       | 0d 00 01 00
   0x8 | 03 23       | core type section
   0xa | 01          | 1 count
-  0xb | 50 05 01 60 | [core type 0] Module([Type(Func(FuncType { params: [], returns: [] })), Import(Import { module: "", name: "f", ty: Func(0) }), Import(Import { module: "", name: "g", ty: Global(GlobalType { content_type: I32, mutable: false }) }), Import(Import { module: "", name: "t", ty: Table(TableType { element_type: funcref, initial: 1, maximum: None }) }), Import(Import { module: "", name: "m", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) })])
+  0xb | 50 05 01 60 | [core type 0] Module([Type(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [] }) }), Import(Import { module: "", name: "f", ty: Func(0) }), Import(Import { module: "", name: "g", ty: Global(GlobalType { content_type: I32, mutable: false }) }), Import(Import { module: "", name: "t", ty: Table(TableType { element_type: funcref, initial: 1, maximum: None }) }), Import(Import { module: "", name: "m", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None }) })])
       | 00 00 00 00
       | 01 66 00 00
       | 00 00 01 67

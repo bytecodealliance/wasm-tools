@@ -3,7 +3,7 @@
 //! This module, at a high level, is tasked with transforming a core wasm
 //! module into a component. This will process the imports/exports of the core
 //! wasm module and translate between the `wit-parser` AST and the component
-//! model binary format, producing a final component which sill import
+//! model binary format, producing a final component which will import
 //! `*.wit` defined interfaces and export `*.wit` defined interfaces as well
 //! with everything wired up internally according to the canonical ABI and such.
 //!
@@ -90,7 +90,7 @@ use wit_parser::{
 const INDIRECT_TABLE_NAME: &str = "$imports";
 
 mod wit;
-pub use wit::{encode, encode_component};
+pub use wit::{encode, encode_component, encode_world};
 
 mod types;
 use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
@@ -546,7 +546,7 @@ impl<'a> EncodingState<'a> {
         for core_wasm_name in info.required_imports.keys() {
             let index = self.import_instance_to_lowered_core_instance(
                 CustomModule::Main,
-                *core_wasm_name,
+                core_wasm_name,
                 &shims,
                 info.metadata,
             );
@@ -1042,8 +1042,7 @@ impl<'a> EncodingState<'a> {
 
         impl NestedComponentTypeEncoder<'_, '_> {
             fn unique_import_name(&mut self, name: &str) -> String {
-                let base = format!("import-type-{name}");
-                let mut name = base.clone();
+                let mut name = format!("import-type-{name}");
                 let mut n = 0;
                 while self.imports.contains_key(&name) {
                     name = format!("{name}{n}");
@@ -1071,7 +1070,7 @@ impl<'a> EncodingState<'a> {
                 | FunctionKind::Constructor(_) => {
                     format!(
                         "import-{}",
-                        f.name.replace("[", "").replace("]", "-").replace(".", "-")
+                        f.name.replace('[', "").replace([']', '.'], "-")
                     )
                 }
             }

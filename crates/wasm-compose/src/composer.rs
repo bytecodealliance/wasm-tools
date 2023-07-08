@@ -8,9 +8,9 @@ use crate::{
         InstanceId,
     },
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use indexmap::IndexMap;
-use std::{collections::VecDeque, path::Path};
+use std::{collections::VecDeque, ffi::OsStr, path::Path};
 use wasmparser::{
     types::{ComponentEntityType, TypeId, TypesRef},
     ComponentExternalKind, ComponentTypeRef,
@@ -28,16 +28,33 @@ pub(crate) struct InstanceImportRef {
     pub(crate) import: ImportIndex,
 }
 
+/// Represents the kind of dependency to process.
+enum DependencyKind {
+    /// The dependency is on a configured instance.
+    Instance {
+        /// The name of the instance from the instantiation argument.
+        instance: String,
+        /// The name of the export on the instance to use as the instantiation argument.
+        export: Option<String>,
+    },
+
+    /// The dependency is on a definition component.
+    Definition {
+        /// The index into `definitions` for the dependency.
+        index: usize,
+        /// The export on the definition component to use as the instantiation argument.
+        export: ExportIndex,
+    },
+}
+
 /// An instance dependency to process in the composer.
 struct Dependency {
     /// The index into `instances` for the dependent instance.
     dependent: usize,
     /// The instance import reference on the dependent instance.
     import: InstanceImportRef,
-    /// The name of the instance from the instantiation argument.
-    instance: String,
-    /// The name of the export on the instance to use as the instantiation argument.
-    export: Option<String>,
+    /// The kind of dependency.
+    kind: DependencyKind,
 }
 
 /// A composition graph builder that wires up instances from components
@@ -49,6 +66,8 @@ struct CompositionGraphBuilder<'a> {
     graph: CompositionGraph<'a>,
     /// A map from instance name to graph instance id.
     instances: IndexMap<String, InstanceId>,
+    /// The definition components in the graph.
+    definitions: Vec<(ComponentId, Option<InstanceId>)>,
 }
 
 impl<'a> CompositionGraphBuilder<'a> {
@@ -56,10 +75,28 @@ impl<'a> CompositionGraphBuilder<'a> {
         let mut graph = CompositionGraph::new();
         graph.add_component(Component::from_file(ROOT_COMPONENT_NAME, root_path)?)?;
 
+        let definitions = config
+            .definitions
+            .iter()
+            .map(|path| {
+                let name = path.file_stem().and_then(OsStr::to_str).with_context(|| {
+                    format!(
+                        "invalid definition component path `{path}`",
+                        path = path.display()
+                    )
+                })?;
+
+                let component = Component::from_file(name, config.dir.join(path))?;
+
+                Ok((graph.add_component(component)?, None))
+            })
+            .collect::<Result<_>>()?;
+
         Ok(Self {
             config,
             graph,
             instances: Default::default(),
+            definitions,
         })
     }
 
@@ -124,7 +161,7 @@ impl<'a> CompositionGraphBuilder<'a> {
 
     /// Instantiates an instance with the given name into the graph.
     ///
-    /// Returns an index into `dependencies` for the instance being instantiated.
+    /// Returns an index into `instances` for the instance being instantiated.
     ///
     /// Returns `Ok(None)` if a component to instantiate cannot be found.
     fn instantiate(&mut self, name: &str, component_name: &str) -> Result<Option<(usize, bool)>> {
@@ -219,9 +256,9 @@ impl<'a> CompositionGraphBuilder<'a> {
                     types,
                 ) {
                     bail!("component `{path}` exports an instance named `{export}` but it is not compatible with import `{arg_name}` of component `{dependent_path}`",
-                            path = component.path().unwrap().display(),
-                            dependent_path = dependent_path.display(),
-                        )
+                        path = component.path().unwrap().display(),
+                        dependent_path = dependent_path.display(),
+                    )
                 }
 
                 Ok(export_index)
@@ -248,35 +285,82 @@ impl<'a> CompositionGraphBuilder<'a> {
     }
 
     /// Processes a dependency in the graph.
-    fn process_dependency(&mut self, dependency: Dependency) -> Result<Option<(usize, bool)>> {
-        let name = self.config.dependency_name(&dependency.instance);
+    ///
+    /// Returns `Ok(Some(index))` if the dependency resulted in a new dependency instance being created.
+    fn process_dependency(&mut self, dependency: Dependency) -> Result<Option<usize>> {
+        match dependency.kind {
+            DependencyKind::Instance { instance, export } => self.process_instance_dependency(
+                dependency.dependent,
+                dependency.import,
+                &instance,
+                export.as_deref(),
+            ),
+            DependencyKind::Definition { index, export } => {
+                // The dependency is on a definition component, so we simply connect the dependent to the definition's export
+                let (component_id, instance_id) = &mut self.definitions[index];
+                let instance_id = *instance_id
+                    .get_or_insert_with(|| self.graph.instantiate(*component_id).unwrap());
+
+                self.graph
+                    .connect(
+                        instance_id,
+                        Some(export),
+                        self.instances[dependency.dependent],
+                        dependency.import.import,
+                    )
+                    .with_context(|| {
+                        let name = self.instances.get_index(dependency.dependent).unwrap().0;
+                        format!(
+                            "failed to connect instance `{name}` to definition component `{path}`",
+                            path = self
+                                .graph
+                                .get_component(*component_id)
+                                .unwrap()
+                                .path()
+                                .unwrap()
+                                .display(),
+                        )
+                    })?;
+
+                // No new dependency instance was created
+                Ok(None)
+            }
+        }
+    }
+
+    fn process_instance_dependency(
+        &mut self,
+        dependent_index: usize,
+        import: InstanceImportRef,
+        instance: &str,
+        export: Option<&str>,
+    ) -> Result<Option<usize>> {
+        let name = self.config.dependency_name(instance);
 
         log::info!(
             "processing dependency `{name}` from instance `{dependent_name}` to instance `{instance}`",
-            dependent_name = self.instances.get_index(dependency.dependent).unwrap().0,
-            instance = dependency.instance
+            dependent_name = self.instances.get_index(dependent_index).unwrap().0,
         );
 
-        match self.instantiate(&dependency.instance, name)? {
+        match self.instantiate(instance, name)? {
             Some((instance, existing)) => {
-                let (dependent, import_name, import_type) =
-                    self.resolve_import_ref(dependency.import);
+                let (dependent, import_name, import_type) = self.resolve_import_ref(import);
 
-                let export = match &dependency.export {
+                let export = match export {
                     Some(export) => Some(self.resolve_export_index(
                         export,
                         instance,
                         dependent.path().unwrap(),
                         import_name,
                         import_type,
-                        dependent.types.as_ref(),
+                        dependent.types(),
                     )?),
                     None => self.find_compatible_instance(
                         instance,
-                        dependency.dependent,
+                        dependent_index,
                         import_name,
                         import_type,
-                        dependent.types.as_ref(),
+                        dependent.types(),
                     )?,
                 };
 
@@ -284,14 +368,18 @@ impl<'a> CompositionGraphBuilder<'a> {
                 self.graph.connect(
                     self.instances[instance],
                     export,
-                    self.instances[dependency.dependent],
-                    dependency.import.import,
+                    self.instances[dependent_index],
+                    import.import,
                 )?;
 
-                Ok(Some((instance, existing)))
+                if existing {
+                    return Ok(None);
+                }
+
+                Ok(Some(instance))
             }
             None => {
-                if let Some(export) = &dependency.export {
+                if let Some(export) = export {
                     bail!("an explicit export `{export}` cannot be specified for imported instance `{name}`");
                 }
                 Ok(None)
@@ -302,12 +390,12 @@ impl<'a> CompositionGraphBuilder<'a> {
     /// Push dependencies of the given instance to the dependency queue.
     fn push_dependencies(&self, instance: usize, queue: &mut VecDeque<Dependency>) -> Result<()> {
         let (instance_name, instance_id) = self.instances.get_index(instance).unwrap();
-        let config = self.config.instantiations.get(instance_name);
+        let instantiation = self.config.instantiations.get(instance_name);
         let (component_id, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
         let count = queue.len();
 
         // Push a dependency for every instance import
-        for (import, name, ty) in component.imports() {
+        'outer: for (import, name, ty) in component.imports() {
             match ty {
                 ComponentTypeRef::Instance(_) => {}
                 _ => bail!(
@@ -318,23 +406,51 @@ impl<'a> CompositionGraphBuilder<'a> {
 
             log::debug!("adding dependency for argument `{name}` (import index {import}) from instance `{instance_name}` to the queue", import = import.0);
 
-            let arg = config.and_then(|c| c.arguments.get(name));
+            // Search for a matching definition export for this import
+            for (index, (def_component_id, _)) in self.definitions.iter().enumerate() {
+                let def_component = self.graph.get_component(*def_component_id).unwrap();
+
+                match def_component.export_by_name(name) {
+                    Some((export, ComponentExternalKind::Instance, _)) => {
+                        log::debug!(
+                            "found matching instance export `{name}` in definition component `{path}`",
+                            path = def_component.path().unwrap().display()
+                        );
+
+                        queue.push_back(Dependency {
+                            dependent: instance,
+                            import: InstanceImportRef {
+                                component: component_id,
+                                import,
+                            },
+                            kind: DependencyKind::Definition { index, export },
+                        });
+
+                        continue 'outer;
+                    }
+                    _ => continue,
+                }
+            }
+
+            let arg = instantiation.and_then(|c| c.arguments.get(name));
             queue.push_back(Dependency {
                 dependent: instance,
                 import: InstanceImportRef {
                     component: component_id,
                     import,
                 },
-                instance: arg
-                    .map(|arg| arg.instance.clone())
-                    .unwrap_or_else(|| name.to_string()),
-                export: arg.and_then(|arg| arg.export.clone()),
+                kind: DependencyKind::Instance {
+                    instance: arg
+                        .map(|arg| arg.instance.clone())
+                        .unwrap_or_else(|| name.to_string()),
+                    export: arg.and_then(|arg| arg.export.clone()),
+                },
             });
         }
 
         // Ensure every explicit argument is a valid import name
-        if let Some(config) = config {
-            for arg in config.arguments.keys() {
+        if let Some(instantiation) = instantiation {
+            for arg in instantiation.arguments.keys() {
                 if !component.imports.contains_key(arg) {
                     bail!(
                         "component `{path}` has no import named `{arg}`",
@@ -370,11 +486,8 @@ impl<'a> CompositionGraphBuilder<'a> {
 
         // Process all remaining dependencies in the queue
         while let Some(dependency) = queue.pop_front() {
-            if let Some((instance, existing)) = self.process_dependency(dependency)? {
-                // Add dependencies only for new instances in the graph
-                if !existing {
-                    self.push_dependencies(instance, &mut queue)?;
-                }
+            if let Some(instance) = self.process_dependency(dependency)? {
+                self.push_dependencies(instance, &mut queue)?;
             }
         }
 

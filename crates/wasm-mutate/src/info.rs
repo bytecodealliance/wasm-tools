@@ -1,6 +1,6 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
-    Result,
+    Error, Result,
 };
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -93,8 +93,13 @@ impl<'a> ModuleInfo<'a> {
 
                     // Save function types
                     for ty in reader {
-                        let typeinfo = TypeInfo::try_from(ty?).unwrap();
-                        info.types_map.push(typeinfo);
+                        if let Ok(st) = ty {
+                            if st.is_final || st.supertype_idx.is_some() {
+                                return Err(Error::unsupported("GC types not supported yet"));
+                            }
+                            let typeinfo = TypeInfo::try_from(st.structural_type).unwrap();
+                            info.types_map.push(typeinfo);
+                        }
                     }
                 }
                 Payload::ImportSection(reader) => {

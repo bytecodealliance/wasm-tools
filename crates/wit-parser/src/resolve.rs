@@ -1342,6 +1342,11 @@ impl Remap {
                     return false;
                 }
             }
+            // If this is an import and it's already in the `required_imports`
+            // set then we can skip it as we've already visited this interface.
+            if !add_export && required_imports.contains(&id) {
+                return true;
+            }
             let ok = foreach_interface_dep(resolve, id, |dep| {
                 let key = WorldKey::Interface(dep);
                 let add_export = add_export && export_interfaces.contains_key(&dep);
@@ -1381,7 +1386,7 @@ impl Remap {
     ) -> Result<()> {
         let include_world_id = self.worlds[include_world.index()];
         let include_world = &resolve.worlds[include_world_id];
-        let mut names_ = names.clone().to_owned();
+        let mut names_ = names.to_owned();
 
         // remove all imports and exports that match the names we're including
         for import in include_world.imports.iter() {

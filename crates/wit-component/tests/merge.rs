@@ -64,10 +64,10 @@ fn merging() -> Result<()> {
 fn assert_output(expected: &Path, actual: &str) -> Result<()> {
     if std::env::var_os("BLESS").is_some() {
         fs::create_dir_all(expected.parent().unwrap())?;
-        fs::write(&expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
+        fs::write(expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {
         assert_eq!(
-            fs::read_to_string(&expected)
+            fs::read_to_string(expected)
                 .with_context(|| format!("failed to read {expected:?}"))?
                 .replace("\r\n", "\n"),
             actual,

@@ -621,7 +621,7 @@ impl PeepholeMutator {
         rhs: &str,
         cond: &[Condition],
     ) {
-        self.add_rewrite(rules, name, lhs, rhs, cond.clone());
+        self.add_rewrite(rules, name, lhs, rhs, cond);
         self.add_rewrite(rules, &format!("{name}-rev"), rhs, lhs, cond);
     }
 

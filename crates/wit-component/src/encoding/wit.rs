@@ -107,78 +107,10 @@ impl Encoder<'_> {
         encoder.interface = None;
 
         for (name, world) in self.resolve.packages[self.package].worlds.iter() {
-            let world = &self.resolve.worlds[*world];
-            let mut component = InterfaceEncoder::new(self.resolve);
-            log::trace!("encoding world {}", world.name);
-
-            // This sort is similar in purpose to the sort below in
-            // `encode_instance`, but different in its sort. The purpose here is
-            // to ensure that when a document is either printed as WIT or
-            // encoded as wasm that decoding from those artifacts produces the
-            // same WIT package. Namely both encoding processes should encode
-            // things in the same order.
-            //
-            // When printing worlds in WIT freestanding function imports are
-            // printed first, then types. Resource functions are attached to
-            // types which means that they all come last. Sort all
-            // resource-related functions here to the back of the `imports` list
-            // while keeping everything else in front, using a stable sort to
-            // preserve preexisting ordering.
-            let mut imports = world.imports.iter().collect::<Vec<_>>();
-            imports.sort_by_key(|(_name, import)| match import {
-                WorldItem::Function(f) => match f.kind {
-                    FunctionKind::Freestanding => 0,
-                    _ => 1,
-                },
-                _ => 0,
-            });
-
-            for (name, import) in imports {
-                let name = self.resolve.name_world_key(name);
-                log::trace!("encoding import {name}");
-                let ty = match import {
-                    WorldItem::Interface(i) => {
-                        component.interface = Some(*i);
-                        let idx = component.encode_instance(*i)?;
-                        ComponentTypeRef::Instance(idx)
-                    }
-                    WorldItem::Function(f) => {
-                        component.interface = None;
-                        let idx = component.encode_func_type(self.resolve, f)?;
-                        ComponentTypeRef::Func(idx)
-                    }
-                    WorldItem::Type(t) => {
-                        component.interface = None;
-                        component.import_types = true;
-                        component.encode_valtype(self.resolve, &Type::Id(*t))?;
-                        component.import_types = false;
-                        continue;
-                    }
-                };
-                component.outer.import(&name, ty);
-            }
-
-            for (name, export) in world.exports.iter() {
-                let name = self.resolve.name_world_key(name);
-                log::trace!("encoding export {name}");
-                let ty = match export {
-                    WorldItem::Interface(i) => {
-                        component.interface = Some(*i);
-                        let idx = component.encode_instance(*i)?;
-                        ComponentTypeRef::Instance(idx)
-                    }
-                    WorldItem::Function(f) => {
-                        component.interface = None;
-                        let idx = component.encode_func_type(self.resolve, f)?;
-                        ComponentTypeRef::Func(idx)
-                    }
-                    WorldItem::Type(_) => unreachable!(),
-                };
-                component.outer.export(&name, ty);
-            }
+            let component_ty = encode_world(self.resolve, *world)?;
             let idx = encoder.outer.type_count();
-            encoder.outer.ty().component(&component.outer);
-            let id = self.resolve.packages[self.package].name.interface_id(&name);
+            encoder.outer.ty().component(&component_ty);
+            let id = self.resolve.packages[self.package].name.interface_id(name);
             encoder.outer.export(&id, ComponentTypeRef::Component(idx));
         }
 
@@ -399,4 +331,80 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
         &mut self.func_type_map
     }
+}
+
+/// Encodes a `world` as a component type.
+pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
+    let mut component = InterfaceEncoder::new(resolve);
+    let world = &resolve.worlds[world_id];
+    log::trace!("encoding world {}", world.name);
+
+    // This sort is similar in purpose to the sort below in
+    // `encode_instance`, but different in its sort. The purpose here is
+    // to ensure that when a document is either printed as WIT or
+    // encoded as wasm that decoding from those artifacts produces the
+    // same WIT package. Namely both encoding processes should encode
+    // things in the same order.
+    //
+    // When printing worlds in WIT freestanding function imports are
+    // printed first, then types. Resource functions are attached to
+    // types which means that they all come last. Sort all
+    // resource-related functions here to the back of the `imports` list
+    // while keeping everything else in front, using a stable sort to
+    // preserve preexisting ordering.
+    let mut imports = world.imports.iter().collect::<Vec<_>>();
+    imports.sort_by_key(|(_name, import)| match import {
+        WorldItem::Function(f) => match f.kind {
+            FunctionKind::Freestanding => 0,
+            _ => 1,
+        },
+        _ => 0,
+    });
+
+    // Encode the imports
+    for (name, import) in imports {
+        let name = resolve.name_world_key(name);
+        log::trace!("encoding import {name}");
+        let ty = match import {
+            WorldItem::Interface(i) => {
+                component.interface = Some(*i);
+                let idx = component.encode_instance(*i)?;
+                ComponentTypeRef::Instance(idx)
+            }
+            WorldItem::Function(f) => {
+                component.interface = None;
+                let idx = component.encode_func_type(resolve, f)?;
+                ComponentTypeRef::Func(idx)
+            }
+            WorldItem::Type(t) => {
+                component.interface = None;
+                component.import_types = true;
+                component.encode_valtype(resolve, &Type::Id(*t))?;
+                component.import_types = false;
+                continue;
+            }
+        };
+        component.outer.import(&name, ty);
+    }
+    // Encode the exports
+    for (name, export) in world.exports.iter() {
+        let name = resolve.name_world_key(name);
+        log::trace!("encoding export {name}");
+        let ty = match export {
+            WorldItem::Interface(i) => {
+                component.interface = Some(*i);
+                let idx = component.encode_instance(*i)?;
+                ComponentTypeRef::Instance(idx)
+            }
+            WorldItem::Function(f) => {
+                component.interface = None;
+                let idx = component.encode_func_type(resolve, f)?;
+                ComponentTypeRef::Func(idx)
+            }
+            WorldItem::Type(_) => unreachable!(),
+        };
+        component.outer.export(&name, ty);
+    }
+
+    Ok(component.outer)
 }

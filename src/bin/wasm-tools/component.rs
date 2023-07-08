@@ -3,6 +3,7 @@
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use wasm_encoder::{Encode, Section};
@@ -16,6 +17,7 @@ pub enum Opts {
     New(NewOpts),
     Wit(WitOpts),
     Embed(EmbedOpts),
+    Targets(TargetsOpts),
 }
 
 impl Opts {
@@ -24,6 +26,7 @@ impl Opts {
             Opts::New(new) => new.run(),
             Opts::Wit(wit) => wit.run(),
             Opts::Embed(embed) => embed.run(),
+            Opts::Targets(targets) => targets.run(),
         }
     }
 
@@ -32,6 +35,7 @@ impl Opts {
             Opts::New(new) => new.general_opts(),
             Opts::Wit(wit) => wit.general_opts(),
             Opts::Embed(embed) => embed.general_opts(),
+            Opts::Targets(targets) => targets.general_opts(),
         }
     }
 }
@@ -185,6 +189,10 @@ pub struct EmbedOpts {
     /// like to work with an interface in the component model.
     #[clap(long)]
     dummy: bool,
+
+    /// Print the output in the WebAssembly text format instead of binary.
+    #[clap(long, short = 't')]
+    wat: bool,
 }
 
 impl EmbedOpts {
@@ -219,7 +227,7 @@ impl EmbedOpts {
 
         self.io.output(Output::Wasm {
             bytes: &wasm,
-            wat: false,
+            wat: self.wat,
         })?;
 
         Ok(())
@@ -254,13 +262,26 @@ pub struct WitOpts {
     output: wasm_tools::OutputArg,
 
     /// Emit a WebAssembly binary representation instead of the WIT text format.
-    #[clap(short, long, conflicts_with = "wat")]
+    #[clap(short, long, conflicts_with = "wat", conflicts_with = "out_dir")]
     wasm: bool,
 
     /// Emit a WebAssembly textual representation instead of the WIT text
     /// format.
-    #[clap(short = 't', long, conflicts_with = "wasm")]
+    #[clap(short = 't', long, conflicts_with = "wasm", conflicts_with = "out_dir")]
     wat: bool,
+
+    /// Emit the entire WIT resolution graph instead of just the "top level"
+    /// package to the output directory specified.
+    ///
+    /// The output directory will contain textual WIT files which represent all
+    /// packages known from the input.
+    #[clap(
+        long,
+        conflicts_with = "wasm",
+        conflicts_with = "wat",
+        conflicts_with = "output"
+    )]
+    out_dir: Option<PathBuf>,
 
     /// Skips the validation performed when using the `--wasm` and `--wat`
     /// options.
@@ -338,6 +359,7 @@ impl WitOpts {
 
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(self.wasm || self.wat);
+        assert!(self.out_dir.is_none());
 
         let bytes = wit_component::encode(decoded.resolve(), decoded.package())?;
         if !self.skip_validation {
@@ -356,12 +378,97 @@ impl WitOpts {
 
     fn emit_wit(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(!self.wasm && !self.wat);
-        if self.wat {
-            bail!("the `--wat` option can only be combined with `--wasm`");
+
+        let resolve = decoded.resolve();
+        let main = decoded.package();
+
+        match &self.out_dir {
+            Some(dir) => {
+                assert!(self.output.output_path().is_none());
+                std::fs::create_dir_all(dir)
+                    .with_context(|| format!("failed to create directory: {dir:?}"))?;
+
+                // Classify all packages by name to determine how to name their
+                // output directories.
+                let mut names = HashMap::new();
+                for (_id, pkg) in resolve.packages.iter() {
+                    let cnt = names
+                        .entry(&pkg.name.name)
+                        .or_insert(HashMap::new())
+                        .entry(&pkg.name.namespace)
+                        .or_insert(0);
+                    *cnt += 1;
+                }
+
+                for (id, pkg) in resolve.packages.iter() {
+                    let output = WitPrinter::default().print(resolve, id)?;
+                    let out_dir = if id == main {
+                        dir.clone()
+                    } else {
+                        let dir = dir.join("deps");
+                        let packages_with_same_name = &names[&pkg.name.name];
+                        if packages_with_same_name.len() == 1 {
+                            dir.join(&pkg.name.name)
+                        } else {
+                            let packages_with_same_namespace =
+                                packages_with_same_name[&pkg.name.namespace];
+                            if packages_with_same_namespace == 1 {
+                                dir.join(format!("{}:{}", pkg.name.namespace, pkg.name.name))
+                            } else {
+                                dir.join(pkg.name.to_string())
+                            }
+                        }
+                    };
+                    std::fs::create_dir_all(&out_dir)
+                        .with_context(|| format!("failed to create directory: {out_dir:?}"))?;
+                    let path = out_dir.join("main.wit");
+                    std::fs::write(&path, &output)
+                        .with_context(|| format!("failed to write file: {path:?}"))?;
+                    println!("Writing: {}", path.display());
+                }
+            }
+            None => {
+                let output = WitPrinter::default().print(resolve, main)?;
+                self.output.output(Output::Wat(&output))?;
+            }
         }
 
-        let output = WitPrinter::default().print(decoded.resolve(), decoded.package())?;
-        self.output.output(Output::Wat(&output))?;
+        Ok(())
+    }
+}
+
+/// Tool for verifying whether a component conforms to a world.
+#[derive(Parser)]
+pub struct TargetsOpts {
+    #[clap(flatten)]
+    general: wasm_tools::GeneralOpts,
+
+    /// The WIT package containing the `world` used to test a component for conformance.
+    ///
+    /// This can either be a directory or a path to a single `*.wit` file.
+    wit: PathBuf,
+
+    /// The world used to test whether a component conforms to its signature.
+    #[clap(short, long)]
+    world: Option<String>,
+
+    #[clap(flatten)]
+    input: wasm_tools::InputArg,
+}
+
+impl TargetsOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        &self.general
+    }
+
+    /// Executes the application.
+    fn run(self) -> Result<()> {
+        let (resolve, package_id) = parse_wit(&self.wit)?;
+        let world = resolve.select_world(package_id, self.world.as_deref())?;
+        let component_to_test = self.input.parse_wasm()?;
+
+        wit_component::targets(&resolve, world, &component_to_test)?;
+
         Ok(())
     }
 }
@@ -401,7 +508,7 @@ fn parse_wit(path: &Path) -> Result<(Resolve, PackageId)> {
 /// This briefly lexes past whitespace and comments as a `*.wat` file to see if
 /// we can find a left-paren. If that fails then it's probably `*.wit` instead.
 fn is_wasm(bytes: &[u8]) -> bool {
-    use wast::lexer::{Lexer, Token};
+    use wast::lexer::{Lexer, TokenKind};
 
     if bytes.starts_with(b"\0asm") {
         return true;
@@ -414,9 +521,11 @@ fn is_wasm(bytes: &[u8]) -> bool {
     let mut lexer = Lexer::new(text);
 
     while let Some(next) = lexer.next() {
-        match next {
-            Ok(Token::Whitespace(_)) | Ok(Token::BlockComment(_)) | Ok(Token::LineComment(_)) => {}
-            Ok(Token::LParen(_)) => return true,
+        match next.map(|t| t.kind) {
+            Ok(TokenKind::Whitespace)
+            | Ok(TokenKind::BlockComment)
+            | Ok(TokenKind::LineComment) => {}
+            Ok(TokenKind::LParen) => return true,
             _ => break,
         }
     }

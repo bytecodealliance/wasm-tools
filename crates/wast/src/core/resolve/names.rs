@@ -176,7 +176,7 @@ impl<'a> Resolver<'a> {
                     }
 
                     // .. followed by locals themselves
-                    for local in locals {
+                    for local in locals.iter() {
                         scope.register(local.id, "local")?;
                     }
 
@@ -492,13 +492,13 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             Let(t) => {
                 // Resolve (ref T) in locals
-                for local in &mut t.locals {
+                for local in t.locals.iter_mut() {
                     self.resolver.resolve_valtype(&mut local.ty)?;
                 }
 
                 // Register all locals defined in this let
                 let mut scope = Namespace::default();
-                for local in &t.locals {
+                for local in t.locals.iter() {
                     scope.register(local.id, "local")?;
                 }
                 self.scopes.push(scope);
@@ -604,8 +604,8 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve_reftype(&mut i.from_type)?;
             }
 
-            StructNew(i) | StructNewDefault(i) | ArrayNew(i)
-            | ArrayNewDefault(i) | ArrayGet(i) | ArrayGetS(i) | ArrayGetU(i) | ArraySet(i) => {
+            StructNew(i) | StructNewDefault(i) | ArrayNew(i) | ArrayNewDefault(i) | ArrayGet(i)
+            | ArrayGetS(i) | ArrayGetU(i) | ArraySet(i) => {
                 self.resolver.resolve(i, Ns::Type)?;
             }
 

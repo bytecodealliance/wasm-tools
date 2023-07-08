@@ -283,14 +283,11 @@ fn validate_exported_interface_resource_imports<'a>(
     info: &mut ValidatedModule<'a>,
 ) -> Result<()> {
     let is_resource = |name: &str| match resolve.interfaces[interface].types.get(name) {
-        Some(ty) => match resolve.types[*ty].kind {
-            TypeDefKind::Resource => true,
-            _ => false,
-        },
+        Some(ty) => matches!(resolve.types[*ty].kind, TypeDefKind::Resource),
         None => false,
     };
     for (func_name, ty) in funcs {
-        if valid_exported_resource_func(func_name, *ty, types, &is_resource)?.is_none() {
+        if valid_exported_resource_func(func_name, *ty, types, is_resource)?.is_none() {
             bail!("import of `{func_name}` is not a valid resource function");
         }
         let info = info.required_resource_funcs.get_mut(import_module).unwrap();
@@ -467,7 +464,7 @@ pub fn validate_adapter_module<'a>(
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
         if name == BARE_FUNC_MODULE_NAME {
-            let required = validate_imports_top_level(&resolve, world, &funcs, &types)?;
+            let required = validate_imports_top_level(resolve, world, &funcs, &types)?;
             ret.required_imports
                 .insert(BARE_FUNC_MODULE_NAME.to_string(), required);
             continue;
@@ -548,10 +545,10 @@ fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
     }
 }
 
-fn validate_imports_top_level<'a>(
+fn validate_imports_top_level(
     resolve: &Resolve,
     world: WorldId,
-    funcs: &IndexMap<&'a str, u32>,
+    funcs: &IndexMap<&str, u32>,
     types: &Types,
 ) -> Result<RequiredImports> {
     let is_resource = |name: &str| match resolve.worlds[world]
@@ -571,7 +568,7 @@ fn validate_imports_top_level<'a>(
                 validate_func(resolve, ty, func, AbiVariant::GuestImport)?;
             }
             Some(_) => bail!("expected world top-level import `{name}` to be a function"),
-            None => match valid_imported_resource_func(name, *ty, types, &is_resource)? {
+            None => match valid_imported_resource_func(name, *ty, types, is_resource)? {
                 Some(name) => {
                     required.resources.insert(name.to_string());
                 }
@@ -626,8 +623,8 @@ fn valid_exported_resource_func<'a>(
     Ok(None)
 }
 
-fn validate_imported_interface<'a>(
-    resolve: &'a Resolve,
+fn validate_imported_interface(
+    resolve: &Resolve,
     interface: InterfaceId,
     name: &str,
     imports: &IndexMap<&str, u32>,
@@ -639,10 +636,7 @@ fn validate_imported_interface<'a>(
             Some(ty) => *ty,
             None => return false,
         };
-        match resolve.types[ty].kind {
-            TypeDefKind::Resource => true,
-            _ => false,
-        }
+        matches!(resolve.types[ty].kind, TypeDefKind::Resource)
     };
     for (func_name, ty) in imports {
         match resolve.interfaces[interface].functions.get(*func_name) {
@@ -650,7 +644,7 @@ fn validate_imported_interface<'a>(
                 let ty = types.func_type_at(*ty).unwrap();
                 validate_func(resolve, ty, f, AbiVariant::GuestImport)?;
             }
-            None => match valid_imported_resource_func(func_name, *ty, types, &is_resource)? {
+            None => match valid_imported_resource_func(func_name, *ty, types, is_resource)? {
                 Some(name) => {
                     required.resources.insert(name.to_string());
                 }
@@ -743,7 +737,7 @@ fn validate_exported_item<'a>(
                     let id = types.function_at(*func_idx).unwrap();
                     let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
                     let expected = FuncType::new([ValType::I32], []);
-                    validate_func_sig(name, &expected, &ty)?;
+                    validate_func_sig(name, &expected, ty)?;
                     info.dtor_export = Some(name);
                 }
                 let prev = map.insert(name.as_str(), info);

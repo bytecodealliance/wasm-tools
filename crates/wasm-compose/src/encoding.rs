@@ -288,7 +288,7 @@ impl<'a> TypeEncoder<'a> {
                 wasmparser::HeapType::Struct => HeapType::Struct,
                 wasmparser::HeapType::Array => HeapType::Array,
                 wasmparser::HeapType::I31 => HeapType::I31,
-                wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i.into()),
+                wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i),
             },
         }
     }
@@ -462,7 +462,7 @@ impl<'a> TypeEncoder<'a> {
         let ty = self.0.type_from_id(id).unwrap();
 
         match ty {
-            Type::Func(_) | Type::Array(_) | Type::Struct(_) | Type::Instance(_) => {
+            Type::Sub(_) | Type::Instance(_) => {
                 unreachable!()
             }
             Type::Module(_) => self.module_type(encodable, types, id),

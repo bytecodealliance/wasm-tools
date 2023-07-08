@@ -192,9 +192,9 @@ impl WitPrinter {
                     self.output.push_str(": ");
                 }
                 FunctionKind::Static(_) => {
-                    self.output.push_str("static ");
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
+                    self.output.push_str("static ");
                 }
                 FunctionKind::Freestanding => unreachable!(),
             }
@@ -803,14 +803,51 @@ fn resource_func(f: &Function) -> Option<TypeId> {
 }
 
 fn is_keyword(name: &str) -> bool {
-    match name {
-        "use" | "type" | "func" | "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64"
-        | "float32" | "float64" | "char" | "resource" | "record" | "flags" | "variant" | "enum"
-        | "union" | "bool" | "string" | "option" | "result" | "future" | "stream" | "list"
-        | "own" | "borrow" | "_" | "as" | "from" | "static" | "interface" | "tuple" | "world"
-        | "import" | "export" | "package" | "with" | "include" | "constructor" => true,
-        _ => false,
-    }
+    matches!(
+        name,
+        "use"
+            | "type"
+            | "func"
+            | "u8"
+            | "u16"
+            | "u32"
+            | "u64"
+            | "s8"
+            | "s16"
+            | "s32"
+            | "s64"
+            | "float32"
+            | "float64"
+            | "char"
+            | "resource"
+            | "record"
+            | "flags"
+            | "variant"
+            | "enum"
+            | "union"
+            | "bool"
+            | "string"
+            | "option"
+            | "result"
+            | "future"
+            | "stream"
+            | "list"
+            | "own"
+            | "borrow"
+            | "_"
+            | "as"
+            | "from"
+            | "static"
+            | "interface"
+            | "tuple"
+            | "world"
+            | "import"
+            | "export"
+            | "package"
+            | "with"
+            | "include"
+            | "constructor"
+    )
 }
 
 /// Helper structure to help maintain an indentation level when printing source,

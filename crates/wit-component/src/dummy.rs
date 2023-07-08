@@ -131,7 +131,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
         dst.push_str(" (");
         dst.push_str(desc);
         for ty in params {
-            dst.push_str(" ");
+            dst.push(' ');
             match ty {
                 WasmType::I32 => dst.push_str("i32"),
                 WasmType::I64 => dst.push_str("i64"),
@@ -139,6 +139,6 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
                 WasmType::F64 => dst.push_str("f64"),
             }
         }
-        dst.push_str(")");
+        dst.push(')');
     }
 }

@@ -64,9 +64,10 @@
 //! This module is heavily inspired by [`syn`](https://docs.rs/syn) so you can
 //! likely also draw inspiration from the excellent examples in the `syn` crate.
 
-use crate::lexer::{Float, Integer, Lexer, Token};
+use crate::lexer::{Float, Integer, Lexer, Token, TokenKind};
 use crate::token::Span;
 use crate::Error;
+use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
@@ -243,6 +244,15 @@ pub trait Parse<'a>: Sized {
     fn parse(parser: Parser<'a>) -> Result<Self>;
 }
 
+impl<'a, T> Parse<'a> for Box<T>
+where
+    T: Parse<'a>,
+{
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(Box::new(parser.parse()?))
+    }
+}
+
 /// A trait for types which be used to "peek" to see if they're the next token
 /// in an input stream of [`Parser`].
 ///
@@ -294,11 +304,12 @@ pub struct ParseBuffer<'a> {
     // list of tokens from the tokenized source (including whitespace and
     // comments), and the second element is how to skip this token, if it can be
     // skipped.
-    tokens: Box<[(Token<'a>, Cell<NextTokenAt>)]>,
+    tokens: Box<[(Token, Cell<NextTokenAt>)]>,
     input: &'a str,
     cur: Cell<usize>,
     known_annotations: RefCell<HashMap<String, usize>>,
     depth: Cell<usize>,
+    strings: RefCell<Vec<Box<[u8]>>>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -371,6 +382,7 @@ impl ParseBuffer<'_> {
             depth: Cell::new(0),
             input,
             known_annotations: Default::default(),
+            strings: Default::default(),
         };
         ret.validate_annotations()?;
         Ok(ret)
@@ -384,7 +396,7 @@ impl ParseBuffer<'_> {
     // delimiters. This is required since while parsing we generally skip
     // annotations and there's no real opportunity to return a parse error.
     fn validate_annotations(&self) -> Result<()> {
-        use crate::lexer::Token::*;
+        use crate::lexer::TokenKind::*;
         enum State {
             None,
             LParen,
@@ -392,33 +404,40 @@ impl ParseBuffer<'_> {
         }
         let mut state = State::None;
         for token in self.tokens.iter() {
-            state = match (&token.0, state) {
+            state = match (token.0.kind, state) {
                 // From nothing, a `(` starts the search for an annotation
-                (LParen(_), State::None) => State::LParen,
+                (LParen, State::None) => State::LParen,
                 // ... otherwise in nothing we always preserve that state.
                 (_, State::None) => State::None,
 
-                // If the previous state was an `LParen`, we may have an
-                // annotation if the next keyword is reserved
-                (Reserved(s), State::LParen) if s.starts_with('@') && !s.is_empty() => {
-                    let offset = self.input_pos(s);
-                    State::Annotation {
-                        span: Span { offset },
-                        depth: 1,
-                    }
-                }
                 // ... otherwise anything after an `LParen` kills the lparen
                 // state.
-                (_, State::LParen) => State::None,
+                (kind, State::LParen) => {
+                    // If the previous state was an `LParen`, we may have an
+                    // annotation if the next keyword is reserved
+                    if let Reserved = kind {
+                        let reserved = token.0.reserved(self.input);
+                        if reserved.starts_with('@') && reserved.len() > 1 {
+                            state = State::Annotation {
+                                span: Span {
+                                    offset: token.0.offset,
+                                },
+                                depth: 1,
+                            };
+                            continue;
+                        }
+                    }
+                    State::None
+                }
 
                 // Once we're in an annotation we need to balance parentheses,
                 // so handle the depth changes.
-                (LParen(_), State::Annotation { span, depth }) => State::Annotation {
+                (LParen, State::Annotation { span, depth }) => State::Annotation {
                     span,
                     depth: depth + 1,
                 },
-                (RParen(_), State::Annotation { depth: 1, .. }) => State::None,
-                (RParen(_), State::Annotation { span, depth }) => State::Annotation {
+                (RParen, State::Annotation { depth: 1, .. }) => State::None,
+                (RParen, State::Annotation { span, depth }) => State::Annotation {
                     span,
                     depth: depth - 1,
                 },
@@ -432,8 +451,20 @@ impl ParseBuffer<'_> {
         Ok(())
     }
 
-    fn input_pos(&self, src: &str) -> usize {
-        src.as_ptr() as usize - self.input.as_ptr() as usize
+    /// Stores an owned allocation in this `Parser` to attach the lifetime of
+    /// the vector to `self`.
+    ///
+    /// This will return a reference to `s`, but one that's safely rooted in the
+    /// `Parser`.
+    fn push_str(&self, s: Vec<u8>) -> &[u8] {
+        let s = Box::from(s);
+        let ret = &*s as *const [u8];
+        self.strings.borrow_mut().push(s);
+        // This should be safe in that the address of `ret` isn't changing as
+        // it's on the heap itself. Additionally the lifetime of this return
+        // value is tied to the lifetime of `self` (nothing is deallocated
+        // early), so it should be safe to say the two have the same lifetime.
+        unsafe { &*ret }
     }
 }
 
@@ -449,16 +480,16 @@ impl<'a> Parser<'a> {
     /// and whitespace are not considered for whether this parser is empty.
     pub fn is_empty(self) -> bool {
         match self.cursor().advance_token() {
-            Some(Token::RParen(_)) | None => true,
-            Some(_) => false, // more tokens to parse!
+            Some(token) => matches!(token.kind, TokenKind::RParen),
+            None => true,
         }
     }
 
     pub(crate) fn has_meaningful_tokens(self) -> bool {
         self.buf.tokens[self.cursor().cur..].iter().any(|(t, _)| {
             !matches!(
-                t,
-                Token::Whitespace(_) | Token::LineComment(_) | Token::BlockComment(_)
+                t.kind,
+                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment
             )
         })
     }
@@ -944,7 +975,7 @@ impl<'a> Cursor<'a> {
     /// Does not take into account whitespace or comments.
     pub fn cur_span(&self) -> Span {
         let offset = match self.clone().advance_token() {
-            Some(t) => self.parser.buf.input_pos(t.src()),
+            Some(t) => t.offset,
             None => self.parser.buf.input.len(),
         };
         Span { offset }
@@ -956,7 +987,7 @@ impl<'a> Cursor<'a> {
     pub(crate) fn prev_span(&self) -> Option<Span> {
         let (token, _) = self.parser.buf.tokens.get(self.cur.checked_sub(1)?)?;
         Some(Span {
-            offset: self.parser.buf.input_pos(token.src()),
+            offset: token.offset,
         })
     }
 
@@ -974,8 +1005,8 @@ impl<'a> Cursor<'a> {
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
     pub fn lparen(mut self) -> Option<Self> {
-        match self.advance_token()? {
-            Token::LParen(_) => Some(self),
+        match self.advance_token()?.kind {
+            TokenKind::LParen => Some(self),
             _ => None,
         }
     }
@@ -988,8 +1019,8 @@ impl<'a> Cursor<'a> {
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
     pub fn rparen(mut self) -> Option<Self> {
-        match self.advance_token()? {
-            Token::RParen(_) => Some(self),
+        match self.advance_token()?.kind {
+            TokenKind::RParen => Some(self),
             _ => None,
         }
     }
@@ -1004,8 +1035,9 @@ impl<'a> Cursor<'a> {
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
     pub fn id(mut self) -> Option<(&'a str, Self)> {
-        match self.advance_token()? {
-            Token::Id(id) => Some((&id[1..], self)),
+        let token = self.advance_token()?;
+        match token.kind {
+            TokenKind::Id => Some((token.id(self.parser.buf.input), self)),
             _ => None,
         }
     }
@@ -1020,8 +1052,9 @@ impl<'a> Cursor<'a> {
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
     pub fn keyword(mut self) -> Option<(&'a str, Self)> {
-        match self.advance_token()? {
-            Token::Keyword(id) => Some((id, self)),
+        let token = self.advance_token()?;
+        match token.kind {
+            TokenKind::Keyword => Some((token.keyword(self.parser.buf.input), self)),
             _ => None,
         }
     }
@@ -1036,8 +1069,9 @@ impl<'a> Cursor<'a> {
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
     pub fn reserved(mut self) -> Option<(&'a str, Self)> {
-        match self.advance_token()? {
-            Token::Reserved(id) => Some((id, self)),
+        let token = self.advance_token()?;
+        match token.kind {
+            TokenKind::Reserved => Some((token.reserved(self.parser.buf.input), self)),
             _ => None,
         }
     }
@@ -1051,9 +1085,10 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn integer(mut self) -> Option<(&'a Integer<'a>, Self)> {
-        match self.advance_token()? {
-            Token::Integer(i) => Some((i, self)),
+    pub fn integer(mut self) -> Option<(Integer<'a>, Self)> {
+        let token = self.advance_token()?;
+        match token.kind {
+            TokenKind::Integer(i) => Some((token.integer(self.parser.buf.input, i), self)),
             _ => None,
         }
     }
@@ -1067,9 +1102,10 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn float(mut self) -> Option<(&'a Float<'a>, Self)> {
-        match self.advance_token()? {
-            Token::Float(f) => Some((f, self)),
+    pub fn float(mut self) -> Option<(Float<'a>, Self)> {
+        let token = self.advance_token()?;
+        match token.kind {
+            TokenKind::Float(f) => Some((token.float(self.parser.buf.input, f), self)),
             _ => None,
         }
     }
@@ -1084,10 +1120,16 @@ impl<'a> Cursor<'a> {
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
     pub fn string(mut self) -> Option<(&'a [u8], Self)> {
-        match self.advance_token()? {
-            Token::String(s) => Some((s.val(), self)),
-            _ => None,
+        let token = self.advance_token()?;
+        match token.kind {
+            TokenKind::String => {}
+            _ => return None,
         }
+        let string = match token.string(self.parser.buf.input) {
+            Cow::Borrowed(s) => s,
+            Cow::Owned(s) => self.parser.buf.push_str(s),
+        };
+        Some((string, self))
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1115,8 +1157,8 @@ impl<'a> Cursor<'a> {
         if !token.starts_with('@') || token.len() <= 1 {
             return None;
         }
-        match &self.parser.buf.tokens.get(self.cur.wrapping_sub(1))?.0 {
-            Token::LParen(_) => Some((&token[1..], cursor)),
+        match self.parser.buf.tokens.get(self.cur.wrapping_sub(1))?.0.kind {
+            TokenKind::LParen => Some((&token[1..], cursor)),
             _ => None,
         }
     }
@@ -1128,12 +1170,13 @@ impl<'a> Cursor<'a> {
     /// This function will only skip whitespace, no other tokens.
     pub fn comment(mut self) -> Option<(&'a str, Self)> {
         let comment = loop {
-            match &self.parser.buf.tokens.get(self.cur)?.0 {
-                Token::LineComment(c) | Token::BlockComment(c) => {
+            let token = &self.parser.buf.tokens.get(self.cur)?.0;
+            match token.kind {
+                TokenKind::LineComment | TokenKind::BlockComment => {
                     self.cur += 1;
-                    break c;
+                    break token.src(self.parser.buf.input);
                 }
-                Token::Whitespace(_) => {
+                TokenKind::Whitespace => {
                     self.cur += 1;
                 }
                 _ => return None,
@@ -1142,7 +1185,7 @@ impl<'a> Cursor<'a> {
         Some((comment, self))
     }
 
-    fn advance_token(&mut self) -> Option<&'a Token<'a>> {
+    fn advance_token(&mut self) -> Option<&'a Token> {
         let known_annotations = self.parser.buf.known_annotations.borrow();
         let is_known_annotation = |name: &str| match known_annotations.get(name) {
             Some(0) | None => false,
@@ -1155,8 +1198,8 @@ impl<'a> Cursor<'a> {
             // If we're currently pointing at a token, and it's not the start
             // of an annotation, then we return that token and advance
             // ourselves to just after that token.
-            match token {
-                Token::Whitespace(_) | Token::LineComment(_) | Token::BlockComment(_) => {}
+            match token.kind {
+                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment => {}
                 _ => match self.annotation_start() {
                     Some(n) if !is_known_annotation(n) => {}
                     _ => {
@@ -1200,14 +1243,16 @@ impl<'a> Cursor<'a> {
     }
 
     fn annotation_start(&self) -> Option<&'a str> {
-        match self.parser.buf.tokens.get(self.cur).map(|p| &p.0) {
-            Some(Token::LParen(_)) => {}
+        match self.parser.buf.tokens.get(self.cur)?.0.kind {
+            TokenKind::LParen => {}
             _ => return None,
         }
-        let reserved = match self.parser.buf.tokens.get(self.cur + 1).map(|p| &p.0) {
-            Some(Token::Reserved(n)) => n,
+        let reserved = &self.parser.buf.tokens.get(self.cur + 1)?.0;
+        match reserved.kind {
+            TokenKind::Reserved => {}
             _ => return None,
-        };
+        }
+        let reserved = reserved.src(self.parser.buf.input);
         if reserved.starts_with('@') && reserved.len() > 1 {
             Some(&reserved[1..])
         } else {
@@ -1230,9 +1275,9 @@ impl<'a> Cursor<'a> {
             let mut depth = 1;
             self.cur += 1;
             while depth > 0 {
-                match &self.parser.buf.tokens.get(self.cur)?.0 {
-                    Token::LParen(_) => depth += 1,
-                    Token::RParen(_) => depth -= 1,
+                match self.parser.buf.tokens.get(self.cur)?.0.kind {
+                    TokenKind::LParen => depth += 1,
+                    TokenKind::RParen => depth -= 1,
                     _ => {}
                 }
                 self.cur += 1;
@@ -1246,8 +1291,8 @@ impl<'a> Cursor<'a> {
             let (token, _) = self.parser.buf.tokens.get(self.cur)?;
             // and otherwise we skip all comments/whitespace and only
             // get interested once a normal `Token` pops up.
-            match token {
-                Token::Whitespace(_) | Token::LineComment(_) | Token::BlockComment(_) => {
+            match token.kind {
+                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment => {
                     self.cur += 1
                 }
                 _ => return Some(self.cur),

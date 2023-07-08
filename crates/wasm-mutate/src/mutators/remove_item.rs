@@ -136,7 +136,7 @@ impl RemoveItem {
                         0,
                         TypeSectionReader::new(section.data, 0)?,
                         Item::Type,
-                        |me, ty, section| me.translate_type_def(ty, section),
+                        |me, ty, section| me.translate_type_def(ty.structural_type, section),
                     )?;
                 },
 
@@ -427,11 +427,8 @@ impl Translator for RemoveItem {
             }
         }
 
-        if item != self.item {
-            // Different kind of item, no change
-            Ok(idx)
-        } else if idx < self.idx {
-            // A later item was removed, so this index doesn't change
+        if item != self.item || idx < self.idx {
+            // Different kind of item or a later item was removed, index doesn't change
             Ok(idx)
         } else if idx == self.idx {
             // If we're removing a referenced item then that means that this
