@@ -61,7 +61,7 @@ pub struct Token {
 }
 
 const _: () = {
-    assert!(std::mem::size_of::<Token>() <= std::mem::size_of::<usize>() * 4);
+    assert!(std::mem::size_of::<Token>() <= std::mem::size_of::<u64>() * 2);
 };
 
 /// Classification of what was parsed from the input stream.
