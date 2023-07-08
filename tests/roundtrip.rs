@@ -146,7 +146,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "multi-memory/memory_copy1.wast",
         // the GC proposal isn't implemented yet
         "gc/gc-array.wat",
-        "gc/gc-rec-sub.wat",
         "gc/gc-ref-global-import.wat",
         "gc/gc-struct.wat",
         "gc/let.wat",

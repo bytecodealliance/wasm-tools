@@ -554,7 +554,9 @@ impl Module {
                 wasmparser::Payload::TypeSection(type_reader) => {
                     for ty in type_reader {
                         let ty = ty.expect("could not parse type section");
-                        available_types.push((ty.structural_type, None));
+                        for ty in ty.types {
+                            available_types.push((ty.structural_type, None));
+                        }
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {

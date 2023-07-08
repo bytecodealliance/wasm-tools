@@ -15,7 +15,7 @@
 
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
-    MAX_WASM_SUPERTYPES,
+    MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
 };
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
 use std::fmt::{self, Debug, Write};
@@ -771,6 +771,13 @@ pub struct SubType {
     pub structural_type: StructuralType,
 }
 
+/// Represents a recursive type group in a WebAssembly module.
+#[derive(Debug, Clone)]
+pub struct RecGroup {
+    /// The list of subtypes in the recursive type group.
+    pub types: Vec<SubType>,
+}
+
 impl Inherits for SubType {
     fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
@@ -1044,7 +1051,7 @@ pub struct TagType {
 }
 
 /// A reader for the type section of a WebAssembly module.
-pub type TypeSectionReader<'a> = SectionLimited<'a, SubType>;
+pub type TypeSectionReader<'a> = SectionLimited<'a, RecGroup>;
 
 impl<'a> FromReader<'a> for StructuralType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
@@ -1062,6 +1069,23 @@ fn read_structural_type(
         0x5f => StructuralType::Struct(reader.read()?),
         x => return reader.invalid_leading_byte(x, "type"),
     })
+}
+
+impl<'a> FromReader<'a> for RecGroup {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(match reader.peek()? {
+            0x4f => {
+                reader.read_u8()?;
+                let types = reader.read_iter(MAX_WASM_TYPES, "rec group types")?;
+                RecGroup {
+                    types: types.collect::<Result<_>>()?,
+                }
+            }
+            _ => RecGroup {
+                types: vec![reader.read()?],
+            },
+        })
+    }
 }
 
 impl<'a> FromReader<'a> for SubType {

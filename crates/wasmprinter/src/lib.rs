@@ -662,6 +662,16 @@ impl Printer {
         Ok(())
     }
 
+    fn print_rec(&mut self, state: &mut State, offset: usize, rg: RecGroup) -> Result<()> {
+        self.start_group("rec");
+        for ty in rg.types {
+            self.newline(offset + 2);
+            self.print_type(state, ty)?;
+        }
+        self.end_group(); // `rec`
+        Ok(())
+    }
+
     fn print_type(&mut self, state: &mut State, ty: SubType) -> Result<()> {
         self.start_group("type ");
         self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
@@ -732,7 +742,11 @@ impl Printer {
         for ty in parser.into_iter_with_offsets() {
             let (offset, ty) = ty?;
             self.newline(offset);
-            self.print_type(state, ty)?;
+            if ty.types.len() == 1 {
+                self.print_type(state, ty.types[0].clone())?;
+            } else {
+                self.print_rec(state, offset, ty)?;
+            }
         }
 
         Ok(())

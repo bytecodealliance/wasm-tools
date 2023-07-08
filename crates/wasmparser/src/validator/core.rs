@@ -1,10 +1,10 @@
 //! State relating to validating a WebAssembly module.
 //!
-use super::{
-    check_max, combine_type_sizes,
-    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
-    types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
-};
+use std::mem;
+use std::{collections::HashSet, sync::Arc};
+
+use indexmap::IndexMap;
+
 use crate::limits::*;
 use crate::readers::Inherits;
 use crate::validator::core::arc::MaybeOwned;
@@ -14,9 +14,12 @@ use crate::{
     SubType, Table, TableInit, TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures,
     WasmModuleResources,
 };
-use indexmap::IndexMap;
-use std::mem;
-use std::{collections::HashSet, sync::Arc};
+
+use super::{
+    check_max, combine_type_sizes,
+    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
+    types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
+};
 
 // Section order for WebAssembly modules.
 //
@@ -493,56 +496,75 @@ pub(crate) struct Module {
 }
 
 impl Module {
-    pub fn add_type(
+    pub fn add_types(
         &mut self,
-        ty: SubType,
+        types_added: Vec<SubType>,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
         if check_limit {
-            check_max(self.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
+            check_max(
+                self.types.len(),
+                types_added.len() as u32,
+                MAX_WASM_TYPES,
+                "types",
+                offset,
+            )?;
         }
-        let ty = self.check_subtype(ty, features, types, offset)?;
+        let idx_types: Vec<_> = types_added
+            .iter()
+            .map(|ty| {
+                let id = types.push_ty(Type::Sub(ty.clone()));
+                if features.gc {
+                    // make types in a rec group resolvable by index before validation:
+                    // this is needed to support recursive types in the GC proposal
+                    self.types.push(id);
+                }
+                (id, ty)
+            })
+            .collect();
 
-        let id = types.push_ty(ty);
-        self.types.push(id);
+        for (id, ty) in idx_types {
+            self.check_subtype(id.index, ty.clone(), features, types, offset)?;
+            if !features.gc {
+                self.types.push(id);
+            }
+        }
         Ok(())
     }
 
     fn check_subtype(
         &mut self,
+        type_index: usize,
         ty: SubType,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<Type> {
         if !features.gc && (ty.is_final || ty.supertype_idx.is_some()) {
-            return Err(BinaryReaderError::new(
-                "gc proposal must be enabled to use subtypes",
-                offset,
-            ));
+            bail!(offset, "gc proposal must be enabled to use subtypes");
         }
 
         self.check_structural_type(&ty.structural_type, features, offset)?;
 
-        if let Some(type_index) = ty.supertype_idx {
+        if let Some(supertype_index) = ty.supertype_idx {
             // Check the supertype exists, is not final, and the subtype matches it.
-            match self.type_at(types, type_index, offset)? {
+            if supertype_index >= type_index as u32 {
+                bail!(
+                    offset,
+                    "unknown type {type_index}: type index out of bounds"
+                );
+            }
+            match self.type_at(types, supertype_index, offset)? {
                 Type::Sub(st) => {
                     if !&ty.inherits(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
-                        return Err(BinaryReaderError::new(
-                            "subtype must match supertype",
-                            offset,
-                        ));
+                        bail!(offset, "subtype must match supertype");
                     }
                 }
                 _ => {
-                    return Err(BinaryReaderError::new(
-                        "supertype must be a non-final subtype itself",
-                        offset,
-                    ));
+                    bail!(offset, "supertype must be a non-final subtype itself");
                 }
             };
         }

@@ -1427,7 +1427,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::ModuleTypeDeclaration::Type(ty) => {
-                    state.add_type(ty, features, types, offset, true)?;
+                    state.add_types(vec![ty], features, types, offset, true)?;
                 }
                 crate::ModuleTypeDeclaration::Export { name, ty } => {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;

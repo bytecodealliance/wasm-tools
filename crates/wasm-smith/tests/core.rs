@@ -130,13 +130,15 @@ fn smoke_test_imports_config() {
                 if let wasmparser::Payload::TypeSection(rdr) = payload {
                     // Gather the signature types to later check function types against.
                     for ty in rdr {
-                        match ty.unwrap().structural_type {
-                            wasmparser::StructuralType::Func(ft) => sig_types.push(ft),
-                            wasmparser::StructuralType::Array(_) => {
-                                unimplemented!("Array types are not supported yet.")
-                            }
-                            wasmparser::StructuralType::Struct(_) => {
-                                unimplemented!("Struct types are not supported yet.")
+                        for ty in ty.unwrap().types {
+                            match ty.structural_type {
+                                wasmparser::StructuralType::Func(ft) => sig_types.push(ft),
+                                wasmparser::StructuralType::Array(_) => {
+                                    unimplemented!("Array types are not supported yet.")
+                                }
+                                wasmparser::StructuralType::Struct(_) => {
+                                    unimplemented!("Struct types are not supported yet.")
+                                }
                             }
                         }
                     }

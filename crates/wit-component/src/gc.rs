@@ -246,7 +246,9 @@ impl<'a> Module<'a> {
                 Payload::End(_) => {}
                 Payload::TypeSection(s) => {
                     for ty in s {
-                        self.types.push(ty?);
+                        for ty in ty?.types {
+                            self.types.push(ty);
+                        }
                     }
                 }
                 Payload::ImportSection(s) => {
