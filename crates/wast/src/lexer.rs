@@ -225,7 +225,7 @@ pub enum Float<'a> {
     /// A float `NaN` representation
     Nan {
         /// The specific bits to encode for this float, optionally
-        val: Option<u64>,
+        val: Option<Cow<'a, str>>,
         /// Whether or not this is a negative `NaN` or not.
         negative: bool,
     },
@@ -955,13 +955,10 @@ impl Token {
             } => {
                 let src = self.src(s);
                 let src = if src.starts_with("n") { src } else { &src[1..] };
-                let mut src = src.strip_prefix("nan:0x").unwrap();
-                let owned;
+                let mut val = Cow::Borrowed(src.strip_prefix("nan:0x").unwrap());
                 if has_underscores {
-                    owned = src.replace("_", "");
-                    src = &owned;
+                    *val.to_mut() = val.replace("_", "");
                 }
-                let val = u64::from_str_radix(src, 16).unwrap();
                 Float::Nan {
                     val: Some(val),
                     negative,
