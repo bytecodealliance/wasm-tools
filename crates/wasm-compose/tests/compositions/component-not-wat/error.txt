@@ -2,7 +2,7 @@ failed to parse component `tests/compositions/component-not-wat/root.wat`
 
 Caused by:
     expected `(`
-         --> tests/compositions/component-not-wat/root.wat:1:1
-          |
-        1 | not valid
-          | ^
+     --> tests/compositions/component-not-wat/root.wat:1:1
+      |
+    1 | not valid
+      | ^

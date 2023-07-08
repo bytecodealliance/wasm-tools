@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
+use std::io;
 use wasm_compose::{composer::ComponentComposer, config::Config};
 use wasmparser::{Validator, WasmFeatures};
 
@@ -51,13 +52,29 @@ fn component_composing() -> Result<()> {
         let (output, baseline_path) = if error_path.is_file() {
             match r {
                 Ok(_) => bail!("composition should fail for test case `{}`", test_case),
-                Err(e) => (
-                    format!("{:?}", e).replace('\\', "/").replace(
-                        "The system cannot find the file specified.",
-                        "No such file or directory",
-                    ),
-                    &error_path,
-                ),
+                Err(e) => {
+                    let mut err = format!("{e}");
+                    let causes = e.chain();
+                    let ncauses = causes.len();
+                    if ncauses > 1 {
+                        err.push_str("\n\nCaused by:");
+                    }
+                    for (i, cause) in causes.skip(1).enumerate() {
+                        err.push_str("\n    ");
+                        if ncauses > 2 {
+                            err.push_str(&format!("{i}: "))
+                        }
+                        match cause.downcast_ref::<io::Error>() {
+                            Some(_) => {
+                                err.push_str("platform-specific error");
+                            }
+                            None => {
+                                err.push_str(&cause.to_string());
+                            }
+                        }
+                    }
+                    (err.replace('\\', "/"), &error_path)
+                }
             }
         } else {
             let bytes =
