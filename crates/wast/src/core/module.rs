@@ -110,6 +110,10 @@ impl<'a> Module<'a> {
 
 impl<'a> Parse<'a> for Module<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let _r = parser.register_annotation("custom");
+        let _r = parser.register_annotation("producers");
+        let _r = parser.register_annotation("name");
+
         let span = parser.parse::<kw::module>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
@@ -154,8 +158,6 @@ pub enum ModuleField<'a> {
 
 impl<'a> ModuleField<'a> {
     pub(crate) fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ModuleField>> {
-        let _r = parser.register_annotation("custom");
-        let _r = parser.register_annotation("producers");
         let mut fields = Vec::new();
         while !parser.is_empty() {
             fields.push(parser.parens(ModuleField::parse)?);

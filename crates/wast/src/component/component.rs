@@ -1,5 +1,6 @@
 use crate::annotation;
 use crate::component::*;
+use crate::core::Producers;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::Index;
@@ -108,6 +109,8 @@ impl<'a> Component<'a> {
 impl<'a> Parse<'a> for Component<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let _r = parser.register_annotation("custom");
+        let _r = parser.register_annotation("producers");
+        let _r = parser.register_annotation("name");
 
         let span = parser.parse::<kw::component>()?.0;
         let id = parser.parse()?;
@@ -150,6 +153,7 @@ pub enum ComponentField<'a> {
     Import(ComponentImport<'a>),
     Export(ComponentExport<'a>),
     Custom(Custom<'a>),
+    Producers(Producers<'a>),
 }
 
 impl<'a> ComponentField<'a> {
@@ -204,6 +208,9 @@ impl<'a> Parse<'a> for ComponentField<'a> {
             }
             if parser.peek::<annotation::custom>()? {
                 return Ok(Self::Custom(parser.parse()?));
+            }
+            if parser.peek::<annotation::producers>()? {
+                return Ok(Self::Producers(parser.parse()?));
             }
         }
         Err(parser.error("expected valid component field"))

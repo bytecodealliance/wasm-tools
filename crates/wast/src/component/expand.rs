@@ -127,7 +127,10 @@ impl<'a> Expander<'a> {
                 }
                 None
             }
-            ComponentField::Start(_) | ComponentField::Alias(_) | ComponentField::Custom(_) => None,
+            ComponentField::Start(_)
+            | ComponentField::Alias(_)
+            | ComponentField::Custom(_)
+            | ComponentField::Producers(_) => None,
         };
 
         if let Some(expanded) = expanded {

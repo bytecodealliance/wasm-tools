@@ -271,7 +271,6 @@ impl<'a> Parse<'a> for NameAnnotation<'a> {
 
 impl<'a> Parse<'a> for Option<NameAnnotation<'a>> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let _r = parser.register_annotation("name");
         Ok(if parser.peek2::<annotation::name>()? {
             Some(parser.parens(|p| p.parse())?)
         } else {
