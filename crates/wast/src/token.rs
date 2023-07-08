@@ -125,7 +125,7 @@ impl fmt::Debug for Id<'_> {
 
 impl Peek for Id<'_> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
-        Ok(cursor.id()?.is_some())
+        cursor.peek_id()
     }
 
     fn display() -> &'static str {
@@ -312,7 +312,7 @@ macro_rules! integers {
 
         impl Peek for $i {
             fn peek(cursor: Cursor<'_>) -> Result<bool> {
-                Ok(cursor.integer()?.is_some())
+                cursor.peek_integer()
             }
 
             fn display() -> &'static str {
@@ -340,7 +340,7 @@ impl<'a> Parse<'a> for &'a [u8] {
 
 impl Peek for &'_ [u8] {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
-        Ok(cursor.string()?.is_some())
+        cursor.peek_string()
     }
 
     fn display() -> &'static str {
@@ -646,7 +646,7 @@ pub struct LParen {
 
 impl Peek for LParen {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
-        Ok(cursor.lparen()?.is_some())
+        cursor.peek_lparen()
     }
 
     fn display() -> &'static str {

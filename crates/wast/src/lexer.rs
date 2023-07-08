@@ -12,7 +12,7 @@
 //! use wast::lexer::Lexer;
 //!
 //! let wat = "(module (func $foo))";
-//! for token in Lexer::new(wat) {
+//! for token in Lexer::new(wat).iter(0) {
 //!     println!("{:?}", token?);
 //! }
 //! # Ok(())
@@ -29,6 +29,7 @@ use crate::Error;
 use std::borrow::Cow;
 use std::char;
 use std::fmt;
+use std::slice;
 use std::str;
 
 /// A structure used to lex the s-expression syntax of WAT files.
@@ -38,13 +39,12 @@ use std::str;
 /// returned for any non-lexable text.
 #[derive(Clone)]
 pub struct Lexer<'a> {
-    remaining: &'a str,
     input: &'a str,
     allow_confusing_unicode: bool,
 }
 
 /// A single token parsed from a `Lexer`.
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Token {
     /// The kind of token this represents, such as whether it's whitespace, a
     /// keyword, etc.
@@ -285,7 +285,6 @@ impl<'a> Lexer<'a> {
     /// Creates a new lexer which will lex the `input` source string.
     pub fn new(input: &str) -> Lexer<'_> {
         Lexer {
-            remaining: input,
             input,
             allow_confusing_unicode: false,
         }
@@ -312,31 +311,35 @@ impl<'a> Lexer<'a> {
         self
     }
 
-    /// Lexes the next token in the input.
+    /// Lexes the next at the byte position `pos` in the input.
     ///
     /// Returns `Some` if a token is found or `None` if we're at EOF.
+    ///
+    /// The `pos` argument will be updated to point to the next token on a
+    /// successful parse.
     ///
     /// # Errors
     ///
     /// Returns an error if the input is malformed.
-    pub fn parse(&mut self) -> Result<Option<Token>, Error> {
-        let offset = self.cur();
-        Ok(match self.parse_kind()? {
+    pub fn parse(&self, pos: &mut usize) -> Result<Option<Token>, Error> {
+        let offset = *pos;
+        Ok(match self.parse_kind(pos)? {
             Some(kind) => Some(Token {
                 kind,
                 offset,
-                len: (self.cur() - offset).try_into().unwrap(),
+                len: (*pos - offset).try_into().unwrap(),
             }),
             None => None,
         })
     }
 
-    fn parse_kind(&mut self) -> Result<Option<TokenKind>, Error> {
-        let pos = self.cur();
+    fn parse_kind(&self, pos: &mut usize) -> Result<Option<TokenKind>, Error> {
+        let start = *pos;
         // This `match` generally parses the grammar specified at
         //
         // https://webassembly.github.io/spec/core/text/lexical.html#text-token
-        let byte = match self.remaining.as_bytes().first() {
+        let remaining = &self.input.as_bytes()[start..];
+        let byte = match remaining.first() {
             Some(b) => b,
             None => return Ok(None),
         };
@@ -345,12 +348,12 @@ impl<'a> Lexer<'a> {
             // Open-parens check the next character to see if this is the start
             // of a block comment, otherwise it's just a bland left-paren
             // token.
-            b'(' => match self.remaining.as_bytes().get(1) {
+            b'(' => match remaining.get(1) {
                 Some(b';') => {
                     let mut level = 1;
                     // Note that we're doing a byte-level search here for the
                     // close-delimiter of `;)`. The actual source text is utf-8
-                    // encode in `self.remaining` but due to how utf-8 works we
+                    // encode in `remaining` but due to how utf-8 works we
                     // can safely search for an ASCII byte since it'll never
                     // otherwise appear in the middle of a codepoint and if we
                     // find it then it's guaranteed to be the right byte.
@@ -358,7 +361,7 @@ impl<'a> Lexer<'a> {
                     // Mainly we're avoiding the overhead of decoding utf-8
                     // characters into a Rust `char` since it's otherwise
                     // unnecessary work.
-                    let mut iter = self.remaining.as_bytes()[2..].iter();
+                    let mut iter = remaining[2..].iter();
                     while let Some(ch) = iter.next() {
                         match ch {
                             b'(' => {
@@ -372,10 +375,10 @@ impl<'a> Lexer<'a> {
                                     level -= 1;
                                     iter.next();
                                     if level == 0 {
-                                        let len = self.remaining.len() - iter.as_slice().len();
-                                        let (comment, remaining) = self.remaining.split_at(len);
-                                        self.remaining = remaining;
-                                        self.check_confusing_comment(comment)?;
+                                        let len = remaining.len() - iter.as_slice().len();
+                                        let comment = &self.input[start..][..len];
+                                        *pos += len;
+                                        self.check_confusing_comment(*pos, comment)?;
                                         return Ok(Some(TokenKind::BlockComment));
                                     }
                                 }
@@ -383,27 +386,28 @@ impl<'a> Lexer<'a> {
                             _ => {}
                         }
                     }
-                    Err(self.error(pos, LexError::DanglingBlockComment))
+                    Err(self.error(start, LexError::DanglingBlockComment))
                 }
                 _ => {
-                    self.remaining = &self.remaining[1..];
+                    *pos += 1;
+
                     Ok(Some(TokenKind::LParen))
                 }
             },
 
             b')' => {
-                self.remaining = &self.remaining[1..];
+                *pos += 1;
                 Ok(Some(TokenKind::RParen))
             }
 
             // https://webassembly.github.io/spec/core/text/lexical.html#white-space
             b' ' | b'\n' | b'\r' | b'\t' => {
-                self.skip_ws();
+                self.skip_ws(pos);
                 Ok(Some(TokenKind::Whitespace))
             }
 
             c @ (idchars!() | b'"') => {
-                let (kind, src) = self.parse_reserved()?;
+                let (kind, src) = self.parse_reserved(pos)?;
                 match kind {
                     // If the reserved token was simply a single string then
                     // that is converted to a standalone string token
@@ -439,14 +443,14 @@ impl<'a> Lexer<'a> {
             //
             // Note that this character being considered as part of a
             // `reserved` token is part of the annotations proposal.
-            b';' => match self.remaining.as_bytes().get(1) {
+            b';' => match remaining.get(1) {
                 Some(b';') => {
-                    let comment = self.split_until(b'\n');
-                    self.check_confusing_comment(comment)?;
+                    let comment = self.split_until(pos, b'\n');
+                    self.check_confusing_comment(*pos, comment)?;
                     Ok(Some(TokenKind::LineComment))
                 }
                 _ => {
-                    self.remaining = &self.remaining[1..];
+                    *pos += 1;
                     Ok(Some(TokenKind::Reserved))
                 }
             },
@@ -456,25 +460,25 @@ impl<'a> Lexer<'a> {
             // Note that these characters being considered as part of a
             // `reserved` token is part of the annotations proposal.
             b',' | b'[' | b']' | b'{' | b'}' => {
-                self.remaining = &self.remaining[1..];
+                *pos += 1;
                 Ok(Some(TokenKind::Reserved))
             }
 
             _ => {
-                let ch = self.remaining.chars().next().unwrap();
-                Err(self.error(pos, LexError::Unexpected(ch)))
+                let ch = self.input[start..].chars().next().unwrap();
+                Err(self.error(*pos, LexError::Unexpected(ch)))
             }
         }
     }
 
-    fn split_until(&mut self, byte: u8) -> &'a str {
-        let pos = memchr::memchr(byte, self.remaining.as_bytes()).unwrap_or(self.remaining.len());
-        let (ret, remaining) = self.remaining.split_at(pos);
-        self.remaining = remaining;
-        ret
+    fn split_until(&self, pos: &mut usize, byte: u8) -> &'a str {
+        let remaining = &self.input[*pos..];
+        let byte_pos = memchr::memchr(byte, remaining.as_bytes()).unwrap_or(remaining.len());
+        *pos += byte_pos;
+        &remaining[..byte_pos]
     }
 
-    fn skip_ws(&mut self) {
+    fn skip_ws(&self, pos: &mut usize) {
         // This table is a byte lookup table to determine whether a byte is a
         // whitespace byte. There are only 4 whitespace bytes for the `*.wat`
         // format right now which are ' ', '\t', '\r', and '\n'. These 4 bytes
@@ -484,7 +488,7 @@ impl<'a> Lexer<'a> {
         // known that if these bytes are found they're guaranteed to be the
         // whitespace byte, so they can be safely skipped and we don't have to
         // do full utf-8 decoding. This means that the goal of this function is
-        // to find the first non-whitespace byte in `self.remaining`.
+        // to find the first non-whitespace byte in `remaining`.
         //
         // For now this lookup table seems to be the fastest, but projects like
         // https://github.com/lemire/despacer show other simd algorithms which
@@ -512,13 +516,13 @@ impl<'a> Lexer<'a> {
             /* 0xe0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             /* 0xf0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
-        let pos = self
-            .remaining
+        let remaining = &self.input[*pos..];
+        let non_ws_pos = remaining
             .as_bytes()
             .iter()
             .position(|b| WS[*b as usize] != 1)
-            .unwrap_or(self.remaining.len());
-        self.remaining = &self.remaining[pos..];
+            .unwrap_or(remaining.len());
+        *pos += non_ws_pos;
     }
 
     /// Splits off a "reserved" token which is then further processed later on
@@ -536,40 +540,32 @@ impl<'a> Lexer<'a> {
     /// tokens (e.g. `a"b"c`) and returning the classification of what was
     /// eaten. The classification assists in determining what the actual token
     /// here eaten looks like.
-    fn parse_reserved(&mut self) -> Result<(ReservedKind, &'a str), Error> {
+    fn parse_reserved(&self, pos: &mut usize) -> Result<(ReservedKind, &'a str), Error> {
         let mut idchars = false;
         let mut strings = 0u32;
-        let mut pos = 0;
-        while let Some(byte) = self.remaining.as_bytes().get(pos) {
+        let start = *pos;
+        while let Some(byte) = self.input.as_bytes().get(*pos) {
             match byte {
                 // Normal `idchars` production which appends to the reserved
                 // token that's being produced.
                 idchars!() => {
                     idchars = true;
-                    pos += 1;
+                    *pos += 1;
                 }
 
                 // https://webassembly.github.io/spec/core/text/values.html#text-string
                 b'"' => {
                     strings += 1;
-                    pos += 1;
-                    let mut it = self.remaining[pos..].chars();
+                    *pos += 1;
+                    let mut it = self.input[*pos..].chars();
                     let result = Lexer::parse_str(&mut it, self.allow_confusing_unicode);
-                    pos = self.remaining.len() - it.as_str().len();
+                    *pos = self.input.len() - it.as_str().len();
                     match result {
                         Ok(_) => {}
                         Err(e) => {
-                            let start = self.input.len() - self.remaining.len();
-                            self.remaining = &self.remaining[pos..];
                             let err_pos = match &e {
                                 LexError::UnexpectedEof => self.input.len(),
-                                _ => {
-                                    self.input[..start + pos]
-                                        .char_indices()
-                                        .next_back()
-                                        .unwrap()
-                                        .0
-                                }
+                                _ => self.input[..*pos].char_indices().next_back().unwrap().0,
                             };
                             return Err(self.error(err_pos, e));
                         }
@@ -580,8 +576,7 @@ impl<'a> Lexer<'a> {
                 _ => break,
             }
         }
-        let (ret, remaining) = self.remaining.split_at(pos);
-        self.remaining = remaining;
+        let ret = &self.input[start..*pos];
         Ok(match (idchars, strings) {
             (false, 0) => unreachable!(),
             (false, 1) => (ReservedKind::String, ret),
@@ -607,8 +602,8 @@ impl<'a> Lexer<'a> {
         } else if num == "nan" {
             return Some(TokenKind::Float(FloatKind::Nan { negative }));
         } else if let Some(stripped) = num.strip_prefix("nan:0x") {
-            let mut it = stripped.chars();
-            let has_underscores = skip_underscores(&mut it, char::is_ascii_hexdigit)?;
+            let mut it = stripped.as_bytes().iter();
+            let has_underscores = skip_underscores(&mut it, |x| char::from(x).is_ascii_hexdigit())?;
             if it.next().is_some() {
                 return None;
             }
@@ -619,18 +614,13 @@ impl<'a> Lexer<'a> {
         }
 
         // Figure out if we're a hex number or not
-        let (mut it, hex, test_valid) = if let Some(stripped) = num.strip_prefix("0x") {
-            (
-                stripped.chars(),
-                true,
-                char::is_ascii_hexdigit as fn(&char) -> bool,
-            )
+        let test_valid: fn(u8) -> bool;
+        let (mut it, hex) = if let Some(stripped) = num.strip_prefix("0x") {
+            test_valid = |x: u8| char::from(x).is_ascii_hexdigit();
+            (stripped.as_bytes().iter(), true)
         } else {
-            (
-                num.chars(),
-                false,
-                char::is_ascii_digit as fn(&char) -> bool,
-            )
+            test_valid = |x: u8| char::from(x).is_ascii_digit();
+            (num.as_bytes().iter(), false)
         };
 
         // Evaluate the first part, moving out all underscores
@@ -652,10 +642,10 @@ impl<'a> Lexer<'a> {
 
         // A number can optionally be after the decimal so only actually try to
         // parse one if it's there.
-        if it.clone().next() == Some('.') {
+        if it.clone().next() == Some(&b'.') {
             it.next();
             match it.clone().next() {
-                Some(c) if test_valid(&c) => {
+                Some(c) if test_valid(*c) => {
                     if skip_underscores(&mut it, test_valid)? {
                         has_underscores = true;
                     }
@@ -667,17 +657,17 @@ impl<'a> Lexer<'a> {
         // Figure out if there's an exponential part here to make a float, and
         // if so parse it but defer its actual calculation until later.
         match (hex, it.next()) {
-            (true, Some('p')) | (true, Some('P')) | (false, Some('e')) | (false, Some('E')) => {
+            (true, Some(b'p')) | (true, Some(b'P')) | (false, Some(b'e')) | (false, Some(b'E')) => {
                 match it.clone().next() {
-                    Some('-') => {
+                    Some(b'-') => {
                         it.next();
                     }
-                    Some('+') => {
+                    Some(b'+') => {
                         it.next();
                     }
                     _ => {}
                 }
-                if skip_underscores(&mut it, char::is_ascii_digit)? {
+                if skip_underscores(&mut it, |x| char::from(x).is_ascii_digit())? {
                     has_underscores = true;
                 }
             }
@@ -696,21 +686,24 @@ impl<'a> Lexer<'a> {
             hex,
         }));
 
-        fn skip_underscores<'a>(it: &mut str::Chars<'a>, good: fn(&char) -> bool) -> Option<bool> {
+        fn skip_underscores<'a>(
+            it: &mut slice::Iter<'_, u8>,
+            good: fn(u8) -> bool,
+        ) -> Option<bool> {
             let mut last_underscore = false;
             let mut has_underscores = false;
-            let first = it.next()?;
-            if !good(&first) {
+            let first = *it.next()?;
+            if !good(first) {
                 return None;
             }
             while let Some(c) = it.clone().next() {
-                if c == '_' && !last_underscore {
+                if *c == b'_' && !last_underscore {
                     has_underscores = true;
                     it.next();
                     last_underscore = true;
                     continue;
                 }
-                if !good(&c) {
+                if !good(*c) {
                     break;
                 }
                 last_underscore = false;
@@ -726,7 +719,7 @@ impl<'a> Lexer<'a> {
     /// Verifies that `comment`, which is about to be returned, has a "confusing
     /// unicode character" in it and should instead be transformed into an
     /// error.
-    fn check_confusing_comment(&self, comment: &str) -> Result<(), Error> {
+    fn check_confusing_comment(&self, end: usize, comment: &str) -> Result<(), Error> {
         if self.allow_confusing_unicode {
             return Ok(());
         }
@@ -748,7 +741,7 @@ impl<'a> Lexer<'a> {
                     // parsed `comment`, so we move backwards to where
                     // `comment` started and then add the index within
                     // `comment`.
-                    let pos = self.cur() - comment.len() + pos;
+                    let pos = end - comment.len() + pos;
                     return Err(self.error(pos, LexError::ConfusingUnicode(c)));
                 }
             }
@@ -877,22 +870,40 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Returns the current position of our iterator through the input string
-    fn cur(&self) -> usize {
-        self.input.len() - self.remaining.len()
-    }
-
     /// Creates an error at `pos` with the specified `kind`
     fn error(&self, pos: usize, kind: LexError) -> Error {
         Error::lex(Span { offset: pos }, self.input, kind)
     }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Token, Error>;
+    /// Returns an iterator over all tokens in the original source string
+    /// starting at the `pos` specified.
+    pub fn iter(&self, mut pos: usize) -> impl Iterator<Item = Result<Token, Error>> + '_ {
+        std::iter::from_fn(move || self.parse(&mut pos).transpose())
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.parse().transpose()
+    /// Returns whether an annotation is present at `pos` and the name of the
+    /// annotation.
+    pub fn annotation(&self, mut pos: usize) -> Option<&'a str> {
+        let bytes = self.input.as_bytes();
+        // Quickly reject anything that for sure isn't an annotation since this
+        // method is used every time an lparen is parsed.
+        if bytes.get(pos) != Some(&b'@') {
+            return None;
+        }
+        match self.parse(&mut pos) {
+            Ok(Some(token)) => {
+                match token.kind {
+                    TokenKind::Reserved => {}
+                    _ => return None,
+                }
+                if token.len == 1 {
+                    None // just the `@` character isn't a valid annotation
+                } else {
+                    Some(&token.src(self.input)[1..])
+                }
+            }
+            Ok(None) | Err(_) => None,
+        }
     }
 }
 
@@ -1195,7 +1206,7 @@ mod tests {
 
     fn get_token(input: &str) -> Token {
         Lexer::new(input)
-            .parse()
+            .parse(&mut 0)
             .expect("no first token")
             .expect("no token")
     }
