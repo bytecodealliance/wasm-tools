@@ -26,10 +26,12 @@ wasmparser = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-libfuzzer-sys = { workspace = true }
 rand = { workspace = true }
 wasmprinter = { path = "../wasmprinter" }
 wat = { path = "../wat" }
+
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+libfuzzer-sys = { workspace = true }
 
 [features]
 _internal_cli = ["serde", "flagset/serde"]
