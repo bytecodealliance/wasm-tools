@@ -1,5 +1,6 @@
 use crate::component::*;
 use crate::kw;
+use crate::kw::relative;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
@@ -20,11 +21,11 @@ pub struct ComponentImport<'a> {
 #[derive(Debug, Copy, Clone)]
 pub struct ImportMetadata<'a> {
   /// Name of import
-  name: &'a str,
+  pub name: &'a str,
   /// url for import
-  location: &'a str,
+  pub location: &'a str,
   /// if version is locked
-  locked: bool
+  pub locked: bool
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
@@ -36,9 +37,12 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
               let item = parser.parens(|p| p.parse())?;
               return Ok(ComponentImport { span, name, item, metadata: None })
             },
-            ComponentExternName::Implementation(implImport) => {
+            ComponentExternName::Implementation(impl_import) => {
               let item = parser.parens(|p| p.parse())?;
-              match implImport {
+              match impl_import {
+                ImplementationImport::Url(metadata) => {
+                  Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+                }
                 ImplementationImport::Relative(metadata) => {
                   Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
                 }
@@ -62,21 +66,52 @@ pub enum ComponentExternName<'a> {
 /// The different names that can be assigned to component import
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
+  /// External Url
+  Url(ImportMetadata<'a>),
   /// Relative path
   Relative(ImportMetadata<'a>)
 }
 
+/// Kinds of Implementation Imports
+pub enum ImplementationImportKinds {
+  /// Url
+  Url,
+  /// Relative
+  Relative,
+  /// Unknown
+  Unknown
+}
+
 impl<'a> Parse<'a> for ImplementationImport<'a> {
   fn parse(parser: Parser<'a>) -> Result<Self> {
-    // let name = parser.parse::<String>()?;
-    Ok(ImplementationImport::Relative(ImportMetadata {
-      name: parser.parse()?,
-      location: parser.parens(|p| {
-        p.parse::<kw::relative>()?;
+    let name = parser.parse()?;
+    let mut kind = ImplementationImportKinds::Unknown;
+    let location = parser.parens(|p| {
+      if p.peek::<kw::url>() {
+        p.parse::<kw::url>()?;
+        kind = ImplementationImportKinds::Url;
         p.parse()
-      })?,
-      locked: false
-    }))
+      } else if p.peek::<kw::relative>() {
+        p.parse::<kw::relative>()?;
+        kind = ImplementationImportKinds::Relative;
+        p.parse()
+      } else {
+        Err(p.error("Unknown Implementation Import"))
+      }
+    })?;
+    match kind {
+      ImplementationImportKinds::Url => Ok(ImplementationImport::Url(ImportMetadata {
+        name,
+        location,
+        locked: false
+      })),
+      ImplementationImportKinds::Relative => Ok(ImplementationImport::Relative(ImportMetadata {
+        name,
+        location,
+        locked: false
+      })),
+      _ => Err(parser.error("Unknown Implementation Import")) 
+    } 
   }
 }
 
@@ -89,8 +124,8 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
             })?))
         } else {
           if parser.peek2::<LParen>() {
-            let implImport = parser.parse::<ImplementationImport>()?;
-            return Ok(ComponentExternName::Implementation(implImport))
+            let impl_import = parser.parse::<ImplementationImport>()?;
+            return Ok(ComponentExternName::Implementation(impl_import))
           }
             Ok(ComponentExternName::Kebab(parser.parse()?))
         }

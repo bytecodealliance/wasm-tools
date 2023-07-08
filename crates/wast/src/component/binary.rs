@@ -1004,7 +1004,16 @@ impl<'a> From<ComponentExternName<'a>> for wasm_encoder::ComponentExternName<'a>
         match name {
             ComponentExternName::Kebab(name) => Self::Kebab(name),
             ComponentExternName::Interface(name) => Self::Interface(name),
-            ComponentExternName::Implementation(name) => Self::Implementation(wasm_encoder::ImplementationImport::Relative("foo")),
+            ComponentExternName::Implementation(impl_import) => {
+              match impl_import {
+                ImplementationImport::Url(metadata) => {
+                  Self::Implementation(wasm_encoder::ImplementationImport::Url(&metadata.name))
+                }
+                ImplementationImport::Relative(metadata) => {
+                  Self::Implementation(wasm_encoder::ImplementationImport::Relative(&metadata.name))
+                }
+              }
+            }
         }
     }
 }

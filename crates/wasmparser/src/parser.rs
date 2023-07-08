@@ -926,14 +926,11 @@ fn section<'a, T>(
     variant: fn(T) -> Payload<'a>,
 ) -> Result<Payload<'a>> {
     let offset = reader.original_position();
-    dbg!(offset);
     let payload = reader.read_bytes(len as usize)?;
     // clear the hint for "need this many more bytes" here because we already
     // read all the bytes, so it's not possible to read more bytes if this
     // fails.
-    dbg!(&payload);
     let reader = ctor(payload, offset).map_err(clear_hint)?;
-    // dbg!(&reader);
     Ok(variant(reader))
 }
 

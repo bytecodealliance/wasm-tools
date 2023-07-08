@@ -165,6 +165,8 @@ pub enum ComponentExternName<'a> {
 /// Various types of implementation imports
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
+  /// External url
+  Url(&'a str),
   /// Relative path
   Relative(&'a str)
 }
@@ -182,8 +184,12 @@ impl Encode for ComponentExternName<'_> {
             }
             ComponentExternName::Implementation(import) => {
                 match import {
-                  ImplementationImport::Relative(name) => {
+                  ImplementationImport::Url(name) => {
                     sink.push(0x02);
+                    name.encode(sink);
+                  }
+                  ImplementationImport::Relative(name) => {
+                    sink.push(0x03);
                     name.encode(sink);
                   }
                 }

@@ -119,6 +119,8 @@ pub enum ComponentExternName<'a> {
 /// Various types of implementation imports
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
+  /// External Url
+  Url(&'a str),
   /// Relative path
   Relative(&'a str)
 }
@@ -127,15 +129,8 @@ impl ToString for ImplementationImport<'_> {
   fn to_string(&self) -> String {
       match self {
         Self::Relative(metadata) => metadata.to_string(),
+        Self::Url(metadata) => metadata.to_string(),
       }
-  }
-}
-
-impl<'a> FromReader<'a> for ImplementationImport<'a> {
-  fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-    let offset = reader.original_position();
-    let impl_import = reader.read::<&str>()?;
-    Ok(Self::Relative(impl_import))
   }
 }
 
@@ -146,6 +141,9 @@ impl<'a> ComponentExternName<'a> {
             ComponentExternName::Kebab(name) => name,
             ComponentExternName::Interface(name) => name,
             ComponentExternName::Implementation(impl_import) => match impl_import {
+              ImplementationImport::Url(name) => {
+                name
+              }
               ImplementationImport::Relative(name) => {
                 name
               }
@@ -156,11 +154,26 @@ impl<'a> ComponentExternName<'a> {
 
 impl<'a> FromReader<'a> for ComponentExternName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(match reader.read_u8()? {
+        let byte1 = reader.read_u8()?;
+        Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
-            0x02 => ComponentExternName::Implementation(reader.read()?),
+            0x02 | 0x03 => ComponentExternName::Implementation(read_impl_import(byte1, reader)?),
             x => return reader.invalid_leading_byte(x, "import name"),
         })
     }
+}
+
+fn read_impl_import<'a>(byte1: u8, reader: &mut BinaryReader<'a>) -> Result<ImplementationImport<'a>> {
+  Ok( match byte1 {
+    0x02 => {
+      let impl_import = reader.read::<&str>()?;
+      ImplementationImport::Url(impl_import)
+    }
+    0x03 => {
+      let impl_import = reader.read::<&str>()?;
+      ImplementationImport::Relative(impl_import)
+    }
+    x => reader.invalid_leading_byte(x, "alias")?,
+  })
 }

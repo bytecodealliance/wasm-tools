@@ -479,6 +479,7 @@ pub mod kw {
     custom_keyword!(r#final = "final");
     custom_keyword!(table);
     custom_keyword!(then);
+    custom_keyword!(url);
     custom_keyword!(r#try = "try");
     custom_keyword!(v128);
     custom_keyword!(value);
