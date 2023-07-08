@@ -42,7 +42,7 @@
 //!         // parentheses. The `parens` function here ensures that what we
 //!         // parse inside of it is surrounded by `(` and `)`.
 //!         let mut imports = Vec::new();
-//!         while parser.peek2::<kw::import>() {
+//!         while parser.peek2::<kw::import>()? {
 //!             let import = parser.parens(|p| p.parse())?;
 //!             imports.push(import);
 //!         }
@@ -121,7 +121,7 @@ pub(crate) const MAX_PARENS_DEPTH: usize = 100;
 pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
     let parser = buf.parser();
     let result = parser.parse()?;
-    if parser.cursor().advance_token().is_none() {
+    if parser.cursor().advance_token()?.is_none() {
         Ok(result)
     } else {
         Err(parser.error("extra tokens remaining after parse"))
@@ -203,7 +203,7 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 ///         // parentheses. The `parens` function here ensures that what we
 ///         // parse inside of it is surrounded by `(` and `)`.
 ///         let mut imports = Vec::new();
-///         while parser.peek2::<kw::import>() {
+///         while parser.peek2::<kw::import>()? {
 ///             let import = parser.parens(|p| p.parse())?;
 ///             imports.push(import);
 ///         }
@@ -274,15 +274,15 @@ pub trait Peek {
     /// Returns `true` if [`Parse`] for this type is highly likely to succeed
     /// failing no other error conditions happening (like an integer literal
     /// being too big).
-    fn peek(cursor: Cursor<'_>) -> bool;
+    fn peek(cursor: Cursor<'_>) -> Result<bool>;
 
     /// The same as `peek`, except it checks the token immediately following
     /// the current token.
-    fn peek2(mut cursor: Cursor<'_>) -> bool {
-        if cursor.advance_token().is_some() {
+    fn peek2(mut cursor: Cursor<'_>) -> Result<bool> {
+        if cursor.advance_token()?.is_some() {
             Self::peek(cursor)
         } else {
-            false
+            Ok(false)
         }
     }
 
@@ -480,8 +480,9 @@ impl<'a> Parser<'a> {
     /// and whitespace are not considered for whether this parser is empty.
     pub fn is_empty(self) -> bool {
         match self.cursor().advance_token() {
-            Some(token) => matches!(token.kind, TokenKind::RParen),
-            None => true,
+            Ok(Some(token)) => matches!(token.kind, TokenKind::RParen),
+            Ok(None) => true,
+            Err(_) => false,
         }
     }
 
@@ -586,7 +587,7 @@ impl<'a> Parser<'a> {
     ///         let min = parser.parse()?;
     ///
     ///         // ... and then test if there's a second number before parsing
-    ///         let max = if parser.peek::<u32>() {
+    ///         let max = if parser.peek::<u32>()? {
     ///             Some(parser.parse()?)
     ///         } else {
     ///             None
@@ -599,29 +600,29 @@ impl<'a> Parser<'a> {
     ///
     /// [spec]: https://webassembly.github.io/spec/core/text/types.html#limits
     /// [`Limits`]: crate::core::Limits
-    pub fn peek<T: Peek>(self) -> bool {
+    pub fn peek<T: Peek>(self) -> Result<bool> {
         T::peek(self.cursor())
     }
 
     /// Same as the [`Parser::peek`] method, except checks the next token, not
     /// the current token.
-    pub fn peek2<T: Peek>(self) -> bool {
+    pub fn peek2<T: Peek>(self) -> Result<bool> {
         let mut cursor = self.cursor();
-        if cursor.advance_token().is_some() {
+        if cursor.advance_token()?.is_some() {
             T::peek(cursor)
         } else {
-            false
+            Ok(false)
         }
     }
 
     /// Same as the [`Parser::peek2`] method, except checks the next next token,
     /// not the next token.
-    pub fn peek3<T: Peek>(self) -> bool {
+    pub fn peek3<T: Peek>(self) -> Result<bool> {
         let mut cursor = self.cursor();
-        if cursor.advance_token().is_some() && cursor.advance_token().is_some() {
+        if cursor.advance_token()?.is_some() && cursor.advance_token()?.is_some() {
             T::peek(cursor)
         } else {
-            false
+            Ok(false)
         }
     }
 
@@ -659,9 +660,9 @@ impl<'a> Parser<'a> {
     /// impl<'a> Parse<'a> for Index<'a> {
     ///     fn parse(parser: Parser<'a>) -> Result<Self> {
     ///         let mut l = parser.lookahead1();
-    ///         if l.peek::<Id>() {
+    ///         if l.peek::<Id>()? {
     ///             Ok(Index::Id(parser.parse()?))
-    ///         } else if l.peek::<u32>() {
+    ///         } else if l.peek::<u32>()? {
     ///             Ok(Index::Num(parser.parse()?))
     ///         } else {
     ///             // produces error message of `expected identifier or u32`
@@ -729,14 +730,14 @@ impl<'a> Parser<'a> {
         self.buf.depth.set(self.buf.depth.get() + 1);
         let before = self.buf.cur.get();
         let res = self.step(|cursor| {
-            let mut cursor = match cursor.lparen() {
+            let mut cursor = match cursor.lparen()? {
                 Some(rest) => rest,
                 None => return Err(cursor.error("expected `(`")),
             };
             cursor.parser.buf.cur.set(cursor.cur);
             let result = f(cursor.parser)?;
             cursor.cur = cursor.parser.buf.cur.get();
-            match cursor.rparen() {
+            match cursor.rparen()? {
                 Some(rest) => Ok((result, rest)),
                 None => Err(cursor.error("expected `)`")),
             }
@@ -933,7 +934,7 @@ impl<'a> Parser<'a> {
     ///         // annotation with the parser we known that `peek` methods like
     ///         // this, working on the annotation token, are enabled to ever
     ///         // return `true`.
-    ///         if parser.peek::<annotation::custom>() {
+    ///         if parser.peek::<annotation::custom>()? {
     ///             return Ok(ModuleField::Custom(parser.parse()?));
     ///         }
     ///
@@ -975,8 +976,9 @@ impl<'a> Cursor<'a> {
     /// Does not take into account whitespace or comments.
     pub fn cur_span(&self) -> Span {
         let offset = match self.clone().advance_token() {
-            Some(t) => t.offset,
-            None => self.parser.buf.input.len(),
+            Ok(Some(t)) => t.offset,
+            Ok(None) => self.parser.buf.input.len(),
+            Err(_) => self.cur,
         };
         Span { offset }
     }
@@ -1004,11 +1006,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn lparen(mut self) -> Option<Self> {
-        match self.advance_token()?.kind {
+    pub fn lparen(mut self) -> Result<Option<Self>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::LParen => Some(self),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a `)`.
@@ -1018,11 +1024,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn rparen(mut self) -> Option<Self> {
-        match self.advance_token()?.kind {
+    pub fn rparen(mut self) -> Result<Option<Self>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::RParen => Some(self),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1034,12 +1044,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn id(mut self) -> Option<(&'a str, Self)> {
-        let token = self.advance_token()?;
-        match token.kind {
+    pub fn id(mut self) -> Result<Option<(&'a str, Self)>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::Id => Some((token.id(self.parser.buf.input), self)),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1051,12 +1064,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn keyword(mut self) -> Option<(&'a str, Self)> {
-        let token = self.advance_token()?;
-        match token.kind {
+    pub fn keyword(mut self) -> Result<Option<(&'a str, Self)>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::Keyword => Some((token.keyword(self.parser.buf.input), self)),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1068,12 +1084,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn reserved(mut self) -> Option<(&'a str, Self)> {
-        let token = self.advance_token()?;
-        match token.kind {
+    pub fn reserved(mut self) -> Result<Option<(&'a str, Self)>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::Reserved => Some((token.reserved(self.parser.buf.input), self)),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1085,12 +1104,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn integer(mut self) -> Option<(Integer<'a>, Self)> {
-        let token = self.advance_token()?;
-        match token.kind {
+    pub fn integer(mut self) -> Result<Option<(Integer<'a>, Self)>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::Integer(i) => Some((token.integer(self.parser.buf.input, i), self)),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1102,12 +1124,15 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn float(mut self) -> Option<(Float<'a>, Self)> {
-        let token = self.advance_token()?;
-        match token.kind {
+    pub fn float(mut self) -> Result<Option<(Float<'a>, Self)>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match token.kind {
             TokenKind::Float(f) => Some((token.float(self.parser.buf.input, f), self)),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1119,17 +1144,20 @@ impl<'a> Cursor<'a> {
     ///
     /// This function will automatically skip over any comments, whitespace, or
     /// unknown annotations.
-    pub fn string(mut self) -> Option<(&'a [u8], Self)> {
-        let token = self.advance_token()?;
+    pub fn string(mut self) -> Result<Option<(&'a [u8], Self)>> {
+        let token = match self.advance_token()? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
         match token.kind {
             TokenKind::String => {}
-            _ => return None,
+            _ => return Ok(None),
         }
         let string = match token.string(self.parser.buf.input) {
             Cow::Borrowed(s) => s,
             Cow::Owned(s) => self.parser.buf.push_str(s),
         };
-        Some((string, self))
+        Ok(Some((string, self)))
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1152,15 +1180,22 @@ impl<'a> Cursor<'a> {
     /// unknown annotations.
     ///
     /// [annotation]: https://github.com/WebAssembly/annotations
-    pub fn annotation(self) -> Option<(&'a str, Self)> {
-        let (token, cursor) = self.reserved()?;
+    pub fn annotation(self) -> Result<Option<(&'a str, Self)>> {
+        let (token, cursor) = match self.reserved()? {
+            Some(pair) => pair,
+            None => return Ok(None),
+        };
         if !token.starts_with('@') || token.len() <= 1 {
-            return None;
+            return Ok(None);
         }
-        match self.parser.buf.tokens.get(self.cur.wrapping_sub(1))?.0.kind {
+        let t = match self.parser.buf.tokens.get(self.cur.wrapping_sub(1)) {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+        Ok(match t.0.kind {
             TokenKind::LParen => Some((&token[1..], cursor)),
             _ => None,
-        }
+        })
     }
 
     /// Attempts to advance this cursor if the current token is a
@@ -1168,9 +1203,12 @@ impl<'a> Cursor<'a> {
     /// [`Token::BlockComment`](crate::lexer::Token)
     ///
     /// This function will only skip whitespace, no other tokens.
-    pub fn comment(mut self) -> Option<(&'a str, Self)> {
+    pub fn comment(mut self) -> Result<Option<(&'a str, Self)>> {
         let comment = loop {
-            let token = &self.parser.buf.tokens.get(self.cur)?.0;
+            let token = match self.parser.buf.tokens.get(self.cur) {
+                Some((t, _)) => t,
+                None => return Ok(None),
+            };
             match token.kind {
                 TokenKind::LineComment | TokenKind::BlockComment => {
                     self.cur += 1;
@@ -1179,13 +1217,13 @@ impl<'a> Cursor<'a> {
                 TokenKind::Whitespace => {
                     self.cur += 1;
                 }
-                _ => return None,
+                _ => return Ok(None),
             }
         };
-        Some((comment, self))
+        Ok(Some((comment, self)))
     }
 
-    fn advance_token(&mut self) -> Option<&'a Token> {
+    fn advance_token(&mut self) -> Result<Option<&'a Token>> {
         let known_annotations = self.parser.buf.known_annotations.borrow();
         let is_known_annotation = |name: &str| match known_annotations.get(name) {
             Some(0) | None => false,
@@ -1193,7 +1231,10 @@ impl<'a> Cursor<'a> {
         };
 
         loop {
-            let (token, next) = self.parser.buf.tokens.get(self.cur)?;
+            let (token, next) = match self.parser.buf.tokens.get(self.cur) {
+                Some(pair) => pair,
+                None => return Ok(None),
+            };
 
             // If we're currently pointing at a token, and it's not the start
             // of an annotation, then we return that token and advance
@@ -1204,7 +1245,7 @@ impl<'a> Cursor<'a> {
                     Some(n) if !is_known_annotation(n) => {}
                     _ => {
                         self.cur += 1;
-                        return Some(token);
+                        return Ok(Some(token));
                     }
                 },
             }
@@ -1233,10 +1274,10 @@ impl<'a> Cursor<'a> {
                     }
                     None => {
                         next.set(NextTokenAt::Eof);
-                        return None;
+                        return Ok(None);
                     }
                 },
-                NextTokenAt::Eof => return None,
+                NextTokenAt::Eof => return Ok(None),
                 NextTokenAt::Index(i) => self.cur = i,
             }
         }
@@ -1306,13 +1347,13 @@ impl Lookahead1<'_> {
     /// [`Lookahead1`] references.
     ///
     /// For more information see [`Parser::lookahead1`] and [`Parser::peek`]
-    pub fn peek<T: Peek>(&mut self) -> bool {
-        if self.parser.peek::<T>() {
+    pub fn peek<T: Peek>(&mut self) -> Result<bool> {
+        Ok(if self.parser.peek::<T>()? {
             true
         } else {
             self.attempts.push(T::display());
             false
-        }
+        })
     }
 
     /// Generates an error message saying that one of the tokens passed to
@@ -1351,7 +1392,7 @@ impl Lookahead1<'_> {
 
 impl<'a, T: Peek + Parse<'a>> Parse<'a> for Option<T> {
     fn parse(parser: Parser<'a>) -> Result<Option<T>> {
-        if parser.peek::<T>() {
+        if parser.peek::<T>()? {
             Ok(Some(parser.parse()?))
         } else {
             Ok(None)
