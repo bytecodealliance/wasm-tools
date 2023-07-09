@@ -751,8 +751,7 @@ impl Printer {
                 structural_type: StructuralType::Func(ty),
                 ..
             })) => self.print_func_type(state, ty, names_for).map(Some),
-            Some(Some(_)) => unreachable!("the core type must be a func"),
-            Some(None) | None => Ok(None),
+            Some(Some(_)) | Some(None) | None => Ok(None),
         }
     }
 
