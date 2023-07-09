@@ -435,6 +435,7 @@ pub mod kw {
     custom_keyword!(interface);
     custom_keyword!(invoke);
     custom_keyword!(item);
+    custom_keyword!(locked);
     custom_keyword!(last);
     custom_keyword!(local);
     custom_keyword!(memory);
@@ -479,6 +480,7 @@ pub mod kw {
     custom_keyword!(r#final = "final");
     custom_keyword!(table);
     custom_keyword!(then);
+    custom_keyword!(unlocked);
     custom_keyword!(url);
     custom_keyword!(r#try = "try");
     custom_keyword!(v128);

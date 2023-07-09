@@ -122,7 +122,11 @@ pub enum ImplementationImport<'a> {
   /// External Url
   Url(&'a str),
   /// Relative path
-  Relative(&'a str)
+  Relative(&'a str),
+  /// Locked Registry Import
+  Locked(&'a str),
+  /// Unlocked Registry Import
+  Unlocked(&'a str),
 }
 
 impl ToString for ImplementationImport<'_> {
@@ -130,6 +134,8 @@ impl ToString for ImplementationImport<'_> {
       match self {
         Self::Relative(metadata) => metadata.to_string(),
         Self::Url(metadata) => metadata.to_string(),
+        Self::Locked(metadata) => metadata.to_string(),
+        Self::Unlocked(metadata) => metadata.to_string(),
       }
   }
 }
@@ -147,6 +153,12 @@ impl<'a> ComponentExternName<'a> {
               ImplementationImport::Relative(name) => {
                 name
               }
+              ImplementationImport::Locked(name) => {
+                name
+              }
+              ImplementationImport::Unlocked(name) => {
+                name
+              }
             },
         }
     }
@@ -158,7 +170,7 @@ impl<'a> FromReader<'a> for ComponentExternName<'a> {
         Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
-            0x02 | 0x03 => ComponentExternName::Implementation(read_impl_import(byte1, reader)?),
+            0x02 | 0x03 | 0x04 | 0x05 => ComponentExternName::Implementation(read_impl_import(byte1, reader)?),
             x => return reader.invalid_leading_byte(x, "import name"),
         })
     }
@@ -173,6 +185,14 @@ fn read_impl_import<'a>(byte1: u8, reader: &mut BinaryReader<'a>) -> Result<Impl
     0x03 => {
       let impl_import = reader.read::<&str>()?;
       ImplementationImport::Relative(impl_import)
+    }
+    0x04 => {
+      let impl_import = reader.read::<&str>()?;
+      ImplementationImport::Locked(impl_import)
+    }
+    0x05 => {
+      let impl_import = reader.read::<&str>()?;
+      ImplementationImport::Unlocked(impl_import)
     }
     x => reader.invalid_leading_byte(x, "alias")?,
   })

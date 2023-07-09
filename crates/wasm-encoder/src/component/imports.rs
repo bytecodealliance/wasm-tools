@@ -168,7 +168,11 @@ pub enum ImplementationImport<'a> {
   /// External url
   Url(&'a str),
   /// Relative path
-  Relative(&'a str)
+  Relative(&'a str),
+  /// Locked Registry Import
+  Locked(&'a str),
+  /// Unocked Registry Import
+  Unlocked(&'a str)
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -190,6 +194,14 @@ impl Encode for ComponentExternName<'_> {
                   }
                   ImplementationImport::Relative(name) => {
                     sink.push(0x03);
+                    name.encode(sink);
+                  }
+                  ImplementationImport::Locked(name) => {
+                    sink.push(0x04);
+                    name.encode(sink);
+                  }
+                  ImplementationImport::Unlocked(name) => {
+                    sink.push(0x05);
                     name.encode(sink);
                   }
                 }

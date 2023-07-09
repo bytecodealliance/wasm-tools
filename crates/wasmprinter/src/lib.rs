@@ -1898,6 +1898,12 @@ impl Printer {
                 ImplementationImport::Relative(_) => {
                   self.start_group("relative ");
                 }
+                ImplementationImport::Locked(_) => {
+                  self.start_group("locked ");
+                }
+                ImplementationImport::Unlocked(_) => {
+                  self.start_group("unlocked ");
+                }
               }
               self.print_str(&s.to_string())?;
               self.end_group();

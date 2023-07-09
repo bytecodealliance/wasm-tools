@@ -135,6 +135,12 @@ impl<'a> Component<'a> {
                                                 wasmparser::ImplementationImport::Relative(name) => {
                                                   name.to_string()
                                                 }
+                                                wasmparser::ImplementationImport::Locked(name) => {
+                                                  name.to_string()
+                                                }
+                                                wasmparser::ImplementationImport::Unlocked(name) => {
+                                                  name.to_string()
+                                                }
                                               }
                                             }
                                         };
@@ -152,7 +158,9 @@ impl<'a> Component<'a> {
                                             wasmparser::ComponentExternName::Implementation(impl_import) => {
                                               match impl_import {
                                                 wasmparser::ImplementationImport::Url(name) => name.to_string(),
-                                                wasmparser::ImplementationImport::Relative(name) => name.to_string()
+                                                wasmparser::ImplementationImport::Relative(name) => name.to_string(),
+                                                wasmparser::ImplementationImport::Locked(name) => name.to_string(),
+                                                wasmparser::ImplementationImport::Unlocked(name) => name.to_string(),
                                               }
                                             }
                                         };

@@ -1,8 +1,0 @@
-package foo:bar
-interface host {
-  hello: func()
-}
-world demo {
-  import host
-  export host
-}

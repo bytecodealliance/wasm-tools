@@ -23,9 +23,7 @@ pub struct ImportMetadata<'a> {
   /// Name of import
   pub name: &'a str,
   /// url for import
-  pub location: &'a str,
-  /// if version is locked
-  pub locked: bool
+  pub location: Option<&'a str>,
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
@@ -44,6 +42,12 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
                   Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
                 }
                 ImplementationImport::Relative(metadata) => {
+                  Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+                }
+                ImplementationImport::Locked(metadata) => {
+                  Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+                }
+                ImplementationImport::Unlocked(metadata) => {
                   Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
                 }
               }
@@ -69,7 +73,11 @@ pub enum ImplementationImport<'a> {
   /// External Url
   Url(ImportMetadata<'a>),
   /// Relative path
-  Relative(ImportMetadata<'a>)
+  Relative(ImportMetadata<'a>),
+  /// Locked Registry Import
+  Locked(ImportMetadata<'a>),
+  /// Unlocked Registry Import
+  Unlocked(ImportMetadata<'a>),
 }
 
 /// Kinds of Implementation Imports
@@ -78,14 +86,47 @@ pub enum ImplementationImportKinds {
   Url,
   /// Relative
   Relative,
+  /// Locked
+  Locked,
+  /// Unlocked
+  Unlocked,
   /// Unknown
   Unknown
 }
 
 impl<'a> Parse<'a> for ImplementationImport<'a> {
   fn parse(parser: Parser<'a>) -> Result<Self> {
-    let name = parser.parse()?;
     let mut kind = ImplementationImportKinds::Unknown;
+    let is_reg_import = parser.peek::<LParen>();
+    if is_reg_import {
+      let name = parser.parens(|p| {
+        if p.peek::<kw::locked>() {
+          p.parse::<kw::locked>()?;
+          kind = ImplementationImportKinds::Locked;
+          p.parse()
+        } else if p.peek::<kw::unlocked>() {
+          p.parse::<kw::unlocked>()?;
+          kind = ImplementationImportKinds::Unlocked;
+          p.parse()
+        } else {
+          Err(p.error("Unknown Implementation Import"))
+        }
+      })?;
+      return match kind {
+        ImplementationImportKinds::Locked => Ok(ImplementationImport::Locked(ImportMetadata {
+          name,
+          location: None,
+        })),
+        ImplementationImportKinds::Unlocked => Ok(ImplementationImport::Unlocked(ImportMetadata {
+          name,
+          location: None,
+        })),
+        _ => {
+          Err(parser.error("Unknown Implementation Import"))
+        }
+      }
+    }
+    let name = parser.parse()?;
     let location = parser.parens(|p| {
       if p.peek::<kw::url>() {
         p.parse::<kw::url>()?;
@@ -103,12 +144,10 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
       ImplementationImportKinds::Url => Ok(ImplementationImport::Url(ImportMetadata {
         name,
         location,
-        locked: false
       })),
       ImplementationImportKinds::Relative => Ok(ImplementationImport::Relative(ImportMetadata {
         name,
         location,
-        locked: false
       })),
       _ => Err(parser.error("Unknown Implementation Import")) 
     } 
@@ -118,16 +157,23 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
 impl<'a> Parse<'a> for ComponentExternName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<LParen>() {
-            Ok(ComponentExternName::Interface(parser.parens(|p| {
+            if parser.peek2::<kw::interface>() {
+              Ok(ComponentExternName::Interface(parser.parens(|p| {
                 p.parse::<kw::interface>()?;
                 p.parse()
-            })?))
+              })?))
+            } else if parser.peek2::<kw::locked>() || parser.peek2::<kw::unlocked>() {
+              let impl_import = parser.parse::<ImplementationImport>()?;
+              return Ok(ComponentExternName::Implementation(impl_import))
+            } else {
+              Err(parser.error("Unknown Import Kind"))
+            }
         } else {
           if parser.peek2::<LParen>() {
             let impl_import = parser.parse::<ImplementationImport>()?;
             return Ok(ComponentExternName::Implementation(impl_import))
           }
-            Ok(ComponentExternName::Kebab(parser.parse()?))
+          Ok(ComponentExternName::Kebab(parser.parse()?))
         }
     }
 }

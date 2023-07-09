@@ -1012,6 +1012,12 @@ impl<'a> From<ComponentExternName<'a>> for wasm_encoder::ComponentExternName<'a>
                 ImplementationImport::Relative(metadata) => {
                   Self::Implementation(wasm_encoder::ImplementationImport::Relative(&metadata.name))
                 }
+                ImplementationImport::Locked(metadata) => {
+                  Self::Implementation(wasm_encoder::ImplementationImport::Locked(&metadata.name))
+                }
+                ImplementationImport::Unlocked(metadata) => {
+                  Self::Implementation(wasm_encoder::ImplementationImport::Unlocked(&metadata.name))
+                }
               }
             }
         }
