@@ -165,14 +165,14 @@ pub enum ComponentExternName<'a> {
 /// Various types of implementation imports
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
-  /// External url
-  Url(&'a str),
-  /// Relative path
-  Relative(&'a str),
-  /// Locked Registry Import
-  Locked(&'a str),
-  /// Unocked Registry Import
-  Unlocked(&'a str)
+    /// External url
+    Url(&'a str),
+    /// Relative path
+    Relative(&'a str),
+    /// Locked Registry Import
+    Locked(&'a str),
+    /// Unocked Registry Import
+    Unlocked(&'a str),
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -186,26 +186,24 @@ impl Encode for ComponentExternName<'_> {
                 sink.push(0x01);
                 name.encode(sink);
             }
-            ComponentExternName::Implementation(import) => {
-                match import {
-                  ImplementationImport::Url(name) => {
+            ComponentExternName::Implementation(import) => match import {
+                ImplementationImport::Url(name) => {
                     sink.push(0x02);
                     name.encode(sink);
-                  }
-                  ImplementationImport::Relative(name) => {
+                }
+                ImplementationImport::Relative(name) => {
                     sink.push(0x03);
                     name.encode(sink);
-                  }
-                  ImplementationImport::Locked(name) => {
+                }
+                ImplementationImport::Locked(name) => {
                     sink.push(0x04);
                     name.encode(sink);
-                  }
-                  ImplementationImport::Unlocked(name) => {
+                }
+                ImplementationImport::Unlocked(name) => {
                     sink.push(0x05);
                     name.encode(sink);
-                  }
                 }
-            }
+            },
         }
     }
 }

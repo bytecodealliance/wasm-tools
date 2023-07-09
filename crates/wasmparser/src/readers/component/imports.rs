@@ -119,25 +119,25 @@ pub enum ComponentExternName<'a> {
 /// Various types of implementation imports
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
-  /// External Url
-  Url(&'a str),
-  /// Relative path
-  Relative(&'a str),
-  /// Locked Registry Import
-  Locked(&'a str),
-  /// Unlocked Registry Import
-  Unlocked(&'a str),
+    /// External Url
+    Url(&'a str),
+    /// Relative path
+    Relative(&'a str),
+    /// Locked Registry Import
+    Locked(&'a str),
+    /// Unlocked Registry Import
+    Unlocked(&'a str),
 }
 
 impl ToString for ImplementationImport<'_> {
-  fn to_string(&self) -> String {
-      match self {
-        Self::Relative(metadata) => metadata.to_string(),
-        Self::Url(metadata) => metadata.to_string(),
-        Self::Locked(metadata) => metadata.to_string(),
-        Self::Unlocked(metadata) => metadata.to_string(),
-      }
-  }
+    fn to_string(&self) -> String {
+        match self {
+            Self::Relative(metadata) => metadata.to_string(),
+            Self::Url(metadata) => metadata.to_string(),
+            Self::Locked(metadata) => metadata.to_string(),
+            Self::Unlocked(metadata) => metadata.to_string(),
+        }
+    }
 }
 
 impl<'a> ComponentExternName<'a> {
@@ -147,18 +147,10 @@ impl<'a> ComponentExternName<'a> {
             ComponentExternName::Kebab(name) => name,
             ComponentExternName::Interface(name) => name,
             ComponentExternName::Implementation(impl_import) => match impl_import {
-              ImplementationImport::Url(name) => {
-                name
-              }
-              ImplementationImport::Relative(name) => {
-                name
-              }
-              ImplementationImport::Locked(name) => {
-                name
-              }
-              ImplementationImport::Unlocked(name) => {
-                name
-              }
+                ImplementationImport::Url(name) => name,
+                ImplementationImport::Relative(name) => name,
+                ImplementationImport::Locked(name) => name,
+                ImplementationImport::Unlocked(name) => name,
             },
         }
     }
@@ -170,30 +162,35 @@ impl<'a> FromReader<'a> for ComponentExternName<'a> {
         Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
-            0x02 | 0x03 | 0x04 | 0x05 => ComponentExternName::Implementation(read_impl_import(byte1, reader)?),
+            0x02 | 0x03 | 0x04 | 0x05 => {
+                ComponentExternName::Implementation(read_impl_import(byte1, reader)?)
+            }
             x => return reader.invalid_leading_byte(x, "import name"),
         })
     }
 }
 
-fn read_impl_import<'a>(byte1: u8, reader: &mut BinaryReader<'a>) -> Result<ImplementationImport<'a>> {
-  Ok( match byte1 {
-    0x02 => {
-      let impl_import = reader.read::<&str>()?;
-      ImplementationImport::Url(impl_import)
-    }
-    0x03 => {
-      let impl_import = reader.read::<&str>()?;
-      ImplementationImport::Relative(impl_import)
-    }
-    0x04 => {
-      let impl_import = reader.read::<&str>()?;
-      ImplementationImport::Locked(impl_import)
-    }
-    0x05 => {
-      let impl_import = reader.read::<&str>()?;
-      ImplementationImport::Unlocked(impl_import)
-    }
-    x => reader.invalid_leading_byte(x, "alias")?,
-  })
+fn read_impl_import<'a>(
+    byte1: u8,
+    reader: &mut BinaryReader<'a>,
+) -> Result<ImplementationImport<'a>> {
+    Ok(match byte1 {
+        0x02 => {
+            let impl_import = reader.read::<&str>()?;
+            ImplementationImport::Url(impl_import)
+        }
+        0x03 => {
+            let impl_import = reader.read::<&str>()?;
+            ImplementationImport::Relative(impl_import)
+        }
+        0x04 => {
+            let impl_import = reader.read::<&str>()?;
+            ImplementationImport::Locked(impl_import)
+        }
+        0x05 => {
+            let impl_import = reader.read::<&str>()?;
+            ImplementationImport::Unlocked(impl_import)
+        }
+        x => reader.invalid_leading_byte(x, "alias")?,
+    })
 }
