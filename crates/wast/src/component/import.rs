@@ -154,11 +154,27 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
   }
 }
 
+impl Peek for ImplementationImport<'_> {
+  fn peek(cursor: Cursor) -> bool {
+      match cursor.keyword() {
+        Some(("relative", _)) => true,
+        Some(("url", _)) => true,
+        Some(("locked", _)) => true,
+        Some(("unlocked", _)) => true,
+        _ => false
+      }
+  }
+
+  fn display() -> &'static str {
+      "implementation import"
+  }
+}
+
 impl<'a> Parse<'a> for ComponentExternName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<LParen>() {
             if parser.peek2::<kw::interface>() {
-              Ok(ComponentExternName::Interface(parser.parens(|p| {
+              return Ok(ComponentExternName::Interface(parser.parens(|p| {
                 p.parse::<kw::interface>()?;
                 p.parse()
               })?))
@@ -166,14 +182,17 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
               let impl_import = parser.parse::<ImplementationImport>()?;
               return Ok(ComponentExternName::Implementation(impl_import))
             } else {
-              Err(parser.error("Unknown Import Kind"))
+              // parser.parse::<item_
+              return Err(parser.error("Unknown Import Kind"))
             }
         } else {
           if parser.peek2::<LParen>() {
-            let impl_import = parser.parse::<ImplementationImport>()?;
-            return Ok(ComponentExternName::Implementation(impl_import))
+            if parser.peek3::<ImplementationImport>() {
+              let impl_import = parser.parse::<ImplementationImport>()?;
+              return Ok(ComponentExternName::Implementation(impl_import))
+            } 
           }
-          Ok(ComponentExternName::Kebab(parser.parse()?))
+          return Ok(ComponentExternName::Kebab(parser.parse()?))
         }
     }
 }
