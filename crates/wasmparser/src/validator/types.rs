@@ -1006,7 +1006,10 @@ impl<'a> TypesRef<'a> {
         self.list.get(id.index)
     }
 
-    /// Gets a type id from a type index.
+    /// Gets a core WebAssembly type id from a type index.
+    ///
+    /// Note that this is in contrast to [`TypesRef::component_type_at`] which
+    /// gets a component type from its index.
     ///
     /// # Panics
     ///
@@ -1022,7 +1025,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// Panics if `index` is not a valid function index or if this type
+    /// information represents a core module.
     pub fn component_type_at(&self, index: u32) -> TypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1144,7 +1148,10 @@ impl<'a> TypesRef<'a> {
         }
     }
 
-    /// Returns the number of functions defined so far.
+    /// Gets the count of core functions defined so far.
+    ///
+    /// Note that this includes imported functions, defined functions, and for
+    /// components lowered/aliased functions.
     pub fn function_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.functions.len() as u32,
@@ -1178,7 +1185,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn component_function_at(&self, index: u32) -> TypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1198,7 +1206,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn module_at(&self, index: u32) -> TypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1218,7 +1227,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn instance_at(&self, index: u32) -> TypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1238,7 +1248,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn component_at(&self, index: u32) -> TypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1258,7 +1269,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn component_instance_at(&self, index: u32) -> TypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1278,7 +1290,8 @@ impl<'a> TypesRef<'a> {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn value_at(&self, index: u32) -> ComponentValType {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("not a component"),
@@ -1381,7 +1394,10 @@ impl Types {
         self.as_ref().get(id)
     }
 
-    /// Gets a type at the given type index.
+    /// Gets a core WebAssembly type at the given type index.
+    ///
+    /// Note that this is in contrast to [`TypesRef::component_type_at`] which
+    /// gets a component type from its index.
     ///
     /// # Panics
     ///
@@ -1390,11 +1406,12 @@ impl Types {
         self.as_ref().core_type_at(index)
     }
 
-    /// Gets a defined core function type at the given type index.
+    /// Gets a component type from the given component type index.
     ///
     /// # Panics
     ///
-    /// Panics if `index` is not a valid function index.
+    /// Panics if `index` is not a valid function index or if this type
+    /// information represents a core module.
     pub fn component_type_at(&self, index: u32) -> TypeId {
         self.as_ref().component_type_at(index)
     }
@@ -1475,9 +1492,10 @@ impl Types {
         self.as_ref().function_at(index)
     }
 
-    /// Gets the count of imported and defined core functions.
+    /// Gets the count of core functions defined so far.
     ///
-    /// The count also includes aliased core functions in components.
+    /// Note that this includes imported functions, defined functions, and for
+    /// components lowered/aliased functions.
     pub fn function_count(&self) -> u32 {
         self.as_ref().function_count()
     }
@@ -1500,7 +1518,8 @@ impl Types {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn component_function_at(&self, index: u32) -> TypeId {
         self.as_ref().component_function_at(index)
     }
@@ -1514,7 +1533,8 @@ impl Types {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn module_at(&self, index: u32) -> TypeId {
         self.as_ref().module_at(index)
     }
@@ -1531,7 +1551,8 @@ impl Types {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn instance_at(&self, index: u32) -> TypeId {
         self.as_ref().instance_at(index)
     }
@@ -1548,7 +1569,8 @@ impl Types {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn component_at(&self, index: u32) -> TypeId {
         self.as_ref().component_at(index)
     }
@@ -1565,7 +1587,8 @@ impl Types {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn component_instance_at(&self, index: u32) -> TypeId {
         self.as_ref().component_instance_at(index)
     }
@@ -1582,7 +1605,8 @@ impl Types {
     ///
     /// # Panics
     ///
-    /// This will panic if the `index` provided is out of bounds.
+    /// This will panic if the `index` provided is out of bounds or if this type
+    /// information represents a core module.
     pub fn value_at(&self, index: u32) -> ComponentValType {
         self.as_ref().value_at(index)
     }
