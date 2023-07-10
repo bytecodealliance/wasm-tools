@@ -264,3 +264,15 @@ fn offsets_and_lines_smoke_test() {
 
     assert_eq!(actual, expected);
 }
+
+#[test]
+fn no_panic_non_func_type() {
+    let bytes = wat::parse_str(
+        "(module
+            (type (struct))
+            (func (type 0))
+        )",
+    )
+    .unwrap();
+    wasmprinter::print_bytes(&bytes).unwrap();
+}
