@@ -327,13 +327,13 @@ impl KebabName {
                 }
             }
             ComponentExternName::Implementation(s) => {
-                let string = s.to_string();
+                let string = s.as_str();
                 let colon = find(&string, ':')?;
-                // validate_kebab(&s[..colon])?;
+                validate_kebab(&string[..colon])?;
                 let slash = find(&string, '/')?;
                 let at = &string[slash..].find('@').map(|i| i + slash);
-                // validate_kebab(&s[colon + 1..slash])?;
-                // validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
+                validate_kebab(&string[colon + 1..slash])?;
+                validate_kebab(&string[slash + 1..at.unwrap_or(string.len())])?;
                 if let Some(at) = at {
                     let version = &string[at + 1..];
                     if let Err(e) = version.parse::<Version>() {

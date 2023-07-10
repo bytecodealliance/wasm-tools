@@ -131,18 +131,19 @@ impl<'a> Component<'a> {
                                                 impl_import,
                                             ) => match impl_import {
                                                 wasmparser::ImplementationImport::Url(name) => {
-                                                    name.to_string()
+                                                    name.as_str()
                                                 }
                                                 wasmparser::ImplementationImport::Relative(
                                                     name,
-                                                ) => name.to_string(),
+                                                ) => name.as_str(),
                                                 wasmparser::ImplementationImport::Locked(name) => {
-                                                    name.to_string()
+                                                    name.as_str()
                                                 }
                                                 wasmparser::ImplementationImport::Unlocked(
                                                     name,
-                                                ) => name.to_string(),
-                                            },
+                                                ) => name.as_str(),
+                                            }
+                                            .to_string(),
                                         };
                                         imports.insert(name, import.ty);
                                     }
@@ -159,18 +160,19 @@ impl<'a> Component<'a> {
                                                 impl_import,
                                             ) => match impl_import {
                                                 wasmparser::ImplementationImport::Url(name) => {
-                                                    name.to_string()
+                                                    name.as_str()
                                                 }
                                                 wasmparser::ImplementationImport::Relative(
                                                     name,
-                                                ) => name.to_string(),
+                                                ) => name.as_str(),
                                                 wasmparser::ImplementationImport::Locked(name) => {
-                                                    name.to_string()
+                                                    name.as_str()
                                                 }
                                                 wasmparser::ImplementationImport::Unlocked(
                                                     name,
-                                                ) => name.to_string(),
-                                            },
+                                                ) => name.as_str(),
+                                            }
+                                            .to_string(),
                                         };
                                         exports.insert(name, (export.kind, export.index));
                                     }

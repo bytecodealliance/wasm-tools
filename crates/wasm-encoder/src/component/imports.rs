@@ -166,13 +166,24 @@ pub enum ComponentExternName<'a> {
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
     /// External url
-    Url(&'a str),
+    Url(ImportMetadata<'a>),
     /// Relative path
-    Relative(&'a str),
+    Relative(ImportMetadata<'a>),
     /// Locked Registry Import
-    Locked(&'a str),
+    Locked(ImportMetadata<'a>),
     /// Unocked Registry Import
-    Unlocked(&'a str),
+    Unlocked(ImportMetadata<'a>),
+}
+
+/// Metadata For Import
+#[derive(Debug, Copy, Clone)]
+pub struct ImportMetadata<'a> {
+    /// Import Name
+    pub name: &'a str,
+    /// Import Location
+    pub location: &'a str,
+    /// Content Integrity Hash
+    pub integrity: Option<&'a str>,
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -187,21 +198,53 @@ impl Encode for ComponentExternName<'_> {
                 name.encode(sink);
             }
             ComponentExternName::Implementation(import) => match import {
-                ImplementationImport::Url(name) => {
+                ImplementationImport::Url(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
                     sink.push(0x02);
                     name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
                 }
-                ImplementationImport::Relative(name) => {
+                ImplementationImport::Relative(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
                     sink.push(0x03);
                     name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
                 }
-                ImplementationImport::Locked(name) => {
+                ImplementationImport::Locked(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
                     sink.push(0x04);
                     name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
                 }
-                ImplementationImport::Unlocked(name) => {
+                ImplementationImport::Unlocked(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
                     sink.push(0x05);
                     name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
                 }
             },
         }

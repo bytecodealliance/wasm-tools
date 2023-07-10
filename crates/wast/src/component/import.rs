@@ -1,6 +1,5 @@
 use crate::component::*;
 use crate::kw;
-use crate::kw::relative;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
@@ -22,8 +21,10 @@ pub struct ComponentImport<'a> {
 pub struct ImportMetadata<'a> {
   /// Name of import
   pub name: &'a str,
-  /// url for import
+  /// Url for import
   pub location: Option<&'a str>,
+  /// Content Integrity Hash
+  pub integrity: Option<&'a str>,
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
@@ -98,16 +99,27 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
   fn parse(parser: Parser<'a>) -> Result<Self> {
     let mut kind = ImplementationImportKinds::Unknown;
     let is_reg_import = parser.peek::<LParen>();
+    let mut integrity = None;
     if is_reg_import {
       let name = parser.parens(|p| {
         if p.peek::<kw::locked>() {
           p.parse::<kw::locked>()?;
           kind = ImplementationImportKinds::Locked;
-          p.parse()
+          let parsed_name = p.parse();
+          if p.peek::<kw::integrity>() {
+            p.parse::<kw::integrity>()?;
+            integrity = Some(p.parse()?);
+          }
+          parsed_name
         } else if p.peek::<kw::unlocked>() {
           p.parse::<kw::unlocked>()?;
           kind = ImplementationImportKinds::Unlocked;
-          p.parse()
+          let parsed_name = p.parse();
+          if p.peek::<kw::integrity>() {
+            p.parse::<kw::integrity>()?;
+            integrity = Some(p.parse()?);
+          }
+          parsed_name
         } else {
           Err(p.error("Unknown Implementation Import"))
         }
@@ -116,10 +128,12 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
         ImplementationImportKinds::Locked => Ok(ImplementationImport::Locked(ImportMetadata {
           name,
           location: None,
+          integrity
         })),
         ImplementationImportKinds::Unlocked => Ok(ImplementationImport::Unlocked(ImportMetadata {
           name,
           location: None,
+          integrity
         })),
         _ => {
           Err(parser.error("Unknown Implementation Import"))
@@ -127,15 +141,26 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
       }
     }
     let name = parser.parse()?;
+
     let location = parser.parens(|p| {
       if p.peek::<kw::url>() {
         p.parse::<kw::url>()?;
         kind = ImplementationImportKinds::Url;
-        p.parse()
+        let parsed_location = p.parse();
+        if p.peek::<kw::integrity>() {
+          p.parse::<kw::integrity>()?;
+          integrity = Some(p.parse()?);
+        }
+        parsed_location
       } else if p.peek::<kw::relative>() {
         p.parse::<kw::relative>()?;
         kind = ImplementationImportKinds::Relative;
-        p.parse()
+        let parsed_location = p.parse();
+        if p.peek::<kw::integrity>() {
+          p.parse::<kw::integrity>()?;
+          integrity = Some(p.parse()?);
+        }
+        parsed_location
       } else {
         Err(p.error("Unknown Implementation Import"))
       }
@@ -144,10 +169,12 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
       ImplementationImportKinds::Url => Ok(ImplementationImport::Url(ImportMetadata {
         name,
         location,
+        integrity
       })),
       ImplementationImportKinds::Relative => Ok(ImplementationImport::Relative(ImportMetadata {
         name,
         location,
+        integrity
       })),
       _ => Err(parser.error("Unknown Implementation Import")) 
     } 
@@ -182,7 +209,6 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
               let impl_import = parser.parse::<ImplementationImport>()?;
               return Ok(ComponentExternName::Implementation(impl_import))
             } else {
-              // parser.parse::<item_
               return Err(parser.error("Unknown Import Kind"))
             }
         } else {

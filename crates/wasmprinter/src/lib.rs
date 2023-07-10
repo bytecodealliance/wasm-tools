@@ -1892,20 +1892,47 @@ impl Printer {
             }
             ComponentExternName::Implementation(s) => {
                 match s {
-                    ImplementationImport::Url(_) => {
+                    ImplementationImport::Url(metadata) => {
+                        self.print_str(metadata.name)?;
+                        self.result.push(' ');
                         self.start_group("url ");
+                        self.print_str(metadata.location)?;
+                        if metadata.integrity.len() > 0 {
+                            self.result.push(' ');
+                            self.result.push_str("integrity ");
+                            self.print_str(metadata.integrity)?;
+                        }
                     }
-                    ImplementationImport::Relative(_) => {
+                    ImplementationImport::Relative(metadata) => {
+                        self.print_str(metadata.name)?;
+                        self.result.push(' ');
                         self.start_group("relative ");
+                        self.print_str(metadata.location)?;
+                        if metadata.integrity.len() > 0 {
+                            self.result.push(' ');
+                            self.result.push_str("integrity ");
+                            self.print_str(metadata.integrity)?;
+                        }
                     }
-                    ImplementationImport::Locked(_) => {
+                    ImplementationImport::Locked(metadata) => {
                         self.start_group("locked ");
+                        self.print_str(&s.as_str())?;
+                        if metadata.integrity.len() > 0 {
+                            self.result.push(' ');
+                            self.result.push_str("integrity ");
+                            self.print_str(metadata.integrity)?;
+                        }
                     }
-                    ImplementationImport::Unlocked(_) => {
+                    ImplementationImport::Unlocked(metadata) => {
                         self.start_group("unlocked ");
+                        self.print_str(&s.as_str())?;
+                        if metadata.integrity.len() > 0 {
+                            self.result.push(' ');
+                            self.result.push_str("integrity ");
+                            self.print_str(metadata.integrity)?;
+                        }
                     }
                 }
-                self.print_str(&s.to_string())?;
                 self.end_group();
                 Ok(())
             }

@@ -120,22 +120,40 @@ pub enum ComponentExternName<'a> {
 #[derive(Debug, Copy, Clone)]
 pub enum ImplementationImport<'a> {
     /// External Url
-    Url(&'a str),
+    Url(ImportMetadata<'a>),
     /// Relative path
-    Relative(&'a str),
+    Relative(ImportMetadata<'a>),
     /// Locked Registry Import
-    Locked(&'a str),
+    Locked(ImportMetadata<'a>),
     /// Unlocked Registry Import
-    Unlocked(&'a str),
+    Unlocked(ImportMetadata<'a>),
 }
 
-impl ToString for ImplementationImport<'_> {
-    fn to_string(&self) -> String {
+/// Metadata For Import
+#[derive(Debug, Copy, Clone)]
+pub struct ImportMetadata<'a> {
+    /// Import Name
+    pub name: &'a str,
+    /// Import Location
+    pub location: &'a str,
+    /// Import Integrity
+    pub integrity: &'a str,
+}
+
+impl<'a> ImportMetadata<'a> {
+    /// Returns the underlying string representing this name.
+    pub fn as_str(&self) -> &'a str {
+        self.name
+    }
+}
+impl<'a> ImplementationImport<'a> {
+    /// Returns the underlying string representing this name.
+    pub fn as_str(&self) -> &'a str {
         match self {
-            Self::Relative(metadata) => metadata.to_string(),
-            Self::Url(metadata) => metadata.to_string(),
-            Self::Locked(metadata) => metadata.to_string(),
-            Self::Unlocked(metadata) => metadata.to_string(),
+            Self::Relative(metadata) => metadata.as_str(),
+            Self::Url(metadata) => metadata.as_str(),
+            Self::Locked(metadata) => metadata.as_str(),
+            Self::Unlocked(metadata) => metadata.as_str(),
         }
     }
 }
@@ -147,10 +165,10 @@ impl<'a> ComponentExternName<'a> {
             ComponentExternName::Kebab(name) => name,
             ComponentExternName::Interface(name) => name,
             ComponentExternName::Implementation(impl_import) => match impl_import {
-                ImplementationImport::Url(name) => name,
-                ImplementationImport::Relative(name) => name,
-                ImplementationImport::Locked(name) => name,
-                ImplementationImport::Unlocked(name) => name,
+                ImplementationImport::Url(metadata) => metadata.name,
+                ImplementationImport::Relative(metadata) => metadata.name,
+                ImplementationImport::Locked(metadata) => metadata.name,
+                ImplementationImport::Unlocked(metadata) => metadata.name,
             },
         }
     }
@@ -174,23 +192,35 @@ fn read_impl_import<'a>(
     byte1: u8,
     reader: &mut BinaryReader<'a>,
 ) -> Result<ImplementationImport<'a>> {
+    let name = reader.read()?;
+    let location = reader.read()?;
+    let integrity = if reader.peek()? != 0x01 {
+        reader.read()?
+    } else {
+        ""
+    };
+
     Ok(match byte1 {
-        0x02 => {
-            let impl_import = reader.read::<&str>()?;
-            ImplementationImport::Url(impl_import)
-        }
-        0x03 => {
-            let impl_import = reader.read::<&str>()?;
-            ImplementationImport::Relative(impl_import)
-        }
-        0x04 => {
-            let impl_import = reader.read::<&str>()?;
-            ImplementationImport::Locked(impl_import)
-        }
-        0x05 => {
-            let impl_import = reader.read::<&str>()?;
-            ImplementationImport::Unlocked(impl_import)
-        }
-        x => reader.invalid_leading_byte(x, "alias")?,
+        0x02 => ImplementationImport::Url(ImportMetadata {
+            name,
+            location,
+            integrity,
+        }),
+        0x03 => ImplementationImport::Relative(ImportMetadata {
+            name,
+            location,
+            integrity: integrity,
+        }),
+        0x04 => ImplementationImport::Locked(ImportMetadata {
+            name,
+            location,
+            integrity: integrity,
+        }),
+        0x05 => ImplementationImport::Unlocked(ImportMetadata {
+            name,
+            location,
+            integrity: integrity,
+        }),
+        x => reader.invalid_leading_byte(x, "implementation import")?,
     })
 }
