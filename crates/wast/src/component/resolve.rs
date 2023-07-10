@@ -375,7 +375,9 @@ impl<'a> Resolver<'a> {
             }
             CanonicalFuncKind::ResourceNew(info) => return self.resolve_ns(&mut info.ty, Ns::Type),
             CanonicalFuncKind::ResourceRep(info) => return self.resolve_ns(&mut info.ty, Ns::Type),
-            CanonicalFuncKind::ResourceDrop(info) => return self.component_val_type(&mut info.ty),
+            CanonicalFuncKind::ResourceDrop(info) => {
+                return self.resolve_ns(&mut info.ty, Ns::Type)
+            }
         };
 
         for opt in opts {

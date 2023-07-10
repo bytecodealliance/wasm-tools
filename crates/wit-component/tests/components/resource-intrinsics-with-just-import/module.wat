@@ -1,3 +1,3 @@
 (module
-  (import "foo" "[resource-drop-own]a" (func (param i32)))
+  (import "foo" "[resource-drop]a" (func (param i32)))
 )

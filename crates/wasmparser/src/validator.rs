@@ -1156,8 +1156,8 @@ impl Validator {
                     crate::CanonicalFunction::ResourceNew { resource } => {
                         current.resource_new(resource, types, offset)
                     }
-                    crate::CanonicalFunction::ResourceDrop { ty } => {
-                        current.resource_drop(ty, types, offset)
+                    crate::CanonicalFunction::ResourceDrop { resource } => {
+                        current.resource_drop(resource, types, offset)
                     }
                     crate::CanonicalFunction::ResourceRep { resource } => {
                         current.resource_rep(resource, types, offset)

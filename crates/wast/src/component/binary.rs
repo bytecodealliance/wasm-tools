@@ -327,7 +327,7 @@ impl<'a> Encoder<'a> {
             }
             CanonicalFuncKind::ResourceDrop(info) => {
                 self.core_func_names.push(name);
-                self.funcs.resource_drop((&info.ty).into());
+                self.funcs.resource_drop(info.ty.into());
             }
             CanonicalFuncKind::ResourceRep(info) => {
                 self.core_func_names.push(name);
