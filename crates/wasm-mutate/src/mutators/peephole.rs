@@ -569,6 +569,7 @@ mod tests {
 
     /// Condition to apply the unfold operator
     /// check that the var is a constant
+    #[allow(dead_code)]
     fn is_const(vari: &'static str) -> impl Fn(&mut EG, Id, &Subst) -> bool {
         move |egraph: &mut EG, _, subst| {
             let var = vari.parse();
@@ -608,7 +609,11 @@ mod tests {
         }
     }
 
+    // Random numbers vary by pointer-width presumably due to `usize` at some
+    // point factoring in, and this test is only known to pass within a
+    // reasonable amount of time on 64-bit platforms.
     #[test]
+    #[cfg(target_pointer_width = "64")]
     fn test_peep_unfold2() {
         let rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>] = &[
             rewrite!("unfold-2";  "?x" => "(i32.unfold ?x)" if is_const("?x") if is_type("?x", PrimitiveTypeInfo::I32)),
@@ -1588,7 +1593,7 @@ mod tests {
         seed: u64,
     ) {
         let mut config = WasmMutate::default();
-        config.fuel(300);
+        config.fuel(10000);
         config.seed(seed);
 
         let mutator = PeepholeMutator::new_with_rules(3, rules.to_vec());
