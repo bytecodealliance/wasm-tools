@@ -81,8 +81,8 @@ impl<'a> ComponentInfo<'a> {
                 };
                 match export.kind {
                     ComponentExternalKind::Type => matches!(
-                        self.types.type_at(export.index, false),
-                        Some(types::Type::Component(_))
+                        &self.types[self.types.component_type_at(export.index)],
+                        types::Type::Component(_)
                     ),
                     _ => false,
                 }
@@ -108,10 +108,8 @@ impl<'a> ComponentInfo<'a> {
                 Extern::Export(e) => e,
                 _ => unreachable!(),
             };
-            let ty = match self.types.type_at(export.index, false) {
-                Some(types::Type::Component(ty)) => ty,
-                _ => unreachable!(),
-            };
+            let id = self.types.component_type_at(export.index);
+            let ty = self.types[id].unwrap_component();
             if pkg.is_some() {
                 bail!("more than one top-level exported component type found");
             }
@@ -259,10 +257,7 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.imports.iter() {
             let ty = match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::ComponentInstance(ty)) => ty,
-                        _ => unreachable!(),
-                    }
+                    self.info.types[*idx].unwrap_component_instance()
                 }
                 _ => bail!("import `{name}` is not an instance"),
             };
@@ -294,18 +289,12 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.exports.iter() {
             match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    let ty = match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::ComponentInstance(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[*idx].unwrap_component_instance();
                     self.register_interface(name.as_str(), ty, &mut package)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
                 types::ComponentEntityType::Component(idx) => {
-                    let ty = match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::Component(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[*idx].unwrap_component();
                     self.register_world(name.as_str(), ty, &mut package)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
@@ -330,10 +319,7 @@ impl WitPackageDecoder<'_> {
         let owner = TypeOwner::World(world);
         let (name, item) = match ty {
             types::ComponentEntityType::Instance(i) => {
-                let ty = match self.info.types.type_from_id(i) {
-                    Some(types::Type::ComponentInstance(ty)) => ty,
-                    _ => unreachable!(),
-                };
+                let ty = self.info.types[i].unwrap_component_instance();
                 let (name, id) = if name.contains('/') {
                     let id = self.register_import(name, ty)?;
                     (WorldKey::Interface(id), id)
@@ -344,10 +330,7 @@ impl WitPackageDecoder<'_> {
                 (name, WorldItem::Interface(id))
             }
             types::ComponentEntityType::Func(i) => {
-                let ty = match self.info.types.type_from_id(i) {
-                    Some(types::Type::ComponentFunc(ty)) => ty,
-                    _ => unreachable!(),
-                };
+                let ty = self.info.types[i].unwrap_component_func();
                 let func = self
                     .convert_function(name, ty, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
@@ -380,10 +363,7 @@ impl WitPackageDecoder<'_> {
         let ty = types.component_entity_type_of_export(name).unwrap();
         let (name, item) = match ty {
             types::ComponentEntityType::Func(i) => {
-                let ty = match types.type_from_id(i) {
-                    Some(types::Type::ComponentFunc(ty)) => ty,
-                    _ => unreachable!(),
-                };
+                let ty = types[i].unwrap_component_func();
                 let func = self
                     .convert_function(name, ty, TypeOwner::World(world))
                     .with_context(|| format!("failed to decode function from export `{name}`"))?;
@@ -391,10 +371,7 @@ impl WitPackageDecoder<'_> {
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
             types::ComponentEntityType::Instance(i) => {
-                let ty = match types.type_from_id(i) {
-                    Some(types::Type::ComponentInstance(ty)) => ty,
-                    _ => unreachable!(),
-                };
+                let ty = types[i].unwrap_component_instance();
                 let (name, id) = if name.contains('/') {
                     let id = self.register_import(name, ty)?;
                     (WorldKey::Interface(id), id)
@@ -460,9 +437,9 @@ impl WitPackageDecoder<'_> {
                         // is not strictly necessary but assists with
                         // roundtripping assertions during fuzzing.
                         Some(id) => {
-                            match self.info.types.type_from_id(referenced) {
-                                Some(types::Type::Defined(ty)) => self.register_defined(id, ty)?,
-                                Some(types::Type::Resource(_)) => {}
+                            match &self.info.types[referenced] {
+                                types::Type::Defined(ty) => self.register_defined(id, ty)?,
+                                types::Type::Resource(_) => {}
                                 _ => unreachable!(),
                             }
                             let prev = self.type_map.insert(created, id);
@@ -504,10 +481,7 @@ impl WitPackageDecoder<'_> {
                 // functions for remote dependencies and otherwise assert
                 // they're already defined for local dependencies.
                 types::ComponentEntityType::Func(ty) => {
-                    let def = match self.info.types.type_from_id(ty) {
-                        Some(types::Type::ComponentFunc(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let def = self.info.types[ty].unwrap_component_func();
                     if self.resolve.interfaces[interface]
                         .functions
                         .contains_key(name.as_str())
@@ -665,10 +639,7 @@ impl WitPackageDecoder<'_> {
                 }
 
                 types::ComponentEntityType::Func(ty) => {
-                    let ty = match self.info.types.type_from_id(ty) {
-                        Some(types::Type::ComponentFunc(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[ty].unwrap_component_func();
                     let func = self
                         .convert_function(name.as_str(), ty, owner)
                         .with_context(|| format!("failed to convert function '{name}'"))?;
@@ -727,11 +698,11 @@ impl WitPackageDecoder<'_> {
 
             // ... or this `TypeId`'s source definition has never
             // been seen before, so declare the full type.
-            None => match self.info.types.type_from_id(referenced) {
-                Some(types::Type::Defined(ty)) => self
+            None => match &self.info.types[referenced] {
+                types::Type::Defined(ty) => self
                     .convert_defined(ty)
                     .context("failed to convert unaliased type")?,
-                Some(types::Type::Resource(_)) => TypeDefKind::Resource,
+                types::Type::Resource(_) => TypeDefKind::Resource,
                 _ => unreachable!(),
             },
         };
@@ -782,10 +753,7 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.imports.iter() {
             let (name, item) = match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    let ty = match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::ComponentInstance(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[*idx].unwrap_component_instance();
                     let (name, id) = if name.contains('/') {
                         // If a name is an interface import then it is either to
                         // a package-local or foreign interface, and both
@@ -810,10 +778,7 @@ impl WitPackageDecoder<'_> {
                     (WorldKey::Name(name.to_string()), WorldItem::Type(ty))
                 }
                 types::ComponentEntityType::Func(idx) => {
-                    let ty = match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::ComponentFunc(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[*idx].unwrap_component_func();
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
@@ -825,10 +790,7 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.exports.iter() {
             let (name, item) = match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    let ty = match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::ComponentInstance(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[*idx].unwrap_component_instance();
                     let (name, id) = if name.contains('/') {
                         // Note that despite this being an export this is
                         // calling `register_import`. With a URL this interface
@@ -845,10 +807,7 @@ impl WitPackageDecoder<'_> {
                 }
 
                 types::ComponentEntityType::Func(idx) => {
-                    let ty = match self.info.types.type_from_id(*idx) {
-                        Some(types::Type::ComponentFunc(ty)) => ty,
-                        _ => unreachable!(),
-                    };
+                    let ty = self.info.types[*idx].unwrap_component_func();
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
@@ -939,10 +898,7 @@ impl WitPackageDecoder<'_> {
         // errors on those types, but eventually the `bail!` here  is
         // more-or-less unreachable due to expected validation to be added to
         // the component model binary format itself.
-        let def = match self.info.types.type_from_id(id) {
-            Some(types::Type::Defined(ty)) => ty,
-            _ => unreachable!(),
-        };
+        let def = self.info.types[id].unwrap_defined();
         let kind = self.convert_defined(def)?;
         match &kind {
             TypeDefKind::Type(_)
@@ -1386,10 +1342,7 @@ impl Registrar<'_> {
                         Ok(())
                     }
                     None => {
-                        let wasm = match self.types.type_from_id(*wasm) {
-                            Some(types::Type::Defined(ty)) => ty,
-                            _ => unreachable!(),
-                        };
+                        let wasm = self.types[*wasm].unwrap_defined();
                         self.defined(wit, wasm)
                     }
                 }

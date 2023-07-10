@@ -376,7 +376,7 @@ impl ComponentState {
                 // function and has the correct signature.
                 if let Some(dtor) = dtor {
                     let ty = component.core_function_at(dtor, offset)?;
-                    let ty = types[ty].as_func_type().unwrap();
+                    let ty = types[ty].unwrap_func();
                     if ty.params() != [rep] || ty.results() != [] {
                         bail!(
                             offset,
@@ -625,7 +625,7 @@ impl ComponentState {
             // captured, and everything is appropriately added to the right
             // imported/exported set.
             ComponentEntityType::Instance(i) => {
-                let ty = types[*i].as_component_instance_type().unwrap();
+                let ty = types[*i].unwrap_component_instance();
                 ty.exports
                     .values()
                     .all(|ty| self.validate_and_register_named_types(None, kind, ty, types))
@@ -740,7 +740,7 @@ impl ComponentState {
     /// do not share resource types despite sharing the same original instance
     /// type.
     fn prepare_instance_import(&mut self, id: &mut TypeId, types: &mut TypeAlloc) {
-        let ty = types[*id].as_component_instance_type().unwrap();
+        let ty = types[*id].unwrap_component_instance();
 
         // No special treatment for imports of instances which themselves have
         // no defined resources
@@ -774,7 +774,7 @@ impl ComponentState {
         // path for where they're imported is updated as well with
         // `self.next_import_index` as the import-to-be soon.
         let mut mapping = Remapping::default();
-        let ty = types[*id].as_component_instance_type().unwrap();
+        let ty = types[*id].unwrap_component_instance();
         for (old, new) in ty.defined_resources.iter().zip(&resources) {
             let prev = mapping.resources.insert(*old, *new);
             assert!(prev.is_none());
@@ -811,7 +811,7 @@ impl ComponentState {
         // encapsulates. This means that the instance type
         // recorded for this export will itself have no
         // defined resources.
-        let ty = types[*id].as_component_instance_type().unwrap();
+        let ty = types[*id].unwrap_component_instance();
 
         // Check to see if `defined_resources` is non-empty, and if so then
         // "freshen" all the resources and inherit them to our own defined
@@ -856,7 +856,7 @@ impl ComponentState {
         // The path to each explicit resources gets one element prepended which
         // is `self.next_export_index`, the index of the export about to be
         // generated.
-        let ty = types[*id].as_component_instance_type().unwrap();
+        let ty = types[*id].unwrap_component_instance();
         for (id, path) in ty.explicit_resources.iter() {
             let mut new_path = vec![self.exports.len()];
             new_path.extend(path);
@@ -903,9 +903,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let ty = self.function_type_at(type_index, types, offset)?;
-        let core_ty = types[self.core_function_at(core_func_index, offset)?]
-            .as_func_type()
-            .unwrap();
+        let core_ty = types[self.core_function_at(core_func_index, offset)?].unwrap_func();
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
@@ -944,9 +942,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let ty = types[self.function_at(func_index, offset)?]
-            .as_component_func_type()
-            .unwrap();
+        let ty = types[self.function_at(func_index, offset)?].unwrap_component_func();
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
@@ -995,7 +991,7 @@ impl ComponentState {
             crate::ComponentValType::Type(idx) => idx,
         };
         let ty = self.defined_type_at(idx, types, offset)?;
-        match types[ty].as_defined_type().unwrap() {
+        match types[ty].unwrap_defined() {
             ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {}
             _ => bail!(offset, "type-to-drop must be an own or borrow type"),
         }
@@ -1026,7 +1022,7 @@ impl ComponentState {
 
     fn check_local_resource(&self, idx: u32, types: &TypeList, offset: usize) -> Result<ValType> {
         let id = self.resource_at(idx, types, offset)?;
-        let resource = types[id].as_resource().unwrap();
+        let resource = types[id].unwrap_resource();
         match self.defined_resources.get(&resource).and_then(|rep| *rep) {
             Some(ty) => Ok(ty),
             None => bail!(offset, "type {idx} is not a local resource"),
@@ -1130,9 +1126,7 @@ impl ComponentState {
             ));
         }
 
-        let ft = types[self.function_at(func_index, offset)?]
-            .as_component_func_type()
-            .unwrap();
+        let ft = types[self.function_at(func_index, offset)?].unwrap_component_func();
 
         if ft.params.len() != args.len() {
             bail!(
@@ -1226,9 +1220,7 @@ impl ComponentState {
                 CanonicalOption::Realloc(idx) => {
                     realloc = match realloc {
                         None => {
-                            let ty = types[self.core_function_at(*idx, offset)?]
-                                .as_func_type()
-                                .unwrap();
+                            let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
                             if ty.params()
                                 != [ValType::I32, ValType::I32, ValType::I32, ValType::I32]
                                 || ty.results() != [ValType::I32]
@@ -1258,9 +1250,7 @@ impl ComponentState {
                                 )
                             })?;
 
-                            let ty = types[self.core_function_at(*idx, offset)?]
-                                .as_func_type()
-                                .unwrap();
+                            let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
 
                             if ty.params() != core_ty.results() || !ty.results().is_empty() {
                                 return Err(BinaryReaderError::new(
@@ -1307,16 +1297,18 @@ impl ComponentState {
         Ok(match ty {
             ComponentTypeRef::Module(index) => {
                 let id = self.type_at(*index, true, offset)?;
-                types[id].as_module_type().ok_or_else(|| {
-                    format_err!(offset, "core type index {index} is not a module type")
-                })?;
+                match &types[id] {
+                    Type::Module(_) => {}
+                    _ => bail!(offset, "core type index {index} is not a module type"),
+                }
                 ComponentEntityType::Module(id)
             }
             ComponentTypeRef::Func(index) => {
                 let id = self.type_at(*index, false, offset)?;
-                types[id].as_component_func_type().ok_or_else(|| {
-                    format_err!(offset, "type index {index} is not a function type")
-                })?;
+                match &types[id] {
+                    Type::ComponentFunc(_) => {}
+                    _ => bail!(offset, "type index {index} is not a function type"),
+                }
                 ComponentEntityType::Func(id)
             }
             ComponentTypeRef::Value(ty) => {
@@ -1346,16 +1338,18 @@ impl ComponentState {
             }
             ComponentTypeRef::Instance(index) => {
                 let id = self.type_at(*index, false, offset)?;
-                types[id].as_component_instance_type().ok_or_else(|| {
-                    format_err!(offset, "type index {index} is not an instance type")
-                })?;
+                match &types[id] {
+                    Type::ComponentInstance(_) => {}
+                    _ => bail!(offset, "type index {index} is not an instance type"),
+                }
                 ComponentEntityType::Instance(id)
             }
             ComponentTypeRef::Component(index) => {
                 let id = self.type_at(*index, false, offset)?;
-                types[id].as_component_type().ok_or_else(|| {
-                    format_err!(offset, "type index {index} is not a component type")
-                })?;
+                match &types[id] {
+                    Type::Component(_) => {}
+                    _ => bail!(offset, "type index {index} is not a component type"),
+                }
                 ComponentEntityType::Component(id)
             }
         })
@@ -1654,16 +1648,15 @@ impl ComponentState {
         for module_arg in module_args {
             match module_arg.kind {
                 InstantiationArgKind::Instance => {
-                    let instance_type = types[self.core_instance_at(module_arg.index, offset)?]
-                        .as_instance_type()
-                        .unwrap();
+                    let instance_type =
+                        types[self.core_instance_at(module_arg.index, offset)?].unwrap_instance();
                     insert_arg(module_arg.name, instance_type, &mut args, offset)?;
                 }
             }
         }
 
         // Validate the arguments
-        let module_type = types[module_type_id].as_module_type().unwrap();
+        let module_type = types[module_type_id].unwrap_module();
         let cx = SubtypeCx::new(types, types);
         for ((module, name), expected) in module_type.imports.iter() {
             let instance = args.get(module.as_str()).ok_or_else(|| {
@@ -1833,7 +1826,7 @@ impl ComponentState {
         // comments are hopefully enough when augmented with communication with
         // the authors.
 
-        let component_type = types[component_type_id].as_component_type().unwrap();
+        let component_type = types[component_type_id].unwrap_component();
         let mut exports = component_type.exports.clone();
         let type_size = component_type
             .exports
@@ -1878,7 +1871,7 @@ impl ComponentState {
         let fresh_defined_resources = (0..component_type.defined_resources.len())
             .map(|_| types.alloc_resource_id())
             .collect::<IndexSet<_>>();
-        let component_type = types[component_type_id].as_component_type().unwrap();
+        let component_type = types[component_type_id].unwrap_component();
         for ((old, _path), new) in component_type
             .defined_resources
             .iter()
@@ -1901,7 +1894,7 @@ impl ComponentState {
         for entity in exports.values_mut() {
             types.remap_component_entity(entity, &mut mapping);
         }
-        let component_type = types[component_type_id].as_component_type().unwrap();
+        let component_type = types[component_type_id].unwrap_component();
         let explicit_resources = component_type
             .explicit_resources
             .iter()
@@ -2005,8 +1998,7 @@ impl ComponentState {
                     // instance, just with one more element in their path.
                     explicit_resources.extend(
                         types[ty]
-                            .as_component_instance_type()
-                            .unwrap()
+                            .unwrap_component_instance()
                             .explicit_resources
                             .iter()
                             .map(|(id, path)| {
@@ -2251,8 +2243,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let mut ty = match types[self.instance_at(instance_index, offset)?]
-            .as_component_instance_type()
-            .unwrap()
+            .unwrap_component_instance()
             .exports
             .get(name)
         {
@@ -2669,9 +2660,10 @@ impl ComponentState {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a ComponentFuncType> {
-        types[self.type_at(idx, false, offset)?]
-            .as_component_func_type()
-            .ok_or_else(|| format_err!(offset, "type index {idx} is not a function type"))
+        match &types[self.type_at(idx, false, offset)?] {
+            Type::ComponentFunc(f) => Ok(f),
+            _ => bail!(offset, "type index {idx} is not a function type"),
+        }
     }
 
     fn function_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
@@ -2755,8 +2747,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<&'a EntityType> {
         match types[self.core_instance_at(instance_index, offset)?]
-            .as_instance_type()
-            .unwrap()
+            .unwrap_instance()
             .internal_exports(types)
             .get(name)
         {
@@ -2966,7 +2957,7 @@ impl KebabNameContext {
                 ComponentEntityType::Func(id) => *id,
                 _ => bail!(offset, "item is not a func"),
             };
-            Ok(types[id].as_component_func_type().unwrap())
+            Ok(types[id].unwrap_component_func())
         };
         match name.kind() {
             // Normal kebab name or id? No validation necessary.
