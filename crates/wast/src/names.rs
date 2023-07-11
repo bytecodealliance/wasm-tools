@@ -51,13 +51,11 @@ impl<'a> Namespace<'a> {
     }
 
     pub fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
-        if let Some(prev) = self.names.insert(name, index) {
-            if prev != index {
-                return Err(Error::new(
-                    name.span(),
-                    format!("duplicate identifier `{}` for {}", name.name(), desc),
-                ));
-            }
+        if let Some(_prev) = self.names.insert(name, index) {
+            return Err(Error::new(
+                name.span(),
+                format!("duplicate identifier `{}` for {}", name.name(), desc),
+            ));
         }
         Ok(())
     }
@@ -72,14 +70,6 @@ impl<'a> Namespace<'a> {
             return Ok(n);
         }
         Err(resolve_error(*id, desc))
-    }
-
-    pub fn get_index(&self, idx: &Index<'a>) -> Option<u32> {
-        let id = match idx {
-            Index::Num(n, _) => return Some(*n),
-            Index::Id(id) => id,
-        };
-        self.names.get(id).copied()
     }
 }
 

@@ -57,27 +57,6 @@ impl<'a> Resolver<'a> {
             TypeDef::Struct(r#struct) => {
                 for (i, field) in r#struct.fields.iter().enumerate() {
                     if let Some(id) = field.id {
-                        if let Some(parent_type_index) = ty
-                            .parent
-                            .map(|index| self.types.get_index(&index))
-                            .flatten()
-                        {
-                            if let Some(parent_field_ns) = self.fields.get(&parent_type_index) {
-                                let field_idx =
-                                    parent_field_ns.resolve(&mut Index::Id(id), "field")?;
-                                if field_idx != i as u32 {
-                                    return Err(Error::new(
-                                        id.span(),
-                                        format!(
-                                            "field index mismatch for `{}`: expected {}, got {}",
-                                            id.name(),
-                                            field_idx,
-                                            i
-                                        ),
-                                    ));
-                                }
-                            }
-                        }
                         self.fields
                             .entry(type_index)
                             .or_insert(Namespace::default())

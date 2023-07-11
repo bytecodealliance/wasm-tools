@@ -131,20 +131,6 @@
 )
 (assert_invalid
   (module
-    (type $A (struct (field $vt (mut i32))))
-    (type $C (sub $A (struct (field $tv (mut i32)))))
-  )
-  "unknown field"
-)
-(assert_invalid
-  (module
-    (type $A (struct (field $vt (mut i32))))
-    (type $C (sub $A (struct (field (mut i32)) (field $vt (mut i32)))))
-  )
-  "field index mismatch"
-)
-(assert_invalid
-  (module
     (type (struct (field $vt (mut i32)) (field $vt (mut i64))))
   )
   "duplicate identifier"

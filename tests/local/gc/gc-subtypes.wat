@@ -100,4 +100,6 @@
 
   (type $A (struct (field $vt (mut i32))))
   (type $B (sub $A (struct (field $vt (mut i32)))))
+  (type (sub $A (struct (field $tv (mut i32))))) ;; same field, different name
+  (type (sub $A (struct (field (mut i32)) (field $vt (mut i64))))) ;; different field, same name
 )
