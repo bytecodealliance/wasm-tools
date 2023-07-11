@@ -55,7 +55,7 @@ impl<'a> Namespace<'a> {
             if prev != index {
                 return Err(Error::new(
                     name.span(),
-                    format!("duplicate identifier for {}", desc),
+                    format!("duplicate identifier `{}` for {}", name.name(), desc),
                 ));
             }
         }

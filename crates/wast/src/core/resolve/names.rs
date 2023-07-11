@@ -636,11 +636,13 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
                 let type_index = self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
-                self.resolver
-                    .fields
-                    .get(&type_index)
-                    .unwrap()
-                    .resolve(&mut s.field, "field")?;
+                if let Index::Id(id) = s.r#struct {
+                    self.resolver
+                        .fields
+                        .get(&type_index)
+                        .ok_or(Error::new(id.span(), format!("accessing a named field `{}` in a struct without named fields, type index {}", id.name(), type_index)))?
+                        .resolve(&mut s.field, "field")?;
+                }
             }
 
             ArrayNewFixed(a) => {
