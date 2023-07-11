@@ -217,7 +217,7 @@ impl ComponentBuilder {
         self.producers.merge(producers)
     }
 
-    pub fn resource_drop(&mut self, ty: ComponentValType) -> u32 {
+    pub fn resource_drop(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_drop(ty);
         inc(&mut self.core_funcs)
     }

@@ -259,11 +259,8 @@ impl<'a> Expander<'a> {
             }
             CanonicalFuncKind::Lower(_)
             | CanonicalFuncKind::ResourceNew(_)
-            | CanonicalFuncKind::ResourceRep(_) => {}
-
-            CanonicalFuncKind::ResourceDrop(info) => {
-                self.expand_component_val_ty(&mut info.ty);
-            }
+            | CanonicalFuncKind::ResourceRep(_)
+            | CanonicalFuncKind::ResourceDrop(_) => {}
         }
     }
 
@@ -292,7 +289,6 @@ impl<'a> Expander<'a> {
                 kind: CanonicalFuncKind::ResourceNew(mem::take(info)),
             })),
             CoreFuncKind::ResourceDrop(info) => {
-                self.expand_component_val_ty(&mut info.ty);
                 Some(ComponentField::CanonicalFunc(CanonicalFunc {
                     span: func.span,
                     id: func.id,

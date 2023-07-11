@@ -362,8 +362,8 @@ impl Default for CanonResourceNew<'_> {
 /// Information relating to the `resource.drop` intrinsic.
 #[derive(Debug)]
 pub struct CanonResourceDrop<'a> {
-    /// The type that this intrinsic is dropping, either (borrow T) or (own T)
-    pub ty: ComponentValType<'a>,
+    /// The resource type that this intrinsic is dropping.
+    pub ty: Index<'a>,
 }
 
 impl<'a> Parse<'a> for CanonResourceDrop<'a> {
@@ -379,7 +379,7 @@ impl<'a> Parse<'a> for CanonResourceDrop<'a> {
 impl Default for CanonResourceDrop<'_> {
     fn default() -> Self {
         CanonResourceDrop {
-            ty: ComponentValType::Ref(Index::Num(0, Span::from_offset(0))),
+            ty: Index::Num(0, Span::from_offset(0)),
         }
     }
 }

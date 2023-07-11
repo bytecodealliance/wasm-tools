@@ -595,16 +595,8 @@ impl<'a> EncodingState<'a> {
                 let prev = self.export_type_map.insert(info.id, resource_idx);
                 assert!(prev.is_none());
 
-                if let Some(name) = info.drop_own_import {
-                    let (idx, ty) = self.component.defined_type();
-                    ty.own(resource_idx);
-                    let index = self.component.resource_drop(ComponentValType::Type(idx));
-                    exports.push((name, ExportKind::Func, index));
-                }
-                if let Some(name) = info.drop_borrow_import {
-                    let (idx, ty) = self.component.defined_type();
-                    ty.borrow(resource_idx);
-                    let index = self.component.resource_drop(ComponentValType::Type(idx));
+                if let Some(name) = info.drop_import {
+                    let index = self.component.resource_drop(resource_idx);
                     exports.push((name, ExportKind::Func, index));
                 }
                 if let Some(name) = info.rep_import {
@@ -699,17 +691,9 @@ impl<'a> EncodingState<'a> {
                     )
                 }
 
-                Lowering::ResourceDropOwn(id) => {
+                Lowering::ResourceDrop(id) => {
                     let resource_idx = self.lookup_resource_index(*id);
-                    let (idx, ty) = self.component.defined_type();
-                    ty.own(resource_idx);
-                    self.component.resource_drop(ComponentValType::Type(idx))
-                }
-                Lowering::ResourceDropBorrow(id) => {
-                    let resource_idx = self.lookup_resource_index(*id);
-                    let (idx, ty) = self.component.defined_type();
-                    ty.borrow(resource_idx);
-                    self.component.resource_drop(ComponentValType::Type(idx))
+                    self.component.resource_drop(resource_idx)
                 }
             };
             exports.push((name.as_str(), ExportKind::Func, index));
@@ -1655,9 +1639,7 @@ impl<'a> Shims<'a> {
                 "shim {shim_name} is import `{core_wasm_module}` lowering {index} `{name}`",
             );
             match lowering {
-                Lowering::Direct
-                | Lowering::ResourceDropOwn(_)
-                | Lowering::ResourceDropBorrow(_) => {}
+                Lowering::Direct | Lowering::ResourceDrop(_) => {}
 
                 Lowering::Indirect { sig, options } => {
                     sigs.push(sig.clone());

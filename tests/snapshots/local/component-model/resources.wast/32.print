@@ -1,8 +1,5 @@
 (component
-  (type (;0;)
-    (component
-      (export (;0;) "r1" (type (sub resource)))
-      (export (;1;) "r2" (type (sub resource)))
-    )
-  )
+  (type $r (;0;) (resource (rep i32)))
+  (export $r1 (;1;) "r1" (type $r))
+  (export (;2;) "r2" (type $r1))
 )

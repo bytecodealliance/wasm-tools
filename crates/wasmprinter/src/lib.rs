@@ -2172,12 +2172,12 @@ impl Printer {
                     self.end_group();
                     state.core.funcs += 1;
                 }
-                CanonicalFunction::ResourceDrop { ty } => {
+                CanonicalFunction::ResourceDrop { resource } => {
                     self.start_group("core func ");
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
                     self.start_group("canon resource.drop ");
-                    self.print_component_val_type(state, &ty)?;
+                    self.print_idx(&state.component.type_names, resource)?;
                     self.end_group();
                     self.end_group();
                     state.core.funcs += 1;

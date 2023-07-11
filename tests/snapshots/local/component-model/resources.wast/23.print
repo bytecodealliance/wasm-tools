@@ -1,19 +1,17 @@
 (component
   (type (;0;)
-    (component
+    (instance
       (type (;0;)
         (instance
-          (export (;0;) "t" (type (sub resource)))
-          (type (;1;) (own 0))
-          (type (;2;) (func (result "x" 1)))
-          (export (;0;) "f" (func (type 2)))
+          (export (;0;) "file" (type (sub resource)))
         )
       )
-      (import "x" (instance (;0;) (type 0)))
-      (alias export 0 "t" (type (;1;)))
-      (type (;2;) (own 1))
-      (type (;3;) (func (result "x" 2)))
-      (export (;0;) "f" (func (type 3)))
+      (export (;0;) "fs" (instance (type 0)))
+      (alias export 0 "file" (type (;1;)))
+      (type (;2;) (borrow 1))
+      (type (;3;) (func (param "f" 2)))
+      (export (;0;) "fancy-op" (func (type 3)))
     )
   )
+  (import "fancy-fs" (instance $fancy-fs (;0;) (type 0)))
 )

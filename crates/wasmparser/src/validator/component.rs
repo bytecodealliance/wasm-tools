@@ -980,21 +980,11 @@ impl ComponentState {
 
     pub fn resource_drop(
         &mut self,
-        ty: crate::ComponentValType,
+        resource: u32,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let idx = match ty {
-            crate::ComponentValType::Primitive(_) => {
-                bail!(offset, "type-to-drop must be an own or borrow type")
-            }
-            crate::ComponentValType::Type(idx) => idx,
-        };
-        let ty = self.defined_type_at(idx, types, offset)?;
-        match types[ty].unwrap_defined() {
-            ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {}
-            _ => bail!(offset, "type-to-drop must be an own or borrow type"),
-        }
+        self.resource_at(resource, types, offset)?;
         let core_ty = Type::Sub(SubType {
             is_final: false,
             supertype_idx: None,

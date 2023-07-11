@@ -40,8 +40,7 @@ pub const MAIN_MODULE_IMPORT_NAME: &str = "__main_module__";
 /// turns into `env`.
 pub const BARE_FUNC_MODULE_NAME: &str = "$root";
 
-pub const RESOURCE_DROP_OWN: &str = "[resource-drop-own]";
-pub const RESOURCE_DROP_BORROW: &str = "[resource-drop-borrow]";
+pub const RESOURCE_DROP: &str = "[resource-drop]";
 pub const RESOURCE_REP: &str = "[resource-rep]";
 pub const RESOURCE_NEW: &str = "[resource-new]";
 
@@ -100,8 +99,7 @@ pub struct RequiredImports {
 }
 
 pub struct ResourceInfo<'a> {
-    pub drop_own_import: Option<&'a str>,
-    pub drop_borrow_import: Option<&'a str>,
+    pub drop_import: Option<&'a str>,
     pub new_import: Option<&'a str>,
     pub rep_import: Option<&'a str>,
     pub dtor_export: Option<&'a str>,
@@ -291,12 +289,8 @@ fn validate_exported_interface_resource_imports<'a>(
             bail!("import of `{func_name}` is not a valid resource function");
         }
         let info = info.required_resource_funcs.get_mut(import_module).unwrap();
-        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP_OWN) {
-            info[resource_name].drop_own_import = Some(func_name);
-            continue;
-        }
-        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP_BORROW) {
-            info[resource_name].drop_borrow_import = Some(func_name);
+        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP) {
+            info[resource_name].drop_import = Some(func_name);
             continue;
         }
         if let Some(resource_name) = func_name.strip_prefix(RESOURCE_NEW) {
@@ -586,10 +580,7 @@ fn valid_imported_resource_func<'a>(
     types: &Types,
     is_resource: impl Fn(&str) -> bool,
 ) -> Result<Option<&'a str>> {
-    if let Some(resource_name) = func_name
-        .strip_prefix(RESOURCE_DROP_OWN)
-        .or_else(|| func_name.strip_prefix(RESOURCE_DROP_BORROW))
-    {
+    if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP) {
         if is_resource(resource_name) {
             let ty = types[types.core_type_at(ty)].unwrap_func();
             let expected = FuncType::new([ValType::I32], []);
@@ -727,8 +718,7 @@ fn validate_exported_item<'a>(
                 let mut info = ResourceInfo {
                     id: *id,
                     dtor_export: None,
-                    drop_own_import: None,
-                    drop_borrow_import: None,
+                    drop_import: None,
                     rep_import: None,
                     new_import: None,
                 };
