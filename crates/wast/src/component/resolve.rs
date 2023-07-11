@@ -170,7 +170,7 @@ impl<'a> Resolver<'a> {
                 }
                 self.export(&mut e.kind)
             }
-            ComponentField::Custom(_) => Ok(()),
+            ComponentField::Custom(_) | ComponentField::Producers(_) => Ok(()),
         }
     }
 
@@ -847,7 +847,7 @@ impl<'a> ComponentState<'a> {
                 ComponentExportKind::Component(_) => self.components.register(e.id, "component")?,
                 ComponentExportKind::Type(_) => self.types.register(e.id, "type")?,
             },
-            ComponentField::Custom(_) => return Ok(()),
+            ComponentField::Custom(_) | ComponentField::Producers(_) => return Ok(()),
         };
 
         Ok(())

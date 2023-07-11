@@ -60,11 +60,11 @@ impl<'a> Parse<'a> for Table<'a> {
         //  *   `(import "a" "b") limits`
         //  *   `limits`
         let mut l = parser.lookahead1();
-        let kind = if l.peek::<RefType>() {
+        let kind = if l.peek::<RefType>()? {
             let elem = parser.parse()?;
             let payload = parser.parens(|p| {
                 p.parse::<kw::elem>()?;
-                let ty = if parser.peek::<LParen>() {
+                let ty = if parser.peek::<LParen>()? {
                     Some(elem)
                 } else {
                     None
@@ -72,7 +72,7 @@ impl<'a> Parse<'a> for Table<'a> {
                 ElemPayload::parse_tail(parser, ty)
             })?;
             TableKind::Inline { elem, payload }
-        } else if l.peek::<u32>() {
+        } else if l.peek::<u32>()? {
             TableKind::Normal {
                 ty: parser.parse()?,
                 init_expr: if !parser.is_empty() {
@@ -156,17 +156,19 @@ impl<'a> Parse<'a> for Elem<'a> {
         let id = parser.parse()?;
         let name = parser.parse()?;
 
-        let kind = if parser.peek::<kw::declare>() {
+        let kind = if parser.peek::<kw::declare>()? {
             parser.parse::<kw::declare>()?;
             ElemKind::Declared
-        } else if parser.peek::<u32>() || (parser.peek::<LParen>() && !parser.peek::<RefType>()) {
-            let table = if parser.peek::<u32>() {
+        } else if parser.peek::<u32>()?
+            || (parser.peek::<LParen>()? && !parser.peek::<RefType>()?)
+        {
+            let table = if parser.peek::<u32>()? {
                 // FIXME: this is only here to accomodate
                 // proposals/threads/imports.wast at this current moment in
                 // time, this probably should get removed when the threads
                 // proposal is rebased on the current spec.
                 Index::Num(parser.parse()?, span)
-            } else if parser.peek2::<kw::table>() {
+            } else if parser.peek2::<kw::table>()? {
                 parser.parens(|p| {
                     p.parse::<kw::table>()?;
                     p.parse()
@@ -175,7 +177,7 @@ impl<'a> Parse<'a> for Elem<'a> {
                 Index::Num(0, span)
             };
             let offset = parser.parens(|parser| {
-                if parser.peek::<kw::offset>() {
+                if parser.peek::<kw::offset>()? {
                     parser.parse::<kw::offset>()?;
                 }
                 parser.parse()
@@ -211,7 +213,7 @@ impl<'a> ElemPayload<'a> {
             Some(ty) => (false, ty),
         };
         if let HeapType::Func = ty.heap {
-            if must_use_indices || parser.peek::<Index<'_>>() {
+            if must_use_indices || parser.peek::<Index<'_>>()? {
                 let mut elems = Vec::new();
                 while !parser.is_empty() {
                     elems.push(parser.parse()?);
@@ -222,7 +224,7 @@ impl<'a> ElemPayload<'a> {
         let mut exprs = Vec::new();
         while !parser.is_empty() {
             let expr = parser.parens(|parser| {
-                if parser.peek::<kw::item>() {
+                if parser.peek::<kw::item>()? {
                     parser.parse::<kw::item>()?;
                     parser.parse()
                 } else {

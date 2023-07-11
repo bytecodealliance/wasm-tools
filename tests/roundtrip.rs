@@ -229,7 +229,10 @@ impl TestState {
         // Both of these cases indicate possible bugs in `wasmprinter` itself
         // which while they don't actually affect the meaning they do "affect"
         // humans reading the output.
-        for token in wast::lexer::Lexer::new(&string).allow_confusing_unicode(true) {
+        for token in wast::lexer::Lexer::new(&string)
+            .allow_confusing_unicode(true)
+            .iter(0)
+        {
             let token = token?;
             let ws = match token.kind {
                 wast::lexer::TokenKind::Whitespace => token.src(&string),

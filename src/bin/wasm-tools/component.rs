@@ -518,9 +518,10 @@ fn is_wasm(bytes: &[u8]) -> bool {
         Err(_) => return true,
     };
 
-    let mut lexer = Lexer::new(text);
+    let lexer = Lexer::new(text);
+    let mut iter = lexer.iter(0);
 
-    while let Some(next) = lexer.next() {
+    while let Some(next) = iter.next() {
         match next.map(|t| t.kind) {
             Ok(TokenKind::Whitespace)
             | Ok(TokenKind::BlockComment)
