@@ -129,3 +129,9 @@
   )
   "type index out of bounds"
 )
+(assert_invalid
+  (module
+    (type (struct (field $vt (mut i32)) (field $vt (mut i64))))
+  )
+  "duplicate identifier"
+)
