@@ -440,7 +440,10 @@ macro_rules! float {
                 Float::Nan { negative, val } => {
                     let exp_bits = (1 << $exp_bits) - 1;
                     let neg_bit = *negative as $int;
-                    let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
+                    let signif = match val {
+                        Some(val) => $int::from_str_radix(val,16).ok()?,
+                        None => 1 << (signif_bits - 1),
+                    };
                     // If the significand is zero then this is actually infinity
                     // so we fail to parse it.
                     if signif & signif_mask == 0 {
