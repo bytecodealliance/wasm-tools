@@ -184,6 +184,8 @@ pub struct ImportMetadata<'a> {
     pub location: &'a str,
     /// Content Integrity Hash
     pub integrity: Option<&'a str>,
+    /// SemverRange
+    pub range: Option<&'a str>,
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -202,6 +204,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
+                    range: _
                 }) => {
                     sink.push(0x02);
                     name.encode(sink);
@@ -214,6 +217,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
+                    range: _
                 }) => {
                     sink.push(0x03);
                     name.encode(sink);
@@ -226,6 +230,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
+                    range: _
                 }) => {
                     sink.push(0x04);
                     name.encode(sink);
@@ -237,13 +242,14 @@ impl Encode for ComponentExternName<'_> {
                 ImplementationImport::Unlocked(ImportMetadata {
                     name,
                     location,
-                    integrity,
+                    integrity: _,
+                    range
                 }) => {
                     sink.push(0x05);
                     name.encode(sink);
                     location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
+                    if let Some(r) = range {
+                        r.encode(sink);
                     }
                 }
             },

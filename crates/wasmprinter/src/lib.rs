@@ -1926,10 +1926,10 @@ impl Printer {
                     ImplementationImport::Unlocked(metadata) => {
                         self.start_group("unlocked ");
                         self.print_str(&s.as_str())?;
-                        if metadata.integrity.len() > 0 {
+                        if metadata.range.len() > 0 {
                             self.result.push(' ');
-                            self.result.push_str("integrity ");
-                            self.print_str(metadata.integrity)?;
+                            self.result.push_str("range ");
+                            self.print_str(metadata.range)?;
                         }
                     }
                 }

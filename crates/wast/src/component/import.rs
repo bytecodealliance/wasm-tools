@@ -25,6 +25,8 @@ pub struct ImportMetadata<'a> {
   pub location: Option<&'a str>,
   /// Content Integrity Hash
   pub integrity: Option<&'a str>,
+  /// Semver Range
+  pub range: Option<&'a str>,
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
@@ -100,6 +102,7 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
     let mut kind = ImplementationImportKinds::Unknown;
     let is_reg_import = parser.peek::<LParen>();
     let mut integrity = None;
+    let mut range = None;
     if is_reg_import {
       let name = parser.parens(|p| {
         if p.peek::<kw::locked>() {
@@ -115,9 +118,9 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
           p.parse::<kw::unlocked>()?;
           kind = ImplementationImportKinds::Unlocked;
           let parsed_name = p.parse();
-          if p.peek::<kw::integrity>() {
-            p.parse::<kw::integrity>()?;
-            integrity = Some(p.parse()?);
+          if p.peek::<kw::range>() {
+            p.parse::<kw::range>()?;
+            range = Some(p.parse()?);
           }
           parsed_name
         } else {
@@ -128,12 +131,14 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
         ImplementationImportKinds::Locked => Ok(ImplementationImport::Locked(ImportMetadata {
           name,
           location: None,
-          integrity
+          integrity,
+          range
         })),
         ImplementationImportKinds::Unlocked => Ok(ImplementationImport::Unlocked(ImportMetadata {
           name,
           location: None,
-          integrity
+          integrity,
+          range
         })),
         _ => {
           Err(parser.error("Unknown Implementation Import"))
@@ -169,12 +174,14 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
       ImplementationImportKinds::Url => Ok(ImplementationImport::Url(ImportMetadata {
         name,
         location,
-        integrity
+        integrity,
+        range: None
       })),
       ImplementationImportKinds::Relative => Ok(ImplementationImport::Relative(ImportMetadata {
         name,
         location,
-        integrity
+        integrity,
+        range: None
       })),
       _ => Err(parser.error("Unknown Implementation Import")) 
     } 

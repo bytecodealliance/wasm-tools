@@ -464,6 +464,7 @@ pub mod kw {
     custom_keyword!(r#mut = "mut");
     custom_keyword!(r#type = "type");
     custom_keyword!(r#ref = "ref");
+    custom_keyword!(range);
     custom_keyword!(ref_func = "ref.func");
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
