@@ -138,6 +138,8 @@ pub struct ImportMetadata<'a> {
     pub location: &'a str,
     /// Import Integrity
     pub integrity: &'a str,
+    /// Semver Range
+    pub range: &'a str,
 }
 
 impl<'a> ImportMetadata<'a> {
@@ -194,7 +196,7 @@ fn read_impl_import<'a>(
 ) -> Result<ImplementationImport<'a>> {
     let name = reader.read()?;
     let location = reader.read()?;
-    let integrity = if reader.peek()? != 0x01 {
+    let integrity_or_range = if reader.peek()? != 0x01 {
         reader.read()?
     } else {
         ""
@@ -204,22 +206,26 @@ fn read_impl_import<'a>(
         0x02 => ImplementationImport::Url(ImportMetadata {
             name,
             location,
-            integrity,
+            integrity: integrity_or_range,
+            range: ""
         }),
         0x03 => ImplementationImport::Relative(ImportMetadata {
             name,
             location,
-            integrity: integrity,
+            integrity: integrity_or_range,
+            range: ""
         }),
         0x04 => ImplementationImport::Locked(ImportMetadata {
             name,
             location,
-            integrity: integrity,
+            integrity: integrity_or_range,
+            range: ""
         }),
         0x05 => ImplementationImport::Unlocked(ImportMetadata {
             name,
             location,
-            integrity: integrity,
+            integrity: "",
+            range: integrity_or_range
         }),
         x => reader.invalid_leading_byte(x, "implementation import")?,
     })
