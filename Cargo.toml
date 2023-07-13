@@ -19,6 +19,7 @@ members = [
   'crates/wasm-mutate-stats',
   'fuzz',
   'crates/wit-parser/fuzz',
+  'crates/wit-parser/fuzz',
 ]
 
 [workspace.package]
@@ -45,6 +46,7 @@ url = "2.0.0"
 pretty_assertions = "1.3.0"
 semver = "1.0.0"
 
+wasm-deps = { version = "0.1.0", path = "crates/wasm-deps" }
 wasm-encoder = { version = "0.29.0", path = "crates/wasm-encoder" }
 wasm-compose = { version = "0.2.17", path = "crates/wasm-compose" }
 wasm-metadata = { version = "0.8.0", path = "crates/wasm-metadata" }
@@ -72,6 +74,9 @@ termcolor = "1.2.0"
 # Dependencies of `validate`
 wasmparser = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
+
+# Dependencies of `print`
+wasm-deps = { workspace = true, optional = true }
 
 # Dependencies of `print`
 wasmprinter = { workspace = true }
@@ -143,6 +148,7 @@ default = [
   'parse',
   'dump',
   'objdump',
+  'dependencies',
   'strip',
   'compose',
   'demangle',
@@ -161,6 +167,7 @@ shrink = ['wasm-shrink', 'is_executable']
 mutate = ['wasm-mutate']
 dump = ['dep:wasmparser']
 objdump = ['dep:wasmparser']
+dependencies = ['wasm-deps']
 strip = ['wasm-encoder', 'dep:wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']

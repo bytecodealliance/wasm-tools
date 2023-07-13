@@ -56,6 +56,7 @@ subcommands! {
     (mutate, "mutate")
     (dump, "dump")
     (objdump, "objdump")
+    (dependencies, "dependencies")
     (strip, "strip")
     (compose, "compose")
     (demangle, "demangle")

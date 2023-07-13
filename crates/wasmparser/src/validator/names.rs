@@ -327,6 +327,7 @@ impl KebabName {
                 }
             }
             ComponentExternName::Implementation(s) => {
+                dbg!(s);
                 let string = s.as_str();
                 let colon = find(&string, ':')?;
                 validate_kebab(&string[..colon])?;
