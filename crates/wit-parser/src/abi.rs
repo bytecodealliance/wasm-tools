@@ -1659,7 +1659,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 TypeDefKind::Type(t) => self.write_to_memory(t, addr, offset),
                 TypeDefKind::List(_) => self.write_list_to_memory(ty, addr, offset),
 
-                TypeDefKind::Handle(_) => todo!(),
+                TypeDefKind::Handle(_) => self.lower_and_emit(ty, addr, &I32Store { offset }),
 
                 // Decompose the record into its components and then write all
                 // the components into memory one-by-one.
@@ -1863,9 +1863,7 @@ impl<'a, B: Bindgen> Generator<'a, B> {
 
                 TypeDefKind::List(_) => self.read_list_from_memory(ty, addr, offset),
 
-                TypeDefKind::Handle(_) => {
-                    todo!();
-                }
+                TypeDefKind::Handle(_) => self.emit_and_lift(ty, addr, &I32Load { offset }),
 
                 TypeDefKind::Resource => {
                     todo!();
