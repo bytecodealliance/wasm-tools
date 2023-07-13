@@ -1864,7 +1864,9 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 TypeDefKind::List(_) => self.read_list_from_memory(ty, addr, offset),
 
                 TypeDefKind::Handle(_) => {
-                    todo!();
+                    self.stack.push(addr);
+                    self.emit(&Instruction::I32Load { offset });
+                    self.lift(ty);
                 }
 
                 TypeDefKind::Resource => {
