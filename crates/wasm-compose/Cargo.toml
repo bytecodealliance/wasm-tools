@@ -19,7 +19,7 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 petgraph = "0.6.2"
 log = { workspace = true }
-serde_yaml = "0.8.26"
+serde_yaml = "0.9.22"
 clap = { workspace = true, optional = true }
 smallvec = "1.10.0"
 heck = "0.4.0"
