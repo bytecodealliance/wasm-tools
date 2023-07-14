@@ -109,6 +109,7 @@ fn to_val_type(ty: &WasmType) -> ValType {
 bitflags::bitflags! {
     /// Options in the `canon lower` or `canon lift` required for a particular
     /// function.
+    #[derive(Copy, Clone, Debug)]
     pub struct RequiredOptions: u8 {
         /// A memory must be specified, typically the "main module"'s memory
         /// export.
