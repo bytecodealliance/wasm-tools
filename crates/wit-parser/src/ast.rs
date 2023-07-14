@@ -246,7 +246,7 @@ impl<'a> WorldItem<'a> {
             Some((_span, Token::Include)) => Include::parse(tokens).map(WorldItem::Include),
             other => Err(err_expected(
                 tokens,
-                "`import`, `export`, `include`, `use`, or type definition",
+                "`import`, `export`, `include`, `use`, `include` or type definition",
                 other,
             )
             .into()),
