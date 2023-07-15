@@ -136,7 +136,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                                 op?;
                             }
                         }
-                        wasmparser::ElementItems::Expressions(r) => {
+                        wasmparser::ElementItems::Expressions(_, r) => {
                             for op in r {
                                 op?;
                             }
