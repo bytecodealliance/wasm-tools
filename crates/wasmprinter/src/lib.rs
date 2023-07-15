@@ -1337,8 +1337,8 @@ impl Printer {
                             self.print_idx(&state.core.func_names, idx?)?
                         }
                     }
-                    ElementItems::Expressions(reader) => {
-                        self.print_reftype(elem.ty)?;
+                    ElementItems::Expressions(ty, reader) => {
+                        self.print_reftype(ty)?;
                         for expr in reader {
                             self.result.push(' ');
                             self.print_const_expr_sugar(state, &expr?, "item")?

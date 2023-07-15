@@ -282,7 +282,6 @@ pub fn element(
         ElementKind::Passive => ElementMode::Passive,
         ElementKind::Declared => ElementMode::Declared,
     };
-    let element_type = t.translate_refty(&element.ty)?;
     let functions;
     let exprs;
     let elements = match element.items {
@@ -293,25 +292,21 @@ pub fn element(
                 .collect::<Result<Vec<_>, _>>()?;
             Elements::Functions(&functions)
         }
-        wasmparser::ElementItems::Expressions(reader) => {
+        wasmparser::ElementItems::Expressions(ty, reader) => {
             exprs = reader
                 .into_iter()
                 .map(|f| {
                     t.translate_const_expr(
                         &f?,
-                        &wasmparser::ValType::Ref(element.ty),
+                        &wasmparser::ValType::Ref(ty),
                         ConstExprKind::ElementFunction,
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            Elements::Expressions(&exprs)
+            Elements::Expressions(t.translate_refty(&ty)?, &exprs)
         }
     };
-    s.segment(ElementSegment {
-        mode,
-        element_type,
-        elements,
-    });
+    s.segment(ElementSegment { mode, elements });
     Ok(())
 }
 

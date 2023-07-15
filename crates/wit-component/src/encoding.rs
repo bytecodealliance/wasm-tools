@@ -1268,7 +1268,6 @@ impl<'a> EncodingState<'a> {
         elements.active(
             None,
             &ConstExpr::i32_const(0),
-            RefType::FUNCREF,
             Elements::Functions(&func_indexes),
         );
 

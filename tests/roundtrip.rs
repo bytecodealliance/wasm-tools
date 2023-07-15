@@ -303,30 +303,10 @@ impl TestState {
     }
 
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
-        // Only test parsing and encoding of modules which wasmparser doesn't
-        // support test (basically just test `wast`, nothing else)
-        let skip_verify =
-            // This specific test contains a module along the lines of:
-            //
-            //  (module
-            //   (type $t (func))
-            //   (func $tf)
-            //   (table $t (ref null $t) (elem $tf))
-            //  )
-            //
-            // which doesn't currently validate since the injected element
-            // segment has a type of `funcref` which isn't compatible with the
-            // table's type. The spec interpreter thinks this should validate,
-            // however, and I'm not entirely sure why.
-            test.ends_with("function-references/br_table.wast");
-
         match directive {
             WastDirective::Wat(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
-                if skip_verify {
-                    return Ok(());
-                }
                 let test_roundtrip = match module {
                     // Don't test the wasmprinter round trip since these bytes
                     // may not be in their canonical form (didn't come from the
@@ -377,9 +357,6 @@ impl TestState {
 
                     self.test_wasm_valid(test, &wasm)
                 });
-                if skip_verify {
-                    return Ok(());
-                }
                 match result {
                     Ok(_) => bail!(
                         "encoded and validated successfully but should have failed with: {}",
@@ -761,11 +738,18 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("invalid u32 number: constant out of range");
     }
 
-    // The test suite includes "bad opcodes" that later became valid opcodes
-    // (0xd3, function references proposal). However, they are still not constant
-    // expressions, so we can sidestep by checking for that error instead
     if message == "illegal opcode" {
-        return error.contains("constant expression required");
+        // The test suite includes "bad opcodes" that later became valid opcodes
+        // (0xd3, function references proposal). However, they are still not
+        // constant expressions, so we can sidestep by checking for that error
+        // instead
+        return error.contains("constant expression required")
+            // The test suite contains a test with a global section where the
+            // init expression is truncated and doesn't have an "end"
+            // instruction. That's reported with wasmparser as end-of-file
+            // because the end of the section was reached while the spec
+            // interpreter says "illegal opcode".
+            || error.contains("unexpected end-of-file");
     }
     if message == "unknown global" {
         return error.contains("global.get of locally defined global");
