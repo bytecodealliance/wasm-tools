@@ -554,6 +554,7 @@ impl TestState {
             function_references: true,
             memory_control: true,
             gc: true,
+            component_model_values: true,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -569,6 +570,7 @@ impl TestState {
                     features.bulk_memory = false;
                     features.function_references = false;
                     features.gc = false;
+                    features.component_model_values = false;
                 }
                 "floats-disabled.wast" => features.floats = false,
                 "threads" => {
