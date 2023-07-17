@@ -1173,7 +1173,7 @@ impl Encode for RefCast<'_> {
     }
 }
 
-fn br_on_cast_flags(on_fail: bool, from_nullable: bool, to_nullable: bool) -> u8 {
+fn br_on_cast_flags(from_nullable: bool, to_nullable: bool) -> u8 {
     let mut flag = 0;
     if from_nullable {
         flag |= 1 << 0;
@@ -1181,18 +1181,14 @@ fn br_on_cast_flags(on_fail: bool, from_nullable: bool, to_nullable: bool) -> u8
     if to_nullable {
         flag |= 1 << 1;
     }
-    if on_fail {
-        flag |= 1 << 2;
-    }
     flag
 }
 
 impl Encode for BrOnCast<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
-        e.push(0x4f);
+        e.push(0x4e);
         e.push(br_on_cast_flags(
-            false,
             self.from_type.nullable,
             self.to_type.nullable,
         ));
@@ -1207,7 +1203,6 @@ impl Encode for BrOnCastFail<'_> {
         e.push(0xfb);
         e.push(0x4f);
         e.push(br_on_cast_flags(
-            true,
             self.from_type.nullable,
             self.to_type.nullable,
         ));
