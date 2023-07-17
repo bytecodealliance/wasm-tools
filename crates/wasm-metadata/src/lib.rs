@@ -51,8 +51,7 @@ impl Producers {
                 ModuleSection { .. } | ComponentSection { .. } => depth += 1,
                 End { .. } => depth -= 1,
                 CustomSection(c) if c.name() == "producers" && depth == 0 => {
-                    let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
-                    let producers = Self::from_reader(section)?;
+                    let producers = Self::from_bytes(c.data(), c.data_offset())?;
                     return Ok(Some(producers));
                 }
                 _ => {}
@@ -61,7 +60,8 @@ impl Producers {
         Ok(None)
     }
     /// Read the producers section from a Wasm binary.
-    pub fn from_reader(section: ProducersSectionReader) -> Result<Self> {
+    pub fn from_bytes(bytes: &[u8], offset: usize) -> Result<Self> {
+        let section = ProducersSectionReader::new(bytes, offset)?;
         let mut fields = IndexMap::new();
         for field in section.into_iter() {
             let field = field?;
@@ -129,7 +129,7 @@ impl Producers {
     }
 
     /// Serialize into [`wasm_encoder::ProducersSection`].
-    pub fn section(&self) -> wasm_encoder::ProducersSection {
+    fn section(&self) -> wasm_encoder::ProducersSection {
         let mut section = wasm_encoder::ProducersSection::new();
         for (fieldname, fieldvalues) in self.0.iter() {
             let mut field = wasm_encoder::ProducersField::new();
@@ -139,6 +139,13 @@ impl Producers {
             section.field(&fieldname, &field);
         }
         section
+    }
+
+    /// Serialize into the raw bytes of a wasm custom section.
+    pub fn raw_custom_section(&self) -> Vec<u8> {
+        let mut ret = Vec::new();
+        self.section().encode(&mut ret);
+        ret
     }
 
     /// Merge into an existing wasm module. Rewrites the module with this producers section
@@ -288,8 +295,7 @@ fn rewrite_wasm(
             // Only rewrite the outermost producers section:
             CustomSection(c) if c.name() == "producers" && stack.len() == 0 => {
                 producers_found = true;
-                let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
-                let mut producers = Producers::from_reader(section)?;
+                let mut producers = Producers::from_bytes(c.data(), c.data_offset())?;
                 // Add to the section according to the command line flags:
                 producers.merge(&add_producers);
                 // Encode into output:
@@ -298,8 +304,7 @@ fn rewrite_wasm(
 
             CustomSection(c) if c.name() == "name" && stack.len() == 0 => {
                 names_found = true;
-                let section = NameSectionReader::new(c.data(), c.data_offset());
-                let mut names = ModuleNames::from_reader(section)?;
+                let mut names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
                 names.merge(&ModuleNames::from_name(add_name));
 
                 names.section()?.as_custom().append_to(&mut output);
@@ -307,8 +312,7 @@ fn rewrite_wasm(
 
             CustomSection(c) if c.name() == "component-name" && stack.len() == 0 => {
                 names_found = true;
-                let section = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                let mut names = ComponentNames::from_reader(section)?;
+                let mut names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
                 names.merge(&ComponentNames::from_name(add_name));
                 names.section()?.as_custom().append_to(&mut output);
             }
@@ -425,8 +429,7 @@ impl Metadata {
                     }
                 }
                 CustomSection(c) if c.name() == "name" => {
-                    let section = NameSectionReader::new(c.data(), c.data_offset());
-                    let names = ModuleNames::from_reader(section)?;
+                    let names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
                     if let Some(name) = names.get_name() {
                         metadata
                             .last_mut()
@@ -435,8 +438,7 @@ impl Metadata {
                     }
                 }
                 CustomSection(c) if c.name() == "component-name" => {
-                    let section = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                    let names = ComponentNames::from_reader(section)?;
+                    let names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
                     if let Some(name) = names.get_name() {
                         metadata
                             .last_mut()
@@ -445,8 +447,7 @@ impl Metadata {
                     }
                 }
                 CustomSection(c) if c.name() == "producers" => {
-                    let section = ProducersSectionReader::new(c.data(), c.data_offset())?;
-                    let producers = Producers::from_reader(section)?;
+                    let producers = Producers::from_bytes(c.data(), c.data_offset())?;
                     metadata
                         .last_mut()
                         .expect("non-empty metadata stack")
@@ -586,7 +587,8 @@ impl<'a> ModuleNames<'a> {
     }
     /// Read a name section from a WebAssembly binary. Records the module name, and all other
     /// contents of name section, for later serialization.
-    pub fn from_reader(section: NameSectionReader<'a>) -> Result<ModuleNames<'a>> {
+    pub fn from_bytes(bytes: &'a [u8], offset: usize) -> Result<ModuleNames<'a>> {
+        let section = NameSectionReader::new(bytes, offset);
         let mut s = Self::empty();
         for name in section.into_iter() {
             let name = name?;
@@ -621,7 +623,7 @@ impl<'a> ModuleNames<'a> {
         self.module_name.as_ref()
     }
     /// Serialize into [`wasm_encoder::NameSection`].
-    pub fn section(&self) -> Result<wasm_encoder::NameSection> {
+    fn section(&self) -> Result<wasm_encoder::NameSection> {
         let mut section = wasm_encoder::NameSection::new();
         if let Some(module_name) = &self.module_name {
             section.module(&module_name);
@@ -643,6 +645,13 @@ impl<'a> ModuleNames<'a> {
         }
         Ok(section)
     }
+
+    /// Serialize into the raw bytes of a wasm custom section.
+    pub fn raw_custom_section(&self) -> Result<Vec<u8>> {
+        let mut ret = Vec::new();
+        self.section()?.encode(&mut ret);
+        Ok(ret)
+    }
 }
 
 /// Helper for rewriting a component's component-name section with a new component name.
@@ -661,7 +670,8 @@ impl<'a> ComponentNames<'a> {
     }
     /// Read a component-name section from a WebAssembly binary. Records the component name, as
     /// well as all other component name fields for later serialization.
-    pub fn from_reader(section: ComponentNameSectionReader<'a>) -> Result<ComponentNames<'a>> {
+    pub fn from_bytes(bytes: &'a [u8], offset: usize) -> Result<ComponentNames<'a>> {
+        let section = ComponentNameSectionReader::new(bytes, offset);
         let mut s = Self::empty();
         for name in section.into_iter() {
             let name = name?;
@@ -698,7 +708,7 @@ impl<'a> ComponentNames<'a> {
         self.component_name.as_ref()
     }
     /// Serialize into [`wasm_encoder::ComponentNameSection`]
-    pub fn section(&self) -> Result<wasm_encoder::ComponentNameSection> {
+    fn section(&self) -> Result<wasm_encoder::ComponentNameSection> {
         let mut section = wasm_encoder::ComponentNameSection::new();
         if let Some(component_name) = &self.component_name {
             section.component(&component_name);
@@ -724,6 +734,13 @@ impl<'a> ComponentNames<'a> {
             }
         }
         Ok(section)
+    }
+
+    /// Serialize into the raw bytes of a wasm custom section.
+    pub fn raw_custom_section(&self) -> Result<Vec<u8>> {
+        let mut ret = Vec::new();
+        self.section()?.encode(&mut ret);
+        Ok(ret)
     }
 }
 
