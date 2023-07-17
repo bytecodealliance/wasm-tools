@@ -546,7 +546,7 @@ mod tests {
     #[test]
     fn remove_elem() {
         crate::mutators::match_mutation(
-            r#"(module (elem))"#,
+            r#"(module (elem funcref))"#,
             RemoveItemMutator(Item::Element),
             r#"(module)"#,
         );

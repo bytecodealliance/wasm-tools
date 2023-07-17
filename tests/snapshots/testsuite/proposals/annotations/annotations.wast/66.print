@@ -1,23 +1,11 @@
-(module $m
-  (type $T (;0;) (func (param i32 i64 i32) (result i32)))
-  (type (;1;) (func))
-  (func $f (;0;) (type $T) (param i32 i64) (param $x i32) (result i32)
-    (local i32 i32) (local $y i32)
-    block (result i32) ;; label = @1
-      local.get $x
-      local.get 0
-      i32.add
-    end
-  )
-  (func $s (;1;) (type 1))
-  (table $t (;0;) 10 20 funcref)
-  (memory $m (;0;) 1 2)
-  (global $g (;0;) i32 i32.const 42)
+(module $m1
+  (type (;0;) (func (param i32 f32)))
+  (import "spectest" "global_i32" (global $g (;0;) i32))
+  (import "spectest" "table" (table $t (;0;) 10 20 funcref))
+  (import "spectest" "memory" (memory $m (;0;) 1 2))
+  (import "spectest" "print_i32_f32" (func $f (;0;) (type 0)))
   (export "g" (global $g))
   (export "t" (table $t))
   (export "m" (memory $m))
   (export "f" (func $f))
-  (start $s)
-  (elem (;0;) (i32.const 0) func $f $f $f)
-  (data (;0;) (i32.const 0) "blaC")
 )

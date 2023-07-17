@@ -164,10 +164,10 @@ impl<'a> Dump<'a> {
                     self.print(range.end)?;
                 }
                 Payload::ElementSection(s) => self.section(s, "element", |me, _end, i| {
-                    write!(me.state, "element {:?}", i.ty)?;
+                    write!(me.state, "element")?;
                     let item_count = match &i.items {
                         ElementItems::Functions(reader) => reader.count(),
-                        ElementItems::Expressions(reader) => reader.count(),
+                        ElementItems::Expressions(_, reader) => reader.count(),
                     };
                     match i.kind {
                         ElementKind::Passive => {
@@ -188,6 +188,7 @@ impl<'a> Dump<'a> {
                     }
                     match i.items {
                         ElementItems::Functions(reader) => {
+                            write!(me.state, " [indices]")?;
                             let mut iter = reader.into_iter();
                             me.print(iter.original_position())?;
                             while let Some(item) = iter.next() {
@@ -195,7 +196,8 @@ impl<'a> Dump<'a> {
                                 me.print(iter.original_position())?;
                             }
                         }
-                        ElementItems::Expressions(reader) => {
+                        ElementItems::Expressions(ty, reader) => {
+                            write!(me.state, " [exprs {ty:?}]")?;
                             let mut iter = reader.into_iter();
                             me.print(iter.original_position())?;
                             while let Some(item) = iter.next() {
