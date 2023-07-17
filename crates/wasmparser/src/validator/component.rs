@@ -410,13 +410,15 @@ impl ComponentState {
     pub fn add_import(
         &mut self,
         import: crate::ComponentImport,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let mut entity = self.check_type_ref(&import.ty, types, offset)?;
+        let mut entity = self.check_type_ref(&import.ty, features, types, offset)?;
         self.add_entity(
             &mut entity,
             Some((import.name.as_str(), ExternKind::Import)),
+            features,
             types,
             offset,
         )?;
@@ -437,6 +439,7 @@ impl ComponentState {
         &mut self,
         ty: &mut ComponentEntityType,
         name_and_kind: Option<(&str, ExternKind)>,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -464,6 +467,7 @@ impl ComponentState {
                 (self.function_count(), MAX_WASM_FUNCTIONS, "functions")
             }
             ComponentEntityType::Value(ty) => {
+                self.check_value_support(features, offset)?;
                 let value_used = match kind {
                     Some(ExternKind::Import) | None => false,
                     Some(ExternKind::Export) => true,
@@ -868,6 +872,7 @@ impl ComponentState {
         &mut self,
         name: ComponentExternName<'_>,
         mut ty: ComponentEntityType,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
@@ -878,6 +883,7 @@ impl ComponentState {
         self.add_entity(
             &mut ty,
             Some((name.as_str(), ExternKind::Export)),
+            features,
             types,
             offset,
         )?;
@@ -1037,6 +1043,7 @@ impl ComponentState {
     pub fn add_instance(
         &mut self,
         instance: crate::ComponentInstance,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1044,9 +1051,15 @@ impl ComponentState {
             crate::ComponentInstance::Instantiate {
                 component_index,
                 args,
-            } => self.instantiate_component(component_index, args.into_vec(), types, offset)?,
+            } => self.instantiate_component(
+                component_index,
+                args.into_vec(),
+                features,
+                types,
+                offset,
+            )?,
             crate::ComponentInstance::FromExports(exports) => {
-                self.instantiate_exports(exports.into_vec(), types, offset)?
+                self.instantiate_exports(exports.into_vec(), features, types, offset)?
             }
         };
 
@@ -1058,6 +1071,7 @@ impl ComponentState {
     pub fn add_alias(
         components: &mut [Self],
         alias: crate::ComponentAlias,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1070,6 +1084,7 @@ impl ComponentState {
                 instance_index,
                 kind,
                 name,
+                features,
                 types,
                 offset,
             ),
@@ -1106,9 +1121,16 @@ impl ComponentState {
         func_index: u32,
         args: &[u32],
         results: u32,
+        features: &WasmFeatures,
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
+        if !features.component_model_values {
+            bail!(
+                offset,
+                "support for component model `value`s is not enabled"
+            );
+        }
         if self.has_start {
             return Err(BinaryReaderError::new(
                 "component cannot have more than one start function",
@@ -1281,6 +1303,7 @@ impl ComponentState {
     fn check_type_ref(
         &mut self,
         ty: &ComponentTypeRef,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
@@ -1302,6 +1325,7 @@ impl ComponentState {
                 ComponentEntityType::Func(id)
             }
             ComponentTypeRef::Value(ty) => {
+                self.check_value_support(features, offset)?;
                 let ty = match ty {
                     crate::ComponentValType::Primitive(ty) => ComponentValType::Primitive(*ty),
                     crate::ComponentValType::Type(index) => {
@@ -1348,6 +1372,7 @@ impl ComponentState {
     pub fn export_to_entity_type(
         &mut self,
         export: &crate::ComponentExport,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentEntityType> {
@@ -1359,6 +1384,7 @@ impl ComponentState {
                 ComponentEntityType::Func(self.function_at(export.index, offset)?)
             }
             ComponentExternalKind::Value => {
+                self.check_value_support(features, offset)?;
                 ComponentEntityType::Value(*self.value_at(export.index, offset)?)
             }
             ComponentExternalKind::Type => {
@@ -1378,7 +1404,7 @@ impl ComponentState {
         };
 
         let ascribed = match &export.ty {
-            Some(ty) => self.check_type_ref(ty, types, offset)?,
+            Some(ty) => self.check_type_ref(ty, features, types, offset)?,
             None => return Ok(actual),
         };
 
@@ -1466,17 +1492,17 @@ impl ComponentState {
                 }
                 crate::ComponentTypeDeclaration::Export { name, ty } => {
                     let current = components.last_mut().unwrap();
-                    let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, ty, types, offset, true)?;
+                    let ty = current.check_type_ref(&ty, features, types, offset)?;
+                    current.add_export(name, ty, features, types, offset, true)?;
                 }
                 crate::ComponentTypeDeclaration::Import(import) => {
                     components
                         .last_mut()
                         .unwrap()
-                        .add_import(import, types, offset)?;
+                        .add_import(import, features, types, offset)?;
                 }
                 crate::ComponentTypeDeclaration::Alias(alias) => {
-                    Self::add_alias(components, alias, types, offset)?;
+                    Self::add_alias(components, alias, features, types, offset)?;
                 }
             };
         }
@@ -1503,11 +1529,11 @@ impl ComponentState {
                 }
                 crate::InstanceTypeDeclaration::Export { name, ty } => {
                     let current = components.last_mut().unwrap();
-                    let ty = current.check_type_ref(&ty, types, offset)?;
-                    current.add_export(name, ty, types, offset, true)?;
+                    let ty = current.check_type_ref(&ty, features, types, offset)?;
+                    current.add_export(name, ty, features, types, offset, true)?;
                 }
                 crate::InstanceTypeDeclaration::Alias(alias) => {
-                    Self::add_alias(components, alias, types, offset)?;
+                    Self::add_alias(components, alias, features, types, offset)?;
                 }
             };
         }
@@ -1690,6 +1716,7 @@ impl ComponentState {
         &mut self,
         component_index: u32,
         component_args: Vec<crate::ComponentInstantiationArg>,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
@@ -1712,6 +1739,7 @@ impl ComponentState {
                     ComponentEntityType::Func(self.function_at(component_arg.index, offset)?)
                 }
                 ComponentExternalKind::Value => {
+                    self.check_value_support(features, offset)?;
                     ComponentEntityType::Value(*self.value_at(component_arg.index, offset)?)
                 }
                 ComponentExternalKind::Type => {
@@ -1957,6 +1985,7 @@ impl ComponentState {
     fn instantiate_exports(
         &mut self,
         exports: Vec<crate::ComponentExport>,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
@@ -2003,6 +2032,7 @@ impl ComponentState {
                     ComponentEntityType::Func(self.function_at(export.index, offset)?)
                 }
                 ComponentExternalKind::Value => {
+                    self.check_value_support(features, offset)?;
                     ComponentEntityType::Value(*self.value_at(export.index, offset)?)
                 }
                 ComponentExternalKind::Type => {
@@ -2229,9 +2259,13 @@ impl ComponentState {
         instance_index: u32,
         kind: ComponentExternalKind,
         name: &str,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
+        if let ComponentExternalKind::Value = kind {
+            self.check_value_support(features, offset)?;
+        }
         let mut ty = match types[self.instance_at(instance_index, offset)?]
             .unwrap_component_instance()
             .exports
@@ -2266,7 +2300,7 @@ impl ComponentState {
             );
         }
 
-        self.add_entity(&mut ty, None, types, offset)?;
+        self.add_entity(&mut ty, None, features, types, offset)?;
         Ok(())
     }
 
@@ -2868,6 +2902,16 @@ impl ComponentState {
         }
 
         Ok(ty)
+    }
+
+    fn check_value_support(&self, features: &WasmFeatures, offset: usize) -> Result<()> {
+        if !features.component_model_values {
+            bail!(
+                offset,
+                "support for component model `value`s is not enabled"
+            );
+        }
+        Ok(())
     }
 }
 
