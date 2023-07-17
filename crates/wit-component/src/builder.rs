@@ -41,7 +41,8 @@ impl ComponentBuilder {
         let mut base = crate::base_producers();
         base.merge(&self.producers);
         // Write producers section as last section:
-        self.component.section(&base.section());
+        self.component
+            .section(&RawCustomSection(&base.raw_custom_section()));
         self.flush();
         self.component.finish()
     }

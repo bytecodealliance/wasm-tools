@@ -1277,14 +1277,19 @@ impl<'a> EncodingState<'a> {
         shim.section(&tables);
         shim.section(&exports);
         shim.section(&code);
-        shim.section(&crate::base_producers().section());
+        shim.section(&RawCustomSection(
+            &crate::base_producers().raw_custom_section(),
+        ));
         shim.section(&names);
 
         let mut fixups = Module::default();
         fixups.section(&types);
         fixups.section(&imports_section);
         fixups.section(&elements);
-        fixups.section(&crate::base_producers().section());
+        fixups.section(&RawCustomSection(
+            &crate::base_producers().raw_custom_section(),
+        ));
+
         let mut names = NameSection::new();
         names.module("wit-component:fixups");
         fixups.section(&names);
