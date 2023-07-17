@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -100,7 +100,7 @@ fn main() -> ExitCode {
 }
 
 fn print_error(color: ColorChoice, err: anyhow::Error) -> Result<()> {
-    let color = if color == ColorChoice::Auto && !atty::is(atty::Stream::Stderr) {
+    let color = if color == ColorChoice::Auto && !io::stderr().is_terminal() {
         ColorChoice::Never
     } else {
         color

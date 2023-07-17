@@ -62,7 +62,6 @@ wit-smith = { version = "0.1.6", path = "crates/wit-smith" }
 [dependencies]
 anyhow = { workspace = true }
 env_logger = { workspace = true }
-atty = "0.2"
 log = { workspace = true }
 clap = { workspace = true }
 tempfile = "3.2.0"
