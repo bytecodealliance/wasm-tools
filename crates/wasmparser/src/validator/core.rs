@@ -527,7 +527,7 @@ impl Module {
             .collect();
 
         for (id, ty) in idx_types {
-            self.check_subtype(id.index, ty.clone(), features, types, offset)?;
+            self.check_subtype(id.index as u32, ty.clone(), features, types, offset)?;
             if !features.gc {
                 self.types.push(id);
             }
@@ -537,7 +537,7 @@ impl Module {
 
     fn check_subtype(
         &mut self,
-        type_index: usize,
+        type_index: u32,
         ty: SubType,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
@@ -551,7 +551,7 @@ impl Module {
 
         if let Some(supertype_index) = ty.supertype_idx {
             // Check the supertype exists, is not final, and the subtype matches it.
-            if supertype_index >= type_index as u32 {
+            if supertype_index >= type_index {
                 bail!(
                     offset,
                     "unknown type {type_index}: type index out of bounds"
@@ -559,7 +559,9 @@ impl Module {
             }
             match self.type_at(types, supertype_index, offset)? {
                 Type::Sub(st) => {
-                    if !&ty.inherits(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
+                    if !&ty.inherits(st, Some(type_index), Some(supertype_index), &|idx| {
+                        self.subtype_at(types, idx, offset).unwrap()
+                    }) {
                         bail!(offset, "subtype must match supertype");
                     }
                 }
@@ -948,7 +950,9 @@ impl Module {
     /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
     /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.inherits(&ty2, &|idx| self.subtype_at(types, idx, 0).unwrap())
+        ty1.inherits(&ty2, None, None, &|idx| {
+            self.subtype_at(types, idx, 0).unwrap()
+        })
     }
 
     fn check_tag_type(

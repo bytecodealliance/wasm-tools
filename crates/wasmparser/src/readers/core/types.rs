@@ -13,12 +13,13 @@
  * limitations under the License.
  */
 
+use std::fmt::{self, Debug, Write};
+
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
 };
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
-use std::fmt::{self, Debug, Write};
 
 /// Represents the types of values in a WebAssembly module.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -54,7 +55,13 @@ const _: () = {
 };
 
 pub(crate) trait Inherits {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType;
 }
@@ -99,12 +106,20 @@ impl ValType {
 }
 
 impl Inherits for ValType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (Self::Ref(r1), Self::Ref(r2)) => r1.inherits(r2, type_at),
+            (Self::Ref(r1), Self::Ref(r2)) => {
+                r1.inherits(r2, self_base_idx, other_base_idx, type_at)
+            }
             (
                 s @ (Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 | Self::Ref(_)),
                 o,
@@ -535,13 +550,24 @@ impl RefType {
 }
 
 impl Inherits for RefType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         self == other
             || ((other.is_nullable() || !self.is_nullable())
-                && self.heap_type().inherits(&other.heap_type(), type_at))
+                && self.heap_type().inherits(
+                    &other.heap_type(),
+                    self_base_idx,
+                    other_base_idx,
+                    type_at,
+                ))
     }
 }
 
@@ -631,13 +657,32 @@ pub enum HeapType {
 }
 
 impl Inherits for HeapType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
             (HeapType::Indexed(a), HeapType::Indexed(b)) => {
-                a == b || type_at(*a).inherits(type_at(*b), type_at)
+                a == b || (Some(*a) == self_base_idx && Some(*b) == other_base_idx) || {
+                    let (a_base, b_base) = {
+                        if self_base_idx == None
+                            || other_base_idx == None
+                            || *a >= self_base_idx.unwrap()
+                            || *b >= other_base_idx.unwrap()
+                        {
+                            (Some(*a), Some(*b))
+                        } else {
+                            (self_base_idx, other_base_idx)
+                        }
+                    };
+                    type_at(*a).inherits(type_at(*b), a_base, b_base, type_at)
+                }
             }
             (HeapType::Indexed(a), HeapType::Func) => match type_at(*a).structural_type {
                 StructuralType::Func(_) => true,
@@ -779,14 +824,23 @@ pub struct RecGroup {
 }
 
 impl Inherits for SubType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         !other.is_final
-            && self
-                .structural_type
-                .inherits(&other.structural_type, type_at)
+            && self.structural_type.inherits(
+                &other.structural_type,
+                self_base_idx,
+                other_base_idx,
+                type_at,
+            )
     }
 }
 
@@ -820,14 +874,26 @@ pub struct StructType {
 }
 
 impl Inherits for StructuralType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (StructuralType::Func(a), StructuralType::Func(b)) => a.inherits(b, type_at),
-            (StructuralType::Array(a), StructuralType::Array(b)) => a.inherits(b, type_at),
-            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.inherits(b, type_at),
+            (StructuralType::Func(a), StructuralType::Func(b)) => {
+                a.inherits(b, self_base_idx, other_base_idx, type_at)
+            }
+            (StructuralType::Array(a), StructuralType::Array(b)) => {
+                a.inherits(b, self_base_idx, other_base_idx, type_at)
+            }
+            (StructuralType::Struct(a), StructuralType::Struct(b)) => {
+                a.inherits(b, self_base_idx, other_base_idx, type_at)
+            }
             (StructuralType::Func(_), _) => false,
             (StructuralType::Array(_), _) => false,
             (StructuralType::Struct(_), _) => false,
@@ -907,7 +973,13 @@ impl FuncType {
 }
 
 impl Inherits for FuncType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
@@ -919,47 +991,78 @@ impl Inherits for FuncType {
                 .params()
                 .iter()
                 .zip(other.params())
-                .fold(true, |r, (a, b)| r && b.inherits(a, type_at))
+                .fold(true, |r, (a, b)| r && b.inherits(a, self_base_idx, other_base_idx, type_at))
             && self
                 .results()
                 .iter()
                 .zip(other.results())
-                .fold(true, |r, (a, b)| r && a.inherits(b, type_at))
+                .fold(true, |r, (a, b)| r && a.inherits(b, self_base_idx, other_base_idx, type_at))
     }
 }
 
 impl Inherits for ArrayType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
-        self.0.inherits(&other.0, type_at)
+        self.0
+            .inherits(&other.0, self_base_idx, other_base_idx, type_at)
     }
 }
 
 impl Inherits for FieldType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
-        (other.mutable || !self.mutable) && self.element_type.inherits(&other.element_type, type_at)
+        (other.mutable || !self.mutable)
+            && self.element_type.inherits(
+                &other.element_type,
+                self_base_idx,
+                other_base_idx,
+                type_at,
+            )
     }
 }
 
 impl Inherits for StorageType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (Self::Val(a), Self::Val(b)) => a.inherits(b, type_at),
+            (Self::Val(a), Self::Val(b)) => a.inherits(b, self_base_idx, other_base_idx, type_at),
             (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => a == b,
         }
     }
 }
 
 impl Inherits for StructType {
-    fn inherits<'a, F>(&self, other: &Self, type_at: &F) -> bool
+    fn inherits<'a, F>(
+        &self,
+        other: &Self,
+        self_base_idx: Option<u32>,
+        other_base_idx: Option<u32>,
+        type_at: &F,
+    ) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
@@ -969,7 +1072,9 @@ impl Inherits for StructType {
                 .fields
                 .iter()
                 .zip(other.fields.iter())
-                .fold(true, |r, (a, b)| r && a.inherits(b, type_at))
+                .fold(true, |r, (a, b)| {
+                    r && a.inherits(b, self_base_idx, other_base_idx, type_at)
+                })
     }
 }
 
