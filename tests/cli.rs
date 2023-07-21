@@ -34,6 +34,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 fn main() {
+    // This test suite can't run on wasm since it involves spawning
+    // subprocesses.
+    if cfg!(target_family = "wasm") {
+        return;
+    }
+
     let mut tests = Vec::new();
     find_tests("tests/cli".as_ref(), &mut tests);
     let filter = std::env::args().nth(1);

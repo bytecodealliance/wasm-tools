@@ -1,7 +1,7 @@
 use super::{ComponentEncoder, RequiredOptions};
 use crate::validation::{
     validate_adapter_module, validate_module, RequiredImports, ValidatedAdapter, ValidatedModule,
-    BARE_FUNC_MODULE_NAME, RESOURCE_DROP_BORROW, RESOURCE_DROP_OWN,
+    BARE_FUNC_MODULE_NAME, RESOURCE_DROP,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -55,8 +55,7 @@ pub enum Lowering {
         sig: WasmSignature,
         options: RequiredOptions,
     },
-    ResourceDropOwn(TypeId),
-    ResourceDropBorrow(TypeId),
+    ResourceDrop(TypeId),
 }
 
 impl<'a> ComponentWorld<'a> {
@@ -402,13 +401,6 @@ impl ImportedInterface {
             let prev = self.lowerings.insert(name, lowering);
             assert!(prev.is_none());
         };
-        maybe_add(
-            format!("{RESOURCE_DROP_OWN}{name}"),
-            Lowering::ResourceDropOwn(id),
-        );
-        maybe_add(
-            format!("{RESOURCE_DROP_BORROW}{name}"),
-            Lowering::ResourceDropBorrow(id),
-        );
+        maybe_add(format!("{RESOURCE_DROP}{name}"), Lowering::ResourceDrop(id));
     }
 }

@@ -29,45 +29,45 @@
  0x37 | 01 6d 02 00 | export Export { name: "m", kind: Memory, index: 0 }
  0x3b | 08 01       | start section
  0x3d | 00          | start function 0
- 0x3e | 09 0f       | element section
+ 0x3e | 09 13       | element section
  0x40 | 03          | 3 count
- 0x41 | 00          | element funcref table[None]
+ 0x41 | 00          | element table[None]
  0x42 | 41 03       | i32_const value:3
  0x44 | 0b          | end
- 0x45 | 01          | 1 items
+ 0x45 | 01          | 1 items [indices]
  0x46 | 00          | item 0
- 0x47 | 01 00 01    | element funcref passive, 1 items
- 0x4a | 00          | item 0
- 0x4b | 03 00 01    | element funcref declared 1 items
- 0x4e | 00          | item 0
- 0x4f | 0a 10       | code section
- 0x51 | 03          | 3 count
+ 0x47 | 05 70 01    | element passive, 1 items [exprs funcref]
+ 0x4a | d0 70 0b    | item ConstExpr { offset: 74, data: [208, 112, 11] }
+ 0x4d | 07 70 01    | element declared 1 items [exprs funcref]
+ 0x50 | d0 70 0b    | item ConstExpr { offset: 80, data: [208, 112, 11] }
+ 0x53 | 0a 10       | code section
+ 0x55 | 03          | 3 count
 ============== func 1 ====================
- 0x52 | 02          | size of function
- 0x53 | 00          | 0 local blocks
- 0x54 | 0b          | end
+ 0x56 | 02          | size of function
+ 0x57 | 00          | 0 local blocks
+ 0x58 | 0b          | end
 ============== func 2 ====================
- 0x55 | 04          | size of function
- 0x56 | 01          | 1 local blocks
- 0x57 | 01 7f       | 1 locals of type I32
- 0x59 | 0b          | end
+ 0x59 | 04          | size of function
+ 0x5a | 01          | 1 local blocks
+ 0x5b | 01 7f       | 1 locals of type I32
+ 0x5d | 0b          | end
 ============== func 3 ====================
- 0x5a | 06          | size of function
- 0x5b | 01          | 1 local blocks
- 0x5c | 01 7f       | 1 locals of type I32
- 0x5e | 41 00       | i32_const value:0
- 0x60 | 0b          | end
- 0x61 | 0b 0a       | data section
- 0x63 | 02          | 2 count
- 0x64 | 00          | data memory[0]
- 0x65 | 41 08       | i32_const value:8
- 0x67 | 0b          | end
- 0x68 |-------------| ... 1 bytes of data
- 0x6a | 01 01       | data passive
+ 0x5e | 06          | size of function
+ 0x5f | 01          | 1 local blocks
+ 0x60 | 01 7f       | 1 locals of type I32
+ 0x62 | 41 00       | i32_const value:0
+ 0x64 | 0b          | end
+ 0x65 | 0b 0a       | data section
+ 0x67 | 02          | 2 count
+ 0x68 | 00          | data memory[0]
+ 0x69 | 41 08       | i32_const value:8
+ 0x6b | 0b          | end
  0x6c |-------------| ... 1 bytes of data
- 0x6d | 00 17       | custom section
- 0x6f | 0f 6e 61 6d | name: "name-of-section"
+ 0x6e | 01 01       | data passive
+ 0x70 |-------------| ... 1 bytes of data
+ 0x71 | 00 17       | custom section
+ 0x73 | 0f 6e 61 6d | name: "name-of-section"
       | 65 2d 6f 66
       | 2d 73 65 63
       | 74 69 6f 6e
- 0x7f |-------------| ... 7 bytes of data
+ 0x83 |-------------| ... 7 bytes of data

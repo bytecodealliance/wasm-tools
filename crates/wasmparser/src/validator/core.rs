@@ -199,24 +199,30 @@ impl ModuleState {
     ) -> Result<()> {
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
-        if e.ty != RefType::FUNCREF {
-            self.module
-                .check_value_type(ValType::Ref(e.ty), features, offset)?;
-        }
+        let element_ty = match &e.items {
+            crate::ElementItems::Functions(_) => RefType::FUNC,
+            crate::ElementItems::Expressions(ty, _) => {
+                self.module
+                    .check_value_type(ValType::Ref(*ty), features, offset)?;
+                *ty
+            }
+        };
+
         match e.kind {
             ElementKind::Active {
                 table_index,
                 offset_expr,
             } => {
                 let table = self.module.table_at(table_index.unwrap_or(0), offset)?;
-                if !self
-                    .module
-                    .matches(ValType::Ref(e.ty), ValType::Ref(table.element_type), types)
-                {
+                if !self.module.matches(
+                    ValType::Ref(element_ty),
+                    ValType::Ref(table.element_type),
+                    types,
+                ) {
                     return Err(BinaryReaderError::new(
                         format!(
                             "type mismatch: invalid element type `{}` for table type `{}`",
-                            ty_to_str(e.ty.into()),
+                            ty_to_str(element_ty.into()),
                             ty_to_str(table.element_type.into()),
                         ),
                         offset,
@@ -248,12 +254,6 @@ impl ModuleState {
         match e.items {
             crate::ElementItems::Functions(reader) => {
                 let count = reader.count();
-                if !e.ty.is_nullable() && count == 0 {
-                    return Err(BinaryReaderError::new(
-                        "a non-nullable element must come with an initialization expression",
-                        offset,
-                    ));
-                }
                 validate_count(count)?;
                 for f in reader.into_iter_with_offsets() {
                     let (offset, f) = f?;
@@ -261,14 +261,14 @@ impl ModuleState {
                     self.module.assert_mut().function_references.insert(f);
                 }
             }
-            crate::ElementItems::Expressions(reader) => {
+            crate::ElementItems::Expressions(ty, reader) => {
                 validate_count(reader.count())?;
                 for expr in reader {
-                    self.check_const_expr(&expr?, ValType::Ref(e.ty), features, types)?;
+                    self.check_const_expr(&expr?, ValType::Ref(ty), features, types)?;
                 }
             }
         }
-        self.module.assert_mut().element_types.push(e.ty);
+        self.module.assert_mut().element_types.push(element_ty);
         Ok(())
     }
 
@@ -739,9 +739,13 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        types[self.type_id_at(type_index, offset)?]
-            .as_func_type()
-            .ok_or_else(|| format_err!(offset, "type index {type_index} is not a function type"))
+        match &types[self.type_id_at(type_index, offset)?] {
+            Type::Sub(SubType {
+                structural_type: StructuralType::Func(f),
+                ..
+            }) => Ok(f),
+            _ => bail!(offset, "type index {type_index} is not a function type"),
+        }
     }
 
     pub fn check_type_ref(
@@ -1114,11 +1118,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.types[*self.module.tags.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.types[*self.module.tags.get(at as usize)?].unwrap_func())
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1126,11 +1126,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.types[*self.module.types.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.types[*self.module.types.get(at as usize)?].unwrap_func())
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {
@@ -1182,11 +1178,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?].unwrap_func())
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1194,11 +1186,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(
-            self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?]
-                .as_func_type()
-                .unwrap(),
-        )
+        Some(self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?].unwrap_func())
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {

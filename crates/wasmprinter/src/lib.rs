@@ -751,8 +751,7 @@ impl Printer {
                 structural_type: StructuralType::Func(ty),
                 ..
             })) => self.print_func_type(state, ty, names_for).map(Some),
-            Some(Some(_)) => unreachable!("the core type must be a func"),
-            Some(None) | None => Ok(None),
+            Some(Some(_)) | Some(None) | None => Ok(None),
         }
     }
 
@@ -1338,8 +1337,8 @@ impl Printer {
                             self.print_idx(&state.core.func_names, idx?)?
                         }
                     }
-                    ElementItems::Expressions(reader) => {
-                        self.print_reftype(elem.ty)?;
+                    ElementItems::Expressions(ty, reader) => {
+                        self.print_reftype(ty)?;
                         for expr in reader {
                             self.result.push(' ');
                             self.print_const_expr_sugar(state, &expr?, "item")?
@@ -2218,12 +2217,12 @@ impl Printer {
                     self.end_group();
                     state.core.funcs += 1;
                 }
-                CanonicalFunction::ResourceDrop { ty } => {
+                CanonicalFunction::ResourceDrop { resource } => {
                     self.start_group("core func ");
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
                     self.start_group("canon resource.drop ");
-                    self.print_component_val_type(state, &ty)?;
+                    self.print_idx(&state.component.type_names, resource)?;
                     self.end_group();
                     self.end_group();
                     state.core.funcs += 1;

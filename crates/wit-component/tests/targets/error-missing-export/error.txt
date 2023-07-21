@@ -2,4 +2,4 @@ failed to validate encoded bytes
 
 Caused by:
     type mismatch for import `foobar`
-    missing export named `test:foo/bar` (at offset 0x1a4)
+    missing export named `test:foo/bar` (at offset 0x205)

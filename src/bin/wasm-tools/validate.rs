@@ -106,6 +106,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("multi-value", |f| &mut f.multi_value),
         ("tail-call", |f| &mut f.tail_call),
         ("component-model", |f| &mut f.component_model),
+        ("component-model-values", |f| &mut f.component_model_values),
         ("multi-memory", |f| &mut f.multi_memory),
         ("exception-handling", |f| &mut f.exceptions),
         ("memory64", |f| &mut f.memory64),

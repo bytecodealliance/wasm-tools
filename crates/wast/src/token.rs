@@ -105,7 +105,7 @@ impl<'a> Eq for Id<'a> {}
 impl<'a> Parse<'a> for Id<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
-            if let Some((name, rest)) = c.id() {
+            if let Some((name, rest)) = c.id()? {
                 return Ok((Id::new(name, c.cur_span()), rest));
             }
             Err(c.error("expected an identifier"))
@@ -124,8 +124,8 @@ impl fmt::Debug for Id<'_> {
 }
 
 impl Peek for Id<'_> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        cursor.id().is_some()
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        cursor.peek_id()
     }
 
     fn display() -> &'static str {
@@ -167,9 +167,9 @@ impl Index<'_> {
 
 impl<'a> Parse<'a> for Index<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<Id>() {
+        if parser.peek::<Id>()? {
             Ok(Index::Id(parser.parse()?))
-        } else if parser.peek::<u32>() {
+        } else if parser.peek::<u32>()? {
             let (val, span) = parser.parse()?;
             Ok(Index::Num(val, span))
         } else {
@@ -181,8 +181,8 @@ impl<'a> Parse<'a> for Index<'a> {
 }
 
 impl Peek for Index<'_> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        u32::peek(cursor) || Id::peek(cursor)
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        Ok(u32::peek(cursor)? || Id::peek(cursor)?)
     }
 
     fn display() -> &'static str {
@@ -242,10 +242,10 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
 }
 
 impl<'a, K: Peek> Peek for ItemRef<'a, K> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        match cursor.lparen() {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        match cursor.lparen()? {
             Some(remaining) => K::peek(remaining),
-            None => false,
+            None => Ok(false),
         }
     }
 
@@ -271,8 +271,7 @@ impl<'a> Parse<'a> for NameAnnotation<'a> {
 
 impl<'a> Parse<'a> for Option<NameAnnotation<'a>> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let _r = parser.register_annotation("name");
-        Ok(if parser.peek2::<annotation::name>() {
+        Ok(if parser.peek2::<annotation::name>()? {
             Some(parser.parens(|p| p.parse())?)
         } else {
             None
@@ -291,7 +290,7 @@ macro_rules! integers {
         impl<'a> Parse<'a> for ($i, Span) {
             fn parse(parser: Parser<'a>) -> Result<Self> {
                 parser.step(|c| {
-                    if let Some((i, rest)) = c.integer() {
+                    if let Some((i, rest)) = c.integer()? {
                         let (s, base) = i.val();
                         let val = $i::from_str_radix(s, base)
                             .or_else(|_| {
@@ -312,8 +311,8 @@ macro_rules! integers {
         }
 
         impl Peek for $i {
-            fn peek(cursor: Cursor<'_>) -> bool {
-                cursor.integer().is_some()
+            fn peek(cursor: Cursor<'_>) -> Result<bool> {
+                cursor.peek_integer()
             }
 
             fn display() -> &'static str {
@@ -331,7 +330,7 @@ integers! {
 impl<'a> Parse<'a> for &'a [u8] {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.step(|c| {
-            if let Some((i, rest)) = c.string() {
+            if let Some((i, rest)) = c.string()? {
                 return Ok((i, rest));
             }
             Err(c.error("expected a string"))
@@ -340,8 +339,8 @@ impl<'a> Parse<'a> for &'a [u8] {
 }
 
 impl Peek for &'_ [u8] {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        cursor.string().is_some()
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        cursor.peek_string()
     }
 
     fn display() -> &'static str {
@@ -363,7 +362,7 @@ impl Parse<'_> for String {
 }
 
 impl Peek for &'_ str {
-    fn peek(cursor: Cursor<'_>) -> bool {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
         <&[u8]>::peek(cursor)
     }
 
@@ -389,9 +388,9 @@ macro_rules! float {
         impl<'a> Parse<'a> for $name {
             fn parse(parser: Parser<'a>) -> Result<Self> {
                 parser.step(|c| {
-                    let (val, rest) = if let Some((f, rest)) = c.float() {
+                    let (val, rest) = if let Some((f, rest)) = c.float()? {
                         ($parse(&f), rest)
-                    } else if let Some((i, rest)) = c.integer() {
+                    } else if let Some((i, rest)) = c.integer()? {
                         let (s, base) = i.val();
                         (
                             $parse(&Float::Val {
@@ -441,7 +440,10 @@ macro_rules! float {
                 Float::Nan { negative, val } => {
                     let exp_bits = (1 << $exp_bits) - 1;
                     let neg_bit = *negative as $int;
-                    let signif = val.unwrap_or(1 << (signif_bits - 1)) as $int;
+                    let signif = match val {
+                        Some(val) => $int::from_str_radix(val,16).ok()?,
+                        None => 1 << (signif_bits - 1),
+                    };
                     // If the significand is zero then this is actually infinity
                     // so we fail to parse it.
                     if signif & signif_mask == 0 {
@@ -646,8 +648,8 @@ pub struct LParen {
 }
 
 impl Peek for LParen {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        cursor.lparen().is_some()
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        cursor.peek_lparen()
     }
 
     fn display() -> &'static str {

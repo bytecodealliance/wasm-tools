@@ -195,11 +195,11 @@ impl<'a> TypeEncoder<'a> {
     ) -> EntityType {
         match ty {
             wasmparser::types::EntityType::Func(id) => {
-                let ty = self.0.type_from_id(id).unwrap();
+                let ty = &self.0[id];
                 let idx = match types.entry(PtrKey(ty)) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(e) => {
-                        let ty = ty.as_func_type().unwrap();
+                        let ty = ty.unwrap_func();
                         let index = encodable.type_count();
                         encodable.ty().function(
                             ty.params().iter().copied().map(Self::val_type),
@@ -214,11 +214,11 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::EntityType::Memory(ty) => EntityType::Memory(Self::memory_type(ty)),
             wasmparser::types::EntityType::Global(ty) => EntityType::Global(Self::global_type(ty)),
             wasmparser::types::EntityType::Tag(id) => {
-                let ty = self.0.type_from_id(id).unwrap();
+                let ty = &self.0[id];
                 let idx = match types.entry(PtrKey(ty)) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(e) => {
-                        let ty = ty.as_func_type().unwrap();
+                        let ty = ty.unwrap_func();
                         let index = encodable.type_count();
                         encodable.ty().function(
                             ty.params().iter().copied().map(Self::val_type),
@@ -341,11 +341,11 @@ impl<'a> TypeEncoder<'a> {
         types: &mut TypeMap<'a>,
         id: TypeId,
     ) -> u32 {
-        let ty = self.0.type_from_id(id).unwrap();
+        let ty = &self.0[id];
         match types.entry(PtrKey(ty)) {
             Entry::Occupied(e) => *e.get(),
             Entry::Vacant(e) => {
-                let ty = ty.as_module_type().unwrap();
+                let ty = ty.unwrap_module();
 
                 let module = self.module(
                     ty.imports
@@ -367,11 +367,11 @@ impl<'a> TypeEncoder<'a> {
         types: &mut TypeMap<'a>,
         id: TypeId,
     ) -> u32 {
-        let ty = self.0.type_from_id(id).unwrap();
+        let ty = &self.0[id];
         match types.entry(PtrKey(ty)) {
             Entry::Occupied(e) => *e.get(),
             Entry::Vacant(e) => {
-                let ty = ty.as_component_instance_type().unwrap();
+                let ty = ty.unwrap_component_instance();
                 let instance = self.instance(ty.exports.iter().map(|(n, t)| (n.as_str(), *t)));
                 let index = encodable.type_count();
                 encodable.ty().instance(&instance);
@@ -386,11 +386,11 @@ impl<'a> TypeEncoder<'a> {
         types: &mut TypeMap<'a>,
         id: TypeId,
     ) -> u32 {
-        let ty = self.0.type_from_id(id).unwrap();
+        let ty = &self.0[id];
         match types.entry(PtrKey(ty)) {
             Entry::Occupied(e) => *e.get(),
             Entry::Vacant(e) => {
-                let ty = ty.as_component_type().unwrap();
+                let ty = ty.unwrap_component();
 
                 let component = self.component(
                     ty.imports.iter().map(|(n, t)| (n.as_str(), *t)),
@@ -410,12 +410,12 @@ impl<'a> TypeEncoder<'a> {
         types: &mut TypeMap<'a>,
         id: TypeId,
     ) -> u32 {
-        let ty = self.0.type_from_id(id).unwrap();
+        let ty = &self.0[id];
         if let Some(idx) = types.get(&PtrKey(ty)) {
             return *idx;
         }
 
-        let func_ty = ty.as_component_func_type().unwrap();
+        let func_ty = ty.unwrap_component_func();
 
         let params = func_ty
             .params
@@ -459,9 +459,7 @@ impl<'a> TypeEncoder<'a> {
     }
 
     fn ty(&self, encodable: &mut impl Encodable, types: &mut TypeMap<'a>, id: TypeId) -> u32 {
-        let ty = self.0.type_from_id(id).unwrap();
-
-        match ty {
+        match &self.0[id] {
             Type::Sub(_) | Type::Instance(_) => {
                 unreachable!()
             }
@@ -496,12 +494,12 @@ impl<'a> TypeEncoder<'a> {
         types: &mut TypeMap<'a>,
         id: TypeId,
     ) -> u32 {
-        let ty = self.0.type_from_id(id).unwrap();
+        let ty = &self.0[id];
         if let Some(idx) = types.get(&PtrKey(ty)) {
             return *idx;
         }
 
-        let defined_ty = ty.as_defined_type().unwrap();
+        let defined_ty = ty.unwrap_defined();
 
         let index = match defined_ty {
             wasmparser::types::ComponentDefinedType::Primitive(ty) => {
@@ -694,7 +692,7 @@ impl<'a> TypeEncoder<'a> {
         let export = self.component_entity_type(encoded, types, export);
         if let Some(id) = id {
             // Update the index in the type map to point to this export
-            let ty = self.0.type_from_id(id).unwrap();
+            let ty = &self.0[id];
             types.insert(PtrKey(ty), encoded.type_count());
         }
         export
@@ -736,12 +734,8 @@ impl ArgumentImport<'_> {
         // If the existing import is an instance, convert this argument import to
         // a merged instance import.
         if let ArgumentImportKind::Item(component, ComponentEntityType::Instance(id)) = &self.kind {
-            let exports = component
-                .types
-                .type_from_id(*id)
-                .unwrap()
-                .as_component_instance_type()
-                .unwrap()
+            let exports = component.types[*id]
+                .unwrap_component_instance()
                 .exports
                 .iter();
 
@@ -763,12 +757,8 @@ impl ArgumentImport<'_> {
                 ArgumentImportKind::Instance(exports),
                 ArgumentImportKind::Item(new_component, ComponentEntityType::Instance(id)),
             ) => {
-                for (name, new_type) in new_component
-                    .types
-                    .type_from_id(id)
-                    .unwrap()
-                    .as_component_instance_type()
-                    .unwrap()
+                for (name, new_type) in new_component.types[id]
+                    .unwrap_component_instance()
                     .exports
                     .iter()
                 {

@@ -1,4 +1,6 @@
 (module
-  (table (;0;) 0 funcref)
-  (elem (;0;) (i32.const 0) func)
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    (local f32 f32)
+  )
 )

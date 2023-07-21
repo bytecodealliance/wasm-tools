@@ -109,6 +109,7 @@ fn to_val_type(ty: &WasmType) -> ValType {
 bitflags::bitflags! {
     /// Options in the `canon lower` or `canon lift` required for a particular
     /// function.
+    #[derive(Copy, Clone, Debug)]
     pub struct RequiredOptions: u8 {
         /// A memory must be specified, typically the "main module"'s memory
         /// export.
@@ -595,16 +596,8 @@ impl<'a> EncodingState<'a> {
                 let prev = self.export_type_map.insert(info.id, resource_idx);
                 assert!(prev.is_none());
 
-                if let Some(name) = info.drop_own_import {
-                    let (idx, ty) = self.component.defined_type();
-                    ty.own(resource_idx);
-                    let index = self.component.resource_drop(ComponentValType::Type(idx));
-                    exports.push((name, ExportKind::Func, index));
-                }
-                if let Some(name) = info.drop_borrow_import {
-                    let (idx, ty) = self.component.defined_type();
-                    ty.borrow(resource_idx);
-                    let index = self.component.resource_drop(ComponentValType::Type(idx));
+                if let Some(name) = info.drop_import {
+                    let index = self.component.resource_drop(resource_idx);
                     exports.push((name, ExportKind::Func, index));
                 }
                 if let Some(name) = info.rep_import {
@@ -699,17 +692,9 @@ impl<'a> EncodingState<'a> {
                     )
                 }
 
-                Lowering::ResourceDropOwn(id) => {
+                Lowering::ResourceDrop(id) => {
                     let resource_idx = self.lookup_resource_index(*id);
-                    let (idx, ty) = self.component.defined_type();
-                    ty.own(resource_idx);
-                    self.component.resource_drop(ComponentValType::Type(idx))
-                }
-                Lowering::ResourceDropBorrow(id) => {
-                    let resource_idx = self.lookup_resource_index(*id);
-                    let (idx, ty) = self.component.defined_type();
-                    ty.borrow(resource_idx);
-                    self.component.resource_drop(ComponentValType::Type(idx))
+                    self.component.resource_drop(resource_idx)
                 }
             };
             exports.push((name.as_str(), ExportKind::Func, index));
@@ -1283,7 +1268,6 @@ impl<'a> EncodingState<'a> {
         elements.active(
             None,
             &ConstExpr::i32_const(0),
-            RefType::FUNCREF,
             Elements::Functions(&func_indexes),
         );
 
@@ -1293,14 +1277,19 @@ impl<'a> EncodingState<'a> {
         shim.section(&tables);
         shim.section(&exports);
         shim.section(&code);
-        shim.section(&crate::base_producers().section());
+        shim.section(&RawCustomSection(
+            &crate::base_producers().raw_custom_section(),
+        ));
         shim.section(&names);
 
         let mut fixups = Module::default();
         fixups.section(&types);
         fixups.section(&imports_section);
         fixups.section(&elements);
-        fixups.section(&crate::base_producers().section());
+        fixups.section(&RawCustomSection(
+            &crate::base_producers().raw_custom_section(),
+        ));
+
         let mut names = NameSection::new();
         names.module("wit-component:fixups");
         fixups.section(&names);
@@ -1655,9 +1644,7 @@ impl<'a> Shims<'a> {
                 "shim {shim_name} is import `{core_wasm_module}` lowering {index} `{name}`",
             );
             match lowering {
-                Lowering::Direct
-                | Lowering::ResourceDropOwn(_)
-                | Lowering::ResourceDropBorrow(_) => {}
+                Lowering::Direct | Lowering::ResourceDrop(_) => {}
 
                 Lowering::Indirect { sig, options } => {
                     sigs.push(sig.clone());

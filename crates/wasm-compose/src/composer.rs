@@ -248,7 +248,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         let (_, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
         match component.export_by_name(export) {
             Some((export_index, kind, index)) if kind == ComponentExternalKind::Instance => {
-                let export_ty = component.types.component_instance_at(index).unwrap();
+                let export_ty = component.types.component_instance_at(index);
                 if !ComponentEntityType::is_subtype_of(
                     &ComponentEntityType::Instance(export_ty),
                     component.types(),
@@ -275,11 +275,9 @@ impl<'a> CompositionGraphBuilder<'a> {
         let component = self.graph.get_component(r.component).unwrap();
         let (name, ty) = component.import(r.import).unwrap();
         match ty {
-            ComponentTypeRef::Instance(index) => (
-                component,
-                name,
-                component.types.id_from_type_index(index, false).unwrap(),
-            ),
+            ComponentTypeRef::Instance(index) => {
+                (component, name, component.types.component_type_at(index))
+            }
             _ => unreachable!("should not have an instance import ref to a non-instance import"),
         }
     }

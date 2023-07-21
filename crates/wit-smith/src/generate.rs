@@ -514,9 +514,9 @@ impl<'a> InterfaceGenerator<'a> {
                     parts.push(part);
                 }
                 Item::Static => {
-                    let mut part = format!("static %");
+                    let mut part = format!("%");
                     part.push_str(&gen_unique_name(u, &mut names)?);
-                    part.push_str(": ");
+                    part.push_str(": static ");
                     self.gen_func_sig(u, &mut part, false)?;
                     parts.push(part);
                 }

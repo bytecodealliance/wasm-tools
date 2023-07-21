@@ -2,4 +2,4 @@ failed to parse component `tests/compositions/component-missing/a.wat`
 
 Caused by:
     0: failed to read from `tests/compositions/component-missing/a.wat`
-    1: No such file or directory (os error 2)
+    1: platform-specific error

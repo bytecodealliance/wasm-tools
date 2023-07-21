@@ -41,7 +41,8 @@ impl ComponentBuilder {
         let mut base = crate::base_producers();
         base.merge(&self.producers);
         // Write producers section as last section:
-        self.component.section(&base.section());
+        self.component
+            .section(&RawCustomSection(&base.raw_custom_section()));
         self.flush();
         self.component.finish()
     }
@@ -217,7 +218,7 @@ impl ComponentBuilder {
         self.producers.merge(producers)
     }
 
-    pub fn resource_drop(&mut self, ty: ComponentValType) -> u32 {
+    pub fn resource_drop(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_drop(ty);
         inc(&mut self.core_funcs)
     }

@@ -95,7 +95,7 @@ pub struct Local<'a> {
 impl<'a> Local<'a> {
     pub(crate) fn parse_remainder(parser: Parser<'a>) -> Result<Vec<Local<'a>>> {
         let mut locals = Vec::new();
-        while parser.peek2::<kw::local>() {
+        while parser.peek2::<kw::local>()? {
             parser.parens(|p| {
                 p.parse::<kw::local>()?;
                 if p.is_empty() {

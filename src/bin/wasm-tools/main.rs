@@ -1,16 +1,17 @@
 use anyhow::Result;
 use clap::Parser;
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 macro_rules! subcommands {
     ($(
         $(#[$attr:meta])*
-        ($name:ident, $string:tt)
+        ($name:ident, $string:tt $($cfg:tt)*)
     )*) => {
         $(
             #[cfg(feature = $string)]
+            $($cfg)*
             mod $name;
         )*
 
@@ -20,6 +21,7 @@ macro_rules! subcommands {
         enum WasmTools {
             $(
                 #[cfg(feature = $string)]
+                $($cfg)*
                 $(#[$attr])*
                 $name($name::Opts),
             )*
@@ -30,6 +32,7 @@ macro_rules! subcommands {
                 match self {
                     $(
                         #[cfg(feature = $string)]
+                        $($cfg)*
                         Self::$name(opts) => opts.run(),
                     )*
                 }
@@ -39,6 +42,7 @@ macro_rules! subcommands {
                 match *self {
                     $(
                         #[cfg(feature = $string)]
+                        $($cfg)*
                         Self::$name(ref opts) => opts.general_opts(),
                     )*
                 }
@@ -52,7 +56,10 @@ subcommands! {
     (validate, "validate")
     (print, "print")
     (smith, "smith")
-    (shrink, "shrink")
+    // The shrink subcommand relies on executing new processes to test a
+    // predicate which isn't supported on wasm, so always omit this command on
+    // wasm.
+    (shrink, "shrink" #[cfg(not(target_family = "wasm"))])
     (mutate, "mutate")
     (dump, "dump")
     (objdump, "objdump")
@@ -95,7 +102,7 @@ fn main() -> ExitCode {
 }
 
 fn print_error(color: ColorChoice, err: anyhow::Error) -> Result<()> {
-    let color = if color == ColorChoice::Auto && !atty::is(atty::Stream::Stderr) {
+    let color = if color == ColorChoice::Auto && !io::stderr().is_terminal() {
         ColorChoice::Never
     } else {
         color
