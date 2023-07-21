@@ -1,0 +1,14 @@
+[package]
+name = "wasm-bundle"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+wasm-compose = { path = "../wasm-compose" }
+wasmprinter = { path = "../wasmprinter" }
+warg-crypto = { path = "../../../../registry/crates/crypto" }
+warg-client = { path = "../../../../registry/crates/client" }
+warg-protocol = { path = "../../../../registry/crates/protocol" }

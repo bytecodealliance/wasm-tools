@@ -37,7 +37,7 @@ pub struct Component<'a> {
     /// The type information of the component.
     pub(crate) types: Types,
     /// The import map of the component.
-    pub(crate) imports: IndexMap<String, ComponentTypeRef>,
+    pub imports: IndexMap<String, ComponentTypeRef>,
     /// The export map of the component.
     pub(crate) exports: IndexMap<String, (ComponentExternalKind, u32)>,
 }

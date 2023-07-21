@@ -179,6 +179,7 @@ impl<'a> ComponentExternName<'a> {
 impl<'a> FromReader<'a> for ComponentExternName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let byte1 = reader.read_u8()?;
+        dbg!("THIS RIGHT HERE");
         Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),

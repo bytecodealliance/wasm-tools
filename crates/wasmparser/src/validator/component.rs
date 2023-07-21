@@ -420,7 +420,6 @@ impl ComponentState {
             types,
             offset,
         )?;
-        dbg!("ADD IMPORT");
         self.toplevel_imported_resources.validate_extern(
             import.name,
             "import",
@@ -2913,7 +2912,6 @@ impl KebabNameContext {
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
-        dbg!("VALIDATE EXTERN");
         let kebab = KebabName::new(name, offset).with_context(|| {
             format!("{desc} name `{}` is not a valid extern name", name.as_str())
         })?;

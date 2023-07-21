@@ -47,6 +47,7 @@ pretty_assertions = "1.3.0"
 semver = "1.0.0"
 
 wasm-deps = { version = "0.1.0", path = "crates/wasm-deps" }
+wasm-bundle = { version = "0.1.0", path = "crates/wasm-bundle" }
 wasm-encoder = { version = "0.29.0", path = "crates/wasm-encoder" }
 wasm-compose = { version = "0.2.17", path = "crates/wasm-compose" }
 wasm-metadata = { version = "0.8.0", path = "crates/wasm-metadata" }
@@ -77,6 +78,7 @@ rayon = { workspace = true, optional = true }
 
 # Dependencies of `print`
 wasm-deps = { workspace = true, optional = true }
+wasm-bundle = { workspace = true, optional = true }
 
 # Dependencies of `print`
 wasmprinter = { workspace = true }
@@ -148,6 +150,7 @@ default = [
   'parse',
   'dump',
   'objdump',
+  'bundle',
   'dependencies',
   'strip',
   'compose',
@@ -168,6 +171,7 @@ mutate = ['wasm-mutate']
 dump = ['dep:wasmparser']
 objdump = ['dep:wasmparser']
 dependencies = ['wasm-deps']
+bundle = ['wasm-bundle']
 strip = ['wasm-encoder', 'dep:wasmparser', 'regex']
 compose = ['wasm-compose']
 demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use wasmparser::{Encoding, Parser, Payload, SubType, ComponentTypeSectionReader, ComponentType, ComponentTypeDeclaration, Chunk, ComponentExternName, ComponentImportSectionReader, ComponentImport};
-use anyhow::{Result};
+use anyhow::{Result, bail};
 
 pub struct DepsParser<'a> {
   name: &'a str
@@ -139,6 +139,7 @@ impl <'a> DepsParser<'a> {
                     payload
                 }
             };
+            dbg!(&payload);
             // consumed += size;
             match payload {
                 // Payload::ComponentTypeSection(s) => {
@@ -151,8 +152,20 @@ impl <'a> DepsParser<'a> {
                 Payload::CodeSectionStart{count: _, range: _, size: _} => {
                   parser.skip_section();
                 }
-                Payload::End(_) => break,
-                _ => {}
+                Payload::ModuleSection{ parser, range } => {
+                  let offset = range.end - range.start;
+                    if offset > bytes.len() {
+                        bail!("invalid module or component section range");
+                    }
+                    bytes = &bytes[offset..];
+                }
+                Payload::End(_) => {
+                  dbg!("PAYLOAD END");
+                  break
+                }
+                _ => {
+
+                }
             }
         }
         Ok(deps)

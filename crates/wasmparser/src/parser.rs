@@ -559,7 +559,6 @@ impl Parser {
         eof: bool,
     ) -> Result<Payload<'a>> {
         use Payload::*;
-
         match self.state {
             State::Header => {
                 let start = reader.original_position();
