@@ -656,6 +656,14 @@ pub enum HeapType {
     I31,
 }
 
+fn choose_base(base_idx: Option<u32>, idx: u32) -> Option<u32> {
+    if base_idx == None || idx == base_idx.unwrap() || idx < base_idx.unwrap() {
+        Some(idx)
+    } else {
+        base_idx
+    }
+}
+
 impl Inherits for HeapType {
     fn inherits<'a, F>(
         &self,
@@ -669,19 +677,11 @@ impl Inherits for HeapType {
     {
         match (self, other) {
             (HeapType::Indexed(a), HeapType::Indexed(b)) => {
-                a == b || (Some(*a) == self_base_idx && Some(*b) == other_base_idx) || {
-                    let (a_base, b_base) = {
-                        if self_base_idx == None
-                            || other_base_idx == None
-                            || *a >= self_base_idx.unwrap()
-                            || *b >= other_base_idx.unwrap()
-                        {
-                            (Some(*a), Some(*b))
-                        } else {
-                            (self_base_idx, other_base_idx)
-                        }
-                    };
-                    type_at(*a).inherits(type_at(*b), a_base, b_base, type_at)
+                a == b || {
+                    let a_base = choose_base(self_base_idx, *a);
+                    let b_base = choose_base(other_base_idx, *b);
+                    (a_base == self_base_idx && b_base == other_base_idx)
+                        || type_at(*a).inherits(type_at(*b), a_base, b_base, type_at)
                 }
             }
             (HeapType::Indexed(a), HeapType::Func) => match type_at(*a).structural_type {
