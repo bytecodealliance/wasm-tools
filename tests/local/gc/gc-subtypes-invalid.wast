@@ -24,8 +24,8 @@
 )
 (assert_invalid
   (module
-    (type $a (struct i32))
-    (type $b (sub $a (struct i64))) ;; invalid
+    (type $a (struct (field i32)))
+    (type $b (sub $a (struct (field i64)))) ;; invalid
   )
   "subtype must match supertype"
 )
