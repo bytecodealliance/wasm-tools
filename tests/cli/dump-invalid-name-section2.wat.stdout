@@ -5,10 +5,10 @@
       | 65         
   0xf | 02 07       | local section
  0x11 | 06          | 6 count
- 0x12 | 22          | function 34 local section
+ 0x12 | 22          | function 34 local name section
  0x13 | 00          | 0 count
- 0x14 | 00          | function 0 local section
+ 0x14 | 00          | function 0 local name section
  0x15 | 00          | 0 count
- 0x16 | 00          | function 0 local section
+ 0x16 | 00          | function 0 local name section
  0x17 | 00          | 0 count
  0x18 |-------------| ... failed to decode 2 more bytes: unexpected end-of-file (at offset 0x18)

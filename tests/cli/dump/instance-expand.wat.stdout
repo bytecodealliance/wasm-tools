@@ -14,6 +14,6 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0x30 | 01 05 03    | type section
+ 0x30 | 01 05 03    | type name section
  0x33 | 01          | 1 count
  0x34 | 00 01 69    | Naming { index: 0, name: "i" }

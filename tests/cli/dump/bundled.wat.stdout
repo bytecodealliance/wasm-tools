@@ -91,7 +91,7 @@
     0xdb | 00 06       | module name
     0xdd | 05 43 48 49 | "CHILD"
          | 4c 44      
-    0xe3 | 01 12       | function section
+    0xe3 | 01 12       | function name section
     0xe5 | 02          | 2 count
     0xe6 | 00 09 77 61 | Naming { index: 0, name: "wasi-file" }
          | 73 69 2d 66
@@ -197,13 +197,13 @@
        | 70 6f 6e 65
        | 6e 74 2d 6e
        | 61 6d 65   
- 0x1fd | 01 13 00 00 | core func section
+ 0x1fd | 01 13 00 00 | core func name section
  0x201 | 01          | 1 count
  0x202 | 01 0e 72 65 | Naming { index: 1, name: "real-wasi-read" }
        | 61 6c 2d 77
        | 61 73 69 2d
        | 72 65 61 64
- 0x212 | 01 1c 00 11 | core module section
+ 0x212 | 01 1c 00 11 | core module name section
  0x216 | 03          | 3 count
  0x217 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
        | 62 63      
@@ -212,7 +212,7 @@
  0x224 | 02 0a 56 49 | Naming { index: 2, name: "VIRTUALIZE" }
        | 52 54 55 41
        | 4c 49 5a 45
- 0x230 | 01 1b 00 12 | core instance section
+ 0x230 | 01 1b 00 12 | core instance name section
  0x234 | 03          | 3 count
  0x235 | 00 04 6c 69 | Naming { index: 0, name: "libc" }
        | 62 63      
@@ -221,12 +221,12 @@
        | 61 73 69   
  0x246 | 03 05 63 68 | Naming { index: 3, name: "child" }
        | 69 6c 64   
- 0x24d | 01 0c 03    | type section
+ 0x24d | 01 0c 03    | type name section
  0x250 | 01          | 1 count
  0x251 | 00 08 57 61 | Naming { index: 0, name: "WasiFile" }
        | 73 69 46 69
        | 6c 65      
- 0x25b | 01 0d 05    | instance section
+ 0x25b | 01 0d 05    | instance name section
  0x25e | 01          | 1 count
  0x25f | 00 09 72 65 | Naming { index: 0, name: "real-wasi" }
        | 61 6c 2d 77
