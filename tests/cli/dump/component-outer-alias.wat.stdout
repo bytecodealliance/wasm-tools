@@ -20,7 +20,7 @@
         | 70 6f 6e 65
         | 6e 74 2d 6e
         | 61 6d 65   
-   0x41 | 01 05 03    | type section
+   0x41 | 01 05 03    | type name section
    0x44 | 01          | 1 count
    0x45 | 00 01 74    | Naming { index: 0, name: "t" }
  0x48 | 04 32       | [component 1] inline size
@@ -38,7 +38,7 @@
         | 70 6f 6e 65
         | 6e 74 2d 6e
         | 61 6d 65   
-   0x75 | 01 05 03    | type section
+   0x75 | 01 05 03    | type name section
    0x78 | 01          | 1 count
    0x79 | 00 01 74    | Naming { index: 0, name: "t" }
  0x7c | 07 02       | component type section
@@ -59,7 +59,7 @@
         | 70 6f 6e 65
         | 6e 74 2d 6e
         | 61 6d 65   
-   0xad | 01 06 03    | type section
+   0xad | 01 06 03    | type name section
    0xb0 | 01          | 1 count
    0xb1 | 00 02 74 32 | Naming { index: 0, name: "t2" }
  0xb5 | 00 1a       | custom section
@@ -67,7 +67,7 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0xc6 | 01 09 03    | type section
+ 0xc6 | 01 09 03    | type name section
  0xc9 | 02          | 2 count
  0xca | 00 01 74    | Naming { index: 0, name: "t" }
  0xcd | 02 02 74 32 | Naming { index: 2, name: "t2" }

@@ -83,9 +83,9 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0xe6 | 01 05 04    | component section
+ 0xe6 | 01 05 04    | component name section
  0xe9 | 01          | 1 count
  0xea | 00 01 63    | Naming { index: 0, name: "c" }
- 0xed | 01 05 05    | instance section
+ 0xed | 01 05 05    | instance name section
  0xf0 | 01          | 1 count
  0xf1 | 00 01 69    | Naming { index: 0, name: "i" }
