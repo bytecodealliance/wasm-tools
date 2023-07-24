@@ -14,7 +14,7 @@ use wasmparser::{
 
 /// A representation of a WebAssembly producers section.
 ///
-/// Spec: https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md
+/// Spec: <https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md>
 #[derive(Debug, Serialize)]
 pub struct Producers(
     #[serde(serialize_with = "indexmap::map::serde_seq::serialize")]
@@ -775,13 +775,13 @@ pub struct RegistryMetadata {
     description: Option<String>,
 
     /// SPDX License Expression
-    /// https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
-    /// SPDX License List: https://spdx.org/licenses/
+    /// <https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/>
+    /// SPDX License List: <https://spdx.org/licenses/>
     #[serde(skip_serializing_if = "Option::is_none")]
     license: Option<String>,
 
     /// A list of custom licenses that should be referenced to from the license expression.
-    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/
+    /// <https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/>
     #[serde(skip_serializing_if = "Option::is_none")]
     custom_licenses: Option<Vec<CustomLicense>>,
 
@@ -1054,22 +1054,22 @@ impl Display for LinkType {
 pub struct CustomLicense {
     /// License Identifier
     /// Provides a locally unique identifier to refer to licenses that are not found on the SPDX License List.
-    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#101-license-identifier-field
+    /// <https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#101-license-identifier-field>
     pub id: String,
 
     /// License Name
     /// Provide a common name of the license that is not on the SPDX list.
-    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#103-license-name-field
+    /// <https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#103-license-name-field>
     pub name: String,
 
     /// Extracted Text
     /// Provides a copy of the actual text of the license reference extracted from the package or file that is associated with the License Identifier to aid in future analysis.
-    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#102-extracted-text-field
+    /// <https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#102-extracted-text-field>
     pub text: String,
 
     /// License Cross Reference
     /// Provides a pointer to the official source of a license that is not included in the SPDX License List, that is referenced by the License Identifier.
-    /// https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#104-license-cross-reference-field
+    /// <https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/#104-license-cross-reference-field>
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
