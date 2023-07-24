@@ -145,8 +145,8 @@
       (export (;1;) (interface "foo:bar/implicit-own-handles3") (component (type 7)))
     )
   )
+  (export (;1;) (interface "foo:bar/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:bar/wit") (type 0))
 )

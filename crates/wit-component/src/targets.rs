@@ -1,6 +1,6 @@
-use crate::{builder::ComponentBuilder, encoding::encode_world};
+use crate::encoding::encode_world;
 use anyhow::{Context, Result};
-use wasm_encoder::{ComponentExportKind, ComponentTypeRef};
+use wasm_encoder::{ComponentBuilder, ComponentExportKind, ComponentTypeRef};
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{Resolve, WorldId};
 
@@ -18,7 +18,7 @@ pub fn targets(resolve: &Resolve, world: WorldId, component_to_test: &[u8]) -> R
     let test_component_idx = {
         let component_ty = encode_world(resolve, world)?;
         let mut component = ComponentBuilder::default();
-        let component_ty_idx = component.component_type(&component_ty);
+        let component_ty_idx = component.type_component(&component_ty);
         component.import(
             &resolve.worlds[world].name,
             ComponentTypeRef::Component(component_ty_idx),
@@ -32,7 +32,7 @@ pub fn targets(resolve: &Resolve, world: WorldId, component_to_test: &[u8]) -> R
         ComponentExportKind::Component,
         component_to_test_idx,
     )];
-    root_component.instantiate_component(test_component_idx, args);
+    root_component.instantiate(test_component_idx, args);
 
     let bytes = root_component.finish();
 
