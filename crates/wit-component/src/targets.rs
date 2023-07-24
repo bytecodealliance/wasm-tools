@@ -11,7 +11,7 @@ pub fn targets(resolve: &Resolve, world: WorldId, component_to_test: &[u8]) -> R
     let mut root_component = ComponentBuilder::default();
 
     // (1) Embed the component to test.
-    let component_to_test_idx = root_component.raw_component(component_to_test);
+    let component_to_test_idx = root_component.component_raw(component_to_test);
 
     // (2) Encode the world to a component type and embed a new component which
     // imports the encoded component type.

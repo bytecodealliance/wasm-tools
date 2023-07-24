@@ -34,6 +34,7 @@ fn component_composing() -> Result<()> {
         }
 
         let test_case = path.file_stem().unwrap().to_str().unwrap();
+        println!("================ {test_case:30} ===============");
         let root_path = path.join("root.wat");
         let output_path = path.join("composed.wat");
         let error_path = path.join("error.txt");

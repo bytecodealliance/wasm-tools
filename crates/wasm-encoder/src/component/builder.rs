@@ -25,6 +25,7 @@ pub struct ComponentBuilder {
     // Core index spaces
     core_modules: u32,
     core_funcs: u32,
+    core_types: u32,
     core_memories: u32,
     core_tables: u32,
     core_instances: u32,
@@ -40,6 +41,71 @@ pub struct ComponentBuilder {
 }
 
 impl ComponentBuilder {
+    /// Returns the current number of core modules.
+    pub fn core_module_count(&self) -> u32 {
+        self.core_modules
+    }
+
+    /// Returns the current number of core funcs.
+    pub fn core_func_count(&self) -> u32 {
+        self.core_funcs
+    }
+
+    /// Returns the current number of core types.
+    pub fn core_type_count(&self) -> u32 {
+        self.core_types
+    }
+
+    /// Returns the current number of core memories.
+    pub fn core_memory_count(&self) -> u32 {
+        self.core_memories
+    }
+
+    /// Returns the current number of core tables.
+    pub fn core_table_count(&self) -> u32 {
+        self.core_tables
+    }
+
+    /// Returns the current number of core instances.
+    pub fn core_instance_count(&self) -> u32 {
+        self.core_instances
+    }
+
+    /// Returns the current number of core tags.
+    pub fn core_tag_count(&self) -> u32 {
+        self.core_tags
+    }
+
+    /// Returns the current number of core globals.
+    pub fn core_global_count(&self) -> u32 {
+        self.core_globals
+    }
+
+    /// Returns the current number of component funcs.
+    pub fn func_count(&self) -> u32 {
+        self.funcs
+    }
+
+    /// Returns the current number of component instances.
+    pub fn instance_count(&self) -> u32 {
+        self.instances
+    }
+
+    /// Returns the current number of component values.
+    pub fn value_count(&self) -> u32 {
+        self.values
+    }
+
+    /// Returns the current number of components.
+    pub fn component_count(&self) -> u32 {
+        self.components
+    }
+
+    /// Returns the current number of component types.
+    pub fn type_count(&self) -> u32 {
+        self.types
+    }
+
     /// Completes this component and returns the binary encoding of the entire
     /// component.
     pub fn finish(mut self) -> Vec<u8> {
@@ -94,17 +160,35 @@ impl ComponentBuilder {
     ///
     /// Returns the index of the item crated.
     pub fn core_alias_export(&mut self, instance: u32, name: &str, kind: ExportKind) -> u32 {
-        self.aliases().alias(Alias::CoreInstanceExport {
+        self.alias(Alias::CoreInstanceExport {
             instance,
             kind,
             name,
-        });
-        match kind {
-            ExportKind::Func => inc(&mut self.core_funcs),
-            ExportKind::Table => inc(&mut self.core_tables),
-            ExportKind::Memory => inc(&mut self.core_memories),
-            ExportKind::Global => inc(&mut self.core_globals),
-            ExportKind::Tag => inc(&mut self.core_tags),
+        })
+    }
+
+    /// Adds a new alias to this component
+    pub fn alias(&mut self, alias: Alias<'_>) -> u32 {
+        self.aliases().alias(alias);
+        match alias {
+            Alias::InstanceExport { kind, .. } => self.inc_kind(kind),
+            Alias::CoreInstanceExport { kind, .. } => self.inc_core_kind(kind),
+            Alias::Outer {
+                kind: ComponentOuterAliasKind::Type,
+                ..
+            } => inc(&mut self.types),
+            Alias::Outer {
+                kind: ComponentOuterAliasKind::CoreModule,
+                ..
+            } => inc(&mut self.core_modules),
+            Alias::Outer {
+                kind: ComponentOuterAliasKind::Component,
+                ..
+            } => inc(&mut self.components),
+            Alias::Outer {
+                kind: ComponentOuterAliasKind::CoreType,
+                ..
+            } => inc(&mut self.core_types),
         }
     }
 
@@ -115,12 +199,11 @@ impl ComponentBuilder {
     ///
     /// Returns the index of the new item defined.
     pub fn alias_export(&mut self, instance: u32, name: &str, kind: ComponentExportKind) -> u32 {
-        self.aliases().alias(Alias::InstanceExport {
+        self.alias(Alias::InstanceExport {
             instance,
             kind,
             name,
-        });
-        self.inc_kind(kind)
+        })
     }
 
     fn inc_kind(&mut self, kind: ComponentExportKind) -> u32 {
@@ -131,6 +214,16 @@ impl ComponentBuilder {
             ComponentExportKind::Component => inc(&mut self.components),
             ComponentExportKind::Instance => inc(&mut self.instances),
             ComponentExportKind::Value => inc(&mut self.values),
+        }
+    }
+
+    fn inc_core_kind(&mut self, kind: ExportKind) -> u32 {
+        match kind {
+            ExportKind::Func => inc(&mut self.core_funcs),
+            ExportKind::Table => inc(&mut self.core_tables),
+            ExportKind::Memory => inc(&mut self.core_memories),
+            ExportKind::Global => inc(&mut self.core_globals),
+            ExportKind::Tag => inc(&mut self.core_tags),
         }
     }
 
@@ -191,6 +284,16 @@ impl ComponentBuilder {
         self.inc_kind(kind)
     }
 
+    /// Creates a new encoder for the next core type in this component.
+    pub fn core_type(&mut self) -> (u32, CoreTypeEncoder<'_>) {
+        (inc(&mut self.core_types), self.core_types().ty())
+    }
+
+    /// Creates a new encoder for the next type in this component.
+    pub fn ty(&mut self) -> (u32, ComponentTypeEncoder<'_>) {
+        (inc(&mut self.types), self.types().ty())
+    }
+
     /// Creates a new instance type within this component.
     pub fn type_instance(&mut self, ty: &InstanceType) -> u32 {
         self.types().instance(ty);
@@ -229,7 +332,7 @@ impl ComponentBuilder {
     }
 
     /// Defines a new subcomponent of this component.
-    pub fn raw_component(&mut self, data: &[u8]) -> u32 {
+    pub fn component_raw(&mut self, data: &[u8]) -> u32 {
         let raw_section = RawSection {
             id: ComponentSectionId::Component.into(),
             data,
@@ -336,6 +439,7 @@ section_accessors! {
     exports => ComponentExportSection
     imports => ComponentImportSection
     types => ComponentTypeSection
+    core_types => CoreTypeSection
 }
 
 fn inc(idx: &mut u32) -> u32 {
