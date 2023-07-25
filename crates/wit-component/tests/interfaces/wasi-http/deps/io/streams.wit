@@ -10,7 +10,9 @@ interface streams {
 
     /// An error type returned from a stream operation. Currently this
     /// doesn't provide any additional information.
-    record stream-error {}
+    record stream-error {
+      f: u8,
+    }
 
     /// An input bytestream. In the future, this will be replaced by handle
     /// types.

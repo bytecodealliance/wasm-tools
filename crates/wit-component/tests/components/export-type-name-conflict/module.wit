@@ -1,7 +1,9 @@
 package foo:foo
 
 interface foo {
-  record foo {}
+  record foo {
+    f: u8,
+  }
 }
 
 world module {

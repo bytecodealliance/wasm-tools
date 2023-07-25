@@ -2,7 +2,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (record (field "f" $t)))
     (export "f" (type $f))
   )
@@ -10,7 +10,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (list $t))
     (export "f" (type $f))
   )
@@ -18,7 +18,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (union $t))
     (export "f" (type $f))
   )
@@ -26,7 +26,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (tuple $t))
     (export "f" (type $f))
   )
@@ -34,7 +34,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (variant (case "c" $t)))
     (export "f" (type $f))
   )
@@ -42,7 +42,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (option $t))
     (export "f" (type $f))
   )
@@ -50,7 +50,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (result $t))
     (export "f" (type $f))
   )
@@ -60,7 +60,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (list $t))
     (export "f" (type $f))
   )
@@ -108,7 +108,7 @@
 
 ;; Some types don't need names
 (component
-  (type $t1 (tuple (tuple)))
+  (type $t1 (tuple (tuple u32)))
   (export "t1" (type $t1))
 
   (type $t2 (option (tuple (list u8) (result (list u32) (error (option string))))))
@@ -119,7 +119,7 @@
 )
 
 (component
-  (type $t' (record))
+  (type $t' (record (field "f" u32)))
   (export $t "t" (type $t'))
   (type $t2 (record (field "x" $t)))
   (export "t2" (type $t2))
@@ -128,20 +128,20 @@
 ;; imports are validated as well
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $t2 (record (field "f" $t)))
     (import "x" (type (eq $t2)))
   )
   "type not valid to be used as import")
 (component
-  (type $t (record))
+  (type $t (record (field "f" u32)))
   (import "t" (type $t' (eq $t)))
   (type $t2 (record (field "f" $t')))
   (import "x" (type (eq $t2)))
 )
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $t2 (record (field "f" $t)))
     (import "x" (func (param "x" $t2)))
   )
@@ -160,7 +160,7 @@
 (assert_invalid
   (component
     (type (component
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (export "f" (func (param "x" $t)))
     ))
   )
@@ -168,7 +168,7 @@
 (assert_invalid
   (component
     (type (component
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (type $f (record (field "t" $t)))
       (export "f" (type (eq $f)))
     ))
@@ -177,7 +177,7 @@
 
 ;; instances of unexported types is ok
 (component
-  (type $t (record))
+  (type $t (record (field "f" u32)))
   (type $f (record (field "t" $t)))
   (instance
     (export "f" (type $f))
@@ -186,7 +186,7 @@
 ;; .. but exporting them is not
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (record (field "t" $t)))
     (instance $i
       (export "f" (type $f))
@@ -198,10 +198,10 @@
 ;; Can't export a lifted function with unexported types
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (record (field "t" $t)))
 
-    (core module $m (func $f (export "f")))
+    (core module $m (func $f (export "f") (param i32)))
     (core instance $i (instantiate $m))
     (func $f (param "f" $f) (canon lift (core func $i "f")))
     (export "f" (func $f))
@@ -211,13 +211,13 @@
 ;; Unexported instances don't work
 (assert_invalid
   (component
-    (type $t' (record))
+    (type $t' (record (field "f" u32)))
     (instance $i
       (export "t" (type $t'))
     )
     (alias export $i "t" (type $t))
 
-    (core module $m (func $f (export "f")))
+    (core module $m (func $f (export "f") (param i32)))
     (core instance $i (instantiate $m))
     (func $f (param "f" $t) (canon lift (core func $i "f")))
     (export "f" (func $f))
@@ -228,13 +228,13 @@
 (assert_invalid
   (component
     (component $C
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (export "t" (type $t))
     )
     (instance $i (instantiate $C))
     (alias export $i "t" (type $t))
 
-    (core module $m (func $f (export "f")))
+    (core module $m (func $f (export "f") (param i32)))
     (core instance $i (instantiate $m))
     (func $f (param "f" $t) (canon lift (core func $i "f")))
     (export "f" (func $f))
@@ -243,28 +243,28 @@
 
 ;; through exported instances is ok though
 (component
-  (type $t' (record))
+  (type $t' (record (field "f" u32)))
   (instance $i'
     (export "t" (type $t'))
   )
   (export $i "i" (instance $i'))
   (alias export $i "t" (type $t))
 
-  (core module $m (func $f (export "f")))
+  (core module $m (func $f (export "f") (param i32)))
   (core instance $i (instantiate $m))
   (func $f (param "f" $t) (canon lift (core func $i "f")))
   (export "f" (func $f))
 )
 (component
   (component $C
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (export "t" (type $t))
   )
   (instance $i' (instantiate $C))
   (export $i "i" (instance $i'))
   (alias export $i "t" (type $t))
 
-  (core module $m (func $f (export "f")))
+  (core module $m (func $f (export "f") (param i32)))
   (core instance $i (instantiate $m))
   (func $f (param "f" $t) (canon lift (core func $i "f")))
   (export "f" (func $f))
@@ -272,9 +272,9 @@
 
 ;; a type-ascribed export which is otherwise invalid can become valid
 (component
-  (type $t (record))
+  (type $t (record (field "f" u32)))
 
-  (core module $m (func (export "f")))
+  (core module $m (func (export "f") (param i32)))
   (core instance $i (instantiate $m))
   (func $f (param "x" $t) (canon lift (core func $i "f")))
 
@@ -285,7 +285,7 @@
 ;; imports can't reference exports
 (assert_invalid
   (component
-    (type $t1 (record))
+    (type $t1 (record (field "f" u32)))
     (export $t2 "t1" (type $t1))
     (import "i" (func (result $t2)))
   )
@@ -293,12 +293,12 @@
 
 ;; exports can reference imports
 (component
-  (type $t1 (record))
+  (type $t1 (record (field "f" u32)))
   (import "t1" (type $t2 (eq $t1)))
   (export "e-t1" (type $t2))
 )
 (component
-  (type $t1 (record))
+  (type $t1 (record (field "f" u32)))
   (import "t1" (type $t2 (eq $t1)))
   (import "i" (func $f (result $t2)))
 
@@ -308,7 +308,7 @@
 ;; outer aliases don't work for imports/exports
 (assert_invalid
   (component
-    (type $t1 (record))
+    (type $t1 (record (field "f" u32)))
     (import "t1" (type $t2 (eq $t1)))
     (component
       (import "i" (func $f (result $t2)))
@@ -317,10 +317,10 @@
   "func not valid to be used as import")
 (assert_invalid
   (component
-    (type $t1 (record))
+    (type $t1 (record (field "f" u32)))
     (export $t2 "t1" (type $t1))
     (component
-      (core module $m (func (export "f")))
+      (core module $m (func (export "f") (result i32) unreachable))
       (core instance $i (instantiate $m))
       (func $f (export "i") (result $t2) (canon lift (core func $i "f")))
     )
@@ -353,7 +353,7 @@
   (export "r2" (func $r))
 )
 (component
-  (type $t (record))
+  (type $t (record (field "f" u32)))
   (import "r" (type $r (eq $t)))
   (export "r2" (type $r))
 )
@@ -371,9 +371,9 @@
 (assert_invalid
   (component
     (component $A
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (export $t2 "t" (type $t))
-      (core module $m (func (export "f")))
+      (core module $m (func (export "f") (result i32) unreachable))
       (core instance $i (instantiate $m))
       (func $f (result $t2) (canon lift (core func $i "f")))
 
@@ -393,14 +393,14 @@
 ;; to a concrete component
 (component
   (type (instance
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (export "f" (func (param "x" $t)))
   ))
 )
 (assert_invalid
   (component
     (type $i (instance
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (type $f (record (field "t" $t)))
       (export "f" (type (eq $f)))
     ))
@@ -411,7 +411,7 @@
 ;; allow for one import to refer to another
 (component $C
   (import "foo" (instance $i
-    (type $baz' (record))
+    (type $baz' (record (field "f" u32)))
     (export $baz "baz" (type (eq $baz')))
     (type $bar' (record (field "baz" $baz)))
     (export $bar "bar" (type (eq $bar')))
@@ -426,10 +426,10 @@
 
 ;; allow for one import to refer to another
 (component
-  (type $r' (record))
+  (type $r' (record (field "f" u32)))
   (import "r" (type $r (eq $r')))
   (component $C
-    (type $r' (record))
+    (type $r' (record (field "f" u32)))
     (import "r" (type $r (eq $r')))
     (type $r2' (record (field "r" $r)))
     (export "r2" (type $r2'))
@@ -442,7 +442,7 @@
 (assert_invalid
   (component
     (type $i (instance
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (type $f (record (field "t" $t)))
       (export "f" (type (eq $f)))
     ))
@@ -452,7 +452,7 @@
 (assert_invalid
   (component
     (type $i (instance
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (type $f (record (field "t" $t)))
       (export "f" (type (eq $f)))
     ))
@@ -462,14 +462,14 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (func (result $t)))
     (import "f" (type (eq $f)))
   )
   "type not valid to be used as import")
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (record (field "f" u32)))
     (type $f (func (result $t)))
     (export "f" (type $f))
   )
@@ -485,7 +485,7 @@
     )
   )
   (import (interface "demo:component/types") (instance (;0;) (type 0)))
-  (component 
+  (component
     (type (;0;)
       (instance
         (type (;0;) (enum "qux"))

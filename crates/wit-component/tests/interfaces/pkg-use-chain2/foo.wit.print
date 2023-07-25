@@ -2,6 +2,7 @@ package foo:foo
 
 interface other {
   record name {
+    f: u8,
   }
 }
 

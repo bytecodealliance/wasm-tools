@@ -1,7 +1,9 @@
 package foo:foo
 
 interface foo {
-  record bar {}
+  record bar {
+    f: u8,
+  }
 
   a: func() -> bar
 }

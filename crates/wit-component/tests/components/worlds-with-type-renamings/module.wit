@@ -2,6 +2,7 @@ package foo:foo
 
 interface i {
   record some-type {
+    f: u8,
   }
 
   the-func: func() -> some-type

@@ -3,7 +3,7 @@
     (component
       (type (;0;)
         (instance
-          (type (;0;) (record))
+          (type (;0;) (record (field "f" u8)))
           (export (;1;) "name" (type (eq 0)))
         )
       )
