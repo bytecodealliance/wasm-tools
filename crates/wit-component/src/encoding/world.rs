@@ -11,8 +11,8 @@ use std::hash::Hash;
 use wasmparser::FuncType;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, LiveTypes, Resolve, Type, TypeDefKind, TypeId, TypeOwner, WorldId,
-    WorldItem, WorldKey,
+    Function, InterfaceId, LiveTypes, Resolve, TypeDefKind, TypeId, TypeOwner, WorldId, WorldItem,
+    WorldKey,
 };
 
 /// Metadata discovered from the state configured in a `ComponentEncoder`.
@@ -334,21 +334,7 @@ impl<'a> ComponentWorld<'a> {
             };
             let mut set = HashSet::new();
 
-            for (_name, ty) in resolve.interfaces[id].types.iter() {
-                // Find `other` which `ty` is defined within to determine which
-                // interfaces this interface depends on.
-                let dep = match resolve.types[*ty].kind {
-                    TypeDefKind::Type(Type::Id(id)) => id,
-                    _ => continue,
-                };
-                let other = match resolve.types[dep].owner {
-                    TypeOwner::Interface(id) => id,
-                    _ => continue,
-                };
-                if other == id {
-                    continue;
-                }
-
+            for other in resolve.interface_direct_deps(id) {
                 // If this dependency is not exported, then it'll show up
                 // through an import, so we're not interested in it.
                 if !exports.contains_key(&WorldKey::Interface(other)) {

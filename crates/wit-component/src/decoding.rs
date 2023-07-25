@@ -1168,18 +1168,10 @@ impl WitPackageDecoder<'_> {
                 }),
         );
         for iface in interfaces {
-            for ty in self.resolve.interfaces[iface].types.values() {
-                let id = match self.resolve.types[*ty].kind {
-                    TypeDefKind::Type(Type::Id(id)) => id,
-                    _ => continue,
-                };
-                let owner = match self.resolve.types[id].owner {
-                    TypeOwner::Interface(i) => i,
-                    _ => continue,
-                };
-                let owner_idx = self.iface_to_package_index[&owner];
-                if owner_idx != idx {
-                    self.visit_package(owner_idx, order);
+            for dep in self.resolve.interface_direct_deps(iface) {
+                let dep_idx = self.iface_to_package_index[&dep];
+                if dep_idx != idx {
+                    self.visit_package(dep_idx, order);
                 }
             }
         }
