@@ -5,7 +5,7 @@
         (component
           (type (;0;)
             (instance
-              (type (;0;) (record))
+              (type (;0;) (record (field "f" u8)))
               (export (;1;) "foo" (type (eq 0)))
               (export (;2;) "bar" (type (eq 1)))
             )

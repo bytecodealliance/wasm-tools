@@ -1,7 +1,7 @@
 (component
   (type (;0;)
     (instance
-      (type (;0;) (record))
+      (type (;0;) (record (field "f" u8)))
       (export (;1;) "r1" (type (eq 0)))
       (type (;2;) (record (field "x" 1)))
       (export (;3;) "r2" (type (eq 2)))
@@ -19,7 +19,7 @@
   )
   (core instance (;0;) (instantiate 0))
   (component (;0;)
-    (type (;0;) (record))
+    (type (;0;) (record (field "f" u8)))
     (export (;1;) "r1" (type 0))
     (type (;2;) (record (field "x" 1)))
     (export (;3;) "r2" (type 2))
@@ -32,7 +32,7 @@
   (alias export 2 "r1" (type (;2;)))
   (alias export 2 "r2" (type (;3;)))
   (component (;1;)
-    (type (;0;) (record))
+    (type (;0;) (record (field "f" u8)))
     (import "import-type-r1" (type (;1;) (eq 0)))
     (type (;2;) (record (field "x" 1)))
     (import "import-type-r2" (type (;3;) (eq 2)))

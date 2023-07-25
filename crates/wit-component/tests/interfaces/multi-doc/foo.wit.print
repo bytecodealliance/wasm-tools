@@ -2,6 +2,7 @@ package foo:foo
 
 interface b {
   record the-type {
+    f: u8,
   }
 }
 

@@ -8,6 +8,7 @@ world simple {
   import a: func(a: foo) -> bar
 
   record foo {
+    f: u8,
   }
 
   type bar = foo

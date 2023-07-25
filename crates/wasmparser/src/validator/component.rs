@@ -2482,6 +2482,10 @@ impl ComponentState {
         let mut type_size = 1;
         let mut field_map = IndexMap::with_capacity(fields.len());
 
+        if fields.is_empty() {
+            bail!(offset, "record type must have at least one field");
+        }
+
         for (name, ty) in fields {
             let name = to_kebab_str(name, "record field", offset)?;
             let ty = self.create_component_val_type(*ty, types, offset)?;
@@ -2515,10 +2519,7 @@ impl ComponentState {
         let mut case_map: IndexMap<KebabString, VariantCase> = IndexMap::with_capacity(cases.len());
 
         if cases.is_empty() {
-            return Err(BinaryReaderError::new(
-                "variant type must have at least one case",
-                offset,
-            ));
+            bail!(offset, "variant type must have at least one case");
         }
 
         if cases.len() > u32::MAX as usize {
@@ -2584,6 +2585,9 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut type_size = 1;
+        if tys.is_empty() {
+            bail!(offset, "tuple type must have at least one type");
+        }
         let types = tys
             .iter()
             .map(|ty| {
@@ -2598,6 +2602,10 @@ impl ComponentState {
 
     fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
         let mut names_set = IndexSet::with_capacity(names.len());
+
+        if names.is_empty() {
+            bail!(offset, "flags must have at least one entry");
+        }
 
         for name in names {
             let name = to_kebab_str(name, "flag", offset)?;
@@ -2619,6 +2627,10 @@ impl ComponentState {
                 "enumeration type cannot be represented with a 32-bit discriminant value",
                 offset,
             ));
+        }
+
+        if cases.is_empty() {
+            bail!(offset, "enum type must have at least one variant");
         }
 
         let mut tags = IndexSet::with_capacity(cases.len());
@@ -2644,6 +2656,9 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut type_size = 1;
+        if tys.is_empty() {
+            bail!(offset, "union type must have at least one case");
+        }
         let types = tys
             .iter()
             .map(|ty| {

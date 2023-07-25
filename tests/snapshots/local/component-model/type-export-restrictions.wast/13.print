@@ -1,5 +1,5 @@
 (component
-  (type (;0;) (tuple))
+  (type (;0;) (tuple u32))
   (type $t1 (;1;) (tuple 0))
   (export (;2;) "t1" (type $t1))
   (type (;3;) (list u8))

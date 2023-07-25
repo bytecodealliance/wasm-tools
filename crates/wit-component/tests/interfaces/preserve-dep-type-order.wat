@@ -5,7 +5,7 @@
         (instance
           (type (;0;) (enum "b"))
           (export (;1;) "a" (type (eq 0)))
-          (type (;2;) (record))
+          (type (;2;) (record (field "f" u8)))
           (export (;3;) "ty" (type (eq 2)))
         )
       )
@@ -24,7 +24,7 @@
             (instance
               (type (;0;) (enum "b"))
               (export (;1;) "a" (type (eq 0)))
-              (type (;2;) (record))
+              (type (;2;) (record (field "f" u8)))
               (export (;3;) "ty" (type (eq 2)))
             )
           )
