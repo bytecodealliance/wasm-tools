@@ -33,7 +33,7 @@ pub struct ComponentWorld<'a> {
     pub import_map: IndexMap<Option<String>, ImportedInterface>,
     /// Set of all live types which must be exported either because they're
     /// directly used or because they're transitively used.
-    pub live_types: IndexMap<InterfaceId, IndexSet<TypeId>>,
+    pub live_type_imports: IndexMap<InterfaceId, IndexSet<TypeId>>,
     /// For each exported interface in the desired world this map lists
     /// the set of interfaces that it depends on which are also exported.
     ///
@@ -77,7 +77,7 @@ impl<'a> ComponentWorld<'a> {
             info,
             adapters: IndexMap::new(),
             import_map: IndexMap::new(),
-            live_types: Default::default(),
+            live_type_imports: Default::default(),
             exports_used: HashMap::new(),
         };
 
@@ -268,7 +268,7 @@ impl<'a> ComponentWorld<'a> {
                 TypeOwner::Interface(id) => id,
                 _ => continue,
             };
-            self.live_types
+            self.live_type_imports
                 .entry(owner)
                 .or_insert(Default::default())
                 .insert(live);
