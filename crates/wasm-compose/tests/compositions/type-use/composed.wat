@@ -1,7 +1,7 @@
 (component
   (type (;0;)
     (instance
-      (type (;0;) (record))
+      (type (;0;) (record (field "f" u32)))
       (export (;1;) "r1" (type (eq 0)))
       (type (;2;) (record (field "r1" 1)))
       (export (;3;) "r2" (type (eq 2)))
@@ -70,7 +70,7 @@
   (component (;1;)
     (type (;0;)
       (instance
-        (type (;0;) (record))
+        (type (;0;) (record (field "f" u32)))
         (export (;1;) "r1" (type (eq 0)))
         (type (;2;) (record (field "r1" 1)))
         (export (;3;) "r2" (type (eq 2)))

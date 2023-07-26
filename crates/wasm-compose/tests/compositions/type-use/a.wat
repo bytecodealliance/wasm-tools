@@ -1,6 +1,6 @@
 (component
   (import (interface "a:b/type-def") (instance $type-def
-    (type $r1' (record))
+    (type $r1' (record (field "f" u32)))
     (export $r1 "r1" (type (eq $r1')))
     (type $r2' (record (field "r1" $r1)))
     (export $r2 "r2" (type (eq $r2')))
