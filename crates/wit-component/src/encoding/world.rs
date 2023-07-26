@@ -11,8 +11,8 @@ use std::hash::Hash;
 use wasmparser::FuncType;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, LiveTypes, Resolve, Type, TypeDefKind, TypeId, TypeOwner, WorldId,
-    WorldItem, WorldKey,
+    Function, InterfaceId, LiveTypes, Resolve, TypeDefKind, TypeId, TypeOwner, WorldId, WorldItem,
+    WorldKey,
 };
 
 /// Metadata discovered from the state configured in a `ComponentEncoder`.
@@ -33,7 +33,7 @@ pub struct ComponentWorld<'a> {
     pub import_map: IndexMap<Option<String>, ImportedInterface>,
     /// Set of all live types which must be exported either because they're
     /// directly used or because they're transitively used.
-    pub live_types: IndexMap<InterfaceId, IndexSet<TypeId>>,
+    pub live_type_imports: IndexMap<InterfaceId, IndexSet<TypeId>>,
     /// For each exported interface in the desired world this map lists
     /// the set of interfaces that it depends on which are also exported.
     ///
@@ -77,14 +77,14 @@ impl<'a> ComponentWorld<'a> {
             info,
             adapters: IndexMap::new(),
             import_map: IndexMap::new(),
-            live_types: Default::default(),
+            live_type_imports: Default::default(),
             exports_used: HashMap::new(),
         };
 
         ret.process_adapters()?;
         ret.process_imports()?;
-        ret.process_live_types();
         ret.process_exports_used();
+        ret.process_live_type_imports();
 
         Ok(ret)
     }
@@ -246,21 +246,56 @@ impl<'a> ComponentWorld<'a> {
         }
     }
 
-    /// Determines the set of live types which must be exported from each
-    /// individual interface by walking over the set of live functions in
-    /// imports and recursively walking types.
-    fn process_live_types(&mut self) {
+    /// Determines the set of live imported types which are required to satisfy
+    /// the imports and exports of the lifted core module.
+    fn process_live_type_imports(&mut self) {
         let mut live = LiveTypes::default();
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
+
+        // First use the previously calculated metadata about live imports to
+        // determine the set of live types in those imports.
         self.add_live_imports(world, &self.info.required_imports, &mut live);
         for (adapter_name, (info, _wasm)) in self.adapters.iter() {
             log::trace!("processing adapter `{adapter_name}`");
             self.add_live_imports(world, &info.required_imports, &mut live);
         }
+
+        // Next any imported types used by an export must also be considered
+        // live. This is a little tricky though because interfaces can be both
+        // imported and exported, so it's not as simple as registering the
+        // entire export's set of types and their transitive references
+        // (otherwise if you only export an interface it would consider those
+        // types imports live too).
+        //
+        // Here if the export is an interface the set of live types for that
+        // interface is calculated separately. The `exports_used` field
+        // previously calculated is then consulted to add any types owned by
+        // interfaces not in the `exports_used` set to the live imported types
+        // set. This means that only types not defined by referenced exports
+        // will get added here.
         for (name, item) in resolve.worlds[world].exports.iter() {
             log::trace!("add live world export `{}`", resolve.name_world_key(name));
-            live.add_world_item(resolve, item);
+            let id = match item {
+                WorldItem::Interface(id) => id,
+                WorldItem::Function(_) | WorldItem::Type(_) => {
+                    live.add_world_item(resolve, item);
+                    continue;
+                }
+            };
+
+            let exports_used = &self.exports_used[id];
+            let mut live_from_export = LiveTypes::default();
+            live_from_export.add_world_item(resolve, item);
+            for ty in live_from_export.iter() {
+                let owner = match resolve.types[ty].owner {
+                    TypeOwner::Interface(id) => id,
+                    _ => continue,
+                };
+                if owner != *id && !exports_used.contains(&owner) {
+                    live.add_type_id(resolve, ty);
+                }
+            }
         }
 
         for live in live.iter() {
@@ -268,7 +303,7 @@ impl<'a> ComponentWorld<'a> {
                 TypeOwner::Interface(id) => id,
                 _ => continue,
             };
-            self.live_types
+            self.live_type_imports
                 .entry(owner)
                 .or_insert(Default::default())
                 .insert(live);
@@ -334,21 +369,7 @@ impl<'a> ComponentWorld<'a> {
             };
             let mut set = HashSet::new();
 
-            for (_name, ty) in resolve.interfaces[id].types.iter() {
-                // Find `other` which `ty` is defined within to determine which
-                // interfaces this interface depends on.
-                let dep = match resolve.types[*ty].kind {
-                    TypeDefKind::Type(Type::Id(id)) => id,
-                    _ => continue,
-                };
-                let other = match resolve.types[dep].owner {
-                    TypeOwner::Interface(id) => id,
-                    _ => continue,
-                };
-                if other == id {
-                    continue;
-                }
-
+            for other in resolve.interface_direct_deps(id) {
                 // If this dependency is not exported, then it'll show up
                 // through an import, so we're not interested in it.
                 if !exports.contains_key(&WorldKey::Interface(other)) {

@@ -1,8 +1,6 @@
 package root:component
 
 world root {
-  import foo:foo/name
-
   export foo:foo/name
   export name: interface {
     use foo:foo/name.{r2}

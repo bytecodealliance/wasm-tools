@@ -127,23 +127,8 @@ impl Encoder<'_> {
         if interfaces.contains(&id) {
             return;
         }
-
-        // Other interfaces reachable from `id` are only reachable from defined
-        // types, and only when the defined type points to another `Type::Id`.
-        // Use this knowledge to filter over all types find find types of this
-        // pattern.
-        for (_, ty) in self.resolve.interfaces[id].types.iter() {
-            let ty = match self.resolve.types[*ty].kind {
-                TypeDefKind::Type(Type::Id(id)) => id,
-                _ => continue,
-            };
-            let owner = match self.resolve.types[ty].owner {
-                TypeOwner::Interface(id) => id,
-                _ => continue,
-            };
-            if owner != id {
-                self.add_live_interfaces(interfaces, owner);
-            }
+        for id in self.resolve.interface_direct_deps(id) {
+            self.add_live_interfaces(interfaces, id);
         }
         assert!(interfaces.insert(id));
     }

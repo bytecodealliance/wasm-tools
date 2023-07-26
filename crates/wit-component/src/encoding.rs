@@ -461,7 +461,7 @@ impl<'a> EncodingState<'a> {
         let mut encoder = self.instance_type_encoder(interface_id);
 
         // First encode all type information
-        if let Some(live) = encoder.state.info.live_types.get(&interface_id) {
+        if let Some(live) = encoder.state.info.live_type_imports.get(&interface_id) {
             for ty in live {
                 log::trace!(
                     "encoding extra type {ty:?} name={:?}",
@@ -907,22 +907,20 @@ impl<'a> EncodingState<'a> {
         // resources. Resources reexport their imported resource type under
         // the final name which achieves the desired goal of threading through
         // the original resource without creating a new one.
-        if let Some(live) = nested.state.info.live_types.get(&export) {
-            for id in live {
-                let ty = &resolve.types[*id];
-                match ty.kind {
-                    TypeDefKind::Resource => {
-                        let idx = nested.component.export(
-                            ty.name.as_ref().expect("resources must be named"),
-                            ComponentExportKind::Type,
-                            resources[id],
-                            None,
-                        );
-                        nested.type_map.insert(*id, idx);
-                    }
-                    _ => {
-                        nested.encode_valtype(resolve, &Type::Id(*id))?;
-                    }
+        for (_, id) in resolve.interfaces[export].types.iter() {
+            let ty = &resolve.types[*id];
+            match ty.kind {
+                TypeDefKind::Resource => {
+                    let idx = nested.component.export(
+                        ty.name.as_ref().expect("resources must be named"),
+                        ComponentExportKind::Type,
+                        resources[id],
+                        None,
+                    );
+                    nested.type_map.insert(*id, idx);
+                }
+                _ => {
+                    nested.encode_valtype(resolve, &Type::Id(*id))?;
                 }
             }
         }
