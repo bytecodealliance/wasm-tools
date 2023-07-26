@@ -163,7 +163,7 @@ mutate = ['wasm-mutate']
 dump = ['dep:wasmparser']
 objdump = ['dep:wasmparser']
 strip = ['wasm-encoder', 'dep:wasmparser', 'regex']
-compose = ['wasm-compose']
+compose = ['wasm-compose', 'dep:wasmparser']
 demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
 component = [
   'wit-component',
