@@ -29,8 +29,6 @@ fn type_ref_to_export_kind(ty: wasmparser::ComponentTypeRef) -> ComponentExportK
     }
 }
 
-// Utility trait implement on component and instance types
-// to abstract their encoding.
 enum Encodable {
     Component(ComponentType),
     Instance(InstanceType),
