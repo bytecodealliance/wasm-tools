@@ -15,9 +15,8 @@ pub struct Opts {
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
 
-    /// The path of the output composed WebAssembly component.
-    #[clap(long, short = 'o', value_name = "OUTPUT")]
-    output: PathBuf,
+    #[clap(flatten)]
+    output: wasm_tools::OutputArg,
 
     /// The path to the configuration file to use.
     #[clap(long, short = 'c', value_name = "CONFIG")]
@@ -42,6 +41,10 @@ pub struct Opts {
     /// The path to the root component to compose.
     #[clap(value_name = "COMPONENT")]
     component: PathBuf,
+
+    /// Output the text format of WebAssembly instead of the binary format.
+    #[clap(short = 't', long)]
+    wat: bool,
 }
 
 impl Opts {
@@ -55,11 +58,9 @@ impl Opts {
 
         let bytes = ComponentComposer::new(&self.component, &config).compose()?;
 
-        std::fs::write(&self.output, &bytes).with_context(|| {
-            format!(
-                "failed to write composed component `{output}`",
-                output = self.output.display()
-            )
+        self.output.output(wasm_tools::Output::Wasm {
+            bytes: &bytes,
+            wat: self.wat,
         })?;
 
         if config.skip_validation {
@@ -71,19 +72,19 @@ impl Opts {
             })
             .validate_all(&bytes)
             .with_context(|| {
-                format!(
-                    "failed to validate output component `{output}`",
-                    output = self.output.display()
-                )
+                let output = match self.output.output_path() {
+                    Some(s) => format!(" `{}`", s.display()),
+                    None => String::new(),
+                };
+                format!("failed to validate output component{output}")
             })?;
 
             log::debug!("output component validated successfully");
         }
 
-        println!(
-            "composed component `{output}`",
-            output = self.output.display()
-        );
+        if let Some(path) = self.output.output_path() {
+            println!("composed component `{}`", path.display());
+        }
 
         Ok(())
     }
