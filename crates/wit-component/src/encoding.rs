@@ -71,7 +71,6 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
-use crate::builder::ComponentBuilder;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{ValidatedModule, BARE_FUNC_MODULE_NAME, MAIN_MODULE_IMPORT_NAME};
 use crate::StringEncoding;
@@ -489,7 +488,7 @@ impl<'a> EncodingState<'a> {
         if ty.is_empty() {
             return Ok(());
         }
-        let instance_type_idx = self.component.instance_type(&ty);
+        let instance_type_idx = self.component.type_instance(&ty);
         let instance_idx = self
             .component
             .import(name, ComponentTypeRef::Instance(instance_type_idx));
@@ -525,14 +524,16 @@ impl<'a> EncodingState<'a> {
         let ty = &self.info.encoder.metadata.resolve.types[id];
         let name = ty.name.as_ref().expect("type must have a name");
         let instance = self.imported_instances[&interface];
-        self.component.alias_type_export(instance, name)
+        self.component
+            .alias_export(instance, name, ComponentExportKind::Type)
     }
 
     fn alias_exported_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
         let ty = &self.info.encoder.metadata.resolve.types[id];
         let name = ty.name.as_ref().expect("type must have a name");
         let instance = self.exported_instances[&interface];
-        self.component.alias_type_export(instance, name)
+        self.component
+            .alias_export(instance, name, ComponentExportKind::Type)
     }
 
     fn encode_core_instantiation(&mut self) -> Result<()> {
@@ -565,15 +566,15 @@ impl<'a> EncodingState<'a> {
             let mut exports = Vec::new();
 
             for (func, _ty) in funcs {
-                let index = self.component.alias_core_item(
+                let index = self.component.core_alias_export(
                     shim_instance,
-                    ExportKind::Func,
                     &shims.shim_names[&ShimKind::Adapter { adapter, func }],
+                    ExportKind::Func,
                 );
                 exports.push((*func, ExportKind::Func, index));
             }
 
-            let index = self.component.instantiate_core_exports(exports);
+            let index = self.component.core_instantiate_exports(exports);
             args.push((*adapter, ModuleArg::Instance(index)));
         }
 
@@ -586,13 +587,13 @@ impl<'a> EncodingState<'a> {
                 // filled in later with the actual destructor after the main
                 // module is instantiated.
                 let dtor = info.dtor_export.map(|_| {
-                    self.component.alias_core_item(
+                    self.component.core_alias_export(
                         self.shim_instance_index.unwrap(),
-                        ExportKind::Func,
                         &shims.shim_names[&ShimKind::ResourceDtor { import, resource }],
+                        ExportKind::Func,
                     )
                 });
-                let resource_idx = self.component.resource(ValType::I32, dtor);
+                let resource_idx = self.component.type_resource(ValType::I32, dtor);
                 let prev = self.export_type_map.insert(info.id, resource_idx);
                 assert!(prev.is_none());
 
@@ -610,7 +611,7 @@ impl<'a> EncodingState<'a> {
                 }
             }
             if !exports.is_empty() {
-                let index = self.component.instantiate_core_exports(exports);
+                let index = self.component.core_instantiate_exports(exports);
                 args.push((import.as_str(), ModuleArg::Instance(index)));
             }
         }
@@ -667,7 +668,11 @@ impl<'a> EncodingState<'a> {
                     let func_index = match &import.interface {
                         Some(interface) => {
                             let instance_index = self.imported_instances[interface];
-                            self.component.alias_func(instance_index, name)
+                            self.component.alias_export(
+                                instance_index,
+                                name,
+                                ComponentExportKind::Func,
+                            )
                         }
                         None => self.imported_funcs[name],
                     };
@@ -679,16 +684,16 @@ impl<'a> EncodingState<'a> {
                 Lowering::Indirect { .. } => {
                     let encoding =
                         metadata.import_encodings[&(core_wasm_name.to_string(), name.clone())];
-                    self.component.alias_core_item(
+                    self.component.core_alias_export(
                         self.shim_instance_index
                             .expect("shim should be instantiated"),
-                        ExportKind::Func,
                         &shims.shim_names[&ShimKind::IndirectLowering {
                             interface: interface.clone(),
                             index,
                             realloc: for_module,
                             encoding,
                         }],
+                        ExportKind::Func,
                     )
                 }
 
@@ -700,7 +705,7 @@ impl<'a> EncodingState<'a> {
             exports.push((name.as_str(), ExportKind::Func, index));
         }
 
-        self.component.instantiate_core_exports(exports)
+        self.component.core_instantiate_exports(exports)
     }
 
     fn lookup_resource_index(&mut self, id: TypeId) -> u32 {
@@ -714,7 +719,8 @@ impl<'a> EncodingState<'a> {
             TypeOwner::Interface(i) => {
                 let instance = self.imported_instances[&i];
                 let name = ty.name.as_ref().expect("resources must be named");
-                self.component.alias_type_export(instance, name)
+                self.component
+                    .alias_export(instance, name, ComponentExportKind::Type)
             }
             TypeOwner::None => panic!("resources must have an owner"),
         }
@@ -940,9 +946,7 @@ impl<'a> EncodingState<'a> {
         // appropriate name as the final typed export of this component.
         let component = nested.component;
         let component_index = self.component.component(component);
-        let instance_index = self
-            .component
-            .instantiate_component(component_index, imports);
+        let instance_index = self.component.instantiate(component_index, imports);
         let idx = self.component.export(
             export_name,
             ComponentExportKind::Instance,
@@ -977,10 +981,10 @@ impl<'a> EncodingState<'a> {
 
         impl<'a> ValtypeEncoder<'a> for NestedComponentTypeEncoder<'_, 'a> {
             fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
-                self.component.defined_type()
+                self.component.type_defined()
             }
             fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
-                self.component.function_type()
+                self.component.type_function()
             }
             fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
                 if self.export_types {
@@ -1078,7 +1082,7 @@ impl<'a> EncodingState<'a> {
         };
         let core_func_index =
             self.component
-                .alias_core_item(instance_index, ExportKind::Func, core_name);
+                .core_alias_export(instance_index, core_name, ExportKind::Func);
 
         let options = RequiredOptions::for_export(resolve, func);
 
@@ -1097,10 +1101,10 @@ impl<'a> EncodingState<'a> {
         // TODO: This should probe for the existence of
         // `cabi_post_{name}` but not require its existence.
         if resolve.guest_export_needs_post_return(func) {
-            let post_return = self.component.alias_core_item(
+            let post_return = self.component.core_alias_export(
                 instance_index,
-                ExportKind::Func,
                 &format!("cabi_post_{core_name}"),
+                ExportKind::Func,
             );
             options.push(CanonicalOption::PostReturn(post_return));
         }
@@ -1294,7 +1298,7 @@ impl<'a> EncodingState<'a> {
 
         let shim_module_index = self.component.core_module(&shim);
         self.fixups_module_index = Some(self.component.core_module(&fixups));
-        self.shim_instance_index = Some(self.component.instantiate(shim_module_index, []));
+        self.shim_instance_index = Some(self.component.core_instantiate(shim_module_index, []));
 
         return ret;
 
@@ -1337,10 +1341,10 @@ impl<'a> EncodingState<'a> {
             .shim_instance_index
             .expect("must have an instantiated shim");
 
-        let table_index = self.component.alias_core_item(
+        let table_index = self.component.core_alias_export(
             shim_instance_index,
-            ExportKind::Table,
             INDIRECT_TABLE_NAME,
+            ExportKind::Table,
         );
 
         let mut exports = Vec::new();
@@ -1365,7 +1369,11 @@ impl<'a> EncodingState<'a> {
                     let func_index = match &interface.interface {
                         Some(interface_id) => {
                             let instance_index = self.imported_instances[interface_id];
-                            self.component.alias_func(instance_index, name)
+                            self.component.alias_export(
+                                instance_index,
+                                name,
+                                ComponentExportKind::Func,
+                            )
                         }
                         None => self.imported_funcs[name],
                     };
@@ -1386,30 +1394,30 @@ impl<'a> EncodingState<'a> {
                 // instance, so use the specified name here and the previously
                 // created instances to get the core item that represents the
                 // shim.
-                ShimKind::Adapter { adapter, func } => self.component.alias_core_item(
+                ShimKind::Adapter { adapter, func } => self.component.core_alias_export(
                     self.adapter_instances[adapter],
-                    ExportKind::Func,
                     func,
+                    ExportKind::Func,
                 ),
 
                 // Resources are required for a module to be instantiated
                 // meaning that any destructor for the resource must be called
                 // indirectly due to the otherwise circular dependency between
                 // the module and the resource itself.
-                ShimKind::ResourceDtor { import, resource } => self.component.alias_core_item(
+                ShimKind::ResourceDtor { import, resource } => self.component.core_alias_export(
                     self.instance_index.unwrap(),
-                    ExportKind::Func,
                     self.info.info.required_resource_funcs[*import][*resource]
                         .dtor_export
                         .unwrap(),
+                    ExportKind::Func,
                 ),
             };
 
             exports.push((shim.name.as_str(), ExportKind::Func, core_func_index));
         }
 
-        let instance_index = self.component.instantiate_core_exports(exports);
-        self.component.instantiate(
+        let instance_index = self.component.core_instantiate_exports(exports);
+        self.component.core_instantiate(
             self.fixups_module_index.expect("must have fixup module"),
             [("", ModuleArg::Instance(instance_index))],
         );
@@ -1425,21 +1433,21 @@ impl<'a> EncodingState<'a> {
 
         let instance_index = self
             .component
-            .instantiate(self.module_index.expect("core module encoded"), args);
+            .core_instantiate(self.module_index.expect("core module encoded"), args);
 
         if info.has_memory {
-            self.memory_index = Some(self.component.alias_core_item(
+            self.memory_index = Some(self.component.core_alias_export(
                 instance_index,
-                ExportKind::Memory,
                 "memory",
+                ExportKind::Memory,
             ));
         }
 
         if let Some(name) = &info.realloc {
-            self.realloc_index = Some(self.component.alias_core_item(
+            self.realloc_index = Some(self.component.core_alias_export(
                 instance_index,
-                ExportKind::Func,
                 name,
+                ExportKind::Func,
             ));
         }
 
@@ -1465,16 +1473,16 @@ impl<'a> EncodingState<'a> {
                         core_export_name = adapter_realloc;
                     }
                 }
-                let index = self.component.alias_core_item(
+                let index = self.component.core_alias_export(
                     self.instance_index
                         .expect("adaptee index set at this point"),
-                    ExportKind::Func,
                     core_export_name,
+                    ExportKind::Func,
                 );
                 core_exports.push((export_name.as_str(), ExportKind::Func, index));
             }
             if !core_exports.is_empty() {
-                let instance = self.component.instantiate_core_exports(core_exports);
+                let instance = self.component.core_instantiate_exports(core_exports);
                 args.push((MAIN_MODULE_IMPORT_NAME, ModuleArg::Instance(instance)));
             }
             // If the adapter module requires a `memory` import then specify
@@ -1487,7 +1495,7 @@ impl<'a> EncodingState<'a> {
                 }
                 assert!(module != name);
                 let memory = self.memory_index.unwrap();
-                let instance = self.component.instantiate_core_exports([(
+                let instance = self.component.core_instantiate_exports([(
                     name.as_str(),
                     ExportKind::Memory,
                     memory,
@@ -1503,17 +1511,19 @@ impl<'a> EncodingState<'a> {
                 );
                 args.push((import_name, ModuleArg::Instance(instance)));
             }
-            let instance = self.component.instantiate(self.adapter_modules[name], args);
+            let instance = self
+                .component
+                .core_instantiate(self.adapter_modules[name], args);
             self.adapter_instances.insert(name, instance);
 
             let realloc = info.export_realloc.as_ref().map(|name| {
                 self.component
-                    .alias_core_item(instance, ExportKind::Func, name)
+                    .core_alias_export(instance, name, ExportKind::Func)
             });
             self.adapter_export_reallocs.insert(name, realloc);
             let realloc = info.import_realloc.as_ref().map(|name| {
                 self.component
-                    .alias_core_item(instance, ExportKind::Func, name)
+                    .core_alias_export(instance, name, ExportKind::Func)
             });
             self.adapter_import_reallocs.insert(name, realloc);
         }
@@ -1799,6 +1809,9 @@ impl ComponentEncoder {
         for name in self.adapters.keys() {
             state.encode_exports(CustomModule::Adapter(name))?;
         }
+        state
+            .component
+            .raw_custom_section(&crate::base_producers().raw_custom_section());
         let bytes = state.component.finish();
 
         if self.validate {

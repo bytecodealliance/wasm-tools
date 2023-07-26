@@ -18,8 +18,8 @@
   (type (;4;) (func (param "r" 3) (result 1)))
   (alias core export 0 "a" (core func (;0;)))
   (func (;0;) (type 4) (canon lift (core func 0)))
+  (export (;1;) "a" (func 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) "a" (func 0))
 )

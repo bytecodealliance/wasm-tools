@@ -38,8 +38,8 @@
       (export (;1;) (interface "foo:foo/with-imports") (component (type 2)))
     )
   )
+  (export (;1;) (interface "foo:foo/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

@@ -16,8 +16,8 @@
       (export (;0;) (interface "foo:foo/has-inline") (component (type 0)))
     )
   )
+  (export (;1;) (interface "foo:foo/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

@@ -15,14 +15,14 @@
   )
   (alias export 0 "a" (type (;1;)))
   (core func (;0;) (canon resource.drop 1))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;0;)
     (export "[resource-drop]a" (func 0))
   )
   (core instance (;1;) (instantiate 0
       (with "foo" (instance 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

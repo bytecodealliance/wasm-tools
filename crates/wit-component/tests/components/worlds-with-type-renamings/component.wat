@@ -60,8 +60,8 @@
       (with "import-type-some-type" (type 3))
     )
   )
+  (export (;2;) (interface "foo:foo/i") (instance 1))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;2;) (interface "foo:foo/i") (instance 1))
 )

@@ -29,8 +29,8 @@
       (with "import-type-r" (type 2))
     )
   )
+  (export (;2;) "x" (instance 1))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;2;) "x" (instance 1))
 )

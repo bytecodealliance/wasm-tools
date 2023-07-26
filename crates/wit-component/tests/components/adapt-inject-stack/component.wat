@@ -147,9 +147,6 @@
   (alias export 0 "get-two" (func (;0;)))
   (core func (;2;) (canon lower (func 0) (memory 0)))
   (alias core export 5 "get_sum" (core func (;3;)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;6;)
     (export "$imports" (table 0))
     (export "0" (func 2))
@@ -158,5 +155,8 @@
   (core instance (;7;) (instantiate 3
       (with "" (instance 6))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

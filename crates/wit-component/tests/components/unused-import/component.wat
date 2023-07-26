@@ -16,14 +16,14 @@
   )
   (alias export 0 "name" (func (;0;)))
   (core func (;0;) (canon lower (func 0)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;0;)
     (export "name" (func 0))
   )
   (core instance (;1;) (instantiate 0
       (with "foo:foo/foo" (instance 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )
