@@ -317,7 +317,7 @@ impl<'a> Dylink0<'a> {
         } else if l.peek::<kw::export_info>()? {
             parser.parse::<kw::export_info>()?;
             let name = parser.parse()?;
-            let flags = parser.parse()?;
+            let flags = parse_sym_flags(parser)?;
             match self.subsections.last_mut() {
                 Some(Dylink0Subsection::ExportInfo(list)) => list.push((name, flags)),
                 _ => self
@@ -328,7 +328,7 @@ impl<'a> Dylink0<'a> {
             parser.parse::<kw::import_info>()?;
             let module = parser.parse()?;
             let name = parser.parse()?;
-            let flags = parser.parse()?;
+            let flags = parse_sym_flags(parser)?;
             match self.subsections.last_mut() {
                 Some(Dylink0Subsection::ImportInfo(list)) => list.push((module, name, flags)),
                 _ => self
@@ -341,6 +341,40 @@ impl<'a> Dylink0<'a> {
         Ok(())
     }
 }
+
+fn parse_sym_flags(parser: Parser<'_>) -> Result<u32> {
+    let mut flags = 0;
+    while !parser.is_empty() {
+        let mut l = parser.lookahead1();
+        if l.peek::<u32>()? {
+            flags |= parser.parse::<u32>()?;
+            continue;
+        }
+        macro_rules! parse_flags {
+            ($($kw:tt = $val:expr,)*) => {$({
+                custom_keyword!(flag = $kw);
+                if l.peek::<flag>()? {
+                    parser.parse::<flag>()?;
+                    flags |= $val;
+                    continue;
+                }
+            })*};
+        }
+        parse_flags! {
+            "binding-weak" = 1 << 0,
+            "binding-local" = 1 << 1,
+            "visibility-hidden" = 1 << 2,
+            "undefined" = 1 << 4,
+            "exported" = 1 << 5,
+            "explicit-name" = 1 << 6,
+            "no-strip" = 1 << 7,
+        }
+        return Err(l.error());
+    }
+    Ok(flags)
+}
+
+mod flag {}
 
 impl Dylink0Subsection<'_> {
     /// Returns the byte id of this subsection used to identify it.

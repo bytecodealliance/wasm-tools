@@ -60,3 +60,11 @@
     (import-info "a" "a" 0)
   )
 )
+
+(module
+  (@dylink.0
+    (export-info "a" 0xffffffff)
+    (export-info "a" binding-local)
+    (export-info "a" 2 binding-local binding-weak 0 undefined)
+  )
+)

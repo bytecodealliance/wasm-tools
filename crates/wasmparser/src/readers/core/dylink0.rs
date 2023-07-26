@@ -2,12 +2,30 @@ use crate::{BinaryReader, Result, Subsection, Subsections};
 use std::ops::Range;
 
 /// Parser for the dynamic linking `dylink.0` custom section.
+///
+/// This format is currently defined upstream at
+/// <https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md>.
 pub type Dylink0SectionReader<'a> = Subsections<'a, Dylink0Subsection<'a>>;
 
 const WASM_DYLINK_MEM_INFO: u8 = 1;
 const WASM_DYLINK_NEEDED: u8 = 2;
 const WASM_DYLINK_EXPORT_INFO: u8 = 3;
 const WASM_DYLINK_IMPORT_INFO: u8 = 4;
+
+#[allow(missing_docs)]
+pub const WASM_SYM_BINDING_WEAK: u32 = 1 << 0;
+#[allow(missing_docs)]
+pub const WASM_SYM_BINDING_LOCAL: u32 = 1 << 1;
+#[allow(missing_docs)]
+pub const WASM_SYM_VISIBILITY_HIDDEN: u32 = 1 << 2;
+#[allow(missing_docs)]
+pub const WASM_SYM_UNDEFINED: u32 = 1 << 4;
+#[allow(missing_docs)]
+pub const WASM_SYM_EXPORTED: u32 = 1 << 5;
+#[allow(missing_docs)]
+pub const WASM_SYM_EXPLICIT_NAME: u32 = 1 << 6;
+#[allow(missing_docs)]
+pub const WASM_SYM_NO_STRIP: u32 = 1 << 7;
 
 /// Represents a `WASM_DYLINK_MEM_INFO` field
 #[derive(Debug, Copy, Clone)]
@@ -33,6 +51,10 @@ pub struct MemInfo {
 #[derive(Debug)]
 pub struct ExportInfo<'a> {
     pub name: &'a str,
+
+    /// Note that these flags correspond to those described in
+    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md>
+    /// with the `WASM_SYM_*` prefix.
     pub flags: u32,
 }
 
@@ -41,6 +63,10 @@ pub struct ExportInfo<'a> {
 pub struct ImportInfo<'a> {
     pub module: &'a str,
     pub field: &'a str,
+
+    /// Note that these flags correspond to those described in
+    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md>
+    /// with the `WASM_SYM_*` prefix.
     pub flags: u32,
 }
 

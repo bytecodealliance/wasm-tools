@@ -2628,7 +2628,7 @@ impl Printer {
                         self.newline(start);
                         self.start_group("export-info ");
                         self.print_str(info.name)?;
-                        write!(self.result, " {}", info.flags)?;
+                        self.print_dylink0_flags(info.flags)?;
                         self.end_group();
                     }
                 }
@@ -2639,7 +2639,7 @@ impl Printer {
                         self.print_str(info.module)?;
                         self.result.push_str(" ");
                         self.print_str(info.field)?;
-                        write!(self.result, " {}", info.flags)?;
+                        self.print_dylink0_flags(info.flags)?;
                         self.end_group();
                     }
                 }
@@ -2649,6 +2649,30 @@ impl Printer {
             }
         }
         self.end_group();
+        Ok(())
+    }
+
+    fn print_dylink0_flags(&mut self, mut flags: u32) -> Result<()> {
+        macro_rules! print_flag {
+            ($($name:ident = $text:tt)*) => ({$(
+                if flags & wasmparser::$name != 0 {
+                    flags &= !wasmparser::$name;
+                    self.result.push_str(concat!(" ", $text));
+                }
+            )*})
+        }
+        print_flag! {
+            WASM_SYM_BINDING_WEAK = "binding-weak"
+            WASM_SYM_BINDING_LOCAL = "binding-local"
+            WASM_SYM_VISIBILITY_HIDDEN = "visibility-hidden"
+            WASM_SYM_UNDEFINED = "undefined"
+            WASM_SYM_EXPORTED = "exported"
+            WASM_SYM_EXPLICIT_NAME = "explicit-name"
+            WASM_SYM_NO_STRIP = "no-strip"
+        }
+        if flags != 0 {
+            write!(self.result, " {:#x}", flags)?;
+        }
         Ok(())
     }
 }

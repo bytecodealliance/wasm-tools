@@ -1,6 +1,6 @@
 (module
   (@dylink.0
-    (export-info "a" 0)
-    (export-info "b" 1)
+    (export-info "a")
+    (export-info "b" binding-weak)
   )
 )
