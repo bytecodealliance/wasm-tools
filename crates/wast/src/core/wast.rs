@@ -77,15 +77,15 @@ pub enum WastRetCore<'a> {
     /// A non-null funcref is expected.
     RefFunc(Option<Index<'a>>),
     /// A non-null anyref is expected.
-    RefAny(Option<Index<'a>>),
+    RefAny,
     /// A non-null eqref is expected.
-    RefEq(Option<Index<'a>>),
+    RefEq,
     /// A non-null arrayref is expected.
-    RefArray(Option<Index<'a>>),
+    RefArray,
     /// A non-null structref is expected.
-    RefStruct(Option<Index<'a>>),
+    RefStruct,
     /// A non-null i31ref is expected.
-    RefI31(Option<i32>),
+    RefI31,
 
     Either(Vec<WastRetCore<'a>>),
 }
@@ -101,11 +101,11 @@ static RETS: &[(&str, fn(Parser<'_>) -> Result<WastRetCore<'_>>)] = {
         ("ref.null", |p| Ok(RefNull(p.parse()?))),
         ("ref.extern", |p| Ok(RefExtern(p.parse()?))),
         ("ref.func", |p| Ok(RefFunc(p.parse()?))),
-        ("ref.any", |p| Ok(RefAny(p.parse()?))),
-        ("ref.eq", |p| Ok(RefEq(p.parse()?))),
-        ("ref.array", |p| Ok(RefArray(p.parse()?))),
-        ("ref.struct", |p| Ok(RefStruct(p.parse()?))),
-        ("ref.i31", |p| Ok(RefI31(p.parse()?))),
+        ("ref.any", |_| Ok(RefAny)),
+        ("ref.eq", |_| Ok(RefEq)),
+        ("ref.array", |_| Ok(RefArray)),
+        ("ref.struct", |_| Ok(RefStruct)),
+        ("ref.i31", |_| Ok(RefI31)),
         ("either", |p| {
             p.depth_check()?;
             let mut cases = Vec::new();

@@ -23,4 +23,5 @@
 
   (type (struct (field i32) (field (ref null $a)) (field (mut (ref null $b)))))
   (type (struct (field i32 (ref null $a) (mut (ref null $b)))))
+  (type (struct (field i32 i64 i8) (field) (field) (field (ref null i31) anyref)))
 )

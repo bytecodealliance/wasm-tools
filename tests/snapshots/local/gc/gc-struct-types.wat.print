@@ -17,4 +17,5 @@
   (type (;15;) (struct (field i32) (field f32) (field f32) (field f32)))
   (type (;16;) (struct (field i32) (field (ref null 6)) (field (mut (ref null 7)))))
   (type (;17;) (struct (field i32) (field (ref null 6)) (field (mut (ref null 7)))))
+  (type (;18;) (struct (field i32) (field i64) (field i8) (field i31ref) (field anyref)))
 )
