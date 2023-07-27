@@ -186,7 +186,7 @@ impl PrimitiveValType {
         })
     }
 
-    pub(crate) fn requires_realloc(&self) -> bool {
+    pub(crate) fn contains_ptr(&self) -> bool {
         matches!(self, Self::String)
     }
 
