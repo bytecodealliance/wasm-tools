@@ -178,7 +178,7 @@ impl<'a> TypeState<'a> {
                 type_exports_rev: HashMap::new(),
                 instance_exports: HashMap::new(),
                 type_defs: HashMap::new(),
-                encodable: encodable,
+                encodable,
             },
         );
         self.scopes.push(prev);
@@ -1324,7 +1324,7 @@ fn toposort<'a>(
     }
     if let Some(list) = deps.get(cur) {
         for dep in list {
-            toposort(*dep, deps, order);
+            toposort(dep, deps, order);
         }
     }
     let ok = order.insert(cur);

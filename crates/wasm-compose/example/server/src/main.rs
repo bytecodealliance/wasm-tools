@@ -10,7 +10,7 @@ use tide::{
 };
 
 use wasmtime::{component::*, Config, Engine, Store};
-use wasmtime_wasi::preview2::{wasi, Table, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::preview2::{command, Table, WasiCtx, WasiCtxBuilder, WasiView};
 
 use exports::example::service::*;
 
@@ -118,33 +118,26 @@ impl ServerApp {
         let body = req.body_bytes().await?;
         let headers = req
             .iter()
-            .map(|(n, v)| (n.as_str().as_bytes(), v.as_str().as_bytes()))
+            .map(|(n, v)| {
+                (
+                    n.as_str().as_bytes().to_vec(),
+                    v.as_str().as_bytes().to_vec(),
+                )
+            })
             .collect::<Vec<_>>();
 
         // Create a new store for the request
         let state = req.state();
         let mut linker = Linker::new(&state.engine);
-        wasi::filesystem::filesystem::add_to_linker(&mut linker, |x| x)?;
-        wasi::io::streams::add_to_linker(&mut linker, |x| x)?;
-        wasi::cli_base::environment::add_to_linker(&mut linker, |x| x)?;
-        wasi::cli_base::preopens::add_to_linker(&mut linker, |x| x)?;
-        wasi::cli_base::exit::add_to_linker(&mut linker, |x| x)?;
-        wasi::cli_base::stdin::add_to_linker(&mut linker, |x| x)?;
-        wasi::cli_base::stdout::add_to_linker(&mut linker, |x| x)?;
-        wasi::cli_base::stderr::add_to_linker(&mut linker, |x| x)?;
+        command::add_to_linker(&mut linker)?;
 
         let wasi_view = ServerWasiView::new()?;
         let mut store = Store::new(&state.engine, wasi_view);
-        let (service, _) = Service::instantiate_async(&mut store, &state.component, &linker).await?;
+        let (service, _) =
+            Service::instantiate_async(&mut store, &state.component, &linker).await?;
         service
             .example_service_handler()
-            .call_execute(
-                &mut store,
-                handler::Request {
-                    headers: &headers,
-                    body: &body,
-                },
-            )
+            .call_execute(&mut store, &handler::Request { headers, body })
             .await?
             .map(TryInto::try_into)
             .map_err(handler::Error::into_tide)?
