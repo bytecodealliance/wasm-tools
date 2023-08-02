@@ -498,7 +498,7 @@ pub(crate) struct Module {
 impl Module {
     pub fn add_types(
         &mut self,
-        types_added: Vec<SubType>,
+        types_added: &[SubType],
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,

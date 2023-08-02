@@ -608,10 +608,13 @@ impl Validator {
                 Ok(())
             },
             |state, features, types, def, offset| {
-                state
-                    .module
-                    .assert_mut()
-                    .add_types(def.types, features, types, offset, true)?;
+                state.module.assert_mut().add_types(
+                    def.types.as_slice(),
+                    features,
+                    types,
+                    offset,
+                    true,
+                )?;
                 Ok(())
             },
         )
