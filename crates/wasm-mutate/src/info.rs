@@ -92,8 +92,8 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Type.into(), reader.range(), input_wasm);
 
                     // Save function types
-                    for ty in reader {
-                        if let Ok(rg) = ty {
+                    for rec_group in reader {
+                        if let Ok(rg) = rec_group {
                             if rg.types.len() != 1 {
                                 return Err(Error::unsupported("GC types not supported yet"));
                             }

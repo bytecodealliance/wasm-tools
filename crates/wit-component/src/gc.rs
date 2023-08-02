@@ -245,8 +245,8 @@ impl<'a> Module<'a> {
                 }
                 Payload::End(_) => {}
                 Payload::TypeSection(s) => {
-                    for ty in s {
-                        for ty in ty?.types {
+                    for rec_group in s {
+                        for ty in rec_group?.types {
                             self.types.push(ty);
                         }
                     }

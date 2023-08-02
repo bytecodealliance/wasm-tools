@@ -740,12 +740,12 @@ impl Printer {
 
     fn print_types(&mut self, state: &mut State, parser: TypeSectionReader<'_>) -> Result<()> {
         for ty in parser.into_iter_with_offsets() {
-            let (offset, ty) = ty?;
+            let (offset, rec_group) = ty?;
             self.newline(offset);
-            if ty.types.len() == 1 {
-                self.print_type(state, ty.types[0].clone())?;
+            if rec_group.types.len() == 1 {
+                self.print_type(state, rec_group.types[0].clone())?;
             } else {
-                self.print_rec(state, offset, ty)?;
+                self.print_rec(state, offset, rec_group)?;
             }
         }
 

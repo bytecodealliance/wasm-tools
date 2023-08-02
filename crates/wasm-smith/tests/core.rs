@@ -129,8 +129,8 @@ fn smoke_test_imports_config() {
                 let payload = payload.unwrap();
                 if let wasmparser::Payload::TypeSection(rdr) = payload {
                     // Gather the signature types to later check function types against.
-                    for ty in rdr {
-                        for ty in ty.unwrap().types {
+                    for rec_group in rdr {
+                        for ty in rec_group.unwrap().types {
                             match ty.structural_type {
                                 wasmparser::StructuralType::Func(ft) => sig_types.push(ft),
                                 wasmparser::StructuralType::Array(_) => {
