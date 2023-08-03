@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 anyhow.workspace = true
 wasm-compose = { path = "../wasm-compose" }
+wasm-encoder = { path = "../wasm-encoder" }
+wasmparser = { path = "../wasmparser" }
 wasmprinter = { path = "../wasmprinter" }
 warg-crypto = { path = "../../../../registry/crates/crypto" }
 warg-client = { path = "../../../../registry/crates/client" }

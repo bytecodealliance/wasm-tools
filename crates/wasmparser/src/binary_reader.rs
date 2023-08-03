@@ -26,17 +26,19 @@ pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 /// A binary reader for WebAssembly modules.
 #[derive(Debug, Clone)]
 pub struct BinaryReaderError {
-    // Wrap the actual error data in a `Box` so that the error is just one
-    // word. This means that we can continue returning small `Result`s in
-    // registers.
-    pub(crate) inner: Box<BinaryReaderErrorInner>,
+    /// Wrap the actual error data in a `Box` so that the error is just one
+    /// word. This means that we can continue returning small `Result`s in
+    /// registers.
+    pub inner: Box<BinaryReaderErrorInner>,
 }
 
+/// Inner Error
 #[derive(Debug, Clone)]
-pub(crate) struct BinaryReaderErrorInner {
+pub struct BinaryReaderErrorInner {
     pub(crate) message: String,
     pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
+    ///Hint Needed
+    pub needed_hint: Option<usize>,
 }
 
 /// The result for `BinaryReader` operations.
@@ -56,7 +58,8 @@ impl fmt::Display for BinaryReaderError {
 
 impl BinaryReaderError {
     #[cold]
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
+    /// New Binary Reader Error
+    pub fn new(message: impl Into<String>, offset: usize) -> Self {
         let message = message.into();
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
@@ -67,8 +70,9 @@ impl BinaryReaderError {
         }
     }
 
+    /// Format
     #[cold]
-    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
+    pub fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
         BinaryReaderError::new(args.to_string(), offset)
     }
 
@@ -102,8 +106,10 @@ impl BinaryReaderError {
 /// A binary reader of the WebAssembly structures and types.
 #[derive(Clone, Debug, Hash)]
 pub struct BinaryReader<'a> {
-    pub(crate) buffer: &'a [u8],
-    pub(crate) position: usize,
+    ///Reader Buffer
+    pub buffer: &'a [u8],
+    ///Reader Position
+    pub position: usize,
     original_offset: usize,
     allow_memarg64: bool,
 }
@@ -1514,7 +1520,8 @@ impl<'a> BinaryReader<'a> {
         Ok(V128(bytes))
     }
 
-    pub(crate) fn read_header_version(&mut self) -> Result<u32> {
+    /// Read Header Version
+    pub fn read_header_version(&mut self) -> Result<u32> {
         let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
             return Err(BinaryReaderError::new(

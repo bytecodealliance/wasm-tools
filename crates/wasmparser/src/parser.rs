@@ -50,15 +50,25 @@ pub enum Encoding {
 pub struct Parser {
     state: State,
     offset: u64,
-    max_size: u64,
+    /// Max Size
+    pub max_size: u64,
     encoding: Encoding,
 }
 
+///State
 #[derive(Debug, Clone)]
-enum State {
+pub enum State {
+    ///Header
     Header,
+    ///Section Start
     SectionStart,
-    FunctionBody { remaining: u32, len: u32 },
+    /// Function Body
+    FunctionBody {
+        /// Remaining
+        remaining: u32,
+        /// Length
+        len: u32,
+    },
 }
 
 /// A successful return payload from [`Parser::parse`].
@@ -311,10 +321,12 @@ const DATA_SECTION: u8 = 11;
 const DATA_COUNT_SECTION: u8 = 12;
 const TAG_SECTION: u8 = 13;
 
-const COMPONENT_MODULE_SECTION: u8 = 1;
+/// COMPONENT MODULE SECTION
+pub const COMPONENT_MODULE_SECTION: u8 = 1;
 const COMPONENT_CORE_INSTANCE_SECTION: u8 = 2;
 const COMPONENT_CORE_TYPE_SECTION: u8 = 3;
-const COMPONENT_SECTION: u8 = 4;
+/// COMPONENT SECTION
+pub const COMPONENT_SECTION: u8 = 4;
 const COMPONENT_INSTANCE_SECTION: u8 = 5;
 const COMPONENT_ALIAS_SECTION: u8 = 6;
 const COMPONENT_TYPE_SECTION: u8 = 7;
@@ -827,6 +839,7 @@ impl Parser {
                 }
             };
 
+            dbg!("THIS FAR");
             match &payload {
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
@@ -918,7 +931,7 @@ fn usize_to_u64(a: usize) -> u64 {
 ///
 /// Requires that `len` bytes are resident in `reader` and uses `ctor`/`variant`
 /// to construct the section to return.
-fn section<'a, T>(
+pub fn section<'a, T>(
     reader: &mut BinaryReader<'a>,
     len: u32,
     ctor: fn(&'a [u8], usize) -> Result<T>,
@@ -934,7 +947,7 @@ fn section<'a, T>(
 }
 
 /// Reads a section that is represented by a single uleb-encoded `u32`.
-fn single_item<'a, T>(
+pub fn single_item<'a, T>(
     reader: &mut BinaryReader<'a>,
     len: u32,
     desc: &str,
@@ -962,7 +975,7 @@ where
 /// This will update `*len` with the number of bytes consumed, and it will cause
 /// a failure to be returned instead of the number of bytes consumed exceeds
 /// what `*len` currently is.
-fn delimited<'a, T>(
+pub fn delimited<'a, T>(
     reader: &mut BinaryReader<'a>,
     len: &mut u32,
     f: impl FnOnce(&mut BinaryReader<'a>) -> Result<T>,

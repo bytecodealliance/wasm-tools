@@ -179,7 +179,6 @@ impl<'a> ComponentExternName<'a> {
 impl<'a> FromReader<'a> for ComponentExternName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let byte1 = reader.read_u8()?;
-        dbg!("THIS RIGHT HERE");
         Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
@@ -208,25 +207,25 @@ fn read_impl_import<'a>(
             name,
             location,
             integrity: integrity_or_range,
-            range: ""
+            range: "",
         }),
         0x03 => ImplementationImport::Relative(ImportMetadata {
             name,
             location,
             integrity: integrity_or_range,
-            range: ""
+            range: "",
         }),
         0x04 => ImplementationImport::Locked(ImportMetadata {
             name,
             location,
             integrity: integrity_or_range,
-            range: ""
+            range: "",
         }),
         0x05 => ImplementationImport::Unlocked(ImportMetadata {
             name,
             location,
             integrity: "",
-            range: integrity_or_range
+            range: integrity_or_range,
         }),
         x => reader.invalid_leading_byte(x, "implementation import")?,
     })

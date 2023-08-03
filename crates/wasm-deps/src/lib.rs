@@ -1,10 +1,13 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use wasmparser::{Encoding, Parser, Payload, SubType, ComponentTypeSectionReader, ComponentType, ComponentTypeDeclaration, Chunk, ComponentExternName, ComponentImportSectionReader, ComponentImport};
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
+use wasmparser::{
+    Chunk, ComponentImport, ComponentImportSectionReader, ComponentType, ComponentTypeDeclaration,
+    ComponentTypeSectionReader, Encoding, Parser, Payload, SubType,
+};
 
 pub struct DepsParser<'a> {
-  name: &'a str
+    name: &'a str,
 }
 
 pub struct State {
@@ -58,73 +61,66 @@ struct Naming {
     _name: String,
 }
 
-impl <'a> DepsParser<'a> {
+impl<'a> DepsParser<'a> {
     pub fn new() -> Self {
-      Self {
-        name: "foo"
-      }
+        Self { name: "foo" }
     }
     pub fn parse_type_imports(
-      &mut self,
-      _states: &mut Vec<State>,
-      parser: ComponentTypeSectionReader,
-      deps: &mut Vec<String>
-    ) -> Result<()>{
-      for ty in parser.into_iter_with_offsets() {
-          let (_offset, ty) = ty?;
-          match ty {
-            ComponentType::Component(decls) => {
-              dbg!("COMPONENT TYPE");
-              for decl in decls.into_vec() {
-                match decl {
-                  ComponentTypeDeclaration::Type(ty) => {
-                    match ty {
-                      ComponentType::Component(cdecls) => {
-                        for cdecl in cdecls.into_vec() {
-                          dbg!(&cdecl);
-                          match cdecl {
-                            ComponentTypeDeclaration::Import(import) => {
-                              let name = import.name.as_str().to_owned();
-                              deps.push(name);
-                            }
-                            _ => {
-                              dbg!("OTHER");
-                            }
-                          }
+        &mut self,
+        _states: &mut Vec<State>,
+        parser: ComponentTypeSectionReader,
+        deps: &mut Vec<String>,
+    ) -> Result<()> {
+        for ty in parser.into_iter_with_offsets() {
+            let (_offset, ty) = ty?;
+            match ty {
+                ComponentType::Component(decls) => {
+                    dbg!("COMPONENT TYPE");
+                    for decl in decls.into_vec() {
+                        match decl {
+                            ComponentTypeDeclaration::Type(ty) => match ty {
+                                ComponentType::Component(cdecls) => {
+                                    for cdecl in cdecls.into_vec() {
+                                        dbg!(&cdecl);
+                                        match cdecl {
+                                            ComponentTypeDeclaration::Import(import) => {
+                                                let name = import.name.as_str().to_owned();
+                                                deps.push(name);
+                                            }
+                                            _ => {
+                                                dbg!("OTHER");
+                                            }
+                                        }
+                                    }
+                                }
+                                ComponentType::Instance(idecls) => {
+                                    for idecl in idecls.into_vec() {
+                                        dbg!(idecl);
+                                    }
+                                }
+                                _ => {}
+                            },
+                            ComponentTypeDeclaration::Import(import) => {}
+                            _ => {}
                         }
-                      }
-                      ComponentType::Instance(idecls) => {
-                        for idecl in idecls.into_vec() {
-                          dbg!(idecl);
-                        }
-                      }
-                      _ => {}
                     }
-                  }
-                  ComponentTypeDeclaration::Import(import) => {
-                  }
-                  _ => {}
                 }
-              }
+                _ => {}
             }
-            _ => {}
-          }
-      }
-      Ok(())
+        }
+        Ok(())
     }
     pub fn parse_imports(
-      &mut self,
-      _states: &mut Vec<State>,
-      parser: ComponentImportSectionReader<'a>,
-      deps: &mut Vec<ComponentImport<'a>>
-    )
-     -> Result<Vec<ComponentImport<'a>>>
-      {
-      for import in parser.into_iter_with_offsets() {
-        let (_, imp) = import.unwrap().clone();
-        deps.push(imp);
-      }
-      Ok(deps.to_vec())
+        &mut self,
+        _states: &mut Vec<State>,
+        parser: ComponentImportSectionReader<'a>,
+        deps: &mut Vec<ComponentImport<'a>>,
+    ) -> Result<Vec<ComponentImport<'a>>> {
+        for import in parser.into_iter_with_offsets() {
+            let (_, imp) = import.unwrap().clone();
+            deps.push(imp);
+        }
+        Ok(deps.to_vec())
     }
     pub fn parse(&mut self, mut bytes: &'a [u8]) -> Result<Vec<ComponentImport<'a>>> {
         let mut parser = Parser::new(0);
@@ -147,25 +143,34 @@ impl <'a> DepsParser<'a> {
                 //   // dbg!(deps);
                 // }
                 Payload::ComponentImportSection(s) => {
-                  let parsed = self.parse_imports(&mut states, s, &mut deps);
+                    let parsed = self.parse_imports(&mut states, s, &mut deps);
                 }
-                Payload::CodeSectionStart{count: _, range: _, size: _} => {
-                  parser.skip_section();
+                Payload::CodeSectionStart {
+                    count: _,
+                    range: _,
+                    size: _,
+                } => {
+                    parser.skip_section();
                 }
-                Payload::ModuleSection{ parser, range } => {
-                  let offset = range.end - range.start;
+                Payload::ModuleSection { parser, range } => {
+                    let offset = range.end - range.start;
+                    if offset > bytes.len() {
+                        bail!("invalid module or component section range");
+                    }
+                    bytes = &bytes[offset..];
+                }
+                Payload::ComponentSection { parser, range } => {
+                    let offset = range.end - range.start;
                     if offset > bytes.len() {
                         bail!("invalid module or component section range");
                     }
                     bytes = &bytes[offset..];
                 }
                 Payload::End(_) => {
-                  dbg!("PAYLOAD END");
-                  break
+                    dbg!("PAYLOAD END");
+                    break;
                 }
-                _ => {
-
-                }
+                _ => {}
             }
         }
         Ok(deps)
@@ -176,6 +181,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-    }
+    fn it_works() {}
 }

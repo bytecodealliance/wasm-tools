@@ -717,7 +717,8 @@ pub use crate::validator::*;
 
 mod binary_reader;
 mod limits;
-mod parser;
+///Parser
+pub mod parser;
 mod readers;
 mod resources;
 mod validator;

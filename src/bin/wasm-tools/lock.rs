@@ -3,7 +3,7 @@ use std::io::Write;
 use std::ops::Range;
 use termcolor::WriteColor;
 use wasmparser::{Encoding, Parser, Payload::*};
-use wasm_bundle::Bundler;
+use wasm_lock;
 
 /// Dumps information about sections in a WebAssembly file.
 ///
@@ -21,14 +21,10 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        dbg!("BUNDELING");
         let input = self.io.parse_input_wasm()?;
-        // let mut parser = wasm_deps::DepsParser::new();
-        let mut parser = Parser::new(0);
-        let component = parser.parse(&input, true);
-        // let deps = parser.parse(&input);
-        // let mut bundler = Bundler::new(0);
-        // bundler.parse(&input);
+        let mut parser = wasm_deps::DepsParser::new();
+        let deps = parser.parse(&input);
+        dbg!(deps);
 
 
         Ok(())

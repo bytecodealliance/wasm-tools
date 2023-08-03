@@ -204,7 +204,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
-                    range: _
+                    range: _,
                 }) => {
                     sink.push(0x02);
                     name.encode(sink);
@@ -217,7 +217,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
-                    range: _
+                    range: _,
                 }) => {
                     sink.push(0x03);
                     name.encode(sink);
@@ -230,7 +230,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
-                    range: _
+                    range: _,
                 }) => {
                     sink.push(0x04);
                     name.encode(sink);
@@ -243,7 +243,7 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity: _,
-                    range
+                    range,
                 }) => {
                     sink.push(0x05);
                     name.encode(sink);
