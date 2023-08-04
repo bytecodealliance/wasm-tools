@@ -1,5 +1,9 @@
-use bindings::example::service::handler as downstream;
-use bindings::exports::example::service::handler::{Error, Handler, Request, Response};
+cargo_component_bindings::generate!();
+
+use bindings::{
+    example::service::handler as downstream,
+    exports::example::service::handler::{Error, Handler, Request, Response},
+};
 use flate2::{write::GzEncoder, Compression};
 use std::io::Write;
 
@@ -44,5 +48,3 @@ impl Handler for Component {
         Ok(response)
     }
 }
-
-bindings::export!(Component);
