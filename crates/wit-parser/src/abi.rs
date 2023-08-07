@@ -87,7 +87,7 @@ impl Resolve {
         let mut params = Vec::new();
         let mut indirect_params = false;
         for (_, param) in func.params.iter() {
-            self.push_wasm(variant, param, &mut params);
+            self.push_flat(param, &mut params);
         }
 
         if params.len() > MAX_FLAT_PARAMS {
@@ -98,7 +98,7 @@ impl Resolve {
 
         let mut results = Vec::new();
         for ty in func.results.iter_types() {
-            self.push_wasm(variant, ty, &mut results)
+            self.push_flat(ty, &mut results)
         }
 
         let mut retptr = false;
@@ -128,7 +128,9 @@ impl Resolve {
         }
     }
 
-    fn push_wasm(&self, variant: AbiVariant, ty: &Type, result: &mut Vec<WasmType>) {
+    /// Appends the flat wasm types representing `ty` onto the `result`
+    /// list provided.
+    pub fn push_flat(&self, ty: &Type, result: &mut Vec<WasmType>) {
         match ty {
             Type::Bool
             | Type::S8
@@ -148,7 +150,7 @@ impl Resolve {
             }
 
             Type::Id(id) => match &self.types[*id].kind {
-                TypeDefKind::Type(t) => self.push_wasm(variant, t, result),
+                TypeDefKind::Type(t) => self.push_flat(t, result),
 
                 TypeDefKind::Handle(Handle::Own(_) | Handle::Borrow(_)) => {
                     result.push(WasmType::I32);
@@ -158,13 +160,13 @@ impl Resolve {
 
                 TypeDefKind::Record(r) => {
                     for field in r.fields.iter() {
-                        self.push_wasm(variant, &field.ty, result);
+                        self.push_flat(&field.ty, result);
                     }
                 }
 
                 TypeDefKind::Tuple(t) => {
                     for ty in t.types.iter() {
-                        self.push_wasm(variant, ty, result);
+                        self.push_flat(ty, result);
                     }
                 }
 
@@ -181,24 +183,24 @@ impl Resolve {
 
                 TypeDefKind::Variant(v) => {
                     result.push(v.tag().into());
-                    self.push_wasm_variants(variant, v.cases.iter().map(|c| c.ty.as_ref()), result);
+                    self.push_flat_variants(v.cases.iter().map(|c| c.ty.as_ref()), result);
                 }
 
                 TypeDefKind::Enum(e) => result.push(e.tag().into()),
 
                 TypeDefKind::Option(t) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, [None, Some(t)], result);
+                    self.push_flat_variants([None, Some(t)], result);
                 }
 
                 TypeDefKind::Result(r) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, [r.ok.as_ref(), r.err.as_ref()], result);
+                    self.push_flat_variants([r.ok.as_ref(), r.err.as_ref()], result);
                 }
 
                 TypeDefKind::Union(u) => {
                     result.push(WasmType::I32);
-                    self.push_wasm_variants(variant, u.cases.iter().map(|c| Some(&c.ty)), result);
+                    self.push_flat_variants(u.cases.iter().map(|c| Some(&c.ty)), result);
                 }
 
                 TypeDefKind::Future(_) => {
@@ -214,9 +216,8 @@ impl Resolve {
         }
     }
 
-    fn push_wasm_variants<'a>(
+    fn push_flat_variants<'a>(
         &self,
-        variant: AbiVariant,
         tys: impl IntoIterator<Item = Option<&'a Type>>,
         result: &mut Vec<WasmType>,
     ) {
@@ -231,7 +232,7 @@ impl Resolve {
         // `i32` might be the `f32` bitcasted.
         for ty in tys {
             if let Some(ty) = ty {
-                self.push_wasm(variant, ty, &mut temp);
+                self.push_flat(ty, &mut temp);
 
                 for (i, ty) in temp.drain(..).enumerate() {
                     match result.get_mut(start + i) {
