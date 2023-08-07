@@ -73,7 +73,9 @@
 
 use crate::encoding::world::WorldAdapter;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
-use crate::validation::{ValidatedModule, BARE_FUNC_MODULE_NAME, MAIN_MODULE_IMPORT_NAME};
+use crate::validation::{
+    ValidatedModule, BARE_FUNC_MODULE_NAME, MAIN_MODULE_IMPORT_NAME, POST_RETURN_PREFIX,
+};
 use crate::StringEncoding;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -1106,6 +1108,10 @@ impl<'a> EncodingState<'a> {
             CustomModule::Main => &self.info.encoder.metadata.metadata,
             CustomModule::Adapter(name) => &self.info.encoder.adapters[name].metadata,
         };
+        let post_returns = match module {
+            CustomModule::Main => &self.info.info.post_returns,
+            CustomModule::Adapter(name) => &self.info.adapters[name].0.post_returns,
+        };
         let instance_index = match module {
             CustomModule::Main => self.instance_index.expect("instantiated by now"),
             CustomModule::Adapter(name) => self.adapter_instances[name],
@@ -1130,12 +1136,11 @@ impl<'a> EncodingState<'a> {
 
         // TODO: This should probe for the existence of
         // `cabi_post_{name}` but not require its existence.
-        if resolve.guest_export_needs_post_return(func) {
-            let post_return = self.component.core_alias_export(
-                instance_index,
-                &format!("cabi_post_{core_name}"),
-                ExportKind::Func,
-            );
+        let post_return = format!("{POST_RETURN_PREFIX}{core_name}");
+        if post_returns.contains(&post_return[..]) {
+            let post_return =
+                self.component
+                    .core_alias_export(instance_index, &post_return, ExportKind::Func);
             options.push(CanonicalOption::PostReturn(post_return));
         }
         let func_index = self.component.lift_func(core_func_index, ty, options);
