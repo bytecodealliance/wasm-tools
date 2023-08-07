@@ -1,0 +1,19 @@
+package a:b
+
+interface name {
+  union name2 {
+    u16,
+    list<string>,
+  }
+
+  union name {
+    list<string>,
+  }
+}
+
+world module {
+  import name
+  use name.{name}
+
+  export name
+}
