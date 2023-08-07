@@ -1134,8 +1134,6 @@ impl<'a> EncodingState<'a> {
             .into_iter(encoding, self.memory_index, realloc_index)?
             .collect::<Vec<_>>();
 
-        // TODO: This should probe for the existence of
-        // `cabi_post_{name}` but not require its existence.
         let post_return = format!("{POST_RETURN_PREFIX}{core_name}");
         if post_returns.contains(&post_return[..]) {
             let post_return =
