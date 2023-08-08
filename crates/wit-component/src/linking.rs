@@ -193,6 +193,10 @@ fn get_and_increment(n: &mut u32) -> u32 {
     v
 }
 
+fn const_u32(a: u32) -> ConstExpr {
+    ConstExpr::i32_const(a as i32)
+}
+
 /// Synthesize the "main" module for the component, responsible for exporting functions which break cyclic
 /// dependencies, as well as hosting the memory and function table.
 fn make_env_module<'a>(
@@ -262,7 +266,7 @@ fn make_env_module<'a>(
                     val_type: ValType::I32,
                     mutable,
                 },
-                &ConstExpr::i32_const(i32::try_from(value).unwrap()),
+                &const_u32(value),
             );
             exports.export(name, ExportKind::Global, index);
         };
@@ -618,12 +622,12 @@ fn make_init_module(
         let mut elements = ElementSection::new();
         elements.active(
             Some(0),
-            &ConstExpr::i32_const(i32::try_from(dl_openables.table_base).unwrap()),
+            &const_u32(dl_openables.table_base),
             Elements::Functions(&dl_openable_functions),
         );
         elements.active(
             Some(0),
-            &ConstExpr::i32_const(i32::try_from(indirection_table_base).unwrap()),
+            &const_u32(indirection_table_base),
             Elements::Functions(&indirections),
         );
         module.section(&elements);
@@ -645,11 +649,7 @@ fn make_init_module(
     }
 
     let mut data = DataSection::new();
-    data.active(
-        0,
-        &ConstExpr::i32_const(i32::try_from(dl_openables.memory_base).unwrap()),
-        dl_openables.buffer,
-    );
+    data.active(0, &const_u32(dl_openables.memory_base), dl_openables.buffer);
     module.section(&data);
 
     module.section(&RawCustomSection(
