@@ -222,9 +222,11 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
     let info = ComponentInfo::new(bytes)?;
 
     if info.is_wit_package() {
+        log::debug!("decoding a WIT package encoded as wasm");
         let (resolve, pkg) = info.decode_wit_package()?;
         Ok(DecodedWasm::WitPackage(resolve, pkg))
     } else {
+        log::debug!("inferring the WIT of a concrete component");
         let (resolve, world) = info.decode_component()?;
         Ok(DecodedWasm::Component(resolve, world))
     }
@@ -311,6 +313,7 @@ impl WitPackageDecoder<'_> {
         package: &mut Package,
     ) -> Result<()> {
         let name = import.name.as_str();
+        log::debug!("decoding component import `{name}`");
         let ty = self
             .info
             .types
@@ -359,6 +362,7 @@ impl WitPackageDecoder<'_> {
         package: &mut Package,
     ) -> Result<()> {
         let name = export.name.as_str();
+        log::debug!("decoding component export `{name}`");
         let types = &self.info.types;
         let ty = types.component_entity_type_of_export(name).unwrap();
         let (name, item) = match ty {
@@ -409,6 +413,7 @@ impl WitPackageDecoder<'_> {
         };
         let owner = TypeOwner::Interface(interface);
         for (name, ty) in ty.exports.iter() {
+            log::debug!("decoding import instance export `{name}`");
             match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
@@ -437,6 +442,7 @@ impl WitPackageDecoder<'_> {
                         // is not strictly necessary but assists with
                         // roundtripping assertions during fuzzing.
                         Some(id) => {
+                            log::debug!("type already exist");
                             match &self.info.types[referenced] {
                                 types::Type::Defined(ty) => self.register_defined(id, ty)?,
                                 types::Type::Resource(_) => {}
@@ -694,17 +700,23 @@ impl WitPackageDecoder<'_> {
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
             // prior definition.
-            Some(prev) => TypeDefKind::Type(Type::Id(prev)),
+            Some(prev) => {
+                log::debug!("type export for `{name}` is an alias");
+                TypeDefKind::Type(Type::Id(prev))
+            }
 
             // ... or this `TypeId`'s source definition has never
             // been seen before, so declare the full type.
-            None => match &self.info.types[referenced] {
-                types::Type::Defined(ty) => self
-                    .convert_defined(ty)
-                    .context("failed to convert unaliased type")?,
-                types::Type::Resource(_) => TypeDefKind::Resource,
-                _ => unreachable!(),
-            },
+            None => {
+                log::debug!("type export for `{name}` is a new type");
+                match &self.info.types[referenced] {
+                    types::Type::Defined(ty) => self
+                        .convert_defined(ty)
+                        .context("failed to convert unaliased type")?,
+                    types::Type::Resource(_) => TypeDefKind::Resource,
+                    _ => unreachable!(),
+                }
+            }
         };
         let ty = self.resolve.types.alloc(TypeDef {
             name: Some(name.to_string()),
@@ -1318,27 +1330,107 @@ impl Registrar<'_> {
     }
 
     fn valtype(&mut self, wasm: &types::ComponentValType, wit: &Type) -> Result<()> {
-        match wasm {
+        let wasm = match wasm {
+            types::ComponentValType::Type(wasm) => *wasm,
             types::ComponentValType::Primitive(_wasm) => {
                 assert!(!matches!(wit, Type::Id(_)));
-                Ok(())
+                return Ok(());
             }
-            types::ComponentValType::Type(wasm) => {
-                let wit = match wit {
-                    Type::Id(id) => *id,
-                    _ => bail!("expected id-based type"),
-                };
-                match self.type_map.insert(*wasm, wit) {
-                    Some(prev) => {
-                        assert_eq!(prev, wit);
-                        Ok(())
-                    }
-                    None => {
-                        let wasm = self.types[*wasm].unwrap_defined();
-                        self.defined(wit, wasm)
-                    }
-                }
+        };
+        let wit = match wit {
+            Type::Id(id) => *id,
+            _ => bail!("expected id-based type"),
+        };
+        let prev = match self.type_map.insert(wasm, wit) {
+            Some(prev) => prev,
+            None => {
+                let wasm = self.types[wasm].unwrap_defined();
+                return self.defined(wit, wasm);
             }
-        }
+        };
+        // If `wit` matches `prev` then we've just rediscovered what we already
+        // knew which is that the `wasm` id maps to the `wit` id.
+        //
+        // If, however, `wit` is not equal to `prev` then that's more
+        // interesting. Consider a component such as:
+        //
+        // ```wasm
+        // (component
+        //   (import (interface "a:b/name") (instance
+        //      (type $l (list string))
+        //      (type $foo (union $l))
+        //      (export "foo" (type (eq $foo)))
+        //   ))
+        //   (component $c
+        //     (type $l (list string))
+        //     (type $bar (union u16 $l))
+        //     (export "bar" (type $bar))
+        //     (type $foo (union $l))
+        //     (export "foo" (type $foo))
+        //   )
+        //   (instance $i (instantiate $c))
+        //   (export (interface "a:b/name") (instance $i))
+        // )
+        // ```
+        //
+        // This roughly corresponds to:
+        //
+        // ```wit
+        // package a:b
+        //
+        // interface name {
+        //   union bar {
+        //     u16,
+        //     list<string>,
+        //   }
+        //
+        //   union foo {
+        //     list<string>,
+        //   }
+        // }
+        //
+        // world module {
+        //   import name
+        //   export name
+        // }
+        // ```
+        //
+        // In this situation first we'll see the `import` which records type
+        // information for the `foo` type in `interface name`. Later on the full
+        // picture of `interface name` becomes apparent with the export of a
+        // component which has full type information. When walking over this
+        // first `bar` is seen and its recursive structure.
+        //
+        // The problem arises when walking over the `foo` type. In this
+        // situation the code path we're currently on will be hit because
+        // there's a preexisting definition of `foo` from the import and it's
+        // now going to be unified with what we've seen in the export. When
+        // visiting the `list<string>` field of the `foo` union this ends up
+        // being different than the `list<string>` used by the `bar` union. The
+        // reason for this is that when visiting `var` the wasm-defined `(list
+        // string)` hasn't been seen before so a new type is allocated. Later
+        // though this same wasm type is unified with the first `(list string)`
+        // type in the `import`.
+        //
+        // All-in-all this ends up meaning that it's possible for `prev` to not
+        // match `wit`. In this situation it means the decoded WIT interface
+        // will have duplicate definitions of `list<string>`. This is,
+        // theoretically, not that big of a problem because the same underlying
+        // definition is still there and the meaning of the type is the same.
+        // This can, however, perhaps be a problem for consumers where it's
+        // assumed that all `list<string>` are equal and there's only one. For
+        // example a bindings generator for C may assume that `list<string>`
+        // will only appear once and generate a single name for it, but with two
+        // different types in play here it may generate two types of the same
+        // name (or something like that).
+        //
+        // For now though this is left for a future refactoring. Fixing this
+        // issue would require tracking anonymous types during type translation
+        // so the decoding process for the `bar` export would reuse the
+        // `list<string>` type created from decoding the `foo` import. That's
+        // somewhat nontrivial at this time, so it's left for a future
+        // refactoring.
+        let _ = prev;
+        Ok(())
     }
 }
