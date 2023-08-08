@@ -1,14 +1,17 @@
 use {
     anyhow::{Context, Result},
     std::{borrow::Cow, path::Path},
-    wasm_encoder::{CustomSection, Encode as _, Module, RawSection},
-    wasmparser::Parser,
+    wasm_encoder::{CustomSection, Encode as _, Section as _},
     wit_component::StringEncoding,
     wit_parser::{Resolve, UnresolvedPackage},
 };
 
 const FOO: &str = r#"
 (module
+  (@dylink.0
+    (mem-info (memory 4 4))
+    (needed "libc.so")
+  )
   (type (func))
   (type (func (param i32) (result i32)))
   (import "env" "memory" (memory 1))
@@ -63,6 +66,10 @@ const FOO: &str = r#"
 
 const BAR: &str = r#"
 (module
+  (@dylink.0
+    (mem-info (memory 20 4))
+    (needed "libfoo.so")
+  )
   (type (func (param i32) (result i32)))
   (type (func))
   (import "env" "memory" (memory 1))
@@ -91,6 +98,7 @@ const BAR: &str = r#"
 
 const LIBC: &str = r#"
 (module
+  (@dylink.0)
   (type (func))
   (type (func (param i32) (result i32)))
   (import "GOT.mem" "__heap_base" (global $__heap_base (mut i32)))
@@ -129,57 +137,8 @@ world bar {
 }
 "#;
 
-struct MemInfo {
-    memory_size: u32,
-    memory_alignment: u32,
-    table_size: u32,
-    table_alignment: u32,
-}
-
-fn encode(
-    wat: &str,
-    mem_info: &MemInfo,
-    needed_libs: &[&str],
-    wit: Option<&str>,
-) -> Result<Vec<u8>> {
-    const WASM_DYLINK_MEM_INFO: u8 = 1;
-    const WASM_DYLINK_NEEDED: u8 = 2;
-
-    let module = wat::parse_str(wat)?;
-
-    let mut mem_info_subsection = Vec::new();
-    mem_info.memory_size.encode(&mut mem_info_subsection);
-    mem_info.memory_alignment.encode(&mut mem_info_subsection);
-    mem_info.table_size.encode(&mut mem_info_subsection);
-    mem_info.table_alignment.encode(&mut mem_info_subsection);
-
-    let mut needed_subsection = Vec::new();
-    needed_libs.len().encode(&mut needed_subsection);
-    for needed in needed_libs {
-        needed.encode(&mut needed_subsection);
-    }
-
-    let mut dylink0 = Vec::new();
-    dylink0.push(WASM_DYLINK_MEM_INFO);
-    mem_info_subsection.encode(&mut dylink0);
-    dylink0.push(WASM_DYLINK_NEEDED);
-    needed_subsection.encode(&mut dylink0);
-
-    let mut result = Module::new();
-
-    result.section(&CustomSection {
-        name: Cow::Borrowed("dylink.0"),
-        data: Cow::Borrowed(&dylink0),
-    });
-
-    for payload in Parser::new(0).parse_all(&module) {
-        if let Some((id, range)) = payload?.as_section() {
-            result.section(&RawSection {
-                id,
-                data: &module[range],
-            });
-        }
-    }
+fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
+    let mut module = wat::parse_str(wat)?;
 
     if let Some(wit) = wit {
         let mut resolve = Resolve::default();
@@ -188,13 +147,14 @@ fn encode(
         let component_type =
             wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8, None)?;
 
-        result.section(&CustomSection {
+        let section = CustomSection {
             name: Cow::Borrowed("component-type"),
             data: Cow::Borrowed(&component_type),
-        });
-    }
+        };
 
-    let module = result.finish();
+        module.push(section.id());
+        section.encode(&mut module);
+    }
 
     wasmparser::validate(&module)?;
 
@@ -204,28 +164,17 @@ fn encode(
 #[test]
 fn linking() -> Result<()> {
     let component = [
-        ("libfoo.so", FOO, 4, &["libc.so"] as &[_], None),
-        ("libbar.so", BAR, 20, &["libfoo.so"] as &[_], Some(WIT)),
-        ("libc.so", LIBC, 0, &[] as &[_], None),
+        ("libfoo.so", FOO, None),
+        ("libbar.so", BAR, Some(WIT)),
+        ("libc.so", LIBC, None),
     ]
     .into_iter()
     .try_fold(
         wit_component::Linker::default().validate(true),
-        |linker, (name, wat, memory_size, needed_libs, wit)| {
+        |linker, (name, wat, wit)| {
             linker.library(
                 name,
-                &encode(
-                    wat,
-                    &MemInfo {
-                        memory_size,
-                        memory_alignment: 4,
-                        table_size: 0,
-                        table_alignment: 0,
-                    },
-                    needed_libs,
-                    wit,
-                )
-                .with_context(|| name.to_owned())?,
+                &encode(wat, wit).with_context(|| name.to_owned())?,
                 false,
             )
         },
