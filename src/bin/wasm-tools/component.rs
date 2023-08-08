@@ -281,8 +281,24 @@ pub struct LinkOpts {
     #[clap(long, value_name = "[NAME=]MODULE", value_parser = parse_library)]
     dl_openable: Vec<(String, Vec<u8>)>,
 
+    /// The path to an adapter module to satisfy imports not otherwise bound to
+    /// WIT interfaces.
+    ///
+    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
+    /// ABI, for example, to one that uses the component model. The first
+    /// `[NAME=]` specified in the argument is inferred from the name of file
+    /// specified by `MODULE` if not present and is the name of the import
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
+    ///
+    /// The second part of this argument, optionally specified, is the interface
+    /// that this adapter module imports. If not specified then the interface
+    /// imported is inferred from the adapter module itself.
     #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
     adapters: Vec<(String, Vec<u8>)>,
+
+    /// Size of stack (in bytes) to allocate in the synthesized main module
+    #[clap(long)]
+    stack_size: Option<u32>,
 
     #[clap(flatten)]
     output: wasm_tools::OutputArg,
@@ -313,6 +329,10 @@ impl LinkOpts {
         let mut linker = Linker::default()
             .validate(!self.skip_validation)
             .stub_missing_functions(self.stub_missing_functions);
+
+        if let Some(stack_size) = self.stack_size {
+            linker = linker.stack_size(stack_size);
+        }
 
         for (name, wasm) in &self.inputs {
             linker = linker.library(name, wasm, false)?;

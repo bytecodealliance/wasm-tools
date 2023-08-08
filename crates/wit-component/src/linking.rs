@@ -44,7 +44,7 @@ mod metadata;
 
 const PAGE_SIZE_BYTES: u32 = 65536;
 // This matches the default stack size LLVM produces:
-const STACK_SIZE_BYTES: u32 = 16 * PAGE_SIZE_BYTES;
+pub const DEFAULT_STACK_SIZE_BYTES: u32 = 16 * PAGE_SIZE_BYTES;
 const HEAP_ALIGNMENT_BYTES: u32 = 16;
 
 enum Address<'a> {
@@ -199,6 +199,7 @@ fn make_env_module<'a>(
     metadata: &'a [Metadata<'a>],
     function_exports: &[(&str, &FunctionType, usize)],
     cabi_realloc_exporter: Option<&str>,
+    stack_size_bytes: u32,
 ) -> (Vec<u8>, DlOpenables<'a>, u32) {
     // TODO: deduplicate types
     let mut types = TypeSection::new();
@@ -233,7 +234,7 @@ fn make_env_module<'a>(
         }
     }
 
-    let mut memory_offset = STACK_SIZE_BYTES;
+    let mut memory_offset = stack_size_bytes;
     let mut table_offset = 0;
     let mut globals = GlobalSection::new();
     let mut exports = ExportSection::new();
@@ -266,7 +267,7 @@ fn make_env_module<'a>(
             exports.export(name, ExportKind::Global, index);
         };
 
-        add_global_export("__stack_pointer", STACK_SIZE_BYTES, true);
+        add_global_export("__stack_pointer", stack_size_bytes, true);
 
         for metadata in metadata {
             memory_offset = align(memory_offset, 2_u32.pow(metadata.mem_info.memory_alignment));
@@ -1062,6 +1063,11 @@ pub struct Linker {
 
     /// Whether to generate trapping stubs for any unresolved imports
     stub_missing_functions: bool,
+
+    /// Size of stack (in bytes) to allocate in the synthesized main module
+    ///
+    /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
+    stack_size: Option<u32>,
 }
 
 impl Linker {
@@ -1088,6 +1094,12 @@ impl Linker {
     /// Specify whether to validate the resulting component prior to returning it
     pub fn validate(mut self, validate: bool) -> Self {
         self.validate = validate;
+        self
+    }
+
+    /// Specify size of stack to allocate in the synthesized main module
+    pub fn stack_size(mut self, stack_size: u32) -> Self {
+        self.stack_size = Some(stack_size);
         self
     }
 
@@ -1219,8 +1231,12 @@ impl Linker {
 
         let env_function_exports = env_function_exports(&metadata, &exporters, &topo_sorted)?;
 
-        let (env_module, dl_openables, table_base) =
-            make_env_module(&metadata, &env_function_exports, cabi_realloc_exporter);
+        let (env_module, dl_openables, table_base) = make_env_module(
+            &metadata,
+            &env_function_exports,
+            cabi_realloc_exporter,
+            self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
+        );
 
         let mut encoder = ComponentEncoder::default()
             .validate(self.validate)
