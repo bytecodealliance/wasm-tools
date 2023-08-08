@@ -92,59 +92,55 @@ impl<'a> DlOpenables<'a> {
         let mut global_addresses = Vec::new();
         let mut libraries = metadata
             .iter()
-            .filter_map(|metadata| {
-                if metadata.dl_openable {
-                    let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
-                    write_bytes_padded(&mut buffer, metadata.name.as_bytes());
+            .filter(|metadata| metadata.dl_openable)
+            .map(|metadata| {
+                let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
+                write_bytes_padded(&mut buffer, metadata.name.as_bytes());
 
-                    let mut symbols = metadata
-                        .exports
-                        .iter()
-                        .map(|export| {
-                            let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
-                            write_bytes_padded(&mut buffer, export.key.name.as_bytes());
+                let mut symbols = metadata
+                    .exports
+                    .iter()
+                    .map(|export| {
+                        let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
+                        write_bytes_padded(&mut buffer, export.key.name.as_bytes());
 
-                            let address = if let Type::Function(_) = &export.key.ty {
-                                Address::Function(
-                                    table_base + get_and_increment(&mut function_count),
-                                )
-                            } else {
-                                Address::Global(export.key.name)
-                            };
+                        let address = match &export.key.ty {
+                            Type::Function(_) => Address::Function(
+                                table_base + get_and_increment(&mut function_count),
+                            ),
+                            Type::Global(_) => Address::Global(export.key.name),
+                        };
 
-                            (export.key.name, name_address, address)
-                        })
-                        .collect::<Vec<_>>();
+                        (export.key.name, name_address, address)
+                    })
+                    .collect::<Vec<_>>();
 
-                    symbols.sort_by_key(|(name, ..)| *name);
+                symbols.sort_by_key(|(name, ..)| *name);
 
-                    let start = buffer.len();
-                    for (name, name_address, address) in symbols {
-                        write_u32(&mut buffer, u32::try_from(name.len()).unwrap());
-                        write_u32(&mut buffer, name_address);
-                        match address {
-                            Address::Function(address) => write_u32(&mut buffer, address),
-                            Address::Global(name) => {
-                                global_addresses.push((
-                                    metadata.name,
-                                    name,
-                                    memory_base + u32::try_from(buffer.len()).unwrap(),
-                                ));
+                let start = buffer.len();
+                for (name, name_address, address) in symbols {
+                    write_u32(&mut buffer, u32::try_from(name.len()).unwrap());
+                    write_u32(&mut buffer, name_address);
+                    match address {
+                        Address::Function(address) => write_u32(&mut buffer, address),
+                        Address::Global(name) => {
+                            global_addresses.push((
+                                metadata.name,
+                                name,
+                                memory_base + u32::try_from(buffer.len()).unwrap(),
+                            ));
 
-                                write_u32(&mut buffer, 0);
-                            }
+                            write_u32(&mut buffer, 0);
                         }
                     }
-
-                    Some((
-                        metadata.name,
-                        name_address,
-                        metadata.exports.len(),
-                        memory_base + u32::try_from(start).unwrap(),
-                    ))
-                } else {
-                    None
                 }
+
+                (
+                    metadata.name,
+                    name_address,
+                    metadata.exports.len(),
+                    memory_base + u32::try_from(start).unwrap(),
+                )
             })
             .collect::<Vec<_>>();
 
