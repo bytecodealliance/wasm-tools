@@ -75,7 +75,7 @@ pub enum WastRetCore<'a> {
     RefNull(Option<HeapType<'a>>),
     /// A non-null externref is expected which should contain the specified
     /// value.
-    RefExtern(u32),
+    RefExtern(Option<u32>),
     /// A non-null anyref is expected which should contain the specified host value.
     RefHost(u32),
     /// A non-null funcref is expected.
