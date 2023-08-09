@@ -353,12 +353,17 @@ pub struct ValidatedAdapter<'a> {
 /// adapter module's original source. This means that the adapter module is
 /// already minimized and this is a double-check that the minimization pass
 /// didn't accidentally break the wasm module.
+///
+/// If `is_library` is true, we waive some of the constraints described above,
+/// allowing the module to import tables and globals, as well as import
+/// functions at the world level, not just at the interface level.
 pub fn validate_adapter_module<'a>(
     bytes: &[u8],
     resolve: &'a Resolve,
     world: WorldId,
     metadata: &'a ModuleMetadata,
     required: &IndexMap<String, FuncType>,
+    is_library: bool,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
     let mut import_funcs = IndexMap::new();
@@ -411,6 +416,8 @@ pub fn validate_adapter_module<'a>(
                             ret.needs_memory =
                                 Some((import.module.to_string(), import.name.to_string()));
                         }
+
+                        TypeRef::Global(_) | TypeRef::Table(_) if is_library => (),
 
                         _ => {
                             bail!("adapter module is only allowed to import functions and memories")
@@ -473,10 +480,12 @@ pub fn validate_adapter_module<'a>(
                 assert!(prev.is_none());
             }
             None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                bail!(
-                    "adapter module requires an import interface named `{}`",
-                    name
-                )
+                if !is_library {
+                    bail!(
+                        "adapter module requires an import interface named `{}`",
+                        name
+                    )
+                }
             }
         }
     }

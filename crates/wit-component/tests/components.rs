@@ -1,8 +1,8 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context, Error, Result};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
-use wit_component::{ComponentEncoder, DecodedWasm, StringEncoding, WitPrinter};
+use wit_component::{ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter};
 use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 /// Tests the encoding of components.
@@ -11,14 +11,23 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 ///
 /// The expected input files for a test case are:
 ///
-/// * [required] `module.wat` - contains the core module definition to be
-///   encoded as a component.
-/// * [required] `module.wit` - WIT package describing the interface of
-///   `module.wat`. Must have a `default world`
+/// * [required] `module.wat` *or* some combination of `lib-$name.wat` and
+///   `dlopen-lib-$name.wat` - contains the core module definition(s) to be
+///   encoded as a component.  If one or more `lib-$name.wat` and/or
+///   `dlopen-lib-$name.wat` files exist, they will be linked using `Linker`
+///   such that the `lib-` ones are not `dlopen`-able but the `dlopen-lib-` ones
+///   are.
+/// * [required] `module.wit` *or* `lib-$name.wat` and `dlopen-lib-$name.wat`
+///   corresponding to the WAT files above - WIT package(s) describing the
+///   interfaces of the `module.wat` or `lib-$name.wat` and
+///   `dlopen-lib-$name.wat` files. Must have a `default world`
 /// * [optional] `adapt-$name.wat` - optional adapter for the module name
 ///   `$name`, can be specified for multiple `$name`s
 /// * [optional] `adapt-$name.wit` - required for each `*.wat` adapter to
 ///   describe imports/exports of the adapter.
+/// * [optional] `stub-missing-functions` - if linking libraries and this file
+///   exists, `Linker::stub_missing_functions` will be set to `true`.  The
+///   contents of the file are ignored.
 ///
 /// And the output files are one of the following:
 ///
@@ -52,14 +61,49 @@ fn component_encoding_via_flags() -> Result<()> {
         let (pkg, _) = resolve.push_dir(&path)?;
 
         let module_path = path.join("module.wat");
-        let module = read_core_module(&module_path, &resolve, pkg)?;
-        let mut encoder = ComponentEncoder::default().module(&module)?.validate(true);
-        encoder = add_adapters(encoder, &path, &resolve, pkg)?;
+        let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
+        let result = if module_path.is_file() {
+            let module = read_core_module(&module_path, &resolve, pkg)?;
+            adapters
+                .try_fold(
+                    ComponentEncoder::default().module(&module)?.validate(true),
+                    |encoder, path| {
+                        let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg)?;
+                        Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
+                    },
+                )?
+                .encode()
+        } else {
+            let mut libs = glob::glob(path.join("lib-*.wat").to_str().unwrap())?
+                .map(|path| ("lib-", path, false))
+                .chain(
+                    glob::glob(path.join("dlopen-lib-*.wat").to_str().unwrap())?
+                        .map(|path| ("dlopen-lib-", path, true)),
+                );
+
+            let mut linker = Linker::default().validate(true);
+
+            if path.join("stub-missing-functions").is_file() {
+                linker = linker.stub_missing_functions(true);
+            }
+
+            let linker = libs.try_fold(linker, |linker, (prefix, path, dl_openable)| {
+                let (name, wasm) = read_name_and_module(prefix, &path?, &resolve, pkg)?;
+                Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
+            })?;
+
+            adapters
+                .try_fold(linker, |linker, path| {
+                    let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg)?;
+                    Ok::<_, Error>(linker.adapter(&name, &wasm)?)
+                })?
+                .encode()
+        };
         let component_path = path.join("component.wat");
         let component_wit_path = path.join("component.wit.print");
         let error_path = path.join("error.txt");
 
-        let bytes = match encoder.encode() {
+        let bytes = match result {
             Ok(bytes) => {
                 if test_case.starts_with("error-") {
                     bail!("expected an error but got success");
@@ -105,12 +149,17 @@ fn component_encoding_via_flags() -> Result<()> {
                             .expect("wit-component producer present"),
                         env!("CARGO_PKG_VERSION")
                     );
-                    assert_eq!(
-                        processed_by
-                            .get("my-fake-bindgen")
-                            .expect("added bindgen field present"),
-                        "123.45"
-                    );
+                    if module_path.is_file() {
+                        assert_eq!(
+                            processed_by
+                                .get("my-fake-bindgen")
+                                .expect("added bindgen field present"),
+                            "123.45"
+                        );
+                    } else {
+                        // Otherwise, we used `Linker`, which synthesizes the
+                        // "main" module and thus won't have `my-fake-bindgen`
+                    }
                 }
                 _ => panic!("expected child to be a module"),
             },
@@ -121,20 +170,16 @@ fn component_encoding_via_flags() -> Result<()> {
     Ok(())
 }
 
-fn add_adapters(
-    mut encoder: ComponentEncoder,
+fn read_name_and_module(
+    prefix: &str,
     path: &Path,
     resolve: &Resolve,
     pkg: PackageId,
-) -> Result<ComponentEncoder> {
-    for adapter in glob::glob(path.join("adapt-*.wat").to_str().unwrap())? {
-        let adapter = adapter?;
-        let wasm = read_core_module(&adapter, resolve, pkg)?;
-        let stem = adapter.file_stem().unwrap().to_str().unwrap();
-        let name = stem.trim_start_matches("adapt-");
-        encoder = encoder.adapter(name, &wasm)?;
-    }
-    Ok(encoder)
+) -> Result<(String, Vec<u8>)> {
+    let wasm = read_core_module(path, resolve, pkg)?;
+    let stem = path.file_stem().unwrap().to_str().unwrap();
+    let name = stem.trim_start_matches(prefix).to_owned();
+    Ok((name, wasm))
 }
 
 /// Parses the core wasm module at `path`, expected as a `*.wat` file.

@@ -1,11 +1,11 @@
-use super::{ComponentEncoder, RequiredOptions};
+use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
     validate_adapter_module, validate_module, RequiredImports, ValidatedAdapter, ValidatedModule,
     BARE_FUNC_MODULE_NAME, RESOURCE_DROP,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use wasmparser::FuncType;
@@ -14,6 +14,12 @@ use wit_parser::{
     Function, InterfaceId, LiveTypes, Resolve, TypeDefKind, TypeId, TypeOwner, WorldId, WorldItem,
     WorldKey,
 };
+
+pub struct WorldAdapter<'a> {
+    pub wasm: Cow<'a, [u8]>,
+    pub info: ValidatedAdapter<'a>,
+    pub library_info: Option<&'a LibraryInfo>,
+}
 
 /// Metadata discovered from the state configured in a `ComponentEncoder`.
 ///
@@ -28,7 +34,7 @@ pub struct ComponentWorld<'a> {
     pub info: ValidatedModule<'a>,
     /// Validation information about adapters populated only for required
     /// adapters. Additionally stores the gc'd wasm for each adapter.
-    pub adapters: IndexMap<&'a str, (ValidatedAdapter<'a>, Vec<u8>)>,
+    pub adapters: IndexMap<&'a str, WorldAdapter<'a>>,
     /// Map of all imports and descriptions of what they're importing.
     pub import_map: IndexMap<Option<String>, ImportedInterface>,
     /// Set of all live types which must be exported either because they're
@@ -96,18 +102,47 @@ impl<'a> ComponentWorld<'a> {
     fn process_adapters(&mut self) -> Result<()> {
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
-        for (name, (wasm, metadata, required_exports)) in self.encoder.adapters.iter() {
+        for (
+            name,
+            Adapter {
+                wasm,
+                metadata,
+                required_exports,
+                library_info,
+            },
+        ) in self.encoder.adapters.iter()
+        {
             let required_by_import = self.info.adapters_required.get(name.as_str());
             let required =
                 self.required_adapter_exports(resolve, world, required_exports, required_by_import);
-            if required.is_empty() {
+            if required.is_empty() && library_info.is_none() {
                 continue;
             }
-            let wasm = crate::gc::run(wasm, &required, self.info.realloc)
-                .context("failed to reduce input adapter module to its minimal size")?;
-            let info = validate_adapter_module(&wasm, resolve, world, metadata, &required)
-                .context("failed to validate the imports of the minimized adapter module")?;
-            self.adapters.insert(name, (info, wasm));
+            let wasm = if library_info.is_some() {
+                Cow::Borrowed(wasm as &[u8])
+            } else {
+                Cow::Owned(
+                    crate::gc::run(wasm, &required, self.info.realloc)
+                        .context("failed to reduce input adapter module to its minimal size")?,
+                )
+            };
+            let info = validate_adapter_module(
+                &wasm,
+                resolve,
+                world,
+                metadata,
+                &required,
+                library_info.is_some(),
+            )
+            .context("failed to validate the imports of the minimized adapter module")?;
+            self.adapters.insert(
+                name,
+                WorldAdapter {
+                    info,
+                    wasm,
+                    library_info: library_info.as_ref(),
+                },
+            );
         }
         Ok(())
     }
@@ -173,7 +208,7 @@ impl<'a> ComponentWorld<'a> {
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
         let mut all_required_imports = IndexMap::new();
-        for map in self.adapters.values().map(|(i, _)| &i.required_imports) {
+        for map in self.adapters.values().map(|a| &a.info.required_imports) {
             for (k, v) in map {
                 all_required_imports
                     .entry(k.as_str())
@@ -256,9 +291,9 @@ impl<'a> ComponentWorld<'a> {
         // First use the previously calculated metadata about live imports to
         // determine the set of live types in those imports.
         self.add_live_imports(world, &self.info.required_imports, &mut live);
-        for (adapter_name, (info, _wasm)) in self.adapters.iter() {
+        for (adapter_name, adapter) in self.adapters.iter() {
             log::trace!("processing adapter `{adapter_name}`");
-            self.add_live_imports(world, &info.required_imports, &mut live);
+            self.add_live_imports(world, &adapter.info.required_imports, &mut live);
         }
 
         // Next any imported types used by an export must also be considered
