@@ -1110,7 +1110,7 @@ impl<'a> EncodingState<'a> {
         };
         let post_returns = match module {
             CustomModule::Main => &self.info.info.post_returns,
-            CustomModule::Adapter(name) => &self.info.adapters[name].0.post_returns,
+            CustomModule::Adapter(name) => &self.info.adapters[name].info.post_returns,
         };
         let instance_index = match module {
             CustomModule::Main => self.instance_index.expect("instantiated by now"),
