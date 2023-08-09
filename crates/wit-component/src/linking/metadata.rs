@@ -3,7 +3,10 @@
 
 use {
     anyhow::{bail, Context, Error, Result},
-    std::collections::{BTreeSet, HashMap, HashSet},
+    std::{
+        collections::{BTreeSet, HashMap, HashSet},
+        fmt,
+    },
     wasmparser::{
         BinaryReader, BinaryReaderError, ExternalKind, FuncType, Parser, Payload, RefType,
         StructuralType, Subsection, Subsections, TableType, TypeRef, ValType,
@@ -56,6 +59,12 @@ pub struct FunctionType {
     pub results: Vec<ValueType>,
 }
 
+impl fmt::Display for FunctionType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?} -> {:?}", self.parameters, self.results)
+    }
+}
+
 impl TryFrom<&FuncType> for FunctionType {
     type Error = Error;
 
@@ -82,11 +91,29 @@ pub struct GlobalType {
     pub mutable: bool,
 }
 
+impl fmt::Display for GlobalType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.mutable {
+            write!(f, "mut ")?;
+        }
+        write!(f, "{:?}", self.ty)
+    }
+}
+
 /// Represents a core Wasm export or import type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Type {
     Function(FunctionType),
     Global(GlobalType),
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Function(ty) => write!(f, "function {ty}"),
+            Self::Global(ty) => write!(f, "global {ty}"),
+        }
+    }
 }
 
 impl From<&Type> for wasm_encoder::ExportKind {
@@ -112,6 +139,12 @@ pub struct Import<'a> {
 pub struct ExportKey<'a> {
     pub name: &'a str,
     pub ty: Type,
+}
+
+impl<'a> fmt::Display for ExportKey<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({})", self.name, self.ty)
+    }
 }
 
 /// Represents a core Wasm export, including dylink.0 flags

@@ -209,6 +209,7 @@ fn make_env_module<'a>(
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
     let mut import_map = HashMap::new();
+    let mut function_count = 0;
     let mut global_offset = 0;
     for metadata in metadata {
         for import in &metadata.imports {
@@ -218,12 +219,13 @@ fn make_env_module<'a>(
                     import.name,
                     match &import.ty {
                         Type::Function(ty) => {
-                            entry.insert(types.len());
+                            let index = get_and_increment(&mut function_count);
+                            entry.insert(index);
                             types.function(
                                 ty.parameters.iter().copied().map(ValType::from),
                                 ty.results.iter().copied().map(ValType::from),
                             );
-                            EntityType::Function(types.len() - 1)
+                            EntityType::Function(index)
                         }
                         Type::Global(ty) => {
                             entry.insert(get_and_increment(&mut global_offset));
@@ -244,13 +246,10 @@ fn make_env_module<'a>(
     let mut exports = ExportSection::new();
 
     if let Some(exporter) = cabi_realloc_exporter {
+        let index = get_and_increment(&mut function_count);
         types.function([ValType::I32; 4], [ValType::I32]);
-        imports.import(
-            exporter,
-            "cabi_realloc",
-            EntityType::Function(types.len() - 1),
-        );
-        exports.export("cabi_realloc", ExportKind::Func, types.len() - 1);
+        imports.import(exporter, "cabi_realloc", EntityType::Function(index));
+        exports.export("cabi_realloc", ExportKind::Func, index);
     }
 
     let dl_openables = DlOpenables::new(table_offset, memory_offset, metadata);
@@ -274,8 +273,8 @@ fn make_env_module<'a>(
         add_global_export("__stack_pointer", stack_size_bytes, true);
 
         for metadata in metadata {
-            memory_offset = align(memory_offset, 2_u32.pow(metadata.mem_info.memory_alignment));
-            table_offset = align(table_offset, 2_u32.pow(metadata.mem_info.table_alignment));
+            memory_offset = align(memory_offset, 1 << metadata.mem_info.memory_alignment);
+            table_offset = align(table_offset, 1 << metadata.mem_info.table_alignment);
 
             add_global_export(
                 &format!("{}:memory_base", metadata.name),
@@ -292,6 +291,8 @@ fn make_env_module<'a>(
             table_offset += metadata.mem_info.table_size;
 
             for import in &metadata.memory_address_imports {
+                // Note that we initialize this to zero and let the init module compute the real value at
+                // instantiation time.
                 add_global_export(&format!("{}:{import}", metadata.name), 0, true);
             }
         }
@@ -327,23 +328,24 @@ fn make_env_module<'a>(
     let mut functions = FunctionSection::new();
     let mut code = CodeSection::new();
     for (name, ty, _) in function_exports {
+        let index = get_and_increment(&mut function_count);
         types.function(
             ty.parameters.iter().copied().map(ValType::from),
             ty.results.iter().copied().map(ValType::from),
         );
-        functions.function(u32::try_from(types.len() - 1).unwrap());
+        functions.function(u32::try_from(index).unwrap());
         let mut function = Function::new([]);
         for local in 0..ty.parameters.len() {
             function.instruction(&Ins::LocalGet(u32::try_from(local).unwrap()));
         }
         function.instruction(&Ins::I32Const(i32::try_from(table_offset).unwrap()));
         function.instruction(&Ins::CallIndirect {
-            ty: u32::try_from(types.len() - 1).unwrap(),
+            ty: u32::try_from(index).unwrap(),
             table: 0,
         });
         function.instruction(&Ins::End);
         code.function(&function);
-        exports.export(name, ExportKind::Func, types.len() - 1);
+        exports.export(name, ExportKind::Func, index);
 
         table_offset += 1;
     }
@@ -417,7 +419,9 @@ fn make_init_module(
     // TODO: deduplicate types
     let mut types = TypeSection::new();
     types.function([], []);
+    let thunk_ty = 0;
     types.function([ValType::I32], []);
+    let one_i32_param_ty = 1;
     let mut type_offset = 2;
 
     for metadata in metadata {
@@ -528,7 +532,7 @@ fn make_init_module(
                 &mut imports,
                 metadata.name,
                 "__wasm_apply_data_relocs",
-                0,
+                thunk_ty,
             )));
         }
 
@@ -537,7 +541,7 @@ fn make_init_module(
                 &mut imports,
                 metadata.name,
                 "__wasm_call_ctors",
-                0,
+                thunk_ty,
             )));
         }
 
@@ -549,7 +553,7 @@ fn make_init_module(
                 &mut imports,
                 metadata.name,
                 "__wasm_set_libraries",
-                1,
+                one_i32_param_ty,
             )));
         }
 
@@ -610,7 +614,7 @@ fn make_init_module(
 
     {
         let mut functions = FunctionSection::new();
-        functions.function(0);
+        functions.function(thunk_ty);
         module.section(&functions);
     }
 
@@ -621,12 +625,12 @@ fn make_init_module(
     {
         let mut elements = ElementSection::new();
         elements.active(
-            Some(0),
+            None,
             &const_u32(dl_openables.table_base),
             Elements::Functions(&dl_openable_functions),
         );
         elements.active(
-            Some(0),
+            None,
             &const_u32(indirection_table_base),
             Elements::Functions(&indirections),
         );
@@ -723,8 +727,6 @@ fn resolve_symbols<'a>(
     Vec<(&'a str, Export<'a>)>,
     Vec<(&'a str, &'a ExportKey<'a>, &'a [(&'a str, &'a Export<'a>)])>,
 ) {
-    // TODO: consider weak symbols when checking for duplicates
-
     let function_exporters = exporters
         .iter()
         .filter_map(|(export, exporters)| {
@@ -865,6 +867,7 @@ fn find_dependencies(
     metadata: &[Metadata],
     exporters: &HashMap<&ExportKey, (&str, &Export)>,
 ) -> Result<HashMap<usize, HashSet<usize>>> {
+    // First, generate a map of direct dependencies (i.e. depender to dependees)
     let mut dependencies = HashMap::<_, HashSet<_>>::new();
     let mut indexes = HashMap::new();
     for (index, metadata) in metadata.iter().enumerate() {
@@ -883,6 +886,7 @@ fn find_dependencies(
         }
     }
 
+    // Next, convert the map from names to offsets
     let mut dependencies = dependencies
         .into_iter()
         .map(|(k, v)| {
@@ -893,6 +897,8 @@ fn find_dependencies(
         })
         .collect::<HashMap<_, _>>();
 
+    // Finally, add all transitive dependencies to the map in a fixpoint loop, exiting when no new dependencies are
+    // discovered.
     let empty = &HashSet::new();
 
     loop {
@@ -1143,6 +1149,7 @@ impl Linker {
                     let missing = metadata
                         .needed_libs
                         .iter()
+                        .copied()
                         .filter(|name| !names.contains(*name))
                         .collect::<Vec<_>>();
 
@@ -1155,7 +1162,17 @@ impl Linker {
                 .collect::<Vec<_>>();
 
             if !missing.is_empty() {
-                bail!("missing libraries: {missing:#?}");
+                bail!(
+                    "missing libraries:\n{}",
+                    missing
+                        .iter()
+                        .map(|(needed_by, missing)| format!(
+                            "\t{needed_by} needs {}",
+                            missing.join(", ")
+                        ))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                );
             }
         }
 
@@ -1170,7 +1187,8 @@ impl Linker {
                 }),
             })
             .map(|exporters| {
-                // TODO: Verify that there is at most one strong exporter
+                // TODO: When there are multiple exporters, we should choose the one that came first in the order
+                // they were specified.
                 let first = *exporters.first().unwrap();
                 *exporters = vec![first];
                 first.0
@@ -1196,18 +1214,37 @@ impl Linker {
                 return self.encode();
             } else {
                 bail!(
-                    "unresolved symbol(s): {:#?}",
+                    "unresolved symbol(s):\n{}",
                     missing
                         .iter()
                         .filter(|(_, export)| 0 == (export.flags & WASM_SYM_BINDING_WEAK))
+                        .map(|(importer, export)| { format!("\t{importer} needs {}", export.key) })
                         .collect::<Vec<_>>()
+                        .join("\n")
                 );
             }
         }
 
         if !duplicates.is_empty() {
-            // TODO: Check for weak symbols before giving up here
-            bail!("duplicate symbol(s): {duplicates:#?}");
+            // TODO: When there are multiple exporters for a given symbol, we should choose the one that came first
+            // in the order they were specified.
+            bail!(
+                "duplicate symbol(s):\n{}",
+                duplicates
+                    .iter()
+                    .map(|(importer, key, exporters)| {
+                        format!(
+                            "\t{importer} needs {key}, provided by {}",
+                            exporters
+                                .iter()
+                                .map(|(exporter, _)| *exporter)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
 
         let dependencies = find_dependencies(&metadata, &exporters)?;

@@ -1,8 +1,2 @@
-missing libraries: [
-    (
-        "foo",
-        [
-            "bar",
-        ],
-    ),
-]
+missing libraries:
+	foo needs bar
