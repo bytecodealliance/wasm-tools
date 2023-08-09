@@ -15,6 +15,7 @@ pub enum WastArgCore<'a> {
     V128(V128Const),
     RefNull(HeapType<'a>),
     RefExtern(u32),
+    RefHost(u32),
 }
 
 static ARGS: &[(&str, fn(Parser<'_>) -> Result<WastArgCore<'_>>)] = {
@@ -27,6 +28,7 @@ static ARGS: &[(&str, fn(Parser<'_>) -> Result<WastArgCore<'_>>)] = {
         ("v128.const", |p| Ok(V128(p.parse()?))),
         ("ref.null", |p| Ok(RefNull(p.parse()?))),
         ("ref.extern", |p| Ok(RefExtern(p.parse()?))),
+        ("ref.host", |p| Ok(RefHost(p.parse()?))),
     ]
 };
 
@@ -74,6 +76,8 @@ pub enum WastRetCore<'a> {
     /// A non-null externref is expected which should contain the specified
     /// value.
     RefExtern(u32),
+    /// A non-null anyref is expected which should contain the specified host value.
+    RefHost(u32),
     /// A non-null funcref is expected.
     RefFunc(Option<Index<'a>>),
     /// A non-null anyref is expected.
@@ -100,6 +104,7 @@ static RETS: &[(&str, fn(Parser<'_>) -> Result<WastRetCore<'_>>)] = {
         ("v128.const", |p| Ok(V128(p.parse()?))),
         ("ref.null", |p| Ok(RefNull(p.parse()?))),
         ("ref.extern", |p| Ok(RefExtern(p.parse()?))),
+        ("ref.host", |p| Ok(RefHost(p.parse()?))),
         ("ref.func", |p| Ok(RefFunc(p.parse()?))),
         ("ref.any", |_| Ok(RefAny)),
         ("ref.eq", |_| Ok(RefEq)),
