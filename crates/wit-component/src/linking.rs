@@ -25,10 +25,12 @@
 use {
     crate::encoding::{ComponentEncoder, Instance, Item, LibraryInfo, MainOrAdapter},
     anyhow::{anyhow, bail, Context, Result},
-    indexmap::IndexSet,
+    indexmap::{map::Entry, IndexMap, IndexSet},
     metadata::{Export, ExportKey, FunctionType, GlobalType, Metadata, Type, ValueType},
     std::{
-        collections::{hash_map::Entry, BTreeMap, HashMap, HashSet},
+        collections::{BTreeMap, HashMap, HashSet},
+        fmt::Debug,
+        hash::Hash,
         iter,
     },
     wasm_encoder::{
@@ -197,6 +199,72 @@ fn const_u32(a: u32) -> ConstExpr {
     ConstExpr::i32_const(a as i32)
 }
 
+/// Helper trait for determining the size of a set or map
+trait Length {
+    fn len(&self) -> usize;
+}
+
+impl<T> Length for HashSet<T> {
+    fn len(&self) -> usize {
+        HashSet::len(self)
+    }
+}
+
+impl<K, V> Length for HashMap<K, V> {
+    fn len(&self) -> usize {
+        HashMap::len(self)
+    }
+}
+
+impl<T> Length for IndexSet<T> {
+    fn len(&self) -> usize {
+        IndexSet::len(self)
+    }
+}
+
+impl<K, V> Length for IndexMap<K, V> {
+    fn len(&self) -> usize {
+        IndexMap::len(self)
+    }
+}
+
+/// Extension trait for collecting into a set or map and asserting that there were no duplicate entries in the
+/// source iterator.
+trait CollectUnique: Iterator + Sized {
+    fn collect_unique<T: FromIterator<Self::Item> + Length>(self) -> T {
+        let tmp = self.collect::<Vec<_>>();
+        let len = tmp.len();
+        let result = tmp.into_iter().collect::<T>();
+        assert!(
+            result.len() == len,
+            "one or more duplicate items detected when collecting into set or map"
+        );
+        result
+    }
+}
+
+impl<T: Iterator> CollectUnique for T {}
+
+/// Extension trait for inserting into a map and asserting that an entry did not already exist for the key
+trait InsertUnique {
+    type Key;
+    type Value;
+
+    fn insert_unique(&mut self, k: Self::Key, v: Self::Value);
+}
+
+impl<K: Hash + Eq + PartialEq + Debug, V: Debug> InsertUnique for HashMap<K, V> {
+    type Key = K;
+    type Value = V;
+
+    fn insert_unique(&mut self, k: Self::Key, v: Self::Value) {
+        if let Some(old_v) = self.get(&k) {
+            panic!("duplicate item inserted into map for key {k:?} (old value: {old_v:?}; new value: {v:?})");
+        }
+        self.insert(k, v);
+    }
+}
+
 /// Synthesize the "main" module for the component, responsible for exporting functions which break cyclic
 /// dependencies, as well as hosting the memory and function table.
 fn make_env_module<'a>(
@@ -208,7 +276,7 @@ fn make_env_module<'a>(
     // TODO: deduplicate types
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
-    let mut import_map = HashMap::new();
+    let mut import_map = IndexMap::new();
     let mut function_count = 0;
     let mut global_offset = 0;
     for metadata in metadata {
@@ -302,7 +370,7 @@ fn make_env_module<'a>(
                 .iter()
                 .enumerate()
                 .map(|(offset, (name, ..))| (*name, table_offset + u32::try_from(offset).unwrap()))
-                .collect::<HashMap<_, _>>();
+                .collect_unique::<HashMap<_, _>>();
 
             for metadata in metadata {
                 for import in &metadata.table_address_imports {
@@ -409,7 +477,7 @@ fn make_env_module<'a>(
 /// This module also contains the data segment for the `dlopen`/`dlsym` lookup table.
 fn make_init_module(
     metadata: &[Metadata],
-    exporters: &HashMap<&ExportKey, (&str, &Export)>,
+    exporters: &IndexMap<&ExportKey, (&str, &Export)>,
     function_exports: &[(&str, &FunctionType, usize)],
     dl_openables: DlOpenables,
     indirection_table_base: u32,
@@ -525,7 +593,7 @@ fn make_init_module(
     }
 
     for (index, metadata) in metadata.iter().enumerate() {
-        names.insert(index, metadata.name);
+        names.insert_unique(index, metadata.name);
 
         if metadata.has_data_relocs {
             reloc_calls.push(Ins::Call(add_function_import(
@@ -669,7 +737,7 @@ fn make_init_module(
 /// Find the library which exports the specified function or global address.
 fn find_offset_exporter<'a>(
     name: &str,
-    exporters: &HashMap<&ExportKey, (&'a str, &'a Export<'a>)>,
+    exporters: &IndexMap<&ExportKey, (&'a str, &'a Export<'a>)>,
 ) -> Result<(&'a str, &'a Export<'a>)> {
     let export = ExportKey {
         name,
@@ -689,7 +757,7 @@ fn find_offset_exporter<'a>(
 fn find_function_exporter<'a>(
     name: &str,
     ty: &FunctionType,
-    exporters: &HashMap<&ExportKey, (&'a str, &'a Export<'a>)>,
+    exporters: &IndexMap<&ExportKey, (&'a str, &'a Export<'a>)>,
 ) -> Result<(&'a str, &'a Export<'a>)> {
     let export = ExportKey {
         name,
@@ -705,8 +773,8 @@ fn find_function_exporter<'a>(
 /// Analyze the specified library metadata, producing a symbol-to-library-name map of exports.
 fn resolve_exporters<'a>(
     metadata: &'a [Metadata<'a>],
-) -> Result<HashMap<&'a ExportKey<'a>, Vec<(&'a str, &'a Export<'a>)>>> {
-    let mut exporters = HashMap::<_, Vec<_>>::new();
+) -> Result<IndexMap<&'a ExportKey<'a>, Vec<(&'a str, &'a Export<'a>)>>> {
+    let mut exporters = IndexMap::<_, Vec<_>>::new();
     for metadata in metadata {
         for export in &metadata.exports {
             exporters
@@ -721,9 +789,9 @@ fn resolve_exporters<'a>(
 /// Match up all imported symbols to their corresponding exports, reporting any missing or duplicate symbols.
 fn resolve_symbols<'a>(
     metadata: &'a [Metadata<'a>],
-    exporters: &'a HashMap<&'a ExportKey<'a>, Vec<(&'a str, &'a Export<'a>)>>,
+    exporters: &'a IndexMap<&'a ExportKey<'a>, Vec<(&'a str, &'a Export<'a>)>>,
 ) -> (
-    HashMap<&'a ExportKey<'a>, (&'a str, &'a Export<'a>)>,
+    IndexMap<&'a ExportKey<'a>, (&'a str, &'a Export<'a>)>,
     Vec<(&'a str, Export<'a>)>,
     Vec<(&'a str, &'a ExportKey<'a>, &'a [(&'a str, &'a Export<'a>)])>,
 ) {
@@ -736,9 +804,9 @@ fn resolve_symbols<'a>(
                 None
             }
         })
-        .collect::<HashMap<_, _>>();
+        .collect_unique::<IndexMap<_, _>>();
 
-    let mut resolved = HashMap::new();
+    let mut resolved = IndexMap::new();
     let mut missing = Vec::new();
     let mut duplicates = Vec::new();
 
@@ -747,6 +815,8 @@ fn resolve_symbols<'a>(
             match value.as_slice() {
                 [] => unreachable!(),
                 [exporter] => {
+                    // Note that we do not use `insert_unique` here since multiple libraries may import the same
+                    // symbol, in which case we may redundantly insert the same value.
                     resolved.insert(*key, *exporter);
                 }
                 _ => {
@@ -795,6 +865,8 @@ fn resolve_symbols<'a>(
                 match value.as_slice() {
                     [] => unreachable!(),
                     [exporter] => {
+                        // Note that we do not use `insert_unique` here since multiple libraries may import the
+                        // same symbol, in which case we may redundantly insert the same value.
                         resolved.insert(key, *exporter);
                     }
                     _ => {
@@ -826,10 +898,10 @@ fn resolve_symbols<'a>(
 /// topological order (modulo cycles).
 fn topo_add<'a>(
     sorted: &mut IndexSet<usize>,
-    dependencies: &HashMap<usize, HashSet<usize>>,
+    dependencies: &IndexMap<usize, IndexSet<usize>>,
     element: usize,
 ) {
-    let empty = &HashSet::new();
+    let empty = &IndexSet::new();
     let deps = dependencies.get(&element).unwrap_or(empty);
 
     // First, add any dependencies which do not depend on `element`
@@ -852,7 +924,7 @@ fn topo_add<'a>(
 
 /// Topologically sort a set of libraries (represented by their offsets) according to their dependencies, modulo
 /// cycles.
-fn topo_sort(count: usize, dependencies: &HashMap<usize, HashSet<usize>>) -> Result<Vec<usize>> {
+fn topo_sort(count: usize, dependencies: &IndexMap<usize, IndexSet<usize>>) -> Result<Vec<usize>> {
     let mut sorted = IndexSet::new();
     for index in 0..count {
         topo_add(&mut sorted, &dependencies, index);
@@ -865,13 +937,13 @@ fn topo_sort(count: usize, dependencies: &HashMap<usize, HashSet<usize>>) -> Res
 /// represented by its offset in the original metadata slice.
 fn find_dependencies(
     metadata: &[Metadata],
-    exporters: &HashMap<&ExportKey, (&str, &Export)>,
-) -> Result<HashMap<usize, HashSet<usize>>> {
+    exporters: &IndexMap<&ExportKey, (&str, &Export)>,
+) -> Result<IndexMap<usize, IndexSet<usize>>> {
     // First, generate a map of direct dependencies (i.e. depender to dependees)
-    let mut dependencies = HashMap::<_, HashSet<_>>::new();
+    let mut dependencies = IndexMap::<_, IndexSet<_>>::new();
     let mut indexes = HashMap::new();
     for (index, metadata) in metadata.iter().enumerate() {
-        indexes.insert(metadata.name, index);
+        indexes.insert_unique(metadata.name, index);
         for &needed in &metadata.needed_libs {
             dependencies
                 .entry(metadata.name)
@@ -892,17 +964,19 @@ fn find_dependencies(
         .map(|(k, v)| {
             (
                 indexes[k],
-                v.into_iter().map(|v| indexes[v]).collect::<HashSet<_>>(),
+                v.into_iter()
+                    .map(|v| indexes[v])
+                    .collect_unique::<IndexSet<_>>(),
             )
         })
-        .collect::<HashMap<_, _>>();
+        .collect_unique::<IndexMap<_, _>>();
 
     // Finally, add all transitive dependencies to the map in a fixpoint loop, exiting when no new dependencies are
     // discovered.
-    let empty = &HashSet::new();
+    let empty = &IndexSet::new();
 
     loop {
-        let mut new = HashMap::<_, HashSet<_>>::new();
+        let mut new = IndexMap::<_, IndexSet<_>>::new();
         for (index, exporters) in &dependencies {
             for exporter in exporters {
                 for exporter in dependencies.get(exporter).unwrap_or(empty) {
@@ -928,7 +1002,7 @@ fn find_dependencies(
 /// the original export.
 fn env_function_exports<'a>(
     metadata: &'a [Metadata<'a>],
-    exporters: &'a HashMap<&'a ExportKey, (&'a str, &Export)>,
+    exporters: &'a IndexMap<&'a ExportKey, (&'a str, &Export)>,
     topo_sorted: &[usize],
 ) -> Result<Vec<(&'a str, &'a FunctionType, usize)>> {
     let function_exporters = exporters
@@ -940,13 +1014,13 @@ fn env_function_exports<'a>(
                 None
             }
         })
-        .collect::<HashMap<_, _>>();
+        .collect_unique::<HashMap<_, _>>();
 
     let indexes = metadata
         .iter()
         .enumerate()
         .map(|(index, metadata)| (metadata.name, index))
-        .collect::<HashMap<_, _>>();
+        .collect_unique::<HashMap<_, _>>();
 
     let mut result = Vec::new();
     let mut exported = HashSet::new();
@@ -1028,8 +1102,8 @@ fn make_stubs_module(missing: &[(&str, Export)]) -> Vec<u8> {
 /// component export or via `dlopen`.
 fn find_reachable<'a>(
     metadata: &'a [Metadata<'a>],
-    dependencies: &HashMap<usize, HashSet<usize>>,
-) -> HashSet<&'a str> {
+    dependencies: &IndexMap<usize, IndexSet<usize>>,
+) -> IndexSet<&'a str> {
     let reachable = metadata
         .iter()
         .enumerate()
@@ -1040,9 +1114,9 @@ fn find_reachable<'a>(
                 None
             }
         })
-        .collect::<HashSet<_>>();
+        .collect_unique::<IndexSet<_>>();
 
-    let empty = &HashSet::new();
+    let empty = &IndexSet::new();
 
     reachable
         .iter()
@@ -1121,7 +1195,7 @@ impl Linker {
             .adapters
             .iter()
             .map(|(name, _)| name.as_str())
-            .collect::<HashSet<_>>();
+            .collect_unique::<HashSet<_>>();
 
         if adapter_names.len() != self.adapters.len() {
             bail!("duplicate adapter name");
@@ -1141,7 +1215,7 @@ impl Linker {
                 .libraries
                 .iter()
                 .map(|(name, ..)| name.as_str())
-                .collect::<HashSet<_>>();
+                .collect_unique::<HashSet<_>>();
 
             let missing = metadata
                 .iter()
@@ -1255,7 +1329,7 @@ impl Linker {
                 .libraries
                 .iter()
                 .filter_map(|(name, ..)| (!reachable.contains(name.as_str())).then(|| name.clone()))
-                .collect::<HashSet<_>>();
+                .collect_unique::<HashSet<_>>();
 
             if !unreachable.is_empty() {
                 self.libraries
