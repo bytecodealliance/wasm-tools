@@ -689,6 +689,11 @@ fn validate_post_return(
     ty: &wasmparser::FuncType,
     func: &Function,
 ) -> Result<()> {
+    // The expected signature of a post-return function is to take all the
+    // parameters that are returned by the guest function and then return no
+    // results. Model this by calculating the signature of `func` and then
+    // moving its results into the parameters list while emptying out the
+    // results.
     let mut sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
     sig.params = mem::take(&mut sig.results);
     validate_func_sig(
