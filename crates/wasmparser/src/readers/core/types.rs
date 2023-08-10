@@ -14,6 +14,7 @@
  */
 
 use std::fmt::{self, Debug, Write};
+use std::slice;
 
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
@@ -819,8 +820,25 @@ pub struct SubType {
 /// Represents a recursive type group in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub struct RecGroup {
+    items: RecGroupItems,
+}
+
+#[derive(Debug, Clone)]
+enum RecGroupItems {
     /// The list of subtypes in the recursive type group.
-    pub types: Vec<SubType>,
+    Many(Vec<SubType>),
+    /// A single subtype in the recursive type group.
+    Single(SubType),
+}
+
+impl RecGroup {
+    /// Returns the list of subtypes in the recursive type group.
+    pub fn types(&self) -> &[SubType] {
+        match &self.items {
+            RecGroupItems::Many(types) => types,
+            RecGroupItems::Single(ty) => slice::from_ref(ty),
+        }
+    }
 }
 
 impl Inherits for SubType {
@@ -1183,11 +1201,11 @@ impl<'a> FromReader<'a> for RecGroup {
                 reader.read_u8()?;
                 let types = reader.read_iter(MAX_WASM_TYPES, "rec group types")?;
                 RecGroup {
-                    types: types.collect::<Result<_>>()?,
+                    items: RecGroupItems::Many(types.collect::<Result<_>>()?),
                 }
             }
             _ => RecGroup {
-                types: vec![reader.read()?],
+                items: RecGroupItems::Single(reader.read()?),
             },
         })
     }

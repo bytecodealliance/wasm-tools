@@ -94,14 +94,15 @@ impl<'a> ModuleInfo<'a> {
                     // Save function types
                     for rec_group in reader {
                         if let Ok(rg) = rec_group {
-                            if rg.types.len() != 1 {
+                            if rg.types().len() != 1 {
                                 return Err(Error::unsupported("GC types not supported yet"));
                             }
-                            for st in rg.types {
+                            for st in rg.types() {
                                 if st.is_final || st.supertype_idx.is_some() {
                                     return Err(Error::unsupported("GC types not supported yet"));
                                 }
-                                let typeinfo = TypeInfo::try_from(st.structural_type).unwrap();
+                                let typeinfo =
+                                    TypeInfo::try_from(st.clone().structural_type).unwrap();
                                 info.types_map.push(typeinfo);
                             }
                         }

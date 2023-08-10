@@ -246,8 +246,8 @@ impl<'a> Module<'a> {
                 Payload::End(_) => {}
                 Payload::TypeSection(s) => {
                     for rec_group in s {
-                        for ty in rec_group?.types {
-                            self.types.push(ty);
+                        for ty in rec_group?.types() {
+                            self.types.push(ty.clone());
                         }
                     }
                 }

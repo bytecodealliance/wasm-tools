@@ -56,8 +56,8 @@ impl Mutator for AddTypeMutator {
             // Copy the existing types section over into the encoder.
             let reader = wasmparser::TypeSectionReader::new(old_types.data, 0)?;
             for rec_group in reader {
-                for ty in rec_group?.types {
-                    match ty.structural_type {
+                for ty in rec_group?.types() {
+                    match ty.clone().structural_type {
                         wasmparser::StructuralType::Func(ty) => {
                             let params = ty
                                 .params()
