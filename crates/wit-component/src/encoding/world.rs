@@ -150,29 +150,32 @@ impl<'a> ComponentWorld<'a> {
     /// Returns the set of functions required to be exported from an adapter,
     /// either because they're exported from the adapter's world or because
     /// they're required as an import to the main module.
-    fn required_adapter_exports(
+    fn required_adapter_exports<'r>(
         &self,
-        resolve: &Resolve,
+        resolve: &'r Resolve,
         world: WorldId,
         required_exports: &IndexSet<WorldKey>,
         required_by_import: Option<&IndexMap<&str, FuncType>>,
-    ) -> IndexMap<String, FuncType> {
+    ) -> IndexMap<String, (FuncType, Option<&'r Function>)> {
         use wasmparser::ValType;
 
         let mut required = IndexMap::new();
         if let Some(imports) = required_by_import {
             for (name, ty) in imports {
-                required.insert(name.to_string(), ty.clone());
+                required.insert(name.to_string(), (ty.clone(), None));
             }
         }
-        let mut add_func = |func: &Function, name: Option<&str>| {
+        let mut add_func = |func: &'r Function, name: Option<&str>| {
             let name = func.core_export_name(name);
             let ty = resolve.wasm_signature(AbiVariant::GuestExport, func);
             let prev = required.insert(
                 name.into_owned(),
-                wasmparser::FuncType::new(
-                    ty.params.iter().map(to_valty),
-                    ty.results.iter().map(to_valty),
+                (
+                    wasmparser::FuncType::new(
+                        ty.params.iter().map(to_valty),
+                        ty.results.iter().map(to_valty),
+                    ),
+                    Some(func),
                 ),
             );
             assert!(prev.is_none());
