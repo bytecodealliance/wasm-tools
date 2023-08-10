@@ -39,8 +39,8 @@ impl<'a> Expression<'a> {
     /// # Errors
     ///
     /// This function will return an error if the expression could not be
-    /// parsed. Note that creating an [`Error`] is not exactly a cheap
-    /// operation, so [`Error`] is typically fatal and propagated all the
+    /// parsed. Note that creating an [`crate::Error`] is not exactly a cheap
+    /// operation, so [`crate::Error`] is typically fatal and propagated all the
     /// way back to the top parse call site.
     pub fn parse_folded_instruction(parser: Parser<'a>) -> Result<Self> {
         let mut exprs = ExpressionParser::default();
