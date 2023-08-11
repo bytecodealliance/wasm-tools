@@ -839,7 +839,6 @@ impl Parser {
                 }
             };
 
-            dbg!("THIS FAR");
             match &payload {
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {

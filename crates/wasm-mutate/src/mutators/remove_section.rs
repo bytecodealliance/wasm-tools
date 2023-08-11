@@ -14,25 +14,25 @@ pub enum RemoveSection {
     Empty,
 }
 
-fn is_empty_section(section: &wasm_encoder::RawSection) -> bool {
+fn is_empty_section(cur_section: &wasm_encoder::RawSection) -> bool {
     use wasmparser::*;
     crate::module::match_section_id! {
-        match section.id;
-        Custom => Ok(section.data.is_empty()),
-        Type => TypeSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Import => ImportSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Function => FunctionSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Table => FunctionSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Memory => MemorySectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Global => GlobalSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Export => ExportSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Start => Ok(section.data.is_empty()),
-        Element => ElementSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Code => CodeSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Data => DataSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        DataCount => Ok(section.data.is_empty()),
-        Tag => TagSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        _ => Ok(section.data.is_empty()),
+        match cur_section.id;
+        Custom => Ok(cur_section.data.is_empty()),
+        Type => TypeSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Import => ImportSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Function => FunctionSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Table => FunctionSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Memory => MemorySectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Global => GlobalSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Export => ExportSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Start => Ok(cur_section.data.is_empty()),
+        Element => ElementSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Code => CodeSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        Data => DataSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        DataCount => Ok(cur_section.data.is_empty()),
+        Tag => TagSectionReader::new(cur_section.data, 0).map(|r| r.count() == 0),
+        _ => Ok(cur_section.data.is_empty()),
     }
     .unwrap_or(false)
 }

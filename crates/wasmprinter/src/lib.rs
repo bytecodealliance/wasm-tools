@@ -278,7 +278,6 @@ impl Printer {
         let mut parsers = Vec::new();
         let mut code = Vec::new();
         let mut code_printed = false;
-        dbg!("BEFORE LOOP");
 
         loop {
             let payload = match parser.parse(bytes, true)? {
@@ -288,7 +287,6 @@ impl Printer {
                     payload
                 }
             };
-            dbg!(&payload);
             match payload {
                 Payload::Version { encoding, .. } => {
                     if let Some(e) = expected {
