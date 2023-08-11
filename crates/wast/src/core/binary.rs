@@ -1062,6 +1062,7 @@ impl Encode for Custom<'_> {
         match self {
             Custom::Raw(r) => r.encode(e),
             Custom::Producers(p) => p.encode(e),
+            Custom::Dylink0(p) => p.encode(e),
         }
     }
 }
@@ -1077,6 +1078,38 @@ impl Encode for RawCustomSection<'_> {
 impl Encode for Producers<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.fields.encode(e);
+    }
+}
+
+impl Encode for Dylink0<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        for section in self.subsections.iter() {
+            e.push(section.id());
+            let mut tmp = Vec::new();
+            section.encode(&mut tmp);
+            tmp.encode(e);
+        }
+    }
+}
+
+impl Encode for Dylink0Subsection<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            Dylink0Subsection::MemInfo {
+                memory_size,
+                memory_align,
+                table_size,
+                table_align,
+            } => {
+                memory_size.encode(e);
+                memory_align.encode(e);
+                table_size.encode(e);
+                table_align.encode(e);
+            }
+            Dylink0Subsection::Needed(libs) => libs.encode(e),
+            Dylink0Subsection::ExportInfo(list) => list.encode(e),
+            Dylink0Subsection::ImportInfo(list) => list.encode(e),
+        }
     }
 }
 

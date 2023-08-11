@@ -21,6 +21,6 @@
       | 65         
  0x26 | 03 06       | label section
  0x28 | 01          | 1 count
- 0x29 | 00          | function 0 label section
+ 0x29 | 00          | function 0 label name section
  0x2a | 01          | 1 count
  0x2b | 00 01 6c    | Naming { index: 0, name: "l" }

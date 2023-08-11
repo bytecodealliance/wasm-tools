@@ -1,7 +1,9 @@
 package foo:foo
 
 interface foo {
-  record f {}
+  record f {
+    f: u32,
+  }
 
   record r {
     f: f,

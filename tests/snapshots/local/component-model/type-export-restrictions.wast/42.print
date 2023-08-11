@@ -1,7 +1,7 @@
 (component $C
   (type (;0;)
     (instance
-      (type (;0;) (record))
+      (type (;0;) (record (field "f" u32)))
       (export (;1;) "baz" (type (eq 0)))
       (type (;2;) (record (field "baz" 1)))
       (export (;3;) "bar" (type (eq 2)))

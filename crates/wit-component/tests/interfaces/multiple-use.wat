@@ -33,8 +33,8 @@
       (export (;2;) (interface "foo:multiuse/baz") (instance (type 5)))
     )
   )
+  (export (;1;) (interface "foo:multiuse/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:multiuse/wit") (type 0))
 )

@@ -113,12 +113,6 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
         push_tys(wat, "param", &sig.params);
         push_tys(wat, "result", &sig.results);
         wat.push_str(" unreachable)\n");
-
-        if resolve.guest_export_needs_post_return(func) {
-            wat.push_str(&format!("(func (export \"cabi_post_{name}\")"));
-            push_tys(wat, "param", &sig.results);
-            wat.push_str(")\n");
-        }
     }
 
     fn push_tys(dst: &mut String, desc: &str, params: &[WasmType]) {

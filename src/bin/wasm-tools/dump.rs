@@ -476,7 +476,7 @@ impl<'a> Dump<'a> {
     }
 
     fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
-        self.section(n, thing, |me, end, naming| {
+        self.section(n, &format!("{thing} name"), |me, end, naming| {
             write!(me.state, "{:?}", naming)?;
             me.print(end)
         })

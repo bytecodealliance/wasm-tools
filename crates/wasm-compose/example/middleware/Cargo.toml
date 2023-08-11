@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 flate2 = "1.0.24"
-wit-bindgen = { version = "0.6.0", default_features = false }
+cargo-component-bindings = { git = "https://github.com/bytecodealliance/cargo-component" }
 
 [lib]
 crate-type = ["cdylib"]

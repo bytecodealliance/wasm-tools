@@ -190,6 +190,7 @@ pub struct ComponentType {
     num_added: u32,
     core_types_added: u32,
     types_added: u32,
+    instances_added: u32,
 }
 
 impl ComponentType {
@@ -239,6 +240,10 @@ impl ComponentType {
                 kind: ComponentOuterAliasKind::CoreType,
                 ..
             } => self.core_types_added += 1,
+            Alias::InstanceExport {
+                kind: ComponentExportKind::Instance,
+                ..
+            } => self.instances_added += 1,
             _ => {}
         }
         self
@@ -252,6 +257,7 @@ impl ComponentType {
         self.num_added += 1;
         match ty {
             ComponentTypeRef::Type(..) => self.types_added += 1,
+            ComponentTypeRef::Instance(..) => self.instances_added += 1,
             _ => {}
         }
         self
@@ -265,6 +271,7 @@ impl ComponentType {
         self.num_added += 1;
         match ty {
             ComponentTypeRef::Type(..) => self.types_added += 1,
+            ComponentTypeRef::Instance(..) => self.instances_added += 1,
             _ => {}
         }
         self
@@ -278,6 +285,12 @@ impl ComponentType {
     /// Gets the number of types that have been added or aliased in this component type.
     pub fn type_count(&self) -> u32 {
         self.types_added
+    }
+
+    /// Gets the number of instances that have been defined in this component
+    /// type through imports, exports, or aliases.
+    pub fn instance_count(&self) -> u32 {
+        self.instances_added
     }
 }
 
@@ -335,6 +348,12 @@ impl InstanceType {
     /// Gets the number of types that have been added or aliased in this instance type.
     pub fn type_count(&self) -> u32 {
         self.0.types_added
+    }
+
+    /// Gets the number of instances that have been imported or exported or
+    /// aliased in this instance type.
+    pub fn instance_count(&self) -> u32 {
+        self.0.instances_added
     }
 
     /// Returns whether or not this instance type is empty.

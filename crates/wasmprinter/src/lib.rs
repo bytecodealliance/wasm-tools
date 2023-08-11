@@ -2569,6 +2569,13 @@ impl Printer {
                     section.data_offset(),
                 )?)
             }
+            "dylink.0" => {
+                self.newline(section.range().start);
+                self.print_dylink0_section(Dylink0SectionReader::new(
+                    section.data(),
+                    section.data_offset(),
+                ))
+            }
             _ => Ok(()),
         }
     }
@@ -2589,6 +2596,97 @@ impl Printer {
             }
         }
         self.end_group();
+        Ok(())
+    }
+
+    fn print_dylink0_section(&mut self, mut section: Dylink0SectionReader<'_>) -> Result<()> {
+        self.start_group("@dylink.0");
+        loop {
+            let start = section.original_position();
+            let next = match section.next() {
+                Some(Ok(next)) => next,
+                Some(Err(e)) => return Err(e.into()),
+                None => break,
+            };
+            match next {
+                Dylink0Subsection::MemInfo(info) => {
+                    self.newline(start);
+                    self.start_group("mem-info");
+                    if info.memory_size > 0 || info.memory_alignment > 0 {
+                        write!(
+                            self.result,
+                            " (memory {} {})",
+                            info.memory_size, info.memory_alignment
+                        )?;
+                    }
+                    if info.table_size > 0 || info.table_alignment > 0 {
+                        write!(
+                            self.result,
+                            " (table {} {})",
+                            info.table_size, info.table_alignment
+                        )?;
+                    }
+                    self.end_group();
+                }
+                Dylink0Subsection::Needed(needed) => {
+                    self.newline(start);
+                    self.start_group("needed");
+                    for s in needed {
+                        self.result.push_str(" ");
+                        self.print_str(s)?;
+                    }
+                    self.end_group();
+                }
+                Dylink0Subsection::ExportInfo(info) => {
+                    for info in info {
+                        self.newline(start);
+                        self.start_group("export-info ");
+                        self.print_str(info.name)?;
+                        self.print_dylink0_flags(info.flags)?;
+                        self.end_group();
+                    }
+                }
+                Dylink0Subsection::ImportInfo(info) => {
+                    for info in info {
+                        self.newline(start);
+                        self.start_group("import-info ");
+                        self.print_str(info.module)?;
+                        self.result.push_str(" ");
+                        self.print_str(info.field)?;
+                        self.print_dylink0_flags(info.flags)?;
+                        self.end_group();
+                    }
+                }
+                Dylink0Subsection::Unknown { ty, .. } => {
+                    bail!("don't know how to print dylink.0 subsection id {ty}");
+                }
+            }
+        }
+        self.end_group();
+        Ok(())
+    }
+
+    fn print_dylink0_flags(&mut self, mut flags: u32) -> Result<()> {
+        macro_rules! print_flag {
+            ($($name:ident = $text:tt)*) => ({$(
+                if flags & wasmparser::$name != 0 {
+                    flags &= !wasmparser::$name;
+                    self.result.push_str(concat!(" ", $text));
+                }
+            )*})
+        }
+        print_flag! {
+            WASM_SYM_BINDING_WEAK = "binding-weak"
+            WASM_SYM_BINDING_LOCAL = "binding-local"
+            WASM_SYM_VISIBILITY_HIDDEN = "visibility-hidden"
+            WASM_SYM_UNDEFINED = "undefined"
+            WASM_SYM_EXPORTED = "exported"
+            WASM_SYM_EXPLICIT_NAME = "explicit-name"
+            WASM_SYM_NO_STRIP = "no-strip"
+        }
+        if flags != 0 {
+            write!(self.result, " {:#x}", flags)?;
+        }
         Ok(())
     }
 }

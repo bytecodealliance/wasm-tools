@@ -89,9 +89,6 @@
   (alias export 0 "read" (func (;0;)))
   (core func (;3;) (canon lower (func 0) (memory 0) (realloc 2)))
   (alias core export 4 "read" (core func (;4;)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;5;)
     (export "$imports" (table 0))
     (export "0" (func 3))
@@ -100,5 +97,8 @@
   (core instance (;6;) (instantiate 3
       (with "" (instance 5))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

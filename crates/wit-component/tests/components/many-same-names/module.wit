@@ -1,7 +1,9 @@
 package foo:foo
 
 interface name {
-  record r1 {}
+  record r1 {
+    f: u8,
+  }
 
   record r2 {
     x: r1

@@ -1,8 +1,8 @@
 (component
-  (type $r' (;0;) (record))
+  (type $r' (;0;) (record (field "f" u32)))
   (import "r" (type $r (;1;) (eq $r')))
   (component $C (;0;)
-    (type $r' (;0;) (record))
+    (type $r' (;0;) (record (field "f" u32)))
     (import "r" (type $r (;1;) (eq $r')))
     (type $r2' (;2;) (record (field "r" $r)))
     (export (;3;) "r2" (type $r2'))

@@ -17,9 +17,9 @@ const PAGE_SIZE: i32 = 64 * 1024;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
-pub fn run(
+pub fn run<T>(
     wasm: &[u8],
-    required: &IndexMap<String, FuncType>,
+    required: &IndexMap<String, T>,
     main_module_realloc: Option<&str>,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());

@@ -1,6 +1,7 @@
 use crate::metadata::{Bindgen, ModuleMetadata};
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
+use std::mem;
 use wasmparser::names::{KebabName, KebabNameKind};
 use wasmparser::{
     types::Types, ComponentExternName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
@@ -43,6 +44,8 @@ pub const BARE_FUNC_MODULE_NAME: &str = "$root";
 pub const RESOURCE_DROP: &str = "[resource-drop]";
 pub const RESOURCE_REP: &str = "[resource-rep]";
 pub const RESOURCE_NEW: &str = "[resource-new]";
+
+pub const POST_RETURN_PREFIX: &str = "cabi_post_";
 
 /// Metadata about a validated module and what was found internally.
 ///
@@ -90,6 +93,10 @@ pub struct ValidatedModule<'a> {
 
     /// The original metadata specified for this module.
     pub metadata: &'a ModuleMetadata,
+
+    /// Post-return functions annotated with `cabi_post_*` in their function
+    /// name.
+    pub post_returns: IndexSet<String>,
 }
 
 #[derive(Default)]
@@ -135,6 +142,7 @@ pub fn validate_module<'a>(
         adapter_realloc: None,
         metadata: &metadata.metadata,
         required_resource_funcs: Default::default(),
+        post_returns: Default::default(),
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -181,7 +189,6 @@ pub fn validate_module<'a>(
                                 if export.name == "cabi_realloc_adapter" {
                                     ret.adapter_realloc = Some(export.name);
                                 }
-                                continue;
                             }
 
                             assert!(export_funcs.insert(export.name, export.index).is_none())
@@ -338,6 +345,10 @@ pub struct ValidatedAdapter<'a> {
 
     /// Metadata about the original adapter module.
     pub metadata: &'a ModuleMetadata,
+
+    /// Post-return functions annotated with `cabi_post_*` in their function
+    /// name.
+    pub post_returns: IndexSet<String>,
 }
 
 /// This function will validate the `bytes` provided as a wasm adapter module.
@@ -353,12 +364,17 @@ pub struct ValidatedAdapter<'a> {
 /// adapter module's original source. This means that the adapter module is
 /// already minimized and this is a double-check that the minimization pass
 /// didn't accidentally break the wasm module.
+///
+/// If `is_library` is true, we waive some of the constraints described above,
+/// allowing the module to import tables and globals, as well as import
+/// functions at the world level, not just at the interface level.
 pub fn validate_adapter_module<'a>(
     bytes: &[u8],
     resolve: &'a Resolve,
     world: WorldId,
     metadata: &'a ModuleMetadata,
-    required: &IndexMap<String, FuncType>,
+    required: &IndexMap<String, (FuncType, Option<&Function>)>,
+    is_library: bool,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
     let mut import_funcs = IndexMap::new();
@@ -372,6 +388,7 @@ pub fn validate_adapter_module<'a>(
         import_realloc: None,
         export_realloc: None,
         metadata,
+        post_returns: Default::default(),
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -411,6 +428,8 @@ pub fn validate_adapter_module<'a>(
                             ret.needs_memory =
                                 Some((import.module.to_string(), import.name.to_string()));
                         }
+
+                        TypeRef::Global(_) | TypeRef::Table(_) if is_library => (),
 
                         _ => {
                             bail!("adapter module is only allowed to import functions and memories")
@@ -473,34 +492,35 @@ pub fn validate_adapter_module<'a>(
                 assert!(prev.is_none());
             }
             None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                bail!(
-                    "adapter module requires an import interface named `{}`",
-                    name
-                )
+                if !is_library {
+                    bail!(
+                        "adapter module requires an import interface named `{}`",
+                        name
+                    )
+                }
             }
         }
     }
 
-    for (name, ty) in required {
+    for (name, (ty, func)) in required {
         let idx = match export_funcs.get(name.as_str()) {
             Some(idx) => *idx,
             None => bail!("adapter module did not export `{name}`"),
         };
         let id = types.function_at(idx);
         let actual = types[id].unwrap_func();
-        if ty == actual {
-            continue;
+        validate_func_sig(name, ty, actual)?;
+
+        if let Some(func) = func {
+            let post_return = format!("{POST_RETURN_PREFIX}{name}");
+            if let Some(idx) = export_funcs.get(post_return.as_str()) {
+                let id = types.function_at(*idx);
+                let actual = types[id].unwrap_func();
+                validate_post_return(resolve, &actual, func)?;
+                let ok = ret.post_returns.insert(post_return);
+                assert!(ok);
+            }
         }
-        bail!(
-            "adapter module export `{name}` does not match the expected signature:\n\
-            expected: {:?} -> {:?}\n\
-            actual:   {:?} -> {:?}\n\
-            ",
-            ty.params(),
-            ty.results(),
-            actual.params(),
-            actual.results(),
-        );
     }
 
     Ok(ret)
@@ -664,6 +684,25 @@ fn validate_func(
     )
 }
 
+fn validate_post_return(
+    resolve: &Resolve,
+    ty: &wasmparser::FuncType,
+    func: &Function,
+) -> Result<()> {
+    // The expected signature of a post-return function is to take all the
+    // parameters that are returned by the guest function and then return no
+    // results. Model this by calculating the signature of `func` and then
+    // moving its results into the parameters list while emptying out the
+    // results.
+    let mut sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
+    sig.params = mem::take(&mut sig.results);
+    validate_func_sig(
+        &format!("{} post-return", func.name),
+        &wasm_sig_to_func_type(sig),
+        ty,
+    )
+}
+
 fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType) -> Result<()> {
     if ty != expected {
         bail!(
@@ -687,19 +726,28 @@ fn validate_exported_item<'a>(
     types: &Types,
     info: &mut ValidatedModule<'a>,
 ) -> Result<()> {
-    let validate = |func: &Function, name: Option<&str>| {
+    let mut validate = |func: &Function, name: Option<&str>| {
         let expected_export_name = func.core_export_name(name);
-        match exports.get(expected_export_name.as_ref()) {
-            Some(func_index) => {
-                let id = types.function_at(*func_index);
-                let ty = types[id].unwrap_func();
-                validate_func(resolve, ty, func, AbiVariant::GuestExport)
-            }
+        let func_index = match exports.get(expected_export_name.as_ref()) {
+            Some(func_index) => func_index,
             None => bail!(
                 "module does not export required function `{}`",
                 expected_export_name
             ),
+        };
+        let id = types.function_at(*func_index);
+        let ty = types[id].unwrap_func();
+        validate_func(resolve, ty, func, AbiVariant::GuestExport)?;
+
+        let post_return = format!("{POST_RETURN_PREFIX}{expected_export_name}");
+        if let Some(index) = exports.get(&post_return[..]) {
+            let ok = info.post_returns.insert(post_return);
+            assert!(ok);
+            let id = types.function_at(*index);
+            let ty = types[id].unwrap_func();
+            validate_post_return(resolve, ty, func)?;
         }
+        Ok(())
     };
     match item {
         WorldItem::Function(func) => validate(func, None)?,

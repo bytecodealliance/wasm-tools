@@ -1,0 +1,3 @@
+duplicate symbol(s):
+	bar needs foo (function [I32] -> [I32]), provided by bar, foo
+	foo needs foo (function [I32] -> [I32]), provided by bar, foo

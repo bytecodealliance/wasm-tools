@@ -94,7 +94,7 @@
 
 (assert_invalid
   (component
-    (type $t (record))
+    (type $t (tuple u32))
     (core func (canon resource.drop $t))
   )
   "not a resource type")

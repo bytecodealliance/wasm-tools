@@ -37,7 +37,7 @@
  0x43 | 00 12       | custom section
  0x45 | 04 6e 61 6d | name: "name"
       | 65         
- 0x4a | 04 0b       | type section
+ 0x4a | 04 0b       | type name section
  0x4c | 02          | 2 count
  0x4d | 00 05 65 6d | Naming { index: 0, name: "empty" }
       | 70 74 79   

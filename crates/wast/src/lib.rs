@@ -522,6 +522,10 @@ pub mod kw {
     custom_keyword!(language);
     custom_keyword!(sdk);
     custom_keyword!(processed_by = "processed-by");
+    custom_keyword!(mem_info = "mem-info");
+    custom_keyword!(needed);
+    custom_keyword!(export_info = "export-info");
+    custom_keyword!(import_info = "import-info");
 }
 
 /// Common annotations used to parse WebAssembly text files.
@@ -529,4 +533,5 @@ pub mod annotation {
     annotation!(custom);
     annotation!(name);
     annotation!(producers);
+    annotation!(dylink_0 = "dylink.0");
 }

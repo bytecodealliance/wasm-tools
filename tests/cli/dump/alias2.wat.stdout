@@ -95,7 +95,7 @@
          | 61 6d 65   
     0xff | 00 03       | component name
    0x101 | 02 63 32    | "c2"
-   0x104 | 01 05 03    | type section
+   0x104 | 01 05 03    | type name section
    0x107 | 01          | 1 count
    0x108 | 00 01 74    | Naming { index: 0, name: "t" }
  0x10b | 06 1b       | component alias section
@@ -207,41 +207,41 @@
        | 70 6f 6e 65
        | 6e 74 2d 6e
        | 61 6d 65   
- 0x222 | 01 06 00 00 | core func section
+ 0x222 | 01 06 00 00 | core func name section
  0x226 | 01          | 1 count
  0x227 | 00 01 66    | Naming { index: 0, name: "f" }
- 0x22a | 01 06 00 01 | core table section
+ 0x22a | 01 06 00 01 | core table name section
  0x22e | 01          | 1 count
  0x22f | 00 01 74    | Naming { index: 0, name: "t" }
- 0x232 | 01 06 00 02 | core memory section
+ 0x232 | 01 06 00 02 | core memory name section
  0x236 | 01          | 1 count
  0x237 | 00 01 6d    | Naming { index: 0, name: "m" }
- 0x23a | 01 06 00 03 | core global section
+ 0x23a | 01 06 00 03 | core global name section
  0x23e | 01          | 1 count
  0x23f | 00 01 67    | Naming { index: 0, name: "g" }
- 0x242 | 01 0e 00 11 | core module section
+ 0x242 | 01 0e 00 11 | core module name section
  0x246 | 03          | 3 count
  0x247 | 01 01 6d    | Naming { index: 1, name: "m" }
  0x24a | 02 02 6d 31 | Naming { index: 2, name: "m1" }
  0x24e | 03 02 6d 32 | Naming { index: 3, name: "m2" }
- 0x252 | 01 06 00 12 | core instance section
+ 0x252 | 01 06 00 12 | core instance name section
  0x256 | 01          | 1 count
  0x257 | 00 01 69    | Naming { index: 0, name: "i" }
- 0x25a | 01 05 01    | func section
+ 0x25a | 01 05 01    | func name section
  0x25d | 01          | 1 count
  0x25e | 01 01 66    | Naming { index: 1, name: "f" }
- 0x261 | 01 05 02    | value section
+ 0x261 | 01 05 02    | value name section
  0x264 | 01          | 1 count
  0x265 | 01 01 76    | Naming { index: 1, name: "v" }
- 0x268 | 01 05 03    | type section
+ 0x268 | 01 05 03    | type name section
  0x26b | 01          | 1 count
  0x26c | 00 01 74    | Naming { index: 0, name: "t" }
- 0x26f | 01 0d 04    | component section
+ 0x26f | 01 0d 04    | component name section
  0x272 | 03          | 3 count
  0x273 | 00 01 63    | Naming { index: 0, name: "c" }
  0x276 | 02 02 63 32 | Naming { index: 2, name: "c2" }
  0x27a | 03 02 63 33 | Naming { index: 3, name: "c3" }
- 0x27e | 01 09 05    | instance section
+ 0x27e | 01 09 05    | instance name section
  0x281 | 02          | 2 count
  0x282 | 00 01 69    | Naming { index: 0, name: "i" }
  0x285 | 03 02 69 32 | Naming { index: 3, name: "i2" }

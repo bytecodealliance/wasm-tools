@@ -79,8 +79,8 @@
   (type (;0;) (func (param "nargs" u32)))
   (alias core export 4 "entrypoint" (core func (;3;)))
   (func (;0;) (type 0) (canon lift (core func 3)))
+  (export (;1;) "entrypoint" (func 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) "entrypoint" (func 0))
 )

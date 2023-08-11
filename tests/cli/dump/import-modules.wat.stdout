@@ -42,11 +42,11 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0x6b | 01 0b 00 11 | core module section
+ 0x6b | 01 0b 00 11 | core module name section
  0x6f | 02          | 2 count
  0x70 | 00 02 6d 31 | Naming { index: 0, name: "m1" }
  0x74 | 01 02 6d 32 | Naming { index: 1, name: "m2" }
- 0x78 | 01 0b 00 12 | core instance section
+ 0x78 | 01 0b 00 12 | core instance name section
  0x7c | 02          | 2 count
  0x7d | 00 02 69 31 | Naming { index: 0, name: "i1" }
  0x81 | 01 02 69 32 | Naming { index: 1, name: "i2" }
