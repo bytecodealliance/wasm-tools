@@ -289,7 +289,6 @@ impl KebabName {
         };
         let parsed = match name {
             ComponentExternName::Kebab(s) => {
-                dbg!("KEBAB BLOCK");
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
                     // validate_kebab(s)?;
                     ParsedKebabName::Constructor

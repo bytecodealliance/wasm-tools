@@ -1,22 +1,16 @@
 use anyhow::Result;
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 use warg_client::{
     storage::{FileSystemContentStorage, FileSystemRegistryStorage, RegistryStorage},
     Client,
 };
 use warg_protocol::{package::ReleaseState, registry::PackageId};
 use wasm_encoder::{
-    Component, ComponentSectionId,
-    RawSection,
+    Component, ComponentImportSection, ComponentSectionId, ComponentTypeRef, RawSection,
 };
 use wasmparser::{
-    parser::{State},
-    Chunk,
-    ComponentExternName,
-    ComponentImportSectionReader,
-    ImplementationImport,
-    Parser,
-    Payload,
+    parser::State, Chunk, ComponentExternName, ComponentImportSectionReader, ImplementationImport,
+    Parser, Payload,
 };
 
 pub const MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB
@@ -29,9 +23,7 @@ pub struct Bundler<'a> {
 }
 
 impl<'a> Bundler<'a> {
-    pub fn new(
-        client: &'a Client<FileSystemRegistryStorage, FileSystemContentStorage>,
-    ) -> Self {
+    pub fn new(client: &'a Client<FileSystemRegistryStorage, FileSystemContentStorage>) -> Self {
         Self {
             client, // state: State::Header,
                     // max_size: u64::MAX,
@@ -46,41 +38,49 @@ impl<'a> Bundler<'a> {
         parser: ComponentImportSectionReader<'a>,
         component: &mut Component,
     ) -> Result<Vec<u8>> {
+        let mut imports = ComponentImportSection::new();
+        let mut interfaces = HashMap::new();
         for import in parser.into_iter_with_offsets() {
             let (_, imp) = import.unwrap().clone();
             match imp.name {
-                ComponentExternName::Implementation(impl_import) => {
-                    match impl_import {
-                        ImplementationImport::Locked(metadata) | ImplementationImport::Unlocked(metadata) => {
-                            let mut full_name = metadata.name.split('/');
-                            let name = full_name.next();
-                            if let Some(name) = name {
-                                let pkg_id = PackageId::new(name)?;
-                                if let Some(info) =
-                                    self.client.registry().load_package(&pkg_id).await?
-                                {
-                                    let state = &info.state.releases().last().unwrap().state;
-                                    if let ReleaseState::Released { content } = state {
-                                        let full_digest = content.to_string();
-                                        let digest = full_digest.split(':').last().unwrap();
-                                        let mut content_path = String::from("/Users/interpretations/Library/Caches/warg/content/sha256/");
-                                        content_path.push_str(&digest);
-                                        let path = Path::new(&content_path);
-                                        let bytes = fs::read(path)?;
-                                        component.section(&RawSection {
-                                            id: ComponentSectionId::Component.into(),
-                                            data: &bytes,
-                                        });
-                                    }
+                ComponentExternName::Implementation(impl_import) => match impl_import {
+                    ImplementationImport::Locked(metadata)
+                    | ImplementationImport::Unlocked(metadata) => {
+                        let mut full_name = metadata.name.split('/');
+                        let name = full_name.next();
+                        if let Some(name) = name {
+                            let pkg_id = PackageId::new(name)?;
+                            if let Some(info) = self.client.registry().load_package(&pkg_id).await?
+                            {
+                                let state = &info.state.releases().last().unwrap().state;
+                                if let ReleaseState::Released { content } = state {
+                                    let full_digest = content.to_string();
+                                    let digest = full_digest.split(':').last().unwrap();
+                                    let mut content_path = String::from("/Users/interpretations/Library/Caches/warg/content/sha256/");
+                                    content_path.push_str(&digest);
+                                    let path = Path::new(&content_path);
+                                    let bytes = fs::read(path)?;
+                                    component.section(&RawSection {
+                                        id: ComponentSectionId::Component.into(),
+                                        data: &bytes,
+                                    });
                                 }
                             }
                         }
-                        _ => {}
                     }
+                    _ => {}
+                },
+                ComponentExternName::Interface(name) => {
+                    interfaces.insert(name.to_string(), name.to_string());
                 }
                 _ => {}
             }
         }
+        for (key, _) in interfaces {
+            let extern_name = wasm_encoder::ComponentExternName::Interface(&key);
+            imports.import(extern_name, ComponentTypeRef::Instance(0));
+        }
+        component.section(&imports);
         Ok(Vec::new())
     }
 
