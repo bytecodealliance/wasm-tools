@@ -1,7 +1,6 @@
 //! Support for parsing and analyzing [dynamic
 //! library](https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md) modules.
 
-use wasmparser::SubType;
 use {
     anyhow::{bail, Context, Error, Result},
     std::{
@@ -353,8 +352,8 @@ impl<'a> Metadata<'a> {
                                 .map(|st| Ok(st.clone()))
                                 .collect::<Vec<_>>(),
                         })
-                        .filter_map(|r: Result<SubType, BinaryReaderError>| {
-                            r.map(|ty: SubType| match ty.clone().structural_type {
+                        .filter_map(|r| {
+                            r.map(|ty| match ty.clone().structural_type {
                                 StructuralType::Func(ty) => Some(ty),
                                 StructuralType::Array(_) | StructuralType::Struct(_) => None,
                             })
