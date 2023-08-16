@@ -5,16 +5,36 @@ use std::mem;
 use wit_parser::*;
 
 /// A utility for printing WebAssembly interface definitions to a string.
-#[derive(Default)]
 pub struct WitPrinter {
     output: Output,
 
     // Count of how many items in this current block have been printed to print
     // a blank line between each item, but not the first item.
     any_items: bool,
+
+    // Whether to print doc comments.
+    emit_docs: bool,
+}
+
+impl Default for WitPrinter {
+    fn default() -> Self {
+        Self {
+            output: Default::default(),
+            any_items: false,
+            emit_docs: true,
+        }
+    }
 }
 
 impl WitPrinter {
+    /// Configure whether doc comments will be printed.
+    ///
+    /// Defaults to true.
+    pub fn emit_docs(&mut self, enabled: bool) -> &mut Self {
+        self.emit_docs = enabled;
+        self
+    }
+
     /// Print the given WIT package to a string.
     pub fn print(&mut self, resolve: &Resolve, pkgid: PackageId) -> Result<String> {
         let pkg = &resolve.packages[pkgid];
@@ -27,6 +47,7 @@ impl WitPrinter {
         }
         self.output.push_str("\n\n");
         for (name, id) in pkg.interfaces.iter() {
+            self.print_docs(&resolve.interfaces[*id].docs);
             self.output.push_str("interface ");
             self.print_name(name);
             self.output.push_str(" {\n");
@@ -35,6 +56,7 @@ impl WitPrinter {
         }
 
         for (name, id) in pkg.worlds.iter() {
+            self.print_docs(&resolve.worlds[*id].docs);
             self.output.push_str("world ");
             self.print_name(name);
             self.output.push_str(" {\n");
@@ -79,6 +101,7 @@ impl WitPrinter {
 
         for (name, func) in freestanding {
             self.new_item();
+            self.print_docs(&func.docs);
             self.print_name(name);
             self.output.push_str(": ");
             self.print_function(resolve, func)?;
@@ -162,6 +185,7 @@ impl WitPrinter {
 
         for id in types_to_declare {
             self.new_item();
+            self.print_docs(&resolve.types[id].docs);
             match resolve.types[id].kind {
                 TypeDefKind::Resource => self.print_resource(
                     resolve,
@@ -188,10 +212,12 @@ impl WitPrinter {
             match &func.kind {
                 FunctionKind::Constructor(_) => {}
                 FunctionKind::Method(_) => {
+                    self.print_docs(&func.docs);
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
                 }
                 FunctionKind::Static(_) => {
+                    self.print_docs(&func.docs);
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
                     self.output.push_str("static ");
@@ -308,6 +334,16 @@ impl WitPrinter {
         cur_pkg: PackageId,
         desc: &str,
     ) -> Result<()> {
+        // Print inline item docs
+        if matches!(name, WorldKey::Name(_)) {
+            self.print_docs(match item {
+                WorldItem::Interface(id) => &resolve.interfaces[*id].docs,
+                WorldItem::Function(f) => &f.docs,
+                // Types are handled separately
+                WorldItem::Type(_) => unreachable!(),
+            });
+        }
+
         self.output.push_str(desc);
         self.output.push_str(" ");
         match name {
@@ -631,6 +667,7 @@ impl WitPrinter {
                 self.print_name(name);
                 self.output.push_str(" {\n");
                 for field in &record.fields {
+                    self.print_docs(&field.docs);
                     self.print_name(&field.name);
                     self.output.push_str(": ");
                     self.print_type_name(resolve, &field.ty)?;
@@ -666,6 +703,7 @@ impl WitPrinter {
                 self.print_name(name);
                 self.output.push_str(" {\n");
                 for flag in &flags.flags {
+                    self.print_docs(&flag.docs);
                     self.print_name(&flag.name);
                     self.output.push_str(",\n");
                 }
@@ -690,6 +728,7 @@ impl WitPrinter {
         self.print_name(name);
         self.output.push_str(" {\n");
         for case in &variant.cases {
+            self.print_docs(&case.docs);
             self.print_name(&case.name);
             if let Some(ty) = case.ty {
                 self.output.push_str("(");
@@ -716,6 +755,7 @@ impl WitPrinter {
         self.print_name(name);
         self.output.push_str(" {\n");
         for case in &union.cases {
+            self.print_docs(&case.docs);
             self.output.push_str("");
             self.print_type_name(resolve, &case.ty)?;
             self.output.push_str(",\n");
@@ -765,6 +805,7 @@ impl WitPrinter {
         self.print_name(name);
         self.output.push_str(" {\n");
         for case in &enum_.cases {
+            self.print_docs(&case.docs);
             self.print_name(&case.name);
             self.output.push_str(",\n");
         }
@@ -790,6 +831,18 @@ impl WitPrinter {
             self.output.push_str("%");
         }
         self.output.push_str(name);
+    }
+
+    fn print_docs(&mut self, docs: &Docs) {
+        if self.emit_docs {
+            if let Some(contents) = &docs.contents {
+                for line in contents.lines() {
+                    self.output.push_str("/// ");
+                    self.output.push_str(line);
+                    self.output.push_str("\n");
+                }
+            }
+        }
     }
 }
 
