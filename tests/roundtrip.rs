@@ -65,7 +65,8 @@ fn main() {
 
     let state = TestState::default();
     let errors = tests
-        .par_iter()
+        // .par_iter()
+        .iter()
         .filter_map(|(test, contents)| {
             let start = std::time::Instant::now();
             let result = state.run_test(test, contents).err();

@@ -158,6 +158,34 @@ pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     /// This is an ID along the lines of "wasi:http/types@2.0"
     Interface(&'a str),
+    /// This is an ID along the lines of "wasi:http/types@2.0"
+    Implementation(ImplementationImport<'a>),
+}
+
+/// Various types of implementation imports
+#[derive(Debug, Copy, Clone)]
+pub enum ImplementationImport<'a> {
+    /// External url
+    Url(ImportMetadata<'a>),
+    /// Relative path
+    Relative(ImportMetadata<'a>),
+    /// Locked Registry Import
+    Locked(ImportMetadata<'a>),
+    /// Unocked Registry Import
+    Unlocked(ImportMetadata<'a>),
+}
+
+/// Metadata For Import
+#[derive(Debug, Copy, Clone)]
+pub struct ImportMetadata<'a> {
+    /// Import Name
+    pub name: &'a str,
+    /// Import Location
+    pub location: &'a str,
+    /// Content Integrity Hash
+    pub integrity: Option<&'a str>,
+    /// SemverRange
+    pub range: Option<&'a str>,
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -171,6 +199,60 @@ impl Encode for ComponentExternName<'_> {
                 sink.push(0x01);
                 name.encode(sink);
             }
+            ComponentExternName::Implementation(import) => match import {
+                ImplementationImport::Url(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                    range: _,
+                }) => {
+                    sink.push(0x02);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
+                }
+                ImplementationImport::Relative(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                    range: _,
+                }) => {
+                    sink.push(0x03);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
+                }
+                ImplementationImport::Locked(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                    range: _,
+                }) => {
+                    sink.push(0x04);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
+                }
+                ImplementationImport::Unlocked(ImportMetadata {
+                    name,
+                    location,
+                    integrity: _,
+                    range,
+                }) => {
+                    sink.push(0x05);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(r) = range {
+                        r.encode(sink);
+                    }
+                }
+            },
         }
     }
 }

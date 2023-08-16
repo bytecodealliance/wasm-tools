@@ -12,14 +12,50 @@ pub struct ComponentImport<'a> {
     pub name: ComponentExternName<'a>,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
+  /// Info about where to import comes from
+  pub metadata: Option<ImportMetadata<'a>>
+}
+      
+///Info About where to find import
+#[derive(Debug, Copy, Clone)]
+pub struct ImportMetadata<'a> {
+  /// Name of import
+  pub name: &'a str,
+  /// Url for import
+  pub location: Option<&'a str>,
+  /// Content Integrity Hash
+  pub integrity: Option<&'a str>,
+  /// Semver Range
+  pub range: Option<&'a str>,
 }
 
 impl<'a> Parse<'a> for ComponentImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let name = parser.parse()?;
-        let item = parser.parens(|p| p.parse())?;
-        Ok(ComponentImport { span, name, item })
+        match name {
+          ComponentExternName::Kebab(_) | ComponentExternName::Interface(_) => {
+            let item = parser.parens(|p| p.parse())?;
+            return Ok(ComponentImport { span, name, item, metadata: None })
+          },
+          ComponentExternName::Implementation(impl_import) => {
+            let item = parser.parens(|p| p.parse())?;
+            match impl_import {
+              ImplementationImport::Url(metadata) => {
+                Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+              }
+              ImplementationImport::Relative(metadata) => {
+                Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+              }
+              ImplementationImport::Locked(metadata) => {
+                Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+              }
+              ImplementationImport::Unlocked(metadata) => {
+                Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+              }
+            }
+          },
+      }
     }
 }
 
@@ -30,19 +66,164 @@ pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     /// This is an interface import where the string is an ID.
     Interface(&'a str),
+    /// This is an implementation import where the string is an ID.
+    Implementation(ImplementationImport<'a>),
+}
+      
+/// The different names that can be assigned to component import
+#[derive(Debug, Copy, Clone)]
+pub enum ImplementationImport<'a> {
+  /// External Url
+  Url(ImportMetadata<'a>),
+  /// Relative path
+  Relative(ImportMetadata<'a>),
+  /// Locked Registry Import
+  Locked(ImportMetadata<'a>),
+  /// Unlocked Registry Import
+  Unlocked(ImportMetadata<'a>),
+}
+      
+/// Kinds of Implementation Imports
+pub enum ImplementationImportKinds {
+  /// Url
+  Url,
+  /// Relative
+  Relative,
+  /// Locked
+  Locked,
+  /// Unlocked
+  Unlocked,
+  /// Unknown
+  Unknown
+}
+      
+impl<'a> Parse<'a> for ImplementationImport<'a> {
+  fn parse(parser: Parser<'a>) -> Result<Self> {
+    let mut kind = ImplementationImportKinds::Unknown;
+    let is_reg_import = parser.peek::<LParen>()?;
+    let mut integrity = None;
+    let mut range = Some("");
+    if is_reg_import {
+      let name = parser.parens(|p| {
+        if p.peek::<kw::locked>()? {
+          p.parse::<kw::locked>()?;
+          kind = ImplementationImportKinds::Locked;
+          let parsed_name = p.parse();
+          if p.peek::<kw::integrity>()? {
+            p.parse::<kw::integrity>()?;
+            integrity = Some(p.parse()?);
+          }
+          parsed_name
+        } else if p.peek::<kw::unlocked>()? {
+          p.parse::<kw::unlocked>()?;
+          kind = ImplementationImportKinds::Unlocked;
+          let parsed_name = p.parse();
+          parsed_name
+        } else {
+          Err(p.error("Unknown Implementation Import"))
+        }
+      })?;
+      return match kind {
+        ImplementationImportKinds::Locked => Ok(ImplementationImport::Locked(ImportMetadata {
+          name,
+          location: None,
+          integrity,
+          range
+        })),
+        ImplementationImportKinds::Unlocked => Ok(ImplementationImport::Unlocked(ImportMetadata {
+          name,
+          location: None,
+          integrity,
+          range
+        })),
+        _ => {
+          Err(parser.error("Unknown Implementation Import"))
+        }
+      }
+    }
+    let name = parser.parse()?;
+
+    let location = parser.parens(|p| {
+      if p.peek::<kw::url>()? {
+        p.parse::<kw::url>()?;
+        kind = ImplementationImportKinds::Url;
+        let parsed_location = p.parse();
+        if p.peek::<kw::integrity>()? {
+          p.parse::<kw::integrity>()?;
+          integrity = Some(p.parse()?);
+        }
+        parsed_location
+      } else if p.peek::<kw::relative>()? {
+        p.parse::<kw::relative>()?;
+        kind = ImplementationImportKinds::Relative;
+        let parsed_location = p.parse();
+        if p.peek::<kw::integrity>()? {
+          p.parse::<kw::integrity>()?;
+          integrity = Some(p.parse()?);
+        }
+        parsed_location
+      } else {
+        Err(p.error("Unknown Implementation Import"))
+      }
+    })?;
+    match kind {
+      ImplementationImportKinds::Url => Ok(ImplementationImport::Url(ImportMetadata {
+        name,
+        location,
+        integrity,
+        range: Some("")
+      })),
+      ImplementationImportKinds::Relative => Ok(ImplementationImport::Relative(ImportMetadata {
+        name,
+        location,
+        integrity,
+        range: Some("")
+      })),
+      _ => Err(parser.error("Unknown Implementation Import")) 
+    } 
+  }
+}
+      
+impl Peek for ImplementationImport<'_> {
+  fn peek(cursor: Cursor) -> Result<bool> {
+      match cursor.keyword() {
+        Ok(Some(("relative-url", _))) => Ok(true),
+        Ok(Some(("url", _))) => Ok(true),
+        Ok(Some(("locked-dep", _))) => Ok(true),
+        Ok(Some(("unlocked-dep", _))) => Ok(true),
+        _ => Ok(false)
+      }
+  }
+
+  fn display() -> &'static str {
+      "implementation import"
+  }
 }
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<LParen>()? {
-            Ok(ComponentExternName::Interface(parser.parens(|p| {
-                p.parse::<kw::interface>()?;
-                p.parse()
+  fn parse(parser: Parser<'a>) -> Result<Self> {
+      if parser.peek::<LParen>()? {
+          if parser.peek2::<kw::interface>()? {
+            return Ok(ComponentExternName::Interface(parser.parens(|p| {
+              p.parse::<kw::interface>()?;
+              p.parse()
             })?))
-        } else {
-            Ok(ComponentExternName::Kebab(parser.parse()?))
+          } else if parser.peek2::<kw::locked>()? || parser.peek2::<kw::unlocked>()? {
+            let impl_import = parser.parse::<ImplementationImport>()?;
+            return Ok(ComponentExternName::Implementation(impl_import))
+          } else {
+            return Err(parser.error("Unknown Import Kind"))
+          }
+      } else {
+        if parser.peek2::<LParen>()? {
+          if parser.peek3::<ImplementationImport>()? {
+            let impl_import = parser.parse::<ImplementationImport>()?;
+            return Ok(ComponentExternName::Implementation(impl_import))
+          } 
         }
-    }
+        return Ok(ComponentExternName::Kebab(parser.parse()?))
+      }
+  }
 }
 
 /// An item signature for imported items.

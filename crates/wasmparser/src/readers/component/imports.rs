@@ -114,6 +114,50 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 pub enum ComponentExternName<'a> {
     Kebab(&'a str),
     Interface(&'a str),
+    Implementation(ImplementationImport<'a>),
+}
+/// Various types of implementation imports
+#[derive(Debug, Copy, Clone)]
+pub enum ImplementationImport<'a> {
+    /// External Url
+    Url(ImportMetadata<'a>),
+    /// Relative path
+    Relative(ImportMetadata<'a>),
+    /// Locked Registry Import
+    Locked(ImportMetadata<'a>),
+    /// Unlocked Registry Import
+    Unlocked(ImportMetadata<'a>),
+}
+
+/// Metadata For Import
+#[derive(Debug, Copy, Clone)]
+pub struct ImportMetadata<'a> {
+    /// Import Name
+    pub name: &'a str,
+    /// Import Location
+    pub location: &'a str,
+    /// Import Integrity
+    pub integrity: &'a str,
+    /// Semver Range
+    pub range: &'a str,
+}
+
+impl<'a> ImportMetadata<'a> {
+    /// Returns the underlying string representing this name.
+    pub fn as_str(&self) -> &'a str {
+        self.name
+    }
+}
+impl<'a> ImplementationImport<'a> {
+    /// Returns the underlying string representing this name.
+    pub fn as_str(&self) -> &'a str {
+        match self {
+            Self::Relative(metadata) => metadata.as_str(),
+            Self::Url(metadata) => metadata.as_str(),
+            Self::Locked(metadata) => metadata.as_str(),
+            Self::Unlocked(metadata) => metadata.as_str(),
+        }
+    }
 }
 
 impl<'a> ComponentExternName<'a> {
@@ -122,16 +166,67 @@ impl<'a> ComponentExternName<'a> {
         match self {
             ComponentExternName::Kebab(name) => name,
             ComponentExternName::Interface(name) => name,
+            ComponentExternName::Implementation(impl_import) => match impl_import {
+                ImplementationImport::Url(metadata) => metadata.name,
+                ImplementationImport::Relative(metadata) => metadata.name,
+                ImplementationImport::Locked(metadata) => metadata.name,
+                ImplementationImport::Unlocked(metadata) => metadata.name,
+            },
         }
     }
 }
 
 impl<'a> FromReader<'a> for ComponentExternName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(match reader.read_u8()? {
+        let byte1 = reader.read_u8()?;
+        Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
+            0x02 | 0x03 | 0x04 | 0x05 => {
+                ComponentExternName::Implementation(read_impl_import(byte1, reader)?)
+            }
             x => return reader.invalid_leading_byte(x, "import name"),
         })
     }
+}
+
+fn read_impl_import<'a>(
+    byte1: u8,
+    reader: &mut BinaryReader<'a>,
+) -> Result<ImplementationImport<'a>> {
+    let name = reader.read()?;
+    let location = reader.read()?;
+    let integrity_or_range = if reader.peek()? != 0x01 {
+        reader.read()?
+    } else {
+        ""
+    };
+
+    Ok(match byte1 {
+        0x02 => ImplementationImport::Url(ImportMetadata {
+            name,
+            location,
+            integrity: integrity_or_range,
+            range: "",
+        }),
+        0x03 => ImplementationImport::Relative(ImportMetadata {
+            name,
+            location,
+            integrity: integrity_or_range,
+            range: "",
+        }),
+        0x04 => ImplementationImport::Locked(ImportMetadata {
+            name,
+            location,
+            integrity: integrity_or_range,
+            range: "",
+        }),
+        0x05 => ImplementationImport::Unlocked(ImportMetadata {
+            name,
+            location,
+            integrity: "",
+            range: integrity_or_range,
+        }),
+        x => reader.invalid_leading_byte(x, "implementation import")?,
+    })
 }
