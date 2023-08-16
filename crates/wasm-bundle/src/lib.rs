@@ -39,7 +39,6 @@ impl<'a> Bundler<'a> {
         component: &mut Component,
     ) -> Result<Vec<u8>> {
         let mut imports = ComponentImportSection::new();
-        let mut interfaces = HashMap::new();
         for import in parser.into_iter_with_offsets() {
             let (_, imp) = import.unwrap().clone();
             match imp.name {
@@ -71,14 +70,20 @@ impl<'a> Bundler<'a> {
                     _ => {}
                 },
                 ComponentExternName::Interface(name) => {
-                    interfaces.insert(name.to_string(), name.to_string());
+                    match imp.ty {
+                        wasmparser::ComponentTypeRef::Module(_) => todo!(),
+                        wasmparser::ComponentTypeRef::Func(_) => todo!(),
+                        wasmparser::ComponentTypeRef::Value(_) => todo!(),
+                        wasmparser::ComponentTypeRef::Type(_) => todo!(),
+                        wasmparser::ComponentTypeRef::Instance(i) => {
+                          let extern_name = wasm_encoder::ComponentExternName::Interface(&name);
+                          imports.import(extern_name, ComponentTypeRef::Instance(i));
+                        },
+                        wasmparser::ComponentTypeRef::Component(_) => todo!(),
+                    }
                 }
                 _ => {}
             }
-        }
-        for (key, _) in interfaces {
-            let extern_name = wasm_encoder::ComponentExternName::Interface(&key);
-            imports.import(extern_name, ComponentTypeRef::Instance(0));
         }
         component.section(&imports);
         Ok(Vec::new())
@@ -105,7 +110,6 @@ impl<'a> Bundler<'a> {
                     payload
                 }
             };
-            dbg!(&payload);
             match payload {
                 Payload::ComponentImportSection(s) => {
                     self.parse_imports(&mut states, s, &mut component).await?;

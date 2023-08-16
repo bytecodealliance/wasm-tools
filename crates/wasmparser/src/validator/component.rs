@@ -32,7 +32,6 @@ fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabSt
             if s.is_empty() {
                 bail!(offset, "{desc} name cannot be empty");
             }
-            dbg!("FAILURE HERE");
             bail!(offset, "{desc} name `{s}` is not in kebab case");
         }
     }
@@ -1659,7 +1658,6 @@ impl ComponentState {
 
         let module_type_id = self.module_at(module_index, offset)?;
         let mut args = IndexMap::new();
-        dbg!(&module_args);
 
         // Populate the arguments
         for module_arg in module_args {
@@ -2755,7 +2753,6 @@ impl ComponentState {
     }
 
     fn core_instance_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
-        dbg!(&self.core_instances);
         match self.core_instances.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(
