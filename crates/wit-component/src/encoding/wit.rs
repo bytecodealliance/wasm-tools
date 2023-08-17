@@ -6,6 +6,8 @@ use std::mem;
 use wasm_encoder::*;
 use wit_parser::*;
 
+use super::docs::PackageDocs;
+
 /// Encodes the given `package` within `resolve` to a binary WebAssembly
 /// representation.
 ///
@@ -18,7 +20,7 @@ use wit_parser::*;
 /// * Another is to provide a clear mapping of all WIT features into the
 ///   component model through use of its binary representation.
 ///
-/// The `resolve` provided is a "world" of packages and types and such and the
+/// The `resolve` provided is a set of packages and types and such and the
 /// `package` argument is an ID within the world provided. The documents within
 /// `package` will all be encoded into the binary returned.
 ///
@@ -39,6 +41,12 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
         package,
     };
     encoder.run()?;
+
+    let package_docs = PackageDocs::extract(resolve, package);
+    encoder
+        .component
+        .raw_custom_section(&package_docs.raw_custom_section()?);
+
     Ok(encoder.component)
 }
 
