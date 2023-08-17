@@ -580,6 +580,38 @@ impl Resolve {
             WorldKey::Interface(i) => self.id_of(*i).expect("unexpected anonymous interface"),
         }
     }
+
+    /// Returns an iterator of all interfaces that the interface `id` depends
+    /// on.
+    ///
+    /// Interfaces may depend on others for type information to resolve type
+    /// imports.
+    ///
+    /// Note that the returned iterate may yield the same interface as a
+    /// dependency multiple times. Additionally only direct dependencies of `id`
+    /// are yielded, not transitive dependencies.
+    pub fn interface_direct_deps(&self, id: InterfaceId) -> impl Iterator<Item = InterfaceId> + '_ {
+        self.interfaces[id]
+            .types
+            .iter()
+            .filter_map(move |(_name, ty)| {
+                // Find `other` which `ty` is defined within to determine which
+                // interfaces this interface depends on.
+                let dep = match self.types[*ty].kind {
+                    TypeDefKind::Type(Type::Id(id)) => id,
+                    _ => return None,
+                };
+                let other = match self.types[dep].owner {
+                    TypeOwner::Interface(id) => id,
+                    _ => return None,
+                };
+                if other == id {
+                    None
+                } else {
+                    Some(other)
+                }
+            })
+    }
 }
 
 /// Structure returned by [`Resolve::merge`] which contains mappings from
@@ -1225,11 +1257,9 @@ impl Remap {
         if world.imports.contains_key(&key) {
             return;
         }
-        let ok = foreach_interface_dep(resolve, id, |dep| {
+        for dep in resolve.interface_direct_deps(id) {
             self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
-            true
-        });
-        assert!(ok);
+        }
         let prev = world.imports.insert(key, WorldItem::Interface(id));
         assert!(prev.is_none());
     }
@@ -1347,7 +1377,7 @@ impl Remap {
             if !add_export && required_imports.contains(&id) {
                 return true;
             }
-            let ok = foreach_interface_dep(resolve, id, |dep| {
+            let ok = resolve.interface_direct_deps(id).all(|dep| {
                 let key = WorldKey::Interface(dep);
                 let add_export = add_export && export_interfaces.contains_key(&dep);
                 add_world_export(
@@ -1458,30 +1488,6 @@ impl Remap {
             _ => {}
         }
     }
-}
-
-fn foreach_interface_dep(
-    resolve: &Resolve,
-    interface: InterfaceId,
-    mut f: impl FnMut(InterfaceId) -> bool,
-) -> bool {
-    for (_, ty) in resolve.interfaces[interface].types.iter() {
-        let ty = match resolve.types[*ty].kind {
-            TypeDefKind::Type(Type::Id(id)) => id,
-            _ => continue,
-        };
-        let dep = match resolve.types[ty].owner {
-            TypeOwner::None => continue,
-            TypeOwner::Interface(other) => other,
-            TypeOwner::World(_) => unreachable!(),
-        };
-        if dep != interface {
-            if !f(dep) {
-                return false;
-            }
-        }
-    }
-    true
 }
 
 struct MergeMap<'a> {

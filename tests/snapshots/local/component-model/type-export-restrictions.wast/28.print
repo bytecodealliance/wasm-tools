@@ -1,8 +1,8 @@
 (component
-  (type $t (;0;) (record))
+  (type $t (;0;) (record (field "f" u32)))
   (core module $m (;0;)
-    (type (;0;) (func))
-    (func (;0;) (type 0))
+    (type (;0;) (func (param i32)))
+    (func (;0;) (type 0) (param i32))
     (export "f" (func 0))
   )
   (core instance $i (;0;) (instantiate $m))

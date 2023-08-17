@@ -23,12 +23,12 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0x3f | 01 05 01    | func section
+ 0x3f | 01 05 01    | func name section
  0x42 | 01          | 1 count
  0x43 | 00 01 66    | Naming { index: 0, name: "f" }
- 0x46 | 01 05 04    | component section
+ 0x46 | 01 05 04    | component name section
  0x49 | 01          | 1 count
  0x4a | 00 01 63    | Naming { index: 0, name: "c" }
- 0x4d | 01 05 05    | instance section
+ 0x4d | 01 05 05    | instance name section
  0x50 | 01          | 1 count
  0x51 | 00 01 61    | Naming { index: 0, name: "a" }

@@ -132,8 +132,8 @@
   (type (;9;) (func (result 8)))
   (alias core export 0 "c" (core func (;10;)))
   (func (;8;) (type 9) (canon lift (core func 10) (memory 0)))
+  (export (;9;) "c" (func 8))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;9;) "c" (func 8))
 )

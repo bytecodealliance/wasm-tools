@@ -1,7 +1,7 @@
 (component
   (type (;0;)
     (instance
-      (type (;0;) (record))
+      (type (;0;) (record (field "f" u8)))
       (export (;1;) "bar" (type (eq 0)))
     )
   )
@@ -17,7 +17,7 @@
   )
   (import "other-name" (instance (;1;) (type 2)))
   (core module (;0;)
-    (type (;0;) (func))
+    (type (;0;) (func (result i32)))
     (import "other-name" "a" (func (;0;) (type 0)))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -26,14 +26,14 @@
   )
   (alias export 1 "a" (func (;0;)))
   (core func (;0;) (canon lower (func 0)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;0;)
     (export "a" (func 0))
   )
   (core instance (;1;) (instantiate 0
       (with "other-name" (instance 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

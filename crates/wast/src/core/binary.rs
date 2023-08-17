@@ -545,6 +545,10 @@ impl Encode for Elem<'_> {
                 offset.encode(e);
                 e.push(0x00); // extern_kind
             }
+            (ElemKind::Declared, ElemPayload::Indices(_)) => {
+                e.push(0x03); // flags
+                e.push(0x00); // extern_kind
+            }
             (
                 ElemKind::Active {
                     table: Index::Num(0, _),
@@ -571,10 +575,6 @@ impl Encode for Elem<'_> {
                 table.encode(e);
                 offset.encode(e);
                 ty.encode(e);
-            }
-            (ElemKind::Declared, ElemPayload::Indices(_)) => {
-                e.push(0x03); // flags
-                e.push(0x00); // extern_kind
             }
             (ElemKind::Declared, ElemPayload::Exprs { ty, .. }) => {
                 e.push(0x07); // flags
@@ -1062,6 +1062,7 @@ impl Encode for Custom<'_> {
         match self {
             Custom::Raw(r) => r.encode(e),
             Custom::Producers(p) => p.encode(e),
+            Custom::Dylink0(p) => p.encode(e),
         }
     }
 }
@@ -1077,6 +1078,38 @@ impl Encode for RawCustomSection<'_> {
 impl Encode for Producers<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.fields.encode(e);
+    }
+}
+
+impl Encode for Dylink0<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        for section in self.subsections.iter() {
+            e.push(section.id());
+            let mut tmp = Vec::new();
+            section.encode(&mut tmp);
+            tmp.encode(e);
+        }
+    }
+}
+
+impl Encode for Dylink0Subsection<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        match self {
+            Dylink0Subsection::MemInfo {
+                memory_size,
+                memory_align,
+                table_size,
+                table_align,
+            } => {
+                memory_size.encode(e);
+                memory_align.encode(e);
+                table_size.encode(e);
+                table_align.encode(e);
+            }
+            Dylink0Subsection::Needed(libs) => libs.encode(e),
+            Dylink0Subsection::ExportInfo(list) => list.encode(e),
+            Dylink0Subsection::ImportInfo(list) => list.encode(e),
+        }
     }
 }
 
@@ -1173,7 +1206,7 @@ impl Encode for RefCast<'_> {
     }
 }
 
-fn br_on_cast_flags(on_fail: bool, from_nullable: bool, to_nullable: bool) -> u8 {
+fn br_on_cast_flags(from_nullable: bool, to_nullable: bool) -> u8 {
     let mut flag = 0;
     if from_nullable {
         flag |= 1 << 0;
@@ -1181,18 +1214,14 @@ fn br_on_cast_flags(on_fail: bool, from_nullable: bool, to_nullable: bool) -> u8
     if to_nullable {
         flag |= 1 << 1;
     }
-    if on_fail {
-        flag |= 1 << 2;
-    }
     flag
 }
 
 impl Encode for BrOnCast<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
-        e.push(0x4f);
+        e.push(0x4e);
         e.push(br_on_cast_flags(
-            false,
             self.from_type.nullable,
             self.to_type.nullable,
         ));
@@ -1207,7 +1236,6 @@ impl Encode for BrOnCastFail<'_> {
         e.push(0xfb);
         e.push(0x4f);
         e.push(br_on_cast_flags(
-            true,
             self.from_type.nullable,
             self.to_type.nullable,
         ));

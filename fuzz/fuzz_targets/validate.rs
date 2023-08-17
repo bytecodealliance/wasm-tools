@@ -39,6 +39,7 @@ fuzz_target!(|data: &[u8]| {
         memory_control: (byte3 & 0b0000_0001) != 0,
         function_references: (byte3 & 0b0000_0010) != 0,
         gc: (byte3 & 0b0000_0100) != 0,
+        component_model_values: (byte3 & 0b0000_1000) != 0,
     });
     let use_maybe_invalid = byte3 & 0b0000_1000 != 0;
 

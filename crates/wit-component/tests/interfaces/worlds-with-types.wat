@@ -10,7 +10,7 @@
       (export (;0;) (interface "foo:foo/import-me") (instance (type 0)))
       (type (;1;)
         (component
-          (type (;0;) (record))
+          (type (;0;) (record (field "f" u8)))
           (import "foo" (type (;1;) (eq 0)))
           (import "bar" (type (;2;) (eq 1)))
           (type (;3;) (func (param "a" 1) (result 2)))
@@ -38,8 +38,8 @@
       (export (;1;) (interface "foo:foo/with-imports") (component (type 2)))
     )
   )
+  (export (;1;) (interface "foo:foo/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

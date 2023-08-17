@@ -28,8 +28,8 @@
       (export (;2;) (interface "foo:chain/foo") (instance (type 4)))
     )
   )
+  (export (;1;) (interface "foo:chain/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:chain/wit") (type 0))
 )

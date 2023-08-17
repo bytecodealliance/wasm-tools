@@ -31,6 +31,9 @@
       (memory (;0;) 0)
       (export "memory" (memory 0))
       (export "cabi_realloc" (func 2))
+      (@producers
+        (processed-by "wit-component" "0.11.0")
+      )
     )
     (core module (;1;)
       (type (;0;) (func (param i32)))
@@ -48,6 +51,9 @@
       (export "0" (func $indirect-wasi:cli-base/environment-get-environment))
       (export "1" (func $indirect-wasi:cli-base/environment-get-arguments))
       (export "$imports" (table 0))
+      (@producers
+        (processed-by "wit-component" "0.11.0")
+      )
     )
     (core module (;2;)
       (type (;0;) (func (param i32)))
@@ -55,6 +61,9 @@
       (import "" "1" (func (;1;) (type 0)))
       (import "" "$imports" (table (;0;) 2 2 funcref))
       (elem (;0;) (i32.const 0) func 0 1)
+      (@producers
+        (processed-by "wit-component" "0.11.0")
+      )
     )
     (core instance (;0;) (instantiate 1))
     (alias core export 0 "0" (core func (;0;)))
@@ -74,6 +83,9 @@
     (core func (;3;) (canon lower (func 0) (memory 0) (realloc 2) string-encoding=utf8))
     (alias export 0 "get-arguments" (func (;1;)))
     (core func (;4;) (canon lower (func 1) (memory 0) (realloc 2) string-encoding=utf8))
+    (@producers
+      (processed-by "wit-component" "0.11.0")
+    )
     (core instance (;3;)
       (export "$imports" (table 0))
       (export "0" (func 3))

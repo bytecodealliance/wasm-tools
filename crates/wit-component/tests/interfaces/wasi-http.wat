@@ -13,7 +13,7 @@
         (instance
           (alias outer 1 1 (type (;0;)))
           (export (;1;) "pollable" (type (eq 0)))
-          (type (;2;) (record))
+          (type (;2;) (record (field "f" u8)))
           (export (;3;) "stream-error" (type (eq 2)))
           (type (;4;) u32)
           (export (;5;) "input-stream" (type (eq 4)))
@@ -211,7 +211,7 @@
             (instance
               (alias outer 1 3 (type (;0;)))
               (export (;1;) "pollable" (type (eq 0)))
-              (type (;2;) (record))
+              (type (;2;) (record (field "f" u8)))
               (export (;3;) "stream-error" (type (eq 2)))
               (type (;4;) u32)
               (export (;5;) "input-stream" (type (eq 4)))
@@ -403,8 +403,8 @@
       (export (;0;) (interface "wasi:http/proxy") (component (type 13)))
     )
   )
+  (export (;1;) (interface "wasi:http/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "wasi:http/wit") (type 0))
 )

@@ -7,6 +7,6 @@
 (assert_malformed
   (module quote
     "(func)"
-    "(elem)"
+    "(elem func)"
     "(func (import \"\" \"\"))")
   "import after function")

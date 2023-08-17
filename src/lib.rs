@@ -2,6 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use std::fs::File;
+use std::io::IsTerminal;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use termcolor::{Ansi, ColorChoice, NoColor, StandardStream, WriteColor};
@@ -135,10 +136,11 @@ impl OutputArg {
                             .context(format!("failed to write `{}`", path.display()))?;
                     }
                     None => {
-                        if atty::is(atty::Stream::Stdout) {
+                        let mut stdout = std::io::stdout();
+                        if stdout.is_terminal() {
                             bail!("cannot print binary wasm output to a terminal, pass the `-t` flag to print the text format");
                         }
-                        std::io::stdout()
+                        stdout
                             .write_all(bytes)
                             .context("failed to write to stdout")?;
                     }
@@ -176,7 +178,8 @@ impl OutputArg {
                 }
             }
             None => {
-                if color == ColorChoice::Auto && !atty::is(atty::Stream::Stdout) {
+                let stdout = std::io::stdout();
+                if color == ColorChoice::Auto && !stdout.is_terminal() {
                     Ok(Box::new(StandardStream::stdout(ColorChoice::Never)))
                 } else {
                     Ok(Box::new(StandardStream::stdout(color)))

@@ -86,8 +86,8 @@
   (alias core export 2 "foo2" (core func (;5;)))
   (alias core export 2 "cabi_post_foo2" (core func (;6;)))
   (func (;4;) (type 4) (canon lift (core func 5) (memory 0) (realloc 2) string-encoding=utf8 (post-return 6)))
+  (export (;5;) "foo2" (func 4))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;5;) "foo2" (func 4))
 )

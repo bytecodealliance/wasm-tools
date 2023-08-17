@@ -48,6 +48,29 @@ jobs:
     - run: cmake -S ${{github.workspace}}/examples -B ${{github.workspace}}/examples/build -DCMAKE_BUILD_TYPE=Release
     - run: cmake --build ${{github.workspace}}/examples/build --config Release
 
+  wasm:
+    name: Test on WebAssembly
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Install Rust
+      run: rustup update stable --no-self-update && rustup default stable
+    - run: rustup target add wasm32-wasi
+    - run: |
+        tag=v10.0.1
+        curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/${tag}/wasmtime-${tag}-x86_64-linux.tar.xz
+        tar xf wasmtime-${tag}-x86_64-linux.tar.xz
+        echo `pwd`/wasmtime-${tag}-x86_64-linux >> $GITHUB_PATH
+        echo CARGO_TARGET_WASM32_WASI_RUNNER='wasmtime run --dir . --' >> $GITHUB_ENV
+        echo CARGO_BUILD_TARGET='wasm32-wasi' >> $GITHUB_ENV
+    - run: |
+        cargo test --workspace \
+          --exclude fuzz-stats \
+          --exclude wasm-tools-fuzz \
+          --exclude wasm-mutate-stats
+
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest

@@ -184,9 +184,9 @@ impl<'a> Resolver<'a> {
         }
 
         for id in world_order {
-            let (workld, i) = &world_id_to_ast[&id];
+            let (world, i) = &world_id_to_ast[&id];
             self.cur_ast_index = *i;
-            self.resolve_world(id, workld)?;
+            self.resolve_world(id, world)?;
         }
 
         Ok(UnresolvedPackage {
@@ -337,7 +337,7 @@ impl<'a> Resolver<'a> {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
                             bail!(Error {
                                 span: w.name.span,
-                                msg: format!("duplicate item named `{}", w.name.name),
+                                msg: format!("duplicate item named `{}`", w.name.name),
                             })
                         }
                         let prev = ast_ns.insert(w.name.name, ());

@@ -7,5 +7,7 @@ interface bar {
 }
 
 interface other {
-  record name {}
+  record name {
+    f: u8,
+  }
 }

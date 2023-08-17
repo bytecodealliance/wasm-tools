@@ -514,9 +514,9 @@ impl<'a> InterfaceGenerator<'a> {
                     parts.push(part);
                 }
                 Item::Static => {
-                    let mut part = format!("static %");
+                    let mut part = format!("%");
                     part.push_str(&gen_unique_name(u, &mut names)?);
-                    part.push_str(": ");
+                    part.push_str(": static ");
                     self.gen_func_sig(u, &mut part, false)?;
                     parts.push(part);
                 }
@@ -591,7 +591,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("record %");
                 ret.push_str(name);
                 ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(0..=self.config.max_type_parts)? {
+                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(": ");
@@ -642,7 +642,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("flags %");
                 ret.push_str(name);
                 ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(0..=self.config.max_type_parts)? {
+                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(",\n");
@@ -742,7 +742,7 @@ impl<'a> InterfaceGenerator<'a> {
                     }
                 }
                 Kind::Tuple => {
-                    let fields = u.int_in_range(0..=self.config.max_type_parts)?;
+                    let fields = u.int_in_range(1..=self.config.max_type_parts)?;
                     *fuel = match fuel.checked_sub(fields) {
                         Some(fuel) => fuel,
                         None => continue,

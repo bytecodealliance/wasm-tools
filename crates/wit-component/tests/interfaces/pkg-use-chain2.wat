@@ -3,7 +3,7 @@
     (component
       (type (;0;)
         (instance
-          (type (;0;) (record))
+          (type (;0;) (record (field "f" u8)))
           (export (;1;) "name" (type (eq 0)))
         )
       )
@@ -28,8 +28,8 @@
       (export (;2;) (interface "foo:foo/foo") (instance (type 4)))
     )
   )
+  (export (;1;) (interface "foo:foo/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

@@ -12,13 +12,15 @@
 //! specifycally at the code section level of the binary. The code motion mutator
 //! parses the code and provides an AST which is transformed in a semantically
 //! equivalent way. We provide two concrete implementations using this type of
-//! mutator: [LoopUnrollMutator][codemotion::mutators::loop_unrolling::LoopUnrollMutator] and [IfComplementMutator][codemotion::mutators::if_complement::IfComplementMutator].
+//! mutator: [`LoopUnrollMutator`] and [`IfComplementMutator`].
 //!
 //! The last group of mutators are the [**peephole
 //! mutators**][super::PeepholeMutator]. When it comes to the input Wasm binary code section, it
 //! iterates through the defined functions, and then each instruction of the
 //! functions is processed in order to construct an equivalent piece of code.
 //!
+//! [`LoopUnrollMutator`]: crate::mutators::codemotion::loop_unrolling::LoopUnrollMutator
+//! [`IfComplementMutator`]: crate::mutators::codemotion::if_complement::IfComplementMutator
 
 pub mod add_function;
 pub mod add_type;
@@ -136,7 +138,7 @@ impl WasmMutate<'_> {
 
         assert!(can_mutate);
 
-        let attempts = 100;
+        let attempts = 2000;
         let mut last_mutation = None;
 
         for _ in 0..attempts {

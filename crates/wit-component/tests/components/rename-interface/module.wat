@@ -1,3 +1,3 @@
 (module
-  (import "other-name" "a" (func))
+  (import "other-name" "a" (func (result i32)))
 )

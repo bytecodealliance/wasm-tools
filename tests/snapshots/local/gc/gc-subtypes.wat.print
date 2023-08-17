@@ -68,4 +68,8 @@
   (type $y0 (;66;) (sub $v0 (;65;) (array (ref noextern))))
   (type $y01 (;67;) (sub $u0 (;64;) (array (ref noextern))))
   (type $z0 (;68;) (sub $u0 (;64;) (array nullexternref)))
+  (type $A (;69;) (struct (field (mut i32))))
+  (type $B (;70;) (sub $A (;69;) (struct (field (mut i32)))))
+  (type (;71;) (sub $A (;69;) (struct (field (mut i32)))))
+  (type (;72;) (sub $A (;69;) (struct (field (mut i32)) (field (mut i64)))))
 )

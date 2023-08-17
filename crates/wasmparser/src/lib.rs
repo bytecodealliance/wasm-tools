@@ -22,6 +22,9 @@
 //! If you need random access to the entire WebAssembly data-structure,
 //! this is not the right library for you. You could however, build such
 //! a data-structure using this library.
+//!
+//! To get started, create a [`Parser`] using [`Parser::new`] and then follow
+//! the examples documented for [`Parser::parse`] or [`Parser::parse_all`].
 
 #![deny(missing_docs)]
 

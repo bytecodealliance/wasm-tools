@@ -18,6 +18,6 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0x37 | 01 05 04    | component section
+ 0x37 | 01 05 04    | component name section
  0x3a | 01          | 1 count
  0x3b | 00 01 63    | Naming { index: 0, name: "c" }

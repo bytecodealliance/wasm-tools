@@ -1,6 +1,7 @@
 use crate::metadata::{Bindgen, ModuleMetadata};
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
+use std::mem;
 use wasmparser::names::{KebabName, KebabNameKind};
 use wasmparser::{
     types::Types, ComponentExternName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
@@ -40,10 +41,11 @@ pub const MAIN_MODULE_IMPORT_NAME: &str = "__main_module__";
 /// turns into `env`.
 pub const BARE_FUNC_MODULE_NAME: &str = "$root";
 
-pub const RESOURCE_DROP_OWN: &str = "[resource-drop-own]";
-pub const RESOURCE_DROP_BORROW: &str = "[resource-drop-borrow]";
+pub const RESOURCE_DROP: &str = "[resource-drop]";
 pub const RESOURCE_REP: &str = "[resource-rep]";
 pub const RESOURCE_NEW: &str = "[resource-new]";
+
+pub const POST_RETURN_PREFIX: &str = "cabi_post_";
 
 /// Metadata about a validated module and what was found internally.
 ///
@@ -91,6 +93,10 @@ pub struct ValidatedModule<'a> {
 
     /// The original metadata specified for this module.
     pub metadata: &'a ModuleMetadata,
+
+    /// Post-return functions annotated with `cabi_post_*` in their function
+    /// name.
+    pub post_returns: IndexSet<String>,
 }
 
 #[derive(Default)]
@@ -100,8 +106,7 @@ pub struct RequiredImports {
 }
 
 pub struct ResourceInfo<'a> {
-    pub drop_own_import: Option<&'a str>,
-    pub drop_borrow_import: Option<&'a str>,
+    pub drop_import: Option<&'a str>,
     pub new_import: Option<&'a str>,
     pub rep_import: Option<&'a str>,
     pub dtor_export: Option<&'a str>,
@@ -137,6 +142,7 @@ pub fn validate_module<'a>(
         adapter_realloc: None,
         metadata: &metadata.metadata,
         required_resource_funcs: Default::default(),
+        post_returns: Default::default(),
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -183,7 +189,6 @@ pub fn validate_module<'a>(
                                 if export.name == "cabi_realloc_adapter" {
                                     ret.adapter_realloc = Some(export.name);
                                 }
-                                continue;
                             }
 
                             assert!(export_funcs.insert(export.name, export.index).is_none())
@@ -232,7 +237,7 @@ pub fn validate_module<'a>(
             None if adapters.contains(name) => {
                 let map = ret.adapters_required.entry(name).or_default();
                 for (func, ty) in funcs {
-                    let ty = types.func_type_at(*ty).unwrap();
+                    let ty = types[types.core_type_at(*ty)].unwrap_func();
                     map.insert(func, ty.clone());
                 }
             }
@@ -291,12 +296,8 @@ fn validate_exported_interface_resource_imports<'a>(
             bail!("import of `{func_name}` is not a valid resource function");
         }
         let info = info.required_resource_funcs.get_mut(import_module).unwrap();
-        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP_OWN) {
-            info[resource_name].drop_own_import = Some(func_name);
-            continue;
-        }
-        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP_BORROW) {
-            info[resource_name].drop_borrow_import = Some(func_name);
+        if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP) {
+            info[resource_name].drop_import = Some(func_name);
             continue;
         }
         if let Some(resource_name) = func_name.strip_prefix(RESOURCE_NEW) {
@@ -344,6 +345,10 @@ pub struct ValidatedAdapter<'a> {
 
     /// Metadata about the original adapter module.
     pub metadata: &'a ModuleMetadata,
+
+    /// Post-return functions annotated with `cabi_post_*` in their function
+    /// name.
+    pub post_returns: IndexSet<String>,
 }
 
 /// This function will validate the `bytes` provided as a wasm adapter module.
@@ -359,12 +364,17 @@ pub struct ValidatedAdapter<'a> {
 /// adapter module's original source. This means that the adapter module is
 /// already minimized and this is a double-check that the minimization pass
 /// didn't accidentally break the wasm module.
+///
+/// If `is_library` is true, we waive some of the constraints described above,
+/// allowing the module to import tables and globals, as well as import
+/// functions at the world level, not just at the interface level.
 pub fn validate_adapter_module<'a>(
     bytes: &[u8],
     resolve: &'a Resolve,
     world: WorldId,
     metadata: &'a ModuleMetadata,
-    required: &IndexMap<String, FuncType>,
+    required: &IndexMap<String, (FuncType, Option<&Function>)>,
+    is_library: bool,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
     let mut import_funcs = IndexMap::new();
@@ -378,6 +388,7 @@ pub fn validate_adapter_module<'a>(
         import_realloc: None,
         export_realloc: None,
         metadata,
+        post_returns: Default::default(),
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -417,6 +428,8 @@ pub fn validate_adapter_module<'a>(
                             ret.needs_memory =
                                 Some((import.module.to_string(), import.name.to_string()));
                         }
+
+                        TypeRef::Global(_) | TypeRef::Table(_) if is_library => (),
 
                         _ => {
                             bail!("adapter module is only allowed to import functions and memories")
@@ -479,34 +492,35 @@ pub fn validate_adapter_module<'a>(
                 assert!(prev.is_none());
             }
             None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                bail!(
-                    "adapter module requires an import interface named `{}`",
-                    name
-                )
+                if !is_library {
+                    bail!(
+                        "adapter module requires an import interface named `{}`",
+                        name
+                    )
+                }
             }
         }
     }
 
-    for (name, ty) in required {
+    for (name, (ty, func)) in required {
         let idx = match export_funcs.get(name.as_str()) {
             Some(idx) => *idx,
             None => bail!("adapter module did not export `{name}`"),
         };
-        let id = types.function_at(idx).unwrap();
-        let actual = types.type_from_id(id).unwrap().as_func_type().unwrap();
-        if ty == actual {
-            continue;
+        let id = types.function_at(idx);
+        let actual = types[id].unwrap_func();
+        validate_func_sig(name, ty, actual)?;
+
+        if let Some(func) = func {
+            let post_return = format!("{POST_RETURN_PREFIX}{name}");
+            if let Some(idx) = export_funcs.get(post_return.as_str()) {
+                let id = types.function_at(*idx);
+                let actual = types[id].unwrap_func();
+                validate_post_return(resolve, &actual, func)?;
+                let ok = ret.post_returns.insert(post_return);
+                assert!(ok);
+            }
         }
-        bail!(
-            "adapter module export `{name}` does not match the expected signature:\n\
-            expected: {:?} -> {:?}\n\
-            actual:   {:?} -> {:?}\n\
-            ",
-            ty.params(),
-            ty.results(),
-            actual.params(),
-            actual.results(),
-        );
     }
 
     Ok(ret)
@@ -564,7 +578,7 @@ fn validate_imports_top_level(
     for (name, ty) in funcs {
         match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
             Some(WorldItem::Function(func)) => {
-                let ty = types.func_type_at(*ty).unwrap();
+                let ty = types[types.core_type_at(*ty)].unwrap_func();
                 validate_func(resolve, ty, func, AbiVariant::GuestImport)?;
             }
             Some(_) => bail!("expected world top-level import `{name}` to be a function"),
@@ -586,12 +600,9 @@ fn valid_imported_resource_func<'a>(
     types: &Types,
     is_resource: impl Fn(&str) -> bool,
 ) -> Result<Option<&'a str>> {
-    if let Some(resource_name) = func_name
-        .strip_prefix(RESOURCE_DROP_OWN)
-        .or_else(|| func_name.strip_prefix(RESOURCE_DROP_BORROW))
-    {
+    if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP) {
         if is_resource(resource_name) {
-            let ty = types.func_type_at(ty).unwrap();
+            let ty = types[types.core_type_at(ty)].unwrap_func();
             let expected = FuncType::new([ValType::I32], []);
             validate_func_sig(func_name, &expected, ty)?;
             return Ok(Some(resource_name));
@@ -614,7 +625,7 @@ fn valid_exported_resource_func<'a>(
         .or_else(|| func_name.strip_prefix(RESOURCE_NEW))
     {
         if is_resource(resource_name) {
-            let ty = types.func_type_at(ty).unwrap();
+            let ty = types[types.core_type_at(ty)].unwrap_func();
             let expected = FuncType::new([ValType::I32], [ValType::I32]);
             validate_func_sig(func_name, &expected, ty)?;
             return Ok(Some(resource_name));
@@ -641,7 +652,7 @@ fn validate_imported_interface(
     for (func_name, ty) in imports {
         match resolve.interfaces[interface].functions.get(*func_name) {
             Some(f) => {
-                let ty = types.func_type_at(*ty).unwrap();
+                let ty = types[types.core_type_at(*ty)].unwrap_func();
                 validate_func(resolve, ty, f, AbiVariant::GuestImport)?;
             }
             None => match valid_imported_resource_func(func_name, *ty, types, is_resource)? {
@@ -673,6 +684,25 @@ fn validate_func(
     )
 }
 
+fn validate_post_return(
+    resolve: &Resolve,
+    ty: &wasmparser::FuncType,
+    func: &Function,
+) -> Result<()> {
+    // The expected signature of a post-return function is to take all the
+    // parameters that are returned by the guest function and then return no
+    // results. Model this by calculating the signature of `func` and then
+    // moving its results into the parameters list while emptying out the
+    // results.
+    let mut sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
+    sig.params = mem::take(&mut sig.results);
+    validate_func_sig(
+        &format!("{} post-return", func.name),
+        &wasm_sig_to_func_type(sig),
+        ty,
+    )
+}
+
 fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType) -> Result<()> {
     if ty != expected {
         bail!(
@@ -696,19 +726,28 @@ fn validate_exported_item<'a>(
     types: &Types,
     info: &mut ValidatedModule<'a>,
 ) -> Result<()> {
-    let validate = |func: &Function, name: Option<&str>| {
+    let mut validate = |func: &Function, name: Option<&str>| {
         let expected_export_name = func.core_export_name(name);
-        match exports.get(expected_export_name.as_ref()) {
-            Some(func_index) => {
-                let id = types.function_at(*func_index).unwrap();
-                let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
-                validate_func(resolve, ty, func, AbiVariant::GuestExport)
-            }
+        let func_index = match exports.get(expected_export_name.as_ref()) {
+            Some(func_index) => func_index,
             None => bail!(
                 "module does not export required function `{}`",
                 expected_export_name
             ),
+        };
+        let id = types.function_at(*func_index);
+        let ty = types[id].unwrap_func();
+        validate_func(resolve, ty, func, AbiVariant::GuestExport)?;
+
+        let post_return = format!("{POST_RETURN_PREFIX}{expected_export_name}");
+        if let Some(index) = exports.get(&post_return[..]) {
+            let ok = info.post_returns.insert(post_return);
+            assert!(ok);
+            let id = types.function_at(*index);
+            let ty = types[id].unwrap_func();
+            validate_post_return(resolve, ty, func)?;
         }
+        Ok(())
     };
     match item {
         WorldItem::Function(func) => validate(func, None)?,
@@ -727,15 +766,14 @@ fn validate_exported_item<'a>(
                 let mut info = ResourceInfo {
                     id: *id,
                     dtor_export: None,
-                    drop_own_import: None,
-                    drop_borrow_import: None,
+                    drop_import: None,
                     rep_import: None,
                     new_import: None,
                 };
                 let dtor = format!("{export_name}#[dtor]{name}");
                 if let Some((_, name, func_idx)) = exports.get_full(dtor.as_str()) {
-                    let id = types.function_at(*func_idx).unwrap();
-                    let ty = types.type_from_id(id).unwrap().as_func_type().unwrap();
+                    let id = types.function_at(*func_idx);
+                    let ty = types[id].unwrap_func();
                     let expected = FuncType::new([ValType::I32], []);
                     validate_func_sig(name, &expected, ty)?;
                     info.dtor_export = Some(name);

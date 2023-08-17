@@ -124,8 +124,8 @@
   (type (;2;) (func (param "args" 1)))
   (alias core export 4 "entrypoint" (core func (;6;)))
   (func (;1;) (type 2) (canon lift (core func 6) (memory 0) (realloc 2) string-encoding=utf8))
+  (export (;2;) "entrypoint" (func 1))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;2;) "entrypoint" (func 1))
 )

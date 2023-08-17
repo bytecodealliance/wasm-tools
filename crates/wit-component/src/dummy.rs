@@ -51,8 +51,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
             }
             wat.push_str(&format!(
                 "\
-(import \"{module}\" \"[resource-drop-own]{name}\" (func (param i32)))
-(import \"{module}\" \"[resource-drop-borrow]{name}\" (func (param i32)))
+(import \"{module}\" \"[resource-drop]{name}\" (func (param i32)))
 (import \"{module}\" \"[resource-new]{name}\" (func (param i32) (result i32)))
 (import \"{module}\" \"[resource-rep]{name}\" (func (param i32) (result i32)))
                 "
@@ -104,9 +103,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
             _ => return,
         }
         let name = ty.name.as_ref().unwrap();
-        wat.push_str(&format!(
-            "(import \"{module}\" \"[resource-drop-own]{name}\""
-        ));
+        wat.push_str(&format!("(import \"{module}\" \"[resource-drop]{name}\""));
         wat.push_str(" (func (param i32)))\n");
     }
 
@@ -116,12 +113,6 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
         push_tys(wat, "param", &sig.params);
         push_tys(wat, "result", &sig.results);
         wat.push_str(" unreachable)\n");
-
-        if resolve.guest_export_needs_post_return(func) {
-            wat.push_str(&format!("(func (export \"cabi_post_{name}\")"));
-            push_tys(wat, "param", &sig.results);
-            wat.push_str(")\n");
-        }
     }
 
     fn push_tys(dst: &mut String, desc: &str, params: &[WasmType]) {

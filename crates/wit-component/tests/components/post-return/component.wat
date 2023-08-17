@@ -29,8 +29,8 @@
   (alias core export 0 "a" (core func (;1;)))
   (alias core export 0 "cabi_post_a" (core func (;2;)))
   (func (;0;) (type 0) (canon lift (core func 1) (memory 0) string-encoding=utf8 (post-return 2)))
+  (export (;1;) "a" (func 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) "a" (func 0))
 )

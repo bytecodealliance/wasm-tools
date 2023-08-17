@@ -1,7 +1,7 @@
 (component
   (import "a" (func (param "foo" string)))
   (import "b" (func (param "foo" string) (param "bar" s32) (param "baz" u32)))
-  (import "c" (func (result "foo" (tuple))))
+  (import "c" (func (result "foo" (tuple u8))))
   (import "d" (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
 )
 

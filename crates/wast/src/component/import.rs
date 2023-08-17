@@ -98,24 +98,24 @@ pub enum ImplementationImportKinds {
 impl<'a> Parse<'a> for ImplementationImport<'a> {
   fn parse(parser: Parser<'a>) -> Result<Self> {
     let mut kind = ImplementationImportKinds::Unknown;
-    let is_reg_import = parser.peek::<LParen>();
+    let is_reg_import = parser.peek::<LParen>()?;
     let mut integrity = None;
     if is_reg_import {
       let name = parser.parens(|p| {
-        if p.peek::<kw::locked>() {
+        if p.peek::<kw::locked>()? {
           p.parse::<kw::locked>()?;
           kind = ImplementationImportKinds::Locked;
           let parsed_name = p.parse();
-          if p.peek::<kw::integrity>() {
+          if p.peek::<kw::integrity>()? {
             p.parse::<kw::integrity>()?;
             integrity = Some(p.parse()?);
           }
           parsed_name
-        } else if p.peek::<kw::unlocked>() {
+        } else if p.peek::<kw::unlocked>()? {
           p.parse::<kw::unlocked>()?;
           kind = ImplementationImportKinds::Unlocked;
           let parsed_name = p.parse();
-          if p.peek::<kw::integrity>() {
+          if p.peek::<kw::integrity>()? {
             p.parse::<kw::integrity>()?;
             integrity = Some(p.parse()?);
           }
@@ -143,20 +143,20 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
     let name = parser.parse()?;
 
     let location = parser.parens(|p| {
-      if p.peek::<kw::url>() {
+      if p.peek::<kw::url>()? {
         p.parse::<kw::url>()?;
         kind = ImplementationImportKinds::Url;
         let parsed_location = p.parse();
-        if p.peek::<kw::integrity>() {
+        if p.peek::<kw::integrity>()? {
           p.parse::<kw::integrity>()?;
           integrity = Some(p.parse()?);
         }
         parsed_location
-      } else if p.peek::<kw::relative>() {
+      } else if p.peek::<kw::relative>()? {
         p.parse::<kw::relative>()?;
         kind = ImplementationImportKinds::Relative;
         let parsed_location = p.parse();
-        if p.peek::<kw::integrity>() {
+        if p.peek::<kw::integrity>()? {
           p.parse::<kw::integrity>()?;
           integrity = Some(p.parse()?);
         }
@@ -182,13 +182,13 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
 }
 
 impl Peek for ImplementationImport<'_> {
-  fn peek(cursor: Cursor) -> bool {
+  fn peek(cursor: Cursor) -> Result<bool> {
       match cursor.keyword() {
-        Some(("relative", _)) => true,
-        Some(("url", _)) => true,
-        Some(("locked", _)) => true,
-        Some(("unlocked", _)) => true,
-        _ => false
+        Ok(Some(("relative", _))) => Ok(true),
+        Ok(Some(("url", _))) => Ok(true),
+        Ok(Some(("locked", _))) => Ok(true),
+        Ok(Some(("unlocked", _))) => Ok(true),
+        _ => Ok(false)
       }
   }
 
@@ -199,21 +199,21 @@ impl Peek for ImplementationImport<'_> {
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<LParen>() {
-            if parser.peek2::<kw::interface>() {
-              return Ok(ComponentExternName::Interface(parser.parens(|p| {
+          if parser.peek::<LParen>()? {
+          if parser.peek2::<kw::interface>()? {
+            return Ok(ComponentExternName::Interface(parser.parens(|p| {
                 p.parse::<kw::interface>()?;
                 p.parse()
               })?))
-            } else if parser.peek2::<kw::locked>() || parser.peek2::<kw::unlocked>() {
+            } else if parser.peek2::<kw::locked>()? || parser.peek2::<kw::unlocked>()? {
               let impl_import = parser.parse::<ImplementationImport>()?;
               return Ok(ComponentExternName::Implementation(impl_import))
             } else {
               return Err(parser.error("Unknown Import Kind"))
             }
         } else {
-          if parser.peek2::<LParen>() {
-            if parser.peek3::<ImplementationImport>() {
+          if parser.peek2::<LParen>()? {
+            if parser.peek3::<ImplementationImport>()? {
               let impl_import = parser.parse::<ImplementationImport>()?;
               return Ok(ComponentExternName::Implementation(impl_import))
             } 
@@ -256,23 +256,23 @@ impl<'a> Parse<'a> for ItemSigNoName<'a> {
 
 fn parse_item_sig<'a>(parser: Parser<'a>, name: bool) -> Result<ItemSig<'a>> {
     let mut l = parser.lookahead1();
-    let (span, parse_kind): (_, fn(Parser<'a>) -> Result<ItemSigKind>) = if l.peek::<kw::core>() {
+    let (span, parse_kind): (_, fn(Parser<'a>) -> Result<ItemSigKind>) = if l.peek::<kw::core>()? {
         let span = parser.parse::<kw::core>()?.0;
         parser.parse::<kw::module>()?;
         (span, |parser| Ok(ItemSigKind::CoreModule(parser.parse()?)))
-    } else if l.peek::<kw::func>() {
+    } else if l.peek::<kw::func>()? {
         let span = parser.parse::<kw::func>()?.0;
         (span, |parser| Ok(ItemSigKind::Func(parser.parse()?)))
-    } else if l.peek::<kw::component>() {
+    } else if l.peek::<kw::component>()? {
         let span = parser.parse::<kw::component>()?.0;
         (span, |parser| Ok(ItemSigKind::Component(parser.parse()?)))
-    } else if l.peek::<kw::instance>() {
+    } else if l.peek::<kw::instance>()? {
         let span = parser.parse::<kw::instance>()?.0;
         (span, |parser| Ok(ItemSigKind::Instance(parser.parse()?)))
-    } else if l.peek::<kw::value>() {
+    } else if l.peek::<kw::value>()? {
         let span = parser.parse::<kw::value>()?.0;
         (span, |parser| Ok(ItemSigKind::Value(parser.parse()?)))
-    } else if l.peek::<kw::r#type>() {
+    } else if l.peek::<kw::r#type>()? {
         let span = parser.parse::<kw::r#type>()?.0;
         (span, |parser| {
             Ok(ItemSigKind::Type(parser.parens(|parser| parser.parse())?))
@@ -317,10 +317,10 @@ pub enum TypeBounds<'a> {
 impl<'a> Parse<'a> for TypeBounds<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
-        if l.peek::<kw::eq>() {
+        if l.peek::<kw::eq>()? {
             parser.parse::<kw::eq>()?;
             Ok(Self::Eq(parser.parse()?))
-        } else if l.peek::<kw::sub>() {
+        } else if l.peek::<kw::sub>()? {
             parser.parse::<kw::sub>()?;
             parser.parse::<kw::resource>()?;
             Ok(Self::SubResource)
@@ -350,39 +350,39 @@ impl<'a> Parse<'a> for InlineImport<'a> {
 }
 
 impl Peek for InlineImport<'_> {
-    fn peek(cursor: Cursor<'_>) -> bool {
-        let cursor = match cursor.lparen() {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        let cursor = match cursor.lparen()? {
             Some(cursor) => cursor,
-            None => return false,
+            None => return Ok(false),
         };
-        let cursor = match cursor.keyword() {
+        let cursor = match cursor.keyword()? {
             Some(("import", cursor)) => cursor,
-            _ => return false,
+            _ => return Ok(false),
         };
 
         // (import "foo")
-        if let Some((_, cursor)) = cursor.string() {
-            return cursor.rparen().is_some();
+        if let Some((_, cursor)) = cursor.string()? {
+            return Ok(cursor.rparen()?.is_some());
         }
 
         // (import (interface "foo"))
-        let cursor = match cursor.lparen() {
+        let cursor = match cursor.lparen()? {
             Some(cursor) => cursor,
-            None => return false,
+            None => return Ok(false),
         };
-        let cursor = match cursor.keyword() {
+        let cursor = match cursor.keyword()? {
             Some(("interface", cursor)) => cursor,
-            _ => return false,
+            _ => return Ok(false),
         };
-        let cursor = match cursor.string() {
+        let cursor = match cursor.string()? {
             Some((_, cursor)) => cursor,
-            _ => return false,
+            _ => return Ok(false),
         };
-        let cursor = match cursor.rparen() {
+        let cursor = match cursor.rparen()? {
             Some(cursor) => cursor,
-            _ => return false,
+            _ => return Ok(false),
         };
-        cursor.rparen().is_some()
+        Ok(cursor.rparen()?.is_some())
     }
 
     fn display() -> &'static str {

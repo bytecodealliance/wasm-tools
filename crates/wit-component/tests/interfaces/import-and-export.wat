@@ -36,8 +36,8 @@
       (export (;0;) (interface "foo:foo/import-and-export") (component (type 2)))
     )
   )
+  (export (;1;) (interface "foo:foo/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

@@ -247,6 +247,8 @@ pub struct WasmFeatures {
     pub memory_control: bool,
     /// The WebAssembly gc proposal
     pub gc: bool,
+    /// Support for the `value` type in the component model proposal.
+    pub component_model_values: bool,
 }
 
 impl WasmFeatures {
@@ -336,6 +338,7 @@ impl Default for WasmFeatures {
             function_references: false,
             memory_control: false,
             gc: false,
+            component_model_values: false,
 
             // On-by-default features (phase 4 or greater).
             mutable_global: true,
@@ -1062,11 +1065,11 @@ impl Validator {
                 current.instances.reserve(count as usize);
                 Ok(())
             },
-            |components, types, _, instance, offset| {
+            |components, types, features, instance, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_instance(instance, types, offset)
+                    .add_instance(instance, features, types, offset)
             },
         )
     }
@@ -1082,8 +1085,8 @@ impl Validator {
             section,
             "alias",
             |_, _, _, _| Ok(()), // maximums checked via `add_alias`
-            |components, types, _, alias, offset| -> Result<(), BinaryReaderError> {
-                ComponentState::add_alias(components, alias, types, offset)
+            |components, types, features, alias, offset| -> Result<(), BinaryReaderError> {
+                ComponentState::add_alias(components, alias, features, types, offset)
             },
         )
     }
@@ -1156,8 +1159,8 @@ impl Validator {
                     crate::CanonicalFunction::ResourceNew { resource } => {
                         current.resource_new(resource, types, offset)
                     }
-                    crate::CanonicalFunction::ResourceDrop { ty } => {
-                        current.resource_drop(ty, types, offset)
+                    crate::CanonicalFunction::ResourceDrop { resource } => {
+                        current.resource_drop(resource, types, offset)
                     }
                     crate::CanonicalFunction::ResourceRep { resource } => {
                         current.resource_rep(resource, types, offset)
@@ -1181,6 +1184,7 @@ impl Validator {
             f.func_index,
             &f.arguments,
             f.results,
+            &self.features,
             &self.types,
             range.start,
         )
@@ -1197,11 +1201,11 @@ impl Validator {
             section,
             "import",
             |_, _, _, _| Ok(()), // add_import will check limits
-            |components, types, _, import, offset| {
+            |components, types, features, import, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_import(import, types, offset)
+                    .add_import(import, features, types, offset)
             },
         )
     }
@@ -1228,12 +1232,13 @@ impl Validator {
                 current.exports.reserve(count as usize);
                 Ok(())
             },
-            |components, types, _, export, offset| {
+            |components, types, features, export, offset| {
                 let current = components.last_mut().unwrap();
-                let ty = current.export_to_entity_type(&export, types, offset)?;
+                let ty = current.export_to_entity_type(&export, features, types, offset)?;
                 current.add_export(
                     export.name,
                     ty,
+                    features,
                     types,
                     offset,
                     false, /* checked above */
@@ -1441,67 +1446,52 @@ mod tests {
         assert_eq!(types.instance_count(), 0);
         assert_eq!(types.value_count(), 0);
 
-        match types.func_type_at(0) {
-            Some(ty) => {
-                assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
-                assert_eq!(ty.results(), [ValType::I32]);
-            }
-            _ => unreachable!(),
-        }
+        let ty = types[types.core_type_at(0)].unwrap_func();
+        assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
+        assert_eq!(ty.results(), [ValType::I32]);
 
-        match types.func_type_at(1) {
-            Some(ty) => {
-                assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
-                assert_eq!(ty.results(), []);
-            }
-            _ => unreachable!(),
-        }
+        let ty = types[types.core_type_at(1)].unwrap_func();
+        assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
+        assert_eq!(ty.results(), []);
 
         assert_eq!(
             types.memory_at(0),
-            Some(MemoryType {
+            MemoryType {
                 memory64: false,
                 shared: false,
                 initial: 1,
                 maximum: Some(5)
-            })
+            }
         );
 
         assert_eq!(
             types.table_at(0),
-            Some(TableType {
+            TableType {
                 initial: 10,
                 maximum: None,
                 element_type: RefType::FUNCREF,
-            })
+            }
         );
 
         assert_eq!(
             types.global_at(0),
-            Some(GlobalType {
+            GlobalType {
                 content_type: ValType::I32,
                 mutable: true
-            })
+            }
         );
 
-        let id = types.function_at(0).unwrap();
-        match types.type_from_id(id).unwrap().as_func_type() {
-            Some(ty) => {
-                assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
-                assert_eq!(ty.results(), [ValType::I32]);
-            }
-            _ => unreachable!(),
-        }
+        let id = types.function_at(0);
+        let ty = types[id].unwrap_func();
+        assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
+        assert_eq!(ty.results(), [ValType::I32]);
 
-        match types.tag_at(0) {
-            Some(ty) => {
-                assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
-                assert_eq!(ty.results(), []);
-            }
-            _ => unreachable!(),
-        }
+        let ty = types.tag_at(0);
+        let ty = types[ty].unwrap_func();
+        assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
+        assert_eq!(ty.results(), []);
 
-        assert_eq!(types.element_at(0), Some(RefType::FUNCREF));
+        assert_eq!(types.element_at(0), RefType::FUNCREF);
 
         Ok(())
     }
@@ -1525,9 +1515,9 @@ mod tests {
 
         let types = validator.validate_all(&bytes)?;
 
-        let t_id = types.id_from_type_index(0, false).unwrap();
-        let a1_id = types.id_from_type_index(1, false).unwrap();
-        let a2_id = types.id_from_type_index(2, false).unwrap();
+        let t_id = types.component_type_at(0);
+        let a1_id = types.component_type_at(1);
+        let a2_id = types.component_type_at(2);
 
         // The ids should all be the same
         assert!(t_id == a1_id);
@@ -1535,14 +1525,8 @@ mod tests {
         assert!(a1_id == a2_id);
 
         // However, they should all point to the same type
-        assert!(std::ptr::eq(
-            types.type_from_id(t_id).unwrap(),
-            types.type_from_id(a1_id).unwrap()
-        ));
-        assert!(std::ptr::eq(
-            types.type_from_id(t_id).unwrap(),
-            types.type_from_id(a2_id).unwrap()
-        ));
+        assert!(std::ptr::eq(&types[t_id], &types[a1_id],));
+        assert!(std::ptr::eq(&types[t_id], &types[a2_id],));
 
         Ok(())
     }
@@ -1566,9 +1550,9 @@ mod tests {
 
         let types = validator.validate_all(&bytes)?;
 
-        let t_id = types.id_from_type_index(0, false).unwrap();
-        let a1_id = types.id_from_type_index(1, false).unwrap();
-        let a2_id = types.id_from_type_index(2, false).unwrap();
+        let t_id = types.component_type_at(0);
+        let a1_id = types.component_type_at(1);
+        let a2_id = types.component_type_at(2);
 
         // The ids should all be the same
         assert!(t_id != a1_id);
@@ -1576,14 +1560,8 @@ mod tests {
         assert!(a1_id != a2_id);
 
         // However, they should all point to the same type
-        assert!(std::ptr::eq(
-            types.type_from_id(t_id).unwrap(),
-            types.type_from_id(a1_id).unwrap()
-        ));
-        assert!(std::ptr::eq(
-            types.type_from_id(t_id).unwrap(),
-            types.type_from_id(a2_id).unwrap()
-        ));
+        assert!(std::ptr::eq(&types[t_id], &types[a1_id],));
+        assert!(std::ptr::eq(&types[t_id], &types[a2_id],));
 
         Ok(())
     }

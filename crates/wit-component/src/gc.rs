@@ -7,7 +7,7 @@ use std::{
     mem,
     ops::Deref,
 };
-use wasm_encoder::{Encode, EntityType, Instruction};
+use wasm_encoder::{Encode, EntityType, Instruction, RawCustomSection};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -17,9 +17,9 @@ const PAGE_SIZE: i32 = 64 * 1024;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
-pub fn run(
+pub fn run<T>(
     wasm: &[u8],
-    required: &IndexMap<String, FuncType>,
+    required: &IndexMap<String, T>,
     main_module_realloc: Option<&str>,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
@@ -392,8 +392,8 @@ impl<'a> Module<'a> {
     }
 
     fn parse_producers_section(&mut self, section: &CustomSectionReader<'a>) -> Result<()> {
-        let section = ProducersSectionReader::new(section.data(), section.data_offset())?;
-        let producers = wasm_metadata::Producers::from_reader(section)?;
+        let producers =
+            wasm_metadata::Producers::from_bytes(section.data(), section.data_offset())?;
         self.producers = Some(producers);
         Ok(())
     }
@@ -963,7 +963,7 @@ impl<'a> Module<'a> {
             });
         }
         if let Some(producers) = &self.producers {
-            ret.section(&producers.section());
+            ret.section(&RawCustomSection(&producers.raw_custom_section()));
         }
 
         Ok(ret.finish())

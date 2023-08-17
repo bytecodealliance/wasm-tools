@@ -1,4 +1,3 @@
-use crate::builder::ComponentBuilder;
 use crate::encoding::types::{FunctionKey, ValtypeEncoder};
 use anyhow::Result;
 use indexmap::IndexSet;
@@ -26,7 +25,9 @@ use wit_parser::*;
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
 pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    Ok(encode_component(resolve, package)?.finish())
+    let mut component = encode_component(resolve, package)?;
+    component.raw_custom_section(&crate::base_producers().raw_custom_section());
+    Ok(component.finish())
 }
 
 /// Exactly like `encode`, except gives an unfinished `ComponentBuilder` in case you need
@@ -114,7 +115,7 @@ impl Encoder<'_> {
             encoder.outer.export(&id, ComponentTypeRef::Component(idx));
         }
 
-        let ty = self.component.component_type(&encoder.outer);
+        let ty = self.component.type_component(&encoder.outer);
         let id = self.resolve.packages[self.package].name.interface_id("wit");
         self.component
             .export(&id, ComponentExportKind::Type, ty, None);
@@ -127,23 +128,8 @@ impl Encoder<'_> {
         if interfaces.contains(&id) {
             return;
         }
-
-        // Other interfaces reachable from `id` are only reachable from defined
-        // types, and only when the defined type points to another `Type::Id`.
-        // Use this knowledge to filter over all types find find types of this
-        // pattern.
-        for (_, ty) in self.resolve.interfaces[id].types.iter() {
-            let ty = match self.resolve.types[*ty].kind {
-                TypeDefKind::Type(Type::Id(id)) => id,
-                _ => continue,
-            };
-            let owner = match self.resolve.types[ty].owner {
-                TypeOwner::Interface(id) => id,
-                _ => continue,
-            };
-            if owner != id {
-                self.add_live_interfaces(interfaces, owner);
-            }
+        for id in self.resolve.interface_direct_deps(id) {
+            self.add_live_interfaces(interfaces, id);
         }
         assert!(interfaces.insert(id));
     }
