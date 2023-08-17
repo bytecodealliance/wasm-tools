@@ -126,13 +126,13 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
       return match kind {
         ImplementationImportKinds::Locked => Ok(ImplementationImport::Locked(ImportMetadata {
           name,
-          location: None,
+          location: Some(""),
           integrity,
           range
         })),
         ImplementationImportKinds::Unlocked => Ok(ImplementationImport::Unlocked(ImportMetadata {
           name,
-          location: None,
+          location: Some(""),
           integrity,
           range
         })),
