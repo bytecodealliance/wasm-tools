@@ -123,6 +123,8 @@ pub enum ImplementationImport<'a> {
     Url(ImportMetadata<'a>),
     /// Relative path
     Relative(ImportMetadata<'a>),
+    /// Just Integrity
+    Naked(ImportMetadata<'a>),
     /// Locked Registry Import
     Locked(ImportMetadata<'a>),
     /// Unlocked Registry Import
@@ -152,6 +154,7 @@ impl<'a> ImplementationImport<'a> {
         match self {
             Self::Relative(metadata) => metadata.as_str(),
             Self::Url(metadata) => metadata.as_str(),
+            Self::Naked(metadata) => metadata.as_str(),
             Self::Locked(metadata) => metadata.as_str(),
             Self::Unlocked(metadata) => metadata.as_str(),
         }
@@ -167,6 +170,7 @@ impl<'a> ComponentExternName<'a> {
             ComponentExternName::Implementation(impl_import) => match impl_import {
                 ImplementationImport::Url(metadata) => metadata.name,
                 ImplementationImport::Relative(metadata) => metadata.name,
+                ImplementationImport::Naked(metadata) => metadata.name,
                 ImplementationImport::Locked(metadata) => metadata.name,
                 ImplementationImport::Unlocked(metadata) => metadata.name,
             },
@@ -180,7 +184,7 @@ impl<'a> FromReader<'a> for ComponentExternName<'a> {
         Ok(match byte1 {
             0x00 => ComponentExternName::Kebab(reader.read()?),
             0x01 => ComponentExternName::Interface(reader.read()?),
-            0x02 | 0x03 | 0x04 | 0x05 => {
+            0x02 | 0x03 | 0x04 | 0x05 | 0x06 => {
                 ComponentExternName::Implementation(read_impl_import(byte1, reader)?)
             }
             x => return reader.invalid_leading_byte(x, "import name"),
@@ -209,17 +213,22 @@ fn read_impl_import<'a>(
         0x03 => ImplementationImport::Relative(ImportMetadata {
             name,
             location,
-            integrity: integrity,
+            integrity,
         }),
-        0x04 => ImplementationImport::Locked(ImportMetadata {
+        0x04 => ImplementationImport::Naked(ImportMetadata {
             name,
             location,
-            integrity: integrity,
+            integrity,
         }),
-        0x05 => ImplementationImport::Unlocked(ImportMetadata {
+        0x05 => ImplementationImport::Locked(ImportMetadata {
             name,
             location,
-            integrity: integrity,
+            integrity,
+        }),
+        0x06 => ImplementationImport::Unlocked(ImportMetadata {
+            name,
+            location,
+            integrity,
         }),
         x => reader.invalid_leading_byte(x, "implementation import")?,
     })

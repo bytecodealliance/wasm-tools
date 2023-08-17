@@ -136,6 +136,9 @@ impl<'a> Component<'a> {
                                                 wasmparser::ImplementationImport::Relative(
                                                     name,
                                                 ) => name.as_str(),
+                                                wasmparser::ImplementationImport::Naked(name) => {
+                                                    name.as_str()
+                                                }
                                                 wasmparser::ImplementationImport::Locked(name) => {
                                                     name.as_str()
                                                 }
@@ -165,6 +168,9 @@ impl<'a> Component<'a> {
                                                 wasmparser::ImplementationImport::Relative(
                                                     name,
                                                 ) => name.as_str(),
+                                                wasmparser::ImplementationImport::Naked(name) => {
+                                                    name.as_str()
+                                                }
                                                 wasmparser::ImplementationImport::Locked(name) => {
                                                     name.as_str()
                                                 }

@@ -169,6 +169,8 @@ pub enum ImplementationImport<'a> {
     Url(ImportMetadata<'a>),
     /// Relative path
     Relative(ImportMetadata<'a>),
+    /// Just Integrity
+    Naked(ImportMetadata<'a>),
     /// Locked Registry Import
     Locked(ImportMetadata<'a>),
     /// Unocked Registry Import
@@ -222,7 +224,7 @@ impl Encode for ComponentExternName<'_> {
                         integ.encode(sink);
                     }
                 }
-                ImplementationImport::Locked(ImportMetadata {
+                ImplementationImport::Naked(ImportMetadata {
                     name,
                     location,
                     integrity,
@@ -234,12 +236,24 @@ impl Encode for ComponentExternName<'_> {
                         integ.encode(sink);
                     }
                 }
-                ImplementationImport::Unlocked(ImportMetadata {
+                ImplementationImport::Locked(ImportMetadata {
                     name,
                     location,
                     integrity,
                 }) => {
                     sink.push(0x05);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
+                }
+                ImplementationImport::Unlocked(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
+                    sink.push(0x06);
                     name.encode(sink);
                     location.encode(sink);
                     if let Some(integ) = integrity {

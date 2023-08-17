@@ -1913,6 +1913,15 @@ impl Printer {
                             self.print_str(metadata.integrity)?;
                         }
                     }
+                    ImplementationImport::Naked(metadata) => {
+                        self.print_str(metadata.name)?;
+                        self.result.push(' ');
+                        if metadata.integrity.len() > 0 {
+                            self.result.push(' ');
+                            self.result.push_str("integrity ");
+                            self.print_str(metadata.integrity)?;
+                        }
+                    }
                     ImplementationImport::Locked(metadata) => {
                         self.start_group("locked-dep ");
                         self.print_str(&s.as_str())?;

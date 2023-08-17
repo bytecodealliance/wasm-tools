@@ -45,6 +45,9 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
                 ImplementationImport::Relative(metadata) => {
                   Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
                 }
+                ImplementationImport::Naked(metadata) => {
+                  Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
+                }
                 ImplementationImport::Locked(metadata) => {
                   Ok(ComponentImport { span, name, item, metadata: Some(metadata)}) 
                 }
@@ -75,6 +78,8 @@ pub enum ImplementationImport<'a> {
   Url(ImportMetadata<'a>),
   /// Relative path
   Relative(ImportMetadata<'a>),
+  /// Just Integrity
+  Naked(ImportMetadata<'a>),
   /// Locked Registry Import
   Locked(ImportMetadata<'a>),
   /// Unlocked Registry Import
@@ -87,6 +92,8 @@ pub enum ImplementationImportKinds {
   Url,
   /// Relative
   Relative,
+  /// Naked
+  Naked,
   /// Locked
   Locked,
   /// Unlocked
@@ -141,7 +148,6 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
       }
     }
     let name = parser.parse()?;
-
     let location = parser.parens(|p| {
       if p.peek::<kw::url>()? {
         p.parse::<kw::url>()?;
@@ -161,6 +167,11 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
           integrity = Some(p.parse()?);
         }
         parsed_location
+      } else if p.peek::<kw::integrity>()? {
+        kind = ImplementationImportKinds::Naked;
+        p.parse::<kw::integrity>()?;
+        integrity = Some(p.parse()?);
+        Ok(Some(""))
       } else {
         Err(p.error("Unknown Implementation Import"))
       }
@@ -172,6 +183,11 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
         integrity
       })),
       ImplementationImportKinds::Relative => Ok(ImplementationImport::Relative(ImportMetadata {
+        name,
+        location,
+        integrity
+      })),
+      ImplementationImportKinds::Naked => Ok(ImplementationImport::Relative(ImportMetadata {
         name,
         location,
         integrity
@@ -188,6 +204,7 @@ impl Peek for ImplementationImport<'_> {
         Ok(Some(("url", _))) => Ok(true),
         Ok(Some(("locked-dep", _))) => Ok(true),
         Ok(Some(("unlocked-dep", _))) => Ok(true),
+        Ok(Some(("integrity", _))) => Ok(true),
         _ => Ok(false)
       }
   }
