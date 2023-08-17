@@ -184,10 +184,10 @@ impl<'a> Parse<'a> for ImplementationImport<'a> {
 impl Peek for ImplementationImport<'_> {
   fn peek(cursor: Cursor) -> Result<bool> {
       match cursor.keyword() {
-        Ok(Some(("relative", _))) => Ok(true),
+        Ok(Some(("relative-url", _))) => Ok(true),
         Ok(Some(("url", _))) => Ok(true),
-        Ok(Some(("locked", _))) => Ok(true),
-        Ok(Some(("unlocked", _))) => Ok(true),
+        Ok(Some(("locked-dep", _))) => Ok(true),
+        Ok(Some(("unlocked-dep", _))) => Ok(true),
         _ => Ok(false)
       }
   }
@@ -199,18 +199,18 @@ impl Peek for ImplementationImport<'_> {
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-          if parser.peek::<LParen>()? {
+        if parser.peek::<LParen>()? {
           if parser.peek2::<kw::interface>()? {
             return Ok(ComponentExternName::Interface(parser.parens(|p| {
                 p.parse::<kw::interface>()?;
                 p.parse()
               })?))
-            } else if parser.peek2::<kw::locked>()? || parser.peek2::<kw::unlocked>()? {
-              let impl_import = parser.parse::<ImplementationImport>()?;
-              return Ok(ComponentExternName::Implementation(impl_import))
-            } else {
-              return Err(parser.error("Unknown Import Kind"))
-            }
+          } else if parser.peek2::<kw::locked>()? || parser.peek2::<kw::unlocked>()? {
+            let impl_import = parser.parse::<ImplementationImport>()?;
+            return Ok(ComponentExternName::Implementation(impl_import))
+          } else {
+            return Err(parser.error("Unknown Import Kind"))
+          }
         } else {
           if parser.peek2::<LParen>()? {
             if parser.peek3::<ImplementationImport>()? {

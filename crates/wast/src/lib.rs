@@ -436,7 +436,7 @@ pub mod kw {
     custom_keyword!(interface);
     custom_keyword!(invoke);
     custom_keyword!(item);
-    custom_keyword!(locked);
+    custom_keyword!(locked = "locked-dep");
     custom_keyword!(last);
     custom_keyword!(local);
     custom_keyword!(memory);
@@ -468,7 +468,7 @@ pub mod kw {
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(rec);
-    custom_keyword!(relative);
+    custom_keyword!(relative = "relative-url");
     custom_keyword!(rep);
     custom_keyword!(resource);
     custom_keyword!(resource_new = "resource.new");
@@ -481,7 +481,7 @@ pub mod kw {
     custom_keyword!(r#final = "final");
     custom_keyword!(table);
     custom_keyword!(then);
-    custom_keyword!(unlocked);
+    custom_keyword!(unlocked = "unlocked-dep");
     custom_keyword!(url);
     custom_keyword!(r#try = "try");
     custom_keyword!(v128);
