@@ -6,5 +6,6 @@ interface foo {
   }
 
   record ty {
+    f: u8,
   }
 }

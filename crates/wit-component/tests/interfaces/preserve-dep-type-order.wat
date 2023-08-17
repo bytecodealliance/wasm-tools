@@ -5,7 +5,7 @@
         (instance
           (type (;0;) (enum "b"))
           (export (;1;) "a" (type (eq 0)))
-          (type (;2;) (record))
+          (type (;2;) (record (field "f" u8)))
           (export (;3;) "ty" (type (eq 2)))
         )
       )
@@ -24,7 +24,7 @@
             (instance
               (type (;0;) (enum "b"))
               (export (;1;) "a" (type (eq 0)))
-              (type (;2;) (record))
+              (type (;2;) (record (field "f" u8)))
               (export (;3;) "ty" (type (eq 2)))
             )
           )
@@ -34,8 +34,8 @@
       (export (;0;) (interface "foo:foo/bar") (component (type 3)))
     )
   )
+  (export (;1;) (interface "foo:foo/wit") (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
 )

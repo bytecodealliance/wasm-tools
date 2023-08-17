@@ -3,5 +3,7 @@ interface a2 {
 }
 
 interface b {
-  record the-type {}
+  record the-type {
+    f: u8,
+  }
 }

@@ -169,6 +169,8 @@ pub enum ImplementationImport<'a> {
     Url(ImportMetadata<'a>),
     /// Relative path
     Relative(ImportMetadata<'a>),
+    /// Just Integrity
+    Naked(ImportMetadata<'a>),
     /// Locked Registry Import
     Locked(ImportMetadata<'a>),
     /// Unocked Registry Import
@@ -184,8 +186,6 @@ pub struct ImportMetadata<'a> {
     pub location: &'a str,
     /// Content Integrity Hash
     pub integrity: Option<&'a str>,
-    /// SemverRange
-    pub range: Option<&'a str>,
 }
 
 impl Encode for ComponentExternName<'_> {
@@ -204,7 +204,6 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
-                    range: _,
                 }) => {
                     sink.push(0x02);
                     name.encode(sink);
@@ -217,9 +216,20 @@ impl Encode for ComponentExternName<'_> {
                     name,
                     location,
                     integrity,
-                    range: _,
                 }) => {
                     sink.push(0x03);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
+                }
+                ImplementationImport::Naked(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
+                    sink.push(0x04);
                     name.encode(sink);
                     location.encode(sink);
                     if let Some(integ) = integrity {
@@ -229,27 +239,22 @@ impl Encode for ComponentExternName<'_> {
                 ImplementationImport::Locked(ImportMetadata {
                     name,
                     location,
-                    integrity,
-                    range: _,
-                }) => {
-                    sink.push(0x04);
-                    name.encode(sink);
-                    location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
-                    }
-                }
-                ImplementationImport::Unlocked(ImportMetadata {
-                    name,
-                    location,
                     integrity: _,
-                    range,
                 }) => {
                     sink.push(0x05);
                     name.encode(sink);
                     location.encode(sink);
-                    if let Some(r) = range {
-                        r.encode(sink);
+                }
+                ImplementationImport::Unlocked(ImportMetadata {
+                    name,
+                    location,
+                    integrity,
+                }) => {
+                    sink.push(0x06);
+                    name.encode(sink);
+                    location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
                     }
                 }
             },

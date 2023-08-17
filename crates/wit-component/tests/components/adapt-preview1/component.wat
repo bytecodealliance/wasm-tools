@@ -104,9 +104,6 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias core export 5 "proc_exit" (core func (;4;)))
   (alias core export 5 "random_get" (core func (;5;)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;6;)
     (export "$imports" (table 0))
     (export "0" (func 4))
@@ -115,5 +112,8 @@
   (core instance (;7;) (instantiate 3
       (with "" (instance 6))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

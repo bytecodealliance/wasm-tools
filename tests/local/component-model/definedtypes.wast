@@ -13,8 +13,7 @@
   (type $A12 char)
   (type $A13 string)
 
-  (type $A14a (record))
-  (type $A14b (record (field "x" (tuple))))
+  (type $A14b (record (field "x" (tuple char))))
   (type $A14c (record (field "x" $A1)))
 
   (type $A15a (variant (case "x")))
@@ -22,22 +21,19 @@
   (type $A15c (variant (case $x "x") (case $y "y" string (refines $x)) (case "z" string (refines $y))))
   (type $A15d (variant (case "x") (case "y" string (refines 0)) (case "z" string (refines 1))))
 
-  (type $A16a (list (tuple)))
+  (type $A16a (list (tuple u8)))
   (type $A16b (list $A3))
 
-  (type $A17a (tuple))
+  (type $A17a (tuple u8))
   (type $A17b (tuple $A4))
 
-  (type $A18a (flags))
   (type $A18b (flags "x"))
 
-  (type $A19a (enum))
   (type $A19b (enum "x"))
 
-  (type $A20a (union))
   (type $A20b (union $A5))
 
-  (type $A21a (option (tuple)))
+  (type $A21a (option (tuple u32)))
   (type $A21b (option $A6))
 
   (type $A22a (result))

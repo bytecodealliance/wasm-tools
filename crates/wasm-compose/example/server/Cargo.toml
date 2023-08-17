@@ -6,12 +6,12 @@ publish = false
 
 [dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }
-clap = { version = "3.2.23", features = ["derive"] }
-driftwood = "0.0.6"
+clap = { version = "4.3.19", features = ["derive"] }
+driftwood = "0.0.7"
 tide = "0.16.0"
-wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "46826c62735dc22cc512fd5d23aa702a92e8a364", features = ["component-model"] }
-wasmtime-wasi = { git = "https://github.com/bytecodealliance/wasmtime", rev = "46826c62735dc22cc512fd5d23aa702a92e8a364" }
-wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/wasmtime", rev = "46826c62735dc22cc512fd5d23aa702a92e8a364" }
-anyhow = "1.0.71"
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", rev = "7b9189b", features = ["component-model"] }
+wasmtime-wasi = { git = "https://github.com/bytecodealliance/wasmtime", rev = "7b9189b" }
+wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/wasmtime", rev = "7b9189b" }
+anyhow = "1.0.72"
 
 [workspace]

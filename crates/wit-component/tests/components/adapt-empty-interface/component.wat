@@ -46,9 +46,6 @@
   (core instance (;3;) (instantiate 1))
   (alias core export 0 "$imports" (core table (;0;)))
   (alias core export 3 "thunk" (core func (;1;)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;4;)
     (export "$imports" (table 0))
     (export "0" (func 1))
@@ -56,5 +53,8 @@
   (core instance (;5;) (instantiate 3
       (with "" (instance 4))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

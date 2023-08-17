@@ -289,3 +289,39 @@
     (export "b" (type (eq 0)))
   ))
 )
+
+(assert_invalid
+  (component
+    (type (variant))
+  )
+  "variant type must have at least one case")
+
+(assert_invalid
+  (component
+    (type (enum))
+  )
+  "enum type must have at least one variant")
+
+(assert_invalid
+  (component
+    (type (union))
+  )
+  "union type must have at least one case")
+
+(assert_invalid
+  (component
+    (type (record))
+  )
+  "record type must have at least one field")
+
+(assert_invalid
+  (component
+    (type (flags))
+  )
+  "flags must have at least one entry")
+
+(assert_invalid
+  (component
+    (type (tuple))
+  )
+  "tuple type must have at least one type")

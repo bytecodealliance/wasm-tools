@@ -136,6 +136,9 @@ impl<'a> Component<'a> {
                                                 wasmparser::ImplementationImport::Relative(
                                                     name,
                                                 ) => name.as_str(),
+                                                wasmparser::ImplementationImport::Naked(name) => {
+                                                    name.as_str()
+                                                }
                                                 wasmparser::ImplementationImport::Locked(name) => {
                                                     name.as_str()
                                                 }
@@ -165,6 +168,9 @@ impl<'a> Component<'a> {
                                                 wasmparser::ImplementationImport::Relative(
                                                     name,
                                                 ) => name.as_str(),
+                                                wasmparser::ImplementationImport::Naked(name) => {
+                                                    name.as_str()
+                                                }
                                                 wasmparser::ImplementationImport::Locked(name) => {
                                                     name.as_str()
                                                 }
@@ -281,9 +287,10 @@ impl<'a> Component<'a> {
     }
 
     pub(crate) fn ty(&self) -> wasm_encoder::ComponentType {
-        let encoder = TypeEncoder::new(&self.types);
+        let encoder = TypeEncoder::new(self);
 
         encoder.component(
+            &mut Default::default(),
             self.imports()
                 .map(|(i, ..)| self.import_entity_type(i).unwrap()),
             self.exports()

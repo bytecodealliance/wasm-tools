@@ -745,7 +745,7 @@
       (import "x" (type (eq $t)))
     ))
 
-    (type $x (record))
+    (type $x (record (field "f" u32)))
     (instance (instantiate $c (with "x" (type $x))))
   )
   "expected primitive, found record")
@@ -753,7 +753,7 @@
 (assert_invalid
   (component
     (import "y" (component $c
-      (type $t (record))
+      (type $t (record (field "f" u32)))
       (import "x" (type (eq $t)))
     ))
 
@@ -769,11 +769,11 @@
       (import "x" (type (eq $t)))
     ))
 
-    (type $f (record))
+    (type $f (tuple u8))
     (type $x (record (field "x" $f)))
     (instance (instantiate $c (with "x" (type $x))))
   )
-  "expected u32, found record")
+  "expected u32, found tuple")
 
 (assert_invalid
   (component
@@ -795,10 +795,10 @@
       (import "x" (type (eq $t)))
     ))
 
-    (type $x (record))
+    (type $x (record (field "y" u32) (field "z" u64)))
     (instance (instantiate $c (with "x" (type $x))))
   )
-  "expected 1 fields, found 0")
+  "expected 1 fields, found 2")
 
 (assert_invalid
   (component
@@ -879,10 +879,10 @@
       (import "x" (type (eq $t)))
     ))
 
-    (type $x (tuple))
+    (type $x (tuple u32 u32))
     (instance (instantiate $c (with "x" (type $x))))
   )
-  "expected 1 types, found 0")
+  "expected 1 types, found 2")
 
 (assert_invalid
   (component
@@ -899,7 +899,7 @@
 (assert_invalid
   (component
     (import "y" (component $c
-      (type $t (flags))
+      (type $t (flags "a"))
       (import "x" (type (eq $t)))
     ))
 
@@ -911,7 +911,7 @@
 (assert_invalid
   (component
     (import "y" (component $c
-      (type $t (enum))
+      (type $t (enum "a"))
       (import "x" (type (eq $t)))
     ))
 

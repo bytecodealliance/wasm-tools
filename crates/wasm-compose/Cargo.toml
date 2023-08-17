@@ -1,6 +1,6 @@
 [package]
 name = "wasm-compose"
-version = "0.3.1"
+version = "0.4.0"
 edition.workspace = true
 authors = ["Peter Huene <peter@huene.dev>"]
 license = "Apache-2.0 WITH LLVM-exception"
@@ -20,13 +20,8 @@ serde = { workspace = true }
 petgraph = "0.6.2"
 log = { workspace = true }
 serde_yaml = "0.9.22"
-clap = { workspace = true, optional = true }
 smallvec = "1.10.0"
 heck = "0.4.0"
-
-[features]
-default = []
-cli = ["clap"]
 
 [dev-dependencies]
 glob = "0.3.0"

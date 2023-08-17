@@ -860,52 +860,55 @@ impl Lock {
                                                     name,
                                                     location,
                                                     integrity,
-                                                    range,
                                                 },
                                             ) => ImplementationImport::Url(ImportMetadata {
                                                 name,
                                                 location,
                                                 integrity: Some(integrity),
-                                                range: Some(range),
                                             }),
                                             wasmparser::ImplementationImport::Relative(
                                                 wasmparser::ImportMetadata {
                                                     name,
                                                     location,
                                                     integrity,
-                                                    range,
                                                 },
                                             ) => ImplementationImport::Url(ImportMetadata {
                                                 name,
                                                 location,
                                                 integrity: Some(integrity),
-                                                range: Some(range),
                                             }),
+                                            wasmparser::ImplementationImport::Naked(
+                                              wasmparser::ImportMetadata {
+                                                  name,
+                                                  location,
+                                                  integrity,
+                                              },
+                                          ) => ImplementationImport::Url(ImportMetadata {
+                                              name,
+                                              location,
+                                              integrity: Some(integrity),
+                                          }),
                                             wasmparser::ImplementationImport::Locked(
                                                 wasmparser::ImportMetadata {
                                                     name,
                                                     location,
                                                     integrity,
-                                                    range,
                                                 },
                                             ) => ImplementationImport::Url(ImportMetadata {
                                                 name,
                                                 location,
                                                 integrity: Some(integrity),
-                                                range: Some(range),
                                             }),
                                             wasmparser::ImplementationImport::Unlocked(
                                                 wasmparser::ImportMetadata {
                                                     name,
                                                     location,
                                                     integrity,
-                                                    range,
                                                 },
                                             ) => ImplementationImport::Url(ImportMetadata {
                                                 name,
                                                 location,
                                                 integrity: Some(integrity),
-                                                range: Some(range),
                                             }),
                                         })
                                     }
@@ -1823,13 +1826,11 @@ impl Lock {
                             name,
                             location,
                             integrity,
-                            range,
                         }) => ComponentExternName::Implementation(ImplementationImport::Locked(
                             ImportMetadata {
                                 name,
                                 location,
                                 integrity: Some(integrity),
-                                range: Some(range),
                             },
                         )),
                         wasmparser::ImplementationImport::Relative(
@@ -1837,27 +1838,36 @@ impl Lock {
                                 name,
                                 location,
                                 integrity,
-                                range,
                             },
                         ) => ComponentExternName::Implementation(ImplementationImport::Locked(
                             ImportMetadata {
                                 name,
                                 location,
                                 integrity: Some(integrity),
-                                range: Some(range),
                             },
                         )),
+                        wasmparser::ImplementationImport::Naked(
+                          wasmparser::ImportMetadata {
+                              name,
+                              location,
+                              integrity,
+                          },
+                      ) => ComponentExternName::Implementation(ImplementationImport::Locked(
+                          ImportMetadata {
+                              name,
+                              location,
+                              integrity: Some(integrity),
+                          },
+                      )),
                         wasmparser::ImplementationImport::Locked(wasmparser::ImportMetadata {
                             name,
                             location,
                             integrity,
-                            range,
                         }) => ComponentExternName::Implementation(ImplementationImport::Locked(
                             ImportMetadata {
                                 name,
                                 location,
                                 integrity: Some(integrity),
-                                range: Some(range),
                             },
                         )),
                         wasmparser::ImplementationImport::Unlocked(
@@ -1865,7 +1875,6 @@ impl Lock {
                                 name,
                                 location,
                                 integrity,
-                                range,
                             },
                         ) => {
                             if graph.imported.contains(name) {
@@ -1891,7 +1900,6 @@ impl Lock {
                                     name,
                                     location,
                                     integrity: Some(integrity),
-                                    range: Some(range),
                                 },
                             ))
                         }

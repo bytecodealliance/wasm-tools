@@ -53,9 +53,6 @@
   (alias core export 0 "$imports" (core table (;0;)))
   (alias export 0 "log" (func (;0;)))
   (core func (;1;) (canon lower (func 0) (memory 0) string-encoding=utf8))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;3;)
     (export "$imports" (table 0))
     (export "0" (func 1))
@@ -63,5 +60,8 @@
   (core instance (;4;) (instantiate 2
       (with "" (instance 3))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

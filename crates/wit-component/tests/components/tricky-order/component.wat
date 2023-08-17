@@ -1,7 +1,7 @@
 (component
   (type (;0;)
     (instance
-      (type (;0;) (record))
+      (type (;0;) (record (field "f" u8)))
       (export (;1;) "name" (type (eq 0)))
     )
   )
@@ -24,7 +24,7 @@
   (alias export 0 "name" (type (;3;)))
   (alias export 1 "name" (type (;4;)))
   (component (;0;)
-    (type (;0;) (record))
+    (type (;0;) (record (field "f" u8)))
     (import "import-type-name" (type (;1;) (eq 0)))
     (import "import-type-name0" (type (;2;) (eq 1)))
     (export (;3;) "name" (type 1))
@@ -35,8 +35,8 @@
       (with "import-type-name0" (type 4))
     )
   )
+  (export (;3;) "name" (instance 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;3;) "name" (instance 2))
 )

@@ -1,7 +1,7 @@
 (component
   (core module (;0;)
-    (type (;0;) (func))
-    (func (;0;) (type 0))
+    (type (;0;) (func (param i32)))
+    (func (;0;) (type 0) (param i32))
     (export "name#a" (func 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -10,7 +10,7 @@
   )
   (core instance (;0;) (instantiate 0))
   (component (;0;)
-    (type (;0;) (record))
+    (type (;0;) (record (field "f" u32)))
     (export (;1;) "foo" (type 0))
   )
   (instance (;0;) (instantiate 0))
@@ -20,7 +20,7 @@
   (alias core export 0 "name#a" (core func (;0;)))
   (func (;0;) (type 1) (canon lift (core func 0)))
   (component (;1;)
-    (type (;0;) (record))
+    (type (;0;) (record (field "f" u32)))
     (import "import-type-foo" (type (;1;) (eq 0)))
     (import "import-type-foo0" (type (;2;) (eq 1)))
     (type (;3;) (func (param "f" 2)))
@@ -35,8 +35,8 @@
       (with "import-type-foo0" (type 0))
     )
   )
+  (export (;3;) "name" (instance 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;3;) "name" (instance 2))
 )

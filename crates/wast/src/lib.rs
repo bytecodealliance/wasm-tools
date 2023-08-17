@@ -436,7 +436,7 @@ pub mod kw {
     custom_keyword!(interface);
     custom_keyword!(invoke);
     custom_keyword!(item);
-    custom_keyword!(locked);
+    custom_keyword!(locked = "locked-dep");
     custom_keyword!(last);
     custom_keyword!(local);
     custom_keyword!(memory);
@@ -469,7 +469,7 @@ pub mod kw {
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(rec);
-    custom_keyword!(relative);
+    custom_keyword!(relative = "relative-url");
     custom_keyword!(rep);
     custom_keyword!(resource);
     custom_keyword!(resource_new = "resource.new");
@@ -482,7 +482,7 @@ pub mod kw {
     custom_keyword!(r#final = "final");
     custom_keyword!(table);
     custom_keyword!(then);
-    custom_keyword!(unlocked);
+    custom_keyword!(unlocked = "unlocked-dep");
     custom_keyword!(url);
     custom_keyword!(r#try = "try");
     custom_keyword!(v128);
@@ -528,6 +528,10 @@ pub mod kw {
     custom_keyword!(language);
     custom_keyword!(sdk);
     custom_keyword!(processed_by = "processed-by");
+    custom_keyword!(mem_info = "mem-info");
+    custom_keyword!(needed);
+    custom_keyword!(export_info = "export-info");
+    custom_keyword!(import_info = "import-info");
 }
 
 /// Common annotations used to parse WebAssembly text files.
@@ -535,4 +539,5 @@ pub mod annotation {
     annotation!(custom);
     annotation!(name);
     annotation!(producers);
+    annotation!(dylink_0 = "dylink.0");
 }

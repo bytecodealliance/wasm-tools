@@ -95,8 +95,8 @@
       (with "import-type-a" (type 0))
     )
   )
+  (export (;1;) "foo" (instance 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;1;) "foo" (instance 0))
 )

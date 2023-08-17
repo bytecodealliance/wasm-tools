@@ -257,9 +257,6 @@
   (core func (;26;) (canon lower (func 14) (memory 0) (realloc 16) string-encoding=utf8))
   (alias export 0 "p" (func (;15;)))
   (core func (;27;) (canon lower (func 15) (memory 0) (realloc 16)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;3;)
     (export "$imports" (table 0))
     (export "0" (func 17))
@@ -277,5 +274,8 @@
   (core instance (;4;) (instantiate 2
       (with "" (instance 3))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

@@ -17,7 +17,7 @@
       | 70 6f 6e 65
       | 6e 74 2d 6e
       | 61 6d 65   
- 0x43 | 01 09 03    | type section
+ 0x43 | 01 09 03    | type name section
  0x46 | 01          | 1 count
  0x47 | 00 05 6f 75 | Naming { index: 0, name: "outer" }
       | 74 65 72   

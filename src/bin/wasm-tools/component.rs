@@ -8,7 +8,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use wasm_encoder::{Encode, Section};
 use wasm_tools::Output;
-use wit_component::{ComponentEncoder, DecodedWasm, StringEncoding, WitPrinter};
+use wit_component::{ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter};
 use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 /// WebAssembly wit-based component tooling.
@@ -18,6 +18,7 @@ pub enum Opts {
     Wit(WitOpts),
     Embed(EmbedOpts),
     Targets(TargetsOpts),
+    Link(LinkOpts),
 }
 
 impl Opts {
@@ -27,6 +28,7 @@ impl Opts {
             Opts::Wit(wit) => wit.run(),
             Opts::Embed(embed) => embed.run(),
             Opts::Targets(targets) => targets.run(),
+            Opts::Link(link) => link.run(),
         }
     }
 
@@ -36,6 +38,7 @@ impl Opts {
             Opts::Wit(wit) => wit.general_opts(),
             Opts::Embed(embed) => embed.general_opts(),
             Opts::Targets(targets) => targets.general_opts(),
+            Opts::Link(link) => link.general_opts(),
         }
     }
 }
@@ -227,6 +230,128 @@ impl EmbedOpts {
 
         self.io.output(Output::Wasm {
             bytes: &wasm,
+            wat: self.wat,
+        })?;
+
+        Ok(())
+    }
+}
+
+fn parse_optionally_name_library(s: &str) -> (&str, &str) {
+    let mut parts = s.splitn(2, '=');
+    let name_or_path = parts.next().unwrap();
+    match parts.next() {
+        Some(path) => (name_or_path, path),
+        None => {
+            let name = Path::new(name_or_path)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            (name, name_or_path)
+        }
+    }
+}
+
+fn parse_library(s: &str) -> Result<(String, Vec<u8>)> {
+    let (name, path) = parse_optionally_name_library(s);
+    let wasm = wat::parse_file(path)?;
+    Ok((name.to_string(), wasm))
+}
+
+/// Link one or more dynamic library modules, producing a component
+///
+/// This is similar to the `new` subcommand, except that it accepts an arbitrary number of input modules rather
+/// than a single "main" module.  Those modules are expected to conform to the [dynamic linking
+/// convention](https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md).
+///
+/// The resulting component's type will be the union of the types found in any `component-type*` custom sections in
+/// the input modules.
+///
+/// See
+/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/examples/SharedEverythingDynamicLinking.md
+/// for further details.
+#[derive(Parser)]
+pub struct LinkOpts {
+    /// Input libraries to link
+    #[clap(value_name = "[NAME=]MODULE", value_parser = parse_library)]
+    inputs: Vec<(String, Vec<u8>)>,
+
+    /// Input library to link and make available for dynamic resolution via `dlopen` (may be repeated)
+    #[clap(long, value_name = "[NAME=]MODULE", value_parser = parse_library)]
+    dl_openable: Vec<(String, Vec<u8>)>,
+
+    /// The path to an adapter module to satisfy imports not otherwise bound to
+    /// WIT interfaces.
+    ///
+    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
+    /// ABI, for example, to one that uses the component model. The first
+    /// `[NAME=]` specified in the argument is inferred from the name of file
+    /// specified by `MODULE` if not present and is the name of the import
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
+    ///
+    /// The second part of this argument, optionally specified, is the interface
+    /// that this adapter module imports. If not specified then the interface
+    /// imported is inferred from the adapter module itself.
+    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
+    adapters: Vec<(String, Vec<u8>)>,
+
+    /// Size of stack (in bytes) to allocate in the synthesized main module
+    #[clap(long)]
+    stack_size: Option<u32>,
+
+    #[clap(flatten)]
+    output: wasm_tools::OutputArg,
+
+    #[clap(flatten)]
+    general: wasm_tools::GeneralOpts,
+
+    /// Skip validation of the output component.
+    #[clap(long)]
+    skip_validation: bool,
+
+    /// Print the output in the WebAssembly text format instead of binary.
+    #[clap(long, short = 't')]
+    wat: bool,
+
+    /// Generate trapping stubs for any missing functions
+    #[clap(long)]
+    stub_missing_functions: bool,
+}
+
+impl LinkOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        &self.general
+    }
+
+    /// Executes the application.
+    fn run(self) -> Result<()> {
+        let mut linker = Linker::default()
+            .validate(!self.skip_validation)
+            .stub_missing_functions(self.stub_missing_functions);
+
+        if let Some(stack_size) = self.stack_size {
+            linker = linker.stack_size(stack_size);
+        }
+
+        for (name, wasm) in &self.inputs {
+            linker = linker.library(name, wasm, false)?;
+        }
+
+        for (name, wasm) in &self.dl_openable {
+            linker = linker.library(name, wasm, true)?;
+        }
+
+        for (name, wasm) in &self.adapters {
+            linker = linker.adapter(name, wasm)?;
+        }
+
+        let bytes = linker
+            .encode()
+            .context("failed to encode a component from modules")?;
+
+        self.output.output(Output::Wasm {
+            bytes: &bytes,
             wat: self.wat,
         })?;
 

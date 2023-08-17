@@ -18,9 +18,6 @@
   (core func (;0;) (canon resource.drop 0))
   (core func (;1;) (canon lower (func 0)))
   (core func (;2;) (canon lower (func 1)))
-  (@producers
-    (processed-by "wit-component" "$CARGO_PKG_VERSION")
-  )
   (core instance (;0;)
     (export "[resource-drop]a" (func 0))
     (export "[constructor]a" (func 1))
@@ -29,5 +26,8 @@
   (core instance (;1;) (instantiate 0
       (with "$root" (instance 0))
     )
+  )
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
 )

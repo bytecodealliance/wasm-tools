@@ -26,6 +26,8 @@ world module {
 
     // doesn't show up in the wit output despite being exported here since it's
     // not actually used by anything
-    record unused-record {}
+    record unused-record {
+      f: u8,
+    }
   }
 }

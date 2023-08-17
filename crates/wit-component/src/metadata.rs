@@ -152,7 +152,7 @@ pub fn encode(
     resolve: &Resolve,
     world: WorldId,
     encoding: StringEncoding,
-    producers: Option<&Producers>,
+    extra_producers: Option<&Producers>,
 ) -> Result<Vec<u8>> {
     let world = &resolve.worlds[world];
     let pkg = &resolve.packages[world.package.unwrap()];
@@ -177,9 +177,11 @@ pub fn encode(
     // This appends a wasm binary encoded Component to the ret:
     let mut component_builder = crate::encoding::encode_component(resolve, world.package.unwrap())?;
 
-    if let Some(p) = producers {
-        component_builder.add_producers(p);
+    let mut producers = crate::base_producers();
+    if let Some(p) = extra_producers {
+        producers.merge(&p);
     }
+    component_builder.raw_custom_section(&producers.raw_custom_section());
     ret.extend(component_builder.finish());
     Ok(ret)
 }

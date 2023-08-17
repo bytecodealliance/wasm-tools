@@ -43,8 +43,8 @@
       (with "import-type-r0" (type 1))
     )
   )
+  (export (;3;) "anon" (instance 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
-  (export (;3;) "anon" (instance 2))
 )

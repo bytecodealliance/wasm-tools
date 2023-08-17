@@ -2,6 +2,7 @@ package foo:foo
 
 world simple {
   record foo {
+    f: u8,
   }
 
   type bar = foo
