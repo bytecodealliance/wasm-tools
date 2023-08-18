@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Result};
 use wasm_encoder::{
     Alias, ComponentAliasSection, ComponentExternName, ComponentImportSection,
-    ComponentOuterAliasKind, ComponentTypeRef, ComponentTypeSection, ComponentValType, ImplementationImport, ImportMetadata, InstanceType, PrimitiveValType,
+    ComponentOuterAliasKind, ComponentTypeRef, ComponentTypeSection, ComponentValType,
+    ImplementationImport, ImportMetadata, InstanceType, PrimitiveValType,
 };
 use wasmparser::{
     Chunk, ComponentAlias, ComponentAliasSectionReader, ComponentImportSectionReader,
-    ComponentType, ComponentTypeSectionReader, Parser, Payload, TypeBounds,
-    VariantCase,
+    ComponentType, ComponentTypeSectionReader, Parser, Payload, TypeBounds, VariantCase,
 };
 
 pub struct Lock {}
@@ -114,8 +114,8 @@ pub struct Import {
 
 #[derive(Clone, Debug)]
 pub struct UndeterminedType {
-  pub component: wasm_encoder::ComponentType,
-  pub instance: InstanceType
+    pub component: wasm_encoder::ComponentType,
+    pub instance: InstanceType,
 }
 
 impl Import {
@@ -156,135 +156,135 @@ impl Lock {
                                             wasmparser::ComponentDefinedType::Primitive(prim) => {
                                                 match prim {
                                                     wasmparser::PrimitiveValType::Bool => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Bool);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Bool);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Bool);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Bool);
+                                                    }
                                                     wasmparser::PrimitiveValType::S8 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S8);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S8);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S8);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S8);
+                                                    }
                                                     wasmparser::PrimitiveValType::U8 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U8);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U8);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U8);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U8);
+                                                    }
                                                     wasmparser::PrimitiveValType::S16 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S16);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S16);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S16);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S16);
+                                                    }
                                                     wasmparser::PrimitiveValType::U16 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U16);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U16);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U16);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U16);
+                                                    }
                                                     wasmparser::PrimitiveValType::S32 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S32);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S32);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S32);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S32);
+                                                    }
                                                     wasmparser::PrimitiveValType::U32 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U32);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U32);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U32);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U32);
+                                                    }
                                                     wasmparser::PrimitiveValType::S64 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S64);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::S64);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S64);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::S64);
+                                                    }
                                                     wasmparser::PrimitiveValType::U64 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U64);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::U64);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U64);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::U64);
+                                                    }
                                                     wasmparser::PrimitiveValType::Float32 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Float32);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Float32);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Float32);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Float32);
+                                                    }
                                                     wasmparser::PrimitiveValType::Float64 => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Float64);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Float64);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Float64);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Float64);
+                                                    }
                                                     wasmparser::PrimitiveValType::Char => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Char);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Char);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Char);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Char);
+                                                    }
                                                     wasmparser::PrimitiveValType::String => {
-                                                      component
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::String);
-                                                      instance
-                                                        .ty()
-                                                        .defined_type()
-                                                        .primitive(PrimitiveValType::Char);
-                                                    },
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::String);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .primitive(PrimitiveValType::Char);
+                                                    }
                                                 }
                                             }
                                             wasmparser::ComponentDefinedType::Record(items) => {
@@ -311,7 +311,10 @@ impl Lock {
                                               wasmparser::ComponentValType::Type(index) => fields.push((*key, ComponentValType::Type(*index))),
                                           }
                                                 }
-                                                component.ty().defined_type().record(fields.clone());
+                                                component
+                                                    .ty()
+                                                    .defined_type()
+                                                    .record(fields.clone());
                                                 instance.ty().defined_type().record(fields);
                                             }
                                             wasmparser::ComponentDefinedType::Variant(_) => todo!(),
@@ -503,7 +506,10 @@ impl Lock {
                                                 for kind in kinds.iter() {
                                                     variants.push(*kind);
                                                 }
-                                                component.ty().defined_type().enum_type(variants.clone());
+                                                component
+                                                    .ty()
+                                                    .defined_type()
+                                                    .enum_type(variants.clone());
                                                 instance.ty().defined_type().enum_type(variants);
                                             }
                                             wasmparser::ComponentDefinedType::Union(_) => todo!(),
@@ -512,8 +518,8 @@ impl Lock {
                                                 ok,
                                                 err,
                                             } => {
-                                              if let Some(ok_val_type) = ok {
-                                                let ok_val = match ok_val_type {
+                                                if let Some(ok_val_type) = ok {
+                                                    let ok_val = match ok_val_type {
                                                   wasmparser::ComponentValType::Primitive(prim) => {
                                                     match prim {
                                                       wasmparser::PrimitiveValType::Bool => ComponentValType::Primitive(PrimitiveValType::Bool),
@@ -535,8 +541,8 @@ impl Lock {
                                                     ComponentValType::Type(index)
                                                   }
                                                 };
-                                                if let Some(err_val_type) = err {
-                                                  let err_val = match err_val_type {
+                                                    if let Some(err_val_type) = err {
+                                                        let err_val = match err_val_type {
                                                     wasmparser::ComponentValType::Primitive(prim) => {
                                                       match prim {
                                                         wasmparser::PrimitiveValType::Bool => ComponentValType::Primitive(PrimitiveValType::Bool),
@@ -558,36 +564,32 @@ impl Lock {
                                                       ComponentValType::Type(index)
                                                     }
                                                   };
-                                                  component
-                                                  .ty()
-                                                  .defined_type()
-                                                  .result(Some(ok_val), Some(err_val));
-                                                  instance
-                                                  .ty()
-                                                  .defined_type()
-                                                  .result(Some(ok_val), Some(err_val));
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .result(Some(ok_val), Some(err_val));
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .result(Some(ok_val), Some(err_val));
+                                                    } else {
+                                                        component
+                                                            .ty()
+                                                            .defined_type()
+                                                            .result(Some(ok_val), None);
+                                                        instance
+                                                            .ty()
+                                                            .defined_type()
+                                                            .result(Some(ok_val), None);
+                                                    }
                                                 } else {
-                                                  component
-                                                      .ty()
-                                                      .defined_type()
-                                                      .result(Some(ok_val), None);
-                                                  instance
-                                                      .ty()
-                                                      .defined_type()
-                                                      .result(Some(ok_val), None);
-
+                                                    component
+                                                        .ty()
+                                                        .defined_type()
+                                                        .result(None, None);
+                                                    instance.ty().defined_type().result(None, None);
                                                 }
-                                              } else {
-                                                component
-                                                .ty()
-                                                .defined_type()
-                                                .result(None, None);
-                                                instance
-                                                    .ty()
-                                                    .defined_type()
-                                                    .result(None, None);
-                                              }
-                                            },
+                                            }
                                             wasmparser::ComponentDefinedType::Own(_) => todo!(),
                                             wasmparser::ComponentDefinedType::Borrow(_) => todo!(),
                                         };
@@ -759,7 +761,6 @@ impl Lock {
                                                     wasmparser::ComponentValType::Type(index) => {
                                                         ComponentValType::Type(index)
                                                     }
-
                                                 };
                                                 component
                                                     .ty()
@@ -809,18 +810,17 @@ impl Lock {
                                             }
                                         };
                                     }
-                                    ComponentType::Component(_) => {
-                                    }
-                                    ComponentType::Instance(_) => {
-                                    }
-                                    ComponentType::Resource { .. } => {
-                                    }
+                                    ComponentType::Component(_) => {}
+                                    ComponentType::Instance(_) => {}
+                                    ComponentType::Resource { .. } => {}
                                 }
                             }
                             wasmparser::InstanceTypeDeclaration::Alias(ty) => {
                                 let alias = match ty {
-                                    wasmparser::ComponentAlias::InstanceExport {..} => todo!(),
-                                    wasmparser::ComponentAlias::CoreInstanceExport {..} => todo!(),
+                                    wasmparser::ComponentAlias::InstanceExport { .. } => todo!(),
+                                    wasmparser::ComponentAlias::CoreInstanceExport { .. } => {
+                                        todo!()
+                                    }
                                     wasmparser::ComponentAlias::Outer { kind, count, index } => {
                                         Alias::Outer {
                                             kind: match kind {
@@ -878,16 +878,16 @@ impl Lock {
                                                 integrity: Some(integrity),
                                             }),
                                             wasmparser::ImplementationImport::Naked(
-                                              wasmparser::ImportMetadata {
-                                                  name,
-                                                  location,
-                                                  integrity,
-                                              },
-                                          ) => ImplementationImport::Url(ImportMetadata {
-                                              name,
-                                              location,
-                                              integrity: Some(integrity),
-                                          }),
+                                                wasmparser::ImportMetadata {
+                                                    name,
+                                                    location,
+                                                    integrity,
+                                                },
+                                            ) => ImplementationImport::Url(ImportMetadata {
+                                                name,
+                                                location,
+                                                integrity: Some(integrity),
+                                            }),
                                             wasmparser::ImplementationImport::Locked(
                                                 wasmparser::ImportMetadata {
                                                     name,
@@ -1041,9 +1041,14 @@ impl Lock {
                             }
                         }
                     }
-                    graph.undetermined_types.insert(graph.type_count, UndeterminedType {component: component.clone(), instance: instance.clone()});
+                    graph.undetermined_types.insert(
+                        graph.type_count,
+                        UndeterminedType {
+                            component: component.clone(),
+                            instance: instance.clone(),
+                        },
+                    );
                     graph.type_count += 1;
-
                 }
                 ComponentType::Defined(def) => {
                     match def {
@@ -1638,7 +1643,7 @@ impl Lock {
                     };
                 }
                 ComponentType::Component(_) => todo!(),
-                ComponentType::Resource {..} => todo!(),
+                ComponentType::Resource { .. } => todo!(),
             }
         }
         Ok(())
@@ -1794,11 +1799,13 @@ impl Lock {
                             }
                         },
                         wasmparser::ComponentTypeRef::Instance(i) => {
-                            let ty = graph.undetermined_types.get(&(i as usize - &graph.num_aliases));
+                            let ty = graph
+                                .undetermined_types
+                                .get(&(i as usize - &graph.num_aliases));
                             if let Some(ty) = ty {
-                              let mut type_section = ComponentTypeSection::new();
-                              type_section.ty().instance(&ty.instance);
-                              graph.entities.push(Entity::Type(type_section));
+                                let mut type_section = ComponentTypeSection::new();
+                                type_section.ty().instance(&ty.instance);
+                                graph.entities.push(Entity::Type(type_section));
                             }
                             imports.import(name, ComponentTypeRef::Instance(i));
                         }
@@ -1808,14 +1815,16 @@ impl Lock {
                     }
                     graph.insert_instance(name.to_string(), graph.num_instances);
                     final_import = Import::new(name.to_string(), ImportKind::Interface);
-                    graph.interfaces.insert(name.to_string(), graph.num_instances);
+                    graph
+                        .interfaces
+                        .insert(name.to_string(), graph.num_instances);
                     let cur = graph.indices.get(&component_index);
                     graph.num_interfaces += 1;
                     if let Some(cur) = cur {
-                      let component = graph.components.get_mut(&cur.name);
-                      if let Some(comp) = component {
-                        comp.instantiation_args.push(name.to_string());
-                      }
+                        let component = graph.components.get_mut(&cur.name);
+                        if let Some(comp) = component {
+                            comp.instantiation_args.push(name.to_string());
+                        }
                     }
                     graph.entities.push(Entity::Import((final_import, imports)));
                 }
@@ -1846,19 +1855,17 @@ impl Lock {
                                 integrity: Some(integrity),
                             },
                         )),
-                        wasmparser::ImplementationImport::Naked(
-                          wasmparser::ImportMetadata {
-                              name,
-                              location,
-                              integrity,
-                          },
-                      ) => ComponentExternName::Implementation(ImplementationImport::Locked(
-                          ImportMetadata {
-                              name,
-                              location,
-                              integrity: Some(integrity),
-                          },
-                      )),
+                        wasmparser::ImplementationImport::Naked(wasmparser::ImportMetadata {
+                            name,
+                            location,
+                            integrity,
+                        }) => ComponentExternName::Implementation(ImplementationImport::Locked(
+                            ImportMetadata {
+                                name,
+                                location,
+                                integrity: Some(integrity),
+                            },
+                        )),
                         wasmparser::ImplementationImport::Locked(wasmparser::ImportMetadata {
                             name,
                             location,
@@ -1878,8 +1885,8 @@ impl Lock {
                             },
                         ) => {
                             if graph.imported.contains(name) {
-                              already_imported = true;
-                              // return Ok(());
+                                already_imported = true;
+                                // return Ok(());
                             }
                             // let exists = graph.components.get(name);
                             // if let Some(_) = exists {
@@ -1905,7 +1912,7 @@ impl Lock {
                         }
                     };
                     if already_imported {
-                      return Ok(())
+                        return Ok(());
                     }
                     match imp.ty {
                         wasmparser::ComponentTypeRef::Module(i) => {
@@ -2045,21 +2052,25 @@ impl Lock {
                         wasmparser::ComponentTypeRef::Instance(_) => {
                             let ty = graph.undetermined_types.get(&(i + 1));
                             if let Some(ty) = ty {
-                              let mut type_section = ComponentTypeSection::new();
-                              type_section.ty().component(&ty.component);
-                              graph.entities.push(Entity::Type(type_section));
+                                let mut type_section = ComponentTypeSection::new();
+                                type_section.ty().component(&ty.component);
+                                graph.entities.push(Entity::Type(type_section));
                             }
-                            imports.import(extern_name, ComponentTypeRef::Component((i + 1) as u32));
+                            imports
+                                .import(extern_name, ComponentTypeRef::Component((i + 1) as u32));
                             graph.entities.push(Entity::Import((final_import, imports)));
                         }
                         wasmparser::ComponentTypeRef::Component(_) => {
                             let ty = graph.undetermined_types.get(&(i + 1));
                             if let Some(ty) = ty {
-                              let mut type_section = ComponentTypeSection::new();
-                              type_section.ty().component(&ty.component);
-                              graph.entities.push(Entity::Type(type_section));
+                                let mut type_section = ComponentTypeSection::new();
+                                type_section.ty().component(&ty.component);
+                                graph.entities.push(Entity::Type(type_section));
                             }
-                            imports.import(extern_name, ComponentTypeRef::Component((graph.type_count) as u32));
+                            imports.import(
+                                extern_name,
+                                ComponentTypeRef::Component((graph.type_count) as u32),
+                            );
                             graph.entities.push(Entity::Import((final_import, imports)));
                         }
                     }
@@ -2096,20 +2107,21 @@ impl Lock {
                             let component_index = graph.num_components - 1;
                             let component = graph.indices.get(&component_index);
                             if let Some(item) = component {
-                              let dep = graph.components.get(&item.name);
-                              if let Some(dep) = dep {
-                                if instance_index < dep.instantiation_args.len() as u32 {
-                                  let instance_name = &dep.instantiation_args[instance_index as usize];
-                                  let instance = graph.components.get(instance_name);
-                                  if let Some(inst) = instance {
-                                    alias_section.alias(Alias::InstanceExport {
-                                        instance: inst.index as u32,
-                                        kind: wasm_encoder::ComponentExportKind::Func,
-                                        name,
-                                    });
-                                  }
+                                let dep = graph.components.get(&item.name);
+                                if let Some(dep) = dep {
+                                    if instance_index < dep.instantiation_args.len() as u32 {
+                                        let instance_name =
+                                            &dep.instantiation_args[instance_index as usize];
+                                        let instance = graph.components.get(instance_name);
+                                        if let Some(inst) = instance {
+                                            alias_section.alias(Alias::InstanceExport {
+                                                instance: inst.index as u32,
+                                                kind: wasm_encoder::ComponentExportKind::Func,
+                                                name,
+                                            });
+                                        }
+                                    }
                                 }
-                              }
                             }
                         }
                         wasmparser::ComponentExternalKind::Value => {
@@ -2120,27 +2132,30 @@ impl Lock {
                             });
                         }
                         wasmparser::ComponentExternalKind::Type => {
-                                  match kind {
-                                    wasmparser::ComponentExternalKind::Module => todo!(),
-                                    wasmparser::ComponentExternalKind::Func => alias_section.alias(Alias::InstanceExport {
-                                      instance: instance_index,
-                                      kind: wasm_encoder::ComponentExportKind::Func,
-                                      name,
-                                    }),
-                                    wasmparser::ComponentExternalKind::Value => todo!(),
-                                    wasmparser::ComponentExternalKind::Type => {
-                                      graph.num_aliases += 1;
-                                      alias_section.alias(Alias::InstanceExport {
-                                      instance: instance_index,
-                                      kind: wasm_encoder::ComponentExportKind::Type,
-                                      name,
-                                    })},
-                                    wasmparser::ComponentExternalKind::Instance => todo!(),
-                                    wasmparser::ComponentExternalKind::Component => todo!(),
-                                };
+                            match kind {
+                                wasmparser::ComponentExternalKind::Module => todo!(),
+                                wasmparser::ComponentExternalKind::Func => {
+                                    alias_section.alias(Alias::InstanceExport {
+                                        instance: instance_index,
+                                        kind: wasm_encoder::ComponentExportKind::Func,
+                                        name,
+                                    })
+                                }
+                                wasmparser::ComponentExternalKind::Value => todo!(),
+                                wasmparser::ComponentExternalKind::Type => {
+                                    graph.num_aliases += 1;
+                                    alias_section.alias(Alias::InstanceExport {
+                                        instance: instance_index,
+                                        kind: wasm_encoder::ComponentExportKind::Type,
+                                        name,
+                                    })
+                                }
+                                wasmparser::ComponentExternalKind::Instance => todo!(),
+                                wasmparser::ComponentExternalKind::Component => todo!(),
+                            };
                         }
                         wasmparser::ComponentExternalKind::Instance => {
-                          
+
                             // alias_section.alias(Alias::InstanceExport {
                             //     instance: instance_index,
                             //     kind: wasm_encoder::ComponentExportKind::Instance,
@@ -2193,7 +2208,7 @@ impl Lock {
                 },
             }
         }
-        
+
         graph.entities.push(Entity::Alias(alias_section));
         Ok(())
     }
@@ -2247,8 +2262,6 @@ impl Lock {
         }
         Ok(())
     }
-
-
 }
 #[cfg(test)]
 mod tests {

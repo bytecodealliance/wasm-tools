@@ -277,11 +277,11 @@ impl KebabName {
     /// valid.
     pub fn new(name: ComponentExternName<'_>, offset: usize) -> Result<KebabName> {
         let validate_kebab = |s: &str| {
-            // if KebabStr::new(s).is_none() {
-            //     bail!(offset, "`{s}` is not in kebab case")
-            // } else {
-            Ok(())
-            // }
+            if KebabStr::new(s).is_none() {
+                bail!(offset, "`{s}` is not in kebab case")
+            } else {
+                Ok(())
+            }
         };
         let find = |s: &str, c: char| match s.find(c) {
             Some(i) => Ok(i),
@@ -290,12 +290,12 @@ impl KebabName {
         let parsed = match name {
             ComponentExternName::Kebab(s) => {
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
-                    // validate_kebab(s)?;
+                    validate_kebab(s)?;
                     ParsedKebabName::Constructor
                 } else if let Some(s) = s.strip_prefix(METHOD) {
                     let dot = find(s, '.')?;
-                    // validate_kebab(&s[..dot])?;
-                    // validate_kebab(&s[dot + 1..])?;
+                    validate_kebab(&s[..dot])?;
+                    validate_kebab(&s[dot + 1..])?;
                     ParsedKebabName::Method { dot: dot as u32 }
                 } else if let Some(s) = s.strip_prefix(STATIC) {
                     let dot = find(s, '.')?;
@@ -326,26 +326,7 @@ impl KebabName {
                     at: at.map(|i| i as u32),
                 }
             }
-            ComponentExternName::Implementation(s) => {
-                let string = s.as_str();
-                let colon = find(&string, ':')?;
-                // validate_kebab(&string[..colon])?;
-                let slash = find(&string, '/')?;
-                let at = &string[slash..].find('@').map(|i| i + slash);
-                // validate_kebab(&string[colon + 1..slash])?;
-                // validate_kebab(&string[slash + 1..at.unwrap_or(string.len())])?;
-                if let Some(at) = at {
-                    let version = &string[at + 1..];
-                    if let Err(e) = version.parse::<Version>() {
-                        bail!(offset, "failed to parse version: {e}")
-                    }
-                }
-                ParsedKebabName::Id {
-                    colon: colon as u32,
-                    slash: slash as u32,
-                    at: at.map(|i| i as u32),
-                }
-            }
+            ComponentExternName::Implementation(s) => ParsedKebabName::Normal,
         };
         Ok(KebabName {
             raw: name.as_str().to_string(),
