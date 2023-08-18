@@ -146,11 +146,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 pub struct TypeId {
     /// The index into the global list of types.
     pub(crate) index: usize,
-    /// The effective type size for the type.
-    ///
-    /// This is stored as part of the ID to avoid having to recurse through
-    /// the global type list when calculating type sizes.
-    pub(crate) type_size: u32,
+    /// Metadata about this type and its recursive structure.
+    pub(crate) info: TypeInfo,
     /// A unique integer assigned to this type.
     ///
     /// The purpose of this field is to ensure that two different `TypeId`
@@ -165,6 +162,82 @@ pub struct TypeId {
 const _: () = {
     assert!(std::mem::size_of::<TypeId>() <= 16);
 };
+
+/// Metadata about a type and its transitive structure.
+///
+/// Currently contains two properties:
+///
+/// * The "size" of a type - a proxy to the recursive size of a type if
+///   everything in the type were unique (e.g. no shared references). Not an
+///   approximation of runtime size, but instead of type-complexity size if
+///   someone were to visit each element of the type individually. For example
+///   `u32` has size 1 and `(list u32)` has size 2 (roughly). Used to prevent
+///   massive trees of types.
+///
+/// * Whether or not a type contains a "borrow" transitively inside of it. For
+///   example `(borrow $t)` and `(list (borrow $t))` both contain borrows, but
+///   `(list u32)` does not. Used to validate that component function results do
+///   not contain borrows.
+///
+/// Currently this is represented as a compact 32-bit integer to ensure that
+/// `TypeId`, which this is stored in, remains relatively small. The maximum
+/// type size allowed in wasmparser is 1M at this time which is 20 bits of
+/// information, and then one more bit is used for whether or not a borrow is
+/// used. Currently this uses the low 24 bits for the type size and the MSB for
+/// the borrow bit.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct TypeInfo(u32);
+
+impl TypeInfo {
+    /// Creates a new blank set of type information.
+    ///
+    /// Defaults to size 1 to ensure that this consumes space in the final type
+    /// structure.
+    pub(crate) fn new() -> TypeInfo {
+        TypeInfo::_new(1, false)
+    }
+
+    /// Creates a new blank set of information about a leaf "borrow" type which
+    /// has size 1.
+    pub(crate) fn borrow() -> TypeInfo {
+        TypeInfo::_new(1, true)
+    }
+
+    /// Creates type information corresponding to a core type of the `size`
+    /// specified, meaning no borrows are contained within.
+    pub(crate) fn core(size: u32) -> TypeInfo {
+        TypeInfo::_new(size, false)
+    }
+
+    fn _new(size: u32, contains_borrow: bool) -> TypeInfo {
+        assert!(size < (1 << 24));
+        TypeInfo(size | ((contains_borrow as u32) << 31))
+    }
+
+    /// Combines another set of type information into this one, for example if
+    /// this is a record which has `other` as a field.
+    ///
+    /// Updates the size of `self` and whether or not this type contains a
+    /// borrow based on whether `other` contains a borrow.
+    ///
+    /// Returns an error if the type size would exceed this crate's static limit
+    /// of a type size.
+    pub(crate) fn combine(&mut self, other: TypeInfo, offset: usize) -> Result<()> {
+        *self = TypeInfo::_new(
+            super::combine_type_sizes(self.size(), other.size(), offset)?,
+            self.contains_borrow() || other.contains_borrow(),
+        );
+        Ok(())
+    }
+
+    pub(crate) fn size(&self) -> u32 {
+        self.0 & 0xffffff
+    }
+
+    pub(crate) fn contains_borrow(&self) -> bool {
+        (self.0 >> 31) != 0
+    }
+}
 
 /// A unified type definition for validating WebAssembly modules and components.
 #[derive(Debug)]
@@ -291,23 +364,24 @@ impl Type {
         }
     }
 
-    pub(crate) fn type_size(&self) -> u32 {
+    pub(crate) fn info(&self) -> TypeInfo {
         // TODO(#1036): calculate actual size for func, array, struct
         match self {
             Self::Sub(ty) => {
-                1 + match ty.clone().structural_type {
+                let size = 1 + match ty.clone().structural_type {
                     StructuralType::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
                     StructuralType::Array(_) => 2,
                     StructuralType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
-                }
+                };
+                TypeInfo::core(size)
             }
-            Self::Module(ty) => ty.type_size,
-            Self::Instance(ty) => ty.type_size,
-            Self::Component(ty) => ty.type_size,
-            Self::ComponentInstance(ty) => ty.type_size,
-            Self::ComponentFunc(ty) => ty.type_size,
-            Self::Defined(ty) => ty.type_size(),
-            Self::Resource(_) => 1,
+            Self::Module(ty) => ty.info,
+            Self::Instance(ty) => ty.info,
+            Self::Component(ty) => ty.info,
+            Self::ComponentInstance(ty) => ty.info,
+            Self::ComponentFunc(ty) => ty.info,
+            Self::Defined(ty) => ty.info(),
+            Self::Resource(_) => TypeInfo::new(),
         }
     }
 }
@@ -338,10 +412,10 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> u32 {
+    pub(crate) fn info(&self) -> TypeInfo {
         match self {
-            Self::Primitive(_) => 1,
-            Self::Type(id) => id.type_size,
+            Self::Primitive(_) => TypeInfo::new(),
+            Self::Type(id) => id.info,
         }
     }
 }
@@ -372,10 +446,10 @@ impl EntityType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> u32 {
+    pub(crate) fn info(&self) -> TypeInfo {
         match self {
-            Self::Func(id) | Self::Tag(id) => id.type_size,
-            Self::Table(_) | Self::Memory(_) | Self::Global(_) => 1,
+            Self::Func(id) | Self::Tag(id) => id.info,
+            Self::Table(_) | Self::Memory(_) | Self::Global(_) => TypeInfo::new(),
         }
     }
 }
@@ -429,8 +503,8 @@ impl ModuleImportKey for (&str, &str) {
 /// Represents a core module type.
 #[derive(Debug, Clone)]
 pub struct ModuleType {
-    /// The effective type size for the module type.
-    pub(crate) type_size: u32,
+    /// Metadata about this module type
+    pub(crate) info: TypeInfo,
     /// The imports of the module type.
     pub imports: IndexMap<(String, String), EntityType>,
     /// The exports of the module type.
@@ -458,8 +532,8 @@ pub enum InstanceTypeKind {
 /// Represents a module instance type.
 #[derive(Debug, Clone)]
 pub struct InstanceType {
-    /// The effective type size for the module instance type.
-    pub(crate) type_size: u32,
+    /// Metadata about this instance type
+    pub(crate) info: TypeInfo,
     /// The kind of module instance type.
     pub kind: InstanceTypeKind,
 }
@@ -528,14 +602,14 @@ impl ComponentEntityType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> u32 {
+    pub(crate) fn info(&self) -> TypeInfo {
         match self {
             Self::Module(ty)
             | Self::Func(ty)
             | Self::Type { referenced: ty, .. }
             | Self::Instance(ty)
-            | Self::Component(ty) => ty.type_size,
-            Self::Value(ty) => ty.type_size(),
+            | Self::Component(ty) => ty.info,
+            Self::Value(ty) => ty.info(),
         }
     }
 }
@@ -543,8 +617,8 @@ impl ComponentEntityType {
 /// Represents a type of a component.
 #[derive(Debug, Clone)]
 pub struct ComponentType {
-    /// The effective type size for the component type.
-    pub(crate) type_size: u32,
+    /// Metadata about this component type
+    pub(crate) info: TypeInfo,
 
     /// The imports of the component type.
     ///
@@ -599,8 +673,8 @@ pub struct ComponentType {
 /// Represents a type of a component instance.
 #[derive(Debug, Clone)]
 pub struct ComponentInstanceType {
-    /// The effective type size for the instance type.
-    pub(crate) type_size: u32,
+    /// Metadata about this instance type
+    pub(crate) info: TypeInfo,
 
     /// The list of exports, keyed by name, that this instance has.
     ///
@@ -649,8 +723,8 @@ pub struct ComponentInstanceType {
 /// Represents a type of a component function.
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType {
-    /// The effective type size for the component function type.
-    pub(crate) type_size: u32,
+    /// Metadata about this function type.
+    pub(crate) info: TypeInfo,
     /// The function parameters.
     pub params: Box<[(KebabString, ComponentValType)]>,
     /// The function's results.
@@ -739,8 +813,8 @@ pub struct VariantCase {
 /// Represents a record type.
 #[derive(Debug, Clone)]
 pub struct RecordType {
-    /// The effective type size for the record type.
-    pub(crate) type_size: u32,
+    /// Metadata about this record type.
+    pub(crate) info: TypeInfo,
     /// The map of record fields.
     pub fields: IndexMap<KebabString, ComponentValType>,
 }
@@ -748,8 +822,8 @@ pub struct RecordType {
 /// Represents a variant type.
 #[derive(Debug, Clone)]
 pub struct VariantType {
-    /// The effective type size for the variant type.
-    pub(crate) type_size: u32,
+    /// Metadata about this variant type.
+    pub(crate) info: TypeInfo,
     /// The map of variant cases.
     pub cases: IndexMap<KebabString, VariantCase>,
 }
@@ -757,8 +831,8 @@ pub struct VariantType {
 /// Represents a tuple type.
 #[derive(Debug, Clone)]
 pub struct TupleType {
-    /// The effective type size for the tuple type.
-    pub(crate) type_size: u32,
+    /// Metadata about this tuple type.
+    pub(crate) info: TypeInfo,
     /// The types of the tuple.
     pub types: Box<[ComponentValType]>,
 }
@@ -766,8 +840,8 @@ pub struct TupleType {
 /// Represents a union type.
 #[derive(Debug, Clone)]
 pub struct UnionType {
-    /// The inclusive type count for the union type.
-    pub(crate) type_size: u32,
+    /// Metadata about this union type.
+    pub(crate) info: TypeInfo,
     /// The types of the union.
     pub types: Box<[ComponentValType]>,
 }
@@ -827,20 +901,21 @@ impl ComponentDefinedType {
         }
     }
 
-    pub(crate) fn type_size(&self) -> u32 {
+    pub(crate) fn info(&self) -> TypeInfo {
         match self {
-            Self::Primitive(_)
-            | Self::Flags(_)
-            | Self::Enum(_)
-            | Self::Own(_)
-            | Self::Borrow(_) => 1,
-            Self::Record(r) => r.type_size,
-            Self::Variant(v) => v.type_size,
-            Self::Tuple(t) => t.type_size,
-            Self::Union(u) => u.type_size,
-            Self::List(ty) | Self::Option(ty) => ty.type_size(),
+            Self::Primitive(_) | Self::Flags(_) | Self::Enum(_) | Self::Own(_) => TypeInfo::new(),
+            Self::Borrow(_) => TypeInfo::borrow(),
+            Self::Record(r) => r.info,
+            Self::Variant(v) => v.info,
+            Self::Tuple(t) => t.info,
+            Self::Union(u) => u.info,
+            Self::List(ty) | Self::Option(ty) => ty.info(),
             Self::Result { ok, err } => {
-                ok.map(|ty| ty.type_size()).unwrap_or(1) + err.map(|ty| ty.type_size()).unwrap_or(1)
+                let default = TypeInfo::new();
+                let mut info = ok.map(|ty| ty.info()).unwrap_or(default);
+                info.combine(err.map(|ty| ty.info()).unwrap_or(default), 0)
+                    .unwrap();
+                info
             }
         }
     }
@@ -1898,11 +1973,11 @@ impl TypeAlloc {
     /// hash-equivalent to anything else.
     pub fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len();
-        let type_size = ty.type_size();
+        let info = ty.info();
         self.list.push(ty);
         TypeId {
             index,
-            type_size,
+            info,
             unique_id: 0,
         }
     }
@@ -3167,11 +3242,11 @@ impl Index<TypeId> for SubtypeArena<'_> {
 impl Remap for SubtypeArena<'_> {
     fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len() + self.types.len();
-        let type_size = ty.type_size();
+        let info = ty.info();
         self.list.push(ty);
         TypeId {
             index,
-            type_size,
+            info,
             unique_id: 0,
         }
     }
