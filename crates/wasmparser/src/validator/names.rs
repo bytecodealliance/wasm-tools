@@ -5,6 +5,7 @@ use crate::{ComponentExternName, Result};
 use semver::Version;
 use std::borrow::Borrow;
 use std::fmt;
+use std::fs::Metadata;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
@@ -222,7 +223,7 @@ pub struct KebabName {
     parsed: ParsedKebabName,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 enum ParsedKebabName {
     Normal,
     Constructor,
@@ -232,9 +233,14 @@ enum ParsedKebabName {
     Static {
         dot: u32,
     },
-    Id {
+    InterfaceId {
         colon: u32,
         slash: u32,
+        at: Option<u32>,
+    },
+    RegistryId {
+        colon: Vec<u32>,
+        slash: Vec<u32>,
         at: Option<u32>,
     },
 }
@@ -266,11 +272,29 @@ pub enum KebabNameKind<'a> {
         interface: &'a KebabStr,
         version: Option<Version>,
     },
+    /// `wasi:http:maybe:many/types/maybe/many@2.0`
+    #[allow(missing_docs)]
+    RegistryId {
+        namespace: &'a KebabStr,
+        package: &'a KebabStr,
+        interface: &'a KebabStr,
+        version: Option<Version>,
+    },
 }
 
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
+
+fn find_many<'a>(s: &str, c: char, acc: &'a mut Vec<usize>) -> &'a mut Vec<usize> {
+    match s.find(c) {
+        Some(i) => {
+            acc.push(i);
+            find_many(&s[i..], c, acc)
+        }
+        None => acc,
+    }
+}
 
 impl KebabName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
@@ -287,6 +311,7 @@ impl KebabName {
             Some(i) => Ok(i),
             None => bail!(offset, "failed to find `{c}` character"),
         };
+
         let parsed = match name {
             ComponentExternName::Kebab(s) => {
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
@@ -320,13 +345,66 @@ impl KebabName {
                         bail!(offset, "failed to parse version: {e}")
                     }
                 }
-                ParsedKebabName::Id {
+                ParsedKebabName::InterfaceId {
                     colon: colon as u32,
                     slash: slash as u32,
                     at: at.map(|i| i as u32),
                 }
             }
-            ComponentExternName::Implementation(s) => ParsedKebabName::Normal,
+            ComponentExternName::Implementation(s) => match s {
+                crate::ImplementationImport::Url(metadata) => {
+                    validate_kebab(s.as_str())?;
+                    ParsedKebabName::Normal
+                }
+                crate::ImplementationImport::Relative(metadata) => {
+                    validate_kebab(s.as_str())?;
+                    ParsedKebabName::Normal
+                }
+                crate::ImplementationImport::Naked(metadata) => {
+                    validate_kebab(s.as_str())?;
+                    ParsedKebabName::Normal
+                }
+                crate::ImplementationImport::Locked(metadata) => {
+                    let mut colon_acc = Vec::new();
+                    let colon = find_many(metadata.as_str(), ':', &mut colon_acc);
+                    if colon.len() == 0 {
+                        bail!(offset, "At least one namespace in registry id is required");
+                    }
+                    let mut slash_acc = Vec::new();
+                    let slash = find_many(
+                        &metadata.as_str()[colon[colon.len() - 1]..],
+                        '/',
+                        &mut slash_acc,
+                    );
+                    let last_slash = slash[slash.len() - 1];
+                    let at = s.as_str()[last_slash..].find('@').map(|i| i + last_slash);
+                    ParsedKebabName::RegistryId {
+                        colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                        slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                        at: at.map(|i| i as u32),
+                    }
+                }
+                crate::ImplementationImport::Unlocked(metadata) => {
+                    let mut colon_acc = Vec::new();
+                    let colon = find_many(metadata.as_str(), ':', &mut colon_acc);
+                    if colon.len() == 0 {
+                        bail!(offset, "At least one namespace in registry id is required");
+                    }
+                    let mut slash_acc = Vec::new();
+                    let slash = find_many(
+                        &metadata.as_str()[colon[colon.len() - 1]..],
+                        '/',
+                        &mut slash_acc,
+                    );
+                    let last_slash = slash[slash.len() - 1];
+                    let at = s.as_str()[last_slash..].find('@').map(|i| i + last_slash);
+                    ParsedKebabName::RegistryId {
+                        colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                        slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                        at: at.map(|i| i as u32),
+                    }
+                }
+            },
         };
         Ok(KebabName {
             raw: name.as_str().to_string(),
@@ -336,7 +414,7 @@ impl KebabName {
 
     /// Returns the [`KebabNameKind`] corresponding to this name.
     pub fn kind(&self) -> KebabNameKind<'_> {
-        match self.parsed {
+        match &self.parsed {
             ParsedKebabName::Normal => KebabNameKind::Normal(KebabStr::new_unchecked(&self.raw)),
             ParsedKebabName::Constructor => {
                 let kebab = &self.raw[CONSTRUCTOR.len()..];
@@ -344,19 +422,19 @@ impl KebabName {
             }
             ParsedKebabName::Method { dot } => {
                 let dotted = &self.raw[METHOD.len()..];
-                let resource = KebabStr::new_unchecked(&dotted[..dot as usize]);
-                let name = KebabStr::new_unchecked(&dotted[dot as usize + 1..]);
+                let resource = KebabStr::new_unchecked(&dotted[..*dot as usize]);
+                let name = KebabStr::new_unchecked(&dotted[*dot as usize + 1..]);
                 KebabNameKind::Method { resource, name }
             }
             ParsedKebabName::Static { dot } => {
                 let dotted = &self.raw[METHOD.len()..];
-                let resource = KebabStr::new_unchecked(&dotted[..dot as usize]);
-                let name = KebabStr::new_unchecked(&dotted[dot as usize + 1..]);
+                let resource = KebabStr::new_unchecked(&dotted[..*dot as usize]);
+                let name = KebabStr::new_unchecked(&dotted[*dot as usize + 1..]);
                 KebabNameKind::Static { resource, name }
             }
-            ParsedKebabName::Id { colon, slash, at } => {
-                let colon = colon as usize;
-                let slash = slash as usize;
+            ParsedKebabName::InterfaceId { colon, slash, at } => {
+                let colon = *colon as usize;
+                let slash = *slash as usize;
                 let at = at.map(|i| i as usize);
                 let namespace = KebabStr::new_unchecked(&self.raw[..colon]);
                 let package = KebabStr::new_unchecked(&self.raw[colon + 1..slash]);
@@ -370,6 +448,7 @@ impl KebabName {
                     version,
                 }
             }
+            ParsedKebabName::RegistryId { colon, slash, at } => todo!(),
         }
     }
 
@@ -440,6 +519,12 @@ impl Hash for KebabNameKind<'_> {
                 interface.hash(hasher);
                 version.hash(hasher);
             }
+            KebabNameKind::RegistryId {
+                namespace,
+                package,
+                interface,
+                version,
+            } => todo!(),
         }
     }
 }
@@ -513,6 +598,22 @@ impl PartialEq for KebabNameKind<'_> {
                 },
             ) => an == bn && ap == bp && ai == bi && av == bv,
             (KebabNameKind::Id { .. }, _) => false,
+            (
+                KebabNameKind::RegistryId {
+                    namespace: an,
+                    package: ap,
+                    interface: ai,
+                    version: av,
+                },
+                KebabNameKind::RegistryId {
+                    namespace: bn,
+                    package: bp,
+                    interface: bi,
+                    version: bv,
+                },
+            ) => an == bn && ap == bp && ai == bi && av == bv,
+            (KebabNameKind::Id { .. }, _) => false,
+            (KebabNameKind::RegistryId { .. }, _) => false,
         }
     }
 }

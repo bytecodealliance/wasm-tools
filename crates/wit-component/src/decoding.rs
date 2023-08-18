@@ -882,6 +882,7 @@ impl WitPackageDecoder<'_> {
 
                 // Functions shouldn't have ID-based names at this time.
                 KebabNameKind::Id { .. } => unreachable!(),
+                KebabNameKind::RegistryId { .. } => unreachable!(),
             },
 
             // Note that this name includes "name mangling" such as

@@ -3010,7 +3010,9 @@ impl KebabNameContext {
         };
         match name.kind() {
             // Normal kebab name or id? No validation necessary.
-            KebabNameKind::Normal(_) | KebabNameKind::Id { .. } => {}
+            KebabNameKind::Normal(_)
+            | KebabNameKind::Id { .. }
+            | KebabNameKind::RegistryId { .. } => {}
 
             // Constructors must return `(own $resource)` and the `$resource`
             // must be named within this context to match `rname`
