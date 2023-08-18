@@ -24,12 +24,15 @@ impl<'a> Ast<'a> {
     pub fn parse(lexer: &mut Tokenizer<'a>) -> Result<Self> {
         let mut items = Vec::new();
         let mut package_id = None;
+        let mut docs = parse_docs(lexer)?;
         if lexer.eat(Token::Package)? {
-            package_id = Some(PackageName::parse(lexer)?);
+            let package_docs = std::mem::take(&mut docs);
+            package_id = Some(PackageName::parse(lexer, package_docs)?);
+            docs = parse_docs(lexer)?;
         }
         while lexer.clone().next()?.is_some() {
-            let docs = parse_docs(lexer)?;
             items.push(AstItem::parse(lexer, docs)?);
+            docs = parse_docs(lexer)?;
         }
         Ok(Self { package_id, items })
     }
@@ -135,6 +138,7 @@ impl<'a> AstItem<'a> {
 
 #[derive(Debug, Clone)]
 struct PackageName<'a> {
+    docs: Docs<'a>,
     span: Span,
     namespace: Id<'a>,
     name: Id<'a>,
@@ -142,12 +146,13 @@ struct PackageName<'a> {
 }
 
 impl<'a> PackageName<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         let namespace = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let name = parse_id(tokens)?;
         let version = parse_opt_version(tokens)?;
         Ok(PackageName {
+            docs,
             span: Span {
                 start: namespace.span.start,
                 end: version
@@ -392,6 +397,7 @@ impl<'a> UsePath<'a> {
             let version = parse_opt_version(tokens)?;
             Ok(UsePath::Package {
                 id: PackageName {
+                    docs: Default::default(),
                     span: Span {
                         start: namespace.span.start,
                         end: pkg_name.span.end,
@@ -497,9 +503,19 @@ impl<'a> From<&'a str> for Id<'a> {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone)]
 pub struct Docs<'a> {
     docs: Vec<Cow<'a, str>>,
+    span: Span,
+}
+
+impl<'a> Default for Docs<'a> {
+    fn default() -> Self {
+        Self {
+            docs: Default::default(),
+            span: Span { start: 0, end: 0 },
+        }
+    }
 }
 
 struct TypeDef<'a> {
@@ -938,10 +954,22 @@ fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version
 fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
     let mut docs = Docs::default();
     let mut clone = tokens.clone();
+    let mut started = false;
     while let Some((span, token)) = clone.next_raw()? {
         match token {
             Token::Whitespace => {}
-            Token::Comment => docs.docs.push(tokens.get_span(span).into()),
+            Token::Comment => {
+                let comment = tokens.get_span(span);
+                if comment.starts_with("///") || (comment.starts_with("/**") && comment != "/**/") {
+                    if started {
+                        docs.span.end = span.end;
+                    } else {
+                        docs.span = span;
+                        started = true;
+                    }
+                    docs.docs.push(comment.into());
+                }
+            }
             _ => break,
         };
         *tokens = clone.clone();

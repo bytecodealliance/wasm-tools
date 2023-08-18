@@ -57,6 +57,9 @@ pub struct UnresolvedPackage {
     /// The namespace, name, and version information for this package.
     pub name: PackageName,
 
+    /// Doc comments for this package.
+    pub docs: Docs,
+
     /// All worlds from all documents within this package.
     ///
     /// Each world lists the document that it is from.
