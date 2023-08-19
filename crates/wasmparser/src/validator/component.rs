@@ -2481,9 +2481,9 @@ impl ComponentState {
         let mut type_size = 1;
         let mut field_map = IndexMap::with_capacity(fields.len());
 
-        if fields.is_empty() {
-            bail!(offset, "record type must have at least one field");
-        }
+        // if fields.is_empty() {
+        //     bail!(offset, "record type must have at least one field");
+        // }
 
         for (name, ty) in fields {
             let name = to_kebab_str(name, "record field", offset)?;

@@ -1663,6 +1663,7 @@ impl Lock {
             match imp.name {
                 wasmparser::ComponentExternName::Kebab(_) => {}
                 wasmparser::ComponentExternName::Interface(name) => {
+                    let mut already_imported = false;
                     match imp.ty {
                         wasmparser::ComponentTypeRef::Module(i) => {
                             imports.import(name, ComponentTypeRef::Module(i));
@@ -1799,34 +1800,37 @@ impl Lock {
                             }
                         },
                         wasmparser::ComponentTypeRef::Instance(i) => {
-                            let ty = graph
-                                .undetermined_types
-                                .get(&(i as usize - &graph.num_aliases));
-                            if let Some(ty) = ty {
-                                let mut type_section = ComponentTypeSection::new();
-                                type_section.ty().instance(&ty.instance);
-                                graph.entities.push(Entity::Type(type_section));
+                            if !graph.imported.contains(name) {
+                              let ty = graph
+                                    .undetermined_types
+                                    .get(&(i as usize - &graph.num_aliases));
+                              if let Some(ty) = ty {
+                                  let mut type_section = ComponentTypeSection::new();
+                                  type_section.ty().instance(&ty.instance);
+                                  graph.entities.push(Entity::Type(type_section));
+                              }
+                              graph.imported.insert(name.to_string());
+                              imports.import(name, ComponentTypeRef::Instance(i));
                             }
-                            imports.import(name, ComponentTypeRef::Instance(i));
                         }
                         wasmparser::ComponentTypeRef::Component(i) => {
                             imports.import(name, ComponentTypeRef::Component(i));
                         }
                     }
-                    graph.insert_instance(name.to_string(), graph.num_instances);
-                    final_import = Import::new(name.to_string(), ImportKind::Interface);
-                    graph
-                        .interfaces
-                        .insert(name.to_string(), graph.num_instances);
-                    let cur = graph.indices.get(&component_index);
-                    graph.num_interfaces += 1;
-                    if let Some(cur) = cur {
-                        let component = graph.components.get_mut(&cur.name);
-                        if let Some(comp) = component {
-                            comp.instantiation_args.push(name.to_string());
-                        }
-                    }
-                    graph.entities.push(Entity::Import((final_import, imports)));
+                      graph.insert_instance(name.to_string(), graph.num_instances);
+                      final_import = Import::new(name.to_string(), ImportKind::Interface);
+                      graph
+                          .interfaces
+                          .insert(name.to_string(), graph.num_instances);
+                      let cur = graph.indices.get(&component_index);
+                      graph.num_interfaces += 1;
+                      if let Some(cur) = cur {
+                          let component = graph.components.get_mut(&cur.name);
+                          if let Some(comp) = component {
+                              comp.instantiation_args.push(name.to_string());
+                          }
+                      }
+                      graph.entities.push(Entity::Import((final_import, imports)));
                 }
                 wasmparser::ComponentExternName::Implementation(name) => {
                     let mut already_imported = false;
@@ -2115,7 +2119,8 @@ impl Lock {
                                         let instance = graph.components.get(instance_name);
                                         if let Some(inst) = instance {
                                             alias_section.alias(Alias::InstanceExport {
-                                                instance: inst.index as u32,
+                                              // instance: instance_index + (graph.num_components + graph.num_instances) as u32,
+                                                instance: (inst.index + graph.num_instances) as u32,
                                                 kind: wasm_encoder::ComponentExportKind::Func,
                                                 name,
                                             });
@@ -2126,7 +2131,7 @@ impl Lock {
                         }
                         wasmparser::ComponentExternalKind::Value => {
                             alias_section.alias(Alias::InstanceExport {
-                                instance: instance_index,
+                                instance: instance_index + (graph.num_components + graph.num_instances) as u32,
                                 kind: wasm_encoder::ComponentExportKind::Value,
                                 name,
                             });

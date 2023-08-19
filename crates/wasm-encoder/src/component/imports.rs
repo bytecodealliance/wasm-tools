@@ -239,11 +239,14 @@ impl Encode for ComponentExternName<'_> {
                 ImplementationImport::Locked(ImportMetadata {
                     name,
                     location,
-                    integrity: _,
+                    integrity
                 }) => {
                     sink.push(0x05);
                     name.encode(sink);
                     location.encode(sink);
+                    if let Some(integ) = integrity {
+                        integ.encode(sink);
+                    }
                 }
                 ImplementationImport::Unlocked(ImportMetadata {
                     name,
