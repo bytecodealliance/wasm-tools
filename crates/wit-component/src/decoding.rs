@@ -160,6 +160,7 @@ impl<'a> ComponentInfo<'a> {
                 version: None,
                 name: "component".to_string(),
             },
+            docs: Default::default(),
             worlds: [(world_name.to_string(), world)].into_iter().collect(),
             interfaces: Default::default(),
         };
@@ -284,6 +285,7 @@ impl WitPackageDecoder<'_> {
                 },
                 _ => bail!("package name is not a valid id: {name}"),
             },
+            docs: Default::default(),
             interfaces: Default::default(),
             worlds: Default::default(),
         };
@@ -561,6 +563,7 @@ impl WitPackageDecoder<'_> {
             .entry(package_name.to_string())
             .or_insert_with(|| Package {
                 name: package_name.clone(),
+                docs: Default::default(),
                 interfaces: Default::default(),
                 worlds: Default::default(),
             });

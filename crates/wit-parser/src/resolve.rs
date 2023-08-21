@@ -1,7 +1,7 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
 use crate::{
-    AstItem, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
+    AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
     PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
     WorldId, WorldItem, WorldKey,
 };
@@ -43,6 +43,9 @@ pub struct Resolve {
 pub struct Package {
     /// A unique name corresponding to this package.
     pub name: PackageName,
+
+    /// Documentation associated with this package.
+    pub docs: Docs,
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
@@ -733,6 +736,7 @@ impl Remap {
         // Fixup "parent" ids now that everything has been identified
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
+            docs: unresolved.docs.clone(),
             interfaces: Default::default(),
             worlds: Default::default(),
         });

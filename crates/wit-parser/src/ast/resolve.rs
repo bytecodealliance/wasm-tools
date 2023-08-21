@@ -8,8 +8,11 @@ use std::mem;
 
 #[derive(Default)]
 pub struct Resolver<'a> {
-    /// Current package named learned through the ASTs pushed onto this resolver.
+    /// Current package name learned through the ASTs pushed onto this resolver.
     package_name: Option<PackageName>,
+
+    /// Package docs.
+    package_docs: Docs,
 
     /// All WIT files which are going to be resolved together.
     asts: Vec<ast::Ast<'a>>,
@@ -129,6 +132,18 @@ impl<'a> Resolver<'a> {
                 }
             }
             self.package_name = Some(cur_name);
+
+            // At most one 'package' item can have doc comments.
+            let docs = self.docs(&cur.docs);
+            if docs.contents.is_some() {
+                if self.package_docs.contents.is_some() {
+                    bail!(Error {
+                        span: cur.docs.span,
+                        msg: "found doc comments on multiple 'package' items".into(),
+                    })
+                }
+                self.package_docs = docs;
+            }
         }
         self.asts.push(ast);
         Ok(())
@@ -191,6 +206,7 @@ impl<'a> Resolver<'a> {
 
         Ok(UnresolvedPackage {
             name,
+            docs: mem::take(&mut self.package_docs),
             worlds: mem::take(&mut self.worlds),
             types: mem::take(&mut self.types),
             interfaces: mem::take(&mut self.interfaces),
@@ -1284,28 +1300,20 @@ impl<'a> Resolver<'a> {
     }
 
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
-        let mut docs = None;
+        let mut lines = vec![];
         for doc in doc.docs.iter() {
-            // Comments which are not doc-comments are silently ignored
-            if let Some(doc) = doc.strip_prefix("///") {
-                let docs = docs.get_or_insert_with(String::new);
-                docs.push_str(doc.trim_start_matches('/').trim());
-                docs.push('\n');
-            } else if let Some(doc) = doc.strip_prefix("/*") {
-                // We have to strip this before checking if this is a doc
-                // comment to avoid breaking on empty block comments, `/**/`.
-                let doc = doc.strip_suffix("*/").unwrap();
-
-                if let Some(doc) = doc.strip_prefix('*') {
-                    let docs = docs.get_or_insert_with(String::new);
-                    for line in doc.lines() {
-                        docs.push_str(line);
-                        docs.push('\n');
-                    }
-                }
+            if let Some(doc) = doc.strip_prefix("/**") {
+                lines.push(doc.strip_suffix("*/").unwrap().trim());
+            } else {
+                lines.push(doc.trim_start_matches('/').trim());
             }
         }
-        Docs { contents: docs }
+        let contents = if lines.is_empty() {
+            None
+        } else {
+            Some(lines.join("\n"))
+        };
+        Docs { contents }
     }
 
     fn resolve_params(&mut self, params: &ParamList<'_>, kind: &FunctionKind) -> Result<Params> {

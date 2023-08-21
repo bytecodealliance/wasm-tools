@@ -38,6 +38,7 @@ impl WitPrinter {
     /// Print the given WIT package to a string.
     pub fn print(&mut self, resolve: &Resolve, pkgid: PackageId) -> Result<String> {
         let pkg = &resolve.packages[pkgid];
+        self.print_docs(&pkg.docs);
         self.output.push_str("package ");
         self.print_name(&pkg.name.namespace);
         self.output.push_str(":");

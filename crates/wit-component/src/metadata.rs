@@ -67,6 +67,7 @@ impl Default for Bindgen {
                 name: "root".to_string(),
                 version: None,
             },
+            docs: Default::default(),
             interfaces: Default::default(),
             worlds: Default::default(),
         });
