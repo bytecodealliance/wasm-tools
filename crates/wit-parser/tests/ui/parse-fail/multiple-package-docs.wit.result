@@ -5,4 +5,4 @@ Caused by:
          --> tests/ui/parse-fail/multiple-package-docs/b.wit:1:1
           |
         1 | /// Multiple package docs, B
-          | ^----------------------------
+          | ^---------------------------
