@@ -1174,7 +1174,12 @@ impl<'a> EncodingState<'a> {
         // interface imported into the shim module itself.
         for (adapter_name, adapter) in self.info.adapters.iter() {
             for (name, required) in adapter.info.required_imports.iter() {
-                let import = &self.info.import_map[&Some(name.clone())];
+                let import_name = if *name == BARE_FUNC_MODULE_NAME {
+                    None
+                } else {
+                    Some(name.to_string())
+                };
+                let import = &self.info.import_map[&import_name];
                 ret.append_indirect(
                     name,
                     CustomModule::Adapter(adapter_name),
