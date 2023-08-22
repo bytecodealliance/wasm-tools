@@ -41,8 +41,8 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
-    - run: cargo test --all
-    - run: cargo test -p wasmparser --benches
+    - run: cargo test --locked --all
+    - run: cargo test --locked -p wasmparser --benches
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
     - run: cmake -S ${{github.workspace}}/examples -B ${{github.workspace}}/examples/build -DCMAKE_BUILD_TYPE=Release
@@ -66,7 +66,7 @@ jobs:
         echo CARGO_TARGET_WASM32_WASI_RUNNER='wasmtime run --dir . --' >> $GITHUB_ENV
         echo CARGO_BUILD_TARGET='wasm32-wasi' >> $GITHUB_ENV
     - run: |
-        cargo test --workspace \
+        cargo --locked test --workspace \
           --exclude fuzz-stats \
           --exclude wasm-tools-fuzz \
           --exclude wasm-mutate-stats
@@ -78,7 +78,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
-    - run: cargo fmt -- --check
+    # Note that this doesn't use `cargo fmt` because that doesn't format
+    # modules-defined-in-macros which is in use in `wast` for example. This is
+    # the best alternative I can come up with at this time
+    - run: find . -name '*.rs' | xargs rustfmt --check --edition 2021
 
   fuzz:
     name: Fuzz

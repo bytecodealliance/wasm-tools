@@ -1,7 +1,7 @@
 //! State relating to validating a WebAssembly component.
 
 use super::{
-    check_max, combine_type_sizes,
+    check_max,
     core::Module,
     types::{
         ComponentFuncType, ComponentInstanceType, ComponentType, ComponentValType, EntityType,
@@ -14,7 +14,7 @@ use crate::{
     limits::*,
     types::{
         ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, LoweringInfo, Remap,
-        SubtypeCx, TupleType, UnionType, VariantType,
+        SubtypeCx, TupleType, TypeInfo, UnionType, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
     ComponentImportName, ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType,
@@ -65,7 +65,7 @@ pub(crate) struct ComponentState {
     pub kebab_named_externs: IndexSet<KebabName>,
 
     has_start: bool,
-    type_size: u32,
+    type_info: TypeInfo,
 
     /// A mapping of imported resources in this component.
     ///
@@ -226,7 +226,7 @@ impl ComponentState {
             exports: Default::default(),
             kebab_named_externs: Default::default(),
             has_start: Default::default(),
-            type_size: 1,
+            type_info: TypeInfo::new(),
             imported_resources: Default::default(),
             defined_resources: Default::default(),
             explicit_resources: Default::default(),
@@ -296,7 +296,7 @@ impl ComponentState {
         // because we cannot take the data out of the `MaybeOwned`
         // as it might be shared with a function validator.
         let ty = Type::Module(Box::new(ModuleType {
-            type_size: module.type_size,
+            info: TypeInfo::core(module.type_size),
             imports,
             exports: module.exports.clone(),
         }));
@@ -430,7 +430,7 @@ impl ComponentState {
             offset,
             &mut self.kebab_named_externs,
             &mut self.imports,
-            &mut self.type_size,
+            &mut self.type_info,
         )?;
         Ok(())
     }
@@ -754,7 +754,7 @@ impl ComponentState {
 
         let mut new_ty = ComponentInstanceType {
             // Copied from the input verbatim
-            type_size: ty.type_size,
+            info: ty.info,
 
             // Copied over as temporary storage for now, and both of these are
             // filled out and expanded below.
@@ -895,7 +895,7 @@ impl ComponentState {
             offset,
             &mut self.kebab_named_externs,
             &mut self.exports,
-            &mut self.type_size,
+            &mut self.type_info,
         )?;
         Ok(())
     }
@@ -1467,7 +1467,7 @@ impl ComponentState {
         let imports = state.imports_for_module_type(offset)?;
 
         Ok(ModuleType {
-            type_size: state.type_size,
+            info: TypeInfo::core(state.type_size),
             imports,
             exports: state.exports,
         })
@@ -1543,7 +1543,7 @@ impl ComponentState {
         assert!(state.imported_resources.is_empty());
 
         Ok(ComponentInstanceType {
-            type_size: state.type_size,
+            info: state.type_info,
 
             // The defined resources for this instance type are those listed on
             // the component state. The path to each defined resource is
@@ -1576,7 +1576,7 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentFuncType> {
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
 
         let mut set =
             HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.type_count()));
@@ -1595,7 +1595,7 @@ impl ComponentState {
                 }
 
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                info.combine(ty.info(),offset)?;
                 Ok((name.to_owned(), ty))
             })
             .collect::<Result<_>>()?;
@@ -1622,13 +1622,17 @@ impl ComponentState {
                     .transpose()?;
 
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                let ty_info = ty.info();
+                if ty_info.contains_borrow() {
+                    bail!(offset, "function result cannot contain a `borrow` type");
+                }
+                info.combine(ty.info(), offset)?;
                 Ok((name, ty))
             })
             .collect::<Result<_>>()?;
 
         Ok(ComponentFuncType {
-            type_size,
+            info,
             params,
             results,
         })
@@ -1701,11 +1705,13 @@ impl ComponentState {
             })?;
         }
 
+        let mut info = TypeInfo::new();
+        for (_, ty) in module_type.exports.iter() {
+            info.combine(ty.info(), offset)?;
+        }
+
         let ty = Type::Instance(Box::new(InstanceType {
-            type_size: module_type
-                .exports
-                .iter()
-                .fold(1, |acc, (_, ty)| acc + ty.type_size()),
+            info,
             kind: InstanceTypeKind::Instantiated(module_type_id),
         }));
 
@@ -1846,10 +1852,10 @@ impl ComponentState {
 
         let component_type = types[component_type_id].unwrap_component();
         let mut exports = component_type.exports.clone();
-        let type_size = component_type
-            .exports
-            .iter()
-            .fold(1, |acc, (_, ty)| acc + ty.type_size());
+        let mut info = TypeInfo::new();
+        for (_, ty) in component_type.exports.iter() {
+            info.combine(ty.info(), offset)?;
+        }
 
         // Perform the subtype check that `args` matches the imports of
         // `component_type_id`. The result of this subtype check is the
@@ -1974,7 +1980,7 @@ impl ComponentState {
         }
 
         let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
-            type_size,
+            info,
             defined_resources: Default::default(),
             explicit_resources,
             exports,
@@ -1989,7 +1995,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<TypeId> {
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
         let mut inst_exports = IndexMap::new();
         let mut explicit_resources = IndexMap::new();
         let mut kebab_names = IndexSet::new();
@@ -2064,12 +2070,12 @@ impl ComponentState {
                 offset,
                 &mut kebab_names,
                 &mut inst_exports,
-                &mut type_size,
+                &mut info,
             )?;
         }
 
         let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
-            type_size,
+            info,
             explicit_resources,
             exports: inst_exports,
 
@@ -2117,10 +2123,10 @@ impl ComponentState {
             name: &str,
             export: EntityType,
             exports: &mut IndexMap<String, EntityType>,
-            type_size: &mut u32,
+            info: &mut TypeInfo,
             offset: usize,
         ) -> Result<()> {
-            *type_size = combine_type_sizes(*type_size, export.type_size(), offset)?;
+            info.combine(export.info(), offset)?;
 
             if exports.insert(name.to_string(), export).is_some() {
                 bail!(
@@ -2132,7 +2138,7 @@ impl ComponentState {
             Ok(())
         }
 
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
         let mut inst_exports = IndexMap::new();
         for export in exports {
             match export.kind {
@@ -2141,7 +2147,7 @@ impl ComponentState {
                         export.name,
                         EntityType::Func(self.core_function_at(export.index, offset)?),
                         &mut inst_exports,
-                        &mut type_size,
+                        &mut info,
                         offset,
                     )?;
                 }
@@ -2149,14 +2155,14 @@ impl ComponentState {
                     export.name,
                     EntityType::Table(*self.table_at(export.index, offset)?),
                     &mut inst_exports,
-                    &mut type_size,
+                    &mut info,
                     offset,
                 )?,
                 ExternalKind::Memory => insert_export(
                     export.name,
                     EntityType::Memory(*self.memory_at(export.index, offset)?),
                     &mut inst_exports,
-                    &mut type_size,
+                    &mut info,
                     offset,
                 )?,
                 ExternalKind::Global => {
@@ -2164,7 +2170,7 @@ impl ComponentState {
                         export.name,
                         EntityType::Global(*self.global_at(export.index, offset)?),
                         &mut inst_exports,
-                        &mut type_size,
+                        &mut info,
                         offset,
                     )?;
                 }
@@ -2172,14 +2178,14 @@ impl ComponentState {
                     export.name,
                     EntityType::Tag(self.core_function_at(export.index, offset)?),
                     &mut inst_exports,
-                    &mut type_size,
+                    &mut info,
                     offset,
                 )?,
             }
         }
 
         let ty = Type::Instance(Box::new(InstanceType {
-            type_size,
+            info,
             kind: InstanceTypeKind::Exports(inst_exports),
         }));
 
@@ -2479,7 +2485,7 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
         let mut field_map = IndexMap::with_capacity(fields.len());
 
         if fields.is_empty() {
@@ -2497,14 +2503,14 @@ impl ComponentState {
                     prev = e.key()
                 ),
                 Entry::Vacant(e) => {
-                    type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                    info.combine(ty.info(), offset)?;
                     e.insert(ty);
                 }
             }
         }
 
         Ok(ComponentDefinedType::Record(RecordType {
-            type_size,
+            info,
             fields: field_map,
         }))
     }
@@ -2515,7 +2521,7 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
         let mut case_map: IndexMap<KebabString, VariantCase> = IndexMap::with_capacity(cases.len());
 
         if cases.is_empty() {
@@ -2554,11 +2560,9 @@ impl ComponentState {
                     prev = e.key()
                 ),
                 Entry::Vacant(e) => {
-                    type_size = combine_type_sizes(
-                        type_size,
-                        ty.map(|ty| ty.type_size()).unwrap_or(1),
-                        offset,
-                    )?;
+                    if let Some(ty) = ty {
+                        info.combine(ty.info(), offset)?;
+                    }
 
                     // Safety: the use of `KebabStr::new_unchecked` here is safe because the string
                     // was already verified to be kebab case.
@@ -2573,7 +2577,7 @@ impl ComponentState {
         }
 
         Ok(ComponentDefinedType::Variant(VariantType {
-            type_size,
+            info,
             cases: case_map,
         }))
     }
@@ -2584,7 +2588,7 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
         if tys.is_empty() {
             bail!(offset, "tuple type must have at least one type");
         }
@@ -2592,12 +2596,12 @@ impl ComponentState {
             .iter()
             .map(|ty| {
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                info.combine(ty.info(), offset)?;
                 Ok(ty)
             })
             .collect::<Result<_>>()?;
 
-        Ok(ComponentDefinedType::Tuple(TupleType { type_size, types }))
+        Ok(ComponentDefinedType::Tuple(TupleType { info, types }))
     }
 
     fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
@@ -2655,7 +2659,7 @@ impl ComponentState {
         types: &TypeList,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
-        let mut type_size = 1;
+        let mut info = TypeInfo::new();
         if tys.is_empty() {
             bail!(offset, "union type must have at least one case");
         }
@@ -2663,12 +2667,12 @@ impl ComponentState {
             .iter()
             .map(|ty| {
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                type_size = combine_type_sizes(type_size, ty.type_size(), offset)?;
+                info.combine(ty.info(), offset)?;
                 Ok(ty)
             })
             .collect::<Result<_>>()?;
 
-        Ok(ComponentDefinedType::Union(UnionType { type_size, types }))
+        Ok(ComponentDefinedType::Union(UnionType { info, types }))
     }
 
     fn create_component_val_type(
@@ -2829,7 +2833,7 @@ impl ComponentState {
     pub fn finish(&mut self, types: &TypeAlloc, offset: usize) -> Result<ComponentType> {
         let mut ty = ComponentType {
             // Inherit some fields based on translation of the component.
-            type_size: self.type_size,
+            info: self.type_info,
             imports: self.imports.clone(),
             exports: self.exports.clone(),
 
@@ -2948,7 +2952,7 @@ impl KebabNameContext {
         offset: usize,
         kebab_names: &mut IndexSet<KebabName>,
         items: &mut IndexMap<String, ComponentEntityType>,
-        type_size: &mut u32,
+        info: &mut TypeInfo,
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
@@ -2972,7 +2976,6 @@ impl KebabNameContext {
                 );
             }
         }
-
         // Otherwise all strings must be unique, regardless of their name, so
         // consult the `items` set to ensure that we're not for example
         // importing the same interface ID twice.
@@ -2987,7 +2990,7 @@ impl KebabNameContext {
             }
             Entry::Vacant(e) => {
                 e.insert(*ty);
-                *type_size = combine_type_sizes(*type_size, ty.type_size(), offset)?;
+                info.combine(ty.info(), offset)?;
             }
         }
         Ok(())
@@ -3002,7 +3005,7 @@ impl KebabNameContext {
         offset: usize,
         kebab_names: &mut IndexSet<KebabName>,
         items: &mut IndexMap<String, ComponentEntityType>,
-        type_size: &mut u32,
+        info: &mut TypeInfo,
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
@@ -3026,7 +3029,6 @@ impl KebabNameContext {
                 );
             }
         }
-
         // Otherwise all strings must be unique, regardless of their name, so
         // consult the `items` set to ensure that we're not for example
         // importing the same interface ID twice.
@@ -3041,11 +3043,12 @@ impl KebabNameContext {
             }
             Entry::Vacant(e) => {
                 e.insert(*ty);
-                *type_size = combine_type_sizes(*type_size, ty.type_size(), offset)?;
+                info.combine(ty.info(), offset)?;
             }
         }
         Ok(())
     }
+    // }
 
     /// Validates that the `name` provided is allowed to have the type `ty`.
     fn validate(

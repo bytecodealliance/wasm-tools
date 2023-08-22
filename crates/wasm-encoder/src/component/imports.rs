@@ -82,7 +82,7 @@ impl Encode for ComponentTypeRef {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportSection, ComponentTypeRef, ComponentExportName};
+/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportName, ComponentImportSection, ComponentTypeRef, ComponentExportName};
 ///
 /// let mut types = ComponentTypeSection::new();
 ///
