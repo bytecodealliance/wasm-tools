@@ -1125,3 +1125,29 @@
     (export "x" (instance (type 0)))
   ))
 )
+
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type (func (result (borrow $r))))
+  )
+  "function result cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type (func (result (list (borrow $r)))))
+  )
+  "function result cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type (func (result (option (borrow $r)))))
+  )
+  "function result cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type $t (record (field "f" (borrow $r))))
+    (type (func (result (option (list $t)))))
+  )
+  "function result cannot contain a `borrow` type")

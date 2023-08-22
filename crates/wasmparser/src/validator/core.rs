@@ -673,7 +673,7 @@ impl Module {
 
         check_max(len, 0, max, desc, offset)?;
 
-        self.type_size = combine_type_sizes(self.type_size, entity.type_size(), offset)?;
+        self.type_size = combine_type_sizes(self.type_size, entity.info().size(), offset)?;
 
         self.imports
             .entry((import.module.to_string(), import.name.to_string()))
@@ -706,7 +706,7 @@ impl Module {
             check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
         }
 
-        self.type_size = combine_type_sizes(self.type_size, ty.type_size(), offset)?;
+        self.type_size = combine_type_sizes(self.type_size, ty.info().size(), offset)?;
 
         match self.exports.insert(name.to_string(), ty) {
             Some(_) => Err(format_err!(

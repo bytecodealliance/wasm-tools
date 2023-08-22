@@ -395,6 +395,10 @@ pub struct WitOpts {
     #[clap(short = 't', long, conflicts_with = "wasm", conflicts_with = "out_dir")]
     wat: bool,
 
+    /// Do not include doc comments when emitting WIT text.
+    #[clap(long)]
+    no_docs: bool,
+
     /// Emit the entire WIT resolution graph instead of just the "top level"
     /// package to the output directory specified.
     ///
@@ -507,6 +511,9 @@ impl WitOpts {
         let resolve = decoded.resolve();
         let main = decoded.package();
 
+        let mut printer = WitPrinter::default();
+        printer.emit_docs(!self.no_docs);
+
         match &self.out_dir {
             Some(dir) => {
                 assert!(self.output.output_path().is_none());
@@ -526,7 +533,7 @@ impl WitOpts {
                 }
 
                 for (id, pkg) in resolve.packages.iter() {
-                    let output = WitPrinter::default().print(resolve, id)?;
+                    let output = printer.print(resolve, id)?;
                     let out_dir = if id == main {
                         dir.clone()
                     } else {
@@ -553,7 +560,7 @@ impl WitOpts {
                 }
             }
             None => {
-                let output = WitPrinter::default().print(resolve, main)?;
+                let output = printer.print(resolve, main)?;
                 self.output.output(Output::Wat(&output))?;
             }
         }
