@@ -3,9 +3,10 @@ use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::mem;
 use wasmparser::names::{KebabName, KebabNameKind};
+use wasmparser::ComponentImportName;
 use wasmparser::{
-    types::Types, ComponentExternName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
-    ValType, ValidPayload, Validator,
+    types::Types, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType,
+    ValidPayload, Validator,
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
@@ -528,11 +529,11 @@ pub fn validate_adapter_module<'a>(
 
 fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
     let name = if name.contains('/') {
-        ComponentExternName::Interface(name)
+        ComponentImportName::Interface(name)
     } else {
-        ComponentExternName::Kebab(name)
+        ComponentImportName::Kebab(name)
     };
-    let kebab_name = KebabName::new(name, 0);
+    let kebab_name = KebabName::from_import(name, 0);
     let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {
         Ok(KebabNameKind::Id {
             namespace,

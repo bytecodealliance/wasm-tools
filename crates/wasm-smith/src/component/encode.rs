@@ -73,7 +73,7 @@ impl ImportSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
-            sec.import(wasm_encoder::ComponentExternName::Kebab(&imp.name), imp.ty);
+            sec.import(wasm_encoder::ComponentImportName::Kebab(&imp.name), imp.ty);
         }
         component.section(&sec);
     }
@@ -181,7 +181,7 @@ impl Type {
                     match def {
                         ComponentTypeDef::Import(imp) => {
                             enc_comp_ty.import(
-                                wasm_encoder::ComponentExternName::Kebab(&imp.name),
+                                wasm_encoder::ComponentImportName::Kebab(&imp.name),
                                 imp.ty,
                             );
                         }
@@ -192,7 +192,7 @@ impl Type {
                             ty.encode(enc_comp_ty.ty());
                         }
                         ComponentTypeDef::Export { name, url: _, ty } => {
-                            enc_comp_ty.export(wasm_encoder::ComponentExternName::Kebab(name), *ty);
+                            enc_comp_ty.export(wasm_encoder::ComponentExportName::Kebab(name), *ty);
                         }
                         ComponentTypeDef::Alias(a) => {
                             enc_comp_ty.alias(translate_alias(a));
@@ -212,7 +212,7 @@ impl Type {
                             ty.encode(enc_inst_ty.ty());
                         }
                         InstanceTypeDecl::Export { name, url: _, ty } => {
-                            enc_inst_ty.export(wasm_encoder::ComponentExternName::Kebab(name), *ty);
+                            enc_inst_ty.export(wasm_encoder::ComponentExportName::Kebab(name), *ty);
                         }
                         InstanceTypeDecl::Alias(a) => {
                             enc_inst_ty.alias(translate_alias(a));

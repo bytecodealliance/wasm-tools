@@ -1,11 +1,10 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
-use crate::{ComponentExternName, Result};
+use crate::{ComponentExportName, ComponentImportName, Result};
 use semver::Version;
 use std::borrow::Borrow;
 use std::fmt;
-use std::fs::Metadata;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
@@ -299,7 +298,7 @@ fn find_many<'a>(s: &str, c: char, acc: &'a mut Vec<usize>) -> &'a mut Vec<usize
 impl KebabName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
     /// valid.
-    pub fn new(name: ComponentExternName<'_>, offset: usize) -> Result<KebabName> {
+    pub fn from_export(name: ComponentExportName<'_>, offset: usize) -> Result<KebabName> {
         let validate_kebab = |s: &str| {
             if KebabStr::new(s).is_none() {
                 bail!(offset, "`{s}` is not in kebab case")
@@ -313,7 +312,7 @@ impl KebabName {
         };
 
         let parsed = match name {
-            ComponentExternName::Kebab(s) => {
+            ComponentExportName::Kebab(s) => {
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
                     validate_kebab(s)?;
                     ParsedKebabName::Constructor
@@ -332,7 +331,7 @@ impl KebabName {
                     ParsedKebabName::Normal
                 }
             }
-            ComponentExternName::Interface(s) => {
+            ComponentExportName::Interface(s) => {
                 let colon = find(s, ':')?;
                 validate_kebab(&s[..colon])?;
                 let slash = find(s, '/')?;
@@ -351,60 +350,111 @@ impl KebabName {
                     at: at.map(|i| i as u32),
                 }
             }
-            ComponentExternName::Implementation(s) => match s {
-                crate::ImplementationImport::Url(metadata) => {
-                    validate_kebab(s.as_str())?;
+        };
+        Ok(KebabName {
+            raw: name.as_str().to_string(),
+            parsed,
+        })
+    }
+
+    /// Attempts to parse `name` as a kebab name, returning `None` if it's not
+    /// valid.
+    pub fn from_import(name: ComponentImportName<'_>, offset: usize) -> Result<KebabName> {
+        let validate_kebab = |s: &str| {
+            if KebabStr::new(s).is_none() {
+                bail!(offset, "`{s}` is not in kebab case")
+            } else {
+                Ok(())
+            }
+        };
+        let find = |s: &str, c: char| match s.find(c) {
+            Some(i) => Ok(i),
+            None => bail!(offset, "failed to find `{c}` character"),
+        };
+
+        let parsed = match name {
+            ComponentImportName::Kebab(s) => {
+                if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
+                    validate_kebab(s)?;
+                    ParsedKebabName::Constructor
+                } else if let Some(s) = s.strip_prefix(METHOD) {
+                    let dot = find(s, '.')?;
+                    validate_kebab(&s[..dot])?;
+                    validate_kebab(&s[dot + 1..])?;
+                    ParsedKebabName::Method { dot: dot as u32 }
+                } else if let Some(s) = s.strip_prefix(STATIC) {
+                    let dot = find(s, '.')?;
+                    validate_kebab(&s[..dot])?;
+                    validate_kebab(&s[dot + 1..])?;
+                    ParsedKebabName::Static { dot: dot as u32 }
+                } else {
+                    validate_kebab(s)?;
                     ParsedKebabName::Normal
                 }
-                crate::ImplementationImport::Relative(metadata) => {
-                    validate_kebab(s.as_str())?;
-                    ParsedKebabName::Normal
-                }
-                crate::ImplementationImport::Naked(metadata) => {
-                    validate_kebab(s.as_str())?;
-                    ParsedKebabName::Normal
-                }
-                crate::ImplementationImport::Locked(metadata) => {
-                    let mut colon_acc = Vec::new();
-                    let colon = find_many(metadata.as_str(), ':', &mut colon_acc);
-                    if colon.len() == 0 {
-                        bail!(offset, "At least one namespace in registry id is required");
-                    }
-                    let mut slash_acc = Vec::new();
-                    let slash = find_many(
-                        &metadata.as_str()[colon[colon.len() - 1]..],
-                        '/',
-                        &mut slash_acc,
-                    );
-                    let last_slash = slash[slash.len() - 1];
-                    let at = s.as_str()[last_slash..].find('@').map(|i| i + last_slash);
-                    ParsedKebabName::RegistryId {
-                        colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                        slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                        at: at.map(|i| i as u32),
+            }
+            ComponentImportName::Interface(s) => {
+                let colon = find(s, ':')?;
+                validate_kebab(&s[..colon])?;
+                let slash = find(s, '/')?;
+                let at = s[slash..].find('@').map(|i| i + slash);
+                validate_kebab(&s[colon + 1..slash])?;
+                validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
+                if let Some(at) = at {
+                    let version = &s[at + 1..];
+                    if let Err(e) = version.parse::<Version>() {
+                        bail!(offset, "failed to parse version: {e}")
                     }
                 }
-                crate::ImplementationImport::Unlocked(metadata) => {
-                    let mut colon_acc = Vec::new();
-                    let colon = find_many(metadata.as_str(), ':', &mut colon_acc);
-                    if colon.len() == 0 {
-                        bail!(offset, "At least one namespace in registry id is required");
-                    }
-                    let mut slash_acc = Vec::new();
-                    let slash = find_many(
-                        &metadata.as_str()[colon[colon.len() - 1]..],
-                        '/',
-                        &mut slash_acc,
-                    );
-                    let last_slash = slash[slash.len() - 1];
-                    let at = s.as_str()[last_slash..].find('@').map(|i| i + last_slash);
-                    ParsedKebabName::RegistryId {
-                        colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                        slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                        at: at.map(|i| i as u32),
-                    }
+                ParsedKebabName::InterfaceId {
+                    colon: colon as u32,
+                    slash: slash as u32,
+                    at: at.map(|i| i as u32),
                 }
-            },
+            }
+            ComponentImportName::Url((name, _, _)) => {
+                validate_kebab(name)?;
+                ParsedKebabName::Normal
+            }
+            ComponentImportName::Relative((name, _, _)) => {
+                validate_kebab(name)?;
+                ParsedKebabName::Normal
+            }
+            ComponentImportName::Naked((name, _)) => {
+                validate_kebab(name)?;
+                ParsedKebabName::Normal
+            }
+            ComponentImportName::Locked((name, _)) => {
+                let mut colon_acc = Vec::new();
+                let colon = find_many(name, ':', &mut colon_acc);
+                if colon.len() == 0 {
+                    bail!(offset, "At least one namespace in registry id is required");
+                }
+                let mut slash_acc = Vec::new();
+                let slash = find_many(&name[colon[colon.len() - 1]..], '/', &mut slash_acc);
+                let last_slash = slash[slash.len() - 1];
+                let at = name[last_slash..].find('@').map(|i| i + last_slash);
+                ParsedKebabName::RegistryId {
+                    colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                    slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                    at: at.map(|i| i as u32),
+                }
+            }
+            crate::ComponentImportName::Unlocked(name) => {
+                let mut colon_acc = Vec::new();
+                let colon = find_many(name, ':', &mut colon_acc);
+                if colon.len() == 0 {
+                    bail!(offset, "At least one namespace in registry id is required");
+                }
+                let mut slash_acc = Vec::new();
+                let slash = find_many(&name[colon[colon.len() - 1]..], '/', &mut slash_acc);
+                let last_slash = slash[slash.len() - 1];
+                let at = name[last_slash..].find('@').map(|i| i + last_slash);
+                ParsedKebabName::RegistryId {
+                    colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                    slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
+                    at: at.map(|i| i as u32),
+                }
+            }
         };
         Ok(KebabName {
             raw: name.as_str().to_string(),
@@ -626,7 +676,7 @@ mod tests {
     use std::collections::HashSet;
 
     fn parse_kebab_name(s: &str) -> Option<KebabName> {
-        KebabName::new(ComponentExternName::Kebab(s), 0).ok()
+        KebabName::from_import(ComponentImportName::Kebab(s), 0).ok()
     }
 
     #[test]

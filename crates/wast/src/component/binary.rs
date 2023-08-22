@@ -355,7 +355,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&import.item.id, &import.item.name);
         self.names_for_item_kind(&import.item.kind).push(name);
         self.imports.import(
-            wasm_encoder::ComponentExternName::from(import.name),
+            wasm_encoder::ComponentImportName::from(import.name),
             (&import.item.kind).into(),
         );
         self.flush(Some(self.imports.id()));
@@ -365,7 +365,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
         self.exports.export(
-            wasm_encoder::ComponentExternName::from(export.name),
+            wasm_encoder::ComponentExportName::from(export.name),
             kind,
             index,
             export.ty.as_ref().map(|ty| (&ty.0.kind).into()),
@@ -832,13 +832,13 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                 }
                 ComponentTypeDecl::Import(i) => {
                     encoded.import(
-                        wasm_encoder::ComponentExternName::from(i.name),
+                        wasm_encoder::ComponentImportName::from(i.name),
                         (&i.item.kind).into(),
                     );
                 }
                 ComponentTypeDecl::Export(e) => {
                     encoded.export(
-                        wasm_encoder::ComponentExternName::from(e.name),
+                        wasm_encoder::ComponentExportName::from(e.name),
                         (&e.item.kind).into(),
                     );
                 }
@@ -866,7 +866,7 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                 }
                 InstanceTypeDecl::Export(e) => {
                     encoded.export(
-                        wasm_encoder::ComponentExternName::from(e.name),
+                        wasm_encoder::ComponentExportName::from(e.name),
                         (&e.item.kind).into(),
                     );
                 }
@@ -1012,82 +1012,29 @@ impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
     }
 }
 
-impl<'a> From<ComponentExternName<'a>> for wasm_encoder::ComponentExternName<'a> {
-    fn from(name: ComponentExternName<'a>) -> Self {
+impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a> {
+    fn from(name: ComponentImportName<'a>) -> Self {
         match name {
-            ComponentExternName::Kebab(name) => Self::Kebab(name),
-            ComponentExternName::Interface(name) => Self::Interface(name),
-            ComponentExternName::Implementation(impl_import) => {
-              match impl_import {
-                ImplementationImport::Url(metadata) => {
-                  if let Some(location) = metadata.location {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Url(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Url(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: None}))
-                    }
-                  } else {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Url(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Url(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: None}))
-                    }
-                  }
-                }
-                ImplementationImport::Relative(metadata) => {
-                  if let Some(location) = metadata.location {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Relative(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Relative(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: None}))
-                    }
-                  } else {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Relative(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Relative(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: None}))
-                    }
-                  }
-                }
-                ImplementationImport::Naked(metadata) => {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Naked(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Naked(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: None}))
-                    }
-                }
-                ImplementationImport::Locked(metadata) => {
-                  if let Some(location) = metadata.location {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Locked(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Locked(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: None}))
-                    }
-                  } else {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Locked(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Locked(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: None}))
-                    }
-                  }
-                }
-                ImplementationImport::Unlocked(metadata) => {
-                  if let Some(location) = metadata.location {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Unlocked(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Unlocked(wasm_encoder::ImportMetadata {name: metadata.name, location, integrity: None}))
-                    }
-                  } else {
-                    if let Some(integrity) = metadata.integrity {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Unlocked(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: Some(integrity)}))
-                    } else {
-                      Self::Implementation(wasm_encoder::ImplementationImport::Unlocked(wasm_encoder::ImportMetadata {name: metadata.name, location: "", integrity: None}))
-                    }
-                  }
-                }
-              }
+            ComponentImportName::Kebab(name) => Self::Kebab(name),
+            ComponentImportName::Interface(name) => Self::Interface(name),
+            ComponentImportName::Url((name, location, integrity)) => {
+                Self::Url((name, location, integrity))
             }
+            ComponentImportName::Relative((name, location, integrity)) => {
+                Self::Relative((name, location, integrity))
+            }
+            ComponentImportName::Naked((name, integrity)) => Self::Naked((name, integrity)),
+            ComponentImportName::Locked((name, integrity)) => Self::Locked((name, integrity)),
+            ComponentImportName::Unlocked(name) => Self::Unlocked(name),
+        }
+    }
+}
+
+impl<'a> From<ComponentExportName<'a>> for wasm_encoder::ComponentExportName<'a> {
+    fn from(name: ComponentExportName<'a>) -> Self {
+        match name {
+            ComponentExportName::Kebab(name) => Self::Kebab(name),
+            ComponentExportName::Interface(name) => Self::Interface(name),
         }
     }
 }

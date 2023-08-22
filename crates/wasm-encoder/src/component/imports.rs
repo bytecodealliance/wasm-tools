@@ -82,7 +82,7 @@ impl Encode for ComponentTypeRef {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportSection, ComponentTypeRef, ComponentExternName};
+/// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportSection, ComponentTypeRef, ComponentExportName};
 ///
 /// let mut types = ComponentTypeSection::new();
 ///
@@ -99,7 +99,7 @@ impl Encode for ComponentTypeRef {
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();
-/// let name = ComponentExternName::Kebab("f");
+/// let name = ComponentImportName::Kebab("f");
 /// imports.import(name, ComponentTypeRef::Func(0));
 ///
 /// let mut component = Component::new();
@@ -131,8 +131,8 @@ impl ComponentImportSection {
     }
 
     /// Define an import in the component import section.
-    pub fn import(&mut self, name: impl AsComponentExternName, ty: ComponentTypeRef) -> &mut Self {
-        name.as_component_extern_name().encode(&mut self.bytes);
+    pub fn import(&mut self, name: impl AsComponentImportName, ty: ComponentTypeRef) -> &mut Self {
+        name.as_component_import_name().encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -153,138 +153,136 @@ impl ComponentSection for ComponentImportSection {
 
 /// The different names that can be assigned to component imports
 #[derive(Debug, Copy, Clone)]
-pub enum ComponentExternName<'a> {
+pub enum ComponentImportName<'a> {
     /// This is a "kebab name" along the lines of "a-foo-bar"
     Kebab(&'a str),
     /// This is an ID along the lines of "wasi:http/types@2.0"
     Interface(&'a str),
-    /// This is an ID along the lines of "wasi:http/types@2.0"
-    Implementation(ImplementationImport<'a>),
-}
-
-/// Various types of implementation imports
-#[derive(Debug, Copy, Clone)]
-pub enum ImplementationImport<'a> {
-    /// External url
-    Url(ImportMetadata<'a>),
+    /// External Url
+    Url((&'a str, &'a str, Option<&'a str>)),
     /// Relative path
-    Relative(ImportMetadata<'a>),
+    Relative((&'a str, &'a str, Option<&'a str>)),
     /// Just Integrity
-    Naked(ImportMetadata<'a>),
+    Naked((&'a str, &'a str)),
     /// Locked Registry Import
-    Locked(ImportMetadata<'a>),
+    Locked((&'a str, &'a str)),
     /// Unocked Registry Import
-    Unlocked(ImportMetadata<'a>),
+    Unlocked(&'a str),
 }
 
-/// Metadata For Import
+/// The different names that can be assigned to component exports
 #[derive(Debug, Copy, Clone)]
-pub struct ImportMetadata<'a> {
-    /// Import Name
-    pub name: &'a str,
-    /// Import Location
-    pub location: &'a str,
-    /// Content Integrity Hash
-    pub integrity: Option<&'a str>,
+pub enum ComponentExportName<'a> {
+    /// This is a "kebab name" along the lines of "a-foo-bar"
+    Kebab(&'a str),
+    /// This is an ID along the lines of "wasi:http/types@2.0"
+    Interface(&'a str),
 }
 
-impl Encode for ComponentExternName<'_> {
+impl Encode for ComponentImportName<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            ComponentExternName::Kebab(name) => {
+            ComponentImportName::Kebab(name) => {
                 sink.push(0x00);
                 name.encode(sink);
             }
-            ComponentExternName::Interface(name) => {
+            ComponentImportName::Interface(name) => {
                 sink.push(0x01);
                 name.encode(sink);
             }
-            ComponentExternName::Implementation(import) => match import {
-                ImplementationImport::Url(ImportMetadata {
-                    name,
-                    location,
-                    integrity,
-                }) => {
-                    sink.push(0x02);
-                    name.encode(sink);
-                    location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
-                    }
+            ComponentImportName::Url((name, location, integrity)) => {
+                sink.push(0x02);
+                name.encode(sink);
+                location.encode(sink);
+                if let Some(integ) = integrity {
+                    integ.encode(sink);
                 }
-                ImplementationImport::Relative(ImportMetadata {
-                    name,
-                    location,
-                    integrity,
-                }) => {
-                    sink.push(0x03);
-                    name.encode(sink);
-                    location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
-                    }
+            }
+            ComponentImportName::Relative((name, location, integrity)) => {
+                sink.push(0x03);
+                name.encode(sink);
+                location.encode(sink);
+                if let Some(integ) = integrity {
+                    integ.encode(sink);
                 }
-                ImplementationImport::Naked(ImportMetadata {
-                    name,
-                    location,
-                    integrity,
-                }) => {
-                    sink.push(0x04);
-                    name.encode(sink);
-                    location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
-                    }
-                }
-                ImplementationImport::Locked(ImportMetadata {
-                    name,
-                    location,
-                    integrity,
-                }) => {
-                    sink.push(0x05);
-                    name.encode(sink);
-                    location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
-                    }
-                }
-                ImplementationImport::Unlocked(ImportMetadata {
-                    name,
-                    location,
-                    integrity,
-                }) => {
-                    sink.push(0x06);
-                    name.encode(sink);
-                    location.encode(sink);
-                    if let Some(integ) = integrity {
-                        integ.encode(sink);
-                    }
-                }
-            },
+            }
+            ComponentImportName::Naked((name, integrity)) => {
+                sink.push(0x04);
+                name.encode(sink);
+                integrity.encode(sink);
+            }
+            ComponentImportName::Locked((name, integrity)) => {
+                sink.push(0x05);
+                name.encode(sink);
+                integrity.encode(sink);
+            }
+            ComponentImportName::Unlocked(name) => {
+                sink.push(0x06);
+                name.encode(sink);
+            }
         }
     }
 }
 
-/// Helper trait to convert into a `ComponentExternName` either from that type
-/// or from a string.
-pub trait AsComponentExternName {
-    /// Converts this receiver into a `ComponentExternName`.
-    fn as_component_extern_name(&self) -> ComponentExternName<'_>;
+impl Encode for ComponentExportName<'_> {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            ComponentExportName::Kebab(name) => {
+                sink.push(0x00);
+                name.encode(sink);
+            }
+            ComponentExportName::Interface(name) => {
+                sink.push(0x01);
+                name.encode(sink);
+            }
+        }
+    }
 }
 
-impl AsComponentExternName for ComponentExternName<'_> {
-    fn as_component_extern_name(&self) -> ComponentExternName<'_> {
+/// Helper trait to convert into a `ComponentExportName` either from that type
+/// or from a string.
+pub trait AsComponentExportName {
+    /// Converts this receiver into a `ComponentExportName`.
+    fn as_component_export_name(&self) -> ComponentExportName<'_>;
+}
+
+impl AsComponentExportName for ComponentExportName<'_> {
+    fn as_component_export_name(&self) -> ComponentExportName<'_> {
         *self
     }
 }
 
-impl<S: AsRef<str>> AsComponentExternName for S {
-    fn as_component_extern_name(&self) -> ComponentExternName<'_> {
+impl<S: AsRef<str>> AsComponentExportName for S {
+    fn as_component_export_name(&self) -> ComponentExportName<'_> {
         let s = self.as_ref();
         if s.contains("/") {
-            ComponentExternName::Interface(s)
+            ComponentExportName::Interface(s)
         } else {
-            ComponentExternName::Kebab(s)
+            ComponentExportName::Kebab(s)
+        }
+    }
+}
+
+/// Helper trait to convert into a `ComponentName` either from that type
+/// or from a string.
+pub trait AsComponentImportName {
+    /// Converts this receiver into a `ComponentImportName`.
+    fn as_component_import_name(&self) -> ComponentImportName<'_>;
+}
+
+impl AsComponentImportName for ComponentImportName<'_> {
+    fn as_component_import_name(&self) -> ComponentImportName<'_> {
+        *self
+    }
+}
+
+impl<S: AsRef<str>> AsComponentImportName for S {
+    fn as_component_import_name(&self) -> ComponentImportName<'_> {
+        let s = self.as_ref();
+        if s.contains("/") {
+            ComponentImportName::Interface(s)
+        } else {
+            ComponentImportName::Kebab(s)
         }
     }
 }

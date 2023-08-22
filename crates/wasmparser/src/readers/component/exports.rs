@@ -1,5 +1,5 @@
 use crate::{
-    BinaryReader, ComponentExternName, ComponentTypeRef, FromReader, Result, SectionLimited,
+    BinaryReader, ComponentExportName, ComponentTypeRef, FromReader, Result, SectionLimited,
 };
 
 /// Represents the kind of an external items of a WebAssembly component.
@@ -69,7 +69,7 @@ impl ComponentExternalKind {
 #[derive(Debug, Clone)]
 pub struct ComponentExport<'a> {
     /// The name of the exported item.
-    pub name: ComponentExternName<'a>,
+    pub name: ComponentExportName<'a>,
     /// The kind of the export.
     pub kind: ComponentExternalKind,
     /// The index of the exported item.

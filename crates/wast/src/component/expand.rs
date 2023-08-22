@@ -165,7 +165,6 @@ impl<'a> Expander<'a> {
                         name: None,
                         kind: ItemSigKind::CoreModule(CoreTypeUse::Ref(idx)),
                     },
-                    metadata: None
                 }))
             }
         }
@@ -214,7 +213,6 @@ impl<'a> Expander<'a> {
                         name: None,
                         kind: ItemSigKind::Component(ComponentTypeUse::Ref(idx)),
                     },
-                    metadata: None
                 }))
             }
         }
@@ -245,7 +243,6 @@ impl<'a> Expander<'a> {
                         name: None,
                         kind: ItemSigKind::Instance(ComponentTypeUse::Ref(idx)),
                     },
-                    metadata: None
                 }))
             }
             InstanceKind::Instantiate { args, .. } => {
@@ -336,7 +333,6 @@ impl<'a> Expander<'a> {
                         name: None,
                         kind: ItemSigKind::Func(ComponentTypeUse::Ref(idx)),
                     },
-                    metadata: None
                 }))
             }
             FuncKind::Lift { ty, info } => {

@@ -768,7 +768,7 @@ pub struct ComponentExportType<'a> {
     /// Where this export was defined.
     pub span: Span,
     /// The name of this export.
-    pub name: ComponentExternName<'a>,
+    pub name: ComponentExportName<'a>,
     /// The signature of the item.
     pub item: ItemSig<'a>,
 }

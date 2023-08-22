@@ -3,7 +3,7 @@ use super::{
     VALUE_SORT,
 };
 use crate::{
-    encode_section, AsComponentExternName, ComponentSection, ComponentSectionId, ComponentTypeRef,
+    encode_section, AsComponentExportName, ComponentSection, ComponentSectionId, ComponentTypeRef,
     Encode,
 };
 
@@ -55,11 +55,11 @@ impl Encode for ComponentExportKind {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentExportSection, ComponentExportKind, ComponentExternName};
+/// use wasm_encoder::{Component, ComponentExportSection, ComponentExportKind, ComponentExportName};
 ///
 /// // This exports a function named "foo"
 /// let mut exports = ComponentExportSection::new();
-/// let name = ComponentExternName::Kebab("foo");
+/// let name = ComponentExportName::Kebab("foo");
 /// exports.export(name, ComponentExportKind::Func, 0, None);
 ///
 /// let mut component = Component::new();
@@ -92,12 +92,12 @@ impl ComponentExportSection {
     /// Define an export in the export section.
     pub fn export(
         &mut self,
-        name: impl AsComponentExternName,
+        name: impl AsComponentExportName,
         kind: ComponentExportKind,
         index: u32,
         ty: Option<ComponentTypeRef>,
     ) -> &mut Self {
-        name.as_component_extern_name().encode(&mut self.bytes);
+        name.as_component_export_name().encode(&mut self.bytes);
         kind.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
         match ty {

@@ -1,4 +1,4 @@
-use super::{ComponentExternName, ItemRef, ItemSigNoName};
+use super::{ComponentExportName, ItemRef, ItemSigNoName};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
@@ -13,7 +13,7 @@ pub struct ComponentExport<'a> {
     /// An optional name for this instance stored in the custom `name` section.
     pub debug_name: Option<NameAnnotation<'a>>,
     /// The name of this export from the component.
-    pub name: ComponentExternName<'a>,
+    pub name: ComponentExportName<'a>,
     /// The kind of export.
     pub kind: ComponentExportKind<'a>,
     /// The kind of export.
@@ -173,7 +173,7 @@ impl Peek for ComponentExportKind<'_> {
 #[derive(Debug, Default)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
-    pub names: Vec<ComponentExternName<'a>>,
+    pub names: Vec<ComponentExportName<'a>>,
 }
 
 impl<'a> Parse<'a> for InlineExport<'a> {

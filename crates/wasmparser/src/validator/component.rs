@@ -16,10 +16,10 @@ use crate::{
         ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, LoweringInfo, Remap,
         SubtypeCx, TupleType, UnionType, VariantType,
     },
-    BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType, GlobalType,
-    InstantiationArgKind, MemoryType, Result, StructuralType, SubType, TableType, TypeBounds,
-    ValType, WasmFeatures,
+    BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
+    ComponentImportName, ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, Result, StructuralType, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -422,7 +422,7 @@ impl ComponentState {
             types,
             offset,
         )?;
-        self.toplevel_imported_resources.validate_extern(
+        self.toplevel_imported_resources.validate_import(
             import.name,
             "import",
             &entity,
@@ -870,7 +870,7 @@ impl ComponentState {
 
     pub fn add_export(
         &mut self,
-        name: ComponentExternName<'_>,
+        name: ComponentExportName<'_>,
         mut ty: ComponentEntityType,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
@@ -887,7 +887,7 @@ impl ComponentState {
             types,
             offset,
         )?;
-        self.toplevel_exported_resources.validate_extern(
+        self.toplevel_exported_resources.validate_export(
             name.into(),
             "export",
             &ty,
@@ -2056,7 +2056,7 @@ impl ComponentState {
                 }
             };
 
-            names.validate_extern(
+            names.validate_export(
                 export.name.into(),
                 "instance export",
                 &ty,
@@ -2939,9 +2939,9 @@ impl KebabNameContext {
         self.all_resource_names.insert(name.to_string());
     }
 
-    fn validate_extern(
+    fn validate_export(
         &self,
-        name: ComponentExternName<'_>,
+        name: ComponentExportName<'_>,
         desc: &str,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
@@ -2952,7 +2952,7 @@ impl KebabNameContext {
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
-        let kebab = KebabName::new(name, offset).with_context(|| {
+        let kebab = KebabName::from_export(name, offset).with_context(|| {
             format!("{desc} name `{}` is not a valid extern name", name.as_str())
         })?;
 
@@ -2964,7 +2964,61 @@ impl KebabNameContext {
         // Top-level kebab-names must all be unique, even between both imports
         // and exports ot a component. For those names consult the `kebab_names`
         // set.
-        if let ComponentExternName::Kebab(_) = name {
+        if let ComponentExportName::Kebab(_) = name {
+            if let Some(prev) = kebab_names.replace(kebab.clone()) {
+                bail!(
+                    offset,
+                    "{desc} name `{kebab}` conflicts with previous name `{prev}`",
+                );
+            }
+        }
+
+        // Otherwise all strings must be unique, regardless of their name, so
+        // consult the `items` set to ensure that we're not for example
+        // importing the same interface ID twice.
+        match items.entry(kebab.into()) {
+            Entry::Occupied(e) => {
+                bail!(
+                    offset,
+                    "{desc} name `{name}` conflicts with previous name `{prev}`",
+                    name = name.as_str(),
+                    prev = e.key(),
+                );
+            }
+            Entry::Vacant(e) => {
+                e.insert(*ty);
+                *type_size = combine_type_sizes(*type_size, ty.type_size(), offset)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_import(
+        &self,
+        name: ComponentImportName<'_>,
+        desc: &str,
+        ty: &ComponentEntityType,
+        types: &TypeAlloc,
+        offset: usize,
+        kebab_names: &mut IndexSet<KebabName>,
+        items: &mut IndexMap<String, ComponentEntityType>,
+        type_size: &mut u32,
+    ) -> Result<()> {
+        // First validate that `name` is even a valid kebab name, meaning it's
+        // in kebab-case, is an ID, etc.
+        let kebab = KebabName::from_import(name, offset).with_context(|| {
+            format!("{desc} name `{}` is not a valid extern name", name.as_str())
+        })?;
+
+        // Validate that the kebab name, if it has structure such as
+        // `[method]a.b`, is indeed valid with respect to known resources.
+        self.validate(&kebab, ty, types, offset)
+            .with_context(|| format!("{desc} name `{kebab}` is not valid"))?;
+
+        // Top-level kebab-names must all be unique, even between both imports
+        // and exports ot a component. For those names consult the `kebab_names`
+        // set.
+        if let ComponentImportName::Kebab(_) = name {
             if let Some(prev) = kebab_names.replace(kebab.clone()) {
                 bail!(
                     offset,
