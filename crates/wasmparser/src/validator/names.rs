@@ -222,6 +222,72 @@ pub struct KebabName {
     parsed: ParsedKebabName,
 }
 
+#[derive(Debug, Clone, Hash)]
+struct At {
+    index: u32,
+    semver: Semver,
+}
+
+#[derive(Debug, Clone, Hash)]
+/// Pinned version or semver range
+pub enum Semver {
+    /// pinned version
+    Semver(Version),
+    /// semver range
+    SemverRange(SemverRange),
+}
+
+impl PartialEq for Semver {
+    fn eq(&self, other: &Semver) -> bool {
+        match self {
+            Self::Semver(version) => match other {
+                Semver::Semver(other_version) => version == other_version,
+                Semver::SemverRange(_) => false,
+            },
+            Self::SemverRange(version_range) => match other {
+                Semver::Semver(_) => false,
+                Semver::SemverRange(other_range) => version_range == other_range,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash)]
+/// Potential semver range specifications
+pub enum SemverRange {
+    /// All versions
+    All,
+    /// Upper Bound
+    Upper(Version),
+    /// Lower Bound
+    Lower(Version),
+    /// Upper and Lower Bound
+    Both((Version, Version)),
+}
+
+impl PartialEq for SemverRange {
+    fn eq(&self, other: &SemverRange) -> bool {
+        match self {
+            SemverRange::All => match other {
+                SemverRange::All => true,
+                _ => false,
+            },
+            SemverRange::Upper(ua) => match other {
+                SemverRange::Upper(ub) => ua == ub,
+                _ => false,
+            },
+            SemverRange::Lower(la) => match other {
+                SemverRange::Lower(lb) => la == lb,
+                _ => false,
+            },
+            SemverRange::Both((la, ua)) => match other {
+                SemverRange::Both((lb, ub)) => la == lb && ua == ub,
+                _ => false,
+            },
+        }
+    }
+}
+
 #[derive(Clone)]
 enum ParsedKebabName {
     Normal,
@@ -238,9 +304,9 @@ enum ParsedKebabName {
         at: Option<u32>,
     },
     RegistryId {
-        colon: Vec<u32>,
-        slash: Vec<u32>,
-        at: Option<u32>,
+        colon: u32,
+        slash: Option<u32>,
+        at: Option<At>,
     },
 }
 
@@ -276,8 +342,8 @@ pub enum KebabNameKind<'a> {
     RegistryId {
         namespace: &'a KebabStr,
         package: &'a KebabStr,
-        interface: &'a KebabStr,
-        version: Option<Version>,
+        interface: Option<&'a KebabStr>,
+        version: Option<Semver>,
     },
 }
 
@@ -371,7 +437,60 @@ impl KebabName {
             Some(i) => Ok(i),
             None => bail!(offset, "failed to find `{c}` character"),
         };
-
+        let maybe_find = |s: &str, c: char| match s.find(c) {
+            Some(i) => Some(i),
+            None => None,
+        };
+        let validate_version_range = |s: &str| match s.chars().nth(0).unwrap() {
+            '*' => Ok(SemverRange::All),
+            '{' => match s.chars().nth(1).unwrap() {
+                '>' => {
+                    if s.chars().nth(2).unwrap() == '=' {
+                        let space = maybe_find(s, ' ');
+                        if let Some(sp) = space {
+                            match s[3..sp].parse::<Version>() {
+                                Ok(lower_ver) => {
+                                    let upper = &s[sp + 1..s.len() - 1];
+                                    match upper.chars().nth(0).unwrap() {
+                                        '<' => {
+                                            match upper[1..].parse::<Version>() {
+                                                Ok(upper_ver) => {
+                                                    return Ok(SemverRange::Both((
+                                                        lower_ver, upper_ver,
+                                                    )))
+                                                }
+                                                Err(_) => {
+                                                    bail!(offset, "`{s}` multiple bounds but terminal bound is not upper bound")
+                                                }
+                                            }
+                                          }
+                                          _ => bail!(offset, "`{s}` multiple bounds but terminal bound is not upper bound"),
+                                    }
+                                }
+                                Err(_) => bail!(offset, "`{s}` lower bound is not valid semver"),
+                            }
+                        } else {
+                            let close = find(s, '}')?;
+                            match s[3..close].parse::<Version>() {
+                                Ok(lower) => return Ok(SemverRange::Lower(lower)),
+                                Err(_) => bail!(offset, "`{s}` range has no closing brace"),
+                            }
+                        }
+                    } else {
+                        bail!(offset, "`{s}` lower range bound must be inclusive")
+                    }
+                }
+                '<' => {
+                    let close = find(s, '}')?;
+                    match s[2..close].parse::<Version>() {
+                        Ok(upper) => return Ok(SemverRange::Upper(upper)),
+                        Err(_) => bail!(offset, "`{s}` is not a valid semver range"),
+                    }
+                }
+                _ => bail!(offset, "`{s}` is not a valid semver range"),
+            },
+            _ => bail!(offset, "`{s}` is not a valid semver range"),
+        };
         let parsed = match name {
             ComponentImportName::Kebab(s) => {
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
@@ -424,35 +543,115 @@ impl KebabName {
                 ParsedKebabName::Normal
             }
             ComponentImportName::Locked((name, _)) => {
-                let mut colon_acc = Vec::new();
-                let colon = find_many(name, ':', &mut colon_acc);
-                if colon.len() == 0 {
-                    bail!(offset, "At least one namespace in registry id is required");
-                }
-                let mut slash_acc = Vec::new();
-                let slash = find_many(&name[colon[colon.len() - 1]..], '/', &mut slash_acc);
-                let last_slash = slash[slash.len() - 1];
-                let at = name[last_slash..].find('@').map(|i| i + last_slash);
-                ParsedKebabName::RegistryId {
-                    colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                    slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                    at: at.map(|i| i as u32),
+                let colon = find(name, ':')?;
+                validate_kebab(&name[..colon])?;
+                let slash = maybe_find(name, '/');
+                if let Some(sl) = slash {
+                    let at = name[sl..].find('@').map(|i| i + sl);
+                    validate_kebab(&name[colon + 1..sl])?;
+                    if let Some(at) = at {
+                        validate_kebab(&name[sl + 1..at])?;
+                        let version_string = &name[at + 1..];
+                        let version = version_string.parse::<Version>();
+                        match version {
+                            Ok(ver) => ParsedKebabName::RegistryId {
+                                colon: colon as u32,
+                                slash: Some(sl as u32),
+                                at: Some(At {
+                                    index: at as u32,
+                                    semver: Semver::Semver(ver),
+                                }),
+                            },
+                            Err(e) => {
+                                bail!(offset, "failed to parse version: {e}")
+                            }
+                        }
+                    } else {
+                        ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: Some(sl as u32),
+                            at: None,
+                        }
+                    }
+                } else {
+                    let at = name[colon..].find('@').map(|i| i + colon);
+                    if let Some(at) = at {
+                        validate_kebab(&name[colon + 1..at])?;
+                        let version_string = &name[at + 1..];
+                        let version = version_string.parse::<Version>();
+                        match version {
+                            Ok(ver) => ParsedKebabName::RegistryId {
+                                colon: colon as u32,
+                                slash: None,
+                                at: Some(At {
+                                    index: at as u32,
+                                    semver: Semver::Semver(ver),
+                                }),
+                            },
+                            Err(e) => {
+                                bail!(offset, "failed to parse version: {e}")
+                            }
+                        }
+                    } else {
+                        ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: None,
+                            at: None,
+                        }
+                    }
                 }
             }
-            crate::ComponentImportName::Unlocked(name) => {
-                let mut colon_acc = Vec::new();
-                let colon = find_many(name, ':', &mut colon_acc);
-                if colon.len() == 0 {
-                    bail!(offset, "At least one namespace in registry id is required");
-                }
-                let mut slash_acc = Vec::new();
-                let slash = find_many(&name[colon[colon.len() - 1]..], '/', &mut slash_acc);
-                let last_slash = slash[slash.len() - 1];
-                let at = name[last_slash..].find('@').map(|i| i + last_slash);
-                ParsedKebabName::RegistryId {
-                    colon: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                    slash: colon.iter().map(|i| *i as u32).collect::<Vec<u32>>(),
-                    at: at.map(|i| i as u32),
+            ComponentImportName::Unlocked(name) => {
+                let colon = find(name, ':')?;
+                validate_kebab(&name[..colon])?;
+                let slash = maybe_find(name, '/');
+                if let Some(sl) = slash {
+                    let at = name[sl..].find('@').map(|i| i + sl);
+                    validate_kebab(&name[colon + 1..sl])?;
+                    if let Some(at) = at {
+                        validate_kebab(&name[sl + 1..at])?;
+                        let version_string = &name[at + 1..];
+                        let version = version_string.parse::<Version>();
+                        match version {
+                            Ok(ver) => ParsedKebabName::RegistryId {
+                                colon: colon as u32,
+                                slash: Some(sl as u32),
+                                at: Some(At {
+                                    index: at as u32,
+                                    semver: Semver::Semver(ver),
+                                }),
+                            },
+                            Err(e) => {
+                                bail!(offset, "failed to parse version: {e}")
+                            }
+                        }
+                    } else {
+                        ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: Some(sl as u32),
+                            at: None,
+                        }
+                    }
+                } else {
+                    let at = name[colon..].find('@').map(|i| i + colon);
+                    if let Some(at) = at {
+                        validate_kebab(&name[colon + 1..at])?;
+                        let version_string = validate_version_range(&name[at + 1..])?;
+                        ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: None,
+                            at: Some(At {
+                                index: at as u32,
+                                semver: Semver::SemverRange(version_string),
+                            }),
+                        }
+                    } else {
+                        ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: None,
+                            at: None,
+                        }
+                    }
                 }
             }
         };
@@ -498,7 +697,33 @@ impl KebabName {
                     version,
                 }
             }
-            ParsedKebabName::RegistryId { colon, slash, at } => todo!(),
+            ParsedKebabName::RegistryId { colon, slash, at } => {
+                let colon = *colon as usize;
+                let package = if let Some(sl) = slash {
+                    KebabStr::new_unchecked(&self.raw[colon + 1..*sl as usize])
+                } else if let Some(at) = at {
+                    KebabStr::new_unchecked(&self.raw[colon + 1..at.index as usize])
+                } else {
+                    KebabStr::new_unchecked(&self.raw[colon + 1..])
+                };
+                let interface = if let Some(sl) = slash {
+                    Some(KebabStr::new_unchecked(&self.raw[colon + 1..*sl as usize]))
+                } else {
+                    None
+                };
+                let version = if let Some(at) = at {
+                    Some(at.semver.clone())
+                } else {
+                    None
+                };
+                let namespace = KebabStr::new_unchecked(&self.raw[..colon]);
+                KebabNameKind::RegistryId {
+                    namespace,
+                    package,
+                    interface,
+                    version,
+                }
+            }
         }
     }
 
@@ -574,7 +799,13 @@ impl Hash for KebabNameKind<'_> {
                 package,
                 interface,
                 version,
-            } => todo!(),
+            } => {
+                hasher.write_u8(3);
+                namespace.hash(hasher);
+                package.hash(hasher);
+                interface.hash(hasher);
+                version.hash(hasher);
+            }
         }
     }
 }

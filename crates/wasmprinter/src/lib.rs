@@ -1918,7 +1918,6 @@ impl Printer {
             ComponentImportName::Naked((name, integrity)) => {
                 self.print_str(name)?;
                 self.result.push(' ');
-                self.result.push(' ');
                 self.result.push_str("integrity ");
                 self.print_str(integrity)?;
                 Ok(())
