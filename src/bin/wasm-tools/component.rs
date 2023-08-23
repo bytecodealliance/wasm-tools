@@ -418,7 +418,13 @@ pub struct WitOpts {
     skip_validation: bool,
 
     /// Emit the WIT document as JSON instead of text.
-    #[clap(short, long, conflicts_with = "wasm", conflicts_with = "out_dir", conflicts_with = "wat")]
+    #[clap(
+        short,
+        long,
+        conflicts_with = "wasm",
+        conflicts_with = "out_dir",
+        conflicts_with = "wat"
+    )]
     json: bool,
 }
 
@@ -582,7 +588,6 @@ impl WitOpts {
         let resolve = decoded.resolve();
         let output = serde_json::to_string_pretty(&resolve)?;
         self.output.output(Output::Json(&output))?;
-
 
         Ok(())
     }
