@@ -8,6 +8,7 @@ use crate::{
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
 use std::path::{Path, PathBuf};
@@ -25,7 +26,7 @@ use std::path::{Path, PathBuf};
 ///
 /// Each item in a `Resolve` has a parent link to trace it back to the original
 /// package as necessary.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Serialize)]
 pub struct Resolve {
     pub worlds: Arena<World>,
     pub interfaces: Arena<Interface>,
@@ -39,7 +40,7 @@ pub struct Resolve {
 /// A package is a collection of interfaces and worlds. Packages additionally
 /// have a unique identifier that affects generated components and uniquely
 /// identifiers this particular package.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Package {
     /// A unique name corresponding to this package.
     pub name: PackageName,
@@ -1743,5 +1744,129 @@ impl<'a> MergeMap<'a> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Record;
+    use anyhow::Result;
+
+    use super::*;
+
+    #[test]
+    fn serialize_and_deserialize() -> Result<()> {
+        let resolve = Resolve::default();
+        let s = serde_json::to_string(&resolve)?;
+        println!("{}", s);
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_arena_world() -> Result<()> {
+        let mut worlds: Arena<World> = Arena::new();
+        let world1 = World {
+            name: "world1".to_string(),
+            docs: Default::default(),
+            imports: Default::default(),
+            exports: Default::default(),
+            includes: Default::default(),
+            include_names: Default::default(),
+            package: None,
+        };
+        let world2 = World {
+            name: "world2".to_string(),
+            docs: Default::default(),
+            imports: Default::default(),
+            exports: Default::default(),
+            includes: Default::default(),
+            include_names: Default::default(),
+            package: None,
+        };
+        worlds.alloc(world1);
+        worlds.alloc(world2);
+
+        let s = serde_json::to_string(&worlds)?;
+        println!("{}", s);
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_arena_interface() -> Result<()> {
+        let mut interfaces: Arena<Interface> = Arena::new();
+        let interface1 = Interface {
+            name: Some("interface1".to_string()),
+            docs: Default::default(),
+            types: Default::default(),
+            functions: Default::default(),
+            package: None,
+        };
+        let interface2 = Interface {
+            name: Some("interface2".to_string()),
+            docs: Default::default(),
+            types: Default::default(),
+            functions: Default::default(),
+            package: None,
+        };
+        interfaces.alloc(interface1);
+        interfaces.alloc(interface2);
+
+        let s = serde_json::to_string(&interfaces)?;
+        println!("{}", s);
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_arena_type() -> Result<()> {
+        let mut types: Arena<TypeDef> = Arena::new();
+        let type1 = TypeDef {
+            name: Some("type1".to_string()),
+            owner: TypeOwner::None,
+            kind: TypeDefKind::Type(Type::Bool),
+            docs: Default::default(),
+        };
+        let type2 = TypeDef {
+            name: Some("type2".to_string()),
+            owner: TypeOwner::None,
+            kind: TypeDefKind::Record(Record {
+                fields: Default::default(),
+            }),
+            docs: Default::default(),
+        };
+        types.alloc(type1);
+        types.alloc(type2);
+
+        let s = serde_json::to_string(&types)?;
+        println!("{}", s);
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_packages() {
+        let mut packages: Arena<Package> = Arena::new();
+        let package1 = Package {
+            name: PackageName {
+                namespace: "foo".into(),
+                name: "package1".into(),
+                version: None,
+            },
+            docs: Default::default(),
+            interfaces: Default::default(),
+            worlds: Default::default(),
+        };
+        let package2 = Package {
+            name: PackageName {
+                namespace: "foo".into(),
+                name: "package2".into(),
+                version: None,
+            },
+            docs: Default::default(),
+            interfaces: Default::default(),
+            worlds: Default::default(),
+        };
+        packages.alloc(package1);
+        packages.alloc(package2);
+        let s = serde_json::to_string(&packages).unwrap();
+        println!("{}", s);
     }
 }

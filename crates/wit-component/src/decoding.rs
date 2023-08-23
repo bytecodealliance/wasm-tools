@@ -296,7 +296,7 @@ impl WitPackageDecoder<'_> {
                 } if interface.as_str() == "wit" => PackageName {
                     namespace: namespace.to_string(),
                     name: package.to_string(),
-                    version,
+                    version: version.map(|v| v.into()),
                 },
                 _ => bail!("package name is not a valid id: {name}"),
             },
@@ -562,15 +562,15 @@ impl WitPackageDecoder<'_> {
             KebabNameKind::Id {
                 namespace,
                 package,
-                version,
                 interface,
+                version,
             } => (namespace, package, version, interface),
             _ => bail!("package name is not a valid id: {name_string}"),
         };
         let package_name = PackageName {
             name: name.to_string(),
             namespace: namespace.to_string(),
-            version,
+            version: version.map(|v| v.into()),
         };
         // Lazily create a `Package` as necessary, along with the interface.
         let package = self

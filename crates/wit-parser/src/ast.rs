@@ -170,7 +170,7 @@ impl<'a> PackageName<'a> {
         crate::PackageName {
             namespace: self.namespace.name.to_string(),
             name: self.name.name.to_string(),
-            version: self.version.as_ref().map(|(_, v)| v.clone()),
+            version: self.version.as_ref().map(|(_, v)| v.clone().into()),
         }
     }
 }

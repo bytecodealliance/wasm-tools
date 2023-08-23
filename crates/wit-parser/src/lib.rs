@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
-use semver::Version;
+use serde::Serialize;
 use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
@@ -16,6 +16,8 @@ mod resolve;
 pub use resolve::{Package, PackageId, Remap, Resolve};
 mod live;
 pub use live::LiveTypes;
+mod version;
+pub use version::SerializableVersion;
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -101,7 +103,7 @@ pub struct UnresolvedPackage {
     required_resource_types: Vec<(TypeId, Span)>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub enum AstItem {
     Interface(InterfaceId),
     World(WorldId),
@@ -112,14 +114,21 @@ pub enum AstItem {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[serde(into = "String")]
 pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
     pub namespace: String,
     /// The kebab-name of this package, which is always specified.
     pub name: String,
     /// Optional major/minor version information.
-    pub version: Option<Version>,
+    pub version: Option<SerializableVersion>,
+}
+
+impl From<PackageName> for String {
+    fn from(name: PackageName) -> String {
+        name.to_string()
+    }
 }
 
 impl PackageName {
@@ -231,7 +240,7 @@ impl UnresolvedPackage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct World {
     /// The WIT identifier name of this world.
     pub name: String,
@@ -249,13 +258,15 @@ pub struct World {
     pub package: Option<PackageId>,
 
     /// All the included worlds from this world. Empty if this is fully resolved
+    #[serde(skip)]
     pub includes: Vec<WorldId>,
 
     /// All the included worlds names. Empty if this is fully resolved
+    #[serde(skip)]
     pub include_names: Vec<Vec<IncludeName>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct IncludeName {
     /// The name of the item
     pub name: String,
@@ -266,12 +277,22 @@ pub struct IncludeName {
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
 /// unique interface.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(into = "String")]
 pub enum WorldKey {
     /// A kebab-name.
     Name(String),
     /// An interface which is assigned no kebab-name.
     Interface(InterfaceId),
+}
+
+impl From<WorldKey> for String {
+    fn from(key: WorldKey) -> String {
+        match key {
+            WorldKey::Name(name) => name,
+            WorldKey::Interface(id) => format!("interface-{}", id.index()),
+        }
+    }
 }
 
 impl WorldKey {
@@ -285,7 +306,7 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
@@ -300,7 +321,7 @@ pub enum WorldItem {
     Type(TypeId),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Interface {
     /// Optionally listed name of this interface.
     ///
@@ -323,7 +344,7 @@ pub struct Interface {
     pub package: Option<PackageId>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TypeDef {
     pub docs: Docs,
     pub kind: TypeDefKind,
@@ -331,7 +352,7 @@ pub struct TypeDef {
     pub owner: TypeOwner,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum TypeDefKind {
     Record(Record),
     Resource,
@@ -379,7 +400,7 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     World(WorldId),
@@ -390,13 +411,13 @@ pub enum TypeOwner {
     None,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
 pub enum Handle {
     Own(TypeId),
     Borrow(TypeId),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
 pub enum Type {
     Bool,
     U8,
@@ -414,7 +435,7 @@ pub enum Type {
     Id(TypeId),
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize)]
 pub enum Int {
     U8,
     U16,
@@ -422,30 +443,30 @@ pub enum Int {
     U64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Record {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Field {
     pub docs: Docs,
     pub name: String,
     pub ty: Type,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Flags {
     pub flags: Vec<Flag>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Flag {
     pub docs: Docs,
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum FlagsRepr {
     U8,
     U16,
@@ -473,17 +494,17 @@ impl FlagsRepr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Tuple {
     pub types: Vec<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Variant {
     pub cases: Vec<Case>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Case {
     pub docs: Docs,
     pub name: String,
@@ -501,12 +522,12 @@ impl Variant {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Enum {
     pub cases: Vec<EnumCase>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EnumCase {
     pub docs: Docs,
     pub name: String,
@@ -523,26 +544,26 @@ impl Enum {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Result_ {
     pub ok: Option<Type>,
     pub err: Option<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Stream {
     pub element: Option<Type>,
     pub end: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize)]
 pub struct Docs {
     pub contents: Option<String>,
 }
 
 pub type Params = Vec<(String, Type)>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum Results {
     Named(Params),
     Anon(Type),
@@ -607,7 +628,7 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Function {
     pub docs: Docs,
     pub name: String,
@@ -616,7 +637,7 @@ pub struct Function {
     pub results: Results,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum FunctionKind {
     Freestanding,
     Method(TypeId),

@@ -134,23 +134,7 @@ harness = false
 
 [features]
 # By default, all subcommands are built
-default = [
-  'shrink',
-  'smith',
-  'mutate',
-  'validate',
-  'print',
-  'parse',
-  'dump',
-  'objdump',
-  'strip',
-  'compose',
-  'demangle',
-  'component',
-  'metadata',
-  'wit-smith',
-  'addr2line',
-]
+default = ['shrink', 'smith', 'mutate', 'validate', 'print', 'parse', 'dump', 'objdump', 'strip', 'compose', 'demangle', 'component', 'metadata', 'wit-smith', 'addr2line']
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = ['dep:wasmparser', 'rayon']
@@ -164,13 +148,7 @@ objdump = ['dep:wasmparser']
 strip = ['wasm-encoder', 'dep:wasmparser', 'regex']
 compose = ['wasm-compose', 'dep:wasmparser']
 demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
-component = [
-  'wit-component',
-  'wit-parser',
-  'wast',
-  'wasm-encoder',
-  'dep:wasmparser',
-]
+component = ['wit-component', 'wit-parser', 'wast', 'wasm-encoder', 'dep:wasmparser']
 metadata = ['dep:wasmparser', 'wasm-metadata', 'serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']

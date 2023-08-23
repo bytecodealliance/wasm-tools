@@ -124,6 +124,7 @@ impl Runner<'_> {
             }
         } else {
             result?;
+            serde_json::to_string(&resolve)?;
             return Ok(());
         };
 
