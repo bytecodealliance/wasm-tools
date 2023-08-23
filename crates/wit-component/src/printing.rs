@@ -211,7 +211,9 @@ impl WitPrinter {
         self.output.push_str(" {\n");
         for func in funcs {
             match &func.kind {
-                FunctionKind::Constructor(_) => {}
+                FunctionKind::Constructor(_) => {
+                    self.print_docs(&func.docs);
+                }
                 FunctionKind::Method(_) => {
                     self.print_docs(&func.docs);
                     self.print_name(func.item_name());
