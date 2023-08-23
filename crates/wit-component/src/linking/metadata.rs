@@ -344,8 +344,16 @@ impl<'a> Metadata<'a> {
                 Payload::TypeSection(reader) => {
                     types = reader
                         .into_iter()
+                        .flat_map(|r| match r {
+                            Err(e) => vec![Err(e)],
+                            Ok(rg) => rg
+                                .types()
+                                .iter()
+                                .map(|st| Ok(st.clone()))
+                                .collect::<Vec<_>>(),
+                        })
                         .filter_map(|r| {
-                            r.map(|ty| match ty.structural_type {
+                            r.map(|ty| match ty.clone().structural_type {
                                 StructuralType::Func(ty) => Some(ty),
                                 StructuralType::Array(_) | StructuralType::Struct(_) => None,
                             })

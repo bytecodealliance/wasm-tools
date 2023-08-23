@@ -136,7 +136,12 @@ impl RemoveItem {
                         0,
                         TypeSectionReader::new(section.data, 0)?,
                         Item::Type,
-                        |me, ty, section| me.translate_type_def(ty.structural_type, section),
+                        |me, rec_group, section| {
+                            for ty in rec_group.types() {
+                                me.translate_type_def(ty.clone().structural_type, section)?;
+                            }
+                            Ok(())
+                        },
                     )?;
                 },
 

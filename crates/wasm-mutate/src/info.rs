@@ -92,13 +92,19 @@ impl<'a> ModuleInfo<'a> {
                     info.section(SectionId::Type.into(), reader.range(), input_wasm);
 
                     // Save function types
-                    for ty in reader {
-                        if let Ok(st) = ty {
-                            if st.is_final || st.supertype_idx.is_some() {
+                    for rec_group in reader {
+                        if let Ok(rg) = rec_group {
+                            if rg.types().len() != 1 {
                                 return Err(Error::unsupported("GC types not supported yet"));
                             }
-                            let typeinfo = TypeInfo::try_from(st.structural_type).unwrap();
-                            info.types_map.push(typeinfo);
+                            for st in rg.types() {
+                                if st.is_final || st.supertype_idx.is_some() {
+                                    return Err(Error::unsupported("GC types not supported yet"));
+                                }
+                                let typeinfo =
+                                    TypeInfo::try_from(st.clone().structural_type).unwrap();
+                                info.types_map.push(typeinfo);
+                            }
                         }
                     }
                 }

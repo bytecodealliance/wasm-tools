@@ -553,8 +553,10 @@ impl Module {
             match payload.expect("could not parse the available import payload") {
                 wasmparser::Payload::TypeSection(type_reader) => {
                     for ty in type_reader {
-                        let ty = ty.expect("could not parse type section");
-                        available_types.push((ty.structural_type, None));
+                        let rec_group = ty.expect("could not parse type section");
+                        for ty in rec_group.types() {
+                            available_types.push((ty.clone().structural_type, None));
+                        }
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {

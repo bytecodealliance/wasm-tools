@@ -245,8 +245,10 @@ impl<'a> Module<'a> {
                 }
                 Payload::End(_) => {}
                 Payload::TypeSection(s) => {
-                    for ty in s {
-                        self.types.push(ty?);
+                    for rec_group in s {
+                        for ty in rec_group?.types() {
+                            self.types.push(ty.clone());
+                        }
                     }
                 }
                 Payload::ImportSection(s) => {
