@@ -22,6 +22,8 @@ log = "0.4.17"
 bitflags = "2.3.3"
 indexmap = { workspace = true }
 wat = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 wasmprinter = { workspace = true }

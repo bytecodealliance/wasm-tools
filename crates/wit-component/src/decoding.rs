@@ -9,6 +9,8 @@ use wasmparser::{
 };
 use wit_parser::*;
 
+use crate::encoding::docs::{PackageDocs, PACKAGE_DOCS_SECTION_NAME};
+
 /// Represents information about a decoded WebAssembly component.
 struct ComponentInfo<'a> {
     /// Wasmparser-defined type information learned after a component is fully
@@ -16,6 +18,8 @@ struct ComponentInfo<'a> {
     types: types::Types,
     /// List of all imports and exports from this component.
     externs: Vec<(ComponentExternName<'a>, Extern<'a>)>,
+    /// Decoded package docs
+    package_docs: Option<PackageDocs>,
 }
 
 enum Extern<'a> {
@@ -33,6 +37,7 @@ impl<'a> ComponentInfo<'a> {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
+        let mut package_docs = None;
 
         for payload in Parser::new(0).parse_all(bytes) {
             let payload = payload?;
@@ -61,12 +66,19 @@ impl<'a> ComponentInfo<'a> {
                         externs.push((export.name, Extern::Export(export)));
                     }
                 }
+                Payload::CustomSection(s) if s.name() == PACKAGE_DOCS_SECTION_NAME => {
+                    if package_docs.is_some() {
+                        bail!("multiple {PACKAGE_DOCS_SECTION_NAME:?} sections");
+                    }
+                    package_docs = Some(PackageDocs::decode(s.data())?);
+                }
                 _ => {}
             }
         }
         Ok(Self {
             types: types.unwrap(),
             externs,
+            package_docs,
         })
     }
 
@@ -122,7 +134,10 @@ impl<'a> ComponentInfo<'a> {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (resolve, package) = decoder.finish(pkg);
+        let (mut resolve, package) = decoder.finish(pkg);
+        if let Some(package_docs) = &self.package_docs {
+            package_docs.inject(&mut resolve, package)?;
+        }
         Ok((resolve, package))
     }
 
