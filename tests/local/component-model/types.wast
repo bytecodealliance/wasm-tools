@@ -304,12 +304,6 @@
 
 (assert_invalid
   (component
-    (type (union))
-  )
-  "union type must have at least one case")
-
-(assert_invalid
-  (component
     (type (record))
   )
   "record type must have at least one field")

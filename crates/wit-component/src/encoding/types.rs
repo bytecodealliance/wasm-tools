@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use wasm_encoder::*;
 use wit_parser::{
     Enum, Flags, Function, Handle, InterfaceId, Params, Record, Resolve, Result_, Results, Tuple,
-    Type, TypeDefKind, TypeId, TypeOwner, Union, Variant,
+    Type, TypeDefKind, TypeId, TypeOwner, Variant,
 };
 
 /// Represents a key type for interface function definitions.
@@ -143,7 +143,6 @@ pub trait ValtypeEncoder<'a> {
                     TypeDefKind::Tuple(t) => self.encode_tuple(resolve, t)?,
                     TypeDefKind::Flags(r) => self.encode_flags(r)?,
                     TypeDefKind::Variant(v) => self.encode_variant(resolve, v)?,
-                    TypeDefKind::Union(u) => self.encode_union(resolve, u)?,
                     TypeDefKind::Option(t) => self.encode_option(resolve, t)?,
                     TypeDefKind::Result(r) => self.encode_result(resolve, r)?,
                     TypeDefKind::Enum(e) => self.encode_enum(e)?,
@@ -283,18 +282,6 @@ pub trait ValtypeEncoder<'a> {
 
         let (index, encoder) = self.defined_type();
         encoder.variant(cases);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_union(&mut self, resolve: &'a Resolve, union: &Union) -> Result<ComponentValType> {
-        let tys = union
-            .cases
-            .iter()
-            .map(|c| self.encode_valtype(resolve, &c.ty))
-            .collect::<Result<Vec<_>>>()?;
-
-        let (index, encoder) = self.defined_type();
-        encoder.union(tys);
         Ok(ComponentValType::Type(index))
     }
 

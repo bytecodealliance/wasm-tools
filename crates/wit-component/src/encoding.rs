@@ -306,7 +306,6 @@ impl TypeContents {
                 TypeDefKind::Variant(v) => {
                     Self::for_optional_types(resolve, v.cases.iter().map(|c| c.ty.as_ref()))
                 }
-                TypeDefKind::Union(v) => Self::for_types(resolve, v.cases.iter().map(|c| &c.ty)),
                 TypeDefKind::Enum(_) => Self::empty(),
                 TypeDefKind::List(t) => Self::for_type(resolve, t) | Self::LIST,
                 TypeDefKind::Type(t) => Self::for_type(resolve, t),

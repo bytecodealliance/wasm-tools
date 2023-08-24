@@ -342,7 +342,6 @@ pub enum TypeDefKind {
     Enum(Enum),
     Option(Type),
     Result(Result_),
-    Union(Union),
     List(Type),
     Future(Option<Type>),
     Stream(Stream),
@@ -371,7 +370,6 @@ impl TypeDefKind {
             TypeDefKind::Enum(_) => "enum",
             TypeDefKind::Option(_) => "option",
             TypeDefKind::Result(_) => "result",
-            TypeDefKind::Union(_) => "union",
             TypeDefKind::List(_) => "list",
             TypeDefKind::Future(_) => "future",
             TypeDefKind::Stream(_) => "stream",
@@ -529,28 +527,6 @@ impl Enum {
 pub struct Result_ {
     pub ok: Option<Type>,
     pub err: Option<Type>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Union {
-    pub cases: Vec<UnionCase>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct UnionCase {
-    pub docs: Docs,
-    pub ty: Type,
-}
-
-impl Union {
-    pub fn tag(&self) -> Int {
-        match self.cases.len() {
-            n if n <= u8::max_value() as usize => Int::U8,
-            n if n <= u16::max_value() as usize => Int::U16,
-            n if n <= u32::max_value() as usize => Int::U32,
-            _ => panic!("too many cases to fit in a repr"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,7 +1,0 @@
-(component
-  (type (;0;)
-    (instance)
-  )
-  (import "r" (instance $r (;0;) (type 0)))
-  (export (;1;) "r2" (instance $r))
-)

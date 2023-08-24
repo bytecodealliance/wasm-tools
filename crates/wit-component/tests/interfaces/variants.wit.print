@@ -5,18 +5,12 @@ interface variants {
     a,
   }
 
-  union u1 {
-    u32,
-    float32,
-  }
-
   record single {
     f: u8,
   }
 
   variant v1 {
     a,
-    b(u1),
     c(e1),
     d(string),
     e(single),
@@ -63,10 +57,6 @@ interface variants {
 
   e1-result: func() -> e1
 
-  u1-arg: func(x: u1)
-
-  u1-result: func() -> u1
-
   v1-arg: func(x: v1)
 
   v1-result: func() -> v1
@@ -75,9 +65,9 @@ interface variants {
 
   bool-result: func() -> bool
 
-  option-arg: func(a: option<bool>, b: option<tuple<u32>>, c: option<u32>, d: option<e1>, e: option<float32>, f: option<u1>, g: option<option<bool>>)
+  option-arg: func(a: option<bool>, b: option<tuple<u32>>, c: option<u32>, d: option<e1>, e: option<float32>, g: option<option<bool>>)
 
-  option-result: func() -> tuple<option<bool>, option<tuple<u32>>, option<u32>, option<e1>, option<float32>, option<u1>, option<option<bool>>>
+  option-result: func() -> tuple<option<bool>, option<tuple<u32>>, option<u32>, option<e1>, option<float32>, option<option<bool>>>
 
   casts: func(a: casts1, b: casts2, c: casts3, d: casts4, e: casts5, f: casts6) -> tuple<casts1, casts2, casts3, casts4, casts5, casts6>
 

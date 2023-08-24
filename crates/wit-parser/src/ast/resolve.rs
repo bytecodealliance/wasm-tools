@@ -98,7 +98,6 @@ enum Key {
     List(Type),
     Option(Type),
     Result(Option<Type>, Option<Type>),
-    Union(Vec<Type>),
     Future(Option<Type>),
     Stream(Option<Type>, Option<Type>),
 }
@@ -1169,26 +1168,6 @@ impl<'a> Resolver<'a> {
                 ok: self.resolve_optional_type(r.ok.as_deref())?,
                 err: self.resolve_optional_type(r.err.as_deref())?,
             }),
-            ast::Type::Union(e) => {
-                if e.cases.is_empty() {
-                    return Err(Error {
-                        span: e.span,
-                        msg: "empty union".to_string(),
-                    }
-                    .into());
-                }
-                let cases = e
-                    .cases
-                    .iter()
-                    .map(|case| {
-                        Ok(UnionCase {
-                            docs: self.docs(&case.docs),
-                            ty: self.resolve_type(&case.ty)?,
-                        })
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                TypeDefKind::Union(Union { cases })
-            }
             ast::Type::Future(t) => TypeDefKind::Future(self.resolve_optional_type(t.as_deref())?),
             ast::Type::Stream(s) => TypeDefKind::Stream(Stream {
                 element: self.resolve_optional_type(s.element.as_deref())?,
@@ -1286,7 +1265,6 @@ impl<'a> Resolver<'a> {
             TypeDefKind::List(ty) => Key::List(*ty),
             TypeDefKind::Option(t) => Key::Option(*t),
             TypeDefKind::Result(r) => Key::Result(r.ok, r.err),
-            TypeDefKind::Union(u) => Key::Union(u.cases.iter().map(|c| c.ty).collect()),
             TypeDefKind::Future(ty) => Key::Future(*ty),
             TypeDefKind::Stream(s) => Key::Stream(s.element, s.end),
             TypeDefKind::Unknown => unreachable!(),
@@ -1421,11 +1399,6 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
             }
             if let Some(ty) = &r.err {
                 collect_deps(ty, deps);
-            }
-        }
-        ast::Type::Union(e) => {
-            for case in e.cases.iter() {
-                collect_deps(&case.ty, deps);
             }
         }
         ast::Type::Future(t) => {

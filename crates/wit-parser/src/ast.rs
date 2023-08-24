@@ -246,7 +246,6 @@ impl<'a> WorldItem<'a> {
             Some((_span, Token::Variant)) => {
                 TypeDef::parse_variant(tokens, docs).map(WorldItem::Type)
             }
-            Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Include)) => Include::parse(tokens).map(WorldItem::Include),
             other => Err(err_expected(
@@ -551,7 +550,6 @@ enum Type<'a> {
     Result(Result_<'a>),
     Future(Option<Box<Type<'a>>>),
     Stream(Stream<'a>),
-    Union(Union<'a>),
 }
 
 enum Handle<'a> {
@@ -672,16 +670,6 @@ struct NamedFunc<'a> {
     func: Func<'a>,
 }
 
-struct Union<'a> {
-    span: Span,
-    cases: Vec<UnionCase<'a>>,
-}
-
-struct UnionCase<'a> {
-    docs: Docs<'a>,
-    ty: Type<'a>,
-}
-
 type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 
 enum ResultList<'a> {
@@ -745,9 +733,6 @@ impl<'a> InterfaceItem<'a> {
             }
             Some((_span, Token::Record)) => {
                 TypeDef::parse_record(tokens, docs).map(InterfaceItem::TypeDef)
-            }
-            Some((_span, Token::Union)) => {
-                TypeDef::parse_union(tokens, docs).map(InterfaceItem::TypeDef)
             }
             Some((_span, Token::Id)) | Some((_span, Token::ExplicitId)) => {
                 NamedFunc::parse(tokens, docs).map(InterfaceItem::Func)
@@ -835,24 +820,6 @@ impl<'a> TypeDef<'a> {
                         None
                     };
                     Ok(Case { docs, name, ty })
-                },
-            )?,
-        });
-        Ok(TypeDef { docs, name, ty })
-    }
-
-    fn parse_union(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
-        tokens.expect(Token::Union)?;
-        let name = parse_id(tokens)?;
-        let ty = Type::Union(Union {
-            span: name.span,
-            cases: parse_list(
-                tokens,
-                Token::LeftBrace,
-                Token::RightBrace,
-                |docs, tokens| {
-                    let ty = Type::parse(tokens)?;
-                    Ok(UnionCase { docs, ty })
                 },
             )?,
         });
