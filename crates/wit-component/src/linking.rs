@@ -1066,7 +1066,15 @@ fn make_stubs_module(missing: &[(&str, Export)]) -> Vec<u8> {
     for (offset, (_, export)) in missing.iter().enumerate() {
         let offset = u32::try_from(offset).unwrap();
 
-        let Export { key: ExportKey { name, ty: Type::Function(ty) }, .. } = export else {
+        let Export {
+            key:
+                ExportKey {
+                    name,
+                    ty: Type::Function(ty),
+                },
+            ..
+        } = export
+        else {
             unreachable!();
         };
 
