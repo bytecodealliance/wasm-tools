@@ -1171,6 +1171,30 @@ pub struct TagType {
 /// A reader for the type section of a WebAssembly module.
 pub type TypeSectionReader<'a> = SectionLimited<'a, RecGroup>;
 
+impl<'a> TypeSectionReader<'a> {
+    /// Returns an iterator over this type section which will only yield
+    /// function types and any usage of GC types from the GC proposal will
+    /// be translated into an error.
+    pub fn into_iter_err_on_gc_types(self) -> impl Iterator<Item = Result<FuncType>> + 'a {
+        self.into_iter_with_offsets().map(|item| {
+            let (offset, group) = item?;
+            let ty = match group {
+                RecGroup::Single(ty) => ty,
+                RecGroup::Many(_) => bail!(offset, "gc proposal not supported"),
+            };
+            if ty.is_final || ty.supertype_idx.is_some() {
+                bail!(offset, "gc proposal not supported");
+            }
+            match ty.structural_type {
+                StructuralType::Func(f) => Ok(f),
+                StructuralType::Array(_) | StructuralType::Struct(_) => {
+                    bail!(offset, "gc proposal not supported");
+                }
+            }
+        })
+    }
+}
+
 impl<'a> FromReader<'a> for StructuralType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         read_structural_type(reader.read_u8()?, reader)
