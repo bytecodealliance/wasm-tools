@@ -837,15 +837,6 @@ pub struct TupleType {
     pub types: Box<[ComponentValType]>,
 }
 
-/// Represents a union type.
-#[derive(Debug, Clone)]
-pub struct UnionType {
-    /// Metadata about this union type.
-    pub(crate) info: TypeInfo,
-    /// The types of the union.
-    pub types: Box<[ComponentValType]>,
-}
-
 /// Represents a component defined type.
 #[derive(Debug, Clone)]
 pub enum ComponentDefinedType {
@@ -863,8 +854,6 @@ pub enum ComponentDefinedType {
     Flags(IndexSet<KebabString>),
     /// The type is an enumeration.
     Enum(IndexSet<KebabString>),
-    /// The type is a union.
-    Union(UnionType),
     /// The type is an `option`.
     Option(ComponentValType),
     /// The type is a `result`.
@@ -891,7 +880,6 @@ impl ComponentDefinedType {
                 .any(|case| case.ty.map(|ty| ty.contains_ptr(types)).unwrap_or(false)),
             Self::List(_) => true,
             Self::Tuple(t) => t.types.iter().any(|ty| ty.contains_ptr(types)),
-            Self::Union(u) => u.types.iter().any(|ty| ty.contains_ptr(types)),
             Self::Flags(_) | Self::Enum(_) | Self::Own(_) | Self::Borrow(_) => false,
             Self::Option(ty) => ty.contains_ptr(types),
             Self::Result { ok, err } => {
@@ -908,7 +896,6 @@ impl ComponentDefinedType {
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
             Self::Tuple(t) => t.info,
-            Self::Union(u) => u.info,
             Self::List(ty) | Self::Option(ty) => ty.info(),
             Self::Result { ok, err } => {
                 let default = TypeInfo::new();
@@ -941,7 +928,6 @@ impl ComponentDefinedType {
                 (0..(names.len() + 31) / 32).all(|_| lowered_types.push(ValType::I32))
             }
             Self::Enum(_) | Self::Own(_) | Self::Borrow(_) => lowered_types.push(ValType::I32),
-            Self::Union(u) => Self::push_variant_wasm_types(u.types.iter(), types, lowered_types),
             Self::Option(ty) => {
                 Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
             }
@@ -1006,7 +992,6 @@ impl ComponentDefinedType {
             ComponentDefinedType::Flags(_) => "flags",
             ComponentDefinedType::Option(_) => "option",
             ComponentDefinedType::List(_) => "list",
-            ComponentDefinedType::Union(_) => "union",
             ComponentDefinedType::Result { .. } => "result",
             ComponentDefinedType::Own(_) => "own",
             ComponentDefinedType::Borrow(_) => "borrow",
@@ -2065,11 +2050,6 @@ impl TypeAlloc {
                         self.free_variables_valtype(ty, set);
                     }
                 }
-                ComponentDefinedType::Union(r) => {
-                    for ty in r.types.iter() {
-                        self.free_variables_valtype(ty, set);
-                    }
-                }
                 ComponentDefinedType::Variant(r) => {
                     for ty in r.cases.values() {
                         if let Some(ty) = &ty.ty {
@@ -2136,7 +2116,6 @@ impl TypeAlloc {
             ComponentDefinedType::Flags(_)
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Record(_)
-            | ComponentDefinedType::Union(_)
             | ComponentDefinedType::Variant(_) => set.contains(&id),
 
             // All types below here are allowed to be anonymous, but their
@@ -2301,13 +2280,6 @@ pub(crate) trait Remap: Index<TypeId, Output = Type> {
                         }
                     }
                     ComponentDefinedType::Tuple(r) => {
-                        for ty in r.types.iter_mut() {
-                            if self.remap_valtype(ty, map) {
-                                any_changed = true;
-                            }
-                        }
-                    }
-                    ComponentDefinedType::Union(r) => {
                         for ty in r.types.iter_mut() {
                             if self.remap_valtype(ty, map) {
                                 any_changed = true;
@@ -3091,22 +3063,6 @@ impl<'a> SubtypeCx<'a> {
                 Ok(())
             }
             (Tuple(_), b) => bail!(offset, "expected {}, found tuple", b.desc()),
-            (Union(a), Union(b)) => {
-                if a.types.len() != b.types.len() {
-                    bail!(
-                        offset,
-                        "expected {} types, found {}",
-                        b.types.len(),
-                        a.types.len(),
-                    );
-                }
-                for (i, (a, b)) in a.types.iter().zip(b.types.iter()).enumerate() {
-                    self.component_val_type(a, b, offset)
-                        .with_context(|| format!("type mismatch in tuple field {i}"))?;
-                }
-                Ok(())
-            }
-            (Union(_), b) => bail!(offset, "expected {}, found union", b.desc()),
             (at @ Flags(a), Flags(b)) | (at @ Enum(a), Enum(b)) => {
                 let desc = match at {
                     Flags(_) => "flags",

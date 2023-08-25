@@ -289,10 +289,6 @@ impl TypeDocs {
             wit_parser::TypeDefKind::Enum(enum_) => {
                 extract_items(&enum_.cases, |item| (&item.name, &item.docs))
             }
-            wit_parser::TypeDefKind::Union(_) => {
-                // TODO: remove case once unions go away: https://github.com/WebAssembly/component-model/pull/237
-                Default::default()
-            }
             // other types don't have inner items
             _ => IndexMap::default(),
         };
@@ -318,9 +314,6 @@ impl TypeDocs {
                 }
                 wit_parser::TypeDefKind::Enum(enum_) => {
                     self.inject_items(&mut enum_.cases, |item| (&item.name, &mut item.docs))?
-                }
-                wit_parser::TypeDefKind::Union(_) => {
-                    // TODO: remove case once unions go away: https://github.com/WebAssembly/component-model/pull/237
                 }
                 _ => {
                     bail!("got 'items' for unexpected type {ty:?}");

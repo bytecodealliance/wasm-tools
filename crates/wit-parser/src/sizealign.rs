@@ -29,7 +29,6 @@ impl SizeAlign {
             TypeDefKind::Enum(e) => self.variant(e.tag(), []),
             TypeDefKind::Option(t) => self.variant(Int::U8, [Some(t)]),
             TypeDefKind::Result(r) => self.variant(Int::U8, [r.ok.as_ref(), r.err.as_ref()]),
-            TypeDefKind::Union(u) => self.variant(u.tag(), u.cases.iter().map(|c| Some(&c.ty))),
             // A resource is represented as an index.
             TypeDefKind::Handle(_) => (4, 4),
             // A future is represented as an index.

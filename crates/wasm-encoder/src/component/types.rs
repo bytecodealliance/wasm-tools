@@ -642,21 +642,6 @@ impl ComponentDefinedTypeEncoder<'_> {
         }
     }
 
-    /// Define a union type.
-    pub fn union<I, T>(self, types: I)
-    where
-        I: IntoIterator<Item = T>,
-        I::IntoIter: ExactSizeIterator,
-        T: Into<ComponentValType>,
-    {
-        let types = types.into_iter();
-        self.0.push(0x6C);
-        types.len().encode(self.0);
-        for ty in types {
-            ty.into().encode(self.0);
-        }
-    }
-
     /// Define an option type.
     pub fn option(self, ty: impl Into<ComponentValType>) {
         self.0.push(0x6B);

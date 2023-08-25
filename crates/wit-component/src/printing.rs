@@ -454,9 +454,6 @@ impl WitPrinter {
                     TypeDefKind::Variant(_) => {
                         bail!("resolve has unnamed variant type")
                     }
-                    TypeDefKind::Union(_) => {
-                        bail!("document has unnamed union type")
-                    }
                     TypeDefKind::List(ty) => {
                         self.output.push_str("list<");
                         self.print_type_name(resolve, ty)?;
@@ -603,7 +600,6 @@ impl WitPrinter {
                     TypeDefKind::Variant(v) => {
                         self.declare_variant(resolve, ty.name.as_deref(), v)?
                     }
-                    TypeDefKind::Union(u) => self.declare_union(resolve, ty.name.as_deref(), u)?,
                     TypeDefKind::Option(t) => {
                         self.declare_option(resolve, ty.name.as_deref(), t)?
                     }
@@ -725,7 +721,7 @@ impl WitPrinter {
     ) -> Result<()> {
         let name = match name {
             Some(name) => name,
-            None => bail!("document has unnamed union type"),
+            None => bail!("document has unnamed variant type"),
         };
         self.output.push_str("variant ");
         self.print_name(name);
@@ -738,29 +734,6 @@ impl WitPrinter {
                 self.print_type_name(resolve, &ty)?;
                 self.output.push_str(")");
             }
-            self.output.push_str(",\n");
-        }
-        self.output.push_str("}\n");
-        Ok(())
-    }
-
-    fn declare_union(
-        &mut self,
-        resolve: &Resolve,
-        name: Option<&str>,
-        union: &Union,
-    ) -> Result<()> {
-        let name = match name {
-            Some(name) => name,
-            None => bail!("document has unnamed union type"),
-        };
-        self.output.push_str("union ");
-        self.print_name(name);
-        self.output.push_str(" {\n");
-        for case in &union.cases {
-            self.print_docs(&case.docs);
-            self.output.push_str("");
-            self.print_type_name(resolve, &case.ty)?;
             self.output.push_str(",\n");
         }
         self.output.push_str("}\n");
@@ -880,7 +853,6 @@ fn is_keyword(name: &str) -> bool {
             | "flags"
             | "variant"
             | "enum"
-            | "union"
             | "bool"
             | "string"
             | "option"

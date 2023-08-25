@@ -702,7 +702,6 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::ComponentDefinedType::Enum(cases) => {
                 Self::enum_type(&mut state.cur.encodable, cases)
             }
-            wasmparser::types::ComponentDefinedType::Union(u) => self.union(state, u),
             wasmparser::types::ComponentDefinedType::Option(ty) => self.option(state, *ty),
             wasmparser::types::ComponentDefinedType::Result { ok, err } => {
                 self.result(state, *ok, *err)
@@ -786,18 +785,6 @@ impl<'a> TypeEncoder<'a> {
             .ty()
             .defined_type()
             .enum_type(cases.iter().map(|c| c.as_str()));
-        index
-    }
-
-    fn union(&self, state: &mut TypeState<'a>, union: &wasmparser::types::UnionType) -> u32 {
-        let types = union
-            .types
-            .iter()
-            .map(|ty| self.component_val_type(state, *ty))
-            .collect::<Vec<_>>();
-
-        let index = state.cur.encodable.type_count();
-        state.cur.encodable.ty().defined_type().union(types);
         index
     }
 
@@ -1295,11 +1282,6 @@ impl DependencyRegistrar<'_, '_> {
                     if let Some(ty) = case.ty {
                         self.val_type(ty);
                     }
-                }
-            }
-            types::ComponentDefinedType::Union(r) => {
-                for ty in r.types.iter() {
-                    self.val_type(*ty);
                 }
             }
             types::ComponentDefinedType::Result { ok, err } => {

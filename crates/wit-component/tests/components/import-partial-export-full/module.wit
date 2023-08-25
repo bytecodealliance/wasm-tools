@@ -1,13 +1,13 @@
 package a:b
 
 interface name {
-  union name2 {
-    u16,
-    list<string>,
+  variant name2 {
+    num(u16),
+    strs(list<string>),
   }
 
-  union name {
-    list<string>,
+  variant name {
+    strs(list<string>),
   }
 }
 

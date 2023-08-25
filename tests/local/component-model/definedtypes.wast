@@ -31,8 +31,6 @@
 
   (type $A19b (enum "x"))
 
-  (type $A20b (union $A5))
-
   (type $A21a (option (tuple u32)))
   (type $A21b (option $A6))
 
@@ -121,9 +119,6 @@
   "index out of bounds")
 (assert_invalid
   (component (type (variant (case "x" 0))))
-  "index out of bounds")
-(assert_invalid
-  (component (type (union 0)))
   "index out of bounds")
 (assert_invalid
   (component (type (result 0 (error 1))))

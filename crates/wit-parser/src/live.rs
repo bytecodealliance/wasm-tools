@@ -80,11 +80,6 @@ impl LiveTypes {
                     }
                 }
             }
-            TypeDefKind::Union(u) => {
-                for case in u.cases.iter() {
-                    self.add_type(resolve, &case.ty);
-                }
-            }
             TypeDefKind::Result(r) => {
                 if let Some(ty) = &r.ok {
                     self.add_type(resolve, ty);

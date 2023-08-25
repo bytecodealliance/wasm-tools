@@ -38,9 +38,6 @@ interface types {
   variant t35 { a, b, }
   variant t36 { a, b(u32), }
   variant t37 { a, b(option<u32>), }
-  union t38 { u32, u64 }
-  union t39 { u32, option<u32> }
-  union t40 { u32, option<u32>, }
   enum t41 { a, b, c }
   enum t42 { a, b, c, }
   type t43 = bool
