@@ -18,8 +18,8 @@ use crate::{
     },
     BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
     ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType, GlobalType,
-    InstantiationArgKind, MemoryType, Result, StructuralType, SubType, TableType, TypeBounds,
-    ValType, WasmFeatures,
+    InstantiationArgKind, MemoryType, RecGroup, Result, StructuralType, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -1427,7 +1427,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::ModuleTypeDeclaration::Type(ty) => {
-                    state.add_types(&[ty], features, types, offset, true)?;
+                    state.add_types(&RecGroup::Single(ty), features, types, offset, true)?;
                 }
                 crate::ModuleTypeDeclaration::Export { name, ty } => {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;

@@ -10,9 +10,9 @@ use crate::readers::Inherits;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
-    Global, GlobalType, HeapType, MemoryType, RefType, Result, StorageType, StructuralType,
-    SubType, Table, TableInit, TableType, TagType, TypeRef, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources,
+    Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, StorageType,
+    StructuralType, SubType, Table, TableInit, TableType, TagType, TypeRef, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources,
 };
 
 use super::{
@@ -498,22 +498,34 @@ pub(crate) struct Module {
 impl Module {
     pub fn add_types(
         &mut self,
-        types_added: &[SubType],
+        rec_group: &RecGroup,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
+        match rec_group {
+            RecGroup::Single(_) => {}
+            RecGroup::Many(_) => {
+                if !features.gc {
+                    bail!(
+                        offset,
+                        "rec group usage requires `gc` proposal to be enabled"
+                    );
+                }
+            }
+        }
         if check_limit {
             check_max(
                 self.types.len(),
-                types_added.len() as u32,
+                rec_group.types().len() as u32,
                 MAX_WASM_TYPES,
                 "types",
                 offset,
             )?;
         }
-        let idx_types: Vec<_> = types_added
+        let idx_types: Vec<_> = rec_group
+            .types()
             .iter()
             .map(|ty| {
                 let id = types.push_ty(Type::Sub(ty.clone()));

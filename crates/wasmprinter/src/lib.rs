@@ -662,11 +662,11 @@ impl Printer {
         Ok(())
     }
 
-    fn print_rec(&mut self, state: &mut State, offset: usize, rg: RecGroup) -> Result<()> {
+    fn print_rec(&mut self, state: &mut State, offset: usize, types: Vec<SubType>) -> Result<()> {
         self.start_group("rec");
-        for ty in rg.types() {
+        for ty in types {
             self.newline(offset + 2);
-            self.print_type(state, ty.clone())?;
+            self.print_type(state, ty)?;
         }
         self.end_group(); // `rec`
         Ok(())
@@ -742,10 +742,9 @@ impl Printer {
         for ty in parser.into_iter_with_offsets() {
             let (offset, rec_group) = ty?;
             self.newline(offset);
-            if rec_group.types().len() == 1 {
-                self.print_type(state, rec_group.types()[0].clone())?;
-            } else {
-                self.print_rec(state, offset, rec_group)?;
+            match rec_group {
+                RecGroup::Many(items) => self.print_rec(state, offset, items)?,
+                RecGroup::Single(ty) => self.print_type(state, ty)?,
             }
         }
 

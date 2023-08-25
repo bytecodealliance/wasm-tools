@@ -819,12 +819,7 @@ pub struct SubType {
 
 /// Represents a recursive type group in a WebAssembly module.
 #[derive(Debug, Clone)]
-pub struct RecGroup {
-    items: RecGroupItems,
-}
-
-#[derive(Debug, Clone)]
-enum RecGroupItems {
+pub enum RecGroup {
     /// The list of subtypes in the recursive type group.
     Many(Vec<SubType>),
     /// A single subtype in the recursive type group.
@@ -834,9 +829,9 @@ enum RecGroupItems {
 impl RecGroup {
     /// Returns the list of subtypes in the recursive type group.
     pub fn types(&self) -> &[SubType] {
-        match &self.items {
-            RecGroupItems::Many(types) => types,
-            RecGroupItems::Single(ty) => slice::from_ref(ty),
+        match self {
+            RecGroup::Many(types) => types,
+            RecGroup::Single(ty) => slice::from_ref(ty),
         }
     }
 }
@@ -1200,13 +1195,9 @@ impl<'a> FromReader<'a> for RecGroup {
             0x4f => {
                 reader.read_u8()?;
                 let types = reader.read_iter(MAX_WASM_TYPES, "rec group types")?;
-                RecGroup {
-                    items: RecGroupItems::Many(types.collect::<Result<_>>()?),
-                }
+                RecGroup::Many(types.collect::<Result<_>>()?)
             }
-            _ => RecGroup {
-                items: RecGroupItems::Single(reader.read()?),
-            },
+            _ => RecGroup::Single(reader.read()?),
         })
     }
 }
