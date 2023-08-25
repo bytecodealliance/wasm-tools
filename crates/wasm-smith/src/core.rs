@@ -547,16 +547,14 @@ impl Module {
         // index in our newly generated module. Initially the option is `None` and will become a
         // `Some` when we encounter an import that uses this signature in the next portion of this
         // function. See also the `make_func_type` closure below.
-        let mut available_types = Vec::<(wasmparser::StructuralType, Option<u32>)>::new();
+        let mut available_types = Vec::new();
         let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
                 wasmparser::Payload::TypeSection(type_reader) => {
-                    for ty in type_reader {
-                        let rec_group = ty.expect("could not parse type section");
-                        for ty in rec_group.types() {
-                            available_types.push((ty.clone().structural_type, None));
-                        }
+                    for ty in type_reader.into_iter_err_on_gc_types() {
+                        let ty = ty.expect("could not parse type section");
+                        available_types.push((ty, None));
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {
@@ -589,7 +587,7 @@ impl Module {
             let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
                 None => panic!("signature index refers to a type out of bounds"),
                 Some((_, Some(idx))) => *idx as usize,
-                Some((wasmparser::StructuralType::Func(func_type), index_store)) => {
+                Some((func_type, index_store)) => {
                     let multi_value_required = func_type.results().len() > 1;
                     let new_index = first_type_index + new_types.len();
                     if new_index >= max_types || (multi_value_required && !multi_value_enabled) {
@@ -610,12 +608,6 @@ impl Module {
                     index_store.replace(new_index as u32);
                     new_types.push(Type::Func(Rc::clone(&func_type)));
                     new_index
-                }
-                Some((wasmparser::StructuralType::Array(_array_type), _index_store)) => {
-                    unimplemented!("Array types are not supported yet.");
-                }
-                Some((wasmparser::StructuralType::Struct(_struct_type), _index_store)) => {
-                    unimplemented!("Struct types are not supported yet.");
                 }
             };
             match &new_types[serialized_sig_idx - first_type_index] {

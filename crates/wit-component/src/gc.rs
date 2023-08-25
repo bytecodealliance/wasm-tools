@@ -178,7 +178,7 @@ type WorklistFunc<'a> = fn(&mut Module<'a>, u32) -> Result<()>;
 #[derive(Default)]
 struct Module<'a> {
     // Definitions found when parsing a module
-    types: Vec<SubType>,
+    types: Vec<FuncType>,
     tables: Vec<Table<'a>>,
     globals: Vec<Global<'a>>,
     memories: Vec<Memory<'a>>,
@@ -245,10 +245,8 @@ impl<'a> Module<'a> {
                 }
                 Payload::End(_) => {}
                 Payload::TypeSection(s) => {
-                    for rec_group in s {
-                        for ty in rec_group?.types() {
-                            self.types.push(ty.clone());
-                        }
+                    for ty in s.into_iter_err_on_gc_types() {
+                        self.types.push(ty?);
                     }
                 }
                 Payload::ImportSection(s) => {
@@ -482,13 +480,6 @@ impl<'a> Module<'a> {
         }
     }
 
-    fn storagety(&mut self, ty: StorageType) {
-        match ty {
-            StorageType::I8 | StorageType::I16 => {}
-            StorageType::Val(ty) => self.valty(ty),
-        }
-    }
-
     fn heapty(&mut self, ty: HeapType) {
         match ty {
             HeapType::Func
@@ -510,21 +501,10 @@ impl<'a> Module<'a> {
             return;
         }
         self.worklist.push((ty, |me, ty| {
-            match me.types[ty as usize].clone().structural_type {
-                StructuralType::Func(ty) => {
-                    for param in ty.params().iter().chain(ty.results()) {
-                        me.valty(*param);
-                    }
-                }
-                StructuralType::Array(ArrayType(ty)) => {
-                    me.storagety(ty.element_type);
-                }
-                StructuralType::Struct(ty) => {
-                    for field in ty.fields.iter() {
-                        me.storagety(field.element_type);
-                    }
-                }
-            };
+            let ty = me.types[ty as usize].clone();
+            for param in ty.params().iter().chain(ty.results()) {
+                me.valty(*param);
+            }
             Ok(())
         }));
     }
@@ -536,7 +516,7 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn live_types(&self) -> impl Iterator<Item = (u32, &SubType)> + '_ {
+    fn live_types(&self) -> impl Iterator<Item = (u32, &FuncType)> + '_ {
         live_iter(&self.live_types, self.types.iter())
     }
 
@@ -576,15 +556,17 @@ impl<'a> Module<'a> {
         let mut empty_type = None;
         for (i, ty) in self.live_types() {
             map.types.push(i);
-            types.subtype(&map.subtype(ty));
+
+            types.function(
+                ty.params().iter().map(|t| map.valty(*t)),
+                ty.results().iter().map(|t| map.valty(*t)),
+            );
 
             // Keep track of the "empty type" to see if we can reuse an
             // existing one or one needs to be injected if a `start`
             // function is calculated at the end.
-            if let StructuralType::Func(ty) = &ty.structural_type {
-                if ty.params().is_empty() && ty.results().is_empty() {
-                    empty_type = Some(map.types.remap(i));
-                }
+            if ty.params().is_empty() && ty.results().is_empty() {
+                empty_type = Some(map.types.remap(i));
             }
         }
 
@@ -1113,14 +1095,6 @@ impl Encoder {
         }
     }
 
-    fn storagety(&self, ty: StorageType) -> wasm_encoder::StorageType {
-        match ty {
-            StorageType::I8 => wasm_encoder::StorageType::I8,
-            StorageType::I16 => wasm_encoder::StorageType::I16,
-            StorageType::Val(ty) => wasm_encoder::StorageType::Val(self.valty(ty)),
-        }
-    }
-
     fn refty(&self, rt: wasmparser::RefType) -> wasm_encoder::RefType {
         wasm_encoder::RefType {
             nullable: rt.is_nullable(),
@@ -1141,44 +1115,6 @@ impl Encoder {
             HeapType::Array => wasm_encoder::HeapType::Array,
             HeapType::I31 => wasm_encoder::HeapType::I31,
             HeapType::Indexed(idx) => wasm_encoder::HeapType::Indexed(self.types.remap(idx)),
-        }
-    }
-
-    fn subtype(&self, ty: &SubType) -> wasm_encoder::SubType {
-        wasm_encoder::SubType {
-            is_final: ty.is_final,
-            supertype_idx: ty.supertype_idx,
-            structural_type: self.structural_type(&ty.structural_type),
-        }
-    }
-
-    fn structural_type(&self, ty: &StructuralType) -> wasm_encoder::StructuralType {
-        match ty {
-            StructuralType::Func(ty) => {
-                wasm_encoder::StructuralType::Func(wasm_encoder::FuncType::new(
-                    ty.params().iter().map(|t| self.valty(*t)),
-                    ty.results().iter().map(|t| self.valty(*t)),
-                ))
-            }
-
-            StructuralType::Struct(ty) => {
-                wasm_encoder::StructuralType::Struct(wasm_encoder::StructType {
-                    fields: ty
-                        .fields
-                        .iter()
-                        .map(|f| wasm_encoder::FieldType {
-                            element_type: self.storagety(f.element_type),
-                            mutable: f.mutable,
-                        })
-                        .collect(),
-                })
-            }
-            StructuralType::Array(ty) => wasm_encoder::StructuralType::Array(
-                wasm_encoder::ArrayType(wasm_encoder::FieldType {
-                    element_type: self.storagety(ty.0.element_type),
-                    mutable: ty.0.mutable,
-                }),
-            ),
         }
     }
 }
