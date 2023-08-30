@@ -18,6 +18,7 @@ mod live;
 pub use live::LiveTypes;
 mod version;
 pub use version::SerializableVersion;
+mod serde_;
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -306,7 +307,7 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
@@ -417,7 +418,7 @@ pub enum Handle {
     Borrow(TypeId),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Type {
     Bool,
     U8,
@@ -556,14 +557,14 @@ pub struct Stream {
     pub end: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Docs {
     pub contents: Option<String>,
 }
 
 pub type Params = Vec<(String, Type)>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Results {
     Named(Params),
     Anon(Type),
@@ -628,7 +629,7 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function {
     pub docs: Docs,
     pub name: String,
@@ -637,7 +638,7 @@ pub struct Function {
     pub results: Results,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FunctionKind {
     Freestanding,
     Method(TypeId),
