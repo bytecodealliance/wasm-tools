@@ -5,8 +5,8 @@ use crate::{
     PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
     WorldId, WorldItem, WorldKey,
 };
+use crate::id_arena_::{Arena, Id};
 use anyhow::{anyhow, bail, Context, Result};
-use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};

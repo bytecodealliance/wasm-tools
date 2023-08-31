@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -19,6 +18,8 @@ pub use live::LiveTypes;
 mod version;
 pub use version::SerializableVersion;
 mod serde_;
+mod id_arena_;
+use id_arena_::{Arena, Id};
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -401,7 +402,7 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     World(WorldId),
@@ -412,7 +413,7 @@ pub enum TypeOwner {
     None,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Handle {
     Own(TypeId),
     Borrow(TypeId),

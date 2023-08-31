@@ -1,6 +1,16 @@
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-use crate::{Docs, Function, FunctionKind, Results, Type, WorldItem};
+use crate::{Docs, Function, FunctionKind, Handle, Results, Type, TypeOwner, WorldItem};
+use crate::id_arena_::Id;
+
+impl<T> Serialize for Id<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u64(self.index() as u64)
+    }
+}
 
 impl Serialize for WorldItem {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -8,20 +18,14 @@ impl Serialize for WorldItem {
         S: Serializer,
     {
         match self {
-            WorldItem::Interface(id) => {
-                let mut s = serializer.serialize_struct("WorldItem", 2)?;
-                s.serialize_field("Interface", &format!("interface-{}", id.index()))?;
-                s.end()
+            WorldItem::Interface(interface_id) => {
+                serializer.serialize_newtype_variant("WorldItem", 0, "Interface", &(interface_id.index() as u64))
             }
             WorldItem::Function(func) => {
-                let mut s = serializer.serialize_struct("WorldItem", 1)?;
-                s.serialize_field("Function", func)?;
-                s.end()
+                serializer.serialize_newtype_variant("WorldItem", 1, "Function", func)
             }
             WorldItem::Type(type_id) => {
-                let mut s = serializer.serialize_struct("WorldItem", 1)?;
-                s.serialize_field("Type", &format!("type-{}", type_id.index()))?;
-                s.end()
+                serializer.serialize_newtype_variant("WorldItem", 2, "Type", &(type_id.index() as u64))
             }
         }
     }
@@ -61,19 +65,13 @@ impl Serialize for FunctionKind {
         match self {
             FunctionKind::Freestanding => serializer.serialize_str("Freestanding"),
             FunctionKind::Method(type_id) => {
-                let mut s = serializer.serialize_struct("Method", 1)?;
-                s.serialize_field("TypeId", type_id)?;
-                s.end()
+                serializer.serialize_newtype_variant("FunctionKind", 0, "Method", &(type_id.index() as u64))
             }
             FunctionKind::Static(type_id) => {
-                let mut s = serializer.serialize_struct("Static", 1)?;
-                s.serialize_field("TypeId", type_id)?;
-                s.end()
+                serializer.serialize_newtype_variant("FunctionKind", 1, "Static", &(type_id.index() as u64))
             }
             FunctionKind::Constructor(type_id) => {
-                let mut s = serializer.serialize_struct("Constructor", 1)?;
-                s.serialize_field("TypeId", type_id)?;
-                s.end()
+                serializer.serialize_newtype_variant("FunctionKind", 2, "Constructor", &(type_id.index() as u64))
             }
         }
     }
@@ -98,9 +96,41 @@ impl Serialize for Type {
             Type::Float64 => serializer.serialize_str("Float64"),
             Type::Char => serializer.serialize_str("Char"),
             Type::String => serializer.serialize_str("String"),
-            Type::Id(type_id) => {
-                let type_str = format!("type-{}", type_id.index());
-                serializer.serialize_str(&type_str)
+            Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64)
+        }
+    }
+}
+
+impl Serialize for TypeOwner {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            TypeOwner::World(world_id) => {
+                serializer.serialize_newtype_variant("TypeOwner", 0, "World", &(world_id.index() as u64))
+            }
+            TypeOwner::Interface(interface_id) => {
+                serializer.serialize_newtype_variant("TypeOwner", 1, "Interface", &(interface_id.index() as u64))
+            }
+            TypeOwner::None => {
+                serializer.serialize_none()
+            }
+        }
+    }
+}
+
+impl Serialize for Handle {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Handle::Own(type_id) => {
+                serializer.serialize_newtype_variant("Handle", 0, "Own", &(type_id.index() as u64))
+            }
+            Handle::Borrow(type_id) => {
+                serializer.serialize_newtype_variant("Handle", 1, "Borrow", &(type_id.index() as u64))
             }
         }
     }
@@ -115,8 +145,8 @@ impl Serialize for Results {
             Results::Named(params) => {
                 serializer.serialize_newtype_variant("Results", 0, "Named", params)
             }
-            Results::Anon(type_) => {
-                serializer.serialize_newtype_variant("Results", 1, "Anon", type_)
+            Results::Anon(typ) => {
+                serializer.serialize_newtype_variant("Results", 1, "Anon", typ)
             }
         }
     }
