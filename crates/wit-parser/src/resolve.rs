@@ -825,7 +825,7 @@ impl Remap {
     fn process_foreign_interfaces(
         &mut self,
         unresolved: &UnresolvedPackage,
-        interface_to_package: &HashMap<Id<Interface>, (&PackageName, &String, Span)>,
+        interface_to_package: &HashMap<InterfaceId, (&PackageName, &String, Span)>,
         resolve: &mut Resolve,
     ) -> Result<(), anyhow::Error> {
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
@@ -873,7 +873,7 @@ impl Remap {
     fn process_foreign_worlds(
         &mut self,
         unresolved: &UnresolvedPackage,
-        world_to_package: &HashMap<Id<World>, (&PackageName, &String, Span)>,
+        world_to_package: &HashMap<WorldId, (&PackageName, &String, Span)>,
         resolve: &mut Resolve,
     ) -> Result<(), anyhow::Error> {
         for (unresolved_world_id, _) in unresolved.worlds.iter() {
