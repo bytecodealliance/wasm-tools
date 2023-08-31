@@ -1,6 +1,7 @@
-use serde::ser::{Serialize, SerializeStruct, Serializer};
-
-use crate::{Docs, Function, FunctionKind, Param, Results, Type, WorldItem};
+// use std::ops::Deref;
+use serde::ser::{SerializeSeq, SerializeStruct, Serializer};
+use serde::Serialize;
+use crate::{Docs, Function, FunctionKind, Params, Results, Type, WorldItem};
 use crate::id_arena_::Id;
 
 impl<T> Serialize for Id<T> {
@@ -98,5 +99,82 @@ impl Serialize for Type {
             Type::String => serializer.serialize_str("String"),
             Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64)
         }
+    }
+}
+
+// impl<T> Serialize for Params {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let mut seq = serializer.serialize_seq(Some(self.len()))?;
+//         for element in self {
+//             seq.serialize_element(element)?;
+//         }
+//         seq.end()
+//     }
+// }
+
+impl Serialize for Results {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Results::Named(params) => {
+                serializer.serialize_some(params)
+            }
+            Results::Anon(typ) => {
+                let mut seq = serializer.serialize_seq(Some(1))?;
+                let param = Param{name: None, ty: *typ};
+                seq.serialize_element(&param)?;
+                seq.end()
+            }
+        }
+    }
+}
+
+// #[derive(Serialize)]
+// #[serde(remote = "Params")]
+// struct SerdeParams(Params);
+
+// impl Deref for SerdeParams {
+//     type Target = Params;
+
+//     fn deref(&self) -> &Params {
+//         &self.0
+//     }
+// }
+
+impl Serialize for Params {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+        for (name, typ) in self.to_vec() {
+            let param = Param{name: Some(name), ty: typ};
+            seq.serialize_element(&param)?;
+        }
+        seq.end()
+    }
+}
+
+struct Param {
+    pub name: Option<String>,
+    pub ty: Type
+}
+
+impl Serialize for Param {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("Param", 2)?;
+        if let Some(name) = &self.name {
+            s.serialize_field("name", name)?;
+        }
+        s.serialize_field("type", &self.ty)?;
+        s.end()
     }
 }
