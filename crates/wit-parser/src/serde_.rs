@@ -1,4 +1,3 @@
-// use std::ops::Deref;
 use serde::ser::{SerializeSeq, SerializeStruct, Serializer};
 use serde::Serialize;
 use crate::{Docs, Function, FunctionKind, Params, Results, Type, WorldItem};
@@ -102,19 +101,6 @@ impl Serialize for Type {
     }
 }
 
-// impl<T> Serialize for Params {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut seq = serializer.serialize_seq(Some(self.len()))?;
-//         for element in self {
-//             seq.serialize_element(element)?;
-//         }
-//         seq.end()
-//     }
-// }
-
 impl Serialize for Results {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -134,26 +120,14 @@ impl Serialize for Results {
     }
 }
 
-// #[derive(Serialize)]
-// #[serde(remote = "Params")]
-// struct SerdeParams(Params);
-
-// impl Deref for SerdeParams {
-//     type Target = Params;
-
-//     fn deref(&self) -> &Params {
-//         &self.0
-//     }
-// }
-
 impl Serialize for Params {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         let mut seq = serializer.serialize_seq(Some(self.len()))?;
-        for (name, typ) in self.to_vec() {
-            let param = Param{name: Some(name), ty: typ};
+        for (name, typ) in self.iter() {
+            let param = Param{name: Some(name.to_string()), ty: *typ};
             seq.serialize_element(&param)?;
         }
         seq.end()
