@@ -402,7 +402,7 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     World(WorldId),
@@ -413,7 +413,7 @@ pub enum TypeOwner {
     None,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
 pub enum Handle {
     Own(TypeId),
     Borrow(TypeId),

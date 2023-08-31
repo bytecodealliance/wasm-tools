@@ -1,6 +1,6 @@
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-use crate::{Docs, Function, FunctionKind, Handle, Results, Type, TypeOwner, WorldItem};
+use crate::{Docs, Function, FunctionKind, Param, Results, Type, WorldItem};
 use crate::id_arena_::Id;
 
 impl<T> Serialize for Id<T> {
@@ -97,57 +97,6 @@ impl Serialize for Type {
             Type::Char => serializer.serialize_str("Char"),
             Type::String => serializer.serialize_str("String"),
             Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64)
-        }
-    }
-}
-
-impl Serialize for TypeOwner {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            TypeOwner::World(world_id) => {
-                serializer.serialize_newtype_variant("TypeOwner", 0, "World", &(world_id.index() as u64))
-            }
-            TypeOwner::Interface(interface_id) => {
-                serializer.serialize_newtype_variant("TypeOwner", 1, "Interface", &(interface_id.index() as u64))
-            }
-            TypeOwner::None => {
-                serializer.serialize_none()
-            }
-        }
-    }
-}
-
-impl Serialize for Handle {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Handle::Own(type_id) => {
-                serializer.serialize_newtype_variant("Handle", 0, "Own", &(type_id.index() as u64))
-            }
-            Handle::Borrow(type_id) => {
-                serializer.serialize_newtype_variant("Handle", 1, "Borrow", &(type_id.index() as u64))
-            }
-        }
-    }
-}
-
-impl Serialize for Results {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Results::Named(params) => {
-                serializer.serialize_newtype_variant("Results", 0, "Named", params)
-            }
-            Results::Anon(typ) => {
-                serializer.serialize_newtype_variant("Results", 1, "Anon", typ)
-            }
         }
     }
 }
