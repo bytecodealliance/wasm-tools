@@ -309,7 +309,8 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
@@ -356,6 +357,7 @@ pub struct TypeDef {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TypeDefKind {
     Record(Record),
     Resource,
@@ -404,6 +406,7 @@ impl TypeDefKind {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     World(WorldId),
@@ -415,6 +418,7 @@ pub enum TypeOwner {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Handle {
     Own(TypeId),
     Borrow(TypeId),
@@ -438,12 +442,24 @@ pub enum Type {
     Id(TypeId),
 }
 
-#[derive(PartialEq, Debug, Copy, Clone, Serialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize)]
+#[serde(into = "String")]
 pub enum Int {
     U8,
     U16,
     U32,
     U64,
+}
+
+impl From<Int> for String {
+    fn from(i: Int) -> String {
+        (match i {
+            Int::U8 => "U8",
+            Int::U16 => "U16",
+            Int::U32 => "U32",
+            Int::U64 => "U64",
+        }).to_string()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -455,6 +471,7 @@ pub struct Record {
 pub struct Field {
     pub docs: Docs,
     pub name: String,
+    #[serde(rename = "type")]
     pub ty: Type,
 }
 
@@ -469,6 +486,7 @@ pub struct Flag {
     pub name: String,
 }
 
+// TODO(ydnar): impl Serialize
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum FlagsRepr {
     U8,
@@ -511,6 +529,7 @@ pub struct Variant {
 pub struct Case {
     pub docs: Docs,
     pub name: String,
+    #[serde(rename = "type")]
     pub ty: Option<Type>,
 }
 

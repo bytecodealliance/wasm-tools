@@ -1,6 +1,6 @@
 use serde::ser::{SerializeSeq, SerializeStruct, Serializer};
 use serde::Serialize;
-use crate::{Docs, Function, FunctionKind, Params, Results, Type, WorldItem};
+use crate::{Docs, Function, FunctionKind, Params, Results, Type};
 use crate::id_arena_::Id;
 
 impl<T> Serialize for Id<T> {
@@ -9,25 +9,6 @@ impl<T> Serialize for Id<T> {
         S: Serializer,
     {
         serializer.serialize_u64(self.index() as u64)
-    }
-}
-
-impl Serialize for WorldItem {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            WorldItem::Interface(interface_id) => {
-                serializer.serialize_newtype_variant("WorldItem", 0, "Interface", &(interface_id.index() as u64))
-            }
-            WorldItem::Function(func) => {
-                serializer.serialize_newtype_variant("WorldItem", 1, "Function", func)
-            }
-            WorldItem::Type(type_id) => {
-                serializer.serialize_newtype_variant("WorldItem", 2, "Type", &(type_id.index() as u64))
-            }
-        }
     }
 }
 
@@ -134,21 +115,10 @@ impl Serialize for Params {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
 struct Param {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(rename = "type")]
     pub ty: Type
-}
-
-impl Serialize for Param {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut s = serializer.serialize_struct("Param", 2)?;
-        if let Some(name) = &self.name {
-            s.serialize_field("name", name)?;
-        }
-        s.serialize_field("type", &self.ty)?;
-        s.end()
-    }
 }
