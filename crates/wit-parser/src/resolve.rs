@@ -32,6 +32,7 @@ pub struct Resolve {
     pub interfaces: Arena<Interface>,
     pub types: Arena<TypeDef>,
     pub packages: Arena<Package>,
+    #[serde(skip)]
     pub package_names: IndexMap<PackageName, PackageId>,
 }
 
