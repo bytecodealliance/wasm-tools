@@ -1,7 +1,20 @@
 use serde::ser::{SerializeSeq, SerializeStruct, Serializer};
 use serde::Serialize;
 use crate::{Docs, Function, FunctionKind, Params, Results, Type};
-use crate::id_arena_::Id;
+use crate::id_arena_::{Arena, Id};
+
+pub fn serialize_arena<T, S>(v: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    T: Serialize,
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(v.len()))?;
+    for (_, item) in v.iter() {
+        seq.serialize_element(&item)?;
+    }
+    seq.end()
+}
+
 
 impl<T> Serialize for Id<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

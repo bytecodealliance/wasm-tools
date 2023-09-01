@@ -6,6 +6,7 @@ use crate::{
     WorldId, WorldItem, WorldKey,
 };
 use crate::id_arena_::{Arena, Id};
+use crate::serde_::serialize_arena;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
@@ -28,9 +29,13 @@ use std::path::{Path, PathBuf};
 /// package as necessary.
 #[derive(Default, Clone, Serialize)]
 pub struct Resolve {
+    #[serde(serialize_with = "serialize_arena")]
     pub worlds: Arena<World>,
+    #[serde(serialize_with = "serialize_arena")]
     pub interfaces: Arena<Interface>,
+    #[serde(serialize_with = "serialize_arena")]
     pub types: Arena<TypeDef>,
+    #[serde(serialize_with = "serialize_arena")]
     pub packages: Arena<Package>,
     #[serde(skip)]
     pub package_names: IndexMap<PackageName, PackageId>,
