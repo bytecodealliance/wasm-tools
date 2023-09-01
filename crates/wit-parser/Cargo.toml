@@ -13,7 +13,7 @@ Tooling for parsing `*.wit` files and working with their contents.
 """
 
 [dependencies]
-id-arena = { git = "https://github.com/Mossaka/id-arena-fork", rev = "cae2a0a63d505adec402289eea90c52d3205007a" }
+id-arena = "2"
 anyhow = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 pulldown-cmark = { version = "0.9.3", default-features = false }

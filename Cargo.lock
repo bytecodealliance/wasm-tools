@@ -808,14 +808,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25a2bc672d1148e28034f176e01fffebb08b35768468cc954630da77a1449005"
 
 [[package]]
-name = "id-arena"
-version = "2.2.1"
-source = "git+https://github.com/Mossaka/id-arena-fork?rev=cae2a0a63d505adec402289eea90c52d3205007a#cae2a0a63d505adec402289eea90c52d3205007a"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "idna"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2383,7 +2375,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "541efa2046e544de53a9da1e2f6299e63079840360c9e106f1f8275a97771318"
 dependencies = [
  "anyhow",
- "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "id-arena",
  "indexmap 2.0.0",
  "log",
  "pulldown-cmark",
@@ -2398,7 +2390,7 @@ version = "0.11.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "id-arena 2.2.1 (git+https://github.com/Mossaka/id-arena-fork?rev=cae2a0a63d505adec402289eea90c52d3205007a)",
+ "id-arena",
  "indexmap 2.0.0",
  "log",
  "pretty_assertions",
