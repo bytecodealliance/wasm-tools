@@ -667,7 +667,7 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Function {
     pub docs: Docs,
     pub name: String,

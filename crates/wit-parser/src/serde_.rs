@@ -1,6 +1,6 @@
 use serde::ser::{SerializeSeq, SerializeStruct, Serializer};
 use serde::Serialize;
-use crate::{Docs, Function, FunctionKind, Params, Results, Type};
+use crate::{Docs, FunctionKind, Params, Results, Type};
 use crate::id_arena_::{Arena, Id};
 
 pub fn serialize_arena<T, S>(v: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
@@ -22,21 +22,6 @@ impl<T> Serialize for Id<T> {
         S: Serializer,
     {
         serializer.serialize_u64(self.index() as u64)
-    }
-}
-
-impl Serialize for Function {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut s = serializer.serialize_struct("Function", 5)?;
-        s.serialize_field("docs", &self.docs)?;
-        s.serialize_field("name", &self.name)?;
-        s.serialize_field("kind", &self.kind)?;
-        s.serialize_field("params", &self.params)?;
-        s.serialize_field("results", &self.results)?;
-        s.end()
     }
 }
 
