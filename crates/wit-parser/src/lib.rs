@@ -19,6 +19,7 @@ pub use live::LiveTypes;
 mod version;
 pub use version::SerializableVersion;
 mod serde_;
+use serde_::{serialize_id};
 mod id_arena_;
 use id_arena_::{Arena, Id};
 
@@ -309,10 +310,12 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
+    #[serde(serialize_with = "serialize_id")]
     Interface(InterfaceId),
 
     /// A function is being directly imported or exported from this world.
@@ -321,6 +324,7 @@ pub enum WorldItem {
     /// A type is being exported from this world.
     ///
     /// Note that types are never imported into worlds at this time.
+    #[serde(serialize_with = "serialize_id")]
     Type(TypeId),
 }
 
@@ -404,20 +408,26 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
+    #[serde(serialize_with = "serialize_id")]
     World(WorldId),
     /// This type was defined within an `interface` block.
+    #[serde(serialize_with = "serialize_id")]
     Interface(InterfaceId),
     /// This type wasn't inherently defined anywhere, such as a `list<T>`, which
     /// doesn't need an owner.
     None,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Handle {
+    #[serde(serialize_with = "serialize_id")]
     Own(TypeId),
+    #[serde(serialize_with = "serialize_id")]
     Borrow(TypeId),
 }
 

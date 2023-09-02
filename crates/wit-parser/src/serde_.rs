@@ -1,6 +1,6 @@
 use serde::ser::{SerializeSeq, Serializer};
 use serde::Serialize;
-use crate::{FunctionKind, Handle, Params, Results, Type, TypeOwner, WorldItem};
+use crate::{FunctionKind, Params, Results, Type};
 use crate::id_arena_::{Arena, Id};
 
 pub fn serialize_arena<T, S>(v: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
@@ -15,31 +15,19 @@ where
     seq.end()
 }
 
+pub fn serialize_id<T, S>(id: &Id<T>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_u64(id.index() as u64)
+}
+
 impl<T> Serialize for Id<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         serializer.serialize_u64(self.index() as u64)
-    }
-}
-
-impl Serialize for WorldItem {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            WorldItem::Interface(interface_id) => {
-                serializer.serialize_newtype_variant("WorldItem", 0, "interface", &(interface_id.index() as u64))
-            }
-            WorldItem::Function(func) => {
-                serializer.serialize_newtype_variant("WorldItem", 2, "function", func)
-            }
-            WorldItem::Type(type_id) => {
-                serializer.serialize_newtype_variant("WorldItem", 2, "type", &(type_id.index() as u64))
-            }
-        }
     }
 }
 
@@ -83,39 +71,6 @@ impl Serialize for Type {
             Type::Char => serializer.serialize_str("Char"),
             Type::String => serializer.serialize_str("String"),
             Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64)
-        }
-    }
-}
-
-impl Serialize for TypeOwner {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            TypeOwner::World(world_id) => {
-                serializer.serialize_newtype_variant("TypeOwner", 0, "world", &(world_id.index() as u64))
-            }
-            TypeOwner::Interface(interface_id) => {
-                serializer.serialize_newtype_variant("TypeOwner", 1, "interface", &(interface_id.index() as u64))
-            }
-            TypeOwner::None => serializer.serialize_none(),
-        }
-    }
-}
-
-impl Serialize for Handle {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Handle::Own(type_id) => {
-                serializer.serialize_newtype_variant("Handle", 0, "own", &(type_id.index() as u64))
-            }
-            Handle::Borrow(type_id) => {
-                serializer.serialize_newtype_variant("Handle", 1, "borrow", &(type_id.index() as u64))
-            }
         }
     }
 }
