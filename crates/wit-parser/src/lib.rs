@@ -578,7 +578,7 @@ pub struct Stream {
     pub end: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize)]
 pub struct Docs {
     pub contents: Option<String>,
 }
