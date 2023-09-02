@@ -1,6 +1,6 @@
 use serde::ser::{SerializeSeq, Serializer};
 use serde::Serialize;
-use crate::{FunctionKind, Handle, Params, Results, Type, TypeOwner};
+use crate::{FunctionKind, Handle, Params, Results, Type, TypeOwner, WorldItem};
 use crate::id_arena_::{Arena, Id};
 
 pub fn serialize_arena<T, S>(v: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
@@ -21,6 +21,25 @@ impl<T> Serialize for Id<T> {
         S: Serializer,
     {
         serializer.serialize_u64(self.index() as u64)
+    }
+}
+
+impl Serialize for WorldItem {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            WorldItem::Interface(interface_id) => {
+                serializer.serialize_newtype_variant("WorldItem", 0, "interface", &(interface_id.index() as u64))
+            }
+            WorldItem::Function(func) => {
+                serializer.serialize_newtype_variant("WorldItem", 2, "function", func)
+            }
+            WorldItem::Type(type_id) => {
+                serializer.serialize_newtype_variant("WorldItem", 2, "type", &(type_id.index() as u64))
+            }
+        }
     }
 }
 
