@@ -37,19 +37,19 @@ impl Serialize for Type {
         S: Serializer,
     {
         match self {
-            Type::Bool => serializer.serialize_str("Bool"),
-            Type::U8 => serializer.serialize_str("U8"),
-            Type::U16 => serializer.serialize_str("U16"),
-            Type::U32 => serializer.serialize_str("U32"),
-            Type::U64 => serializer.serialize_str("U64"),
-            Type::S8 => serializer.serialize_str("S8"),
-            Type::S16 => serializer.serialize_str("S16"),
-            Type::S32 => serializer.serialize_str("S32"),
-            Type::S64 => serializer.serialize_str("S64"),
-            Type::Float32 => serializer.serialize_str("Float32"),
-            Type::Float64 => serializer.serialize_str("Float64"),
-            Type::Char => serializer.serialize_str("Char"),
-            Type::String => serializer.serialize_str("String"),
+            Type::Bool => serializer.serialize_str("bool"),
+            Type::U8 => serializer.serialize_str("u8"),
+            Type::U16 => serializer.serialize_str("u16"),
+            Type::U32 => serializer.serialize_str("u32"),
+            Type::U64 => serializer.serialize_str("u64"),
+            Type::S8 => serializer.serialize_str("s8"),
+            Type::S16 => serializer.serialize_str("s16"),
+            Type::S32 => serializer.serialize_str("s32"),
+            Type::S64 => serializer.serialize_str("s64"),
+            Type::Float32 => serializer.serialize_str("float32"),
+            Type::Float64 => serializer.serialize_str("float64"),
+            Type::Char => serializer.serialize_str("char"),
+            Type::String => serializer.serialize_str("string"),
             Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64)
         }
     }
