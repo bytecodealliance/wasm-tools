@@ -461,17 +461,6 @@ pub enum Int {
     U64,
 }
 
-impl From<Int> for String {
-    fn from(i: Int) -> String {
-        (match i {
-            Int::U8 => "U8",
-            Int::U16 => "U16",
-            Int::U32 => "U32",
-            Int::U64 => "U64",
-        }).to_string()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Record {
     pub fields: Vec<Field>,
