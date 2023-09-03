@@ -1,6 +1,6 @@
 use serde::ser::{SerializeSeq, Serializer};
 use serde::Serialize;
-use crate::{FunctionKind, Params, Results, Type};
+use crate::{Params, Results, Type};
 use crate::id_arena_::{Arena, Id};
 
 pub fn serialize_arena<T, S>(v: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
@@ -28,26 +28,6 @@ impl<T> Serialize for Id<T> {
         S: Serializer,
     {
         serializer.serialize_u64(self.index() as u64)
-    }
-}
-
-impl Serialize for FunctionKind {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            FunctionKind::Freestanding => serializer.serialize_str("Freestanding"),
-            FunctionKind::Method(type_id) => {
-                serializer.serialize_newtype_variant("FunctionKind", 0, "Method", &(type_id.index() as u64))
-            }
-            FunctionKind::Static(type_id) => {
-                serializer.serialize_newtype_variant("FunctionKind", 1, "Static", &(type_id.index() as u64))
-            }
-            FunctionKind::Constructor(type_id) => {
-                serializer.serialize_newtype_variant("FunctionKind", 2, "Constructor", &(type_id.index() as u64))
-            }
-        }
     }
 }
 

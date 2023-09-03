@@ -683,11 +683,15 @@ pub struct Function {
     pub results: Results,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum FunctionKind {
     Freestanding,
+    #[serde(serialize_with = "serialize_id")]
     Method(TypeId),
+    #[serde(serialize_with = "serialize_id")]
     Static(TypeId),
+    #[serde(serialize_with = "serialize_id")]
     Constructor(TypeId),
 }
 
