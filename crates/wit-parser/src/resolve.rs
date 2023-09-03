@@ -1,11 +1,11 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
+use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
     PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
     WorldId, WorldItem, WorldKey,
 };
-use crate::serde_::{serialize_arena, serialize_id_map};
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
@@ -56,11 +56,11 @@ pub struct Package {
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
-    #[serde(serialize_with="serialize_id_map")]
+    #[serde(serialize_with = "serialize_id_map")]
     pub interfaces: IndexMap<String, InterfaceId>,
 
     /// All worlds contained in this package, keyed by the world's name.
-    #[serde(serialize_with="serialize_id_map")]
+    #[serde(serialize_with = "serialize_id_map")]
     pub worlds: IndexMap<String, WorldId>,
 }
 
@@ -1762,16 +1762,83 @@ mod tests {
 
     use super::*;
 
+    const EMPTY_RESOLVE: &str =
+        r#"{ "worlds": [], "interfaces": [], "types": [], "packages": [] }"#;
+
+    const JSON_RESOLVE: &str = r#"{
+    "worlds": [
+        {
+        "name": "world1",
+        "docs": { "contents": null },
+        "imports": {},
+        "exports": {},
+        "package": null
+        },
+        {
+        "name": "world2",
+        "docs": { "contents": null },
+        "imports": {},
+        "exports": {},
+        "package": null
+        }
+    ],
+    "interfaces": [
+        {
+        "name": "interface1",
+        "docs": { "contents": null },
+        "types": {},
+        "functions": {},
+        "package": null
+        },
+        {
+        "name": "interface2",
+        "docs": { "contents": null },
+        "types": {},
+        "functions": {},
+        "package": null
+        }
+    ],
+    "types": [
+        {
+        "docs": { "contents": null },
+        "kind": { "type": "bool" },
+        "name": "type1",
+        "owner": "none"
+        },
+        {
+        "docs": { "contents": null },
+        "kind": { "record": { "fields": [] } },
+        "name": "type2",
+        "owner": "none"
+        }
+    ],
+    "packages": [
+        {
+        "name": "foo:package1",
+        "docs": { "contents": null },
+        "interfaces": {},
+        "worlds": {}
+        },
+        {
+        "name": "foo:package2",
+        "docs": { "contents": null },
+        "interfaces": {},
+        "worlds": {}
+        }
+    ]
+    }"#;
+
     #[test]
-    fn serialize_and_deserialize() -> Result<()> {
+    fn serialize_empty_resolve() -> Result<()> {
         let resolve = Resolve::default();
         let s = serde_json::to_string(&resolve)?;
-        println!("{}", s);
+        let empty_resolve = EMPTY_RESOLVE.replace(" ", "").replace("\n", "");
+        assert_eq!(s, empty_resolve);
         Ok(())
     }
 
     #[test]
-    fn serialize_arena_world() -> Result<()> {
+    fn serialize_resolve() -> Result<()> {
         let mut worlds: Arena<World> = Arena::new();
         let world1 = World {
             name: "world1".to_string(),
@@ -1794,13 +1861,6 @@ mod tests {
         worlds.alloc(world1);
         worlds.alloc(world2);
 
-        let s = serde_json::to_string(&worlds)?;
-        println!("{}", s);
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_arena_interface() -> Result<()> {
         let mut interfaces: Arena<Interface> = Arena::new();
         let interface1 = Interface {
             name: Some("interface1".to_string()),
@@ -1819,13 +1879,6 @@ mod tests {
         interfaces.alloc(interface1);
         interfaces.alloc(interface2);
 
-        let s = serde_json::to_string(&interfaces)?;
-        println!("{}", s);
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_arena_type() -> Result<()> {
         let mut types: Arena<TypeDef> = Arena::new();
         let type1 = TypeDef {
             name: Some("type1".to_string()),
@@ -1844,13 +1897,6 @@ mod tests {
         types.alloc(type1);
         types.alloc(type2);
 
-        let s = serde_json::to_string(&types)?;
-        println!("{}", s);
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_packages() {
         let mut packages: Arena<Package> = Arena::new();
         let package1 = Package {
             name: PackageName {
@@ -1874,7 +1920,17 @@ mod tests {
         };
         packages.alloc(package1);
         packages.alloc(package2);
-        let s = serde_json::to_string(&packages).unwrap();
-        println!("{}", s);
+
+        let resolve = Resolve {
+            packages,
+            interfaces,
+            types,
+            worlds,
+            package_names: Default::default(),
+        };
+        let s = serde_json::to_string(&resolve).unwrap();
+        let json_resolve = JSON_RESOLVE.replace(" ", "").replace("\n", "");
+        assert_eq!(s, json_resolve);
+        Ok(())
     }
 }

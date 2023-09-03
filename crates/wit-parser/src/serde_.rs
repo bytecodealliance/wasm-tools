@@ -1,8 +1,8 @@
+use crate::{Params, Type};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
-use serde::ser::{Serializer, SerializeMap, SerializeSeq};
+use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::Serialize;
-use crate::{Params, Type};
 
 pub fn serialize_arena<T, S>(arena: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -29,7 +29,7 @@ where
 {
     match id {
         Some(id) => serialize_id(&id, serializer),
-        None => serializer.serialize_none()
+        None => serializer.serialize_none(),
     }
 }
 
@@ -64,7 +64,7 @@ impl Serialize for Type {
             Type::Float64 => serializer.serialize_str("float64"),
             Type::Char => serializer.serialize_str("char"),
             Type::String => serializer.serialize_str("string"),
-            Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64)
+            Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64),
         }
     }
 }
@@ -83,7 +83,10 @@ where
 {
     let mut seq = serializer.serialize_seq(Some(params.len()))?;
     for (name, typ) in params.iter() {
-        let param = Param{name: name.to_string(), typ: *typ};
+        let param = Param {
+            name: name.to_string(),
+            typ: *typ,
+        };
         seq.serialize_element(&param)?;
     }
     seq.end()
@@ -94,5 +97,5 @@ struct Param {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub name: String,
     #[serde(rename = "type")]
-    pub typ: Type
+    pub typ: Type,
 }
