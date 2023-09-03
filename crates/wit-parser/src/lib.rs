@@ -453,8 +453,7 @@ pub enum Type {
     Id(TypeId),
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize)]
-#[serde(into = "String")]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Int {
     U8,
     U16,
