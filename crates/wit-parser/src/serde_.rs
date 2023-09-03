@@ -91,16 +91,3 @@ struct Param {
     #[serde(rename = "type")]
     pub typ: Type
 }
-
-// pub fn serialize_param<S>(param: &(String, Type), serializer: S) -> Result<S::Ok, S::Error>
-// where
-//     S: Serializer,
-// {
-//     let len = if param.0.is_empty() { 1 } else { 2 };
-//     let mut s = serializer.serialize_struct("Param", len)?;
-//     if !param.0.is_empty() {
-//         s.serialize_field("name", &param.0)
-//     }
-//     s.serialize_field("type", &param.1);
-//     s.end()
-// }
