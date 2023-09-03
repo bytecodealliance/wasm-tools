@@ -18,7 +18,7 @@ pub use live::LiveTypes;
 mod version;
 pub use version::SerializableVersion;
 mod serde_;
-use serde_::{serialize_id, serialize_params};
+use serde_::{serialize_anon_result, serialize_id, serialize_params};
 mod id_arena_;
 use id_arena_::{Arena, Id};
 
@@ -591,9 +591,12 @@ pub struct Docs {
 
 pub type Params = Vec<(String, Type)>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(untagged)]
 pub enum Results {
+    #[serde(serialize_with="serialize_params")]
     Named(Params),
+    #[serde(serialize_with="serialize_anon_result")]
     Anon(Type),
 }
 

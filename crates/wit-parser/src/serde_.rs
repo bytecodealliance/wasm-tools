@@ -1,6 +1,6 @@
 use serde::ser::{SerializeSeq, Serializer};
 use serde::Serialize;
-use crate::{Params, Results, Type};
+use crate::{Params, Type};
 use crate::id_arena_::{Arena, Id};
 
 pub fn serialize_arena<T, S>(arena: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
@@ -55,21 +55,12 @@ impl Serialize for Type {
     }
 }
 
-impl Serialize for Results {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Results::Named(params) => {
-                serialize_params(params, serializer)
-            }
-            Results::Anon(typ) => {
-                let params: Params = vec![(String::default(), *typ)];
-                serialize_params(&params, serializer)
-            }
-        }
-    }
+pub fn serialize_anon_result<S>(typ: &Type, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let params: Params = vec![(String::default(), *typ)];
+    serialize_params(&params, serializer)
 }
 
 pub fn serialize_params<S>(params: &Params, serializer: S) -> Result<S::Ok, S::Error>
