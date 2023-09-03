@@ -3,13 +3,13 @@ use serde::Serialize;
 use crate::{Params, Results, Type};
 use crate::id_arena_::{Arena, Id};
 
-pub fn serialize_arena<T, S>(v: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_arena<T, S>(arena: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: Serialize,
     S: Serializer,
 {
-    let mut seq = serializer.serialize_seq(Some(v.len()))?;
-    for (_, item) in v.iter() {
+    let mut seq = serializer.serialize_seq(Some(arena.len()))?;
+    for (_, item) in arena.iter() {
         seq.serialize_element(&item)?;
     }
     seq.end()
@@ -62,36 +62,45 @@ impl Serialize for Results {
     {
         match self {
             Results::Named(params) => {
-                serializer.serialize_some(params)
+                serialize_params(params, serializer)
             }
             Results::Anon(typ) => {
-                let mut seq = serializer.serialize_seq(Some(1))?;
-                let param = Param{name: None, ty: *typ};
-                seq.serialize_element(&param)?;
-                seq.end()
+                let params: Params = vec![(String::default(), *typ)];
+                serialize_params(&params, serializer)
             }
         }
     }
 }
 
-impl Serialize for Params {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut seq = serializer.serialize_seq(Some(self.len()))?;
-        for (name, typ) in self.iter() {
-            let param = Param{name: Some(name.to_string()), ty: *typ};
-            seq.serialize_element(&param)?;
-        }
-        seq.end()
+pub fn serialize_params<S>(params: &Params, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(params.len()))?;
+    for (name, typ) in params.iter() {
+        let param = Param{name: name.to_string(), typ: *typ};
+        seq.serialize_element(&param)?;
     }
+    seq.end()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 struct Param {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub name: String,
     #[serde(rename = "type")]
-    pub ty: Type
+    pub typ: Type
 }
+
+// pub fn serialize_param<S>(param: &(String, Type), serializer: S) -> Result<S::Ok, S::Error>
+// where
+//     S: Serializer,
+// {
+//     let len = if param.0.is_empty() { 1 } else { 2 };
+//     let mut s = serializer.serialize_struct("Param", len)?;
+//     if !param.0.is_empty() {
+//         s.serialize_field("name", &param.0)
+//     }
+//     s.serialize_field("type", &param.1);
+//     s.end()
+// }

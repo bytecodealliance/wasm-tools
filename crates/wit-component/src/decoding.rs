@@ -871,7 +871,7 @@ impl WitPackageDecoder<'_> {
                     .context("failed to convert anonymous result type")?,
             )
         } else {
-            Results::Named(Params(
+            Results::Named(
                 ty.results
                     .iter()
                     .map(|(name, ty)| {
@@ -882,7 +882,7 @@ impl WitPackageDecoder<'_> {
                     })
                     .collect::<Result<Vec<_>>>()
                     .context("failed to convert named result types")?,
-            ))
+            )
         };
         Ok(Function {
             docs: Default::default(),
@@ -907,7 +907,7 @@ impl WitPackageDecoder<'_> {
             // discriminant calculated above indicates how to interpret this
             // name.
             name: name.to_string(),
-            params: Params(params),
+            params: params,
             results,
         })
     }

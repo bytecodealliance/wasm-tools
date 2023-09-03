@@ -1295,7 +1295,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_params(&mut self, params: &ParamList<'_>, kind: &FunctionKind) -> Result<Params> {
-        let mut ret = Params(Vec::new());
+        let mut ret = Vec::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
             // parameters, so do nothing here.

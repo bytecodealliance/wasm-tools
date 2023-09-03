@@ -3,7 +3,6 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::fmt;
-use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
 pub mod abi;
@@ -19,7 +18,7 @@ pub use live::LiveTypes;
 mod version;
 pub use version::SerializableVersion;
 mod serde_;
-use serde_::{serialize_id};
+use serde_::{serialize_id, serialize_params};
 mod id_arena_;
 use id_arena_::{Arena, Id};
 
@@ -590,24 +589,7 @@ pub struct Docs {
     pub contents: Option<String>,
 }
 
-// pub type Params = Vec<(String, Type)>;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Params(pub Vec<(String, Type)>);
-
-impl Deref for Params {
-    type Target = Vec<(String, Type)>;
-    fn deref(&self) -> &Vec<(String, Type)> {
-        &self.0
-    }
-}
-
-impl DerefMut for Params {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
+pub type Params = Vec<(String, Type)>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Results {
@@ -643,7 +625,7 @@ impl<'a> ExactSizeIterator for ResultsTypeIter<'a> {}
 impl Results {
     // For the common case of an empty results list.
     pub fn empty() -> Results {
-        Results::Named(Params(Vec::new()))
+        Results::Named(Vec::new())
     }
 
     pub fn len(&self) -> usize {
@@ -679,6 +661,7 @@ pub struct Function {
     pub docs: Docs,
     pub name: String,
     pub kind: FunctionKind,
+    #[serde(serialize_with="serialize_params")]
     pub params: Params,
     pub results: Results,
 }
