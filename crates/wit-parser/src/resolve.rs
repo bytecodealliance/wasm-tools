@@ -5,9 +5,9 @@ use crate::{
     PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
     WorldId, WorldItem, WorldKey,
 };
-use crate::id_arena_::{Arena, Id};
-use crate::serde_::serialize_arena;
+use crate::serde_::{serialize_arena, serialize_id_map};
 use anyhow::{anyhow, bail, Context, Result};
+use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -56,9 +56,11 @@ pub struct Package {
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
+    #[serde(serialize_with="serialize_id_map")]
     pub interfaces: IndexMap<String, InterfaceId>,
 
     /// All worlds contained in this package, keyed by the world's name.
+    #[serde(serialize_with="serialize_id_map")]
     pub worlds: IndexMap<String, WorldId>,
 }
 

@@ -1,7 +1,8 @@
-use serde::ser::{SerializeSeq, Serializer};
+use id_arena::{Arena, Id};
+use indexmap::IndexMap;
+use serde::ser::{Serializer, SerializeMap, SerializeSeq};
 use serde::Serialize;
 use crate::{Params, Type};
-use crate::id_arena_::{Arena, Id};
 
 pub fn serialize_arena<T, S>(arena: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -22,13 +23,26 @@ where
     serializer.serialize_u64(id.index() as u64)
 }
 
-impl<T> Serialize for Id<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u64(self.index() as u64)
+pub fn serialize_optional_id<T, S>(id: &Option<Id<T>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match id {
+        Some(id) => serialize_id(&id, serializer),
+        None => serializer.serialize_none()
     }
+}
+
+pub fn serialize_id_map<K, T, S>(map: &IndexMap<K, Id<T>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    K: Serialize,
+    S: Serializer,
+{
+    let mut s = serializer.serialize_map(Some(map.len()))?;
+    for (key, id) in map.iter() {
+        s.serialize_entry(key, &(id.index() as u64))?;
+    }
+    s.end()
 }
 
 impl Serialize for Type {

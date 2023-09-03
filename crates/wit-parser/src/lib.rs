@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -18,9 +19,7 @@ pub use live::LiveTypes;
 mod version;
 pub use version::SerializableVersion;
 mod serde_;
-use serde_::{serialize_anon_result, serialize_id, serialize_params};
-mod id_arena_;
-use id_arena_::{Arena, Id};
+use serde_::{serialize_anon_result, serialize_id, serialize_optional_id, serialize_id_map, serialize_params};
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -107,8 +106,11 @@ pub struct UnresolvedPackage {
 }
 
 #[derive(Debug, Copy, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AstItem {
+    #[serde(serialize_with = "serialize_id")]
     Interface(InterfaceId),
+    #[serde(serialize_with = "serialize_id")]
     World(WorldId),
 }
 
@@ -258,6 +260,7 @@ pub struct World {
     pub exports: IndexMap<WorldKey, WorldItem>,
 
     /// The package that owns this world.
+    #[serde(serialize_with="serialize_optional_id")]
     pub package: Option<PackageId>,
 
     /// All the included worlds from this world. Empty if this is fully resolved
@@ -341,12 +344,14 @@ pub struct Interface {
     ///
     /// Export names are listed within the types themselves. Note that the
     /// export name here matches the name listed in the `TypeDef`.
+    #[serde(serialize_with = "serialize_id_map")]
     pub types: IndexMap<String, TypeId>,
 
     /// Exported functions from this interface.
     pub functions: IndexMap<String, Function>,
 
     /// The package that owns this interface.
+    #[serde(serialize_with = "serialize_optional_id")]
     pub package: Option<PackageId>,
 }
 
