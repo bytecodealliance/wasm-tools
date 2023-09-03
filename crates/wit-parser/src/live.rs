@@ -25,8 +25,8 @@ impl LiveTypes {
         }
     }
 
-    pub fn add_world(&mut self, resolve: &Resolve, world_id: WorldId) {
-        let world = &resolve.worlds[world_id];
+    pub fn add_world(&mut self, resolve: &Resolve, world: WorldId) {
+        let world = &resolve.worlds[world];
         for (_, item) in world.imports.iter().chain(world.exports.iter()) {
             self.add_world_item(resolve, item);
         }
