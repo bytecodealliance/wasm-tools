@@ -485,8 +485,7 @@ pub struct Flag {
     pub name: String,
 }
 
-// TODO(ydnar): impl Serialize
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FlagsRepr {
     U8,
     U16,
