@@ -907,7 +907,7 @@ impl WitPackageDecoder<'_> {
             // discriminant calculated above indicates how to interpret this
             // name.
             name: name.to_string(),
-            params: params,
+            params,
             results,
         })
     }
