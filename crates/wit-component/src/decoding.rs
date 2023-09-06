@@ -30,9 +30,13 @@ enum Extern<'a> {
 impl<'a> ComponentInfo<'a> {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
     fn new(bytes: &'a [u8]) -> Result<Self> {
+        Self::new_with_features(bytes, WasmFeatures::default())
+    }
+
+    fn new_with_features(bytes: &'a [u8], features: WasmFeatures) -> Result<Self> {
         let mut validator = Validator::new_with_features(WasmFeatures {
             component_model: true,
-            ..Default::default()
+            ..features
         });
         let mut externs = Vec::new();
         let mut depth = 1;
@@ -235,7 +239,11 @@ impl DecodedWasm {
 /// WIT-package-encoded-as-binary or an actual component itself. A [`Resolve`]
 /// is always created and the return value indicates which was detected.
 pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
-    let info = ComponentInfo::new(bytes)?;
+    decode_with_features(bytes, WasmFeatures::default())
+}
+
+pub fn decode_with_features(bytes: &[u8], features: WasmFeatures) -> Result<DecodedWasm> {
+    let info = ComponentInfo::new_with_features(bytes, features)?;
 
     if info.is_wit_package() {
         log::debug!("decoding a WIT package encoded as wasm");
