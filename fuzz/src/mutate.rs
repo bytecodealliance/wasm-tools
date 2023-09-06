@@ -1,31 +1,22 @@
-#![no_main]
-
-use arbitrary::Unstructured;
-use libfuzzer_sys::fuzz_target;
+use arbitrary::{Result, Unstructured};
 use std::sync::atomic::{AtomicU64, Ordering};
 use wasmparser::WasmFeatures;
 
 static NUM_RUNS: AtomicU64 = AtomicU64::new(0);
 static NUM_SUCCESSFUL_MUTATIONS: AtomicU64 = AtomicU64::new(0);
 
-fuzz_target!(|bytes: &[u8]| {
-    let _ = env_logger::try_init();
-
+pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // Generate a random Wasm module with `wasm-smith` as well as a RNG seed for
     // use with `wasm-mutate`.
 
     let mut seed = 0;
     let mut preserve_semantics = false;
-    let mut u = Unstructured::new(bytes);
-    let (wasm, config) = match wasm_tools_fuzz::generate_valid_module(&mut u, |config, u| {
+    let (wasm, config) = crate::generate_valid_module(u, |config, u| {
         config.exceptions_enabled = false;
         seed = u.arbitrary()?;
         preserve_semantics = u.arbitrary()?;
         Ok(())
-    }) {
-        Ok(m) => m,
-        Err(_) => return,
-    };
+    })?;
     log::debug!("seed = {}", seed);
 
     // Keep track of how many runs we've done thus far and how many of those
@@ -59,7 +50,7 @@ fuzz_target!(|bytes: &[u8]| {
         Ok(iterator) => iterator,
         Err(e) => {
             log::warn!("Failed to mutate the Wasm: {}", e);
-            return;
+            return Ok(());
         }
     };
 
@@ -112,7 +103,9 @@ fuzz_target!(|bytes: &[u8]| {
             eval::assert_same_evaluation(&wasm, &mutated_wasm);
         }
     }
-});
+
+    Ok(())
+}
 
 #[cfg(feature = "wasmtime")]
 #[path = "../../crates/fuzz-stats/src/lib.rs"]
