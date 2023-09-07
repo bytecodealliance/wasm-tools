@@ -55,7 +55,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                         .and_then(|imports| Instance::new(&mut store, &module, &imports));
                     let instance = match inst_result {
                         Ok(r) => r,
-                        Err(err) => return check_err(err),
+                        Err(err) => return Ok(check_err(err)),
                     };
 
                     let args = fuzz_stats::dummy::dummy_values(func_ty.params());
