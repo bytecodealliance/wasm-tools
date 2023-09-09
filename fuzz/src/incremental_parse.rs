@@ -1,6 +1,4 @@
-#![no_main]
-
-use libfuzzer_sys::*;
+use arbitrary::{Result, Unstructured};
 use wasmparser::*;
 use Payload::*;
 
@@ -9,8 +7,8 @@ use Payload::*;
 //
 // The assertion here is that parsing everything in one go should always produce
 // the exact same results as an incremental parse.
-fuzz_target!(|data: Vec<Vec<u8>>| {
-    drop(env_logger::try_init());
+pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
+    let data: Vec<Vec<u8>> = u.arbitrary()?;
 
     // Concatenate everything together, create our expected iterator of
     // payloads, and then write out `input.wasm` if debugging is enabled.
@@ -213,4 +211,5 @@ fuzz_target!(|data: Vec<Vec<u8>>| {
             }
         }
     }
-});
+    Ok(())
+}

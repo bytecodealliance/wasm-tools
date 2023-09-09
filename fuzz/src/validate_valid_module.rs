@@ -1,13 +1,8 @@
-#![no_main]
-
-use arbitrary::Unstructured;
-use libfuzzer_sys::fuzz_target;
+use arbitrary::{Result, Unstructured};
 
 // Define a fuzz target that accepts arbitrary
 // `Module`s or `Component`s as input.
-fuzz_target!(|data: &[u8]| {
-    let mut u = Unstructured::new(data);
-
+pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // We want to prioritize fuzzing of modules for the time being
     // so we'll only generate a component 10% of the time
     //
@@ -19,20 +14,14 @@ fuzz_target!(|data: &[u8]| {
             Err(_) => false,
         };
     let (wasm_bytes, config) = if generate_component {
-        match wasm_tools_fuzz::generate_valid_component(&mut u, |c, u| {
+        crate::generate_valid_component(u, |c, u| {
             c.max_components = u.int_in_range(0..=1_000)?;
             c.max_instances = u.int_in_range(0..=1_000)?;
             c.max_values = u.int_in_range(0..=1_000)?;
             Ok(())
-        }) {
-            Ok(c) => c,
-            Err(_) => return,
-        }
+        })?
     } else {
-        match wasm_tools_fuzz::generate_valid_module(&mut u, |_, _| Ok(())) {
-            Ok(m) => m,
-            Err(_) => return,
-        }
+        crate::generate_valid_module(u, |_, _| Ok(()))?
     };
 
     // Validate the module or component and assert that it passes validation.
@@ -82,4 +71,5 @@ fuzz_target!(|data: &[u8]| {
     if wat_string != wat_string2 {
         panic!("failed to roundtrip valid module");
     }
-});
+    Ok(())
+}
