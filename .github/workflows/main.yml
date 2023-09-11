@@ -35,7 +35,7 @@ jobs:
             os: windows-latest
             rust: stable
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Install Rust (rustup)
@@ -52,7 +52,7 @@ jobs:
     name: Test on WebAssembly
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Install Rust
@@ -75,7 +75,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     # Note that this doesn't use `cargo fmt` because that doesn't format
@@ -87,7 +87,7 @@ jobs:
     name: Fuzz
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Install Rust
@@ -99,7 +99,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: cargo check --benches -p wasm-smith
       - run: cargo check --no-default-features
       - run: cargo check --no-default-features --features print
@@ -121,5 +121,5 @@ jobs:
   doc:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: cargo doc --all

@@ -14,12 +14,12 @@ use crate::{
     limits::*,
     types::{
         ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, LoweringInfo, Remap,
-        SubtypeCx, TupleType, TypeInfo, UnionType, VariantType,
+        SubtypeCx, TupleType, TypeInfo, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
     ComponentImportName, ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType,
-    GlobalType, InstantiationArgKind, MemoryType, Result, StructuralType, SubType, TableType,
-    TypeBounds, ValType, WasmFeatures,
+    GlobalType, InstantiationArgKind, MemoryType, RecGroup, Result, StructuralType, SubType,
+    TableType, TypeBounds, ValType, WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -660,9 +660,6 @@ impl ComponentState {
                     r.fields.values().all(|t| types.type_named_valtype(t, set))
                 }
                 ComponentDefinedType::Tuple(r) => {
-                    r.types.iter().all(|t| types.type_named_valtype(t, set))
-                }
-                ComponentDefinedType::Union(r) => {
                     r.types.iter().all(|t| types.type_named_valtype(t, set))
                 }
                 ComponentDefinedType::Variant(r) => r
@@ -1427,7 +1424,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::ModuleTypeDeclaration::Type(ty) => {
-                    state.add_type(ty, features, types, offset, true)?;
+                    state.add_types(&RecGroup::Single(ty), features, types, offset, true)?;
                 }
                 crate::ModuleTypeDeclaration::Export { name, ty } => {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;
@@ -2456,9 +2453,6 @@ impl ComponentState {
             crate::ComponentDefinedType::Enum(cases) => {
                 self.create_enum_type(cases.as_ref(), offset)
             }
-            crate::ComponentDefinedType::Union(tys) => {
-                self.create_union_type(tys.as_ref(), types, offset)
-            }
             crate::ComponentDefinedType::Option(ty) => Ok(ComponentDefinedType::Option(
                 self.create_component_val_type(ty, types, offset)?,
             )),
@@ -2651,28 +2645,6 @@ impl ComponentState {
         }
 
         Ok(ComponentDefinedType::Enum(tags))
-    }
-
-    fn create_union_type(
-        &self,
-        tys: &[crate::ComponentValType],
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<ComponentDefinedType> {
-        let mut info = TypeInfo::new();
-        if tys.is_empty() {
-            bail!(offset, "union type must have at least one case");
-        }
-        let types = tys
-            .iter()
-            .map(|ty| {
-                let ty = self.create_component_val_type(*ty, types, offset)?;
-                info.combine(ty.info(), offset)?;
-                Ok(ty)
-            })
-            .collect::<Result<_>>()?;
-
-        Ok(ComponentDefinedType::Union(UnionType { info, types }))
     }
 
     fn create_component_val_type(

@@ -1,7 +1,4 @@
-#![no_main]
-
-use arbitrary::Unstructured;
-use libfuzzer_sys::fuzz_target;
+use arbitrary::{Result, Unstructured};
 use wasm_smith::SwarmConfig;
 #[cfg(feature = "wasmtime")]
 use wasmtime::*;
@@ -12,25 +9,21 @@ pub mod fuzz_stats;
 
 // Define a fuzz target that accepts arbitrary
 // `Module`s as input.
-fuzz_target!(|data: &[u8]| {
+pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // Use data to generate a random wasm module
-    let mut u = Unstructured::new(data);
-    let (wasm_bytes, config) = match wasm_tools_fuzz::generate_valid_module(&mut u, |config, _| {
+    let (wasm_bytes, config) = crate::generate_valid_module(u, |config, _| {
         config.disallow_traps = true;
         config.threads_enabled = false;
         config.exceptions_enabled = false;
         config.max_memory_pages = config.max_memory_pages.min(100);
         Ok(())
-    }) {
-        Ok(m) => m,
-        Err(_) => return,
-    };
+    })?;
     validate_module(config.clone(), &wasm_bytes);
 
     // Tail calls aren't implemented in wasmtime, so don't try to run them
     // there.
     if config.tail_call_enabled {
-        return;
+        return Ok(());
     }
 
     #[cfg(feature = "wasmtime")]
@@ -62,7 +55,7 @@ fuzz_target!(|data: &[u8]| {
                         .and_then(|imports| Instance::new(&mut store, &module, &imports));
                     let instance = match inst_result {
                         Ok(r) => r,
-                        Err(err) => return check_err(err),
+                        Err(err) => return Ok(check_err(err)),
                     };
 
                     let args = fuzz_stats::dummy::dummy_values(func_ty.params());
@@ -102,7 +95,8 @@ fuzz_target!(|data: &[u8]| {
             panic!("generated wasm trapped in non-trapping mode: {}", err)
         }
     }
-});
+    Ok(())
+}
 
 fn validate_module(config: SwarmConfig, wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.

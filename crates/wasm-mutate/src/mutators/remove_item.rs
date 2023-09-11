@@ -17,7 +17,7 @@ use wasm_encoder::*;
 use wasmparser::{
     BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
     ExternalKind, FromReader, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    MemorySectionReader, Operator, SectionLimited, TableInit, TableSectionReader, TagSectionReader,
+    MemorySectionReader, Operator, TableInit, TableSectionReader, TagSectionReader,
     TypeSectionReader,
 };
 
@@ -134,9 +134,12 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         0,
-                        TypeSectionReader::new(section.data, 0)?,
+                        TypeSectionReader::new(section.data, 0)?.into_iter_err_on_gc_types(),
                         Item::Type,
-                        |me, ty, section| me.translate_type_def(ty.structural_type, section),
+                        |me, ty, section| {
+                            me.translate_func_type(ty,section)?;
+                            Ok(())
+                        },
                     )?;
                 },
 
@@ -373,7 +376,7 @@ impl RemoveItem {
         &mut self,
         module: &mut Module,
         offset: u32,
-        section: SectionLimited<'a, S>,
+        section: impl IntoIterator<Item = wasmparser::Result<S>>,
         section_item: Item,
         encode: impl Fn(&mut Self, S, &mut T) -> Result<()>,
     ) -> Result<()>

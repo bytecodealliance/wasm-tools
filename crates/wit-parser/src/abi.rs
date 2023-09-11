@@ -198,11 +198,6 @@ impl Resolve {
                     self.push_flat_variants([r.ok.as_ref(), r.err.as_ref()], result);
                 }
 
-                TypeDefKind::Union(u) => {
-                    result.push(WasmType::I32);
-                    self.push_flat_variants(u.cases.iter().map(|c| Some(&c.ty)), result);
-                }
-
                 TypeDefKind::Future(_) => {
                     result.push(WasmType::I32);
                 }

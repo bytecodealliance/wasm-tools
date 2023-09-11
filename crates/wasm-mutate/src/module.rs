@@ -1,5 +1,4 @@
-use crate::{Error, Result};
-use std::convert::TryFrom;
+use crate::Result;
 use wasm_encoder::{BlockType, HeapType, RefType, ValType};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -49,30 +48,20 @@ impl From<wasmparser::RefType> for PrimitiveTypeInfo {
     }
 }
 
-impl TryFrom<wasmparser::StructuralType> for TypeInfo {
-    type Error = Error;
-
-    fn try_from(value: wasmparser::StructuralType) -> Result<Self> {
-        match value {
-            wasmparser::StructuralType::Func(ft) => Ok(TypeInfo::Func(FuncInfo {
-                params: ft
-                    .params()
-                    .iter()
-                    .map(|&t| PrimitiveTypeInfo::from(t))
-                    .collect(),
-                returns: ft
-                    .results()
-                    .iter()
-                    .map(|&t| PrimitiveTypeInfo::from(t))
-                    .collect(),
-            })),
-            wasmparser::StructuralType::Array(_) => {
-                Err(Error::unsupported("Array types are not supported yet."))
-            }
-            wasmparser::StructuralType::Struct(_) => {
-                Err(Error::unsupported("Struct types are not supported yet."))
-            }
-        }
+impl From<wasmparser::FuncType> for TypeInfo {
+    fn from(ft: wasmparser::FuncType) -> Self {
+        TypeInfo::Func(FuncInfo {
+            params: ft
+                .params()
+                .iter()
+                .map(|&t| PrimitiveTypeInfo::from(t))
+                .collect(),
+            returns: ft
+                .results()
+                .iter()
+                .map(|&t| PrimitiveTypeInfo::from(t))
+                .collect(),
+        })
     }
 }
 

@@ -1,14 +1,6 @@
-#![no_main]
-
-use libfuzzer_sys::*;
 use std::str;
 
-fuzz_target!(|data: &[u8]| {
-    let string = match str::from_utf8(data) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
-    drop(env_logger::try_init());
+pub fn run(string: &str) {
     write_file("wasm1.wat", &string);
     // Weed out `(module binary ...)` because when we print the bytes and
     // convert it back to binary it's not guaranteed to be exactly the same.
@@ -56,7 +48,7 @@ fuzz_target!(|data: &[u8]| {
     }
 
     panic!("wasm bytes differ on roundtrip");
-});
+}
 
 fn write_file(path: &str, contents: impl AsRef<[u8]>) {
     if !log::log_enabled!(log::Level::Debug) {

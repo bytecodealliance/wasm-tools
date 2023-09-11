@@ -39,4 +39,16 @@
     (type (sub final $a (func)))
   )
   (type (sub $a (func)))
+
+  (rec
+    (type $t1 (struct (field (ref $t2))))
+    (type $t2 (struct (field (ref $t1))))
+  )
+
+  (rec
+    (type $t3 (struct (field (ref $t4))))
+    (type $t4 (sub $t2 (struct (field (ref $t3)))))
+  )
+
+  (rec)
 )

@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.0.39"
+version = "1.0.40"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
@@ -38,24 +38,25 @@ num_cpus = "1.13"
 rand = { version = "0.8.4", features = ["small_rng"] }
 rayon = "1.3"
 serde = { version = "1.0.166", features = ["derive"] }
+serde_json = { version = "1" }
 wasmtime = { version = "12.0.0", default-features = false, features = ['cranelift', 'component-model'] }
 url = "2.0.0"
 pretty_assertions = "1.3.0"
 semver = "1.0.0"
 
-wasm-encoder = { version = "0.31.1", path = "crates/wasm-encoder" }
-wasm-compose = { version = "0.4.1", path = "crates/wasm-compose" }
-wasm-metadata = { version = "0.10.2", path = "crates/wasm-metadata" }
-wasm-mutate = { version = "0.2.31", path = "crates/wasm-mutate" }
-wasm-shrink = { version = "0.1.32", path = "crates/wasm-shrink" }
-wasm-smith = { version = "0.12.14", path = "crates/wasm-smith" }
-wasmparser = { version = "0.111.0", path = "crates/wasmparser" }
-wasmprinter = { version = "0.2.63", path = "crates/wasmprinter" }
-wast = { version = "63.0.0", path = "crates/wast" }
-wat = { version = "1.0.70", path = "crates/wat" }
-wit-component = { version = "0.13.2", path = "crates/wit-component" }
-wit-parser = { version = "0.10.0", path = "crates/wit-parser" }
-wit-smith = { version = "0.1.9", path = "crates/wit-smith" }
+wasm-encoder = { version = "0.32.0", path = "crates/wasm-encoder" }
+wasm-compose = { version = "0.4.2", path = "crates/wasm-compose" }
+wasm-metadata = { version = "0.10.3", path = "crates/wasm-metadata" }
+wasm-mutate = { version = "0.2.32", path = "crates/wasm-mutate" }
+wasm-shrink = { version = "0.1.33", path = "crates/wasm-shrink" }
+wasm-smith = { version = "0.12.15", path = "crates/wasm-smith" }
+wasmparser = { version = "0.112.0", path = "crates/wasmparser" }
+wasmprinter = { version = "0.2.64", path = "crates/wasmprinter" }
+wast = { version = "64.0.0", path = "crates/wast" }
+wat = { version = "1.0.71", path = "crates/wat" }
+wit-component = { version = "0.14.0", path = "crates/wit-component" }
+wit-parser = { version = "0.11.0", path = "crates/wit-parser" }
+wit-smith = { version = "0.1.10", path = "crates/wit-smith" }
 
 [dependencies]
 anyhow = { workspace = true }
@@ -76,7 +77,7 @@ wasmprinter = { workspace = true }
 # Dependencies of `smith`
 arbitrary = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
-serde_json = { version = "1", optional = true }
+serde_json = { workspace = true, optional = true }
 wasm-smith = { workspace = true, features = ["_internal_cli"], optional = true }
 
 # Dependencies of `shrink`

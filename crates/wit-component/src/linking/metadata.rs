@@ -9,7 +9,7 @@ use {
     },
     wasmparser::{
         BinaryReader, BinaryReaderError, ExternalKind, FuncType, Parser, Payload, RefType,
-        StructuralType, Subsection, Subsections, TableType, TypeRef, ValType,
+        Subsection, Subsections, TableType, TypeRef, ValType,
     },
 };
 
@@ -343,14 +343,7 @@ impl<'a> Metadata<'a> {
 
                 Payload::TypeSection(reader) => {
                     types = reader
-                        .into_iter()
-                        .filter_map(|r| {
-                            r.map(|ty| match ty.structural_type {
-                                StructuralType::Func(ty) => Some(ty),
-                                StructuralType::Array(_) | StructuralType::Struct(_) => None,
-                            })
-                            .transpose()
-                        })
+                        .into_iter_err_on_gc_types()
                         .collect::<Result<Vec<_>, _>>()?;
                 }
 

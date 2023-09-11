@@ -662,6 +662,16 @@ impl Printer {
         Ok(())
     }
 
+    fn print_rec(&mut self, state: &mut State, offset: usize, types: Vec<SubType>) -> Result<()> {
+        self.start_group("rec");
+        for ty in types {
+            self.newline(offset + 2);
+            self.print_type(state, ty)?;
+        }
+        self.end_group(); // `rec`
+        Ok(())
+    }
+
     fn print_type(&mut self, state: &mut State, ty: SubType) -> Result<()> {
         self.start_group("type ");
         self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
@@ -730,9 +740,12 @@ impl Printer {
 
     fn print_types(&mut self, state: &mut State, parser: TypeSectionReader<'_>) -> Result<()> {
         for ty in parser.into_iter_with_offsets() {
-            let (offset, ty) = ty?;
+            let (offset, rec_group) = ty?;
             self.newline(offset);
-            self.print_type(state, ty)?;
+            match rec_group {
+                RecGroup::Many(items) => self.print_rec(state, offset, items)?,
+                RecGroup::Single(ty) => self.print_type(state, ty)?,
+            }
         }
 
         Ok(())
@@ -1524,13 +1537,8 @@ impl Printer {
         Ok(())
     }
 
-    fn print_tuple_or_union_type(
-        &mut self,
-        ty: &str,
-        state: &State,
-        tys: &[ComponentValType],
-    ) -> Result<()> {
-        self.start_group(ty);
+    fn print_tuple_type(&mut self, state: &State, tys: &[ComponentValType]) -> Result<()> {
+        self.start_group("tuple");
         for ty in tys {
             self.result.push(' ');
             self.print_component_val_type(state, ty)?;
@@ -1587,14 +1595,9 @@ impl Printer {
             ComponentDefinedType::Record(fields) => self.print_record_type(state, fields)?,
             ComponentDefinedType::Variant(cases) => self.print_variant_type(state, cases)?,
             ComponentDefinedType::List(ty) => self.print_list_type(state, ty)?,
-            ComponentDefinedType::Tuple(tys) => {
-                self.print_tuple_or_union_type("tuple", state, tys)?
-            }
+            ComponentDefinedType::Tuple(tys) => self.print_tuple_type(state, tys)?,
             ComponentDefinedType::Flags(names) => self.print_flag_or_enum_type("flags", names)?,
             ComponentDefinedType::Enum(cases) => self.print_flag_or_enum_type("enum", cases)?,
-            ComponentDefinedType::Union(tys) => {
-                self.print_tuple_or_union_type("union", state, tys)?
-            }
             ComponentDefinedType::Option(ty) => self.print_option_type(state, ty)?,
             ComponentDefinedType::Result { ok, err } => self.print_result_type(state, *ok, *err)?,
             ComponentDefinedType::Own(idx) => {

@@ -2,7 +2,7 @@
 
 use super::Mutator;
 use crate::module::map_type;
-use crate::{Error, Result};
+use crate::Result;
 use rand::Rng;
 use std::iter;
 
@@ -55,30 +55,21 @@ impl Mutator for AddTypeMutator {
         if let Some(old_types) = config.info().get_type_section() {
             // Copy the existing types section over into the encoder.
             let reader = wasmparser::TypeSectionReader::new(old_types.data, 0)?;
-            for ty in reader {
-                match ty?.structural_type {
-                    wasmparser::StructuralType::Func(ty) => {
-                        let params = ty
-                            .params()
-                            .iter()
-                            .copied()
-                            .map(map_type)
-                            .collect::<Result<Vec<_>, _>>()?;
-                        let results = ty
-                            .results()
-                            .iter()
-                            .copied()
-                            .map(map_type)
-                            .collect::<Result<Vec<_>, _>>()?;
-                        types.function(params, results);
-                    }
-                    wasmparser::StructuralType::Array(_) => {
-                        return Err(Error::unsupported("Array types are not supported yet."));
-                    }
-                    wasmparser::StructuralType::Struct(_) => {
-                        return Err(Error::unsupported("Struct types are not supported yet."));
-                    }
-                }
+            for ty in reader.into_iter_err_on_gc_types() {
+                let ty = ty?;
+                let params = ty
+                    .params()
+                    .iter()
+                    .copied()
+                    .map(map_type)
+                    .collect::<Result<Vec<_>, _>>()?;
+                let results = ty
+                    .results()
+                    .iter()
+                    .copied()
+                    .map(map_type)
+                    .collect::<Result<Vec<_>, _>>()?;
+                types.function(params, results);
             }
             // And then add our new type.
             types.function(params, results);

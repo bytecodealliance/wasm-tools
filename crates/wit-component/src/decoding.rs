@@ -9,6 +9,8 @@ use wasmparser::{
 };
 use wit_parser::*;
 
+use crate::encoding::docs::{PackageDocs, PACKAGE_DOCS_SECTION_NAME};
+
 /// Represents information about a decoded WebAssembly component.
 struct ComponentInfo<'a> {
     /// Wasmparser-defined type information learned after a component is fully
@@ -16,6 +18,8 @@ struct ComponentInfo<'a> {
     types: types::Types,
     /// List of all imports and exports from this component.
     externs: Vec<(ComponentImportName<'a>, Extern<'a>)>,
+    /// Decoded package docs
+    package_docs: Option<PackageDocs>,
 }
 
 enum Extern<'a> {
@@ -33,6 +37,7 @@ impl<'a> ComponentInfo<'a> {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
+        let mut package_docs = None;
 
         for payload in Parser::new(0).parse_all(bytes) {
             let payload = payload?;
@@ -61,12 +66,19 @@ impl<'a> ComponentInfo<'a> {
                         externs.push((export.name.into(), Extern::Export(export)));
                     }
                 }
+                Payload::CustomSection(s) if s.name() == PACKAGE_DOCS_SECTION_NAME => {
+                    if package_docs.is_some() {
+                        bail!("multiple {PACKAGE_DOCS_SECTION_NAME:?} sections");
+                    }
+                    package_docs = Some(PackageDocs::decode(s.data())?);
+                }
                 _ => {}
             }
         }
         Ok(Self {
             types: types.unwrap(),
             externs,
+            package_docs,
         })
     }
 
@@ -122,7 +134,10 @@ impl<'a> ComponentInfo<'a> {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (resolve, package) = decoder.finish(pkg);
+        let (mut resolve, package) = decoder.finish(pkg);
+        if let Some(package_docs) = &self.package_docs {
+            package_docs.inject(&mut resolve, package)?;
+        }
         Ok((resolve, package))
     }
 
@@ -928,7 +943,6 @@ impl WitPackageDecoder<'_> {
             | TypeDefKind::Record(_)
             | TypeDefKind::Enum(_)
             | TypeDefKind::Variant(_)
-            | TypeDefKind::Union(_)
             | TypeDefKind::Flags(_)
             | TypeDefKind::Future(_)
             | TypeDefKind::Stream(_) => {
@@ -1034,20 +1048,6 @@ impl WitPackageDecoder<'_> {
                     })
                     .collect();
                 Ok(TypeDefKind::Flags(Flags { flags }))
-            }
-
-            types::ComponentDefinedType::Union(u) => {
-                let cases = u
-                    .types
-                    .iter()
-                    .map(|ty| {
-                        Ok(UnionCase {
-                            ty: self.convert_valtype(ty)?,
-                            docs: Default::default(),
-                        })
-                    })
-                    .collect::<Result<_>>()?;
-                Ok(TypeDefKind::Union(Union { cases }))
             }
 
             types::ComponentDefinedType::Enum(e) => {
@@ -1310,21 +1310,6 @@ impl Registrar<'_> {
                 Ok(())
             }
 
-            types::ComponentDefinedType::Union(t) => {
-                let ty = match &self.resolve.types[id].kind {
-                    TypeDefKind::Union(r) => r,
-                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
-                    _ => bail!("expected a union"),
-                };
-                if ty.cases.len() != t.types.len() {
-                    bail!("mismatched number of tuple fields");
-                }
-                for (a, b) in t.types.iter().zip(ty.cases.iter()) {
-                    self.valtype(a, &b.ty)?;
-                }
-                Ok(())
-            }
-
             // These have no recursive structure so they can bail out.
             types::ComponentDefinedType::Flags(_)
             | types::ComponentDefinedType::Enum(_)
@@ -1362,14 +1347,14 @@ impl Registrar<'_> {
         // (component
         //   (import (interface "a:b/name") (instance
         //      (type $l (list string))
-        //      (type $foo (union $l))
+        //      (type $foo (variant (case "l" $l)))
         //      (export "foo" (type (eq $foo)))
         //   ))
         //   (component $c
         //     (type $l (list string))
-        //     (type $bar (union u16 $l))
+        //     (type $bar (variant (case "n" u16) (case "l" $l)))
         //     (export "bar" (type $bar))
-        //     (type $foo (union $l))
+        //     (type $foo (variant (case "l" $l)))
         //     (export "foo" (type $foo))
         //   )
         //   (instance $i (instantiate $c))
@@ -1383,13 +1368,13 @@ impl Registrar<'_> {
         // package a:b
         //
         // interface name {
-        //   union bar {
-        //     u16,
-        //     list<string>,
+        //   variant bar {
+        //     n(u16),
+        //     l(list<string>),
         //   }
         //
-        //   union foo {
-        //     list<string>,
+        //   variant foo {
+        //     l(list<string>),
         //   }
         // }
         //
@@ -1409,9 +1394,9 @@ impl Registrar<'_> {
         // situation the code path we're currently on will be hit because
         // there's a preexisting definition of `foo` from the import and it's
         // now going to be unified with what we've seen in the export. When
-        // visiting the `list<string>` field of the `foo` union this ends up
-        // being different than the `list<string>` used by the `bar` union. The
-        // reason for this is that when visiting `var` the wasm-defined `(list
+        // visiting the `list<string>` case of the `foo` variant this ends up
+        // being different than the `list<string>` used by the `bar` variant. The
+        // reason for this is that when visiting `bar` the wasm-defined `(list
         // string)` hasn't been seen before so a new type is allocated. Later
         // though this same wasm type is unified with the first `(list string)`
         // type in the `import`.

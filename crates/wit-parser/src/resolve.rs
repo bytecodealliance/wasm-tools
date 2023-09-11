@@ -200,8 +200,7 @@ impl Resolve {
                 | TypeDefKind::Option(_)
                 | TypeDefKind::Result(_)
                 | TypeDefKind::Future(_)
-                | TypeDefKind::Stream(_)
-                | TypeDefKind::Union(_) => false,
+                | TypeDefKind::Stream(_) => false,
                 TypeDefKind::Type(t) => self.all_bits_valid(t),
 
                 TypeDefKind::Handle(h) => match h {
@@ -981,11 +980,6 @@ impl Remap {
                 }
                 if let Some(ty) = &mut r.err {
                     self.update_ty(resolve, ty);
-                }
-            }
-            Union(u) => {
-                for case in u.cases.iter_mut() {
-                    self.update_ty(resolve, &mut case.ty);
                 }
             }
             List(t) => self.update_ty(resolve, t),

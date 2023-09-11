@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator, StructuralType};
+use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -26,8 +26,8 @@ pub enum ConstExprKind {
 pub trait Translator {
     fn as_obj(&mut self) -> &mut dyn Translator;
 
-    fn translate_type_def(&mut self, ty: StructuralType, s: &mut TypeSection) -> Result<()> {
-        type_def(self.as_obj(), ty, s)
+    fn translate_func_type(&mut self, ty: wasmparser::FuncType, s: &mut TypeSection) -> Result<()> {
+        func_type(self.as_obj(), ty, s)
     }
 
     fn translate_table_type(
@@ -122,24 +122,22 @@ impl Translator for DefaultTranslator {
     }
 }
 
-pub fn type_def(t: &mut dyn Translator, ty: StructuralType, s: &mut TypeSection) -> Result<()> {
-    match ty {
-        StructuralType::Func(f) => {
-            s.function(
-                f.params()
-                    .iter()
-                    .map(|ty| t.translate_ty(ty))
-                    .collect::<Result<Vec<_>>>()?,
-                f.results()
-                    .iter()
-                    .map(|ty| t.translate_ty(ty))
-                    .collect::<Result<Vec<_>>>()?,
-            );
-            Ok(())
-        }
-        StructuralType::Array(_) => Err(Error::unsupported("Array types are not supported yet.")),
-        StructuralType::Struct(_) => Err(Error::unsupported("Struct types are not supported yet.")),
-    }
+pub fn func_type(
+    t: &mut dyn Translator,
+    ty: wasmparser::FuncType,
+    s: &mut TypeSection,
+) -> Result<()> {
+    s.function(
+        ty.params()
+            .iter()
+            .map(|ty| t.translate_ty(ty))
+            .collect::<Result<Vec<_>>>()?,
+        ty.results()
+            .iter()
+            .map(|ty| t.translate_ty(ty))
+            .collect::<Result<Vec<_>>>()?,
+    );
+    Ok(())
 }
 
 pub fn table_type(

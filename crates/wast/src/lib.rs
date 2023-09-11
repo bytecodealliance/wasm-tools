@@ -508,7 +508,6 @@ pub mod kw {
     custom_keyword!(tuple);
     custom_keyword!(list);
     custom_keyword!(error);
-    custom_keyword!(union);
     custom_keyword!(canon);
     custom_keyword!(lift);
     custom_keyword!(lower);

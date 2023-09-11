@@ -578,7 +578,6 @@ impl<'a> InterfaceGenerator<'a> {
             Flags,
             Variant,
             Enum,
-            Union,
             Anonymous,
             Resource,
         }
@@ -612,17 +611,6 @@ impl<'a> InterfaceGenerator<'a> {
                         self.gen_type(u, &mut fuel, &mut ret)?;
                         ret.push_str(")");
                     }
-                    ret.push_str(",\n");
-                }
-                ret.push_str("}");
-            }
-            Kind::Union => {
-                ret.push_str("union %");
-                ret.push_str(name);
-                ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
-                    ret.push_str("  ");
-                    self.gen_type(u, &mut fuel, &mut ret)?;
                     ret.push_str(",\n");
                 }
                 ret.push_str("}");

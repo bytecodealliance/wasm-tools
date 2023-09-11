@@ -1,23 +1,15 @@
-#![no_main]
-
-use libfuzzer_sys::fuzz_target;
+use arbitrary::{Result, Unstructured};
 use std::borrow::Cow;
 use std::path::Path;
 use wasm_encoder::{CustomSection, Encode, Section};
 use wit_component::*;
 use wit_parser::{Resolve, SourceMap};
 
-fuzz_target!(|data: &[u8]| {
-    drop(env_logger::try_init());
-
-    let mut u = arbitrary::Unstructured::new(data);
-    let wasm = match u.arbitrary().and_then(|config| {
+pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
+    let wasm = u.arbitrary().and_then(|config| {
         log::debug!("config: {config:#?}");
-        wit_smith::smith(&config, &mut u)
-    }) {
-        Ok(wasm) => wasm,
-        Err(_) => return,
-    };
+        wit_smith::smith(&config, u)
+    })?;
     write_file("doc1.wasm", &wasm);
     let (resolve, _pkg) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
@@ -67,7 +59,8 @@ fuzz_target!(|data: &[u8]| {
 
         wit_component::decode(&wasm).unwrap();
     }
-});
+    Ok(())
+}
 
 fn roundtrip_through_printing(file: &str, resolve: &Resolve, wasm: &[u8]) {
     // For all packages in `resolve` print them all to a string, then re-parse

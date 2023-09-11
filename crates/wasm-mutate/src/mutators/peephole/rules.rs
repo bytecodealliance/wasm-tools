@@ -15,7 +15,7 @@ use super::{
 impl PeepholeMutator {
     /// Returns the rewriting rules.
     ///
-    /// Define new fules here for the peephole mutator.
+    /// Define new rules here for the peephole mutator.
     pub fn get_rules(&self, config: &WasmMutate) -> Vec<Rewrite<Lang, PeepholeMutationAnalysis>> {
         let mut rules = vec![];
 

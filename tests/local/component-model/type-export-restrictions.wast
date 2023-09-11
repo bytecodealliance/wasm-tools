@@ -19,14 +19,6 @@
 (assert_invalid
   (component
     (type $t (record (field "f" u32)))
-    (type $f (union $t))
-    (export "f" (type $f))
-  )
-  "type not valid to be used as export")
-
-(assert_invalid
-  (component
-    (type $t (record (field "f" u32)))
     (type $f (tuple $t))
     (export "f" (type $f))
   )
@@ -61,14 +53,6 @@
 (assert_invalid
   (component
     (type $t (record (field "f" u32)))
-    (type $f (list $t))
-    (export "f" (type $f))
-  )
-  "type not valid to be used as export")
-
-(assert_invalid
-  (component
-    (type $t (union u32))
     (type $f (list $t))
     (export "f" (type $f))
   )
