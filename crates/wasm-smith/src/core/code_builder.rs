@@ -1069,7 +1069,7 @@ impl CodeBuilder<'_> {
         // Generating an unreachable instruction is always a valid way to
         // generate any types for a label, but it's not too interesting, so
         // don't favor it.
-        if u.arbitrary::<u16>().unwrap_or(0) == 1 && !disallow_traps {
+        if !disallow_traps && u.ratio(1, u16::MAX).unwrap_or(false) {
             instructions.push(Instruction::Unreachable);
             return;
         }
