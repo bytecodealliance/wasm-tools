@@ -894,7 +894,7 @@ impl CodeBuilder<'_> {
                     u,
                     &mut instructions,
                     module.config.disallow_traps(),
-                );
+                )?;
                 break;
             }
 
@@ -911,7 +911,7 @@ impl CodeBuilder<'_> {
                         u,
                         &mut instructions,
                         module.config.disallow_traps(),
-                    );
+                    )?;
                     break;
                 }
             }
@@ -1055,11 +1055,11 @@ impl CodeBuilder<'_> {
         u: &mut Unstructured<'_>,
         instructions: &mut Vec<Instruction>,
         disallow_traps: bool,
-    ) {
+    ) -> Result<()> {
         while !self.allocs.controls.is_empty() {
             // Ensure that this label is valid by placing the right types onto
             // the operand stack for the end of the label.
-            self.guarantee_label_results(u, instructions, disallow_traps);
+            self.guarantee_label_results(u, instructions, disallow_traps)?;
 
             // Remove the label and clear the operand stack since the label has
             // been removed.
@@ -1075,7 +1075,7 @@ impl CodeBuilder<'_> {
                 self.allocs
                     .operands
                     .extend(label.params.into_iter().map(Some));
-                self.guarantee_label_results(u, instructions, disallow_traps);
+                self.guarantee_label_results(u, instructions, disallow_traps)?;
                 self.allocs.controls.pop();
                 self.allocs.operands.truncate(label.height);
             }
@@ -1092,6 +1092,7 @@ impl CodeBuilder<'_> {
                 .operands
                 .extend(label.results.into_iter().map(Some));
         }
+        Ok(())
     }
 
     /// Modifies the instruction stream to guarantee that the current control
@@ -1101,21 +1102,21 @@ impl CodeBuilder<'_> {
         u: &mut Unstructured<'_>,
         instructions: &mut Vec<Instruction>,
         disallow_traps: bool,
-    ) {
+    ) -> Result<()> {
         let operands = self.operands();
         let label = self.allocs.controls.last().unwrap();
 
         // Already done, yay!
         if label.results.len() == operands.len() && self.types_on_stack(&label.results) {
-            return;
+            return Ok(());
         }
 
         // Generating an unreachable instruction is always a valid way to
         // generate any types for a label, but it's not too interesting, so
         // don't favor it.
-        if !disallow_traps && u.ratio(1, u16::MAX).unwrap_or(false) {
+        if !disallow_traps && u.ratio(1, u16::MAX)? {
             instructions.push(Instruction::Unreachable);
-            return;
+            return Ok(());
         }
 
         // Arbitrarily massage the stack to get the expected results. First we
@@ -1128,7 +1129,7 @@ impl CodeBuilder<'_> {
         let mut operands = operands.as_slice();
         let label_results = label.results.to_vec();
         while operands.len() > label_results.len() {
-            self.drop_operand(u, *operands.last().unwrap(), instructions);
+            self.drop_operand(u, *operands.last().unwrap(), instructions)?;
             operands = &operands[..operands.len() - 1];
         }
         for (i, expected) in label_results.iter().enumerate() {
@@ -1137,12 +1138,13 @@ impl CodeBuilder<'_> {
                     continue;
                 }
                 for ty in operands[i..].iter().rev() {
-                    self.drop_operand(u, *ty, instructions);
+                    self.drop_operand(u, *ty, instructions)?;
                 }
                 operands = &[];
             }
             instructions.push(arbitrary_val(*expected, u));
         }
+        Ok(())
     }
 
     fn drop_operand(
@@ -1150,10 +1152,11 @@ impl CodeBuilder<'_> {
         u: &mut Unstructured<'_>,
         ty: Option<ValType>,
         instructions: &mut Vec<Instruction>,
-    ) {
-        if !self.mix_operand_into_global(u, ty, instructions) {
+    ) -> Result<()> {
+        if !self.mix_operand_into_global(u, ty, instructions)? {
             instructions.push(Instruction::Drop);
         }
+        Ok(())
     }
 
     /// Attempts to drop the top operand on the stack by "mixing" it into a
@@ -1171,18 +1174,18 @@ impl CodeBuilder<'_> {
         u: &mut Unstructured<'_>,
         ty: Option<ValType>,
         instructions: &mut Vec<Instruction>,
-    ) -> bool {
+    ) -> Result<bool> {
         // If the type of this operand isn't known, for example if it's relevant
         // to unreachable code, then it can't be combined, so return `false`.
         let ty = match ty {
             Some(ty) => ty,
-            None => return false,
+            None => return Ok(false),
         };
 
         // Use the input stream to allow a small chance of dropping the value
         // without combining it.
-        if u.ratio(1, 100).unwrap_or(false) {
-            return false;
+        if u.ratio(1, 100)? {
+            return Ok(false);
         }
 
         // Depending on the type lookup or inject a global to place this value
@@ -1193,14 +1196,14 @@ impl CodeBuilder<'_> {
                     self.allocs.new_globals.push((ty, ConstExpr::i32_const(0)));
                     inc(&mut self.allocs.globals_cnt)
                 });
-                (global, Instruction::I32Add)
+                (global, Instruction::I32Xor)
             }
             ValType::I64 => {
                 let global = *self.allocs.global_dropped_i64.get_or_insert_with(|| {
                     self.allocs.new_globals.push((ty, ConstExpr::i64_const(0)));
                     inc(&mut self.allocs.globals_cnt)
                 });
-                (global, Instruction::I64Add)
+                (global, Instruction::I64Xor)
             }
             ValType::F32 => {
                 let global = *self.allocs.global_dropped_f32.get_or_insert_with(|| {
@@ -1210,7 +1213,7 @@ impl CodeBuilder<'_> {
                     inc(&mut self.allocs.globals_cnt)
                 });
                 instructions.push(Instruction::I32ReinterpretF32);
-                (global, Instruction::I32Add)
+                (global, Instruction::I32Xor)
             }
             ValType::F64 => {
                 let global = *self.allocs.global_dropped_f64.get_or_insert_with(|| {
@@ -1220,25 +1223,25 @@ impl CodeBuilder<'_> {
                     inc(&mut self.allocs.globals_cnt)
                 });
                 instructions.push(Instruction::I64ReinterpretF64);
-                (global, Instruction::I64Add)
+                (global, Instruction::I64Xor)
             }
             ValType::V128 => {
                 let global = *self.allocs.global_dropped_v128.get_or_insert_with(|| {
                     self.allocs.new_globals.push((ty, ConstExpr::v128_const(0)));
                     inc(&mut self.allocs.globals_cnt)
                 });
-                (global, Instruction::I64x2Add)
+                (global, Instruction::V128Xor)
             }
 
             // Don't know how to combine reference types at this time, so just
             // let it get dropped.
-            ValType::Ref(_) => return false,
+            ValType::Ref(_) => return Ok(false),
         };
         instructions.push(Instruction::GlobalGet(global));
         instructions.push(combine);
         instructions.push(Instruction::GlobalSet(global));
 
-        return true;
+        return Ok(true);
 
         fn inc(val: &mut u32) -> u32 {
             let ret = *val;
@@ -1913,7 +1916,7 @@ fn drop(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     let ty = builder.allocs.operands.pop().unwrap();
-    builder.drop_operand(u, ty, instructions);
+    builder.drop_operand(u, ty, instructions)?;
     Ok(())
 }
 
