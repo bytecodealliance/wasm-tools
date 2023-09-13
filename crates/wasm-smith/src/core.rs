@@ -119,6 +119,9 @@ pub struct Module {
     /// The predicted size of the effective type of this module, based on this
     /// module's size of the types of imports/exports.
     type_size: u32,
+
+    /// Names currently exported from this module.
+    export_names: HashSet<String>,
 }
 
 impl<'a> Arbitrary<'a> for Module {
@@ -196,6 +199,7 @@ impl Module {
             code: Vec::new(),
             data: Vec::new(),
             type_size: 0,
+            export_names: HashSet::new(),
         }
     }
 }
@@ -936,14 +940,12 @@ impl Module {
                 .collect(),
         );
 
-        let mut export_names = HashSet::new();
-
         // If the configuration demands exporting everything, we do so here and
         // early-return.
         if self.config.export_everything() {
             for choices_by_kind in choices {
                 for (kind, idx) in choices_by_kind {
-                    let name = unique_string(1_000, &mut export_names, u)?;
+                    let name = unique_string(1_000, &mut self.export_names, u)?;
                     self.add_arbitrary_export(name, kind, idx)?;
                 }
             }
@@ -971,7 +973,7 @@ impl Module {
 
                 // Pick a name, then pick the export, and then we can record
                 // information about the chosen export.
-                let name = unique_string(1_000, &mut export_names, u)?;
+                let name = unique_string(1_000, &mut self.export_names, u)?;
                 let list = u.choose(&choices)?;
                 let (kind, idx) = *u.choose(list)?;
                 self.add_arbitrary_export(name, kind, idx)?;
@@ -1172,6 +1174,7 @@ impl Module {
             let body = self.arbitrary_func_body(u, ty, &mut allocs, allow_invalid)?;
             self.code.push(body);
         }
+        allocs.finish(u, self)?;
         Ok(())
     }
 
