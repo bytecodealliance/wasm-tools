@@ -543,7 +543,7 @@ fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
             PackageName {
                 namespace: namespace.as_str().to_string(),
                 name: package.as_str().to_string(),
-                version: version.map(|v| v.into()),
+                version,
             },
             interface.as_str(),
         ),

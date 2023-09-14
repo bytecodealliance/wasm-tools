@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
+use semver::Version;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::fmt;
@@ -16,11 +17,9 @@ mod resolve;
 pub use resolve::{Package, PackageId, Remap, Resolve};
 mod live;
 pub use live::LiveTypes;
-mod version;
-pub use version::SerializableVersion;
 mod serde_;
 use serde_::{
-    serialize_anon_result, serialize_id, serialize_id_map, serialize_optional_id, serialize_params,
+    serialize_anon_result, serialize_id, serialize_id_map, serialize_optional_id, serialize_params
 };
 
 /// Checks if the given string is a legal identifier in wit.
@@ -129,7 +128,7 @@ pub struct PackageName {
     /// The kebab-name of this package, which is always specified.
     pub name: String,
     /// Optional major/minor version information.
-    pub version: Option<SerializableVersion>,
+    pub version: Option<Version>,
 }
 
 impl From<PackageName> for String {
