@@ -1001,7 +1001,7 @@ impl<'a> BinaryReader<'a> {
     {
         let code = self.read_var_u32()?;
         Ok(match code {
-            0x20 => visitor.visit_i31_new(),
+            0x20 => visitor.visit_ref_i31(),
             0x21 => visitor.visit_i31_get_s(),
             0x22 => visitor.visit_i31_get_u(),
 

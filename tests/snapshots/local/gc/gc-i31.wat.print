@@ -3,10 +3,10 @@
   (func $f (;0;) (type 0) (result i32 i32)
     (local $a (ref i31)) (local $b i31ref) (local $c i31ref)
     i32.const 42
-    i31.new
+    ref.i31
     local.set $a
     i32.const 0
-    i31.new
+    ref.i31
     local.set $b
     local.get $a
     i31.get_u

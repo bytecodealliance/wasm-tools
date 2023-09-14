@@ -523,7 +523,7 @@ pub enum Instruction<'a> {
     RefAsNonNull,
 
     // GC types instructions.
-    I31New,
+    RefI31,
     I31GetS,
     I31GetU,
 
@@ -1321,7 +1321,7 @@ impl Encode for Instruction<'_> {
             Instruction::RefAsNonNull => sink.push(0xD3),
 
             // GC instructions.
-            Instruction::I31New => {
+            Instruction::RefI31 => {
                 sink.push(0xfb);
                 sink.push(0x20)
             }
