@@ -137,7 +137,12 @@ impl Runner<'_> {
         return Ok(());
     }
 
-    fn read_or_write_to_file(&mut self, test: &Path, result: &str, extension: &str) -> Result<(), anyhow::Error> {
+    fn read_or_write_to_file(
+        &mut self,
+        test: &Path,
+        result: &str,
+        extension: &str,
+    ) -> Result<(), anyhow::Error> {
         let result_file = if test.extension() == Some(OsStr::new("md"))
             && test
                 .file_stem()
