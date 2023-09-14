@@ -274,7 +274,7 @@ pub struct World {
     pub include_names: Vec<Vec<IncludeName>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct IncludeName {
     /// The name of the item
     pub name: String,
