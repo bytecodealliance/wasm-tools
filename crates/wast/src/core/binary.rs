@@ -248,12 +248,12 @@ impl<'a> Encode for HeapType<'a> {
             HeapType::Extern => e.push(0x6f),
             HeapType::Any => e.push(0x6e),
             HeapType::Eq => e.push(0x6d),
-            HeapType::Struct => e.push(0x67),
-            HeapType::Array => e.push(0x66),
-            HeapType::I31 => e.push(0x6a),
-            HeapType::NoFunc => e.push(0x68),
-            HeapType::NoExtern => e.push(0x69),
-            HeapType::None => e.push(0x65),
+            HeapType::Struct => e.push(0x6b),
+            HeapType::Array => e.push(0x6a),
+            HeapType::I31 => e.push(0x6c),
+            HeapType::NoFunc => e.push(0x73),
+            HeapType::NoExtern => e.push(0x72),
+            HeapType::None => e.push(0x71),
             // Note that this is encoded as a signed leb128 so be sure to cast
             // to an i64 first
             HeapType::Index(Index::Num(n, _)) => i64::from(*n).encode(e),
@@ -286,34 +286,34 @@ impl<'a> Encode for RefType<'a> {
             RefType {
                 nullable: true,
                 heap: HeapType::Struct,
-            } => e.push(0x67),
+            } => e.push(0x6b),
             // The 'i31ref' binary abbreviation
             RefType {
                 nullable: true,
                 heap: HeapType::I31,
-            } => e.push(0x6a),
+            } => e.push(0x6c),
             // The 'nullfuncref' binary abbreviation
             RefType {
                 nullable: true,
                 heap: HeapType::NoFunc,
-            } => e.push(0x68),
+            } => e.push(0x73),
             // The 'nullexternref' binary abbreviation
             RefType {
                 nullable: true,
                 heap: HeapType::NoExtern,
-            } => e.push(0x69),
+            } => e.push(0x72),
             // The 'nullref' binary abbreviation
             RefType {
                 nullable: true,
                 heap: HeapType::None,
-            } => e.push(0x65),
+            } => e.push(0x71),
 
             // Generic 'ref null <heaptype>' encoding
             RefType {
                 nullable: true,
                 heap,
             } => {
-                e.push(0x6c);
+                e.push(0x63);
                 heap.encode(e);
             }
             // Generic 'ref <heaptype>' encoding
@@ -321,7 +321,7 @@ impl<'a> Encode for RefType<'a> {
                 nullable: false,
                 heap,
             } => {
-                e.push(0x6b);
+                e.push(0x64);
                 heap.encode(e);
             }
         }
@@ -331,8 +331,8 @@ impl<'a> Encode for RefType<'a> {
 impl<'a> Encode for StorageType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            StorageType::I8 => e.push(0x7a),
-            StorageType::I16 => e.push(0x79),
+            StorageType::I8 => e.push(0x78),
+            StorageType::I16 => e.push(0x77),
             StorageType::Val(ty) => {
                 ty.encode(e);
             }
