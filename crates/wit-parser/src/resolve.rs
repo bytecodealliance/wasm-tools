@@ -52,6 +52,7 @@ pub struct Package {
     pub name: PackageName,
 
     /// Documentation associated with this package.
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
 
     /// All interfaces contained in this packaged, keyed by the interface's

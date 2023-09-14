@@ -253,6 +253,7 @@ pub struct World {
     pub name: String,
 
     /// Documentation associated with this world declaration.
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
 
     /// All imported items into this interface, both worlds and functions.
@@ -340,6 +341,7 @@ pub struct Interface {
     pub name: Option<String>,
 
     /// Documentation associated with this interface.
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
 
     /// Exported types from this interface.
@@ -359,6 +361,7 @@ pub struct Interface {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TypeDef {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub kind: TypeDefKind,
     pub name: Option<String>,
@@ -470,6 +473,7 @@ pub struct Record {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Field {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
     #[serde(rename = "type")]
@@ -483,6 +487,7 @@ pub struct Flags {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Flag {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
 }
@@ -527,6 +532,7 @@ pub struct Variant {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Case {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
     #[serde(rename = "type")]
@@ -551,6 +557,7 @@ pub struct Enum {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EnumCase {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
 }
@@ -581,6 +588,12 @@ pub struct Stream {
 #[derive(Clone, Default, Debug, PartialEq, Eq, Serialize)]
 pub struct Docs {
     pub contents: Option<String>,
+}
+
+impl Docs {
+    pub fn is_empty(&self) -> bool {
+        self.contents.is_none()
+    }
 }
 
 pub type Params = Vec<(String, Type)>;
@@ -655,6 +668,7 @@ impl Results {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Function {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
     pub kind: FunctionKind,
