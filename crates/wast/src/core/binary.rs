@@ -1181,9 +1181,9 @@ impl Encode for RefTest<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
         if self.r#type.nullable {
-            e.push(0x48);
+            e.push(0x15);
         } else {
-            e.push(0x40);
+            e.push(0x14);
         }
         self.r#type.heap.encode(e);
     }
@@ -1193,9 +1193,9 @@ impl Encode for RefCast<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
         if self.r#type.nullable {
-            e.push(0x49);
+            e.push(0x17);
         } else {
-            e.push(0x41);
+            e.push(0x16);
         }
         self.r#type.heap.encode(e);
     }
@@ -1215,7 +1215,7 @@ fn br_on_cast_flags(from_nullable: bool, to_nullable: bool) -> u8 {
 impl Encode for BrOnCast<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
-        e.push(0x4e);
+        e.push(0x18);
         e.push(br_on_cast_flags(
             self.from_type.nullable,
             self.to_type.nullable,
@@ -1229,7 +1229,7 @@ impl Encode for BrOnCast<'_> {
 impl Encode for BrOnCastFail<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
-        e.push(0x4f);
+        e.push(0x19);
         e.push(br_on_cast_flags(
             self.from_type.nullable,
             self.to_type.nullable,

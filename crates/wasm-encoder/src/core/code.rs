@@ -1323,15 +1323,15 @@ impl Encode for Instruction<'_> {
             // GC instructions.
             Instruction::RefI31 => {
                 sink.push(0xfb);
-                sink.push(0x20)
+                sink.push(0x1c)
             }
             Instruction::I31GetS => {
                 sink.push(0xfb);
-                sink.push(0x21)
+                sink.push(0x1d)
             }
             Instruction::I31GetU => {
                 sink.push(0xfb);
-                sink.push(0x22)
+                sink.push(0x1e)
             }
 
             // Bulk memory instructions.

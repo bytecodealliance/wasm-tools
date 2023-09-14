@@ -590,33 +590,33 @@ instructions! {
         RefEq : [0xd3] : "ref.eq",
 
         // gc proposal: struct
-        StructNew(Index<'a>) : [0xfb, 0x07] : "struct.new",
-        StructNewDefault(Index<'a>) : [0xfb, 0x08] : "struct.new_default",
-        StructGet(StructAccess<'a>) : [0xfb, 0x03] : "struct.get",
-        StructGetS(StructAccess<'a>) : [0xfb, 0x04] : "struct.get_s",
-        StructGetU(StructAccess<'a>) : [0xfb, 0x05] : "struct.get_u",
-        StructSet(StructAccess<'a>) : [0xfb, 0x06] : "struct.set",
+        StructNew(Index<'a>) : [0xfb, 0x00] : "struct.new",
+        StructNewDefault(Index<'a>) : [0xfb, 0x01] : "struct.new_default",
+        StructGet(StructAccess<'a>) : [0xfb, 0x02] : "struct.get",
+        StructGetS(StructAccess<'a>) : [0xfb, 0x03] : "struct.get_s",
+        StructGetU(StructAccess<'a>) : [0xfb, 0x04] : "struct.get_u",
+        StructSet(StructAccess<'a>) : [0xfb, 0x05] : "struct.set",
 
         // gc proposal: array
-        ArrayNew(Index<'a>) : [0xfb, 0x1b] : "array.new",
-        ArrayNewDefault(Index<'a>) : [0xfb, 0x1c] : "array.new_default",
-        ArrayNewFixed(ArrayNewFixed<'a>) : [0xfb, 0x1a] : "array.new_fixed",
-        ArrayNewData(ArrayNewData<'a>) : [0xfb, 0x1d] : "array.new_data",
-        ArrayNewElem(ArrayNewElem<'a>) : [0xfb, 0x1f] : "array.new_elem",
-        ArrayGet(Index<'a>) : [0xfb, 0x13] : "array.get",
-        ArrayGetS(Index<'a>) : [0xfb, 0x14] : "array.get_s",
-        ArrayGetU(Index<'a>) : [0xfb, 0x15] : "array.get_u",
-        ArraySet(Index<'a>) : [0xfb, 0x16] : "array.set",
-        ArrayLen : [0xfb, 0x19] : "array.len",
-        ArrayFill(ArrayFill<'a>) : [0xfb, 0x0f] : "array.fill",
-        ArrayCopy(ArrayCopy<'a>) : [0xfb, 0x18] : "array.copy",
-        ArrayInitData(ArrayInit<'a>) : [0xfb, 0x54] : "array.init_data",
-        ArrayInitElem(ArrayInit<'a>) : [0xfb, 0x55] : "array.init_elem",
+        ArrayNew(Index<'a>) : [0xfb, 0x06] : "array.new",
+        ArrayNewDefault(Index<'a>) : [0xfb, 0x07] : "array.new_default",
+        ArrayNewFixed(ArrayNewFixed<'a>) : [0xfb, 0x08] : "array.new_fixed",
+        ArrayNewData(ArrayNewData<'a>) : [0xfb, 0x09] : "array.new_data",
+        ArrayNewElem(ArrayNewElem<'a>) : [0xfb, 0x0a] : "array.new_elem",
+        ArrayGet(Index<'a>) : [0xfb, 0x0b] : "array.get",
+        ArrayGetS(Index<'a>) : [0xfb, 0x0c] : "array.get_s",
+        ArrayGetU(Index<'a>) : [0xfb, 0x0d] : "array.get_u",
+        ArraySet(Index<'a>) : [0xfb, 0x0e] : "array.set",
+        ArrayLen : [0xfb, 0x0f] : "array.len",
+        ArrayFill(ArrayFill<'a>) : [0xfb, 0x10] : "array.fill",
+        ArrayCopy(ArrayCopy<'a>) : [0xfb, 0x11] : "array.copy",
+        ArrayInitData(ArrayInit<'a>) : [0xfb, 0x12] : "array.init_data",
+        ArrayInitElem(ArrayInit<'a>) : [0xfb, 0x13] : "array.init_elem",
 
         // gc proposal, i31
-        RefI31 : [0xfb, 0x20] : "ref.i31",
-        I31GetS : [0xfb, 0x21] : "i31.get_s",
-        I31GetU : [0xfb, 0x22] : "i31.get_u",
+        RefI31 : [0xfb, 0x1c] : "ref.i31",
+        I31GetS : [0xfb, 0x1d] : "i31.get_s",
+        I31GetU : [0xfb, 0x1e] : "i31.get_u",
 
         // gc proposal, concrete casting
         RefTest(RefTest<'a>) : [] : "ref.test",
@@ -625,8 +625,8 @@ instructions! {
         BrOnCastFail(Box<BrOnCastFail<'a>>) : [] : "br_on_cast_fail",
 
         // gc proposal extern/any coercion operations
-        ExternInternalize : [0xfb, 0x70] : "extern.internalize",
-        ExternExternalize : [0xfb, 0x71] : "extern.externalize",
+        ExternInternalize : [0xfb, 0x1a] : "extern.internalize",
+        ExternExternalize : [0xfb, 0x1b] : "extern.externalize",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
