@@ -562,8 +562,8 @@ impl WitPackageDecoder<'_> {
             KebabNameKind::Id {
                 namespace,
                 package,
-                interface,
                 version,
+                interface,
             } => (namespace, package, version, interface),
             _ => bail!("package name is not a valid id: {name_string}"),
         };
