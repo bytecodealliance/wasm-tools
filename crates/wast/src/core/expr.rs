@@ -614,7 +614,7 @@ instructions! {
         ArrayInitElem(ArrayInit<'a>) : [0xfb, 0x55] : "array.init_elem",
 
         // gc proposal, i31
-        I31New : [0xfb, 0x20] : "i31.new",
+        RefI31 : [0xfb, 0x20] : "ref.i31",
         I31GetS : [0xfb, 0x21] : "i31.get_s",
         I31GetU : [0xfb, 0x22] : "i31.get_u",
 

@@ -861,7 +861,7 @@ macro_rules! define_visit {
     (name I16x8RelaxedQ15mulrS) => ("i16x8.relaxed_q15mulr_s");
     (name I16x8RelaxedDotI8x16I7x16S) => ("i16x8.relaxed_dot_i8x16_i7x16_s");
     (name I32x4RelaxedDotI8x16I7x16AddS) => ("i32x4.relaxed_dot_i8x16_i7x16_add_s");
-    (name I31New) => ("i31.new");
+    (name RefI31) => ("ref.i31");
     (name I31GetS) => ("i31.get_s");
     (name I31GetU) => ("i31.get_u");
 }
