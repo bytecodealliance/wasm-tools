@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
+use serde::Serialize;
 use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
@@ -16,6 +17,10 @@ mod resolve;
 pub use resolve::{Package, PackageId, Remap, Resolve};
 mod live;
 pub use live::LiveTypes;
+mod serde_;
+use serde_::{
+    serialize_anon_result, serialize_id, serialize_id_map, serialize_optional_id, serialize_params,
+};
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -101,9 +106,12 @@ pub struct UnresolvedPackage {
     required_resource_types: Vec<(TypeId, Span)>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AstItem {
+    #[serde(serialize_with = "serialize_id")]
     Interface(InterfaceId),
+    #[serde(serialize_with = "serialize_id")]
     World(WorldId),
 }
 
@@ -112,7 +120,8 @@ pub enum AstItem {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[serde(into = "String")]
 pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
     pub namespace: String,
@@ -120,6 +129,12 @@ pub struct PackageName {
     pub name: String,
     /// Optional major/minor version information.
     pub version: Option<Version>,
+}
+
+impl From<PackageName> for String {
+    fn from(name: PackageName) -> String {
+        name.to_string()
+    }
 }
 
 impl PackageName {
@@ -231,12 +246,13 @@ impl UnresolvedPackage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct World {
     /// The WIT identifier name of this world.
     pub name: String,
 
     /// Documentation associated with this world declaration.
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
 
     /// All imported items into this interface, both worlds and functions.
@@ -246,12 +262,15 @@ pub struct World {
     pub exports: IndexMap<WorldKey, WorldItem>,
 
     /// The package that owns this world.
+    #[serde(serialize_with = "serialize_optional_id")]
     pub package: Option<PackageId>,
 
     /// All the included worlds from this world. Empty if this is fully resolved
+    #[serde(skip)]
     pub includes: Vec<WorldId>,
 
     /// All the included worlds names. Empty if this is fully resolved
+    #[serde(skip)]
     pub include_names: Vec<Vec<IncludeName>>,
 }
 
@@ -266,12 +285,22 @@ pub struct IncludeName {
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
 /// unique interface.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(into = "String")]
 pub enum WorldKey {
     /// A kebab-name.
     Name(String),
     /// An interface which is assigned no kebab-name.
     Interface(InterfaceId),
+}
+
+impl From<WorldKey> for String {
+    fn from(key: WorldKey) -> String {
+        match key {
+            WorldKey::Name(name) => name,
+            WorldKey::Interface(id) => format!("interface-{}", id.index()),
+        }
+    }
 }
 
 impl WorldKey {
@@ -285,10 +314,12 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
+    #[serde(serialize_with = "serialize_id")]
     Interface(InterfaceId),
 
     /// A function is being directly imported or exported from this world.
@@ -297,10 +328,11 @@ pub enum WorldItem {
     /// A type is being exported from this world.
     ///
     /// Note that types are never imported into worlds at this time.
+    #[serde(serialize_with = "serialize_id")]
     Type(TypeId),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Interface {
     /// Optionally listed name of this interface.
     ///
@@ -308,30 +340,35 @@ pub struct Interface {
     pub name: Option<String>,
 
     /// Documentation associated with this interface.
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
 
     /// Exported types from this interface.
     ///
     /// Export names are listed within the types themselves. Note that the
     /// export name here matches the name listed in the `TypeDef`.
+    #[serde(serialize_with = "serialize_id_map")]
     pub types: IndexMap<String, TypeId>,
 
     /// Exported functions from this interface.
     pub functions: IndexMap<String, Function>,
 
     /// The package that owns this interface.
+    #[serde(serialize_with = "serialize_optional_id")]
     pub package: Option<PackageId>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TypeDef {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub kind: TypeDefKind,
     pub name: Option<String>,
     pub owner: TypeOwner,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TypeDefKind {
     Record(Record),
     Resource,
@@ -379,20 +416,26 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
+    #[serde(serialize_with = "serialize_id")]
     World(WorldId),
     /// This type was defined within an `interface` block.
+    #[serde(serialize_with = "serialize_id")]
     Interface(InterfaceId),
     /// This type wasn't inherently defined anywhere, such as a `list<T>`, which
     /// doesn't need an owner.
     None,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Handle {
+    #[serde(serialize_with = "serialize_id")]
     Own(TypeId),
+    #[serde(serialize_with = "serialize_id")]
     Borrow(TypeId),
 }
 
@@ -414,7 +457,7 @@ pub enum Type {
     Id(TypeId),
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Int {
     U8,
     U16,
@@ -422,30 +465,33 @@ pub enum Int {
     U64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Record {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Field {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
+    #[serde(rename = "type")]
     pub ty: Type,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Flags {
     pub flags: Vec<Flag>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Flag {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FlagsRepr {
     U8,
     U16,
@@ -473,20 +519,22 @@ impl FlagsRepr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Tuple {
     pub types: Vec<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Variant {
     pub cases: Vec<Case>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Case {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
+    #[serde(rename = "type")]
     pub ty: Option<Type>,
 }
 
@@ -501,13 +549,14 @@ impl Variant {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Enum {
     pub cases: Vec<EnumCase>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EnumCase {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
 }
@@ -523,28 +572,37 @@ impl Enum {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Result_ {
     pub ok: Option<Type>,
     pub err: Option<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Stream {
     pub element: Option<Type>,
     pub end: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize)]
 pub struct Docs {
     pub contents: Option<String>,
 }
 
+impl Docs {
+    pub fn is_empty(&self) -> bool {
+        self.contents.is_none()
+    }
+}
+
 pub type Params = Vec<(String, Type)>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(untagged)]
 pub enum Results {
+    #[serde(serialize_with = "serialize_params")]
     Named(Params),
+    #[serde(serialize_with = "serialize_anon_result")]
     Anon(Type),
 }
 
@@ -607,20 +665,26 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Function {
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
     pub name: String,
     pub kind: FunctionKind,
+    #[serde(serialize_with = "serialize_params")]
     pub params: Params,
     pub results: Results,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum FunctionKind {
     Freestanding,
+    #[serde(serialize_with = "serialize_id")]
     Method(TypeId),
+    #[serde(serialize_with = "serialize_id")]
     Static(TypeId),
+    #[serde(serialize_with = "serialize_id")]
     Constructor(TypeId),
 }
 

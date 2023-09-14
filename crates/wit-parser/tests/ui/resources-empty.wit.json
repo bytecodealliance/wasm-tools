@@ -1,0 +1,72 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "resources-empty",
+      "types": {
+        "r1": 0
+      },
+      "functions": {
+        "t1": {
+          "name": "t1",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": 2
+            }
+          ],
+          "results": []
+        },
+        "t2": {
+          "name": "t2",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": 1
+            }
+          ],
+          "results": []
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "kind": "resource",
+      "name": "r1",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "handle": {
+          "borrow": 0
+        }
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "kind": {
+        "handle": {
+          "own": 0
+        }
+      },
+      "name": null,
+      "owner": "none"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:resources-empty",
+      "interfaces": {
+        "resources-empty": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

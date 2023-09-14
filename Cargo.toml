@@ -170,6 +170,7 @@ component = [
   'wast',
   'wasm-encoder',
   'dep:wasmparser',
+  'serde_json',
 ]
 metadata = ['dep:wasmparser', 'wasm-metadata', 'serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']

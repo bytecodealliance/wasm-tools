@@ -1,0 +1,107 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "imports": {
+        "interface-0": {
+          "interface": 0
+        },
+        "foo": {
+          "interface": 2
+        },
+        "interface-1": {
+          "interface": 1
+        },
+        "bar": {
+          "interface": 3
+        }
+      },
+      "exports": {},
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "shared1",
+      "types": {
+        "the-type": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "shared2",
+      "types": {
+        "the-type": 1
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": null,
+      "types": {
+        "the-type": 2
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": null,
+      "types": {
+        "the-type": 3
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "kind": {
+        "type": "u32"
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "u32"
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "kind": {
+        "type": 0
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 2
+      }
+    },
+    {
+      "kind": {
+        "type": 1
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 3
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:diamond",
+      "interfaces": {
+        "shared1": 0,
+        "shared2": 1
+      },
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}

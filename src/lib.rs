@@ -94,6 +94,7 @@ pub struct OutputArg {
 pub enum Output<'a> {
     Wat(&'a str),
     Wasm { bytes: &'a [u8], wat: bool },
+    Json(&'a str),
 }
 
 impl InputOutput {
@@ -147,6 +148,7 @@ impl OutputArg {
                 }
                 Ok(())
             }
+            Output::Json(s) => self.output_str(s),
         }
     }
 

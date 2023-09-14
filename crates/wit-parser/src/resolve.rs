@@ -1,5 +1,6 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
+use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
     PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
@@ -8,6 +9,7 @@ use crate::{
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
 use std::path::{Path, PathBuf};
@@ -25,12 +27,17 @@ use std::path::{Path, PathBuf};
 ///
 /// Each item in a `Resolve` has a parent link to trace it back to the original
 /// package as necessary.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Serialize)]
 pub struct Resolve {
+    #[serde(serialize_with = "serialize_arena")]
     pub worlds: Arena<World>,
+    #[serde(serialize_with = "serialize_arena")]
     pub interfaces: Arena<Interface>,
+    #[serde(serialize_with = "serialize_arena")]
     pub types: Arena<TypeDef>,
+    #[serde(serialize_with = "serialize_arena")]
     pub packages: Arena<Package>,
+    #[serde(skip)]
     pub package_names: IndexMap<PackageName, PackageId>,
 }
 
@@ -39,19 +46,22 @@ pub struct Resolve {
 /// A package is a collection of interfaces and worlds. Packages additionally
 /// have a unique identifier that affects generated components and uniquely
 /// identifiers this particular package.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Package {
     /// A unique name corresponding to this package.
     pub name: PackageName,
 
     /// Documentation associated with this package.
+    #[serde(skip_serializing_if = "Docs::is_empty")]
     pub docs: Docs,
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
+    #[serde(serialize_with = "serialize_id_map")]
     pub interfaces: IndexMap<String, InterfaceId>,
 
     /// All worlds contained in this package, keyed by the world's name.
+    #[serde(serialize_with = "serialize_id_map")]
     pub worlds: IndexMap<String, WorldId>,
 }
 
@@ -824,7 +834,7 @@ impl Remap {
     fn process_foreign_interfaces(
         &mut self,
         unresolved: &UnresolvedPackage,
-        interface_to_package: &HashMap<Id<Interface>, (&PackageName, &String, Span)>,
+        interface_to_package: &HashMap<InterfaceId, (&PackageName, &String, Span)>,
         resolve: &mut Resolve,
     ) -> Result<(), anyhow::Error> {
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
@@ -872,7 +882,7 @@ impl Remap {
     fn process_foreign_worlds(
         &mut self,
         unresolved: &UnresolvedPackage,
-        world_to_package: &HashMap<Id<World>, (&PackageName, &String, Span)>,
+        world_to_package: &HashMap<WorldId, (&PackageName, &String, Span)>,
         resolve: &mut Resolve,
     ) -> Result<(), anyhow::Error> {
         for (unresolved_world_id, _) in unresolved.worlds.iter() {

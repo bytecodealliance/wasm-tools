@@ -1,0 +1,296 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "wasi",
+      "types": {
+        "clockid": 0,
+        "timestamp": 1,
+        "errno": 2
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "kind": {
+        "enum": {
+          "cases": [
+            {
+              "name": "realtime"
+            },
+            {
+              "name": "monotonic"
+            }
+          ]
+        }
+      },
+      "name": "clockid",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "u64"
+      },
+      "name": "timestamp",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "enum": {
+          "cases": [
+            {
+              "name": "success"
+            },
+            {
+              "name": "toobig"
+            },
+            {
+              "name": "access"
+            },
+            {
+              "name": "addrinuse"
+            },
+            {
+              "name": "addrnotavail"
+            },
+            {
+              "name": "afnosupport"
+            },
+            {
+              "name": "again"
+            },
+            {
+              "name": "already"
+            },
+            {
+              "name": "badf"
+            },
+            {
+              "name": "badmsg"
+            },
+            {
+              "name": "busy"
+            },
+            {
+              "name": "canceled"
+            },
+            {
+              "name": "child"
+            },
+            {
+              "name": "connaborted"
+            },
+            {
+              "name": "connrefused"
+            },
+            {
+              "name": "connreset"
+            },
+            {
+              "name": "deadlk"
+            },
+            {
+              "name": "destaddrreq"
+            },
+            {
+              "name": "dom"
+            },
+            {
+              "name": "dquot"
+            },
+            {
+              "name": "exist"
+            },
+            {
+              "name": "fault"
+            },
+            {
+              "name": "fbig"
+            },
+            {
+              "name": "hostunreach"
+            },
+            {
+              "name": "idrm"
+            },
+            {
+              "name": "ilseq"
+            },
+            {
+              "name": "inprogress"
+            },
+            {
+              "name": "intr"
+            },
+            {
+              "name": "inval"
+            },
+            {
+              "name": "io"
+            },
+            {
+              "name": "isconn"
+            },
+            {
+              "name": "isdir"
+            },
+            {
+              "name": "loop"
+            },
+            {
+              "name": "mfile"
+            },
+            {
+              "name": "mlink"
+            },
+            {
+              "name": "msgsize"
+            },
+            {
+              "name": "multihop"
+            },
+            {
+              "name": "nametoolong"
+            },
+            {
+              "name": "netdown"
+            },
+            {
+              "name": "netreset"
+            },
+            {
+              "name": "netunreach"
+            },
+            {
+              "name": "nfile"
+            },
+            {
+              "name": "nobufs"
+            },
+            {
+              "name": "nodev"
+            },
+            {
+              "name": "noent"
+            },
+            {
+              "name": "noexec"
+            },
+            {
+              "name": "nolck"
+            },
+            {
+              "name": "nolink"
+            },
+            {
+              "name": "nomem"
+            },
+            {
+              "name": "nomsg"
+            },
+            {
+              "name": "noprotoopt"
+            },
+            {
+              "name": "nospc"
+            },
+            {
+              "name": "nosys"
+            },
+            {
+              "name": "notconn"
+            },
+            {
+              "name": "notdir"
+            },
+            {
+              "name": "notempty"
+            },
+            {
+              "name": "notrecoverable"
+            },
+            {
+              "name": "notsock"
+            },
+            {
+              "name": "notsup"
+            },
+            {
+              "name": "notty"
+            },
+            {
+              "name": "nxio"
+            },
+            {
+              "name": "overflow"
+            },
+            {
+              "name": "ownerdead"
+            },
+            {
+              "name": "perm"
+            },
+            {
+              "name": "pipe"
+            },
+            {
+              "name": "proto"
+            },
+            {
+              "name": "protonosupport"
+            },
+            {
+              "name": "prototype"
+            },
+            {
+              "name": "range"
+            },
+            {
+              "name": "rofs"
+            },
+            {
+              "name": "spipe"
+            },
+            {
+              "name": "srch"
+            },
+            {
+              "name": "stale"
+            },
+            {
+              "name": "timedout"
+            },
+            {
+              "name": "txtbsy"
+            },
+            {
+              "name": "xdev"
+            },
+            {
+              "name": "notcapable"
+            }
+          ]
+        }
+      },
+      "name": "errno",
+      "owner": {
+        "interface": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "wasi:filesystem",
+      "interfaces": {
+        "wasi": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

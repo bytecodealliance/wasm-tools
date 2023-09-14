@@ -1,0 +1,40 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "foo",
+      "types": {},
+      "functions": {
+        "x": {
+          "name": "x",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        },
+        "y": {
+          "name": "y",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        },
+        "z": {
+          "name": "z",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

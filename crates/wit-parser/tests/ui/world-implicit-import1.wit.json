@@ -1,0 +1,75 @@
+{
+  "worlds": [
+    {
+      "name": "the-world",
+      "imports": {
+        "interface-0": {
+          "interface": 0
+        },
+        "bar": {
+          "interface": 1
+        },
+        "foo": {
+          "interface": 2
+        }
+      },
+      "exports": {},
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "foo",
+      "types": {
+        "a": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": null,
+      "types": {
+        "a": 1
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": null,
+      "types": {},
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "kind": {
+        "type": "u32"
+      },
+      "name": "a",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": 0
+      },
+      "name": "a",
+      "owner": {
+        "interface": 1
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {
+        "the-world": 0
+      }
+    }
+  ]
+}

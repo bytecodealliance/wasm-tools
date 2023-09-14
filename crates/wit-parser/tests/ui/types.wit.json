@@ -1,0 +1,751 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "types",
+      "types": {
+        "t1": 0,
+        "t2": 1,
+        "t3": 2,
+        "t4": 3,
+        "t5": 4,
+        "t6": 5,
+        "t7": 6,
+        "t8": 7,
+        "t9": 8,
+        "t10": 9,
+        "t11": 10,
+        "t12": 11,
+        "t13": 12,
+        "t14": 13,
+        "t15": 14,
+        "t16": 15,
+        "t17": 16,
+        "t18": 17,
+        "t20": 18,
+        "t21": 19,
+        "t22": 20,
+        "t23": 21,
+        "t24": 22,
+        "t25": 23,
+        "record": 24,
+        "t26": 25,
+        "t27": 26,
+        "t28": 27,
+        "t29": 28,
+        "t30": 29,
+        "t31": 30,
+        "t32": 31,
+        "t33": 32,
+        "t34": 33,
+        "t35": 34,
+        "t36": 35,
+        "t37": 37,
+        "t41": 38,
+        "t42": 39,
+        "t43": 40,
+        "t44": 41,
+        "t45": 44,
+        "t46": 45,
+        "t47": 46,
+        "t48": 47,
+        "t49": 48,
+        "t50": 49,
+        "t51": 50,
+        "t52": 51,
+        "t53": 52,
+        "bar": 53,
+        "foo": 54
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "kind": {
+        "type": "u8"
+      },
+      "name": "t1",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "u16"
+      },
+      "name": "t2",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "u32"
+      },
+      "name": "t3",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "u64"
+      },
+      "name": "t4",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "s8"
+      },
+      "name": "t5",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "s16"
+      },
+      "name": "t6",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "s32"
+      },
+      "name": "t7",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "s64"
+      },
+      "name": "t8",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "float32"
+      },
+      "name": "t9",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "float64"
+      },
+      "name": "t10",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "char"
+      },
+      "name": "t11",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "list": "char"
+      },
+      "name": "t12",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "string"
+      },
+      "name": "t13",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "option": "u32"
+      },
+      "name": "t14",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "result": {
+          "ok": "u32",
+          "err": "u32"
+        }
+      },
+      "name": "t15",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "result": {
+          "ok": null,
+          "err": "u32"
+        }
+      },
+      "name": "t16",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "result": {
+          "ok": "u32",
+          "err": null
+        }
+      },
+      "name": "t17",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "result": {
+          "ok": null,
+          "err": null
+        }
+      },
+      "name": "t18",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": []
+        }
+      },
+      "name": "t20",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "name": "t21",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "name": "t22",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "a",
+              "type": "u32"
+            },
+            {
+              "name": "b",
+              "type": "u64"
+            }
+          ]
+        }
+      },
+      "name": "t23",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "a",
+              "type": "u32"
+            },
+            {
+              "name": "b",
+              "type": "u64"
+            }
+          ]
+        }
+      },
+      "name": "t24",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "name": "t25",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "record": {
+          "fields": []
+        }
+      },
+      "name": "record",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "tuple": {
+          "types": []
+        }
+      },
+      "name": "t26",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "tuple": {
+          "types": [
+            "u32"
+          ]
+        }
+      },
+      "name": "t27",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "tuple": {
+          "types": [
+            "u32"
+          ]
+        }
+      },
+      "name": "t28",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "tuple": {
+          "types": [
+            "u32",
+            "u64"
+          ]
+        }
+      },
+      "name": "t29",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "flags": {
+          "flags": []
+        }
+      },
+      "name": "t30",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "flags": {
+          "flags": [
+            {
+              "name": "a"
+            },
+            {
+              "name": "b"
+            },
+            {
+              "name": "c"
+            }
+          ]
+        }
+      },
+      "name": "t31",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "flags": {
+          "flags": [
+            {
+              "name": "a"
+            },
+            {
+              "name": "b"
+            },
+            {
+              "name": "c"
+            }
+          ]
+        }
+      },
+      "name": "t32",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "a",
+              "type": null
+            }
+          ]
+        }
+      },
+      "name": "t33",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "a",
+              "type": null
+            },
+            {
+              "name": "b",
+              "type": null
+            }
+          ]
+        }
+      },
+      "name": "t34",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "a",
+              "type": null
+            },
+            {
+              "name": "b",
+              "type": null
+            }
+          ]
+        }
+      },
+      "name": "t35",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "a",
+              "type": null
+            },
+            {
+              "name": "b",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "name": "t36",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "option": "u32"
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "a",
+              "type": null
+            },
+            {
+              "name": "b",
+              "type": 36
+            }
+          ]
+        }
+      },
+      "name": "t37",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "enum": {
+          "cases": [
+            {
+              "name": "a"
+            },
+            {
+              "name": "b"
+            },
+            {
+              "name": "c"
+            }
+          ]
+        }
+      },
+      "name": "t41",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "enum": {
+          "cases": [
+            {
+              "name": "a"
+            },
+            {
+              "name": "b"
+            },
+            {
+              "name": "c"
+            }
+          ]
+        }
+      },
+      "name": "t42",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "bool"
+      },
+      "name": "t43",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "string"
+      },
+      "name": "t44",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "list": 31
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "kind": {
+        "list": 42
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "kind": {
+        "list": 43
+      },
+      "name": "t45",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": 41
+      },
+      "name": "t46",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": 41
+      },
+      "name": "t47",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "stream": {
+          "element": "u32",
+          "end": "u32"
+        }
+      },
+      "name": "t48",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "stream": {
+          "element": null,
+          "end": "u32"
+        }
+      },
+      "name": "t49",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "stream": {
+          "element": "u32",
+          "end": null
+        }
+      },
+      "name": "t50",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "stream": {
+          "element": null,
+          "end": null
+        }
+      },
+      "name": "t51",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "future": "u32"
+      },
+      "name": "t52",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "future": null
+      },
+      "name": "t53",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": "u32"
+      },
+      "name": "bar",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "kind": {
+        "type": 53
+      },
+      "name": "foo",
+      "owner": {
+        "interface": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:types",
+      "interfaces": {
+        "types": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

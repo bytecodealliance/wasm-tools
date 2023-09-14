@@ -124,20 +124,34 @@ impl Runner<'_> {
             }
         } else {
             result?;
+            // format json string to human readable
+            let json_result = serde_json::to_string_pretty(&resolve)?;
+            // "foo.wit" => "foo.wit.json"
+            self.read_or_write_to_file(test, &json_result, "json")?;
             return Ok(());
         };
 
         // "foo.wit" => "foo.wit.result"
         // "foo.wit.md" => "foo.wit.md.result"
+        self.read_or_write_to_file(test, &result, "result")?;
+        return Ok(());
+    }
+
+    fn read_or_write_to_file(
+        &mut self,
+        test: &Path,
+        result: &str,
+        extension: &str,
+    ) -> Result<(), anyhow::Error> {
         let result_file = if test.extension() == Some(OsStr::new("md"))
             && test
                 .file_stem()
                 .and_then(|path| Path::new(path).extension())
                 == Some(OsStr::new("wit"))
         {
-            test.with_extension("md.result")
+            test.with_extension(format!("md.{extension}"))
         } else {
-            test.with_extension("wit.result")
+            test.with_extension(format!("wit.{extension}"))
         };
         if env::var_os("BLESS").is_some() {
             fs::write(&result_file, result)?;
@@ -155,14 +169,14 @@ impl Runner<'_> {
             }
         }
         self.bump_ntests();
-        return Ok(());
-
-        fn normalize(s: &str) -> String {
-            s.replace('\\', "/").replace("\r\n", "\n")
-        }
+        Ok(())
     }
 
     fn bump_ntests(&self) {
         self.ntests.fetch_add(1, SeqCst);
     }
+}
+
+fn normalize(s: &str) -> String {
+    s.replace('\\', "/").replace("\r\n", "\n")
 }

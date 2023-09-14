@@ -416,6 +416,16 @@ pub struct WitOpts {
     /// options.
     #[clap(long)]
     skip_validation: bool,
+
+    /// Emit the WIT document as JSON instead of text.
+    #[clap(
+        short,
+        long,
+        conflicts_with = "wasm",
+        conflicts_with = "out_dir",
+        conflicts_with = "wat"
+    )]
+    json: bool,
 }
 
 impl WitOpts {
@@ -478,6 +488,10 @@ impl WitOpts {
 
         // Now that the WIT document has been decoded, it's time to emit it.
         // This interprets all of the output options and performs such a task.
+        if self.json {
+            self.emit_json(&decoded)?;
+            return Ok(());
+        }
         if self.wasm || self.wat {
             self.emit_wasm(&decoded)?;
         } else {
@@ -564,6 +578,16 @@ impl WitOpts {
                 self.output.output(Output::Wat(&output))?;
             }
         }
+
+        Ok(())
+    }
+
+    fn emit_json(&self, decoded: &DecodedWasm) -> Result<()> {
+        assert!(!self.wasm && !self.wat);
+
+        let resolve = decoded.resolve();
+        let output = serde_json::to_string_pretty(&resolve)?;
+        self.output.output(Output::Json(&output))?;
 
         Ok(())
     }

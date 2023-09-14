@@ -19,4 +19,5 @@ interface i2 {
 world the-world {
   import i1
   import i2
+  import a: func()
 }

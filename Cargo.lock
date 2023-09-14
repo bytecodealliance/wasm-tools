@@ -2397,6 +2397,8 @@ dependencies = [
  "pulldown-cmark",
  "rayon",
  "semver",
+ "serde",
+ "serde_json",
  "unicode-xid",
  "url",
 ]
