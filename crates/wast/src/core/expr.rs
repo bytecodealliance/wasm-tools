@@ -582,12 +582,12 @@ instructions! {
         RefFunc(Index<'a>) : [0xd2] : "ref.func",
 
         // function-references proposal
-        RefAsNonNull : [0xd3] : "ref.as_non_null",
-        BrOnNull(Index<'a>) : [0xd4] : "br_on_null",
+        RefAsNonNull : [0xd4] : "ref.as_non_null",
+        BrOnNull(Index<'a>) : [0xd5] : "br_on_null",
         BrOnNonNull(Index<'a>) : [0xd6] : "br_on_non_null",
 
         // gc proposal: eqref
-        RefEq : [0xd5] : "ref.eq",
+        RefEq : [0xd3] : "ref.eq",
 
         // gc proposal: struct
         StructNew(Index<'a>) : [0xfb, 0x07] : "struct.new",

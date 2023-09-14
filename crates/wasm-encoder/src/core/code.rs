@@ -917,7 +917,7 @@ impl Encode for Instruction<'_> {
                 l.encode(sink);
             }
             Instruction::BrOnNull(l) => {
-                sink.push(0xD4);
+                sink.push(0xD5);
                 l.encode(sink);
             }
             Instruction::BrOnNonNull(l) => {
@@ -1318,7 +1318,7 @@ impl Encode for Instruction<'_> {
                 sink.push(0xd2);
                 f.encode(sink);
             }
-            Instruction::RefAsNonNull => sink.push(0xD3),
+            Instruction::RefAsNonNull => sink.push(0xd4),
 
             // GC instructions.
             Instruction::RefI31 => {

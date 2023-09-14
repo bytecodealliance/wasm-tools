@@ -741,7 +741,7 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "illegal opcode" {
         // The test suite includes "bad opcodes" that later became valid opcodes
-        // (0xd3, function references proposal). However, they are still not
+        // (0xd4, function references proposal). However, they are still not
         // constant expressions, so we can sidestep by checking for that error
         // instead
         return error.contains("constant expression required")
