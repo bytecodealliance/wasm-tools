@@ -1,0 +1,15 @@
+{
+  "worlds": [],
+  "interfaces": [],
+  "types": [],
+  "packages": [
+    {
+      "name": "foo:bar",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {},
+      "worlds": {}
+    }
+  ]
+}

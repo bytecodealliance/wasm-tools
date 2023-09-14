@@ -1,0 +1,137 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "interface-0": {
+          "interface": 0
+        },
+        "foo": {
+          "interface": 2
+        },
+        "interface-1": {
+          "interface": 1
+        },
+        "bar": {
+          "interface": 3
+        }
+      },
+      "exports": {},
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "shared1",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "the-type": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "shared2",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "the-type": 1
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": null,
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "the-type": 2
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": null,
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "the-type": 3
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 0
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 2
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 1
+      },
+      "name": "the-type",
+      "owner": {
+        "interface": 3
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:diamond",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "shared1": 0,
+        "shared2": 1
+      },
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}

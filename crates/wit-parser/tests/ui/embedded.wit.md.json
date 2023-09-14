@@ -1,0 +1,55 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "types": {},
+      "functions": {
+        "x": {
+          "docs": {
+            "contents": null
+          },
+          "name": "x",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        },
+        "y": {
+          "docs": {
+            "contents": null
+          },
+          "name": "y",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        },
+        "z": {
+          "docs": {
+            "contents": null
+          },
+          "name": "z",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

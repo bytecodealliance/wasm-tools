@@ -1,0 +1,151 @@
+{
+  "worlds": [
+    {
+      "name": "the-world",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "interface-0": {
+          "interface": 0
+        },
+        "interface-1": {
+          "interface": 1
+        },
+        "interface-2": {
+          "interface": 2
+        },
+        "a": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "a",
+            "kind": "freestanding",
+            "params": [],
+            "results": []
+          }
+        }
+      },
+      "exports": {},
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "shared-items",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "foo": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "i1",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "foo": 1
+      },
+      "functions": {
+        "a": {
+          "docs": {
+            "contents": null
+          },
+          "name": "a",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "type": 1
+            }
+          ]
+        }
+      },
+      "package": 0
+    },
+    {
+      "name": "i2",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "foo": 2
+      },
+      "functions": {
+        "a": {
+          "docs": {
+            "contents": null
+          },
+          "name": "a",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "type": 2
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "foo",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 0
+      },
+      "name": "foo",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 0
+      },
+      "name": "foo",
+      "owner": {
+        "interface": 2
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "shared-items": 0,
+        "i1": 1,
+        "i2": 2
+      },
+      "worlds": {
+        "the-world": 0
+      }
+    }
+  ]
+}

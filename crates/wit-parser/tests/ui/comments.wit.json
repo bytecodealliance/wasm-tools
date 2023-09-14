@@ -1,0 +1,58 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "x": 0,
+        "bar": 1
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "x",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "stream": {
+          "element": 0,
+          "end": null
+        }
+      },
+      "name": "bar",
+      "owner": {
+        "interface": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:comments",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

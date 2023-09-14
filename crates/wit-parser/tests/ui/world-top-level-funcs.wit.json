@@ -1,0 +1,113 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "foo": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "foo",
+            "kind": "freestanding",
+            "params": [],
+            "results": []
+          }
+        },
+        "bar": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "bar",
+            "kind": "freestanding",
+            "params": [
+              {
+                "name": "arg",
+                "type": 0
+              }
+            ],
+            "results": []
+          }
+        }
+      },
+      "exports": {
+        "foo2": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "foo2",
+            "kind": "freestanding",
+            "params": [],
+            "results": []
+          }
+        },
+        "some-name": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "some-name",
+            "kind": "freestanding",
+            "params": [],
+            "results": [
+              {
+                "type": 2
+              }
+            ]
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "list": "u32"
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "option": "u32"
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "list": 1
+      },
+      "name": null,
+      "owner": "none"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {},
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,388 @@
+{
+  "worlds": [
+    {
+      "name": "more-depends-on-later-things",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "interface-3": {
+          "interface": 3
+        }
+      },
+      "exports": {
+        "interface-3": {
+          "interface": 3
+        }
+      },
+      "package": 0
+    },
+    {
+      "name": "the-world",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "interface-1": {
+          "interface": 1
+        },
+        "x": {
+          "type": 15
+        },
+        "foo": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "foo",
+            "kind": "freestanding",
+            "params": [],
+            "results": [
+              {
+                "type": 15
+              }
+            ]
+          }
+        }
+      },
+      "exports": {},
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "irrelevant-name",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "a-name": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "depend-on-me",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "x": 1
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "depends-on-later-item",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "x": 2
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "later-interface",
+      "docs": {
+        "contents": null
+      },
+      "types": {},
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "cycle1",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "t": 3
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "cycle2",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "t": 4
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "cycle3",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "t": 5
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "x": 6
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "something-else",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "y": 7
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "bar",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "x": 8,
+        "x2": 9,
+        "x3": 10,
+        "x4": 11,
+        "y": 12,
+        "y2": 13,
+        "a-name": 14
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "record": {
+          "fields": []
+        }
+      },
+      "name": "a-name",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "x",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 1
+      },
+      "name": "x",
+      "owner": {
+        "interface": 2
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "t",
+      "owner": {
+        "interface": 4
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 3
+      },
+      "name": "t",
+      "owner": {
+        "interface": 5
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 4
+      },
+      "name": "t",
+      "owner": {
+        "interface": 6
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u32"
+      },
+      "name": "x",
+      "owner": {
+        "interface": 7
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "u64"
+      },
+      "name": "y",
+      "owner": {
+        "interface": 8
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 6
+      },
+      "name": "x",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 6
+      },
+      "name": "x2",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 6
+      },
+      "name": "x3",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 1
+      },
+      "name": "x4",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 7
+      },
+      "name": "y",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 7
+      },
+      "name": "y2",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 0
+      },
+      "name": "a-name",
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 1
+      },
+      "name": "x",
+      "owner": {
+        "world": 1
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:multi-file",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "irrelevant-name": 0,
+        "depend-on-me": 1,
+        "depends-on-later-item": 2,
+        "later-interface": 3,
+        "cycle1": 4,
+        "cycle2": 5,
+        "cycle3": 6,
+        "foo": 7,
+        "something-else": 8,
+        "bar": 9
+      },
+      "worlds": {
+        "more-depends-on-later-things": 0,
+        "the-world": 1
+      }
+    }
+  ]
+}

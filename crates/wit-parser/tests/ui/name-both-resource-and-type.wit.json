@@ -1,0 +1,116 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "a": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "a": 1,
+        "t1": 2,
+        "t2": 3,
+        "t3": 4
+      },
+      "functions": {},
+      "package": 1
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": "resource",
+      "name": "a",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 0
+      },
+      "name": "a",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 1
+      },
+      "name": "t1",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "handle": {
+          "borrow": 1
+        }
+      },
+      "name": "t2",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "handle": {
+          "borrow": 2
+        }
+      },
+      "name": "t3",
+      "owner": {
+        "interface": 1
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "some:dep",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {}
+    },
+    {
+      "name": "foo:bar",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "foo": 1
+      },
+      "worlds": {}
+    }
+  ]
+}

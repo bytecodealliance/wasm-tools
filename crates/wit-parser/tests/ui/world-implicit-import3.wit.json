@@ -1,0 +1,89 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "interface-0": {
+          "interface": 0
+        },
+        "g": {
+          "type": 1
+        }
+      },
+      "exports": {
+        "foo": {
+          "function": {
+            "docs": {
+              "contents": null
+            },
+            "name": "foo",
+            "kind": "freestanding",
+            "params": [],
+            "results": [
+              {
+                "type": 1
+              }
+            ]
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "g": 0
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": "char"
+      },
+      "name": "g",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "type": 0
+      },
+      "name": "g",
+      "owner": {
+        "world": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {
+        "w": 0
+      }
+    }
+  ]
+}

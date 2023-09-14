@@ -1,0 +1,211 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "functions",
+      "docs": {
+        "contents": null
+      },
+      "types": {},
+      "functions": {
+        "f1": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f1",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        },
+        "f2": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f2",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ],
+          "results": []
+        },
+        "f3": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f3",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ],
+          "results": []
+        },
+        "f4": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f4",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "type": "u32"
+            }
+          ]
+        },
+        "f6": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f6",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "type": 0
+            }
+          ]
+        },
+        "f7": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f7",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": "float32"
+            },
+            {
+              "name": "b",
+              "type": "float32"
+            }
+          ],
+          "results": [
+            {
+              "type": 0
+            }
+          ]
+        },
+        "f8": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f8",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": 1
+            }
+          ],
+          "results": [
+            {
+              "type": 2
+            }
+          ]
+        },
+        "f9": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f9",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "name": "u",
+              "type": "u32"
+            },
+            {
+              "name": "f",
+              "type": "float32"
+            }
+          ]
+        },
+        "f10": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f10",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "name": "u",
+              "type": "u32"
+            }
+          ]
+        },
+        "f11": {
+          "docs": {
+            "contents": null
+          },
+          "name": "f11",
+          "kind": "freestanding",
+          "params": [],
+          "results": []
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "tuple": {
+          "types": [
+            "u32",
+            "u32"
+          ]
+        }
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "option": "u32"
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "result": {
+          "ok": "u32",
+          "err": "float32"
+        }
+      },
+      "name": null,
+      "owner": "none"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:functions",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "functions": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

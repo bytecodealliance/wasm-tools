@@ -1,0 +1,341 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "resources-multiple",
+      "docs": {
+        "contents": null
+      },
+      "types": {
+        "r1": 0
+      },
+      "functions": {
+        "t1": {
+          "docs": {
+            "contents": null
+          },
+          "name": "t1",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": 1
+            }
+          ],
+          "results": []
+        },
+        "t2": {
+          "docs": {
+            "contents": null
+          },
+          "name": "t2",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": 5
+            }
+          ],
+          "results": []
+        },
+        "[method]r1.f1": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f1",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            }
+          ],
+          "results": []
+        },
+        "[method]r1.f2": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f2",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            },
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ],
+          "results": []
+        },
+        "[method]r1.f3": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f3",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            },
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ],
+          "results": []
+        },
+        "[method]r1.f4": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f4",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            }
+          ],
+          "results": [
+            {
+              "type": "u32"
+            }
+          ]
+        },
+        "[method]r1.f6": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f6",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            }
+          ],
+          "results": [
+            {
+              "type": 2
+            }
+          ]
+        },
+        "[method]r1.f7": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f7",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            },
+            {
+              "name": "a",
+              "type": "float32"
+            },
+            {
+              "name": "b",
+              "type": "float32"
+            }
+          ],
+          "results": [
+            {
+              "type": 2
+            }
+          ]
+        },
+        "[method]r1.f8": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f8",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            },
+            {
+              "name": "a",
+              "type": 3
+            }
+          ],
+          "results": [
+            {
+              "type": 4
+            }
+          ]
+        },
+        "[method]r1.f9": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f9",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            }
+          ],
+          "results": [
+            {
+              "name": "u",
+              "type": "u32"
+            },
+            {
+              "name": "f",
+              "type": "float32"
+            }
+          ]
+        },
+        "[method]r1.f10": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f10",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            }
+          ],
+          "results": [
+            {
+              "name": "u",
+              "type": "u32"
+            }
+          ]
+        },
+        "[method]r1.f11": {
+          "docs": {
+            "contents": null
+          },
+          "name": "[method]r1.f11",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 1
+            }
+          ],
+          "results": []
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": "resource",
+      "name": "r1",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "handle": {
+          "borrow": 0
+        }
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "tuple": {
+          "types": [
+            "u32",
+            "u32"
+          ]
+        }
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "option": "u32"
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "result": {
+          "ok": "u32",
+          "err": "float32"
+        }
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "handle": {
+          "own": 0
+        }
+      },
+      "name": null,
+      "owner": "none"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:resources-multiple",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {
+        "resources-multiple": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

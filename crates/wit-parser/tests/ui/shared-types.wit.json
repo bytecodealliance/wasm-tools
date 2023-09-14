@@ -1,0 +1,107 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "docs": {
+        "contents": null
+      },
+      "imports": {
+        "foo": {
+          "interface": 0
+        }
+      },
+      "exports": {
+        "bar": {
+          "interface": 1
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": null,
+      "docs": {
+        "contents": null
+      },
+      "types": {},
+      "functions": {
+        "a": {
+          "docs": {
+            "contents": null
+          },
+          "name": "a",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "type": 0
+            }
+          ]
+        }
+      },
+      "package": 0
+    },
+    {
+      "name": null,
+      "docs": {
+        "contents": null
+      },
+      "types": {},
+      "functions": {
+        "a": {
+          "docs": {
+            "contents": null
+          },
+          "name": "a",
+          "kind": "freestanding",
+          "params": [],
+          "results": [
+            {
+              "type": 1
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "list": "u8"
+      },
+      "name": null,
+      "owner": "none"
+    },
+    {
+      "docs": {
+        "contents": null
+      },
+      "kind": {
+        "tuple": {
+          "types": [
+            0
+          ]
+        }
+      },
+      "name": null,
+      "owner": "none"
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:shared-items",
+      "docs": {
+        "contents": null
+      },
+      "interfaces": {},
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}
