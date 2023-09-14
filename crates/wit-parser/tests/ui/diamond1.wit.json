@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -20,18 +17,12 @@
   "interfaces": [
     {
       "name": "types",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "types",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 1
@@ -41,9 +32,6 @@
   "packages": [
     {
       "name": "foo:dep1",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "types": 0
       },
@@ -51,9 +39,6 @@
     },
     {
       "name": "foo:dep2",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "types": 1
       },
@@ -61,9 +46,6 @@
     },
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {},
       "worlds": {
         "foo": 0

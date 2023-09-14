@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "foo": {
           "interface": 0
@@ -21,15 +18,9 @@
   "interfaces": [
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {
         "a": {
-          "docs": {
-            "contents": null
-          },
           "name": "a",
           "kind": "freestanding",
           "params": [],
@@ -44,15 +35,9 @@
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {
         "a": {
-          "docs": {
-            "contents": null
-          },
           "name": "a",
           "kind": "freestanding",
           "params": [],
@@ -68,9 +53,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": "u8"
       },
@@ -78,9 +60,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": [
@@ -95,9 +74,6 @@
   "packages": [
     {
       "name": "foo:shared-items",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {},
       "worlds": {
         "foo": 0

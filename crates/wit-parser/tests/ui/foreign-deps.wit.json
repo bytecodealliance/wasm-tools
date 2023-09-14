@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "my-world",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-8": {
           "interface": 8
@@ -22,9 +19,6 @@
     },
     {
       "name": "my-world2",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-8": {
           "interface": 8
@@ -45,9 +39,6 @@
     },
     {
       "name": "bars-world",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-4": {
           "interface": 4
@@ -63,36 +54,24 @@
   "interfaces": [
     {
       "name": "other-interface",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "saas",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "i",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 2
     },
     {
       "name": "the-default",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "some-type": 0
       },
@@ -101,9 +80,6 @@
     },
     {
       "name": "the-default",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "from-default": 1
       },
@@ -112,9 +88,6 @@
     },
     {
       "name": "some-interface",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "another-type": 2
       },
@@ -123,9 +96,6 @@
     },
     {
       "name": "another-interface",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "yet-another-type": 3
       },
@@ -134,9 +104,6 @@
     },
     {
       "name": "clocks",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "timestamp": 4
       },
@@ -145,9 +112,6 @@
     },
     {
       "name": "filesystem",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "stat": 5
       },
@@ -156,9 +120,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "timestamp": 6,
         "stat": 7
@@ -168,9 +129,6 @@
     },
     {
       "name": "bar",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "from-default": 8,
         "another-type": 9,
@@ -181,9 +139,6 @@
     },
     {
       "name": "use1",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "some-type": 11
       },
@@ -192,9 +147,6 @@
     },
     {
       "name": "use2",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "some-type": 12
       },
@@ -204,9 +156,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -216,9 +165,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "string"
       },
@@ -228,9 +174,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -240,9 +183,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u8"
       },
@@ -252,9 +192,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u64"
       },
@@ -264,16 +201,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "ino",
               "type": "u64"
             }
@@ -286,9 +217,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 4
       },
@@ -298,9 +226,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 5
       },
@@ -310,9 +235,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -322,9 +244,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 2
       },
@@ -334,9 +253,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 3
       },
@@ -346,9 +262,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -358,9 +271,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -373,9 +283,6 @@
   "packages": [
     {
       "name": "foo:another-pkg",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "other-interface": 0
       },
@@ -383,9 +290,6 @@
     },
     {
       "name": "foo:corp",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "saas": 1
       },
@@ -393,9 +297,6 @@
     },
     {
       "name": "foo:different-pkg",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "i": 2
       },
@@ -403,9 +304,6 @@
     },
     {
       "name": "foo:foreign-pkg",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "the-default": 3
       },
@@ -413,9 +311,6 @@
     },
     {
       "name": "foo:some-pkg",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "the-default": 4,
         "some-interface": 5,
@@ -425,9 +320,6 @@
     },
     {
       "name": "foo:wasi",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "clocks": 7,
         "filesystem": 8
@@ -436,9 +328,6 @@
     },
     {
       "name": "foo:root",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 9,
         "bar": 10,

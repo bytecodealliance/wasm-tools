@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -26,9 +23,6 @@
   "interfaces": [
     {
       "name": "shared1",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 0
       },
@@ -37,9 +31,6 @@
     },
     {
       "name": "shared2",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 1
       },
@@ -48,9 +39,6 @@
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 2
       },
@@ -59,9 +47,6 @@
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 3
       },
@@ -71,9 +56,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -83,9 +65,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -95,9 +74,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -107,9 +83,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -122,9 +95,6 @@
   "packages": [
     {
       "name": "foo:diamond",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "shared1": 0,
         "shared2": 1

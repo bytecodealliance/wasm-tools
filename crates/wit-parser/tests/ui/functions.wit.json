@@ -3,24 +3,15 @@
   "interfaces": [
     {
       "name": "functions",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {
         "f1": {
-          "docs": {
-            "contents": null
-          },
           "name": "f1",
           "kind": "freestanding",
           "params": [],
           "results": []
         },
         "f2": {
-          "docs": {
-            "contents": null
-          },
           "name": "f2",
           "kind": "freestanding",
           "params": [
@@ -32,9 +23,6 @@
           "results": []
         },
         "f3": {
-          "docs": {
-            "contents": null
-          },
           "name": "f3",
           "kind": "freestanding",
           "params": [
@@ -46,9 +34,6 @@
           "results": []
         },
         "f4": {
-          "docs": {
-            "contents": null
-          },
           "name": "f4",
           "kind": "freestanding",
           "params": [],
@@ -59,9 +44,6 @@
           ]
         },
         "f6": {
-          "docs": {
-            "contents": null
-          },
           "name": "f6",
           "kind": "freestanding",
           "params": [],
@@ -72,9 +54,6 @@
           ]
         },
         "f7": {
-          "docs": {
-            "contents": null
-          },
           "name": "f7",
           "kind": "freestanding",
           "params": [
@@ -94,9 +73,6 @@
           ]
         },
         "f8": {
-          "docs": {
-            "contents": null
-          },
           "name": "f8",
           "kind": "freestanding",
           "params": [
@@ -112,9 +88,6 @@
           ]
         },
         "f9": {
-          "docs": {
-            "contents": null
-          },
           "name": "f9",
           "kind": "freestanding",
           "params": [],
@@ -130,9 +103,6 @@
           ]
         },
         "f10": {
-          "docs": {
-            "contents": null
-          },
           "name": "f10",
           "kind": "freestanding",
           "params": [],
@@ -144,9 +114,6 @@
           ]
         },
         "f11": {
-          "docs": {
-            "contents": null
-          },
           "name": "f11",
           "kind": "freestanding",
           "params": [],
@@ -158,9 +125,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": [
@@ -173,9 +137,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "option": "u32"
       },
@@ -183,9 +144,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "result": {
           "ok": "u32",
@@ -199,9 +157,6 @@
   "packages": [
     {
       "name": "foo:functions",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "functions": 0
       },

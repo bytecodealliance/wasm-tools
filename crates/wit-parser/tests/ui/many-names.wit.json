@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "name",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "name": {
           "interface": 1
@@ -17,18 +14,12 @@
   "interfaces": [
     {
       "name": "x",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
@@ -38,9 +29,6 @@
   "packages": [
     {
       "name": "foo:name",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "x": 0
       },

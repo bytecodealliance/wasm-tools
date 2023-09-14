@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "the-world",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -23,9 +20,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 0
       },
@@ -34,9 +28,6 @@
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 1
       },
@@ -45,9 +36,6 @@
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
@@ -55,9 +43,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -67,9 +52,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -82,9 +64,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0
       },

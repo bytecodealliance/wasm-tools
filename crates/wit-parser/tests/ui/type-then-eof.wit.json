@@ -3,15 +3,9 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {
         "foo": {
-          "docs": {
-            "contents": null
-          },
           "name": "foo",
           "kind": "freestanding",
           "params": [],
@@ -29,9 +23,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0
       },

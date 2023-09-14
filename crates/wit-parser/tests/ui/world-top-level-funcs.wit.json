@@ -2,15 +2,9 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "foo": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "foo",
             "kind": "freestanding",
             "params": [],
@@ -19,9 +13,6 @@
         },
         "bar": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "bar",
             "kind": "freestanding",
             "params": [
@@ -37,9 +28,6 @@
       "exports": {
         "foo2": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "foo2",
             "kind": "freestanding",
             "params": [],
@@ -48,9 +36,6 @@
         },
         "some-name": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "some-name",
             "kind": "freestanding",
             "params": [],
@@ -68,9 +53,6 @@
   "interfaces": [],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": "u32"
       },
@@ -78,9 +60,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "option": "u32"
       },
@@ -88,9 +67,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": 1
       },
@@ -101,9 +77,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {},
       "worlds": {
         "foo": 0

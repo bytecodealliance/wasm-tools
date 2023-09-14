@@ -5,9 +5,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {},
       "worlds": {}
     }

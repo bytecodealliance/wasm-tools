@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 0
       },
@@ -14,9 +11,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 1,
         "t1": 2,
@@ -29,9 +23,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "a",
       "owner": {
@@ -39,9 +30,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -51,9 +39,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -63,9 +48,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 1
@@ -77,9 +59,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 2
@@ -94,9 +73,6 @@
   "packages": [
     {
       "name": "some:dep",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0
       },
@@ -104,9 +80,6 @@
     },
     {
       "name": "foo:bar",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 1
       },

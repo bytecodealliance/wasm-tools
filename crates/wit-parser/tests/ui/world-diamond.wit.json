@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "the-world",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -17,9 +14,6 @@
         },
         "a": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "a",
             "kind": "freestanding",
             "params": [],
@@ -34,9 +28,6 @@
   "interfaces": [
     {
       "name": "shared-items",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "foo": 0
       },
@@ -45,17 +36,11 @@
     },
     {
       "name": "i1",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "foo": 1
       },
       "functions": {
         "a": {
-          "docs": {
-            "contents": null
-          },
           "name": "a",
           "kind": "freestanding",
           "params": [],
@@ -70,17 +55,11 @@
     },
     {
       "name": "i2",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "foo": 2
       },
       "functions": {
         "a": {
-          "docs": {
-            "contents": null
-          },
           "name": "a",
           "kind": "freestanding",
           "params": [],
@@ -96,9 +75,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -108,9 +84,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -120,9 +93,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -135,9 +105,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "shared-items": 0,
         "i1": 1,

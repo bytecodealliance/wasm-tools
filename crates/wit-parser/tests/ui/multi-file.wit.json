@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "more-depends-on-later-things",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-3": {
           "interface": 3
@@ -19,9 +16,6 @@
     },
     {
       "name": "the-world",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-1": {
           "interface": 1
@@ -31,9 +25,6 @@
         },
         "foo": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "foo",
             "kind": "freestanding",
             "params": [],
@@ -52,9 +43,6 @@
   "interfaces": [
     {
       "name": "irrelevant-name",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a-name": 0
       },
@@ -63,9 +51,6 @@
     },
     {
       "name": "depend-on-me",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "x": 1
       },
@@ -74,9 +59,6 @@
     },
     {
       "name": "depends-on-later-item",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "x": 2
       },
@@ -85,18 +67,12 @@
     },
     {
       "name": "later-interface",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "cycle1",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 3
       },
@@ -105,9 +81,6 @@
     },
     {
       "name": "cycle2",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 4
       },
@@ -116,9 +89,6 @@
     },
     {
       "name": "cycle3",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 5
       },
@@ -127,9 +97,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "x": 6
       },
@@ -138,9 +105,6 @@
     },
     {
       "name": "something-else",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "y": 7
       },
@@ -149,9 +113,6 @@
     },
     {
       "name": "bar",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "x": 8,
         "x2": 9,
@@ -167,9 +128,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": []
@@ -181,9 +139,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -193,9 +148,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -205,9 +157,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -217,9 +166,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 3
       },
@@ -229,9 +175,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 4
       },
@@ -241,9 +184,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -253,9 +193,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u64"
       },
@@ -265,9 +202,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 6
       },
@@ -277,9 +211,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 6
       },
@@ -289,9 +220,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 6
       },
@@ -301,9 +229,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -313,9 +238,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 7
       },
@@ -325,9 +247,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 7
       },
@@ -337,9 +256,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -349,9 +265,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -364,9 +277,6 @@
   "packages": [
     {
       "name": "foo:multi-file",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "irrelevant-name": 0,
         "depend-on-me": 1,

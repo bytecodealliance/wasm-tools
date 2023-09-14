@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "w",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "a": {
           "type": 11
@@ -17,9 +14,6 @@
         },
         "[constructor]c": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "[constructor]c",
             "kind": {
               "constructor": 13
@@ -40,9 +34,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 0,
         "b": 1,
@@ -52,9 +43,6 @@
       },
       "functions": {
         "[constructor]b": {
-          "docs": {
-            "contents": null
-          },
           "name": "[constructor]b",
           "kind": {
             "constructor": 1
@@ -67,9 +55,6 @@
           ]
         },
         "[constructor]c": {
-          "docs": {
-            "contents": null
-          },
           "name": "[constructor]c",
           "kind": {
             "constructor": 2
@@ -87,9 +72,6 @@
           ]
         },
         "[constructor]d": {
-          "docs": {
-            "contents": null
-          },
           "name": "[constructor]d",
           "kind": {
             "constructor": 3
@@ -107,9 +89,6 @@
           ]
         },
         "[method]d.a": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]d.a",
           "kind": {
             "method": 3
@@ -123,9 +102,6 @@
           "results": []
         },
         "[static]d.b": {
-          "docs": {
-            "contents": null
-          },
           "name": "[static]d.b",
           "kind": {
             "static": 3
@@ -134,9 +110,6 @@
           "results": []
         },
         "[constructor]e": {
-          "docs": {
-            "contents": null
-          },
           "name": "[constructor]e",
           "kind": {
             "constructor": 4
@@ -158,9 +131,6 @@
           ]
         },
         "[method]e.method": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]e.method",
           "kind": {
             "method": 4
@@ -186,9 +156,6 @@
     },
     {
       "name": "i",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 7,
         "t1": 8,
@@ -201,9 +168,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "a",
       "owner": {
@@ -211,9 +175,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "b",
       "owner": {
@@ -221,9 +182,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "c",
       "owner": {
@@ -231,9 +189,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "d",
       "owner": {
@@ -241,9 +196,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "e",
       "owner": {
@@ -251,9 +203,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 3
@@ -263,9 +212,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 4
@@ -275,9 +221,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "a",
       "owner": {
@@ -285,9 +228,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 7
       },
@@ -297,9 +237,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 7
@@ -311,9 +248,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 8
@@ -325,9 +259,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "a",
       "owner": {
@@ -335,9 +266,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "b",
       "owner": {
@@ -345,9 +273,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "c",
       "owner": {
@@ -355,9 +280,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "own": 1
@@ -367,9 +289,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "own": 2
@@ -379,9 +298,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "own": 3
@@ -391,9 +307,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "own": 4
@@ -403,9 +316,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "own": 13
@@ -418,9 +328,6 @@
   "packages": [
     {
       "name": "foo:bar",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0,
         "i": 1

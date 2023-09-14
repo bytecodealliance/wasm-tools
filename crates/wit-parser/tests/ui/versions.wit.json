@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 0
       },
@@ -14,9 +11,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 1
       },
@@ -25,9 +19,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 2,
         "t2": 3
@@ -38,9 +29,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -50,9 +38,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -62,9 +47,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -74,9 +56,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -89,9 +68,6 @@
   "packages": [
     {
       "name": "a:a@1.0.0",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0
       },
@@ -99,9 +75,6 @@
     },
     {
       "name": "a:a@2.0.0",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 1
       },
@@ -109,9 +82,6 @@
     },
     {
       "name": "foo:versions",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 2
       },

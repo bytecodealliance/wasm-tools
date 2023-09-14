@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -17,9 +14,6 @@
   "interfaces": [
     {
       "name": "types",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
@@ -29,9 +23,6 @@
   "packages": [
     {
       "name": "foo:bar",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "types": 0
       },
@@ -39,9 +30,6 @@
     },
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {},
       "worlds": {
         "foo": 0

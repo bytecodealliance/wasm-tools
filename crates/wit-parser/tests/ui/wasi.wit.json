@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "wasi",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "clockid": 0,
         "timestamp": 1,
@@ -17,22 +14,13 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "enum": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "realtime"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "monotonic"
             }
           ]
@@ -44,9 +32,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u64"
       },
@@ -56,472 +41,238 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "enum": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "success"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "toobig"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "access"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "addrinuse"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "addrnotavail"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "afnosupport"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "again"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "already"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "badf"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "badmsg"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "busy"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "canceled"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "child"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "connaborted"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "connrefused"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "connreset"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "deadlk"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "destaddrreq"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "dom"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "dquot"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "exist"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "fault"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "fbig"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "hostunreach"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "idrm"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "ilseq"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "inprogress"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "intr"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "inval"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "io"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "isconn"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "isdir"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "loop"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "mfile"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "mlink"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "msgsize"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "multihop"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nametoolong"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "netdown"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "netreset"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "netunreach"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nfile"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nobufs"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nodev"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "noent"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "noexec"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nolck"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nolink"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nomem"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nomsg"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "noprotoopt"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nospc"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nosys"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notconn"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notdir"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notempty"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notrecoverable"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notsock"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notsup"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notty"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "nxio"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "overflow"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "ownerdead"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "perm"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "pipe"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "proto"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "protonosupport"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "prototype"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "range"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "rofs"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "spipe"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "srch"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "stale"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "timedout"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "txtbsy"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "xdev"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "notcapable"
             }
           ]
@@ -536,9 +287,6 @@
   "packages": [
     {
       "name": "wasi:filesystem",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "wasi": 0
       },

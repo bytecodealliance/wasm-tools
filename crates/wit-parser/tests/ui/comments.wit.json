@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "x": 0,
         "bar": 1
@@ -16,9 +13,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -28,9 +22,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "stream": {
           "element": 0,
@@ -46,9 +37,6 @@
   "packages": [
     {
       "name": "foo:comments",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0
       },

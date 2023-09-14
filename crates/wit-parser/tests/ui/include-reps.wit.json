@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "bar",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -19,9 +16,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -38,18 +32,12 @@
   "interfaces": [
     {
       "name": "a",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "b",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
@@ -59,9 +47,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "a": 0,
         "b": 1

@@ -3,17 +3,11 @@
   "interfaces": [
     {
       "name": "resources1",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "r1": 0
       },
       "functions": {
         "t1": {
-          "docs": {
-            "contents": null
-          },
           "name": "t1",
           "kind": "freestanding",
           "params": [
@@ -25,9 +19,6 @@
           "results": []
         },
         "[method]r1.f1": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f1",
           "kind": {
             "method": 0
@@ -55,9 +46,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "r1",
       "owner": {
@@ -65,9 +53,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 0
@@ -80,9 +65,6 @@
   "packages": [
     {
       "name": "foo:resources1",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "resources1": 0
       },

@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "bar",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 0
       },
@@ -14,9 +11,6 @@
     },
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 1
       },
@@ -25,9 +19,6 @@
     },
     {
       "name": "baz",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 2,
         "test": 3
@@ -37,36 +28,24 @@
     },
     {
       "name": "empty",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "use-from-empty",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "use-multiple",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 4,
         "test": 5
       },
       "functions": {
         "some-function": {
-          "docs": {
-            "contents": null
-          },
           "name": "some-function",
           "kind": "freestanding",
           "params": [
@@ -86,9 +65,6 @@
     },
     {
       "name": "trailing-comma",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "the-type": 6,
         "the-foo": 7
@@ -99,9 +75,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -111,9 +84,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -123,9 +93,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -135,9 +102,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -147,9 +111,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 2
       },
@@ -159,9 +120,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 3
       },
@@ -171,9 +129,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -183,16 +138,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": 6
             }
@@ -208,9 +157,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "bar": 0,
         "foo": 1,

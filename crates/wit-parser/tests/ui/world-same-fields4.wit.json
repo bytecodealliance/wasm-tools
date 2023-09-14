@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "shared-items": {
           "interface": 1
@@ -24,9 +21,6 @@
   "interfaces": [
     {
       "name": "shared-items",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 0
       },
@@ -35,18 +29,12 @@
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": null,
-      "docs": {
-        "contents": null
-      },
       "types": {
         "a": 1
       },
@@ -56,9 +44,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -68,9 +53,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -83,9 +65,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "shared-items": 0
       },

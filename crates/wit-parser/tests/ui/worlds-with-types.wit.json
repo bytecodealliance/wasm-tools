@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "a": {
           "type": 1
@@ -16,9 +13,6 @@
       "exports": {
         "c": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "c",
             "kind": "freestanding",
             "params": [
@@ -39,9 +33,6 @@
     },
     {
       "name": "bar",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -53,9 +44,6 @@
       "exports": {
         "foo": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "foo",
             "kind": "freestanding",
             "params": [],
@@ -71,9 +59,6 @@
     },
     {
       "name": "the-test",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "a": {
           "type": 4
@@ -83,9 +68,6 @@
         },
         "foo": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "foo",
             "kind": "freestanding",
             "params": [
@@ -105,9 +87,6 @@
       "exports": {
         "bar": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "bar",
             "kind": "freestanding",
             "params": [
@@ -130,9 +109,6 @@
   "interfaces": [
     {
       "name": "disambiguate",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t": 0
       },
@@ -142,9 +118,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -154,9 +127,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -166,9 +136,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 1
       },
@@ -178,9 +145,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -190,16 +154,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "x",
               "type": "u32"
             }
@@ -212,16 +170,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "variant": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "c",
               "type": 4
             }
@@ -237,9 +189,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "disambiguate": 0
       },

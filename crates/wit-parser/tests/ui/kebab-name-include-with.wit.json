@@ -2,15 +2,9 @@
   "worlds": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "a": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "a",
             "kind": "freestanding",
             "params": [],
@@ -23,15 +17,9 @@
     },
     {
       "name": "bar",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "a": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "a",
             "kind": "freestanding",
             "params": [],
@@ -44,15 +32,9 @@
     },
     {
       "name": "baz",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "b": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "a",
             "kind": "freestanding",
             "params": [],
@@ -61,9 +43,6 @@
         },
         "a": {
           "function": {
-            "docs": {
-              "contents": null
-            },
             "name": "a",
             "kind": "freestanding",
             "params": [],
@@ -80,9 +59,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {},
       "worlds": {
         "foo": 0,

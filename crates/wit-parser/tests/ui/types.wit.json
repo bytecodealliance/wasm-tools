@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "types",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "t1": 0,
         "t2": 1,
@@ -66,9 +63,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u8"
       },
@@ -78,9 +72,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u16"
       },
@@ -90,9 +81,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -102,9 +90,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u64"
       },
@@ -114,9 +99,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "s8"
       },
@@ -126,9 +108,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "s16"
       },
@@ -138,9 +117,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "s32"
       },
@@ -150,9 +126,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "s64"
       },
@@ -162,9 +135,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "float32"
       },
@@ -174,9 +144,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "float64"
       },
@@ -186,9 +153,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "char"
       },
@@ -198,9 +162,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": "char"
       },
@@ -210,9 +171,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "string"
       },
@@ -222,9 +180,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "option": "u32"
       },
@@ -234,9 +189,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "result": {
           "ok": "u32",
@@ -249,9 +201,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "result": {
           "ok": null,
@@ -264,9 +213,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "result": {
           "ok": "u32",
@@ -279,9 +225,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "result": {
           "ok": null,
@@ -294,9 +237,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": []
@@ -308,16 +248,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": "u32"
             }
@@ -330,16 +264,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": "u32"
             }
@@ -352,23 +280,14 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": "u32"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b",
               "type": "u64"
             }
@@ -381,23 +300,14 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": "u32"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b",
               "type": "u64"
             }
@@ -410,16 +320,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "x",
               "type": "u32"
             }
@@ -432,9 +336,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": []
@@ -446,9 +347,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": []
@@ -460,9 +358,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": [
@@ -476,9 +371,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": [
@@ -492,9 +384,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": [
@@ -509,9 +398,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "flags": {
           "flags": []
@@ -523,28 +409,16 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "flags": {
           "flags": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "c"
             }
           ]
@@ -556,28 +430,16 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "flags": {
           "flags": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "c"
             }
           ]
@@ -589,16 +451,10 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "variant": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": null
             }
@@ -611,23 +467,14 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "variant": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": null
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b",
               "type": null
             }
@@ -640,23 +487,14 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "variant": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": null
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b",
               "type": null
             }
@@ -669,23 +507,14 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "variant": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": null
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b",
               "type": "u32"
             }
@@ -698,9 +527,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "option": "u32"
       },
@@ -708,23 +534,14 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "variant": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a",
               "type": null
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b",
               "type": 36
             }
@@ -737,28 +554,16 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "enum": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "c"
             }
           ]
@@ -770,28 +575,16 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "enum": {
           "cases": [
             {
-              "docs": {
-                "contents": null
-              },
               "name": "a"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "b"
             },
             {
-              "docs": {
-                "contents": null
-              },
               "name": "c"
             }
           ]
@@ -803,9 +596,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "bool"
       },
@@ -815,9 +605,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "string"
       },
@@ -827,9 +614,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": 31
       },
@@ -837,9 +621,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": 42
       },
@@ -847,9 +628,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "list": 43
       },
@@ -859,9 +637,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 41
       },
@@ -871,9 +646,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 41
       },
@@ -883,9 +655,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "stream": {
           "element": "u32",
@@ -898,9 +667,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "stream": {
           "element": null,
@@ -913,9 +679,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "stream": {
           "element": "u32",
@@ -928,9 +691,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "stream": {
           "element": null,
@@ -943,9 +703,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "future": "u32"
       },
@@ -955,9 +712,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "future": null
       },
@@ -967,9 +721,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": "u32"
       },
@@ -979,9 +730,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 53
       },
@@ -994,9 +742,6 @@
   "packages": [
     {
       "name": "foo:types",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "types": 0
       },

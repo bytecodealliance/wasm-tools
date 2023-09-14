@@ -2,9 +2,6 @@
   "worlds": [
     {
       "name": "bar-a",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -18,9 +15,6 @@
     },
     {
       "name": "baz-a",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-2": {
           "interface": 2
@@ -34,9 +28,6 @@
     },
     {
       "name": "a",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-4": {
           "interface": 4
@@ -50,9 +41,6 @@
     },
     {
       "name": "b",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -66,9 +54,6 @@
     },
     {
       "name": "c",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-0": {
           "interface": 0
@@ -82,9 +67,6 @@
     },
     {
       "name": "union-world",
-      "docs": {
-        "contents": null
-      },
       "imports": {
         "interface-4": {
           "interface": 4
@@ -112,54 +94,36 @@
   "interfaces": [
     {
       "name": "a",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "b",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "a",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "b",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "ai",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 2
     },
     {
       "name": "bi",
-      "docs": {
-        "contents": null
-      },
       "types": {},
       "functions": {},
       "package": 2
@@ -169,9 +133,6 @@
   "packages": [
     {
       "name": "foo:bar",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "a": 0,
         "b": 1
@@ -182,9 +143,6 @@
     },
     {
       "name": "foo:baz",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "a": 2,
         "b": 3
@@ -195,9 +153,6 @@
     },
     {
       "name": "foo:root",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "ai": 4,
         "bi": 5

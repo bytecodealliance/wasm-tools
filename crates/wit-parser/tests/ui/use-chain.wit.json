@@ -3,9 +3,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "foo": 0
       },
@@ -14,9 +11,6 @@
     },
     {
       "name": "name",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "foo": 1
       },
@@ -26,9 +20,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "record": {
           "fields": []
@@ -40,9 +31,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "type": 0
       },
@@ -55,9 +43,6 @@
   "packages": [
     {
       "name": "foo:name",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "foo": 0,
         "name": 1

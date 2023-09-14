@@ -3,17 +3,11 @@
   "interfaces": [
     {
       "name": "resources-multiple",
-      "docs": {
-        "contents": null
-      },
       "types": {
         "r1": 0
       },
       "functions": {
         "t1": {
-          "docs": {
-            "contents": null
-          },
           "name": "t1",
           "kind": "freestanding",
           "params": [
@@ -25,9 +19,6 @@
           "results": []
         },
         "t2": {
-          "docs": {
-            "contents": null
-          },
           "name": "t2",
           "kind": "freestanding",
           "params": [
@@ -39,9 +30,6 @@
           "results": []
         },
         "[method]r1.f1": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f1",
           "kind": {
             "method": 0
@@ -55,9 +43,6 @@
           "results": []
         },
         "[method]r1.f2": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f2",
           "kind": {
             "method": 0
@@ -75,9 +60,6 @@
           "results": []
         },
         "[method]r1.f3": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f3",
           "kind": {
             "method": 0
@@ -95,9 +77,6 @@
           "results": []
         },
         "[method]r1.f4": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f4",
           "kind": {
             "method": 0
@@ -115,9 +94,6 @@
           ]
         },
         "[method]r1.f6": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f6",
           "kind": {
             "method": 0
@@ -135,9 +111,6 @@
           ]
         },
         "[method]r1.f7": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f7",
           "kind": {
             "method": 0
@@ -163,9 +136,6 @@
           ]
         },
         "[method]r1.f8": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f8",
           "kind": {
             "method": 0
@@ -187,9 +157,6 @@
           ]
         },
         "[method]r1.f9": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f9",
           "kind": {
             "method": 0
@@ -212,9 +179,6 @@
           ]
         },
         "[method]r1.f10": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f10",
           "kind": {
             "method": 0
@@ -233,9 +197,6 @@
           ]
         },
         "[method]r1.f11": {
-          "docs": {
-            "contents": null
-          },
           "name": "[method]r1.f11",
           "kind": {
             "method": 0
@@ -254,9 +215,6 @@
   ],
   "types": [
     {
-      "docs": {
-        "contents": null
-      },
       "kind": "resource",
       "name": "r1",
       "owner": {
@@ -264,9 +222,6 @@
       }
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "borrow": 0
@@ -276,9 +231,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "tuple": {
           "types": [
@@ -291,9 +243,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "option": "u32"
       },
@@ -301,9 +250,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "result": {
           "ok": "u32",
@@ -314,9 +260,6 @@
       "owner": "none"
     },
     {
-      "docs": {
-        "contents": null
-      },
       "kind": {
         "handle": {
           "own": 0
@@ -329,9 +272,6 @@
   "packages": [
     {
       "name": "foo:resources-multiple",
-      "docs": {
-        "contents": null
-      },
       "interfaces": {
         "resources-multiple": 0
       },
