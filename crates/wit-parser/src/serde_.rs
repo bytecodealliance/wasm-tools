@@ -4,6 +4,13 @@ use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::Serialize;
 
+pub fn serialize_none<S>(serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_none()
+}
+
 pub fn serialize_arena<T, S>(arena: &Arena<T>, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: Serialize,
