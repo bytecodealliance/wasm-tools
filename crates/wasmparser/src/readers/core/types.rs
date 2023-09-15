@@ -99,8 +99,8 @@ impl ValType {
 
     pub(crate) fn is_valtype_byte(byte: u8) -> bool {
         match byte {
-            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x65 | 0x69
-            | 0x68 | 0x6D | 0x67 | 0x66 | 0x6A => true,
+            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72
+            | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C => true,
             _ => false,
         }
     }
@@ -132,11 +132,11 @@ impl Inherits for ValType {
 impl<'a> FromReader<'a> for StorageType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
-            0x7A => {
+            0x78 => {
                 reader.position += 1;
                 Ok(StorageType::I8)
             }
-            0x79 => {
+            0x77 => {
                 reader.position += 1;
                 Ok(StorageType::I16)
             }
@@ -168,7 +168,7 @@ impl<'a> FromReader<'a> for ValType {
                 reader.position += 1;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x6B | 0x6C | 0x6E | 0x65 | 0x69 | 0x68 | 0x6D | 0x67 | 0x66 | 0x6A => {
+            0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C => {
                 Ok(ValType::Ref(reader.read()?))
             }
             _ => bail!(reader.original_position(), "invalid value type"),
@@ -578,15 +578,15 @@ impl<'a> FromReader<'a> for RefType {
             0x70 => Ok(RefType::FUNC.nullable()),
             0x6F => Ok(RefType::EXTERN.nullable()),
             0x6E => Ok(RefType::ANY.nullable()),
-            0x65 => Ok(RefType::NONE.nullable()),
-            0x69 => Ok(RefType::NOEXTERN.nullable()),
-            0x68 => Ok(RefType::NOFUNC.nullable()),
+            0x71 => Ok(RefType::NONE.nullable()),
+            0x72 => Ok(RefType::NOEXTERN.nullable()),
+            0x73 => Ok(RefType::NOFUNC.nullable()),
             0x6D => Ok(RefType::EQ.nullable()),
-            0x67 => Ok(RefType::STRUCT.nullable()),
-            0x66 => Ok(RefType::ARRAY.nullable()),
-            0x6A => Ok(RefType::I31.nullable()),
-            byte @ (0x6B | 0x6C) => {
-                let nullable = byte == 0x6C;
+            0x6B => Ok(RefType::STRUCT.nullable()),
+            0x6A => Ok(RefType::ARRAY.nullable()),
+            0x6C => Ok(RefType::I31.nullable()),
+            byte @ (0x63 | 0x64) => {
+                let nullable = byte == 0x63;
                 let pos = reader.original_position();
                 RefType::new(nullable, reader.read()?)
                     .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
@@ -754,15 +754,15 @@ impl<'a> FromReader<'a> for HeapType {
                 reader.position += 1;
                 Ok(HeapType::Any)
             }
-            0x65 => {
+            0x71 => {
                 reader.position += 1;
                 Ok(HeapType::None)
             }
-            0x69 => {
+            0x72 => {
                 reader.position += 1;
                 Ok(HeapType::NoExtern)
             }
-            0x68 => {
+            0x73 => {
                 reader.position += 1;
                 Ok(HeapType::NoFunc)
             }
@@ -770,15 +770,15 @@ impl<'a> FromReader<'a> for HeapType {
                 reader.position += 1;
                 Ok(HeapType::Eq)
             }
-            0x67 => {
+            0x6B => {
                 reader.position += 1;
                 Ok(HeapType::Struct)
             }
-            0x66 => {
+            0x6A => {
                 reader.position += 1;
                 Ok(HeapType::Array)
             }
-            0x6A => {
+            0x6C => {
                 reader.position += 1;
                 Ok(HeapType::I31)
             }
