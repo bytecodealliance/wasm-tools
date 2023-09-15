@@ -44,19 +44,19 @@
   ],
   "types": [
     {
+      "name": "a",
       "kind": {
         "type": "u32"
       },
-      "name": "a",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "a",
       "kind": {
         "type": 0
       },
-      "name": "a",
       "owner": {
         "interface": 2
       }

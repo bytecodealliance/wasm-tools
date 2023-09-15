@@ -56,37 +56,37 @@
   ],
   "types": [
     {
+      "name": "the-type",
       "kind": {
         "type": "u32"
       },
-      "name": "the-type",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "the-type",
       "kind": {
         "type": "u32"
       },
-      "name": "the-type",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "the-type",
       "kind": {
         "type": 0
       },
-      "name": "the-type",
       "owner": {
         "interface": 2
       }
     },
     {
+      "name": "the-type",
       "kind": {
         "type": 1
       },
-      "name": "the-type",
       "owner": {
         "interface": 3
       }

@@ -168,160 +168,160 @@
   ],
   "types": [
     {
-      "kind": "resource",
       "name": "a",
+      "kind": "resource",
       "owner": {
         "interface": 0
       }
     },
     {
-      "kind": "resource",
       "name": "b",
+      "kind": "resource",
       "owner": {
         "interface": 0
       }
     },
     {
-      "kind": "resource",
       "name": "c",
+      "kind": "resource",
       "owner": {
         "interface": 0
       }
     },
     {
-      "kind": "resource",
       "name": "d",
-      "owner": {
-        "interface": 0
-      }
-    },
-    {
       "kind": "resource",
-      "name": "e",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "e",
+      "kind": "resource",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 3
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 4
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
-      "kind": "resource",
       "name": "a",
+      "kind": "resource",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t1",
       "kind": {
         "type": 7
       },
-      "name": "t1",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t2",
       "kind": {
         "handle": {
           "borrow": 7
         }
       },
-      "name": "t2",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t3",
       "kind": {
         "handle": {
           "borrow": 8
         }
       },
-      "name": "t3",
       "owner": {
         "interface": 1
       }
     },
     {
-      "kind": "resource",
       "name": "a",
+      "kind": "resource",
       "owner": {
         "world": 0
       }
     },
     {
-      "kind": "resource",
       "name": "b",
-      "owner": {
-        "world": 0
-      }
-    },
-    {
       "kind": "resource",
-      "name": "c",
       "owner": {
         "world": 0
       }
     },
     {
+      "name": "c",
+      "kind": "resource",
+      "owner": {
+        "world": 0
+      }
+    },
+    {
+      "name": null,
       "kind": {
         "handle": {
           "own": 1
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 2
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 3
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 4
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 13
         }
       },
-      "name": null,
       "owner": "none"
     }
   ],

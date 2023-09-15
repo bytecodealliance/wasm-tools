@@ -23,48 +23,48 @@
   ],
   "types": [
     {
-      "kind": "resource",
       "name": "a",
+      "kind": "resource",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "a",
       "kind": {
         "type": 0
       },
-      "name": "a",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t1",
       "kind": {
         "type": 1
       },
-      "name": "t1",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t2",
       "kind": {
         "handle": {
           "borrow": 1
         }
       },
-      "name": "t2",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t3",
       "kind": {
         "handle": {
           "borrow": 2
         }
       },
-      "name": "t3",
       "owner": {
         "interface": 1
       }

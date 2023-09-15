@@ -39,19 +39,19 @@
   ],
   "types": [
     {
+      "name": "g",
       "kind": {
         "type": "char"
       },
-      "name": "g",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "g",
       "kind": {
         "type": 0
       },
-      "name": "g",
       "owner": {
         "world": 0
       }

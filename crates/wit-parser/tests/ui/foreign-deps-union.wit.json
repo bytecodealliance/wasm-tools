@@ -189,51 +189,52 @@
   ],
   "types": [
     {
+      "name": "some-type",
       "kind": {
         "type": "u32"
       },
-      "name": "some-type",
       "owner": {
         "interface": 3
       }
     },
     {
+      "name": "from-default",
       "kind": {
         "type": "string"
       },
-      "name": "from-default",
       "owner": {
         "interface": 4
       }
     },
     {
+      "name": "another-type",
       "kind": {
         "type": "u32"
       },
-      "name": "another-type",
       "owner": {
         "interface": 5
       }
     },
     {
+      "name": "yet-another-type",
       "kind": {
         "type": "u8"
       },
-      "name": "yet-another-type",
       "owner": {
         "interface": 6
       }
     },
     {
+      "name": "timestamp",
       "kind": {
         "type": "u64"
       },
-      "name": "timestamp",
       "owner": {
         "interface": 7
       }
     },
     {
+      "name": "stat",
       "kind": {
         "record": {
           "fields": [
@@ -244,70 +245,69 @@
           ]
         }
       },
-      "name": "stat",
       "owner": {
         "interface": 8
       }
     },
     {
+      "name": "timestamp",
       "kind": {
         "type": 4
       },
-      "name": "timestamp",
       "owner": {
         "interface": 9
       }
     },
     {
+      "name": "stat",
       "kind": {
         "type": 5
       },
-      "name": "stat",
       "owner": {
         "interface": 9
       }
     },
     {
+      "name": "from-default",
       "kind": {
         "type": 1
       },
-      "name": "from-default",
       "owner": {
         "interface": 10
       }
     },
     {
+      "name": "another-type",
       "kind": {
         "type": 2
       },
-      "name": "another-type",
       "owner": {
         "interface": 10
       }
     },
     {
+      "name": "yet-another-type",
       "kind": {
         "type": 3
       },
-      "name": "yet-another-type",
       "owner": {
         "interface": 10
       }
     },
     {
+      "name": "some-type",
       "kind": {
         "type": 0
       },
-      "name": "some-type",
       "owner": {
         "interface": 11
       }
     },
     {
+      "name": "some-type",
       "kind": {
         "type": 0
       },
-      "name": "some-type",
       "owner": {
         "interface": 12
       }

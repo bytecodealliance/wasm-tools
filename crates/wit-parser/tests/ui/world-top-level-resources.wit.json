@@ -132,96 +132,96 @@
   ],
   "types": [
     {
-      "kind": "resource",
       "name": "request",
-      "owner": {
-        "interface": 0
-      }
-    },
-    {
       "kind": "resource",
-      "name": "response",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "response",
+      "kind": "resource",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 0
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "list": "u32"
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 1
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": "request",
       "kind": {
         "type": 0
       },
-      "name": "request",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "response",
       "kind": {
         "type": 1
       },
-      "name": "response",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 5
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 6
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 5
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 6
         }
       },
-      "name": null,
       "owner": "none"
     }
   ],

@@ -118,42 +118,43 @@
   ],
   "types": [
     {
+      "name": "t",
       "kind": {
         "type": "u32"
       },
-      "name": "t",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "a",
       "kind": {
         "type": "u32"
       },
-      "name": "a",
       "owner": {
         "world": 0
       }
     },
     {
+      "name": "b",
       "kind": {
         "type": 1
       },
-      "name": "b",
       "owner": {
         "world": 0
       }
     },
     {
+      "name": "t",
       "kind": {
         "type": 0
       },
-      "name": "t",
       "owner": {
         "world": 1
       }
     },
     {
+      "name": "a",
       "kind": {
         "record": {
           "fields": [
@@ -164,12 +165,12 @@
           ]
         }
       },
-      "name": "a",
       "owner": {
         "world": 2
       }
     },
     {
+      "name": "b",
       "kind": {
         "variant": {
           "cases": [
@@ -180,7 +181,6 @@
           ]
         }
       },
-      "name": "b",
       "owner": {
         "world": 2
       }

@@ -75,28 +75,28 @@
   ],
   "types": [
     {
+      "name": "foo",
       "kind": {
         "type": "u32"
       },
-      "name": "foo",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "foo",
       "kind": {
         "type": 0
       },
-      "name": "foo",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "foo",
       "kind": {
         "type": 0
       },
-      "name": "foo",
       "owner": {
         "interface": 2
       }
