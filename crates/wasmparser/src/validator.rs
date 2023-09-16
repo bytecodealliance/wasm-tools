@@ -252,6 +252,32 @@ pub struct WasmFeatures {
 }
 
 impl WasmFeatures {
+    /// Returns [`WasmFeatures`] with all features enabled.
+    pub fn all() -> Self {
+        WasmFeatures {
+            mutable_global: true,
+            saturating_float_to_int: true,
+            sign_extension: true,
+            reference_types: true,
+            multi_value: true,
+            bulk_memory: true,
+            simd: true,
+            relaxed_simd: true,
+            threads: true,
+            tail_call: true,
+            floats: true,
+            multi_memory: true,
+            exceptions: true,
+            memory64: true,
+            extended_const: true,
+            component_model: true,
+            function_references: true,
+            memory_control: true,
+            gc: true,
+            component_model_values: true,
+        }
+    }
+
     /// NOTE: This only checks that the value type corresponds to the feature set!!
     ///
     /// To check that reference types are valid, we need access to the module
