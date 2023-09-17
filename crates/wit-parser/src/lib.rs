@@ -19,7 +19,8 @@ mod live;
 pub use live::LiveTypes;
 mod serde_;
 use serde_::{
-    serialize_anon_result, serialize_id, serialize_id_map, serialize_none, serialize_optional_id, serialize_params,
+    serialize_anon_result, serialize_id, serialize_id_map, serialize_none, serialize_optional_id,
+    serialize_params,
 };
 
 /// Checks if the given string is a legal identifier in wit.
