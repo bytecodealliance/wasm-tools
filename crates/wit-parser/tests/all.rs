@@ -160,7 +160,6 @@ impl Runner<'_> {
                 "failed to read test expectation file {:?}\nthis can be fixed with BLESS=1",
                 result_file
             ))?;
-            let expected = normalize(&expected);
             if expected != result {
                 bail!(
                     "failed test: result is not as expected:{}",
