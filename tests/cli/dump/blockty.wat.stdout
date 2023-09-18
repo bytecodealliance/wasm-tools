@@ -2,12 +2,12 @@
       | 01 00 00 00
   0x8 | 01 17       | type section
   0xa | 05          | 5 count
-  0xb | 60 00 00    | [type 0] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [] }) })
-  0xe | 60 00 01 7f | [type 1] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [I32] }) })
- 0x12 | 60 01 7f 00 | [type 2] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [] }) })
- 0x16 | 60 01 7f 01 | [type 3] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [I32] }) })
+  0xb | 60 00 00    | [type 0] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [] }) })
+  0xe | 60 00 01 7f | [type 1] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [I32] }) })
+ 0x12 | 60 01 7f 00 | [type 2] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [] }) })
+ 0x16 | 60 01 7f 01 | [type 3] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [I32] }) })
       | 7f         
- 0x1b | 60 01 7f 02 | [type 4] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [I32, I32] }) })
+ 0x1b | 60 01 7f 02 | [type 4] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [I32, I32] }) })
       | 7f 7f      
  0x21 | 03 02       | func section
  0x23 | 01          | 1 count

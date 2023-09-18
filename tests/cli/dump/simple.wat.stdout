@@ -2,8 +2,8 @@
       | 01 00 00 00
   0x8 | 01 08       | type section
   0xa | 02          | 2 count
-  0xb | 60 01 7f 00 | [type 0] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [] }) })
-  0xf | 60 00 00    | [type 1] Single(SubType { is_final: false, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [] }) })
+  0xb | 60 01 7f 00 | [type 0] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [] }) })
+  0xf | 60 00 00    | [type 1] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [], returns: [] }) })
  0x12 | 02 07       | import section
  0x14 | 01          | 1 count
  0x15 | 01 6d 01 6e | import [func 0] Import { module: "m", name: "n", ty: Func(0) }

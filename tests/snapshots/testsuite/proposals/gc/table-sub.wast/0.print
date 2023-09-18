@@ -1,0 +1,16 @@
+(module
+  (type $t (;0;) (func))
+  (func $f (;0;) (type $t)
+    i32.const 0
+    i32.const 1
+    i32.const 2
+    table.init $el
+    i32.const 0
+    i32.const 1
+    i32.const 2
+    table.copy $t1 $t2
+  )
+  (table $t1 (;0;) 10 funcref)
+  (table $t2 (;1;) 10 (ref null 0))
+  (elem $el (;0;) funcref)
+)

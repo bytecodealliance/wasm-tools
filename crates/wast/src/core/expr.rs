@@ -26,6 +26,31 @@ impl<'a> Parse<'a> for Expression<'a> {
     }
 }
 
+impl<'a> Expression<'a> {
+    /// Parse an expression formed from a single folded instruction.
+    ///
+    /// Attempts to parse an expression formed from a single folded instruction.
+    ///
+    /// This method will mutate the state of `parser` after attempting to parse
+    /// the expression. If an error happens then it is likely fatal and
+    /// there is no guarantee of how many tokens have been consumed from
+    /// `parser`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the expression could not be
+    /// parsed. Note that creating an [`crate::Error`] is not exactly a cheap
+    /// operation, so [`crate::Error`] is typically fatal and propagated all the
+    /// way back to the top parse call site.
+    pub fn parse_folded_instruction(parser: Parser<'a>) -> Result<Self> {
+        let mut exprs = ExpressionParser::default();
+        exprs.parse_folded_instruction(parser)?;
+        Ok(Expression {
+            instrs: exprs.instrs.into(),
+        })
+    }
+}
+
 /// Helper struct used to parse an `Expression` with helper methods and such.
 ///
 /// The primary purpose of this is to avoid defining expression parsing as a
@@ -214,6 +239,31 @@ impl<'a> ExpressionParser<'a> {
             }
         }
 
+        Ok(())
+    }
+
+    fn parse_folded_instruction(&mut self, parser: Parser<'a>) -> Result<()> {
+        let mut done = false;
+        while !done {
+            match self.paren(parser)? {
+                Paren::Left => {
+                    self.stack.push(Level::EndWith(parser.parse()?));
+                }
+                Paren::Right => {
+                    let top_instr = match self.stack.pop().unwrap() {
+                        Level::EndWith(i) => i,
+                        _ => panic!("unknown level type"),
+                    };
+                    self.instrs.push(top_instr);
+                    if self.stack.is_empty() {
+                        done = true;
+                    }
+                }
+                Paren::None => {
+                    return Err(parser.error("expected to continue a folded instruction"))
+                }
+            }
+        }
         Ok(())
     }
 

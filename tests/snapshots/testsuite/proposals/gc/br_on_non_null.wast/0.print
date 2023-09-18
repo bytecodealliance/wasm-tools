@@ -1,0 +1,52 @@
+(module
+  (type $t (;0;) (func (result i32)))
+  (type (;1;) (func (param (ref 0)) (result i32)))
+  (type (;2;) (func (param (ref null 0)) (result i32)))
+  (func $nn (;0;) (type 1) (param $r (ref 0)) (result i32)
+    block $l (result (ref 0)) ;; label = @1
+      local.get $r
+      br_on_non_null 0 (;@1;)
+      i32.const -1
+      return
+    end
+    call_ref $t
+  )
+  (func $n (;1;) (type 2) (param $r (ref null 0)) (result i32)
+    block $l (result (ref 0)) ;; label = @1
+      local.get $r
+      br_on_non_null 0 (;@1;)
+      i32.const -1
+      return
+    end
+    call_ref $t
+  )
+  (func $f (;2;) (type $t) (result i32)
+    i32.const 7
+  )
+  (func (;3;) (type $t) (result i32)
+    ref.null 0
+    call $n
+  )
+  (func (;4;) (type $t) (result i32)
+    ref.func $f
+    call $nn
+  )
+  (func (;5;) (type $t) (result i32)
+    ref.func $f
+    call $n
+  )
+  (func (;6;) (type $t) (result i32)
+    block $l (result (ref 0)) ;; label = @1
+      unreachable
+      br_on_non_null 0 (;@1;)
+      i32.const -1
+      return
+    end
+    call_ref $t
+  )
+  (export "nullable-null" (func 3))
+  (export "nonnullable-f" (func 4))
+  (export "nullable-f" (func 5))
+  (export "unreachable" (func 6))
+  (elem (;0;) func $f)
+)

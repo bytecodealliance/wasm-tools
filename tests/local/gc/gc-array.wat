@@ -6,7 +6,7 @@
   (type $c (array (mut (ref null $b))))
 
   (data $data "\\0\\1\\2\\3")
-  (elem $elem funcref $func)
+  (elem $elem func $func)
 
   (func $func)
   (func

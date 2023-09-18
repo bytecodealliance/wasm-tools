@@ -646,7 +646,7 @@ impl Printer {
                 self.print_func_type(states.last().unwrap(), &ty, None)?;
                 self.end_group();
                 Some(SubType {
-                    is_final: false,
+                    is_final: true,
                     supertype_idx: None,
                     structural_type: StructuralType::Func(ty),
                 })
@@ -683,7 +683,7 @@ impl Printer {
     }
 
     fn print_sub(&mut self, state: &State, ty: &SubType, names_for: Option<u32>) -> Result<u32> {
-        let r = if ty.is_final || !ty.supertype_idx.is_none() {
+        let r = if !ty.is_final || !ty.supertype_idx.is_none() {
             self.start_group("sub");
             self.print_sub_type(state, ty)?;
             let r = self.print_structural(state, &ty.structural_type, names_for)?;
