@@ -228,7 +228,7 @@
           "borrow": 0
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -240,14 +240,14 @@
           ]
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
       "kind": {
         "option": "u32"
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -257,7 +257,7 @@
           "err": "float32"
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -266,7 +266,7 @@
           "own": 0
         }
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [

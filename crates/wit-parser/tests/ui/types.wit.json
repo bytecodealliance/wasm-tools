@@ -531,7 +531,7 @@
       "kind": {
         "option": "u32"
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": "t37",
@@ -618,14 +618,14 @@
       "kind": {
         "list": 31
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
       "kind": {
         "list": 42
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": "t45",

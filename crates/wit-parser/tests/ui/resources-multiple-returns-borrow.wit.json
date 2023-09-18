@@ -59,7 +59,7 @@
           "borrow": 0
         }
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [

@@ -209,7 +209,7 @@
           "borrow": 3
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -218,7 +218,7 @@
           "borrow": 4
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": "a",
@@ -286,7 +286,7 @@
           "own": 1
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -295,7 +295,7 @@
           "own": 2
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -304,7 +304,7 @@
           "own": 3
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -313,7 +313,7 @@
           "own": 4
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -322,7 +322,7 @@
           "own": 13
         }
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [
