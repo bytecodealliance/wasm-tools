@@ -14,6 +14,7 @@
   ],
   "types": [
     {
+      "name": "clockid",
       "kind": {
         "enum": {
           "cases": [
@@ -26,21 +27,21 @@
           ]
         }
       },
-      "name": "clockid",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "timestamp",
       "kind": {
         "type": "u64"
       },
-      "name": "timestamp",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "errno",
       "kind": {
         "enum": {
           "cases": [
@@ -278,7 +279,6 @@
           ]
         }
       },
-      "name": "errno",
       "owner": {
         "interface": 0
       }

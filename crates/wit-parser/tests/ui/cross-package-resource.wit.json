@@ -21,28 +21,28 @@
   ],
   "types": [
     {
-      "kind": "resource",
       "name": "r",
+      "kind": "resource",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "r",
       "kind": {
         "type": 0
       },
-      "name": "r",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "t",
       "kind": {
         "handle": {
           "own": 1
         }
       },
-      "name": "t",
       "owner": {
         "interface": 1
       }

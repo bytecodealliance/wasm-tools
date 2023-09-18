@@ -128,147 +128,147 @@
   ],
   "types": [
     {
+      "name": "a-name",
       "kind": {
         "record": {
           "fields": []
         }
       },
-      "name": "a-name",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "x",
       "kind": {
         "type": "u32"
       },
-      "name": "x",
       "owner": {
         "interface": 1
       }
     },
     {
+      "name": "x",
       "kind": {
         "type": 1
       },
-      "name": "x",
       "owner": {
         "interface": 2
       }
     },
     {
+      "name": "t",
       "kind": {
         "type": "u32"
       },
-      "name": "t",
       "owner": {
         "interface": 4
       }
     },
     {
+      "name": "t",
       "kind": {
         "type": 3
       },
-      "name": "t",
       "owner": {
         "interface": 5
       }
     },
     {
+      "name": "t",
       "kind": {
         "type": 4
       },
-      "name": "t",
       "owner": {
         "interface": 6
       }
     },
     {
+      "name": "x",
       "kind": {
         "type": "u32"
       },
-      "name": "x",
       "owner": {
         "interface": 7
       }
     },
     {
+      "name": "y",
       "kind": {
         "type": "u64"
       },
-      "name": "y",
       "owner": {
         "interface": 8
       }
     },
     {
-      "kind": {
-        "type": 6
-      },
       "name": "x",
+      "kind": {
+        "type": 6
+      },
       "owner": {
         "interface": 9
       }
     },
     {
-      "kind": {
-        "type": 6
-      },
       "name": "x2",
-      "owner": {
-        "interface": 9
-      }
-    },
-    {
       "kind": {
         "type": 6
       },
-      "name": "x3",
       "owner": {
         "interface": 9
       }
     },
     {
+      "name": "x3",
+      "kind": {
+        "type": 6
+      },
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "name": "x4",
       "kind": {
         "type": 1
       },
-      "name": "x4",
       "owner": {
         "interface": 9
       }
     },
     {
-      "kind": {
-        "type": 7
-      },
       "name": "y",
-      "owner": {
-        "interface": 9
-      }
-    },
-    {
       "kind": {
         "type": 7
       },
-      "name": "y2",
       "owner": {
         "interface": 9
       }
     },
     {
+      "name": "y2",
+      "kind": {
+        "type": 7
+      },
+      "owner": {
+        "interface": 9
+      }
+    },
+    {
+      "name": "a-name",
       "kind": {
         "type": 0
       },
-      "name": "a-name",
       "owner": {
         "interface": 9
       }
     },
     {
+      "name": "x",
       "kind": {
         "type": 1
       },
-      "name": "x",
       "owner": {
         "world": 1
       }

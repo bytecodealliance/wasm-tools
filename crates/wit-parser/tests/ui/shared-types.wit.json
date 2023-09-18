@@ -53,13 +53,14 @@
   ],
   "types": [
     {
+      "name": null,
       "kind": {
         "list": "u8"
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "tuple": {
           "types": [
@@ -67,7 +68,6 @@
           ]
         }
       },
-      "name": null,
       "owner": "none"
     }
   ],

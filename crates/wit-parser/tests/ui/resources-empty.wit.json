@@ -35,28 +35,28 @@
   ],
   "types": [
     {
-      "kind": "resource",
       "name": "r1",
+      "kind": "resource",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "borrow": 0
         }
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "handle": {
           "own": 0
         }
       },
-      "name": null,
       "owner": "none"
     }
   ],

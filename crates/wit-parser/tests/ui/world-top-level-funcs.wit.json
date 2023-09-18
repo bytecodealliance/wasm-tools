@@ -53,24 +53,24 @@
   "interfaces": [],
   "types": [
     {
+      "name": null,
       "kind": {
         "list": "u32"
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "option": "u32"
       },
-      "name": null,
       "owner": "none"
     },
     {
+      "name": null,
       "kind": {
         "list": 1
       },
-      "name": null,
       "owner": "none"
     }
   ],

@@ -34,19 +34,19 @@
   ],
   "types": [
     {
+      "name": "t",
       "kind": {
         "type": "u32"
       },
-      "name": "t",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "t",
       "kind": {
         "type": 0
       },
-      "name": "t",
       "owner": {
         "world": 0
       }

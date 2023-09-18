@@ -20,21 +20,21 @@
   ],
   "types": [
     {
+      "name": "foo",
       "kind": {
         "record": {
           "fields": []
         }
       },
-      "name": "foo",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "foo",
       "kind": {
         "type": 0
       },
-      "name": "foo",
       "owner": {
         "interface": 1
       }

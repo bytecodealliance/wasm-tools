@@ -13,22 +13,22 @@
   ],
   "types": [
     {
+      "name": "x",
       "kind": {
         "type": "u32"
       },
-      "name": "x",
       "owner": {
         "interface": 0
       }
     },
     {
+      "name": "bar",
       "kind": {
         "stream": {
           "element": 0,
           "end": null
         }
       },
-      "name": "bar",
       "owner": {
         "interface": 0
       }
