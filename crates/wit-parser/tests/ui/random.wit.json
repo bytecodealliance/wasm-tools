@@ -49,7 +49,7 @@
       "kind": {
         "list": "u8"
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [

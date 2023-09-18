@@ -57,7 +57,7 @@
       "kind": {
         "list": "u8"
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -68,7 +68,7 @@
           ]
         }
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [

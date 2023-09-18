@@ -152,14 +152,14 @@
           "borrow": 0
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
       "kind": {
         "list": "u32"
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -168,7 +168,7 @@
           "borrow": 1
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": "request",
@@ -195,7 +195,7 @@
           "borrow": 5
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -204,7 +204,7 @@
           "borrow": 6
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -213,7 +213,7 @@
           "own": 5
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -222,7 +222,7 @@
           "own": 6
         }
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [

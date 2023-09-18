@@ -57,21 +57,21 @@
       "kind": {
         "list": "u32"
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
       "kind": {
         "option": "u32"
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
       "kind": {
         "list": 1
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [

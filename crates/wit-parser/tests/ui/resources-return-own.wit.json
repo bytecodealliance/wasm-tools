@@ -54,7 +54,7 @@
           "borrow": 0
         }
       },
-      "owner": "none"
+      "owner": null
     },
     {
       "name": null,
@@ -63,7 +63,7 @@
           "own": 0
         }
       },
-      "owner": "none"
+      "owner": null
     }
   ],
   "packages": [
