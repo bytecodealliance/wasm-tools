@@ -119,7 +119,7 @@ impl Runner<'_> {
                             "some generic platform-agnostic error message",
                         );
                     }
-                    normalize(&format!("{:?}", e))
+                    format!("{:?}", e)
                 }
             }
         } else {
@@ -154,14 +154,14 @@ impl Runner<'_> {
             test.with_extension(format!("wit.{extension}"))
         };
         if env::var_os("BLESS").is_some() {
-            let normalized = normalize(&result);
+            let normalized = normalize(&result, extension);
             fs::write(&result_file, normalized)?;
         } else {
             let expected = fs::read_to_string(&result_file).context(format!(
                 "failed to read test expectation file {:?}\nthis can be fixed with BLESS=1",
                 result_file
             ))?;
-            let expected = normalize(&expected);
+            let expected = normalize(&expected, extension);
             if expected != result {
                 bail!(
                     "failed test: result is not as expected:{}",
@@ -178,6 +178,12 @@ impl Runner<'_> {
     }
 }
 
-fn normalize(s: &str) -> String {
-    s.replace("\r\n", "\n")
+fn normalize(s: &str, extension: &str) -> String {
+    match extension {
+        // .result files have error messages with paths, so normalize Windows \ separators to /
+        "result" => s.replace("\\", "/").replace("\r\n", "\n"),
+
+        // .json files escape strings with \, so leave them alone
+        _ => s.replace("\r\n", "\n"),
+    }
 }
