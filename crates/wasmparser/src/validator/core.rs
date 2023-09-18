@@ -555,7 +555,7 @@ impl Module {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<Type> {
-        if !features.gc && (ty.is_final || ty.supertype_idx.is_some()) {
+        if !features.gc && (!ty.is_final || ty.supertype_idx.is_some()) {
             bail!(offset, "gc proposal must be enabled to use subtypes");
         }
 

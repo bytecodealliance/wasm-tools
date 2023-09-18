@@ -1182,7 +1182,7 @@ impl<'a> TypeSectionReader<'a> {
                 RecGroup::Single(ty) => ty,
                 RecGroup::Many(_) => bail!(offset, "gc proposal not supported"),
             };
-            if ty.is_final || ty.supertype_idx.is_some() {
+            if !ty.is_final || ty.supertype_idx.is_some() {
                 bail!(offset, "gc proposal not supported");
             }
             match ty.structural_type {
@@ -1216,7 +1216,7 @@ fn read_structural_type(
 impl<'a> FromReader<'a> for RecGroup {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.peek()? {
-            0x4f => {
+            0x4e => {
                 reader.read_u8()?;
                 let types = reader.read_iter(MAX_WASM_TYPES, "rec group types")?;
                 RecGroup::Many(types.collect::<Result<_>>()?)
@@ -1230,7 +1230,7 @@ impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let pos = reader.original_position();
         Ok(match reader.read_u8()? {
-            opcode @ (0x4e | 0x50) => {
+            opcode @ (0x4f | 0x50) => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
                 let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
                 if idxs.len() > 1 {
@@ -1240,13 +1240,13 @@ impl<'a> FromReader<'a> for SubType {
                     ));
                 }
                 SubType {
-                    is_final: opcode == 0x4e,
+                    is_final: opcode == 0x4f,
                     supertype_idx: idxs.first().copied(),
                     structural_type: read_structural_type(reader.read_u8()?, reader)?,
                 }
             }
             opcode => SubType {
-                is_final: false,
+                is_final: true,
                 supertype_idx: None,
                 structural_type: read_structural_type(opcode, reader)?,
             },

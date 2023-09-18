@@ -176,7 +176,7 @@ impl Encode for Type<'_> {
         match (&self.parent, self.final_type) {
             (Some(parent), Some(true)) => {
                 // Type is final with a supertype
-                e.push(0x4e);
+                e.push(0x4f);
                 e.push(0x01);
                 parent.encode(e);
             }
@@ -212,7 +212,7 @@ impl Encode for Type<'_> {
 
 impl Encode for Rec<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0x4f);
+        e.push(0x4e);
         self.types.len().encode(e);
         for ty in &self.types {
             ty.encode(e);

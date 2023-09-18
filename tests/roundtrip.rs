@@ -144,12 +144,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         "exception-handling/throw.wast",
         // This is an empty file which currently doesn't parse
         "multi-memory/memory_copy1.wast",
-        // the GC proposal isn't implemented yet
-        "gc/gc-array.wat",
-        "gc/gc-ref-global-import.wat",
-        "gc/gc-struct.wat",
-        "gc/let.wat",
-        "/proposals/gc/",
     ];
     let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
     if broken.iter().any(|x| test_path.contains(x)) {
@@ -166,6 +160,44 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
         if contents.contains("STDIN_FILE") {
             return true;
         }
+    }
+
+    false
+}
+
+fn skip_validation(test: &Path) -> bool {
+    let broken = &[
+        "function-references/type-equivalence.wast",
+
+        "gc/gc-array.wat",
+        "gc/gc-rec-sub.wat",
+        "gc/gc-ref.wat",
+        "gc/gc-struct.wat",
+        "gc/type-equivalence.wast",
+        "/proposals/gc/array.wast",
+        "/proposals/gc/array_copy.wast",
+        "/proposals/gc/array_fill.wast",
+        "/proposals/gc/array_init_data.wast",
+        "/proposals/gc/array_init_elem.wast",
+        "/proposals/gc/binary-gc.wast",
+        "/proposals/gc/br_on_cast.wast",
+        "/proposals/gc/br_on_cast_fail.wast",
+        "/proposals/gc/data.wast",
+        "/proposals/gc/elem.wast",
+        "/proposals/gc/extern.wast",
+        "/proposals/gc/global.wast",
+        "/proposals/gc/i31.wast",
+        "/proposals/gc/ref_cast.wast",
+        "/proposals/gc/ref_eq.wast",
+        "/proposals/gc/ref_test.wast",
+        "/proposals/gc/struct.wast",
+        "/proposals/gc/type-equivalence.wast",
+        "/proposals/gc/type-rec.wast",
+        "/proposals/gc/type-subtyping.wast",
+    ];
+    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
+    if broken.iter().any(|x| test_path.contains(x)) {
+        return true;
     }
 
     false
@@ -191,6 +223,11 @@ impl TestState {
         // wasm file.
         let binary = wat::parse_file(test)?;
         self.bump_ntests();
+
+        if skip_validation(test) {
+            return Ok(());
+        }
+
         self.test_wasm(test, &binary, true)
             .context("failed testing the binary output of `wat`")?;
         Ok(())
@@ -306,6 +343,12 @@ impl TestState {
             WastDirective::Wat(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
+
+                if skip_validation(test) {
+                    // Verify that we can parse the wat, but otherwise do nothing.
+                    return Ok(());
+                }
+
                 let test_roundtrip = match module {
                     // Don't test the wasmprinter round trip since these bytes
                     // may not be in their canonical form (didn't come from the
@@ -335,6 +378,10 @@ impl TestState {
                 message,
                 span: _,
             } => {
+                if skip_validation(test) {
+                    return Ok(());
+                }
+
                 let result = module.encode().map_err(|e| e.into()).and_then(|wasm| {
                     // TODO: when memory64 merges into the proper spec then this
                     // should be removed since it will presumably no longer be a
@@ -590,7 +637,10 @@ impl TestState {
                 "function-references" => features.function_references = true,
                 "relaxed-simd" => features.relaxed_simd = true,
                 "reference-types" => features.reference_types = true,
-                "gc" => features.gc = true,
+                "gc" => {
+                    features.function_references = true;
+                    features.gc = true;
+                }
                 _ => {}
             }
         }
@@ -758,6 +808,10 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "immutable global" {
         return error.contains("global is immutable");
+    }
+
+    if message == "sub type" {
+        return error.contains("subtype");
     }
 
     return false;

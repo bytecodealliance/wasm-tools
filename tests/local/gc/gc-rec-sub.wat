@@ -29,7 +29,7 @@
   )
 
   (rec
-    (type $a (func))
+    (type $a (sub (func)))
     (type (sub $a (func)))
   )
   (rec
@@ -42,7 +42,7 @@
 
   (rec
     (type $t1 (struct (field (ref $t2))))
-    (type $t2 (struct (field (ref $t1))))
+    (type $t2 (sub (struct (field (ref $t1)))))
   )
 
   (rec
