@@ -1,7 +1,7 @@
 [package]
 name = "wit-parser"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-version = "0.11.0"
+version = "0.11.1"
 edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
 readme = "README.md"
