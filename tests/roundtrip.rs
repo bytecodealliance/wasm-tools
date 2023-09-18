@@ -168,7 +168,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 fn skip_validation(test: &Path) -> bool {
     let broken = &[
         "function-references/type-equivalence.wast",
-
         "gc/gc-array.wat",
         "gc/gc-rec-sub.wat",
         "gc/gc-ref.wat",
