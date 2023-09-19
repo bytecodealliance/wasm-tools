@@ -336,7 +336,7 @@ impl TypeSection {
             None => vec![],
         };
         if ty.is_final {
-            self.bytes.push(0x4e);
+            self.bytes.push(0x4f);
             st.encode(&mut self.bytes);
         } else if !st.is_empty() {
             self.bytes.push(0x50);
