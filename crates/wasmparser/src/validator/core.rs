@@ -504,17 +504,13 @@ impl Module {
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        match rec_group {
-            RecGroup::Single(_) => {}
-            RecGroup::Many(_) => {
-                if !features.gc {
-                    bail!(
-                        offset,
-                        "rec group usage requires `gc` proposal to be enabled"
-                    );
-                }
-            }
+        if matches!(&rec_group, RecGroup::Many(_)) && !features.gc {
+            bail!(
+                offset,
+                "rec group usage requires `gc` proposal to be enabled"
+            );
         }
+
         if check_limit {
             check_max(
                 self.types.len(),
@@ -524,6 +520,7 @@ impl Module {
                 offset,
             )?;
         }
+
         let idx_types: Vec<_> = rec_group
             .types()
             .iter()
@@ -571,9 +568,7 @@ impl Module {
             }
             match self.type_at(types, supertype_index, offset)? {
                 Type::Sub(st) => {
-                    if !&ty.inherits(st, Some(type_index), Some(supertype_index), &|idx| {
-                        self.subtype_at(types, idx, offset).unwrap()
-                    }) {
+                    if !&ty.inherits(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
                         bail!(offset, "subtype must match supertype");
                     }
                 }
@@ -962,9 +957,7 @@ impl Module {
     /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
     /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.inherits(&ty2, None, None, &|idx| {
-            self.subtype_at(types, idx, 0).unwrap()
-        })
+        ty1.inherits(&ty2, &|idx| self.subtype_at(types, idx, 0).unwrap())
     }
 
     fn check_tag_type(

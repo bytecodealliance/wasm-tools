@@ -1919,7 +1919,9 @@ version = "0.113.1"
 dependencies = [
  "anyhow",
  "criterion",
+ "env_logger",
  "indexmap 2.0.0",
+ "log",
  "once_cell",
  "rayon",
  "semver",
