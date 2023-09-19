@@ -2357,6 +2357,7 @@ dependencies = [
  "indexmap 2.0.0",
  "log",
  "pretty_assertions",
+ "semver",
  "serde",
  "serde_json",
  "wasm-encoder 0.32.0",

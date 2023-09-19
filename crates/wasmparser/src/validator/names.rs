@@ -298,11 +298,6 @@ enum ParsedKebabName {
     Static {
         dot: u32,
     },
-    InterfaceId {
-        colon: u32,
-        slash: u32,
-        at: Option<u32>,
-    },
     RegistryId {
         colon: u32,
         slash: Option<u32>,
@@ -331,14 +326,6 @@ pub enum KebabNameKind<'a> {
     },
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
-    Id {
-        namespace: &'a KebabStr,
-        package: &'a KebabStr,
-        interface: &'a KebabStr,
-        version: Option<Version>,
-    },
-    /// `wasi:http:maybe:many/types/maybe/many@2.0`
-    #[allow(missing_docs)]
     RegistryId {
         namespace: &'a KebabStr,
         package: &'a KebabStr,
@@ -350,16 +337,6 @@ pub enum KebabNameKind<'a> {
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
-
-fn find_many<'a>(s: &str, c: char, acc: &'a mut Vec<usize>) -> &'a mut Vec<usize> {
-    match s.find(c) {
-        Some(i) => {
-            acc.push(i);
-            find_many(&s[i..], c, acc)
-        }
-        None => acc,
-    }
-}
 
 impl KebabName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
@@ -406,14 +383,26 @@ impl KebabName {
                 validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
                 if let Some(at) = at {
                     let version = &s[at + 1..];
-                    if let Err(e) = version.parse::<Version>() {
-                        bail!(offset, "failed to parse version: {e}")
+                    let version = version.parse::<Version>();
+                    match version {
+                        Ok(ver) => ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: Some(slash as u32),
+                            at: Some(At {
+                                index: at as u32,
+                                semver: Semver::Semver(ver),
+                            }),
+                        },
+                        Err(e) => {
+                            bail!(offset, "failed to parse version: {e}")
+                        }
                     }
-                }
-                ParsedKebabName::InterfaceId {
-                    colon: colon as u32,
-                    slash: slash as u32,
-                    at: at.map(|i| i as u32),
+                } else {
+                    ParsedKebabName::RegistryId {
+                        colon: colon as u32,
+                        slash: Some(slash as u32),
+                        at: None,
+                    }
                 }
             }
         };
@@ -520,14 +509,26 @@ impl KebabName {
                 validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
                 if let Some(at) = at {
                     let version = &s[at + 1..];
-                    if let Err(e) = version.parse::<Version>() {
-                        bail!(offset, "failed to parse version: {e}")
+                    let version = version.parse::<Version>();
+                    match version {
+                        Ok(ver) => ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: Some(slash as u32),
+                            at: Some(At {
+                                index: at as u32,
+                                semver: Semver::Semver(ver),
+                            }),
+                        },
+                        Err(e) => {
+                            bail!(offset, "failed to parse version: {e}")
+                        }
                     }
-                }
-                ParsedKebabName::InterfaceId {
-                    colon: colon as u32,
-                    slash: slash as u32,
-                    at: at.map(|i| i as u32),
+                } else {
+                    ParsedKebabName::RegistryId {
+                        colon: colon as u32,
+                        slash: Some(slash as u32),
+                        at: None,
+                    }
                 }
             }
             ComponentImportName::Url((name, _, _)) => {
@@ -610,20 +611,14 @@ impl KebabName {
                     validate_kebab(&name[colon + 1..sl])?;
                     if let Some(at) = at {
                         validate_kebab(&name[sl + 1..at])?;
-                        let version_string = &name[at + 1..];
-                        let version = version_string.parse::<Version>();
-                        match version {
-                            Ok(ver) => ParsedKebabName::RegistryId {
-                                colon: colon as u32,
-                                slash: Some(sl as u32),
-                                at: Some(At {
-                                    index: at as u32,
-                                    semver: Semver::Semver(ver),
-                                }),
-                            },
-                            Err(e) => {
-                                bail!(offset, "failed to parse version: {e}")
-                            }
+                        let version_string = validate_version_range(&name[at + 1..])?;
+                        ParsedKebabName::RegistryId {
+                            colon: colon as u32,
+                            slash: Some(sl as u32),
+                            at: Some(At {
+                                index: at as u32,
+                                semver: Semver::SemverRange(version_string),
+                            }),
                         }
                     } else {
                         ParsedKebabName::RegistryId {
@@ -681,22 +676,6 @@ impl KebabName {
                 let name = KebabStr::new_unchecked(&dotted[*dot as usize + 1..]);
                 KebabNameKind::Static { resource, name }
             }
-            ParsedKebabName::InterfaceId { colon, slash, at } => {
-                let colon = *colon as usize;
-                let slash = *slash as usize;
-                let at = at.map(|i| i as usize);
-                let namespace = KebabStr::new_unchecked(&self.raw[..colon]);
-                let package = KebabStr::new_unchecked(&self.raw[colon + 1..slash]);
-                let interface =
-                    KebabStr::new_unchecked(&self.raw[slash + 1..at.unwrap_or(self.raw.len())]);
-                let version = at.map(|i| Version::parse(&self.raw[i + 1..]).unwrap());
-                KebabNameKind::Id {
-                    namespace,
-                    package,
-                    interface,
-                    version,
-                }
-            }
             ParsedKebabName::RegistryId { colon, slash, at } => {
                 let colon = *colon as usize;
                 let package = if let Some(sl) = slash {
@@ -707,7 +686,7 @@ impl KebabName {
                     KebabStr::new_unchecked(&self.raw[colon + 1..])
                 };
                 let interface = if let Some(sl) = slash {
-                    Some(KebabStr::new_unchecked(&self.raw[colon + 1..*sl as usize]))
+                    Some(KebabStr::new_unchecked(&self.raw[*sl as usize + 1..]))
                 } else {
                     None
                 };
@@ -782,18 +761,6 @@ impl Hash for KebabNameKind<'_> {
                 resource.hash(hasher);
                 name.hash(hasher);
             }
-            KebabNameKind::Id {
-                namespace,
-                package,
-                interface,
-                version,
-            } => {
-                hasher.write_u8(3);
-                namespace.hash(hasher);
-                package.hash(hasher);
-                interface.hash(hasher);
-                version.hash(hasher);
-            }
             KebabNameKind::RegistryId {
                 namespace,
                 package,
@@ -863,22 +830,6 @@ impl PartialEq for KebabNameKind<'_> {
 
             (KebabNameKind::Method { .. }, _) => false,
             (KebabNameKind::Static { .. }, _) => false,
-
-            (
-                KebabNameKind::Id {
-                    namespace: an,
-                    package: ap,
-                    interface: ai,
-                    version: av,
-                },
-                KebabNameKind::Id {
-                    namespace: bn,
-                    package: bp,
-                    interface: bi,
-                    version: bv,
-                },
-            ) => an == bn && ap == bp && ai == bi && av == bv,
-            (KebabNameKind::Id { .. }, _) => false,
             (
                 KebabNameKind::RegistryId {
                     namespace: an,
@@ -893,7 +844,6 @@ impl PartialEq for KebabNameKind<'_> {
                     version: bv,
                 },
             ) => an == bn && ap == bp && ai == bi && av == bv,
-            (KebabNameKind::Id { .. }, _) => false,
             (KebabNameKind::RegistryId { .. }, _) => false,
         }
     }

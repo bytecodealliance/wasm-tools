@@ -1,5 +1,5 @@
 use crate::metadata::{Bindgen, ModuleMetadata};
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context, Error, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::mem;
 use wasmparser::names::{KebabName, KebabNameKind};
@@ -227,7 +227,7 @@ pub fn validate_module<'a>(
             continue;
         }
 
-        match world.imports.get(&world_key(&metadata.resolve, name)) {
+        match world.imports.get(&world_key(&metadata.resolve, name)?) {
             Some(WorldItem::Interface(interface)) => {
                 let required =
                     validate_imported_interface(&metadata.resolve, *interface, name, funcs, &types)
@@ -261,7 +261,7 @@ pub fn validate_module<'a>(
     }
 
     for (name, interface_name, funcs) in exported_resource_funcs {
-        let world_key = world_key(&metadata.resolve, interface_name);
+        let world_key = world_key(&metadata.resolve, interface_name)?;
         match world.exports.get(&world_key) {
             Some(WorldItem::Interface(i)) => {
                 validate_exported_interface_resource_imports(
@@ -484,7 +484,10 @@ pub fn validate_adapter_module<'a>(
             continue;
         }
 
-        match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
+        match resolve.worlds[world]
+            .imports
+            .get(&world_key(resolve, name)?)
+        {
             Some(WorldItem::Interface(interface)) => {
                 let required =
                     validate_imported_interface(resolve, *interface, name, &funcs, &types)
@@ -527,7 +530,7 @@ pub fn validate_adapter_module<'a>(
     Ok(ret)
 }
 
-fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
+fn world_key(resolve: &Resolve, name: &str) -> Result<WorldKey, Error> {
     let name = if name.contains('/') {
         ComponentImportName::Interface(name)
     } else {
@@ -535,28 +538,45 @@ fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
     };
     let kebab_name = KebabName::from_import(name, 0);
     let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {
-        Ok(KebabNameKind::Id {
+        Ok(KebabNameKind::RegistryId {
             namespace,
             package,
             version,
             interface,
-        }) => (
-            PackageName {
-                namespace: namespace.as_str().to_string(),
-                name: package.as_str().to_string(),
-                version,
-            },
-            interface.as_str(),
-        ),
-        _ => return WorldKey::Name(name.as_str().to_string()),
+        }) => {
+            let fixed_version = if let Some(v) = version {
+                Some(match v {
+                    wasmparser::names::Semver::Semver(v) => Ok::<semver::Version, Error>(v),
+                    wasmparser::names::Semver::SemverRange(_) => {
+                        bail!("package name cannot specify a version range")
+                    }
+                }?)
+            } else {
+                None
+            };
+            let iface = if let Some(iface) = interface {
+                iface
+            } else {
+                bail!("package name is not a valid id")
+            };
+            (
+                PackageName {
+                    namespace: namespace.as_str().to_string(),
+                    name: package.as_str().to_string(),
+                    version: fixed_version,
+                },
+                iface.as_str(),
+            )
+        }
+        _ => return Ok(WorldKey::Name(name.as_str().to_string())),
     };
     match resolve
         .package_names
         .get(&pkgname)
         .and_then(|p| resolve.packages[*p].interfaces.get(interface))
     {
-        Some(id) => WorldKey::Interface(*id),
-        None => WorldKey::Name(name.as_str().to_string()),
+        Some(id) => Ok(WorldKey::Interface(*id)),
+        None => Ok(WorldKey::Name(name.as_str().to_string())),
     }
 }
 
@@ -577,7 +597,10 @@ fn validate_imports_top_level(
     };
     let mut required = RequiredImports::default();
     for (name, ty) in funcs {
-        match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
+        match resolve.worlds[world]
+            .imports
+            .get(&world_key(resolve, name)?)
+        {
             Some(WorldItem::Function(func)) => {
                 let ty = types[types.core_type_at(*ty)].unwrap_func();
                 validate_func(resolve, ty, func, AbiVariant::GuestImport)?;

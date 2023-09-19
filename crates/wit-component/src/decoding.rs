@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::mem;
@@ -288,15 +288,36 @@ impl WitPackageDecoder<'_> {
             // where "wit" is just a placeholder for now. The package name in
             // this case would be `foo:bar`.
             name: match name.kind() {
-                KebabNameKind::Id {
+                KebabNameKind::RegistryId {
                     namespace,
                     package,
                     version,
                     interface,
-                } if interface.as_str() == "wit" => PackageName {
-                    namespace: namespace.to_string(),
-                    name: package.to_string(),
-                    version,
+                } => match interface {
+                    Some(iface) => {
+                        let fixed_version = if let Some(v) = version {
+                            Some(match v {
+                                wasmparser::names::Semver::Semver(v) => {
+                                    Ok::<semver::Version, Error>(v)
+                                }
+                                wasmparser::names::Semver::SemverRange(_) => {
+                                    bail!("package name cannot specify a version range: {name}")
+                                }
+                            }?)
+                        } else {
+                            None
+                        };
+                        if iface.as_str() == "wit" {
+                            PackageName {
+                                namespace: namespace.to_string(),
+                                name: package.to_string(),
+                                version: fixed_version,
+                            }
+                        } else {
+                            bail!("package name is not a valid id: {name}")
+                        }
+                    }
+                    None => bail!("package name is not a valid id: {name}"),
                 },
                 _ => bail!("package name is not a valid id: {name}"),
             },
@@ -559,7 +580,7 @@ impl WitPackageDecoder<'_> {
         };
         let name = KebabName::from_import(import_name, 0).unwrap();
         let (namespace, name, version, interface) = match name.kind() {
-            KebabNameKind::Id {
+            KebabNameKind::RegistryId {
                 namespace,
                 package,
                 version,
@@ -567,10 +588,20 @@ impl WitPackageDecoder<'_> {
             } => (namespace, package, version, interface),
             _ => bail!("package name is not a valid id: {name_string}"),
         };
+        let fixed_version = if let Some(v) = version {
+            Some(match v {
+                wasmparser::names::Semver::Semver(v) => Ok::<semver::Version, Error>(v),
+                wasmparser::names::Semver::SemverRange(_) => {
+                    bail!("package name cannot specify a version range: {name}")
+                }
+            }?)
+        } else {
+            None
+        };
         let package_name = PackageName {
             name: name.to_string(),
             namespace: namespace.to_string(),
-            version,
+            version: fixed_version,
         };
         // Lazily create a `Package` as necessary, along with the interface.
         let package = self
@@ -582,12 +613,17 @@ impl WitPackageDecoder<'_> {
                 interfaces: Default::default(),
                 worlds: Default::default(),
             });
+        let iface = if let Some(iface) = interface {
+            iface
+        } else {
+            bail!("package name is not a valid id: {name}")
+        };
         let interface = *package
             .interfaces
-            .entry(interface.to_string())
+            .entry(iface.to_string())
             .or_insert_with(|| {
                 self.resolve.interfaces.alloc(Interface {
-                    name: Some(interface.to_string()),
+                    name: Some(iface.to_string()),
                     docs: Default::default(),
                     types: IndexMap::default(),
                     functions: IndexMap::new(),
@@ -701,7 +737,14 @@ impl WitPackageDecoder<'_> {
         };
         let kebab_name = KebabName::from_import(import_name, 0);
         match kebab_name.as_ref().map(|k| k.kind()) {
-            Ok(KebabNameKind::Id { interface, .. }) => Ok(Some(interface.to_string())),
+            Ok(KebabNameKind::RegistryId { interface, .. }) => {
+                let iface = if let Some(iface) = interface {
+                    iface
+                } else {
+                    bail!("package name is not a valid id: {name}")
+                };
+                Ok(Some(iface.to_string()))
+            }
             Ok(KebabNameKind::Normal(_name)) => Ok(None),
             _ => bail!("cannot extract item name from: {name}"),
         }
@@ -899,7 +942,6 @@ impl WitPackageDecoder<'_> {
                 }
 
                 // Functions shouldn't have ID-based names at this time.
-                KebabNameKind::Id { .. } => unreachable!(),
                 KebabNameKind::RegistryId { .. } => unreachable!(),
             },
 
