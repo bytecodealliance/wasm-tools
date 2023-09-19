@@ -6,7 +6,7 @@ use std::{collections::HashSet, sync::Arc};
 use indexmap::IndexMap;
 
 use crate::limits::*;
-use crate::readers::Inherits;
+use crate::readers::Matches;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
     BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
@@ -568,7 +568,7 @@ impl Module {
             }
             match self.type_at(types, supertype_index, offset)? {
                 Type::Sub(st) => {
-                    if !&ty.inherits(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
+                    if !&ty.matches(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
                         bail!(offset, "subtype must match supertype");
                     }
                 }
@@ -957,7 +957,7 @@ impl Module {
     /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
     /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.inherits(&ty2, &|idx| self.subtype_at(types, idx, 0).unwrap())
+        ty1.matches(&ty2, &|idx| self.subtype_at(types, idx, 0).unwrap())
     }
 
     fn check_tag_type(
