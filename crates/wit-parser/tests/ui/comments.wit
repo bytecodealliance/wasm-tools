@@ -8,7 +8,7 @@ package foo:comments
 /* this /* is /* a */ nested */ comment */
 
 interface foo {
-  type x = u32
+  type x = u32;
 
   type /* foo */ bar /* baz */ = //
   stream < //
@@ -20,6 +20,6 @@ interface foo {
 
   x
 
-  >
+  >;
 
 }

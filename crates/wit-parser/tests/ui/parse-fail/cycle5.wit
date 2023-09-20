@@ -2,6 +2,6 @@
 package foo:foo
 
 interface foo {
-  type foo = bar
-  type bar = list<foo>
+  type foo = bar;
+  type bar = list<foo>;
 }

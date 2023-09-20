@@ -3,5 +3,5 @@
 package foo:foo
 
 world foo {
-  import bar
+  import bar;
 }

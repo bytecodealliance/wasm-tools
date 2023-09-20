@@ -1,11 +1,11 @@
 package foo:foo
 
 interface foo {
-  type t = u32
+  type t = u32;
 }
 
 world bar {
-  use foo.{t}
+  use foo.{t};
 
-  import foo: func()
+  import foo: func();
 }

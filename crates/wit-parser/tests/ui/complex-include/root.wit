@@ -4,23 +4,23 @@ interface ai {}
 interface bi {}
 
 world a {
-    import ai
-    import bi
+    import ai;
+    import bi;
 }
 
 world b {
-    include foo:bar/bar-a
+    include foo:bar/bar-a;
 }
 
 world c {
-    include b
-    include foo:bar/bar-a
+    include b;
+    include foo:bar/bar-a;
 }
 
 world union-world {
-    include a
-    include b
-    include c
-    include foo:bar/bar-a
-    include foo:baz/baz-a
+    include a;
+    include b;
+    include c;
+    include foo:bar/bar-a;
+    include foo:baz/baz-a;
 }

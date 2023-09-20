@@ -5,43 +5,43 @@ interface foo {
   }
 
   resource b {
-    constructor()
+    constructor();
   }
 
   resource c {
-    constructor(x: u32)
+    constructor(x: u32);
   }
 
   resource d {
-    constructor(x: u32)
+    constructor(x: u32);
 
-    a: func()
+    a: func();
 
-    b: static func()
+    b: static func();
   }
 
   resource e {
-    constructor(other: own<e>, other2: borrow<e>)
+    constructor(other: own<e>, other2: borrow<e>);
 
-    method: func(thing: own<e>, thing2: borrow<e>)
+    method: func(thing: own<e>, thing2: borrow<e>);
   }
 }
 
 world w {
-  resource a
+  resource a;
 
   resource b {
   }
 
   resource c {
-    constructor()
+    constructor();
   }
 }
 
 interface i {
-  resource a
+  resource a;
 
-  type t1 = a
-  type t2 = borrow<a>
-  type t3 = borrow<t1>
+  type t1 = a;
+  type t2 = borrow<a>;
+  type t3 = borrow<t1>;
 }

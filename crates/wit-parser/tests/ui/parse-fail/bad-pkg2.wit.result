@@ -1,5 +1,5 @@
 interface not found in package
      --> tests/ui/parse-fail/bad-pkg2/root.wit:4:15
       |
-    4 |   use foo:bar/nonexistent.{}
+    4 |   use foo:bar/nonexistent.{};
       |               ^----------

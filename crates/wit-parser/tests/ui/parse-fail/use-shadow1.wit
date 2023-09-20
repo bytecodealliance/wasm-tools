@@ -1,6 +1,6 @@
 package foo:foo
 
-use foo as bar
+use foo as bar;
 
 interface foo {}
 

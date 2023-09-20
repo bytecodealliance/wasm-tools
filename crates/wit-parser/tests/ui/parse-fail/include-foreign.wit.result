@@ -1,5 +1,5 @@
 world not found in package
      --> tests/ui/parse-fail/include-foreign/root.wit:4:19
       |
-    4 |   include foo:bar/bar
+    4 |   include foo:bar/bar;
       |                   ^--

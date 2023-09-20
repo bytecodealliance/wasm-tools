@@ -106,7 +106,11 @@ impl Runner<'_> {
         let result = if test.is_dir() {
             resolve.push_dir(test).map(|(id, _)| id)
         } else {
-            UnresolvedPackage::parse_file(test).and_then(|p| resolve.push(p))
+            let mut map = SourceMap::new();
+            map.set_require_semicolons(true);
+            map.push_file(test)
+                .and_then(|()| map.parse())
+                .and_then(|p| resolve.push(p))
         };
 
         let result = if test.iter().any(|s| s == "parse-fail") {
@@ -180,6 +184,7 @@ impl Runner<'_> {
 }
 
 fn normalize(s: &str, extension: &str) -> String {
+    let s = s.trim();
     match extension {
         // .result files have error messages with paths, so normalize Windows \ separators to /
         "result" => s.replace("\\", "/").replace("\r\n", "\n"),

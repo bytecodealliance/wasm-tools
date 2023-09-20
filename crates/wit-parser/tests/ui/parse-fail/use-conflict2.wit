@@ -3,11 +3,11 @@
 package foo:foo
 
 interface foo {
-  type x = u32
+  type x = u32;
 }
 
 interface bar {
-  use foo.{x}
+  use foo.{x};
 
-  type x = s64
+  type x = s64;
 }

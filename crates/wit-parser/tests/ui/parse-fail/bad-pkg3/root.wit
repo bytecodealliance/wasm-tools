@@ -1,5 +1,5 @@
 package foo:foo
 
 interface foo {
-  use foo:bar/baz.{}
+  use foo:bar/baz.{};
 }

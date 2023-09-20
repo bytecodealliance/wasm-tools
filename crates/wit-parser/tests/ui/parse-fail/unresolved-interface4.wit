@@ -3,5 +3,5 @@
 package foo:foo
 
 world foo {
-  import some:dependency/iface
+  import some:dependency/iface;
 }

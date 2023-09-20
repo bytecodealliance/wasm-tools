@@ -4,5 +4,5 @@ Caused by:
     name `bar` is defined as an interface, not a world
          --> tests/ui/parse-fail/use-and-include-world/root.wit:6:21
           |
-        6 |     include foo:baz/bar
+        6 |     include foo:baz/bar;
           |                     ^--

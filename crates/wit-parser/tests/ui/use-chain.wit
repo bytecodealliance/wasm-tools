@@ -4,8 +4,8 @@ interface foo {
   record foo {}
 }
 
-use foo as bar
+use foo as bar;
 
 interface name {
-  use bar.{foo}
+  use bar.{foo};
 }

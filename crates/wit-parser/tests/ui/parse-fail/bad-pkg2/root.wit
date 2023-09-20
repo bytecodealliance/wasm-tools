@@ -1,5 +1,5 @@
 package foo:foo
 
 interface foo {
-  use foo:bar/nonexistent.{}
+  use foo:bar/nonexistent.{};
 }

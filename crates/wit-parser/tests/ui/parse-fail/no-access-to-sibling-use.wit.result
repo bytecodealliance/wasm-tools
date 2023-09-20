@@ -4,5 +4,5 @@ Caused by:
     interface or world `bar-renamed` does not exist
          --> tests/ui/parse-fail/no-access-to-sibling-use/foo.wit:3:5
           |
-        3 | use bar-renamed
+        3 | use bar-renamed;
           |     ^----------

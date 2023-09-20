@@ -1,5 +1,5 @@
 type used in a handle must be a resource
      --> tests/ui/parse-fail/type-and-resource-same-name/foo.wit:7:20
       |
-    7 |   type t2 = borrow<a>
+    7 |   type t2 = borrow<a>;
       |                    ^

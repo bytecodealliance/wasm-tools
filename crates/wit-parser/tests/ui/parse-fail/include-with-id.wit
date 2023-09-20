@@ -3,7 +3,7 @@ package foo:foo
 interface foo {}
 
 world a {
-    import foo
+    import foo;
 }
 
 world b {

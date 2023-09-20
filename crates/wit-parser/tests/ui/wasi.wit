@@ -13,7 +13,7 @@ interface wasi {
   }
 
   // Timestamp in nanoseconds.
-  type timestamp = u64
+  type timestamp = u64;
 
   // Error codes returned by functions.
   // Not all of these error codes are returned by the functions provided by this

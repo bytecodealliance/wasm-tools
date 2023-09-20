@@ -1,5 +1,5 @@
 package foo:foo
 
-use bar-renamed
+use bar-renamed;
 
 interface bar {}

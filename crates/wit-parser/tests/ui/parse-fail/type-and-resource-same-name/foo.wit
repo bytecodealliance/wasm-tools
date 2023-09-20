@@ -1,8 +1,8 @@
 package foo:bar
 
 interface foo {
-  use some:dep/foo.{a}
+  use some:dep/foo.{a};
 
-  type t1 = a
-  type t2 = borrow<a>
+  type t1 = a;
+  type t2 = borrow<a>;
 }

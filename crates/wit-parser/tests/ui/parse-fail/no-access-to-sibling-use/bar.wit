@@ -1,1 +1,1 @@
-use bar as bar-renamed
+use bar as bar-renamed;

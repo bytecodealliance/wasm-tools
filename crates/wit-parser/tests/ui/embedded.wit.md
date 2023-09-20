@@ -9,7 +9,7 @@ interface foo {
 ```
 
 ```wit
-x: func()
+x: func();
 ```
 
 Intervening content, including a non-wit codeblock:
@@ -18,7 +18,7 @@ function func() {}
 ```
 
 ```wit
-y: func()
+y: func();
 ```
 
 ## A new section
@@ -26,7 +26,7 @@ y: func()
 In which, another wit code block!
 
 ```wit
-z: func()
+z: func();
 ```
 
 ```wit

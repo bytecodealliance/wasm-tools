@@ -5,5 +5,5 @@ world xo {}
 world name {}
 
 world x {
-    include name
+    include name;
 }
