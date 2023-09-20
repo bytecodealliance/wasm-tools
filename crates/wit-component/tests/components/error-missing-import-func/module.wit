@@ -1,9 +1,9 @@
 package foo:foo
 
 interface foo {
-  a: func()
+  a: func();
 }
 
 world module {
-  import foo
+  import foo;
 }

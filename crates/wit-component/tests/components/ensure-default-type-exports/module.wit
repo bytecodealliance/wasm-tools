@@ -1,17 +1,17 @@
 package foo:foo
 
 interface foo {
-  type foo = u8
+  type foo = u8;
 
   record bar {
       x: foo
   }
 
-  a: func(b: bar)
+  a: func(b: bar);
 }
 
 world module {
-  import foo
+  import foo;
 
-  export a: func(b: u8)
+  export a: func(b: u8);
 }

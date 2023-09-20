@@ -30,34 +30,34 @@ interface records {
     e: really-flags,
   }
 
-  type int-typedef = s32
+  type int-typedef = s32;
 
-  type tuple-typedef2 = tuple<int-typedef>
+  type tuple-typedef2 = tuple<int-typedef>;
 
-  tuple-arg: func(x: tuple<char, u32>)
+  tuple-arg: func(x: tuple<char, u32>);
 
-  tuple-result: func() -> tuple<char, u32>
+  tuple-result: func() -> tuple<char, u32>;
 
-  single-arg: func(x: single)
+  single-arg: func(x: single);
 
-  single-result: func() -> single
+  single-result: func() -> single;
 
-  scalar-arg: func(x: scalars)
+  scalar-arg: func(x: scalars);
 
-  scalar-result: func() -> scalars
+  scalar-result: func() -> scalars;
 
-  flags-arg: func(x: really-flags)
+  flags-arg: func(x: really-flags);
 
-  flags-result: func() -> really-flags
+  flags-result: func() -> really-flags;
 
-  aggregate-arg: func(x: aggregates)
+  aggregate-arg: func(x: aggregates);
 
-  aggregate-result: func() -> aggregates
+  aggregate-result: func() -> aggregates;
 
-  typedef-inout: func(e: tuple-typedef2) -> s32
+  typedef-inout: func(e: tuple-typedef2) -> s32;
 }
 
 world records-world {
-  import records
-  export records
+  import records;
+  export records;
 }

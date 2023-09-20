@@ -1,7 +1,7 @@
 interface new {
-  entrypoint: func()
+  entrypoint: func();
 }
 
 world adapt-old {
-  export new
+  export new;
 }

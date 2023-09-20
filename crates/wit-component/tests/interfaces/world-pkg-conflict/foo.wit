@@ -5,5 +5,5 @@ world c {
 }
 
 interface foo {
-  use a.{t}
+  use a.{t};
 }

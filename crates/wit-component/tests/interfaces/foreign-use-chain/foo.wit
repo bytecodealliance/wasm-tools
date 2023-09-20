@@ -1,5 +1,5 @@
 package foo:foo
 
 world foo {
-  import foo:bar/bar
+  import foo:bar/bar;
 }

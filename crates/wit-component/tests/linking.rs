@@ -128,12 +128,12 @@ const WIT: &str = r#"
 package test:test
 
 interface test {
-   bar: func(v: s32) -> s32
+   bar: func(v: s32) -> s32;
 }
 
 world bar {
-    import test
-    export test
+    import test;
+    export test;
 }
 "#;
 

@@ -1,5 +1,5 @@
 package foo:foo
 
 world module {
-  export a: func(x: string) -> string
+  export a: func(x: string) -> string;
 }

@@ -8,8 +8,8 @@ interface foo {
 
 world module {
   export bar: interface {
-    use foo.{foo as bar}
+    use foo.{foo as bar};
 
-    foo: func() -> bar
+    foo: func() -> bar;
   }
 }

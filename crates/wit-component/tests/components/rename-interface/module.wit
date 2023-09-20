@@ -5,14 +5,14 @@ interface foo {
     f: u8,
   }
 
-  a: func() -> bar
+  a: func() -> bar;
 }
 
 world module {
-  import foo
+  import foo;
   import other-name: interface {
-    use foo.{bar}
+    use foo.{bar};
 
-    a: func() -> bar
+    a: func() -> bar;
   }
 }

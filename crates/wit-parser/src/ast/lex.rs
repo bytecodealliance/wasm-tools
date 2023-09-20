@@ -116,6 +116,7 @@ pub enum Error {
     },
 }
 
+// NB: keep in sync with `crates/wit-component/src/printing.rs`.
 const REQUIRE_SEMICOLONS_BY_DEFAULT: bool = false;
 
 impl<'a> Tokenizer<'a> {

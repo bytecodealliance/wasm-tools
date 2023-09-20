@@ -2,11 +2,11 @@
 // to implement the `wasi_snapshot_preview1` interface.
 
 interface my-wasi {
-  random-get: func(size: u32) -> list<u8>
-  proc-exit: func(code: u32)
-  something-not-used: func()
+  random-get: func(size: u32) -> list<u8>;
+  proc-exit: func(code: u32);
+  something-not-used: func();
 }
 
 world adapt-wasi-snapshot-preview1 {
-  import my-wasi
+  import my-wasi;
 }

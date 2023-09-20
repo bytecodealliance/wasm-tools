@@ -12,6 +12,6 @@ interface foo {
 
 world module {
   export x: interface {
-    use foo.{r}
+    use foo.{r};
   }
 }

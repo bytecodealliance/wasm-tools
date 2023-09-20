@@ -1,4 +1,4 @@
 package foo:foo
 world module {
-  export a: func()
+  export a: func();
 }

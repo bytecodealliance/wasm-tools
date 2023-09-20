@@ -1,5 +1,5 @@
 package foo:foo
 
 interface foo {
-  a: func() -> (a: u32)
+  a: func() -> (a: u32);
 }

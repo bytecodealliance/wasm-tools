@@ -17,11 +17,11 @@ interface poll {
     /// that they do not outlive the resource they reference.
     ///
     /// This [represents a resource](https://github.com/WebAssembly/WASI/blob/main/docs/WitInWasi.md#Resources).
-    type pollable = u32
+    type pollable = u32;
 
     /// Dispose of the specified `pollable`, after which it may no longer
     /// be used.
-    drop-pollable: func(this: pollable)
+    drop-pollable: func(this: pollable);
 
     /// Poll for completion on a set of pollables.
     ///
@@ -37,5 +37,5 @@ interface poll {
     /// See <https://github.com/bytecodealliance/preview2-prototyping/pull/11#issuecomment-1329873061>
     /// for details.  For now, we use zero to mean "not ready" and non-zero to
     /// mean "ready".
-    poll-oneoff: func(in: list<pollable>) -> list<u8>
+    poll-oneoff: func(in: list<pollable>) -> list<u8>;
 }

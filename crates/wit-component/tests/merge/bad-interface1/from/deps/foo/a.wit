@@ -1,5 +1,5 @@
 package foo:foo
 
 interface a {
-  type a = u32
+  type a = u32;
 }

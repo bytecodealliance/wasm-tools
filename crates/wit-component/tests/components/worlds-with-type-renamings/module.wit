@@ -5,13 +5,13 @@ interface i {
     f: u8,
   }
 
-  the-func: func() -> some-type
+  the-func: func() -> some-type;
 }
 
 
 world module {
-  use i.{some-type as other-name}
+  use i.{some-type as other-name};
 
-  import i
-  export i
+  import i;
+  export i;
 }

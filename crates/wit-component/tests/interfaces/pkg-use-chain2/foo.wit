@@ -1,5 +1,5 @@
 package foo:foo
 
 interface foo {
-  use bar.{the-name}
+  use bar.{the-name};
 }

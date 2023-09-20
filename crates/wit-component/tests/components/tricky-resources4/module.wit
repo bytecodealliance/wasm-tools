@@ -1,16 +1,16 @@
 package foo:bar
 
 interface name {
-  resource name
+  resource name;
 
-  type handle = name
+  type handle = name;
 
-  foo: func() -> handle
+  foo: func() -> handle;
 }
 
 world module {
-  export name
+  export name;
   export name: interface {
-    use name.{handle}
+    use name.{handle};
   }
 }

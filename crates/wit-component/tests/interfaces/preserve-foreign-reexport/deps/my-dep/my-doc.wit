@@ -4,5 +4,5 @@ interface my-interface {
   record foo {
     f: u8,
   }
-  type bar = foo
+  type bar = foo;
 }

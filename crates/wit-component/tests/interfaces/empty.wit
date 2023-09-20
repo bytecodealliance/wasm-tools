@@ -3,9 +3,9 @@ package foo:empty
 interface empty {}
 
 world empty-world {
-  import empty
+  import empty;
   import empty: interface {}
-  export empty
+  export empty;
   export empty2: interface {}
 }
 

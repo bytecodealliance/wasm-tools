@@ -11,11 +11,11 @@ interface name {
 }
 
 world module {
-  import name
-  export name
+  import name;
+  export name;
 
   export name: interface {
-    use name.{r2}
-    a: func()
+    use name.{r2};
+    a: func();
   }
 }

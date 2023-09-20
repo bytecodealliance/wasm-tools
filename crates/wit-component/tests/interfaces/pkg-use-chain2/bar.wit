@@ -1,5 +1,5 @@
 interface bar {
-  use other.{name as the-name}
+  use other.{name as the-name};
 
   enum name {
     a

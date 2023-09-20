@@ -1,9 +1,9 @@
 package foo:foo
 
 world module {
-  export a: func()
-  export b: func(a: s8, b: s16, c: s32, d: s64) -> string
-  export c: func() -> tuple<s8, s16, s32, s64>
+  export a: func();
+  export b: func(a: s8, b: s16, c: s32, d: s64) -> string;
+  export c: func() -> tuple<s8, s16, s32, s64>;
 
   export bar: interface {
     flags x {
@@ -12,7 +12,7 @@ world module {
         c
     }
 
-    a: func(x: x)
+    a: func(x: x);
   }
 
   export foo: interface {
@@ -22,8 +22,8 @@ world module {
         c(s64)
     }
 
-    a: func()
-    b: func(x: string) -> x
-    c: func(x: x) -> string
+    a: func();
+    b: func(x: string) -> x;
+    c: func(x: x) -> string;
   }
 }

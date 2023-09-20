@@ -1,16 +1,16 @@
 package foo:bar
 
 interface foo {
-  resource r
+  resource r;
 
-  type handle = own<r>
+  type handle = own<r>;
 }
 
 world module {
-  export foo
+  export foo;
   export anon: interface {
-    use foo.{handle}
-    f: func() -> handle
+    use foo.{handle};
+    f: func() -> handle;
   }
 }
 

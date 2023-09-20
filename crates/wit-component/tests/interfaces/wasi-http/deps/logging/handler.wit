@@ -30,5 +30,5 @@ interface handler {
     /// sent, a context, which is an uninterpreted string meant to help
     /// consumers group similar messages, and a string containing the message
     /// text.
-    log: func(level: level, context: string, message: string)
+    log: func(level: level, context: string, message: string);
 }

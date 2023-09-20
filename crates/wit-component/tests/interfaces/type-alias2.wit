@@ -5,11 +5,11 @@ interface foo {
     b,
   }
 
-  type b = a
+  type b = a;
 
-  f: func() -> b
+  f: func() -> b;
 }
 
 world my-world {
-  export foo
+  export foo;
 }

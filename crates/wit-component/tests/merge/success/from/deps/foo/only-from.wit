@@ -1,5 +1,5 @@
 interface only-from {
   record r {}
 
-  foo: func() -> r
+  foo: func() -> r;
 }

@@ -6,7 +6,7 @@ package wasi:io
 /// In the future, the component model is expected to add built-in stream types;
 /// when it does, they are expected to subsume this API.
 interface streams {
-    use wasi:poll/poll.{pollable}
+    use wasi:poll/poll.{pollable};
 
     /// An error type returned from a stream operation. Currently this
     /// doesn't provide any additional information.
@@ -31,7 +31,7 @@ interface streams {
     /// the wit-bindgen implementation of handles and resources is ready.
     ///
     /// This [represents a resource](https://github.com/WebAssembly/WASI/blob/main/docs/WitInWasi.md#Resources).
-    type input-stream = u32
+    type input-stream = u32;
 
     /// Read bytes from a stream.
     ///
@@ -55,7 +55,7 @@ interface streams {
         this: input-stream,
         /// The maximum number of bytes to read
         len: u64
-    ) -> result<tuple<list<u8>, bool>, stream-error>
+    ) -> result<tuple<list<u8>, bool>, stream-error>;
 
     /// Read bytes from a stream, with blocking.
     ///
@@ -65,7 +65,7 @@ interface streams {
         this: input-stream,
         /// The maximum number of bytes to read
         len: u64
-    ) -> result<tuple<list<u8>, bool>, stream-error>
+    ) -> result<tuple<list<u8>, bool>, stream-error>;
 
     /// Skip bytes from a stream.
     ///
@@ -83,7 +83,7 @@ interface streams {
         this: input-stream,
         /// The maximum number of bytes to skip.
         len: u64,
-    ) -> result<tuple<u64, bool>, stream-error>
+    ) -> result<tuple<u64, bool>, stream-error>;
 
     /// Skip bytes from a stream, with blocking.
     ///
@@ -93,16 +93,16 @@ interface streams {
         this: input-stream,
         /// The maximum number of bytes to skip.
         len: u64,
-    ) -> result<tuple<u64, bool>, stream-error>
+    ) -> result<tuple<u64, bool>, stream-error>;
 
     /// Create a `pollable` which will resolve once either the specified stream
     /// has bytes available to read or the other end of the stream has been
     /// closed.
-    subscribe-to-input-stream: func(this: input-stream) -> pollable
+    subscribe-to-input-stream: func(this: input-stream) -> pollable;
 
     /// Dispose of the specified `input-stream`, after which it may no longer
     /// be used.
-    drop-input-stream: func(this: input-stream)
+    drop-input-stream: func(this: input-stream);
 
     /// An output bytestream. In the future, this will be replaced by handle
     /// types.
@@ -121,7 +121,7 @@ interface streams {
     /// the wit-bindgen implementation of handles and resources is ready.
     ///
     /// This [represents a resource](https://github.com/WebAssembly/WASI/blob/main/docs/WitInWasi.md#Resources).
-    type output-stream = u32
+    type output-stream = u32;
 
     /// Write bytes to a stream.
     ///
@@ -131,7 +131,7 @@ interface streams {
         this: output-stream,
         /// Data to write
         buf: list<u8>
-    ) -> result<u64, stream-error>
+    ) -> result<u64, stream-error>;
 
     /// Write bytes to a stream, with blocking.
     ///
@@ -141,7 +141,7 @@ interface streams {
         this: output-stream,
         /// Data to write
         buf: list<u8>
-    ) -> result<u64, stream-error>
+    ) -> result<u64, stream-error>;
 
     /// Write multiple zero bytes to a stream.
     ///
@@ -151,7 +151,7 @@ interface streams {
         this: output-stream,
         /// The number of zero bytes to write
         len: u64
-    ) -> result<u64, stream-error>
+    ) -> result<u64, stream-error>;
 
     /// Write multiple zero bytes to a stream, with blocking.
     ///
@@ -161,7 +161,7 @@ interface streams {
         this: output-stream,
         /// The number of zero bytes to write
         len: u64
-    ) -> result<u64, stream-error>
+    ) -> result<u64, stream-error>;
 
     /// Read from one stream and write to another.
     ///
@@ -176,7 +176,7 @@ interface streams {
         src: input-stream,
         /// The number of bytes to splice
         len: u64,
-    ) -> result<tuple<u64, bool>, stream-error>
+    ) -> result<tuple<u64, bool>, stream-error>;
 
     /// Read from one stream and write to another, with blocking.
     ///
@@ -188,7 +188,7 @@ interface streams {
         src: input-stream,
         /// The number of bytes to splice
         len: u64,
-    ) -> result<tuple<u64, bool>, stream-error>
+    ) -> result<tuple<u64, bool>, stream-error>;
 
     /// Forward the entire contents of an input stream to an output stream.
     ///
@@ -205,13 +205,13 @@ interface streams {
         this: output-stream,
         /// The stream to read from
         src: input-stream
-    ) -> result<u64, stream-error>
+    ) -> result<u64, stream-error>;
 
     /// Create a `pollable` which will resolve once either the specified stream
     /// is ready to accept bytes or the other end of the stream has been closed.
-    subscribe-to-output-stream: func(this: output-stream) -> pollable
+    subscribe-to-output-stream: func(this: output-stream) -> pollable;
 
     /// Dispose of the specified `output-stream`, after which it may no longer
     /// be used.
-    drop-output-stream: func(this: output-stream)
+    drop-output-stream: func(this: output-stream);
 }
