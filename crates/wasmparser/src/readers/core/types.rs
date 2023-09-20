@@ -55,14 +55,8 @@ const _: () = {
     assert!(std::mem::size_of::<ValType>() == 4);
 };
 
-pub(crate) trait Inherits {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+pub(crate) trait Matches {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType;
 }
@@ -106,25 +100,14 @@ impl ValType {
     }
 }
 
-impl Inherits for ValType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for ValType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (Self::Ref(r1), Self::Ref(r2)) => {
-                r1.inherits(r2, self_base_idx, other_base_idx, type_at)
-            }
-            (
-                s @ (Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 | Self::Ref(_)),
-                o,
-            ) => s == o,
+            (Self::Ref(r1), Self::Ref(r2)) => r1.matches(r2, type_at),
+            (a, b) => a == b,
         }
     }
 }
@@ -200,22 +183,33 @@ impl fmt::Display for ValType {
 //
 // RefType is a bit-packed enum that fits in a `u24` aka `[u8; 3]`.
 // Note that its content is opaque (and subject to change), but its API is stable.
+//
 // It has the following internal structure:
+//
 // ```
 // [nullable:u1] [indexed==1:u1] [kind:u2] [index:u20]
 // [nullable:u1] [indexed==0:u1] [type:u4] [(unused):u18]
 // ```
-// , where
+//
+// Where
+//
 // - `nullable` determines nullability of the ref
-// - `indexed` determines if the ref is of a dynamically defined type with an index (encoded in a following bit-packing section) or of a known fixed type
+//
+// - `indexed` determines if the ref is of a dynamically defined type with an
+//   index (encoded in a following bit-packing section) or of a known fixed type
+//
 // - `kind` determines what kind of indexed type the index is pointing to:
+//
 //   ```
 //   10 = struct
 //   11 = array
 //   01 = function
 //   ```
+//
 // - `index` is the type index
+//
 // - `type` is an enumeration of known types:
+//
 //   ```
 //   1111 = any
 //
@@ -232,6 +226,7 @@ impl fmt::Display for ValType {
 //
 //   0000 = none
 //   ```
+//
 // - `(unused)` is unused sequence of bits
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RefType([u8; 3]);
@@ -550,25 +545,14 @@ impl RefType {
     }
 }
 
-impl Inherits for RefType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for RefType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         self == other
             || ((other.is_nullable() || !self.is_nullable())
-                && self.heap_type().inherits(
-                    &other.heap_type(),
-                    self_base_idx,
-                    other_base_idx,
-                    type_at,
-                ))
+                && self.heap_type().matches(&other.heap_type(), type_at))
     }
 }
 
@@ -657,84 +641,54 @@ pub enum HeapType {
     I31,
 }
 
-fn choose_base(base_idx: Option<u32>, idx: u32) -> Option<u32> {
-    if base_idx == None || idx == base_idx.unwrap() || idx < base_idx.unwrap() {
-        Some(idx)
-    } else {
-        base_idx
-    }
-}
-
-impl Inherits for HeapType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for HeapType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
+        if self == other {
+            return true;
+        }
+
+        use HeapType as HT;
         match (self, other) {
-            (HeapType::Indexed(a), HeapType::Indexed(b)) => {
-                a == b || {
-                    let a_base = choose_base(self_base_idx, *a);
-                    let b_base = choose_base(other_base_idx, *b);
-                    (a_base == self_base_idx && b_base == other_base_idx)
-                        || type_at(*a).inherits(type_at(*b), a_base, b_base, type_at)
-                }
+            (HT::Eq | HT::I31 | HT::Struct | HT::Array | HT::None, HT::Any) => true,
+            (HT::I31 | HT::Struct | HT::Array | HT::None, HT::Eq) => true,
+            (HT::NoExtern, HT::Extern) => true,
+            (HT::NoFunc, HT::Func) => true,
+            (HT::None, HT::I31 | HT::Array | HT::Struct) => true,
+
+            (HT::Indexed(a), HT::Eq | HT::Any) => matches!(
+                type_at(*a).structural_type,
+                StructuralType::Array(_) | StructuralType::Struct(_)
+            ),
+
+            (HT::Indexed(a), HT::Struct) => {
+                matches!(type_at(*a).structural_type, StructuralType::Struct(_))
             }
-            (HeapType::Indexed(a), HeapType::Func) => match type_at(*a).structural_type {
-                StructuralType::Func(_) => true,
-                _ => false,
-            },
-            (HeapType::Indexed(a), HeapType::Array) => match type_at(*a).structural_type {
-                StructuralType::Array(_) => true,
-                _ => false,
-            },
-            (HeapType::Indexed(a), HeapType::Struct) => match type_at(*a).structural_type {
-                StructuralType::Struct(_) => true,
-                _ => false,
-            },
-            (HeapType::Indexed(a), HeapType::Eq | HeapType::Any) => {
-                match type_at(*a).structural_type {
-                    StructuralType::Array(_) | StructuralType::Struct(_) => true,
-                    _ => false,
-                }
+
+            (HT::Indexed(a), HT::Array) => {
+                matches!(type_at(*a).structural_type, StructuralType::Array(_))
             }
-            (HeapType::Eq, HeapType::Any) => true,
-            (HeapType::I31 | HeapType::Array | HeapType::Struct, HeapType::Eq | HeapType::Any) => {
-                true
+
+            (HT::Indexed(a), HT::Func) => {
+                matches!(type_at(*a).structural_type, StructuralType::Func(_))
             }
-            (HeapType::None, HeapType::Indexed(a)) => match type_at(*a).structural_type {
-                StructuralType::Array(_) | StructuralType::Struct(_) => true,
-                _ => false,
-            },
-            (
-                HeapType::None,
-                HeapType::I31 | HeapType::Eq | HeapType::Any | HeapType::Array | HeapType::Struct,
-            ) => true,
-            (HeapType::NoExtern, HeapType::Extern) => true,
-            (HeapType::NoFunc, HeapType::Func) => true,
-            (HeapType::NoFunc, HeapType::Indexed(a)) => match type_at(*a).structural_type {
-                StructuralType::Func(_) => true,
-                _ => false,
-            },
-            (
-                a @ (HeapType::Func
-                | HeapType::Extern
-                | HeapType::Any
-                | HeapType::Indexed(_)
-                | HeapType::None
-                | HeapType::NoExtern
-                | HeapType::NoFunc
-                | HeapType::Eq
-                | HeapType::Struct
-                | HeapType::Array
-                | HeapType::I31),
-                b,
-            ) => a == b,
+
+            (HT::Indexed(a), HT::Indexed(b)) => type_at(*a)
+                .structural_type
+                .matches(&type_at(*b).structural_type, type_at),
+
+            (HT::None, HT::Indexed(b)) => matches!(
+                type_at(*b).structural_type,
+                StructuralType::Array(_) | StructuralType::Struct(_)
+            ),
+
+            (HT::NoFunc, HT::Indexed(b)) => {
+                matches!(type_at(*b).structural_type, StructuralType::Func(_))
+            }
+
+            _ => false,
         }
     }
 }
@@ -836,24 +790,15 @@ impl RecGroup {
     }
 }
 
-impl Inherits for SubType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for SubType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         !other.is_final
-            && self.structural_type.inherits(
-                &other.structural_type,
-                self_base_idx,
-                other_base_idx,
-                type_at,
-            )
+            && self
+                .structural_type
+                .matches(&other.structural_type, type_at)
     }
 }
 
@@ -886,30 +831,16 @@ pub struct StructType {
     pub fields: Box<[FieldType]>,
 }
 
-impl Inherits for StructuralType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for StructuralType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (StructuralType::Func(a), StructuralType::Func(b)) => {
-                a.inherits(b, self_base_idx, other_base_idx, type_at)
-            }
-            (StructuralType::Array(a), StructuralType::Array(b)) => {
-                a.inherits(b, self_base_idx, other_base_idx, type_at)
-            }
-            (StructuralType::Struct(a), StructuralType::Struct(b)) => {
-                a.inherits(b, self_base_idx, other_base_idx, type_at)
-            }
-            (StructuralType::Func(_), _) => false,
-            (StructuralType::Array(_), _) => false,
-            (StructuralType::Struct(_), _) => false,
+            (StructuralType::Func(a), StructuralType::Func(b)) => a.matches(b, type_at),
+            (StructuralType::Array(a), StructuralType::Array(b)) => a.matches(b, type_at),
+            (StructuralType::Struct(a), StructuralType::Struct(b)) => a.matches(b, type_at),
+            _ => false,
         }
     }
 }
@@ -985,14 +916,8 @@ impl FuncType {
     }
 }
 
-impl Inherits for FuncType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for FuncType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
@@ -1004,78 +929,47 @@ impl Inherits for FuncType {
                 .params()
                 .iter()
                 .zip(other.params())
-                .fold(true, |r, (a, b)| r && b.inherits(a, self_base_idx, other_base_idx, type_at))
+                .all(|(a, b)| b.matches(a, type_at))
             && self
                 .results()
                 .iter()
                 .zip(other.results())
-                .fold(true, |r, (a, b)| r && a.inherits(b, self_base_idx, other_base_idx, type_at))
+                .all(|(a, b)| a.matches(b, type_at))
     }
 }
 
-impl Inherits for ArrayType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for ArrayType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
-        self.0
-            .inherits(&other.0, self_base_idx, other_base_idx, type_at)
+        self.0.matches(&other.0, type_at)
     }
 }
 
-impl Inherits for FieldType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for FieldType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
-        (other.mutable || !self.mutable)
-            && self.element_type.inherits(
-                &other.element_type,
-                self_base_idx,
-                other_base_idx,
-                type_at,
-            )
+        (other.mutable || !self.mutable) && self.element_type.matches(&other.element_type, type_at)
     }
 }
 
-impl Inherits for StorageType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for StorageType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
         match (self, other) {
-            (Self::Val(a), Self::Val(b)) => a.inherits(b, self_base_idx, other_base_idx, type_at),
+            (Self::Val(a), Self::Val(b)) => a.matches(b, type_at),
             (a @ (Self::I8 | Self::I16 | Self::Val(_)), b) => a == b,
         }
     }
 }
 
-impl Inherits for StructType {
-    fn inherits<'a, F>(
-        &self,
-        other: &Self,
-        self_base_idx: Option<u32>,
-        other_base_idx: Option<u32>,
-        type_at: &F,
-    ) -> bool
+impl Matches for StructType {
+    fn matches<'a, F>(&self, other: &Self, type_at: &F) -> bool
     where
         F: Fn(u32) -> &'a SubType,
     {
@@ -1085,9 +979,7 @@ impl Inherits for StructType {
                 .fields
                 .iter()
                 .zip(other.fields.iter())
-                .fold(true, |r, (a, b)| {
-                    r && a.inherits(b, self_base_idx, other_base_idx, type_at)
-                })
+                .all(|(a, b)| a.matches(b, type_at))
     }
 }
 

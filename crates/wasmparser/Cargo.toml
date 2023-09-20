@@ -24,6 +24,8 @@ wast = { path = "../wast" }
 rayon = { workspace = true }
 once_cell = "1.13.0"
 wasm-encoder = { workspace = true }
+env_logger.workspace = true
+log.workspace = true
 
 [[bench]]
 name = "benchmark"

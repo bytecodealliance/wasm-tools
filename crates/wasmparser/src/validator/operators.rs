@@ -475,7 +475,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             if self.operands.len() == control.height {
                 let desc = match expected {
                     Some(ty) => ty_to_str(ty),
-                    None => "a type",
+                    None => "a type".into(),
                 };
                 bail!(
                     self.offset,
