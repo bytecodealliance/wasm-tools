@@ -107,72 +107,68 @@ impl Peek for ComponentImportName<'_> {
 
 impl<'a> Parse<'a> for ComponentImportName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        // Parse the various forms of component imports:
+        //
+        //  (import "kebab" (func ...))
+        //  (import "naked" integrity "xxx" (func ...))
+        //  (import "url" (url "..." integrity "...") (func ...))
+        //  (import "relative-url" (relative-url "..." integrity "...") (func ...))
+        //  (import (interface "a:b/c") (func ...))
+        //  (import (locked-dep "a:b/c@1.2.3" integrity "xx") (func ...))
+        //  (import (unlocked-dep "a:b/c@{<1.2.3}") (func ...))
+
         if parser.peek::<LParen>()? {
-            if parser.peek2::<kw::interface>()? {
-                return Ok(ComponentImportName::Interface(parser.parens(|p| {
-                    p.parse::<kw::interface>()?;
-                    p.parse()
-                })?));
-            } else if parser.peek2::<kw::locked_dep>()? {
-                parser.parens(|p| {
-                    p.parse::<kw::locked_dep>()?;
-                    let name = p.parse()?;
-                    p.parse::<kw::integrity>()?;
-                    let integrity = p.parse()?;
-                    return Ok(ComponentImportName::Locked(name, integrity));
-                })
-            } else if parser.peek2::<kw::unlocked_dep>()? {
-                let name = parser.parens(|p| {
-                    if p.peek::<kw::unlocked_dep>()? {
-                        p.parse::<kw::unlocked_dep>()?;
-                        let parsed_name = p.parse();
-                        parsed_name
-                    } else {
-                        Err(p.error("Unknown Implementation Import"))
-                    }
-                })?;
-                return Ok(ComponentImportName::Unlocked(name));
-            } else {
-                return Err(parser.error("Unknown Import Kind"));
-            }
-        } else {
-            if parser.peek2::<LParen>()? {
-                if parser.peek3::<ComponentImportName>()? {
+            parser.parens(|parser| {
+                let mut l = parser.lookahead1();
+                if l.peek::<kw::interface>()? {
+                    parser.parse::<kw::interface>()?;
+                    Ok(ComponentImportName::Interface(parser.parse()?))
+                } else if l.peek::<kw::locked_dep>()? {
+                    parser.parse::<kw::locked_dep>()?;
                     let name = parser.parse()?;
-                    return parser.parens(|p| {
-                        if p.peek::<kw::url>()? {
-                            p.parse::<kw::url>()?;
-                            let location = p.parse()?;
-                            let integrity = if p.peek::<kw::integrity>()? {
-                                p.parse::<kw::integrity>()?;
-                                Some(p.parse()?)
-                            } else {
-                                None
-                            };
-                            return Ok(ComponentImportName::Url(name, location, integrity));
-                        } else if p.peek::<kw::relative_url>()? {
-                            p.parse::<kw::relative_url>()?;
-                            let location = p.parse()?;
-                            let integrity = if p.peek::<kw::integrity>()? {
-                                p.parse::<kw::integrity>()?;
-                                Some(p.parse()?)
-                            } else {
-                                None
-                            };
-                            return Ok(ComponentImportName::Relative(name, location, integrity));
-                        } else {
-                            Err(p.error("Unknown Implementation Import"))
-                        }
-                    });
+                    parser.parse::<kw::integrity>()?;
+                    let integrity = parser.parse()?;
+                    Ok(ComponentImportName::Locked(name, integrity))
+                } else if l.peek::<kw::unlocked_dep>()? {
+                    parser.parse::<kw::unlocked_dep>()?;
+                    let name = parser.parse()?;
+                    Ok(ComponentImportName::Unlocked(name))
+                } else {
+                    Err(l.error())
                 }
-            };
+            })
+        } else {
             let name = parser.parse()?;
             if parser.peek::<kw::integrity>()? {
                 parser.parse::<kw::integrity>()?;
                 let integrity = parser.parse()?;
-                return Ok(ComponentImportName::Naked(name, integrity));
+                Ok(ComponentImportName::Naked(name, integrity))
+            } else if parser.peek2::<kw::url>()? {
+                parser.parens(|p| {
+                    p.parse::<kw::url>()?;
+                    let location = p.parse()?;
+                    let integrity = if p.peek::<kw::integrity>()? {
+                        p.parse::<kw::integrity>()?;
+                        Some(p.parse()?)
+                    } else {
+                        None
+                    };
+                    Ok(ComponentImportName::Url(name, location, integrity))
+                })
+            } else if parser.peek2::<kw::relative_url>()? {
+                parser.parens(|p| {
+                    p.parse::<kw::relative_url>()?;
+                    let location = p.parse()?;
+                    let integrity = if p.peek::<kw::integrity>()? {
+                        p.parse::<kw::integrity>()?;
+                        Some(p.parse()?)
+                    } else {
+                        None
+                    };
+                    Ok(ComponentImportName::Relative(name, location, integrity))
+                })
             } else {
-                return Ok(ComponentImportName::Kebab(name));
+                Ok(ComponentImportName::Kebab(name))
             }
         }
     }
