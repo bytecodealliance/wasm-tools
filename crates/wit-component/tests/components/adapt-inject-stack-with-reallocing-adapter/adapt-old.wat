@@ -24,7 +24,7 @@
 
     ;; `wit-component` should have injected a call to a function that allocates
     ;; the stack and sets $allocation_state to 2
-    (if (i32.ne (global.get $allocation_state) (i32.const 2)) (unreachable))
+    (if (i32.ne (global.get $allocation_state) (i32.const 2)) (then (unreachable)))
 
     ;; Allocate 8 bytes of stack space for the two u32 return values. The
     ;; original stack pointer is saved in local 0 and the stack frame for this
