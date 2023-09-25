@@ -14,35 +14,12 @@ pub struct ComponentImport<'a> {
     pub item: ItemSig<'a>,
 }
 
-///Info About where to find import
-#[derive(Debug, Copy, Clone)]
-pub struct ImportMetadata<'a> {
-    /// Name of import
-    pub name: &'a str,
-    /// Url for import
-    pub location: Option<&'a str>,
-    /// Content Integrity Hash
-    pub integrity: Option<&'a str>,
-}
-
 impl<'a> Parse<'a> for ComponentImport<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let name = parser.parse()?;
-        match name {
-            ComponentImportName::Kebab(_) | ComponentImportName::Interface(_) => {
-                let item = parser.parens(|p| p.parse())?;
-                return Ok(ComponentImport { span, name, item });
-            }
-            ComponentImportName::Url(..)
-            | ComponentImportName::Relative(..)
-            | ComponentImportName::Naked(..)
-            | ComponentImportName::Locked(..)
-            | ComponentImportName::Unlocked(_) => {
-                let item = parser.parens(|p| p.parse())?;
-                Ok(ComponentImport { span, name, item })
-            }
-        }
+        let item = parser.parens(|p| p.parse())?;
+        Ok(ComponentImport { span, name, item })
     }
 }
 
@@ -72,37 +49,6 @@ pub enum ComponentExportName<'a> {
     Kebab(&'a str),
     /// This is an interface import where the string is an ID.
     Interface(&'a str),
-}
-
-/// Kinds of Implementation Imports
-pub enum ComponentImportKinds {
-    /// Url
-    Url,
-    /// Relative
-    Relative,
-    /// Naked
-    Naked,
-    /// Locked
-    Locked,
-    /// Unlocked
-    Unlocked,
-    /// Unknown
-    Unknown,
-}
-
-impl Peek for ComponentImportName<'_> {
-    fn peek(cursor: Cursor) -> Result<bool> {
-        match cursor.keyword() {
-            Ok(Some(("relative-url" | "url" | "locked-dep" | "unlocked-dep" | "integrity", _))) => {
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn display() -> &'static str {
-        "implementation import"
-    }
 }
 
 impl<'a> Parse<'a> for ComponentImportName<'a> {
