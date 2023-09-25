@@ -1014,7 +1014,7 @@ impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
 impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a> {
     fn from(name: ComponentImportName<'a>) -> Self {
         match name {
-            ComponentImportName::Kebab(name) => Self::Kebab(name),
+            ComponentImportName::Kebab(name, integrity) => Self::Kebab(name, integrity),
             ComponentImportName::Interface(name) => Self::Interface(name),
             ComponentImportName::Url(name, location, integrity) => {
                 Self::Url(name, location, integrity)
@@ -1022,7 +1022,6 @@ impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a>
             ComponentImportName::Relative(name, location, integrity) => {
                 Self::Relative(name, location, integrity)
             }
-            ComponentImportName::Naked(name, integrity) => Self::Naked(name, integrity),
             ComponentImportName::Locked(name, integrity) => Self::Locked(name, integrity),
             ComponentImportName::Unlocked(name) => Self::Unlocked(name),
         }

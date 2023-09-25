@@ -1885,7 +1885,11 @@ impl Printer {
 
     fn print_component_import_name(&mut self, name: ComponentImportName<'_>) -> Result<()> {
         match name {
-            ComponentImportName::Kebab(s) => self.print_str(s),
+            ComponentImportName::Kebab(s, integrity) => {
+                self.print_str(s)?;
+                self.print_opt_integrity(integrity)?;
+                Ok(())
+            }
             ComponentImportName::Interface(s) => {
                 self.start_group("interface ");
                 self.print_str(s)?;
@@ -1897,11 +1901,7 @@ impl Printer {
                 self.result.push(' ');
                 self.start_group("url ");
                 self.print_str(location)?;
-                if let Some(integ) = integrity {
-                    self.result.push(' ');
-                    self.result.push_str("integrity ");
-                    self.print_str(integ)?;
-                }
+                self.print_opt_integrity(integrity)?;
                 self.end_group();
                 Ok(())
             }
@@ -1910,27 +1910,14 @@ impl Printer {
                 self.result.push(' ');
                 self.start_group("relative-url ");
                 self.print_str(location)?;
-                if let Some(integ) = integrity {
-                    self.result.push(' ');
-                    self.result.push_str("integrity ");
-                    self.print_str(integ)?;
-                }
+                self.print_opt_integrity(integrity)?;
                 self.end_group();
-                Ok(())
-            }
-            ComponentImportName::Naked(name, integrity) => {
-                self.print_str(name)?;
-                self.result.push(' ');
-                self.result.push_str("integrity ");
-                self.print_str(integrity)?;
                 Ok(())
             }
             ComponentImportName::Locked(name, integrity) => {
                 self.start_group("locked-dep ");
                 self.print_str(name)?;
-                self.result.push(' ');
-                self.result.push_str("integrity ");
-                self.print_str(integrity)?;
+                self.print_opt_integrity(integrity)?;
                 self.end_group();
                 Ok(())
             }
@@ -1941,6 +1928,16 @@ impl Printer {
                 Ok(())
             }
         }
+    }
+
+    fn print_opt_integrity(&mut self, integrity: Option<&str>) -> Result<()> {
+        if let Some(integrity) = integrity {
+            self.result.push(' ');
+            self.start_group("integrity ");
+            self.print_str(integrity)?;
+            self.end_group();
+        }
+        Ok(())
     }
 
     fn print_component_import_ty(

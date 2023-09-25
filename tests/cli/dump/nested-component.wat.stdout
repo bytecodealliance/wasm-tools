@@ -5,7 +5,7 @@
   0xb | 41 00       | [type 0] Component([])
   0xd | 0a 06       | component import section
   0xf | 01          | 1 count
- 0x10 | 00 01 61 04 | [component 0] ComponentImport { name: Kebab("a"), ty: Component(0) }
+ 0x10 | 00 01 61 04 | [component 0] ComponentImport { name: Kebab("a", None), ty: Component(0) }
       | 00         
  0x15 | 04 08       | [component 1] inline size
    0x17 | 00 61 73 6d | version 13 (Component)
@@ -39,7 +39,7 @@
         | 73 01 00   
    0x70 | 0a 06       | component import section
    0x72 | 01          | 1 count
-   0x73 | 00 01 61 01 | [func 0] ComponentImport { name: Kebab("a"), ty: Func(0) }
+   0x73 | 00 01 61 01 | [func 0] ComponentImport { name: Kebab("a", None), ty: Func(0) }
         | 00         
    0x78 | 0b 08       | component export section
    0x7a | 01          | 1 count
@@ -53,7 +53,7 @@
         | 00         
    0x92 | 0a 06       | component import section
    0x94 | 01          | 1 count
-   0x95 | 00 01 62 05 | [instance 0] ComponentImport { name: Kebab("b"), ty: Instance(1) }
+   0x95 | 00 01 62 05 | [instance 0] ComponentImport { name: Kebab("b", None), ty: Instance(1) }
         | 01         
    0x9a | 0b 07       | component export section
    0x9c | 01          | 1 count

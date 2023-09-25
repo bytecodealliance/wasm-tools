@@ -27,17 +27,15 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
 #[derive(Debug, Copy, Clone)]
 pub enum ComponentImportName<'a> {
     /// This is a kebab-named import where a top-level name is assigned.
-    Kebab(&'a str),
+    Kebab(&'a str, Option<&'a str>),
     /// This is an interface import where the string is an ID.
     Interface(&'a str),
     /// External Url
     Url(&'a str, &'a str, Option<&'a str>),
     /// Relative path
     Relative(&'a str, &'a str, Option<&'a str>),
-    /// Just Integrity
-    Naked(&'a str, &'a str),
     /// Locked Registry Import
-    Locked(&'a str, &'a str),
+    Locked(&'a str, Option<&'a str>),
     /// Unocked Registry Import
     Unlocked(&'a str),
 }
@@ -56,11 +54,11 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
         // Parse the various forms of component imports:
         //
         //  (import "kebab" (func ...))
-        //  (import "naked" integrity "xxx" (func ...))
-        //  (import "url" (url "..." integrity "...") (func ...))
-        //  (import "relative-url" (relative-url "..." integrity "...") (func ...))
+        //  (import "kebab" (integrity "xxx") (func ...))
+        //  (import "url" (url "..." (integrity "...")) (func ...))
+        //  (import "relative-url" (relative-url "..." (integrity "...")) (func ...))
         //  (import (interface "a:b/c") (func ...))
-        //  (import (locked-dep "a:b/c@1.2.3" integrity "xx") (func ...))
+        //  (import (locked-dep "a:b/c@1.2.3" (integrity "xx")) (func ...))
         //  (import (unlocked-dep "a:b/c@{<1.2.3}") (func ...))
 
         if parser.peek::<LParen>()? {
@@ -72,8 +70,7 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
                 } else if l.peek::<kw::locked_dep>()? {
                     parser.parse::<kw::locked_dep>()?;
                     let name = parser.parse()?;
-                    parser.parse::<kw::integrity>()?;
-                    let integrity = parser.parse()?;
+                    let integrity = parse_opt_integrity(parser)?;
                     Ok(ComponentImportName::Locked(name, integrity))
                 } else if l.peek::<kw::unlocked_dep>()? {
                     parser.parse::<kw::unlocked_dep>()?;
@@ -85,39 +82,36 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
             })
         } else {
             let name = parser.parse()?;
-            if parser.peek::<kw::integrity>()? {
-                parser.parse::<kw::integrity>()?;
-                let integrity = parser.parse()?;
-                Ok(ComponentImportName::Naked(name, integrity))
-            } else if parser.peek2::<kw::url>()? {
+            if parser.peek2::<kw::url>()? {
                 parser.parens(|p| {
                     p.parse::<kw::url>()?;
                     let location = p.parse()?;
-                    let integrity = if p.peek::<kw::integrity>()? {
-                        p.parse::<kw::integrity>()?;
-                        Some(p.parse()?)
-                    } else {
-                        None
-                    };
+                    let integrity = parse_opt_integrity(p)?;
                     Ok(ComponentImportName::Url(name, location, integrity))
                 })
             } else if parser.peek2::<kw::relative_url>()? {
                 parser.parens(|p| {
                     p.parse::<kw::relative_url>()?;
                     let location = p.parse()?;
-                    let integrity = if p.peek::<kw::integrity>()? {
-                        p.parse::<kw::integrity>()?;
-                        Some(p.parse()?)
-                    } else {
-                        None
-                    };
+                    let integrity = parse_opt_integrity(p)?;
                     Ok(ComponentImportName::Relative(name, location, integrity))
                 })
             } else {
-                Ok(ComponentImportName::Kebab(name))
+                let integrity = parse_opt_integrity(parser)?;
+                Ok(ComponentImportName::Kebab(name, integrity))
             }
         }
     }
+}
+
+fn parse_opt_integrity<'a>(parser: Parser<'a>) -> Result<Option<&'a str>> {
+    if !parser.peek2::<kw::integrity>()? {
+        return Ok(None);
+    }
+    parser.parens(|p| {
+        p.parse::<kw::integrity>()?;
+        p.parse()
+    })
 }
 
 impl<'a> Parse<'a> for ComponentExportName<'a> {

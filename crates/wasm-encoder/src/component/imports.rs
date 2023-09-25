@@ -99,7 +99,7 @@ impl Encode for ComponentTypeRef {
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();
-/// let name = ComponentImportName::Kebab("f");
+/// let name = ComponentImportName::Kebab("f",None);
 /// imports.import(name, ComponentTypeRef::Func(0));
 ///
 /// let mut component = Component::new();
@@ -155,17 +155,15 @@ impl ComponentSection for ComponentImportSection {
 #[derive(Debug, Copy, Clone)]
 pub enum ComponentImportName<'a> {
     /// This is a "kebab name" along the lines of "a-foo-bar"
-    Kebab(&'a str),
+    Kebab(&'a str, Option<&'a str>),
     /// This is an ID along the lines of "wasi:http/types@2.0"
     Interface(&'a str),
     /// External Url
     Url(&'a str, &'a str, Option<&'a str>),
     /// Relative path
     Relative(&'a str, &'a str, Option<&'a str>),
-    /// Just Integrity
-    Naked(&'a str, &'a str),
     /// Locked Registry Import
-    Locked(&'a str, &'a str),
+    Locked(&'a str, Option<&'a str>),
     /// Unocked Registry Import
     Unlocked(&'a str),
 }
@@ -182,7 +180,7 @@ pub enum ComponentExportName<'a> {
 impl Encode for ComponentImportName<'_> {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            ComponentImportName::Kebab(name) => {
+            ComponentImportName::Kebab(name, None) => {
                 sink.push(0x00);
                 name.encode(sink);
             }
@@ -202,7 +200,7 @@ impl Encode for ComponentImportName<'_> {
                 location.encode(sink);
                 integrity.encode(sink);
             }
-            ComponentImportName::Naked(name, integrity) => {
+            ComponentImportName::Kebab(name, Some(integrity)) => {
                 sink.push(0x04);
                 name.encode(sink);
                 integrity.encode(sink);
@@ -278,7 +276,7 @@ impl<S: AsRef<str>> AsComponentImportName for S {
         if s.contains("/") {
             ComponentImportName::Interface(s)
         } else {
-            ComponentImportName::Kebab(s)
+            ComponentImportName::Kebab(s, None)
         }
     }
 }

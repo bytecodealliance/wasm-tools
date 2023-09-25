@@ -2993,7 +2993,7 @@ impl KebabNameContext {
         // Top-level kebab-names must all be unique, even between both imports
         // and exports ot a component. For those names consult the `kebab_names`
         // set.
-        if let ComponentImportName::Kebab(_) = name {
+        if let ComponentImportName::Kebab(..) = name {
             if let Some(prev) = kebab_names.replace(kebab.clone()) {
                 bail!(
                     offset,

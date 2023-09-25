@@ -5,13 +5,13 @@
   0xb | 41 00       | [type 0] Component([])
   0xd | 0a 05       | component import section
   0xf | 01          | 1 count
- 0x10 | 00 00 04 00 | [component 0] ComponentImport { name: Kebab(""), ty: Component(0) }
+ 0x10 | 00 00 04 00 | [component 0] ComponentImport { name: Kebab("", None), ty: Component(0) }
  0x14 | 03 03       | core type section
  0x16 | 01          | 1 count
  0x17 | 50 00       | [core type 0] Module([])
  0x19 | 0a 07       | component import section
  0x1b | 01          | 1 count
- 0x1c | 00 01 61 00 | [module 0] ComponentImport { name: Kebab("a"), ty: Module(0) }
+ 0x1c | 00 01 61 00 | [module 0] ComponentImport { name: Kebab("a", None), ty: Module(0) }
       | 11 00      
  0x22 | 0b 0d       | component export section
  0x24 | 02          | 2 count

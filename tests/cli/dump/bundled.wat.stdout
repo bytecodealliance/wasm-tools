@@ -16,7 +16,7 @@
        | 65 01 03   
   0x3a | 0a 0e       | component import section
   0x3c | 01          | 1 count
-  0x3d | 00 09 77 61 | [instance 0] ComponentImport { name: Kebab("wasi-file"), ty: Instance(0) }
+  0x3d | 00 09 77 61 | [instance 0] ComponentImport { name: Kebab("wasi-file", None), ty: Instance(0) }
        | 73 69 2d 66
        | 69 6c 65 05
        | 00         

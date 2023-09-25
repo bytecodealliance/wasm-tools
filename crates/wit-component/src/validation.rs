@@ -534,7 +534,7 @@ fn world_key(resolve: &Resolve, name: &str) -> Result<WorldKey, Error> {
     let name = if name.contains('/') {
         ComponentImportName::Interface(name)
     } else {
-        ComponentImportName::Kebab(name)
+        ComponentImportName::Kebab(name, None)
     };
     let kebab_name = KebabName::from_import(name, 0);
     let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {

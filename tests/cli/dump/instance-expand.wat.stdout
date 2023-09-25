@@ -7,7 +7,7 @@
       | 00 00 01 00
  0x17 | 0a 06       | component import section
  0x19 | 01          | 1 count
- 0x1a | 00 01 61 05 | [instance 0] ComponentImport { name: Kebab("a"), ty: Instance(0) }
+ 0x1a | 00 01 61 05 | [instance 0] ComponentImport { name: Kebab("a", None), ty: Instance(0) }
       | 00         
  0x1f | 00 16       | custom section
  0x21 | 0e 63 6f 6d | name: "component-name"

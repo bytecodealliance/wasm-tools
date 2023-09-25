@@ -112,12 +112,11 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 #[derive(Debug, Copy, Clone)]
 #[allow(missing_docs)]
 pub enum ComponentImportName<'a> {
-    Kebab(&'a str),
+    Kebab(&'a str, Option<&'a str>),
     Interface(&'a str),
     Url(&'a str, &'a str, Option<&'a str>),
     Relative(&'a str, &'a str, Option<&'a str>),
-    Naked(&'a str, &'a str),
-    Locked(&'a str, &'a str),
+    Locked(&'a str, Option<&'a str>),
     Unlocked(&'a str),
 }
 
@@ -133,11 +132,10 @@ impl<'a> ComponentImportName<'a> {
     /// Returns the underlying string representing this name.
     pub fn as_str(&self) -> &'a str {
         match self {
-            ComponentImportName::Kebab(name) => name,
+            ComponentImportName::Kebab(name, _) => name,
             ComponentImportName::Interface(name) => name,
             ComponentImportName::Url(name, _, _) => name,
             ComponentImportName::Relative(name, _, _) => name,
-            ComponentImportName::Naked(name, _) => name,
             ComponentImportName::Locked(name, _) => name,
             ComponentImportName::Unlocked(name) => name,
         }
@@ -157,7 +155,7 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let byte1 = reader.read_u8()?;
         Ok(match byte1 {
-            0x00 => ComponentImportName::Kebab(reader.read()?),
+            0x00 => ComponentImportName::Kebab(reader.read()?, None),
             0x01 => ComponentImportName::Interface(reader.read()?),
             0x02 => {
                 let name = reader.read()?;
@@ -174,11 +172,11 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
             0x04 => {
                 let name = reader.read()?;
                 let integrity = reader.read()?;
-                ComponentImportName::Naked(name, integrity)
+                ComponentImportName::Kebab(name, Some(integrity))
             }
             0x05 => {
                 let name = reader.read()?;
-                let integrity = reader.read()?;
+                let integrity = read_opt_integrity(reader)?;
                 ComponentImportName::Locked(name, integrity)
             }
             0x06 => {
@@ -212,7 +210,7 @@ impl<'a> FromReader<'a> for ComponentExportName<'a> {
 impl<'a: 'b, 'b> From<ComponentExportName<'a>> for ComponentImportName<'b> {
     fn from(import: ComponentExportName<'a>) -> ComponentImportName<'b> {
         match import {
-            ComponentExportName::Kebab(name) => ComponentImportName::Kebab(name),
+            ComponentExportName::Kebab(name) => ComponentImportName::Kebab(name, None),
             ComponentExportName::Interface(name) => ComponentImportName::Interface(name),
         }
     }

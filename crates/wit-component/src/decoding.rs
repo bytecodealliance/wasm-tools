@@ -576,7 +576,7 @@ impl WitPackageDecoder<'_> {
         let import_name = if name_string.contains('/') {
             ComponentImportName::Interface(name_string)
         } else {
-            ComponentImportName::Kebab(name_string)
+            ComponentImportName::Kebab(name_string, None)
         };
         let name = KebabName::from_import(import_name, 0).unwrap();
         let (namespace, name, version, interface) = match name.kind() {
@@ -733,7 +733,7 @@ impl WitPackageDecoder<'_> {
         let import_name = if name.contains('/') {
             ComponentImportName::Interface(name)
         } else {
-            ComponentImportName::Kebab(name)
+            ComponentImportName::Kebab(name, None)
         };
         let kebab_name = KebabName::from_import(import_name, 0);
         match kebab_name.as_ref().map(|k| k.kind()) {
@@ -901,7 +901,7 @@ impl WitPackageDecoder<'_> {
         ty: &types::ComponentFuncType,
         owner: TypeOwner,
     ) -> Result<Function> {
-        let name = KebabName::from_import(ComponentImportName::Kebab(name), 0).unwrap();
+        let name = KebabName::from_import(ComponentImportName::Kebab(name, None), 0).unwrap();
         let params = ty
             .params
             .iter()

@@ -481,7 +481,7 @@ impl KebabName {
             _ => bail!(offset, "`{s}` is not a valid semver range"),
         };
         let parsed = match name {
-            ComponentImportName::Kebab(s) => {
+            ComponentImportName::Kebab(s, _) => {
                 if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
                     validate_kebab(s)?;
                     ParsedKebabName::Constructor
@@ -536,10 +536,6 @@ impl KebabName {
                 ParsedKebabName::Normal
             }
             ComponentImportName::Relative(name, _, _) => {
-                validate_kebab(name)?;
-                ParsedKebabName::Normal
-            }
-            ComponentImportName::Naked(name, _) => {
                 validate_kebab(name)?;
                 ParsedKebabName::Normal
             }
@@ -857,7 +853,7 @@ mod tests {
     use std::collections::HashSet;
 
     fn parse_kebab_name(s: &str) -> Option<KebabName> {
-        KebabName::from_import(ComponentImportName::Kebab(s), 0).ok()
+        KebabName::from_import(ComponentImportName::Kebab(s, None), 0).ok()
     }
 
     #[test]

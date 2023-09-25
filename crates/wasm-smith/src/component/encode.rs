@@ -73,7 +73,10 @@ impl ImportSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
-            sec.import(wasm_encoder::ComponentImportName::Kebab(&imp.name), imp.ty);
+            sec.import(
+                wasm_encoder::ComponentImportName::Kebab(&imp.name, None),
+                imp.ty,
+            );
         }
         component.section(&sec);
     }
@@ -181,7 +184,7 @@ impl Type {
                     match def {
                         ComponentTypeDef::Import(imp) => {
                             enc_comp_ty.import(
-                                wasm_encoder::ComponentImportName::Kebab(&imp.name),
+                                wasm_encoder::ComponentImportName::Kebab(&imp.name, None),
                                 imp.ty,
                             );
                         }

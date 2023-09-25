@@ -22,12 +22,12 @@
         | 0d 00 01 00
    0x45 | 07 0d       | component type section
    0x47 | 01          | 1 count
-   0x48 | 41 02 00 50 | [type 0] Component([CoreType(Module([])), Import(ComponentImport { name: Kebab("i"), ty: Module(0) })])
+   0x48 | 41 02 00 50 | [type 0] Component([CoreType(Module([])), Import(ComponentImport { name: Kebab("i", None), ty: Module(0) })])
         | 00 03 00 01
         | 69 00 11 00
    0x54 | 0a 06       | component import section
    0x56 | 01          | 1 count
-   0x57 | 00 01 69 04 | [component 0] ComponentImport { name: Kebab("i"), ty: Component(0) }
+   0x57 | 00 01 69 04 | [component 0] ComponentImport { name: Kebab("i", None), ty: Component(0) }
         | 00         
    0x5c | 00 14       | custom section
    0x5e | 0e 63 6f 6d | name: "component-name"
