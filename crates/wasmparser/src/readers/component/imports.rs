@@ -129,24 +129,6 @@ pub enum ComponentExportName<'a> {
     Interface(&'a str),
 }
 
-/// Metadata For Import
-#[derive(Debug, Copy, Clone)]
-pub struct ImportMetadata<'a> {
-    /// Import Name
-    pub name: &'a str,
-    /// Import Location
-    pub location: &'a str,
-    /// Import Integrity
-    pub integrity: &'a str,
-}
-
-impl<'a> ImportMetadata<'a> {
-    /// Returns the underlying string representing this name.
-    pub fn as_str(&self) -> &'a str {
-        self.name
-    }
-}
-
 impl<'a> ComponentImportName<'a> {
     /// Returns the underlying string representing this name.
     pub fn as_str(&self) -> &'a str {
