@@ -3020,7 +3020,6 @@ impl KebabNameContext {
         }
         Ok(())
     }
-    // }
 
     /// Validates that the `name` provided is allowed to have the type `ty`.
     fn validate(
