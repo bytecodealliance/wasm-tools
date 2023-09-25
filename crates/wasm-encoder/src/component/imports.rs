@@ -194,17 +194,13 @@ impl Encode for ComponentImportName<'_> {
                 sink.push(0x02);
                 name.encode(sink);
                 location.encode(sink);
-                if let Some(integ) = integrity {
-                    integ.encode(sink);
-                }
+                integrity.encode(sink);
             }
             ComponentImportName::Relative(name, location, integrity) => {
                 sink.push(0x03);
                 name.encode(sink);
                 location.encode(sink);
-                if let Some(integ) = integrity {
-                    integ.encode(sink);
-                }
+                integrity.encode(sink);
             }
             ComponentImportName::Naked(name, integrity) => {
                 sink.push(0x04);

@@ -180,21 +180,13 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
             0x02 => {
                 let name = reader.read()?;
                 let location = reader.read()?;
-                let integrity = if reader.peek()? != 0x01 {
-                    Some(reader.read()?)
-                } else {
-                    None
-                };
+                let integrity = read_opt_integrity(reader)?;
                 ComponentImportName::Url(name, location, integrity)
             }
             0x03 => {
                 let name = reader.read()?;
                 let location = reader.read()?;
-                let integrity = if reader.peek()? != 0x01 {
-                    Some(reader.read()?)
-                } else {
-                    None
-                };
+                let integrity = read_opt_integrity(reader)?;
                 ComponentImportName::Relative(name, location, integrity)
             }
             0x04 => {
@@ -213,6 +205,14 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
             }
             x => return reader.invalid_leading_byte(x, "import name"),
         })
+    }
+}
+
+fn read_opt_integrity<'a>(reader: &mut BinaryReader<'a>) -> Result<Option<&'a str>> {
+    match reader.read_u8()? {
+        0x00 => Ok(None),
+        0x01 => Ok(Some(reader.read()?)),
+        x => reader.invalid_leading_byte(x, "optional integrity"),
     }
 }
 
