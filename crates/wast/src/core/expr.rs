@@ -98,18 +98,18 @@ enum Level<'a> {
     TryArm,
 }
 
-/// Possible states of "what should be parsed next?" in an `if` expression.
+/// Possible states of "what is currently being parsed?" in an `if` expression.
 enum If<'a> {
-    /// Only the `if` has been parsed, next thing to parse is the clause, if
-    /// any, of the `if` instruction.
+    /// Only the `if` instructoin has been parsed, next thing to parse is the
+    /// clause, if any, of the `if` instruction.
+    ///
+    /// This parse ends when `(then ...)` is encountered.
     Clause(Instruction<'a>),
-    /// Next thing to parse is the `then` block
-    Then(Instruction<'a>),
-    /// Next thing to parse is the `else` block
+    /// Currently parsing the `then` block, and afterwards a closing paren is
+    /// required or an `(else ...)` expression.
+    Then,
+    /// Parsing the `else` expression, nothing can come after.
     Else,
-    /// This `if` statement has finished parsing and if anything remains it's a
-    /// syntax error.
-    End,
 }
 
 /// Possible state of "what should be parsed next?" in a `try` expression.
@@ -216,9 +216,6 @@ impl<'a> ExpressionParser<'a> {
                     // items in the `if` statement. Otherwise we're just careful
                     // to terminate with an `end` instruction.
                     Level::If(If::Clause(_)) => {
-                        return Err(parser.error("previous `if` had no clause"));
-                    }
-                    Level::If(If::Then(_)) => {
                         return Err(parser.error("previous `if` had no `then`"));
                     }
                     Level::If(_) => {
@@ -281,23 +278,16 @@ impl<'a> ExpressionParser<'a> {
         })
     }
 
-    /// Handles all parsing of an `if` statement.
+    /// State transitions with parsing an `if` statement.
     ///
     /// The syntactical form of an `if` stament looks like:
     ///
     /// ```wat
-    /// (if $clause (then $then) (else $else))
+    /// (if ($clause)... (then $then) (else $else))
     /// ```
     ///
-    /// but it turns out we practically see a few things in the wild:
-    ///
-    /// * inside the `(if ...)` every sub-thing is surrounded by parens
-    /// * The `then` and `else` keywords are optional
-    /// * The `$then` and `$else` blocks don't need to be surrounded by parens
-    ///
-    /// That's all attempted to be handled here. The part about all sub-parts
-    /// being surrounded by `(` and `)` means that we hook into the `LParen`
-    /// parsing above to call this method there unconditionally.
+    /// THis method is called after a `(` is parsed within the `(if ...` block.
+    /// This determines what to do next.
     ///
     /// Returns `true` if the rest of the arm above should be skipped, or
     /// `false` if we should parse the next item as an instruction (because we
@@ -309,53 +299,37 @@ impl<'a> ExpressionParser<'a> {
             _ => return Ok(false),
         };
 
-        // The first thing parsed in an `if` statement is the clause. If the
-        // clause starts with `then`, however, then we know to skip the clause
-        // and fall through to below.
-        if let If::Clause(if_instr) = i {
-            let instr = mem::replace(if_instr, Instruction::End(None));
-            *i = If::Then(instr);
-            if !parser.peek::<kw::then>()? {
-                return Ok(false);
-            }
-        }
-
-        // All `if` statements are required to have a `then`. This is either the
-        // second s-expr (with or without a leading `then`) or the first s-expr
-        // with a leading `then`. The optionality of `then` isn't strictly what
-        // the text spec says but it matches wabt for now.
-        //
-        // Note that when we see the `then`, that's when we actually add the
-        // original `if` instruction to the stream.
-        if let If::Then(if_instr) = i {
-            let instr = mem::replace(if_instr, Instruction::End(None));
-            self.instrs.push(instr);
-            *i = If::Else;
-            if parser.parse::<Option<kw::then>>()?.is_some() {
-                self.stack.push(Level::IfArm);
-                return Ok(true);
-            }
-            return Ok(false);
-        }
-
-        // effectively the same as the `then` parsing above
-        if let If::Else = i {
-            self.instrs.push(Instruction::Else(None));
-            if parser.parse::<Option<kw::r#else>>()?.is_some() {
-                if parser.is_empty() {
-                    self.instrs.pop();
+        match i {
+            // If the clause is still being parsed then interpret this `(` as a
+            // folded instruction unless it starts with `then`, in which case
+            // this transitions to the `Then` state and a new level has been
+            // reached.
+            If::Clause(if_instr) => {
+                if !parser.peek::<kw::then>()? {
+                    return Ok(false);
                 }
+                parser.parse::<kw::then>()?;
+                let instr = mem::replace(if_instr, Instruction::End(None));
+                self.instrs.push(instr);
+                *i = If::Then;
                 self.stack.push(Level::IfArm);
-                return Ok(true);
+                Ok(true)
             }
-            *i = If::End;
-            return Ok(false);
-        }
 
-        // If we made it this far then we're at `If::End` which means that there
-        // were too many s-expressions inside the `(if)` and we don't want to
-        // parse anything else.
-        Err(parser.error("unexpected token: too many payloads inside of `(if)`"))
+            // Previously we were parsing the `(then ...)` clause so this next
+            // `(` must be followed by `else`.
+            If::Then => {
+                parser.parse::<kw::r#else>()?;
+                self.instrs.push(Instruction::Else(None));
+                *i = If::Else;
+                self.stack.push(Level::IfArm);
+                Ok(true)
+            }
+
+            // If after a `(else ...` clause is parsed there's another `(` then
+            // that's not syntactically allowed.
+            If::Else => Err(parser.error("unexpected token: too many payloads inside of `(if)`")),
+        }
     }
 
     /// Handles parsing of a `try` statement. A `try` statement is simpler

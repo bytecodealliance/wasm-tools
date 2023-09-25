@@ -260,9 +260,9 @@
     (i32.eqz
      (global.get $hangLimit)
     )
-    (return
+    (then (return
      (i64.const 4293531749)
-    )
+    ))
    )
    (global.set $hangLimit
     (i32.sub
@@ -279,8 +279,8 @@
       (local.tee $0
        (if (result i32)
         (i32.const -2147483647)
-        (local.get $0)
-        (block $label$4 (result i32)
+        (then (local.get $0))
+        (else (block $label$4 (result i32)
          (br_if $label$4
           (if (result i32)
            (block $label$5 (result i32)
@@ -293,9 +293,9 @@
                   (i32.eqz
                    (global.get $hangLimit)
                   )
-                  (return
+                  (then (return
                    (i64.const -32766)
-                  )
+                  ))
                  )
                  (global.set $hangLimit
                   (i32.sub
@@ -315,22 +315,22 @@
                 )
                )
               )
-              (block $label$7 (result f32)
+              (then (block $label$7 (result f32)
                (f32.const -nan:0x7fffda)
-              )
-              (f32.const 4294967296)
+              ))
+              (else (f32.const 4294967296))
              )
             )
             (i32.const -2147483648)
            )
-           (i32.const -1073741824)
-           (local.get $0)
+           (then (i32.const -1073741824))
+           (else (local.get $0))
           )
           (i32.eqz
            (global.get $global$0)
           )
          )
-        )
+        ))
        )
       )
      )
