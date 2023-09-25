@@ -24,7 +24,7 @@ indexmap = { workspace = true }
 wat = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-semver.workspace = true
+semver = { workspace = true }
 
 [dev-dependencies]
 wasmprinter = { workspace = true }
