@@ -114,10 +114,10 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 pub enum ComponentImportName<'a> {
     Kebab(&'a str),
     Interface(&'a str),
-    Url((&'a str, &'a str, Option<&'a str>)),
-    Relative((&'a str, &'a str, Option<&'a str>)),
-    Naked((&'a str, &'a str)),
-    Locked((&'a str, &'a str)),
+    Url(&'a str, &'a str, Option<&'a str>),
+    Relative(&'a str, &'a str, Option<&'a str>),
+    Naked(&'a str, &'a str),
+    Locked(&'a str, &'a str),
     Unlocked(&'a str),
 }
 
@@ -153,10 +153,10 @@ impl<'a> ComponentImportName<'a> {
         match self {
             ComponentImportName::Kebab(name) => name,
             ComponentImportName::Interface(name) => name,
-            ComponentImportName::Url((name, _, _)) => name,
-            ComponentImportName::Relative((name, _, _)) => name,
-            ComponentImportName::Naked((name, _)) => name,
-            ComponentImportName::Locked((name, _)) => name,
+            ComponentImportName::Url(name, _, _) => name,
+            ComponentImportName::Relative(name, _, _) => name,
+            ComponentImportName::Naked(name, _) => name,
+            ComponentImportName::Locked(name, _) => name,
             ComponentImportName::Unlocked(name) => name,
         }
     }
@@ -185,7 +185,7 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
                 } else {
                     None
                 };
-                ComponentImportName::Url((name, location, integrity))
+                ComponentImportName::Url(name, location, integrity)
             }
             0x03 => {
                 let name = reader.read()?;
@@ -195,17 +195,17 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
                 } else {
                     None
                 };
-                ComponentImportName::Relative((name, location, integrity))
+                ComponentImportName::Relative(name, location, integrity)
             }
             0x04 => {
                 let name = reader.read()?;
                 let integrity = reader.read()?;
-                ComponentImportName::Naked((name, integrity))
+                ComponentImportName::Naked(name, integrity)
             }
             0x05 => {
                 let name = reader.read()?;
                 let integrity = reader.read()?;
-                ComponentImportName::Locked((name, integrity))
+                ComponentImportName::Locked(name, integrity)
             }
             0x06 => {
                 let name = reader.read()?;

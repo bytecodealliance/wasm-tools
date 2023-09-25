@@ -531,19 +531,19 @@ impl KebabName {
                     }
                 }
             }
-            ComponentImportName::Url((name, _, _)) => {
+            ComponentImportName::Url(name, _, _) => {
                 validate_kebab(name)?;
                 ParsedKebabName::Normal
             }
-            ComponentImportName::Relative((name, _, _)) => {
+            ComponentImportName::Relative(name, _, _) => {
                 validate_kebab(name)?;
                 ParsedKebabName::Normal
             }
-            ComponentImportName::Naked((name, _)) => {
+            ComponentImportName::Naked(name, _) => {
                 validate_kebab(name)?;
                 ParsedKebabName::Normal
             }
-            ComponentImportName::Locked((name, _)) => {
+            ComponentImportName::Locked(name, _) => {
                 let colon = find(name, ':')?;
                 validate_kebab(&name[..colon])?;
                 let slash = maybe_find(name, '/');

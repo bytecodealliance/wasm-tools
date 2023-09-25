@@ -34,10 +34,10 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
                 let item = parser.parens(|p| p.parse())?;
                 return Ok(ComponentImport { span, name, item });
             }
-            ComponentImportName::Url(_)
-            | ComponentImportName::Relative(_)
-            | ComponentImportName::Naked(_)
-            | ComponentImportName::Locked(_)
+            ComponentImportName::Url(..)
+            | ComponentImportName::Relative(..)
+            | ComponentImportName::Naked(..)
+            | ComponentImportName::Locked(..)
             | ComponentImportName::Unlocked(_) => {
                 let item = parser.parens(|p| p.parse())?;
                 Ok(ComponentImport { span, name, item })
@@ -54,13 +54,13 @@ pub enum ComponentImportName<'a> {
     /// This is an interface import where the string is an ID.
     Interface(&'a str),
     /// External Url
-    Url((&'a str, &'a str, Option<&'a str>)),
+    Url(&'a str, &'a str, Option<&'a str>),
     /// Relative path
-    Relative((&'a str, &'a str, Option<&'a str>)),
+    Relative(&'a str, &'a str, Option<&'a str>),
     /// Just Integrity
-    Naked((&'a str, &'a str)),
+    Naked(&'a str, &'a str),
     /// Locked Registry Import
-    Locked((&'a str, &'a str)),
+    Locked(&'a str, &'a str),
     /// Unocked Registry Import
     Unlocked(&'a str),
 }
@@ -119,7 +119,7 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
                     let name = p.parse()?;
                     p.parse::<kw::integrity>()?;
                     let integrity = p.parse()?;
-                    return Ok(ComponentImportName::Locked((name, integrity)));
+                    return Ok(ComponentImportName::Locked(name, integrity));
                 })
             } else if parser.peek2::<kw::unlocked_dep>()? {
                 let name = parser.parens(|p| {
@@ -149,7 +149,7 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
                             } else {
                                 None
                             };
-                            return Ok(ComponentImportName::Url((name, location, integrity)));
+                            return Ok(ComponentImportName::Url(name, location, integrity));
                         } else if p.peek::<kw::relative_url>()? {
                             p.parse::<kw::relative_url>()?;
                             let location = p.parse()?;
@@ -159,7 +159,7 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
                             } else {
                                 None
                             };
-                            return Ok(ComponentImportName::Relative((name, location, integrity)));
+                            return Ok(ComponentImportName::Relative(name, location, integrity));
                         } else {
                             Err(p.error("Unknown Implementation Import"))
                         }
@@ -170,7 +170,7 @@ impl<'a> Parse<'a> for ComponentImportName<'a> {
             if parser.peek::<kw::integrity>()? {
                 parser.parse::<kw::integrity>()?;
                 let integrity = parser.parse()?;
-                return Ok(ComponentImportName::Naked((name, integrity)));
+                return Ok(ComponentImportName::Naked(name, integrity));
             } else {
                 return Ok(ComponentImportName::Kebab(name));
             }

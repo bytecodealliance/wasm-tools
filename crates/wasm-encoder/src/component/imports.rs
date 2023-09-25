@@ -159,13 +159,13 @@ pub enum ComponentImportName<'a> {
     /// This is an ID along the lines of "wasi:http/types@2.0"
     Interface(&'a str),
     /// External Url
-    Url((&'a str, &'a str, Option<&'a str>)),
+    Url(&'a str, &'a str, Option<&'a str>),
     /// Relative path
-    Relative((&'a str, &'a str, Option<&'a str>)),
+    Relative(&'a str, &'a str, Option<&'a str>),
     /// Just Integrity
-    Naked((&'a str, &'a str)),
+    Naked(&'a str, &'a str),
     /// Locked Registry Import
-    Locked((&'a str, &'a str)),
+    Locked(&'a str, &'a str),
     /// Unocked Registry Import
     Unlocked(&'a str),
 }
@@ -190,7 +190,7 @@ impl Encode for ComponentImportName<'_> {
                 sink.push(0x01);
                 name.encode(sink);
             }
-            ComponentImportName::Url((name, location, integrity)) => {
+            ComponentImportName::Url(name, location, integrity) => {
                 sink.push(0x02);
                 name.encode(sink);
                 location.encode(sink);
@@ -198,7 +198,7 @@ impl Encode for ComponentImportName<'_> {
                     integ.encode(sink);
                 }
             }
-            ComponentImportName::Relative((name, location, integrity)) => {
+            ComponentImportName::Relative(name, location, integrity) => {
                 sink.push(0x03);
                 name.encode(sink);
                 location.encode(sink);
@@ -206,12 +206,12 @@ impl Encode for ComponentImportName<'_> {
                     integ.encode(sink);
                 }
             }
-            ComponentImportName::Naked((name, integrity)) => {
+            ComponentImportName::Naked(name, integrity) => {
                 sink.push(0x04);
                 name.encode(sink);
                 integrity.encode(sink);
             }
-            ComponentImportName::Locked((name, integrity)) => {
+            ComponentImportName::Locked(name, integrity) => {
                 sink.push(0x05);
                 name.encode(sink);
                 integrity.encode(sink);

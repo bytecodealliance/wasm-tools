@@ -1016,14 +1016,14 @@ impl<'a> From<ComponentImportName<'a>> for wasm_encoder::ComponentImportName<'a>
         match name {
             ComponentImportName::Kebab(name) => Self::Kebab(name),
             ComponentImportName::Interface(name) => Self::Interface(name),
-            ComponentImportName::Url((name, location, integrity)) => {
-                Self::Url((name, location, integrity))
+            ComponentImportName::Url(name, location, integrity) => {
+                Self::Url(name, location, integrity)
             }
-            ComponentImportName::Relative((name, location, integrity)) => {
-                Self::Relative((name, location, integrity))
+            ComponentImportName::Relative(name, location, integrity) => {
+                Self::Relative(name, location, integrity)
             }
-            ComponentImportName::Naked((name, integrity)) => Self::Naked((name, integrity)),
-            ComponentImportName::Locked((name, integrity)) => Self::Locked((name, integrity)),
+            ComponentImportName::Naked(name, integrity) => Self::Naked(name, integrity),
+            ComponentImportName::Locked(name, integrity) => Self::Locked(name, integrity),
             ComponentImportName::Unlocked(name) => Self::Unlocked(name),
         }
     }

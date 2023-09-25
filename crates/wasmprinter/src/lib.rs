@@ -1892,7 +1892,7 @@ impl Printer {
                 self.end_group();
                 Ok(())
             }
-            ComponentImportName::Url((name, location, integrity)) => {
+            ComponentImportName::Url(name, location, integrity) => {
                 self.print_str(name)?;
                 self.result.push(' ');
                 self.start_group("url ");
@@ -1905,7 +1905,7 @@ impl Printer {
                 self.end_group();
                 Ok(())
             }
-            ComponentImportName::Relative((name, location, integrity)) => {
+            ComponentImportName::Relative(name, location, integrity) => {
                 self.print_str(name)?;
                 self.result.push(' ');
                 self.start_group("relative-url ");
@@ -1918,14 +1918,14 @@ impl Printer {
                 self.end_group();
                 Ok(())
             }
-            ComponentImportName::Naked((name, integrity)) => {
+            ComponentImportName::Naked(name, integrity) => {
                 self.print_str(name)?;
                 self.result.push(' ');
                 self.result.push_str("integrity ");
                 self.print_str(integrity)?;
                 Ok(())
             }
-            ComponentImportName::Locked((name, integrity)) => {
+            ComponentImportName::Locked(name, integrity) => {
                 self.start_group("locked-dep ");
                 self.print_str(name)?;
                 self.result.push(' ');
