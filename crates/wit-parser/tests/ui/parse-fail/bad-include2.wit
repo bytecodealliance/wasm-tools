@@ -1,9 +1,9 @@
 package foo:foo
 
 world bar {
-    include foo
+    include foo;
 }
 
 world foo {
-    include bar
+    include bar;
 }

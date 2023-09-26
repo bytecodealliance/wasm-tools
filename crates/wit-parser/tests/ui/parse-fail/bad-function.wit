@@ -3,5 +3,5 @@
 package foo:foo
 
 interface foo {
-  x: func(param: nonexistent)
+  x: func(param: nonexistent);
 }

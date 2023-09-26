@@ -1,5 +1,5 @@
 world not found in package
      --> tests/ui/parse-fail/non-existance-world-include/root.wit:4:19
       |
-    4 |   include foo:baz/non-existance
+    4 |   include foo:baz/non-existance;
       |                   ^------------

@@ -5,19 +5,19 @@ interface shared-only-into {
     c1,
   }
 
-  bar: func(x: v)
+  bar: func(x: v);
 }
 
 interface shared-items {
-  type a = u32
+  type a = u32;
 }
 
 world shared-world {
-  import shared-items
+  import shared-items;
 
-  export shared-items
+  export shared-items;
 
-  type c = u32
+  type c = u32;
 
   import d: interface {}
 }

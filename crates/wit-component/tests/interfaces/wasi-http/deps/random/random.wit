@@ -15,13 +15,13 @@ interface random {
     /// This function must always return fresh pseudo-random data. Deterministic
     /// environments must omit this function, rather than implementing it with
     /// deterministic data.
-    get-random-bytes: func(len: u64) -> list<u8>
+    get-random-bytes: func(len: u64) -> list<u8>;
 
     /// Return a cryptographically-secure pseudo-random `u64` value.
     ///
     /// This function returns the same type of pseudo-random data as
     /// `get-random-bytes`, represented as a `u64`.
-    get-random-u64: func() -> u64
+    get-random-u64: func() -> u64;
 
     /// Return a 128-bit value that may contain a pseudo-random value.
     ///
@@ -40,5 +40,5 @@ interface random {
     /// This will likely be changed to a value import, to prevent it from being
     /// called multiple times and potentially used for purposes other than DoS
     /// protection.
-    insecure-random: func() -> tuple<u64, u64>
+    insecure-random: func() -> tuple<u64, u64>;
 }

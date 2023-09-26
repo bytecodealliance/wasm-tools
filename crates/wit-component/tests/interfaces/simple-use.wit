@@ -8,6 +8,6 @@ interface types {
 }
 
 interface console {
-  use types.{level}
-  log: func(level: level, msg: string)
+  use types.{level};
+  log: func(level: level, msg: string);
 }

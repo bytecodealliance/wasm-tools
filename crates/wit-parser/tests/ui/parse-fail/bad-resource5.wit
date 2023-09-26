@@ -2,6 +2,6 @@ package foo:bar
 
 interface foo {
   resource a {}
-  type t = borrow<a>
-  type b = borrow<t>
+  type t = borrow<a>;
+  type b = borrow<t>;
 }

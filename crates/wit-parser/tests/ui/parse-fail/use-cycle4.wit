@@ -2,13 +2,13 @@
 package foo:foo
 
 interface foo {
-  use bar.{y}
+  use bar.{y};
 
-  type x = u32
+  type x = u32;
 }
 
 interface bar {
-  use foo.{x}
+  use foo.{x};
 
-  type y = u32
+  type y = u32;
 }

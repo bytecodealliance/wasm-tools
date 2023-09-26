@@ -1,5 +1,5 @@
 type `nonexistent` not defined in interface
      --> tests/ui/parse-fail/bad-pkg5/root.wit:3:20
       |
-    3 |   use foo:bar/baz.{nonexistent}
+    3 |   use foo:bar/baz.{nonexistent};
       |                    ^----------

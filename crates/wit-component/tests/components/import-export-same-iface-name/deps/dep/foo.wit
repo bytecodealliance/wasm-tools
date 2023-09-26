@@ -1,5 +1,5 @@
 package foo:dep
 
 interface the-name {
-  a: func()
+  a: func();
 }

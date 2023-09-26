@@ -1,5 +1,5 @@
-expected `constructor` or identifier, found `->`
+expected ';', found `->`
      --> tests/ui/parse-fail/bad-resource6.wit:5:19
       |
-    5 |     constructor() -> u32
-      |                   ^-
+    5 |     constructor() -> u32;
+      |                   ^

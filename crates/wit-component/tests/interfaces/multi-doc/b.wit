@@ -1,5 +1,5 @@
 interface a2 {
-  use b.{the-type}
+  use b.{the-type};
 }
 
 interface b {

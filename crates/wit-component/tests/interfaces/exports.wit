@@ -5,9 +5,9 @@ interface foo {
     a: u32,
   }
 
-  my-function: func(a: my-struct) -> string
+  my-function: func(a: my-struct) -> string;
 }
 
 world export-foo {
-  export foo
+  export foo;
 }

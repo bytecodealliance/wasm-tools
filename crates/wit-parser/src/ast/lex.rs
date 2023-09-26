@@ -12,6 +12,7 @@ pub struct Tokenizer<'a> {
     input: &'a str,
     span_offset: u32,
     chars: CrlfFold<'a>,
+    require_semicolons: bool,
 }
 
 #[derive(Clone)]
@@ -115,8 +116,15 @@ pub enum Error {
     },
 }
 
+// NB: keep in sync with `crates/wit-component/src/printing.rs`.
+const REQUIRE_SEMICOLONS_BY_DEFAULT: bool = false;
+
 impl<'a> Tokenizer<'a> {
-    pub fn new(input: &'a str, span_offset: u32) -> Result<Tokenizer<'a>> {
+    pub fn new(
+        input: &'a str,
+        span_offset: u32,
+        require_semicolons: Option<bool>,
+    ) -> Result<Tokenizer<'a>> {
         detect_invalid_input(input)?;
 
         let mut t = Tokenizer {
@@ -125,10 +133,25 @@ impl<'a> Tokenizer<'a> {
             chars: CrlfFold {
                 chars: input.char_indices(),
             },
+            require_semicolons: require_semicolons.unwrap_or_else(|| {
+                match std::env::var("WIT_REQUIRE_SEMICOLONS") {
+                    Ok(s) => s == "1",
+                    Err(_) => REQUIRE_SEMICOLONS_BY_DEFAULT,
+                }
+            }),
         };
         // Eat utf-8 BOM
         t.eatc('\u{feff}');
         Ok(t)
+    }
+
+    pub fn expect_semicolon(&mut self) -> Result<()> {
+        if self.require_semicolons {
+            self.expect(Token::Semicolon)?;
+        } else {
+            self.eat(Token::Semicolon)?;
+        }
+        Ok(())
     }
 
     pub fn input(&self) -> &'a str {
@@ -631,7 +654,7 @@ fn test_validate_id() {
 #[test]
 fn test_tokenizer() {
     fn collect(s: &str) -> Result<Vec<Token>> {
-        let mut t = Tokenizer::new(s, 0)?;
+        let mut t = Tokenizer::new(s, 0, Some(true))?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
             tokens.push(token.1);

@@ -1,5 +1,5 @@
 interface not found in package
      --> tests/ui/parse-fail/use-world/root.wit:3:13
       |
-    3 | use foo:baz/bar
+    3 | use foo:baz/bar;
       |             ^--

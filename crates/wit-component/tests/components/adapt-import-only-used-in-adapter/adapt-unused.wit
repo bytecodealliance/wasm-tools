@@ -1,9 +1,9 @@
 interface adapter-imports {
-  foo: func(x: string)
+  foo: func(x: string);
 }
 
 world adapt-unused {
-  import adapter-imports
+  import adapter-imports;
 
-  export adapter-bar: func(x: string)
+  export adapter-bar: func(x: string);
 }

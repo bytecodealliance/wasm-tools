@@ -1,4 +1,4 @@
 package foo:bar
 interface baz {
-  a-name: func()
+  a-name: func();
 }

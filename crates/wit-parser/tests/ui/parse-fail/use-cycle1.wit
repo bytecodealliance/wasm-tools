@@ -3,5 +3,5 @@
 package foo:foo
 
 interface foo {
-  use foo.{bar}
+  use foo.{bar};
 }

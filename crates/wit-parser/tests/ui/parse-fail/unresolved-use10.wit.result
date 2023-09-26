@@ -4,5 +4,5 @@ Caused by:
     name `thing` is not defined
          --> tests/ui/parse-fail/unresolved-use10/bar.wit:4:12
           |
-        4 |   use foo.{thing}
+        4 |   use foo.{thing};
           |            ^----

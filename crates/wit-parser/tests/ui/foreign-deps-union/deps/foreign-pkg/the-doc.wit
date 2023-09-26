@@ -1,5 +1,5 @@
 package foo:foreign-pkg
 
 interface the-default {
-  type some-type = u32
+  type some-type = u32;
 }

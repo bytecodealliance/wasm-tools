@@ -1,15 +1,15 @@
 package foo:foo
 
 interface foo {
-  type a = u32
-  type b = a
-  type c = b
+  type a = u32;
+  type b = a;
+  type c = b;
 }
 
 interface bar {
-  use foo.{c}
+  use foo.{c};
 }
 
 interface baz {
-  use bar.{c}
+  use bar.{c};
 }

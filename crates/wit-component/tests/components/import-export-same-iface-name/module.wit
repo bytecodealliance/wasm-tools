@@ -1,11 +1,11 @@
 package foo:foo
 
 interface the-name {
-  a: func()
+  a: func();
 }
 
 world module {
-  import foo:dep/the-name
-  import the-name
-  export the-name
+  import foo:dep/the-name;
+  import the-name;
+  export the-name;
 }

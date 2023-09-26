@@ -2,6 +2,6 @@ package foo:foo
 
 world module {
   import foo: interface {
-    bar: func(s: string)
+    bar: func(s: string);
   }
 }

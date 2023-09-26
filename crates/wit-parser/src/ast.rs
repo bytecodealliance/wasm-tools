@@ -189,6 +189,7 @@ impl<'a> ToplevelUse<'a> {
         } else {
             None
         };
+        tokens.expect_semicolon()?;
         Ok(ToplevelUse { item, as_ })
     }
 }
@@ -306,7 +307,9 @@ impl<'a> ExternKind<'a> {
             // import foo: func(...)
             if clone.clone().eat(Token::Func)? {
                 *tokens = clone;
-                return Ok(ExternKind::Func(id, Func::parse(tokens)?));
+                let ret = ExternKind::Func(id, Func::parse(tokens)?);
+                tokens.expect_semicolon()?;
+                return Ok(ret);
             }
 
             // import foo: interface { ... }
@@ -319,7 +322,9 @@ impl<'a> ExternKind<'a> {
         // import foo
         // import foo/bar
         // import foo:bar/baz
-        Ok(ExternKind::Path(UsePath::parse(tokens)?))
+        let ret = ExternKind::Path(UsePath::parse(tokens)?);
+        tokens.expect_semicolon()?;
+        Ok(ret)
     }
 
     fn span(&self) -> Span {
@@ -448,6 +453,7 @@ impl<'a> Use<'a> {
                 break;
             }
         }
+        tokens.expect_semicolon()?;
         Ok(Use { from, names })
     }
 }
@@ -480,6 +486,7 @@ impl<'a> Include<'a> {
                 },
             )?
         } else {
+            tokens.expect_semicolon()?;
             Vec::new()
         };
 
@@ -579,6 +586,7 @@ impl<'a> ResourceFunc<'a> {
                     let ty = Type::parse(tokens)?;
                     Ok((name, ty))
                 })?;
+                tokens.expect_semicolon()?;
                 Ok(ResourceFunc::Constructor(NamedFunc {
                     docs,
                     name: Id {
@@ -600,6 +608,7 @@ impl<'a> ResourceFunc<'a> {
                     ResourceFunc::Method
                 };
                 let func = Func::parse(tokens)?;
+                tokens.expect_semicolon()?;
                 Ok(ctor(NamedFunc { docs, name, func }))
             }
             other => Err(err_expected(tokens, "`constructor` or identifier", other).into()),
@@ -749,6 +758,7 @@ impl<'a> TypeDef<'a> {
         let name = parse_id(tokens)?;
         tokens.expect(Token::Equals)?;
         let ty = Type::parse(tokens)?;
+        tokens.expect_semicolon()?;
         Ok(TypeDef { docs, name, ty })
     }
 
@@ -777,6 +787,8 @@ impl<'a> TypeDef<'a> {
             while !tokens.eat(Token::RightBrace)? {
                 funcs.push(ResourceFunc::parse(parse_docs(tokens)?, tokens)?);
             }
+        } else {
+            tokens.expect_semicolon()?;
         }
         let ty = Type::Resource(Resource { funcs });
         Ok(TypeDef { docs, name, ty })
@@ -850,6 +862,7 @@ impl<'a> NamedFunc<'a> {
         let name = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let func = Func::parse(tokens)?;
+        tokens.expect_semicolon()?;
         Ok(NamedFunc { docs, name, func })
     }
 }
@@ -1147,6 +1160,7 @@ fn err_expected(
 pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
+    require_semicolons: Option<bool>,
 }
 
 #[derive(Clone)]
@@ -1160,6 +1174,11 @@ impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
         SourceMap::default()
+    }
+
+    #[doc(hidden)] // NB: only here for a transitionary period
+    pub fn set_require_semicolons(&mut self, enable: bool) {
+        self.require_semicolons = Some(enable);
     }
 
     /// Reads the file `path` on the filesystem and appends its contents to this
@@ -1237,7 +1256,7 @@ impl SourceMap {
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             for src in srcs {
-                let mut tokens = Tokenizer::new(&src.contents, src.offset)
+                let mut tokens = Tokenizer::new(&src.contents, src.offset, self.require_semicolons)
                     .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
                 let ast = Ast::parse(&mut tokens)?;
                 resolver.push(ast).with_context(|| {
@@ -1347,7 +1366,7 @@ pub(crate) enum AstUsePath {
 }
 
 pub(crate) fn parse_use_path(s: &str) -> Result<AstUsePath> {
-    let mut tokens = Tokenizer::new(s, 0)?;
+    let mut tokens = Tokenizer::new(s, 0, Some(true))?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
         bail!("trailing tokens in path specifier");

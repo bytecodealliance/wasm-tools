@@ -2,11 +2,11 @@ package foo:foo
 
 interface a {
   resource r {
-    constructor()
+    constructor();
   }
 }
 
 world module {
-  import a
-  export a
+  import a;
+  export a;
 }

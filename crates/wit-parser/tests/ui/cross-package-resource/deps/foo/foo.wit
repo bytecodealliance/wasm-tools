@@ -1,5 +1,5 @@
 package some:dep
 
 interface foo {
-  resource r
+  resource r;
 }

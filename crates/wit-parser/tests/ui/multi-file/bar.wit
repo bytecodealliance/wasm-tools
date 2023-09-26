@@ -5,16 +5,16 @@ interface irrelevant-name {
 }
 
 interface depends-on-later-item {
-  use depend-on-me.{x}
+  use depend-on-me.{x};
 }
 
 interface depend-on-me {
-  type x = u32
+  type x = u32;
 }
 
 world more-depends-on-later-things {
-  import later-interface
-  export later-interface
+  import later-interface;
+  export later-interface;
 }
 
 interface later-interface {

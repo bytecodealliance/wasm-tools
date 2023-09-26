@@ -2,9 +2,9 @@ package foo:foo
 
 world w1 {
   import foo: interface {
-    use shared1.{t1}
+    use shared1.{t1};
   }
   import bar: interface {
-    use shared2.{t2}
+    use shared2.{t2};
   }
 }

@@ -7,11 +7,11 @@ interface name {
 }
 
 world module {
-  export name
+  export name;
 
   export name: interface {
-    use name.{foo}
+    use name.{foo};
 
-    a: func(f: foo)
+    a: func(f: foo);
   }
 }

@@ -1,7 +1,7 @@
 package foo:chain
 
 interface def {
-  use a.{a}
+  use a.{a};
 
   enum name {
     other,
@@ -9,5 +9,5 @@ interface def {
 }
 
 interface a {
-  type a = u8
+  type a = u8;
 }

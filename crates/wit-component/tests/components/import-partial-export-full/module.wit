@@ -12,8 +12,8 @@ interface name {
 }
 
 world module {
-  import name
-  use name.{name}
+  import name;
+  use name.{name};
 
-  export name
+  export name;
 }

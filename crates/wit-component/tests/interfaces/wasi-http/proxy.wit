@@ -4,21 +4,21 @@
 // outgoing HTTP requests.
 world proxy {
   // HTTP proxies have access to time and randomness.
-  import wasi:random/random
+  import wasi:random/random;
   // TODO: add `import wall-clock: clocks.wall-clock`
   // TODO: add `import monotonic-clock: clocks.monotonic-clock`
 
   // This is the default logging handler to use when user code simply wants to
   // log to a developer-facing console (e.g., via `console.log()`).
-  import wasi:logging/handler
+  import wasi:logging/handler;
 
   // This is the default handler to use when user code simply wants to make an
   // HTTP request (e.g., via `fetch()`).
-  import outgoing-handler
+  import outgoing-handler;
 
   // The host delivers incoming HTTP requests to a component by calling the
   // `handle` function of this exported interface. A host may arbitrarily reuse
   // or not reuse component instance when delivering incoming HTTP requests and
   // thus a component must be able to handle 0..N calls to `handle`.
-  export incoming-handler
+  export incoming-handler;
 }
