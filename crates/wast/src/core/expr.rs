@@ -1149,6 +1149,10 @@ instructions! {
         Delegate(Index<'a>) : [0x18] : "delegate",
         CatchAll : [0x19] : "catch_all",
 
+        // Exception handling proposal extension for 'exnref'
+        ThrowRef : [0x0a] : "throw_ref",
+        TryTable(TryTable<'a>) : [0x1f] : "try_table",
+
         // Relaxed SIMD proposal
         I8x16RelaxedSwizzle : [0xfd, 0x100]: "i8x16.relaxed_swizzle",
         I32x4RelaxedTruncF32x4S : [0xfd, 0x101]: "i32x4.relaxed_trunc_f32x4_s",
@@ -1217,6 +1221,60 @@ impl<'a> Parse<'a> for BlockType<'a> {
                 .into(),
         })
     }
+}
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct TryTable<'a> {
+    pub block: Box<BlockType<'a>>,
+    pub catches: Vec<TryTableCatch<'a>>,
+    pub catch_all: Option<TryTableCatchAll<'a>>,
+}
+
+impl<'a> Parse<'a> for TryTable<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let block = parser.parse()?;
+
+        let mut catches = Vec::new();
+        while parser.peek2::<kw::catch>()? {
+            catches.push(parser.parens(|p| {
+                p.parse::<kw::catch>()?;
+                Ok(TryTableCatch {
+                    tag: p.parse()?,
+                    label: p.parse()?,
+                })
+            })?);
+        }
+
+        let mut catch_all = None;
+        if parser.peek2::<kw::catch_all>()? {
+            catch_all = Some(parser.parens(|p| {
+                p.parse::<kw::catch_all>()?;
+                Ok(TryTableCatchAll {
+                    label: p.parse()?,
+                })
+            })?);
+        }
+
+        Ok(TryTable {
+            block,
+            catches,
+            catch_all,
+        })
+    }
+}
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct TryTableCatch<'a> {
+    pub tag: Index<'a>,
+    pub label: Index<'a>,
+}
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct TryTableCatchAll<'a> {
+    pub label: Index<'a>,
 }
 
 /// Extra information associated with the func.bind instruction.

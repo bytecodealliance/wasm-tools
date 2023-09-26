@@ -599,6 +599,9 @@ impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
         match r {
             core::HeapType::Func => Self::Func,
             core::HeapType::Extern => Self::Extern,
+            core::HeapType::Exn => {
+                todo!("encoding of exceptions proposal types not yet implemented")
+            }
             core::HeapType::Index(Index::Num(i, _)) => Self::Indexed(i),
             core::HeapType::Index(_) => panic!("unresolved index"),
             core::HeapType::Any

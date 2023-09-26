@@ -404,6 +404,8 @@ pub mod kw {
     custom_keyword!(elem);
     custom_keyword!(end);
     custom_keyword!(tag);
+    custom_keyword!(exn);
+    custom_keyword!(exnref);
     custom_keyword!(export);
     custom_keyword!(r#extern = "extern");
     custom_keyword!(externref);
