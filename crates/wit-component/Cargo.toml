@@ -1,7 +1,7 @@
 [package]
 name = "wit-component"
 authors = ["Peter Huene <peter@huene.dev>"]
-version = "0.14.2"
+version = "0.14.3"
 edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
 readme = "README.md"
