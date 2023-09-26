@@ -40,6 +40,7 @@
           (import "t" (type (;1;) (eq 0)))
           (type (;2;) (func))
           (import "imp" (func (;0;) (type 2)))
+          (export (;1;) "exp" (func (type 2)))
           (type (;3;)
             (instance
               (type (;0;) u32)
@@ -49,7 +50,6 @@
             )
           )
           (export (;0;) "i" (instance (type 3)))
-          (export (;1;) "exp" (func (type 2)))
         )
       )
       (export (;0;) (interface "foo:foo/coverage-world") (component (type 2)))

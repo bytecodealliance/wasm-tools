@@ -65,6 +65,8 @@ world coverage-world {
   /// world typedef docs
   type t = u32
 
+  /// world func export docs
+  export exp: func()
   /// world inline interface docs
   export i: interface {
     /// inline interface typedef docs
@@ -73,6 +75,4 @@ world coverage-world {
     /// inline interface func docs
     f: func()
   }
-  /// world func export docs
-  export exp: func()
 }

@@ -1240,6 +1240,32 @@ impl Remap {
             }
         }
 
+        // After all that sort functions in exports to come before interfaces in
+        // exports. This is not strictly required for correctness but make
+        // iterating over a world much easier for consumers. Exported functions
+        // are guaranteed to use types from either imported interfaces or
+        // imported types into the world itself. Currently there is no means by
+        // which an export function, at the root, can use types from any other
+        // exported interfaces (can't be modeled syntactically in WIT). This
+        // means that by placing all functions first it guarantees that visitors
+        // which visit imports first then exports will walk over types and
+        // references in the order of what they're actually using.
+        //
+        // For example if an interface is both imported and exported and an
+        // exported function uses a type from that interface, then a visitor
+        // should visit the imported interface, then the exported function, then
+        // the exported interface. That way tables about "where was this type
+        // defined" will be correct as the last-inserted item will be used and
+        // correctly account for this.
+        world.exports.sort_by(|_, a, _, b| {
+            let rank = |item: &WorldItem| match item {
+                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Function(_) => 0,
+                WorldItem::Interface(_) => 1,
+            };
+            rank(a).cmp(&rank(b))
+        });
+
         log::trace!("imports = {:?}", world.imports);
         log::trace!("exports = {:?}", world.exports);
 
