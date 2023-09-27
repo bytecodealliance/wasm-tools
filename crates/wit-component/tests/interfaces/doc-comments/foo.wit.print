@@ -1,4 +1,4 @@
-/// package docs
+/// package docs;
 package foo:foo
 
 /// interface docs

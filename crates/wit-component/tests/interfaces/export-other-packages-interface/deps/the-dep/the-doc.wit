@@ -1,4 +1,4 @@
-package foo:the-dep
+package foo:the-dep;
 
 interface the-interface {
   type t = u8;

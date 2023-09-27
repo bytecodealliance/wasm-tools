@@ -1,4 +1,4 @@
-package foo:shared-dependency
+package foo:shared-dependency;
 
 interface doc {
   f1: func();

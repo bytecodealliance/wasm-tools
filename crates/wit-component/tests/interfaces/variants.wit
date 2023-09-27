@@ -1,4 +1,4 @@
-package foo:variants
+package foo:variants;
 
 interface variants {
   enum e1 {

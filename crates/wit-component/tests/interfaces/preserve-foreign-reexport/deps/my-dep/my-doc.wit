@@ -1,4 +1,4 @@
-package foo:my-dep
+package foo:my-dep;
 
 interface my-interface {
   record foo {
