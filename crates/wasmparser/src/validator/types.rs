@@ -145,7 +145,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 #[repr(C)] // use fixed field layout to ensure minimal size
 pub struct TypeId {
     /// The index into the global list of types.
-    pub(crate) index: usize,
+    index: u32,
+
     /// A unique integer assigned to this type.
     ///
     /// The purpose of this field is to ensure that two different `TypeId`
@@ -155,10 +156,16 @@ pub struct TypeId {
     unique_id: u32,
 }
 
+impl TypeId {
+    pub(crate) fn index(&self) -> usize {
+        usize::try_from(self.index).unwrap()
+    }
+}
+
 // The size of `TypeId` was seen to have a large-ish impact in #844, so this
 // assert ensures that it stays relatively small.
 const _: () = {
-    assert!(std::mem::size_of::<TypeId>() <= 16);
+    assert!(std::mem::size_of::<TypeId>() <= 8);
 };
 
 /// Metadata about a type and its transitive structure.
@@ -1072,7 +1079,7 @@ impl<'a> TypesRef<'a> {
     ///
     /// Returns `None` if the type id is unknown.
     pub fn get(&self, id: TypeId) -> Option<&'a Type> {
-        self.list.get(id.index)
+        self.list.get(id.index())
     }
 
     /// Gets a core WebAssembly type id from a type index.
@@ -1891,7 +1898,7 @@ impl<T> Index<TypeId> for SnapshotList<T> {
 
     #[inline]
     fn index(&self, id: TypeId) -> &T {
-        self.get(id.index).unwrap()
+        self.get(id.index()).unwrap()
     }
 }
 
@@ -2012,6 +2019,7 @@ impl TypeAlloc {
     /// hash-equivalent to anything else.
     pub fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len();
+        let index = u32::try_from(index).unwrap();
         self.list.push(ty);
         TypeId {
             index,
@@ -3239,10 +3247,10 @@ impl Index<TypeId> for SubtypeArena<'_> {
     type Output = Type;
 
     fn index(&self, id: TypeId) -> &Type {
-        if id.index < self.types.len() {
+        if id.index() < self.types.len() {
             &self.types[id]
         } else {
-            &self.list[id.index - self.types.len()]
+            &self.list[id.index() - self.types.len()]
         }
     }
 }
@@ -3250,6 +3258,7 @@ impl Index<TypeId> for SubtypeArena<'_> {
 impl Remap for SubtypeArena<'_> {
     fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len() + self.types.len();
+        let index = u32::try_from(index).unwrap();
         self.list.push(ty);
         TypeId {
             index,

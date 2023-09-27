@@ -536,7 +536,7 @@ impl Module {
             .collect();
 
         for (id, ty) in idx_types {
-            self.check_subtype(id.index as u32, ty.clone(), features, types, offset)?;
+            self.check_subtype(id.index() as u32, ty.clone(), features, types, offset)?;
             if !features.gc {
                 self.types.push(id);
             }
