@@ -1,4 +1,4 @@
-package foo:multi-file
+package foo:multi-file;
 
 interface foo {
   type x = u32;

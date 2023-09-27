@@ -1,4 +1,4 @@
-package foo:wasi
+package foo:wasi;
 
 interface filesystem {
   record stat {

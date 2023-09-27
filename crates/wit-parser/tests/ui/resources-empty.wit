@@ -1,4 +1,4 @@
-package foo:resources-empty
+package foo:resources-empty;
 
 interface resources-empty {
   t1: func(a: own<r1>) -> ();

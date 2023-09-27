@@ -1,4 +1,4 @@
-package wasi:filesystem
+package wasi:filesystem;
 
 interface wasi {
   enum clockid {

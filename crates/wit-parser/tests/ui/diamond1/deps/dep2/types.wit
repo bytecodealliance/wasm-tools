@@ -1,2 +1,2 @@
-package foo:dep2
+package foo:dep2;
 interface types {}

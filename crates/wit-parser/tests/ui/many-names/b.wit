@@ -1,4 +1,4 @@
-package foo:name
+package foo:name;
 
 world name {
   import name: interface {}

@@ -1,2 +1,2 @@
 /// Multiple package docs, B
-package foo:foo
+package foo:foo;

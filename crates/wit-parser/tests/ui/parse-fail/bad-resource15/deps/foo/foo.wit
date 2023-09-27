@@ -1,4 +1,4 @@
-package some:dep
+package some:dep;
 
 interface foo {
   type r = u32;

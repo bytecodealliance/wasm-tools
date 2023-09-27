@@ -1,4 +1,4 @@
-package foo:name
+package foo:name;
 
 interface foo {
   record foo {}

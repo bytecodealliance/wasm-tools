@@ -1,4 +1,4 @@
-package foo:resources-multiple
+package foo:resources-multiple;
 
 interface resources-multiple {
   t1: func(a: borrow<r1>) -> ();

@@ -1,4 +1,4 @@
-package foo:root
+package foo:root;
 
 interface ai {}
 interface bi {}

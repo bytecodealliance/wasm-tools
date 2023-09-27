@@ -1,4 +1,4 @@
-package foo:some-pkg
+package foo:some-pkg;
 
 interface the-default {
   type from-default = string;

@@ -1,4 +1,4 @@
-package foo:types
+package foo:types;
 
 interface types {
   type t1 = u8;
