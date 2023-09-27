@@ -1,7 +1,8 @@
 //! Generation of Wasm
 //! [components](https://github.com/WebAssembly/component-model).
 
-#![allow(unused_variables, dead_code)] // TODO FITZGEN
+// FIXME(#1000): component support in `wasm-smith` is a work in progress.
+#![allow(unused_variables, dead_code)]
 
 use crate::{arbitrary_loop, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -427,7 +428,7 @@ impl ComponentBuilder {
                     choices.push(Self::arbitrary_component_section);
                 }
 
-                // TODO FITZGEN
+                // FIXME(#1000)
                 //
                 // choices.push(Self::arbitrary_instance_section);
                 // choices.push(Self::arbitrary_export_section);
