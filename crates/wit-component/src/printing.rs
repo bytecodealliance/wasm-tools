@@ -55,6 +55,7 @@ impl WitPrinter {
         if let Some(version) = &pkg.name.version {
             self.output.push_str(&format!("@{version}"));
         }
+        self.print_semicolon();
         self.output.push_str("\n\n");
         for (name, id) in pkg.interfaces.iter() {
             self.print_docs(&resolve.interfaces[*id].docs);

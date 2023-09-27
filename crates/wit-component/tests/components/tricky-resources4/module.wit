@@ -1,4 +1,4 @@
-package foo:bar
+package foo:bar;
 
 interface name {
   resource name;

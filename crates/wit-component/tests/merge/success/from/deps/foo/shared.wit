@@ -1,4 +1,4 @@
-package foo:foo
+package foo:foo;
 
 interface shared-only-from {
   variant v {

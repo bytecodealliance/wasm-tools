@@ -1,4 +1,4 @@
-package foo:bar
+package foo:bar;
 
 interface bar {
   use the-interface.{the-type as bar};

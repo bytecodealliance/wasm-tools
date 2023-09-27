@@ -1,4 +1,4 @@
-package foo:some-dep
+package foo:some-dep;
 
 interface types {
   type some-type = u8;

@@ -1,4 +1,4 @@
-package foo:a2
+package foo:a2;
 interface foo {
   use foo:a1/foo.{};
 }

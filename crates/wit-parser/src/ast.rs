@@ -28,6 +28,7 @@ impl<'a> Ast<'a> {
         if lexer.eat(Token::Package)? {
             let package_docs = std::mem::take(&mut docs);
             package_id = Some(PackageName::parse(lexer, package_docs)?);
+            lexer.expect_semicolon()?;
             docs = parse_docs(lexer)?;
         }
         while lexer.clone().next()?.is_some() {

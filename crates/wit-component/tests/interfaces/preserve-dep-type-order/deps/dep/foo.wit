@@ -1,4 +1,4 @@
-package foo:dep
+package foo:dep;
 
 interface foo {
   enum a {

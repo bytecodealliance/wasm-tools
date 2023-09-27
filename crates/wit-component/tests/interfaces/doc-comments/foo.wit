@@ -1,5 +1,5 @@
-/// package docs
-package foo:foo
+/// package docs;
+package foo:foo;
 
 /// interface docs
 interface coverage-iface {

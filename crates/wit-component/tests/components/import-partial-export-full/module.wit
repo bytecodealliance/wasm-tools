@@ -1,4 +1,4 @@
-package a:b
+package a:b;
 
 interface name {
   variant name2 {

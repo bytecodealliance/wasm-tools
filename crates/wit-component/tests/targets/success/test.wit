@@ -1,4 +1,4 @@
-package test:foo
+package test:foo;
 
 interface bar {
     f: func();

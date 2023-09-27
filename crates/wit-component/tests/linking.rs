@@ -125,7 +125,7 @@ const LIBC: &str = r#"
 "#;
 
 const WIT: &str = r#"
-package test:test
+package test:test;
 
 interface test {
    bar: func(v: s32) -> s32;

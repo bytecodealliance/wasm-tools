@@ -1,4 +1,4 @@
-package test:test
+package test:test;
 
 interface test {
    foo: func(v: s32) -> s32;

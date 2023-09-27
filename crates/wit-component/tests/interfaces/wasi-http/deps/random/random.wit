@@ -1,4 +1,4 @@
-package wasi:random
+package wasi:random;
 
 /// WASI Random is a random data API.
 ///

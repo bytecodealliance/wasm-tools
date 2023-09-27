@@ -1,4 +1,4 @@
-package foo:foo
+package foo:foo;
 
 interface lists {
   record other-record {

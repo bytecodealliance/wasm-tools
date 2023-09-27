@@ -1,4 +1,4 @@
-package foo:corp
+package foo:corp;
 
 interface saas {
 }

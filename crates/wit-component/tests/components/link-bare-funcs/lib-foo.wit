@@ -1,4 +1,4 @@
-package test:test
+package test:test;
 world lib-foo {
   import foo1: func();
   import bar: func() -> string;

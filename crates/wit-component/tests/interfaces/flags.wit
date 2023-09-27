@@ -1,4 +1,4 @@
-package foo:%flags
+package foo:%flags;
 
 interface imports {
   flags flag1 {

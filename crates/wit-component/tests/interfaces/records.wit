@@ -1,4 +1,4 @@
-package foo:records
+package foo:records;
 
 interface records {
   record single {
