@@ -80,7 +80,7 @@ pub struct ValidatedModule<'a> {
     /// imported resources and this is only for exported resources. Exported
     /// resources still require intrinsics to be imported into the core module
     /// itself.
-    pub required_resource_funcs: IndexMap<String, IndexMap<&'a str, ResourceInfo<'a>>>,
+    pub required_resource_funcs: IndexMap<String, IndexMap<String, ResourceInfo>>,
 
     /// Whether or not this module exported a linear memory.
     pub has_memory: bool,
@@ -105,11 +105,11 @@ pub struct RequiredImports {
     pub resources: IndexSet<String>,
 }
 
-pub struct ResourceInfo<'a> {
-    pub drop_import: Option<&'a str>,
-    pub new_import: Option<&'a str>,
-    pub rep_import: Option<&'a str>,
-    pub dtor_export: Option<&'a str>,
+pub struct ResourceInfo {
+    pub drop_import: Option<String>,
+    pub new_import: Option<String>,
+    pub rep_import: Option<String>,
+    pub dtor_export: Option<String>,
     pub id: TypeId,
 }
 
@@ -255,7 +255,8 @@ pub fn validate_module<'a>(
             &metadata.resolve.name_world_key(name),
             &export_funcs,
             &types,
-            &mut ret,
+            &mut ret.post_returns,
+            &mut ret.required_resource_funcs,
         )?;
     }
 
@@ -269,7 +270,7 @@ pub fn validate_module<'a>(
                     name,
                     funcs,
                     &types,
-                    &mut ret,
+                    &mut ret.required_resource_funcs,
                 )?;
             }
             _ => bail!("import from `{name}` does not correspond to exported interface"),
@@ -285,7 +286,7 @@ fn validate_exported_interface_resource_imports<'a>(
     import_module: &str,
     funcs: &IndexMap<&'a str, u32>,
     types: &Types,
-    info: &mut ValidatedModule<'a>,
+    required_resource_funcs: &mut IndexMap<String, IndexMap<String, ResourceInfo>>,
 ) -> Result<()> {
     let is_resource = |name: &str| match resolve.interfaces[interface].types.get(name) {
         Some(ty) => matches!(resolve.types[*ty].kind, TypeDefKind::Resource),
@@ -295,17 +296,17 @@ fn validate_exported_interface_resource_imports<'a>(
         if valid_exported_resource_func(func_name, *ty, types, is_resource)?.is_none() {
             bail!("import of `{func_name}` is not a valid resource function");
         }
-        let info = info.required_resource_funcs.get_mut(import_module).unwrap();
+        let info = required_resource_funcs.get_mut(import_module).unwrap();
         if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP) {
-            info[resource_name].drop_import = Some(func_name);
+            info[resource_name].drop_import = Some(func_name.to_string());
             continue;
         }
         if let Some(resource_name) = func_name.strip_prefix(RESOURCE_NEW) {
-            info[resource_name].new_import = Some(func_name);
+            info[resource_name].new_import = Some(func_name.to_string());
             continue;
         }
         if let Some(resource_name) = func_name.strip_prefix(RESOURCE_REP) {
-            info[resource_name].rep_import = Some(func_name);
+            info[resource_name].rep_import = Some(func_name.to_string());
             continue;
         }
 
@@ -323,6 +324,15 @@ pub struct ValidatedAdapter<'a> {
     /// of possible imports along with the set of functions required from each
     /// imported interface.
     pub required_imports: IndexMap<String, RequiredImports>,
+
+    /// Resource-related functions required and imported which work over
+    /// exported resources from the final component.
+    ///
+    /// Note that this is disjoint from `required_imports` which handles
+    /// imported resources and this is only for exported resources. Exported
+    /// resources still require intrinsics to be imported into the core module
+    /// itself.
+    pub required_resource_funcs: IndexMap<String, IndexMap<String, ResourceInfo>>,
 
     /// This is the module and field name of the memory import, if one is
     /// specified.
@@ -373,7 +383,8 @@ pub fn validate_adapter_module<'a>(
     resolve: &'a Resolve,
     world: WorldId,
     metadata: &'a ModuleMetadata,
-    required: &IndexMap<String, (FuncType, Option<&Function>)>,
+    required_by_import: Option<&IndexMap<&str, FuncType>>,
+    exports: &IndexSet<WorldKey>,
     is_library: bool,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
@@ -383,6 +394,7 @@ pub fn validate_adapter_module<'a>(
     let mut funcs = Vec::new();
     let mut ret = ValidatedAdapter {
         required_imports: Default::default(),
+        required_resource_funcs: Default::default(),
         needs_memory: None,
         needs_core_exports: Default::default(),
         import_realloc: None,
@@ -467,8 +479,9 @@ pub fn validate_adapter_module<'a>(
     }
 
     let types = types.unwrap();
-    for (name, funcs) in import_funcs {
-        if name == MAIN_MODULE_IMPORT_NAME {
+    let mut exported_resource_funcs = Vec::new();
+    for (name, funcs) in &import_funcs {
+        if *name == MAIN_MODULE_IMPORT_NAME {
             ret.needs_core_exports
                 .extend(funcs.iter().map(|(name, _ty)| name.to_string()));
             continue;
@@ -476,17 +489,22 @@ pub fn validate_adapter_module<'a>(
 
         // An empty module name is indicative of the top-level import namespace,
         // so look for top-level functions here.
-        if name == BARE_FUNC_MODULE_NAME {
-            let required = validate_imports_top_level(resolve, world, &funcs, &types)?;
+        if *name == BARE_FUNC_MODULE_NAME {
+            let required = validate_imports_top_level(resolve, world, funcs, &types)?;
             ret.required_imports
                 .insert(BARE_FUNC_MODULE_NAME.to_string(), required);
+            continue;
+        }
+
+        if let Some(interface_name) = name.strip_prefix("[export]") {
+            exported_resource_funcs.push((name, interface_name, &import_funcs[name]));
             continue;
         }
 
         match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
             Some(WorldItem::Interface(interface)) => {
                 let required =
-                    validate_imported_interface(resolve, *interface, name, &funcs, &types)
+                    validate_imported_interface(resolve, *interface, name, funcs, &types)
                         .with_context(|| format!("failed to validate import interface `{name}`"))?;
                 let prev = ret.required_imports.insert(name.to_string(), required);
                 assert!(prev.is_none());
@@ -502,24 +520,46 @@ pub fn validate_adapter_module<'a>(
         }
     }
 
-    for (name, (ty, func)) in required {
-        let idx = match export_funcs.get(name.as_str()) {
-            Some(idx) => *idx,
-            None => bail!("adapter module did not export `{name}`"),
-        };
-        let id = types.function_at(idx);
-        let actual = types[id].unwrap_func();
-        validate_func_sig(name, ty, actual)?;
+    if let Some(required) = required_by_import {
+        for (name, ty) in required {
+            let idx = match export_funcs.get(name) {
+                Some(idx) => *idx,
+                None => bail!("adapter module did not export `{name}`"),
+            };
+            let id = types.function_at(idx);
+            let actual = types[id].unwrap_func();
+            validate_func_sig(name, ty, actual)?;
+        }
+    }
 
-        if let Some(func) = func {
-            let post_return = format!("{POST_RETURN_PREFIX}{name}");
-            if let Some(idx) = export_funcs.get(post_return.as_str()) {
-                let id = types.function_at(*idx);
-                let actual = types[id].unwrap_func();
-                validate_post_return(resolve, &actual, func)?;
-                let ok = ret.post_returns.insert(post_return);
-                assert!(ok);
+    let world = &resolve.worlds[world];
+
+    for name in exports {
+        validate_exported_item(
+            resolve,
+            &world.exports[name],
+            &resolve.name_world_key(name),
+            &export_funcs,
+            &types,
+            &mut ret.post_returns,
+            &mut ret.required_resource_funcs,
+        )?;
+    }
+
+    for (name, interface_name, funcs) in exported_resource_funcs {
+        let world_key = world_key(resolve, interface_name);
+        match world.exports.get(&world_key) {
+            Some(WorldItem::Interface(i)) => {
+                validate_exported_interface_resource_imports(
+                    resolve,
+                    *i,
+                    name,
+                    funcs,
+                    &types,
+                    &mut ret.required_resource_funcs,
+                )?;
             }
+            _ => bail!("import from `{name}` does not correspond to exported interface"),
         }
     }
 
@@ -722,9 +762,10 @@ fn validate_exported_item<'a>(
     resolve: &'a Resolve,
     item: &'a WorldItem,
     export_name: &str,
-    exports: &IndexMap<&'a str, u32>,
+    exports: &IndexMap<&str, u32>,
     types: &Types,
-    info: &mut ValidatedModule<'a>,
+    post_returns: &mut IndexSet<String>,
+    required_resource_funcs: &mut IndexMap<String, IndexMap<String, ResourceInfo>>,
 ) -> Result<()> {
     let mut validate = |func: &Function, name: Option<&str>| {
         let expected_export_name = func.core_export_name(name);
@@ -741,7 +782,7 @@ fn validate_exported_item<'a>(
 
         let post_return = format!("{POST_RETURN_PREFIX}{expected_export_name}");
         if let Some(index) = exports.get(&post_return[..]) {
-            let ok = info.post_returns.insert(post_return);
+            let ok = post_returns.insert(post_return);
             assert!(ok);
             let id = types.function_at(*index);
             let ty = types[id].unwrap_func();
@@ -776,14 +817,12 @@ fn validate_exported_item<'a>(
                     let ty = types[id].unwrap_func();
                     let expected = FuncType::new([ValType::I32], []);
                     validate_func_sig(name, &expected, ty)?;
-                    info.dtor_export = Some(name);
+                    info.dtor_export = Some(name.to_string());
                 }
-                let prev = map.insert(name.as_str(), info);
+                let prev = map.insert(name.to_string(), info);
                 assert!(prev.is_none());
             }
-            let prev = info
-                .required_resource_funcs
-                .insert(format!("[export]{export_name}"), map);
+            let prev = required_resource_funcs.insert(format!("[export]{export_name}"), map);
             assert!(prev.is_none());
         }
         // not required to have anything exported in the core wasm module
