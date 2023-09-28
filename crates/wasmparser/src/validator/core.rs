@@ -536,7 +536,7 @@ impl Module {
             .collect();
 
         for (id, ty) in idx_types {
-            self.check_subtype(id.index as u32, ty.clone(), features, types, offset)?;
+            self.check_subtype(id.index() as u32, ty.clone(), features, types, offset)?;
             if !features.gc {
                 self.types.push(id);
             }
@@ -680,7 +680,7 @@ impl Module {
 
         check_max(len, 0, max, desc, offset)?;
 
-        self.type_size = combine_type_sizes(self.type_size, entity.info().size(), offset)?;
+        self.type_size = combine_type_sizes(self.type_size, entity.info(types).size(), offset)?;
 
         self.imports
             .entry((import.module.to_string(), import.name.to_string()))
@@ -697,6 +697,7 @@ impl Module {
         features: &WasmFeatures,
         offset: usize,
         check_limit: bool,
+        types: &TypeList,
     ) -> Result<()> {
         if !features.mutable_global {
             if let EntityType::Global(global_type) = ty {
@@ -713,7 +714,7 @@ impl Module {
             check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
         }
 
-        self.type_size = combine_type_sizes(self.type_size, ty.info().size(), offset)?;
+        self.type_size = combine_type_sizes(self.type_size, ty.info(types).size(), offset)?;
 
         match self.exports.insert(name.to_string(), ty) {
             Some(_) => Err(format_err!(

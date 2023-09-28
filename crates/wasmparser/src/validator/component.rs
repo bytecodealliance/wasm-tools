@@ -1428,7 +1428,7 @@ impl ComponentState {
                 }
                 crate::ModuleTypeDeclaration::Export { name, ty } => {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;
-                    state.add_export(name, ty, features, offset, true)?;
+                    state.add_export(name, ty, features, offset, true, types)?;
                 }
                 crate::ModuleTypeDeclaration::OuterAlias { kind, count, index } => {
                     if count > 1 {
@@ -1592,7 +1592,7 @@ impl ComponentState {
                 }
 
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                info.combine(ty.info(),offset)?;
+                info.combine(ty.info(types), offset)?;
                 Ok((name.to_owned(), ty))
             })
             .collect::<Result<_>>()?;
@@ -1619,11 +1619,11 @@ impl ComponentState {
                     .transpose()?;
 
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                let ty_info = ty.info();
+                let ty_info = ty.info(types);
                 if ty_info.contains_borrow() {
                     bail!(offset, "function result cannot contain a `borrow` type");
                 }
-                info.combine(ty.info(), offset)?;
+                info.combine(ty.info(types), offset)?;
                 Ok((name, ty))
             })
             .collect::<Result<_>>()?;
@@ -1704,7 +1704,7 @@ impl ComponentState {
 
         let mut info = TypeInfo::new();
         for (_, ty) in module_type.exports.iter() {
-            info.combine(ty.info(), offset)?;
+            info.combine(ty.info(types), offset)?;
         }
 
         let ty = Type::Instance(Box::new(InstanceType {
@@ -1851,7 +1851,7 @@ impl ComponentState {
         let mut exports = component_type.exports.clone();
         let mut info = TypeInfo::new();
         for (_, ty) in component_type.exports.iter() {
-            info.combine(ty.info(), offset)?;
+            info.combine(ty.info(types), offset)?;
         }
 
         // Perform the subtype check that `args` matches the imports of
@@ -2117,13 +2117,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<TypeId> {
         fn insert_export(
+            types: &TypeList,
             name: &str,
             export: EntityType,
             exports: &mut IndexMap<String, EntityType>,
             info: &mut TypeInfo,
             offset: usize,
         ) -> Result<()> {
-            info.combine(export.info(), offset)?;
+            info.combine(export.info(types), offset)?;
 
             if exports.insert(name.to_string(), export).is_some() {
                 bail!(
@@ -2141,6 +2142,7 @@ impl ComponentState {
             match export.kind {
                 ExternalKind::Func => {
                     insert_export(
+                        types,
                         export.name,
                         EntityType::Func(self.core_function_at(export.index, offset)?),
                         &mut inst_exports,
@@ -2149,6 +2151,7 @@ impl ComponentState {
                     )?;
                 }
                 ExternalKind::Table => insert_export(
+                    types,
                     export.name,
                     EntityType::Table(*self.table_at(export.index, offset)?),
                     &mut inst_exports,
@@ -2156,6 +2159,7 @@ impl ComponentState {
                     offset,
                 )?,
                 ExternalKind::Memory => insert_export(
+                    types,
                     export.name,
                     EntityType::Memory(*self.memory_at(export.index, offset)?),
                     &mut inst_exports,
@@ -2164,6 +2168,7 @@ impl ComponentState {
                 )?,
                 ExternalKind::Global => {
                     insert_export(
+                        types,
                         export.name,
                         EntityType::Global(*self.global_at(export.index, offset)?),
                         &mut inst_exports,
@@ -2172,6 +2177,7 @@ impl ComponentState {
                     )?;
                 }
                 ExternalKind::Tag => insert_export(
+                    types,
                     export.name,
                     EntityType::Tag(self.core_function_at(export.index, offset)?),
                     &mut inst_exports,
@@ -2497,7 +2503,7 @@ impl ComponentState {
                     prev = e.key()
                 ),
                 Entry::Vacant(e) => {
-                    info.combine(ty.info(), offset)?;
+                    info.combine(ty.info(types), offset)?;
                     e.insert(ty);
                 }
             }
@@ -2555,7 +2561,7 @@ impl ComponentState {
                 ),
                 Entry::Vacant(e) => {
                     if let Some(ty) = ty {
-                        info.combine(ty.info(), offset)?;
+                        info.combine(ty.info(types), offset)?;
                     }
 
                     // Safety: the use of `KebabStr::new_unchecked` here is safe because the string
@@ -2590,7 +2596,7 @@ impl ComponentState {
             .iter()
             .map(|ty| {
                 let ty = self.create_component_val_type(*ty, types, offset)?;
-                info.combine(ty.info(), offset)?;
+                info.combine(ty.info(types), offset)?;
                 Ok(ty)
             })
             .collect::<Result<_>>()?;
@@ -2963,7 +2969,7 @@ impl KebabNameContext {
             }
             Entry::Vacant(e) => {
                 e.insert(*ty);
-                info.combine(ty.info(), offset)?;
+                info.combine(ty.info(types), offset)?;
             }
         }
         Ok(())

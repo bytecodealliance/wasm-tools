@@ -145,9 +145,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 #[repr(C)] // use fixed field layout to ensure minimal size
 pub struct TypeId {
     /// The index into the global list of types.
-    pub(crate) index: usize,
-    /// Metadata about this type and its recursive structure.
-    pub(crate) info: TypeInfo,
+    index: u32,
+
     /// A unique integer assigned to this type.
     ///
     /// The purpose of this field is to ensure that two different `TypeId`
@@ -157,10 +156,16 @@ pub struct TypeId {
     unique_id: u32,
 }
 
+impl TypeId {
+    pub(crate) fn index(&self) -> usize {
+        usize::try_from(self.index).unwrap()
+    }
+}
+
 // The size of `TypeId` was seen to have a large-ish impact in #844, so this
 // assert ensures that it stays relatively small.
 const _: () = {
-    assert!(std::mem::size_of::<TypeId>() <= 16);
+    assert!(std::mem::size_of::<TypeId>() <= 8);
 };
 
 /// Metadata about a type and its transitive structure.
@@ -364,7 +369,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn info(&self) -> TypeInfo {
+    pub(crate) fn calculate_info(&self, types: &TypeList) -> TypeInfo {
         // TODO(#1036): calculate actual size for func, array, struct
         match self {
             Self::Sub(ty) => {
@@ -380,7 +385,7 @@ impl Type {
             Self::Component(ty) => ty.info,
             Self::ComponentInstance(ty) => ty.info,
             Self::ComponentFunc(ty) => ty.info,
-            Self::Defined(ty) => ty.info(),
+            Self::Defined(ty) => ty.info(types),
             Self::Resource(_) => TypeInfo::new(),
         }
     }
@@ -412,10 +417,10 @@ impl ComponentValType {
         }
     }
 
-    pub(crate) fn info(&self) -> TypeInfo {
+    pub(crate) fn info(&self, types: &TypeList) -> TypeInfo {
         match self {
             Self::Primitive(_) => TypeInfo::new(),
-            Self::Type(id) => id.info,
+            Self::Type(id) => types.info(*id),
         }
     }
 }
@@ -446,9 +451,9 @@ impl EntityType {
         }
     }
 
-    pub(crate) fn info(&self) -> TypeInfo {
+    pub(crate) fn info(&self, types: &TypeList) -> TypeInfo {
         match self {
-            Self::Func(id) | Self::Tag(id) => id.info,
+            Self::Func(id) | Self::Tag(id) => types.info(*id),
             Self::Table(_) | Self::Memory(_) | Self::Global(_) => TypeInfo::new(),
         }
     }
@@ -602,14 +607,14 @@ impl ComponentEntityType {
         }
     }
 
-    pub(crate) fn info(&self) -> TypeInfo {
+    pub(crate) fn info(&self, types: &TypeList) -> TypeInfo {
         match self {
             Self::Module(ty)
             | Self::Func(ty)
             | Self::Type { referenced: ty, .. }
             | Self::Instance(ty)
-            | Self::Component(ty) => ty.info,
-            Self::Value(ty) => ty.info(),
+            | Self::Component(ty) => types.info(*ty),
+            Self::Value(ty) => ty.info(types),
         }
     }
 }
@@ -889,18 +894,18 @@ impl ComponentDefinedType {
         }
     }
 
-    pub(crate) fn info(&self) -> TypeInfo {
+    pub(crate) fn info(&self, types: &TypeList) -> TypeInfo {
         match self {
             Self::Primitive(_) | Self::Flags(_) | Self::Enum(_) | Self::Own(_) => TypeInfo::new(),
             Self::Borrow(_) => TypeInfo::borrow(),
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
             Self::Tuple(t) => t.info,
-            Self::List(ty) | Self::Option(ty) => ty.info(),
+            Self::List(ty) | Self::Option(ty) => ty.info(types),
             Self::Result { ok, err } => {
                 let default = TypeInfo::new();
-                let mut info = ok.map(|ty| ty.info()).unwrap_or(default);
-                info.combine(err.map(|ty| ty.info()).unwrap_or(default), 0)
+                let mut info = ok.map(|ty| ty.info(types)).unwrap_or(default);
+                info.combine(err.map(|ty| ty.info(types)).unwrap_or(default), 0)
                     .unwrap();
                 info
             }
@@ -1074,7 +1079,7 @@ impl<'a> TypesRef<'a> {
     ///
     /// Returns `None` if the type id is unknown.
     pub fn get(&self, id: TypeId) -> Option<&'a Type> {
-        self.list.get(id.index)
+        self.list.get(id.index())
     }
 
     /// Gets a core WebAssembly type id from a type index.
@@ -1428,7 +1433,7 @@ impl<'a> TypesRef<'a> {
 impl Index<TypeId> for TypesRef<'_> {
     type Output = Type;
     fn index(&self, id: TypeId) -> &Type {
-        &self.list[id.index]
+        &self.list[id]
     }
 }
 
@@ -1722,7 +1727,7 @@ impl Index<TypeId> for Types {
     type Output = Type;
 
     fn index(&self, id: TypeId) -> &Type {
-        &self.list[id.index]
+        &self.list[id]
     }
 }
 
@@ -1893,7 +1898,7 @@ impl<T> Index<TypeId> for SnapshotList<T> {
 
     #[inline]
     fn index(&self, id: TypeId) -> &T {
-        self.get(id.index).unwrap()
+        self.get(id.index()).unwrap()
     }
 }
 
@@ -1910,7 +1915,63 @@ impl<T> Default for SnapshotList<T> {
 }
 
 /// A snapshot list of types.
-pub(crate) type TypeList = SnapshotList<Type>;
+#[derive(Default)]
+pub(crate) struct TypeList {
+    types: SnapshotList<Type>,
+    infos: SnapshotList<TypeInfo>,
+}
+
+impl TypeList {
+    pub fn info(&self, id: TypeId) -> TypeInfo {
+        self.infos[id]
+    }
+
+    pub fn get(&self, index: usize) -> Option<&Type> {
+        self.types.get(index)
+    }
+
+    pub fn len(&self) -> usize {
+        debug_assert_eq!(self.types.len(), self.infos.len());
+        self.types.len()
+    }
+
+    pub fn push(&mut self, ty: Type) {
+        let info = ty.calculate_info(self);
+        self.infos.push(info);
+        self.types.push(ty);
+        debug_assert_eq!(self.types.len(), self.infos.len());
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.infos.reserve(additional);
+        self.types.reserve(additional);
+    }
+
+    pub fn commit(&mut self) -> TypeList {
+        TypeList {
+            types: self.types.commit(),
+            infos: self.infos.commit(),
+        }
+    }
+
+    /// See `SnapshotList::with_unique`.
+    pub fn with_unique(&mut self, ty: TypeId) -> TypeId {
+        self.types.with_unique(ty)
+    }
+
+    /// See `SnapshotList::peel_alias`.
+    pub fn peel_alias(&self, ty: TypeId) -> Option<TypeId> {
+        self.types.peel_alias(ty)
+    }
+}
+
+impl Index<TypeId> for TypeList {
+    type Output = Type;
+
+    fn index(&self, index: TypeId) -> &Self::Output {
+        &self.types[index]
+    }
+}
 
 /// Thin wrapper around `TypeList` which provides an allocator of unique ids for
 /// types contained within this list.
@@ -1958,11 +2019,10 @@ impl TypeAlloc {
     /// hash-equivalent to anything else.
     pub fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len();
-        let info = ty.info();
+        let index = u32::try_from(index).unwrap();
         self.list.push(ty);
         TypeId {
             index,
-            info,
             unique_id: 0,
         }
     }
@@ -3187,10 +3247,10 @@ impl Index<TypeId> for SubtypeArena<'_> {
     type Output = Type;
 
     fn index(&self, id: TypeId) -> &Type {
-        if id.index < self.types.len() {
+        if id.index() < self.types.len() {
             &self.types[id]
         } else {
-            &self.list[id.index - self.types.len()]
+            &self.list[id.index() - self.types.len()]
         }
     }
 }
@@ -3198,11 +3258,10 @@ impl Index<TypeId> for SubtypeArena<'_> {
 impl Remap for SubtypeArena<'_> {
     fn push_ty(&mut self, ty: Type) -> TypeId {
         let index = self.list.len() + self.types.len();
-        let info = ty.info();
+        let index = u32::try_from(index).unwrap();
         self.list.push(ty);
         TypeId {
             index,
-            info,
             unique_id: 0,
         }
     }

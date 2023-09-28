@@ -814,10 +814,13 @@ impl Validator {
                 state.module.assert_mut().exports.reserve(count as usize);
                 Ok(())
             },
-            |state, features, _, e, offset| {
+            |state, features, types, e, offset| {
                 let state = state.module.assert_mut();
                 let ty = state.export_to_entity_type(&e, offset)?;
-                state.add_export(e.name, ty, features, offset, false /* checked above */)
+                state.add_export(
+                    e.name, ty, features, offset, false, /* checked above */
+                    types,
+                )
             },
         )
     }
