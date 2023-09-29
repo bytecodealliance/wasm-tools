@@ -74,7 +74,8 @@
 use crate::encoding::world::WorldAdapter;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{
-    ValidatedModule, BARE_FUNC_MODULE_NAME, MAIN_MODULE_IMPORT_NAME, POST_RETURN_PREFIX,
+    ResourceInfo, ValidatedModule, BARE_FUNC_MODULE_NAME, MAIN_MODULE_IMPORT_NAME,
+    POST_RETURN_PREFIX,
 };
 use crate::StringEncoding;
 use anyhow::{anyhow, bail, Context, Result};
@@ -585,43 +586,12 @@ impl<'a> EncodingState<'a> {
             args.push((*adapter, ModuleArg::Instance(index)));
         }
 
-        for (import, info) in info.required_resource_funcs.iter() {
-            let mut exports = Vec::new();
-            for (resource, info) in info {
-                // Destructors for resources live on the shim module previously
-                // created, so if one is specified create the resource with
-                // the shim module that currently exists. The shim will get
-                // filled in later with the actual destructor after the main
-                // module is instantiated.
-                let dtor = info.dtor_export.map(|_| {
-                    self.component.core_alias_export(
-                        self.shim_instance_index.unwrap(),
-                        &shims.shim_names[&ShimKind::ResourceDtor { import, resource }],
-                        ExportKind::Func,
-                    )
-                });
-                let resource_idx = self.component.type_resource(ValType::I32, dtor);
-                let prev = self.export_type_map.insert(info.id, resource_idx);
-                assert!(prev.is_none());
-
-                if let Some(name) = info.drop_import {
-                    let index = self.component.resource_drop(resource_idx);
-                    exports.push((name, ExportKind::Func, index));
-                }
-                if let Some(name) = info.rep_import {
-                    let index = self.component.resource_rep(resource_idx);
-                    exports.push((name, ExportKind::Func, index));
-                }
-                if let Some(name) = info.new_import {
-                    let index = self.component.resource_new(resource_idx);
-                    exports.push((name, ExportKind::Func, index));
-                }
-            }
-            if !exports.is_empty() {
-                let index = self.component.core_instantiate_exports(exports);
-                args.push((import.as_str(), ModuleArg::Instance(index)));
-            }
-        }
+        self.add_resource_funcs(
+            CustomModule::Main,
+            &info.required_resource_funcs,
+            &shims,
+            &mut args,
+        );
 
         // Instantiate the main module now that all of its arguments have been
         // prepared. With this we now have the main linear memory for
@@ -1189,6 +1159,14 @@ impl<'a> EncodingState<'a> {
                     &mut signatures,
                 );
             }
+
+            self.encode_resource_dtors(
+                CustomModule::Adapter(adapter_name),
+                &adapter.info.required_resource_funcs,
+                &mut signatures,
+                &mut ret,
+            );
+
             let funcs = match self.info.info.adapters_required.get(adapter_name) {
                 Some(funcs) => funcs,
                 None => continue,
@@ -1217,31 +1195,12 @@ impl<'a> EncodingState<'a> {
             }
         }
 
-        // Any resource destructors are encoded through the shim module. The
-        // core wasm probably imports resource intrinsics which requires the
-        // resource definition, but the resource definition requires
-        // the destructor to be available. The shim module breaks this
-        // circular dependency.
-        for (import, info) in self.info.info.required_resource_funcs.iter() {
-            for (resource, info) in info {
-                if info.dtor_export.is_none() {
-                    continue;
-                }
-                signatures.push(WasmSignature {
-                    params: vec![WasmType::I32],
-                    results: Vec::new(),
-                    indirect_params: false,
-                    retptr: false,
-                });
-                let name = ret.list.len().to_string();
-                ret.list.push(Shim {
-                    name,
-                    debug_name: format!("dtor-{import}-{resource}"),
-                    options: RequiredOptions::empty(),
-                    kind: ShimKind::ResourceDtor { import, resource },
-                });
-            }
-        }
+        self.encode_resource_dtors(
+            CustomModule::Main,
+            &self.info.info.required_resource_funcs,
+            &mut signatures,
+            &mut ret,
+        );
 
         if ret.list.is_empty() {
             return ret;
@@ -1445,13 +1404,24 @@ impl<'a> EncodingState<'a> {
                 // meaning that any destructor for the resource must be called
                 // indirectly due to the otherwise circular dependency between
                 // the module and the resource itself.
-                ShimKind::ResourceDtor { import, resource } => self.component.core_alias_export(
-                    self.instance_index.unwrap(),
-                    self.info.info.required_resource_funcs[*import][*resource]
-                        .dtor_export
-                        .unwrap(),
-                    ExportKind::Func,
-                ),
+                ShimKind::ResourceDtor {
+                    module,
+                    import,
+                    resource,
+                } => {
+                    let funcs = match module {
+                        CustomModule::Main => &self.info.info.required_resource_funcs,
+                        CustomModule::Adapter(name) => {
+                            &self.info.adapters[name].info.required_resource_funcs
+                        }
+                    };
+
+                    self.component.core_alias_export(
+                        self.instance_index.unwrap(),
+                        funcs[*import][*resource].dtor_export.as_deref().unwrap(),
+                        ExportKind::Func,
+                    )
+                }
             };
 
             exports.push((shim.name.as_str(), ExportKind::Func, core_func_index));
@@ -1493,6 +1463,94 @@ impl<'a> EncodingState<'a> {
         }
 
         self.instance_index = Some(instance_index);
+    }
+
+    fn encode_resource_dtors<'b>(
+        &mut self,
+        module: CustomModule<'b>,
+        funcs: &'b IndexMap<String, IndexMap<String, ResourceInfo>>,
+        signatures: &mut Vec<WasmSignature>,
+        shims: &mut Shims<'b>,
+    ) {
+        // Any resource destructors are encoded through the shim module. The
+        // core wasm probably imports resource intrinsics which requires the
+        // resource definition, but the resource definition requires
+        // the destructor to be available. The shim module breaks this
+        // circular dependency.
+        for (import, info) in funcs.iter() {
+            for (resource, info) in info {
+                if info.dtor_export.is_none() {
+                    continue;
+                }
+                signatures.push(WasmSignature {
+                    params: vec![WasmType::I32],
+                    results: Vec::new(),
+                    indirect_params: false,
+                    retptr: false,
+                });
+                let name = shims.list.len().to_string();
+                shims.list.push(Shim {
+                    name,
+                    debug_name: format!("dtor-{import}-{resource}"),
+                    options: RequiredOptions::empty(),
+                    kind: ShimKind::ResourceDtor {
+                        module,
+                        import,
+                        resource,
+                    },
+                });
+            }
+        }
+    }
+
+    fn add_resource_funcs<'b>(
+        &mut self,
+        module: CustomModule<'b>,
+        funcs: &'b IndexMap<String, IndexMap<String, ResourceInfo>>,
+        shims: &Shims,
+        args: &mut Vec<(&'b str, ModuleArg)>,
+    ) {
+        for (import, info) in funcs {
+            let mut exports = Vec::new();
+            for (resource, info) in info {
+                // Destructors for resources live on the shim module previously
+                // created, so if one is specified create the resource with
+                // the shim module that currently exists. The shim will get
+                // filled in later with the actual destructor after the main
+                // module is instantiated.
+                let dtor = info.dtor_export.as_deref().map(|_| {
+                    self.component.core_alias_export(
+                        self.shim_instance_index.unwrap(),
+                        &shims.shim_names[&ShimKind::ResourceDtor {
+                            module,
+                            import,
+                            resource,
+                        }],
+                        ExportKind::Func,
+                    )
+                });
+                let resource_idx = self.component.type_resource(ValType::I32, dtor);
+                let prev = self.export_type_map.insert(info.id, resource_idx);
+                assert!(prev.is_none());
+
+                if let Some(name) = info.drop_import.as_deref() {
+                    let index = self.component.resource_drop(resource_idx);
+                    exports.push((name, ExportKind::Func, index));
+                }
+                if let Some(name) = info.rep_import.as_deref() {
+                    let index = self.component.resource_rep(resource_idx);
+                    exports.push((name, ExportKind::Func, index));
+                }
+                if let Some(name) = info.new_import.as_deref() {
+                    let index = self.component.resource_new(resource_idx);
+                    exports.push((name, ExportKind::Func, index));
+                }
+            }
+            if !exports.is_empty() {
+                let index = self.component.core_instantiate_exports(exports);
+                args.push((import.as_str(), ModuleArg::Instance(index)));
+            }
+        }
     }
 
     /// This function will instantiate the specified adapter module, which may
@@ -1597,6 +1655,14 @@ impl<'a> EncodingState<'a> {
             );
             args.push((import_name, ModuleArg::Instance(instance)));
         }
+
+        self.add_resource_funcs(
+            CustomModule::Adapter(name),
+            &adapter.info.required_resource_funcs,
+            shims,
+            &mut args,
+        );
+
         let instance = self
             .component
             .core_instantiate(self.adapter_modules[name], args);
@@ -1685,6 +1751,8 @@ enum ShimKind<'a> {
     /// A shim used as the destructor for a resource which allows defining the
     /// resource before the core module being instantiated.
     ResourceDtor {
+        /// Which instance to pull the destructor function from.
+        module: CustomModule<'a>,
         /// The import that the resource was defined for.
         import: &'a str,
         /// The name of the resource being destroyed.

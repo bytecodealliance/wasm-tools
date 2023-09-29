@@ -113,14 +113,29 @@ impl<'a> ComponentWorld<'a> {
         ) in self.encoder.adapters.iter()
         {
             let required_by_import = self.info.adapters_required.get(name.as_str());
-            let required =
-                self.required_adapter_exports(resolve, world, required_exports, required_by_import);
-            if required.is_empty() && library_info.is_none() {
+            let no_required_by_import = || required_by_import.map(|m| m.is_empty()).unwrap_or(true);
+            let no_required_exports = || {
+                required_exports
+                    .iter()
+                    .all(|name| match &resolve.worlds[world].exports[name] {
+                        WorldItem::Function(_) => false,
+                        WorldItem::Interface(id) => resolve.interfaces[*id].functions.is_empty(),
+                        WorldItem::Type(_) => true,
+                    })
+            };
+            if no_required_by_import() && no_required_exports() && library_info.is_none() {
                 continue;
             }
             let wasm = if library_info.is_some() {
                 Cow::Borrowed(wasm as &[u8])
             } else {
+                let required = self.required_adapter_exports(
+                    resolve,
+                    world,
+                    required_exports,
+                    required_by_import,
+                );
+
                 Cow::Owned(
                     crate::gc::run(wasm, &required, self.info.realloc)
                         .context("failed to reduce input adapter module to its minimal size")?,
@@ -131,7 +146,8 @@ impl<'a> ComponentWorld<'a> {
                 resolve,
                 world,
                 metadata,
-                &required,
+                required_by_import,
+                required_exports,
                 library_info.is_some(),
             )
             .context("failed to validate the imports of the minimized adapter module")?;

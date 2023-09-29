@@ -131,7 +131,7 @@ pub trait ValtypeEncoder<'a> {
                 // If this type is imported from another interface then return
                 // it as it was bound here with an alias.
                 let ty = &resolve.types[id];
-                log::trace!("encode type name={:?}", ty.name);
+                log::trace!("encode type name={:?} {:?}", ty.name, &ty.kind);
                 if let Some(index) = self.maybe_import_type(resolve, id) {
                     self.type_map().insert(id, index);
                     return Ok(ComponentValType::Type(index));
