@@ -1042,11 +1042,11 @@ impl<'a> Encode for TryTable<'a> {
         let catch_all_flag_byte: u8 = match self.catch_all {
             None => 0,
             Some(TryTableCatchAll {
-                kind: TryTableCatchKind::Ref,
+                kind: TryTableCatchKind::Drop,
                 ..
             }) => 1,
             Some(TryTableCatchAll {
-                kind: TryTableCatchKind::Drop,
+                kind: TryTableCatchKind::Ref,
                 ..
             }) => 2,
         };
@@ -1060,8 +1060,8 @@ impl<'a> Encode for TryTable<'a> {
 impl<'a> Encode for TryTableCatch<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
         let catch_flag_byte: u8 = match self.kind {
-            TryTableCatchKind::Ref => 0,
-            TryTableCatchKind::Drop => 1,
+            TryTableCatchKind::Drop => 0,
+            TryTableCatchKind::Ref => 1,
         };
         catch_flag_byte.encode(dst);
         self.tag.encode(dst);
