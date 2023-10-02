@@ -393,7 +393,9 @@ pub mod kw {
     custom_keyword!(block);
     custom_keyword!(borrow);
     custom_keyword!(catch);
+    custom_keyword!(catch_ref);
     custom_keyword!(catch_all);
+    custom_keyword!(catch_all_ref);
     custom_keyword!(code);
     custom_keyword!(component);
     custom_keyword!(data);

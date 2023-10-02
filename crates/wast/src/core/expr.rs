@@ -1236,10 +1236,17 @@ impl<'a> Parse<'a> for TryTable<'a> {
         let block = parser.parse()?;
 
         let mut catches = Vec::new();
-        while parser.peek2::<kw::catch>()? {
+        while parser.peek2::<kw::catch>()? || parser.peek2::<kw::catch_ref>()? {
             catches.push(parser.parens(|p| {
-                p.parse::<kw::catch>()?;
+                let kind = if parser.peek::<kw::catch_ref>()? {
+                    p.parse::<kw::catch_ref>()?;
+                    TryTableCatchKind::Ref
+                } else {
+                    p.parse::<kw::catch>()?;
+                    TryTableCatchKind::Drop
+                };
                 Ok(TryTableCatch {
+                    kind,
                     tag: p.parse()?,
                     label: p.parse()?,
                 })
@@ -1247,10 +1254,17 @@ impl<'a> Parse<'a> for TryTable<'a> {
         }
 
         let mut catch_all = None;
-        if parser.peek2::<kw::catch_all>()? {
+        if parser.peek2::<kw::catch_all>()? || parser.peek2::<kw::catch_all_ref>()? {
             catch_all = Some(parser.parens(|p| {
-                p.parse::<kw::catch_all>()?;
+                let kind = if parser.peek::<kw::catch_all_ref>()? {
+                    p.parse::<kw::catch_all_ref>()?;
+                    TryTableCatchKind::Ref
+                } else {
+                    p.parse::<kw::catch_all>()?;
+                    TryTableCatchKind::Drop
+                };
                 Ok(TryTableCatchAll {
+                    kind,
                     label: p.parse()?,
                 })
             })?);
@@ -1266,7 +1280,17 @@ impl<'a> Parse<'a> for TryTable<'a> {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
+pub enum TryTableCatchKind {
+    // Capture the exnref for the try
+    Ref,
+    // Drop the exnref for the try
+    Drop,
+}
+
+#[derive(Debug)]
+#[allow(missing_docs)]
 pub struct TryTableCatch<'a> {
+    pub kind: TryTableCatchKind,
     pub tag: Index<'a>,
     pub label: Index<'a>,
 }
@@ -1274,6 +1298,7 @@ pub struct TryTableCatch<'a> {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct TryTableCatchAll<'a> {
+    pub kind: TryTableCatchKind,
     pub label: Index<'a>,
 }
 

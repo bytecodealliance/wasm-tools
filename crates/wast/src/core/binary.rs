@@ -1038,17 +1038,32 @@ impl<'a> Encode for TryTable<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
         self.block.encode(dst);
         self.catches.encode(dst);
+
+        let catch_all_flag_byte: u8 = match self.catch_all {
+            None => 0,
+            Some(TryTableCatchAll {
+                kind: TryTableCatchKind::Ref,
+                ..
+            }) => 1,
+            Some(TryTableCatchAll {
+                kind: TryTableCatchKind::Drop,
+                ..
+            }) => 2,
+        };
+        catch_all_flag_byte.encode(dst);
         if let Some(catch_all) = &self.catch_all {
-            (1 as u8).encode(dst);
             catch_all.encode(dst);
-        } else {
-            (0 as u8).encode(dst);
         }
     }
 }
 
 impl<'a> Encode for TryTableCatch<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
+        let catch_flag_byte: u8 = match self.kind {
+            TryTableCatchKind::Ref => 0,
+            TryTableCatchKind::Drop => 1,
+        };
+        catch_flag_byte.encode(dst);
         self.tag.encode(dst);
         self.label.encode(dst);
     }
