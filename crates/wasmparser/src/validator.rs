@@ -621,7 +621,7 @@ impl Validator {
             Order::Type,
             section,
             "type",
-            |state, _, types, count, offset| {
+            |state, _, _types, count, offset| {
                 check_max(
                     state.module.types.len(),
                     count,
@@ -629,7 +629,6 @@ impl Validator {
                     "types",
                     offset,
                 )?;
-                types.reserve(count as usize);
                 state.module.assert_mut().types.reserve(count as usize);
                 Ok(())
             },
@@ -1035,10 +1034,9 @@ impl Validator {
         self.process_component_section(
             section,
             "core type",
-            |components, types, count, offset| {
+            |components, _types, count, offset| {
                 let current = components.last_mut().unwrap();
                 check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
-                types.reserve(count as usize);
                 current.core_types.reserve(count as usize);
                 Ok(())
             },
@@ -1131,10 +1129,9 @@ impl Validator {
         self.process_component_section(
             section,
             "type",
-            |components, types, count, offset| {
+            |components, _types, count, offset| {
                 let current = components.last_mut().unwrap();
                 check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
-                types.reserve(count as usize);
                 current.types.reserve(count as usize);
                 Ok(())
             },
@@ -1215,7 +1212,7 @@ impl Validator {
             &f.arguments,
             f.results,
             &self.features,
-            &self.types,
+            &mut self.types,
             range.start,
         )
     }
@@ -1468,19 +1465,27 @@ mod tests {
         assert_eq!(types.memory_count(), 1);
         assert_eq!(types.table_count(), 1);
         assert_eq!(types.global_count(), 1);
-        assert_eq!(types.function_count(), 1);
+        assert_eq!(types.core_function_count(), 1);
         assert_eq!(types.tag_count(), 1);
         assert_eq!(types.element_count(), 1);
         assert_eq!(types.module_count(), 0);
         assert_eq!(types.component_count(), 0);
-        assert_eq!(types.instance_count(), 0);
+        assert_eq!(types.core_instance_count(), 0);
         assert_eq!(types.value_count(), 0);
 
-        let ty = types[types.core_type_at(0)].unwrap_func();
+        let id = match types.core_type_at(0) {
+            crate::types::ComponentCoreTypeId::Sub(s) => s,
+            crate::types::ComponentCoreTypeId::Module(_) => panic!(),
+        };
+        let ty = types[id].unwrap_func();
         assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
         assert_eq!(ty.results(), [ValType::I32]);
 
-        let ty = types[types.core_type_at(1)].unwrap_func();
+        let id = match types.core_type_at(1) {
+            crate::types::ComponentCoreTypeId::Sub(s) => s,
+            crate::types::ComponentCoreTypeId::Module(_) => panic!(),
+        };
+        let ty = types[id].unwrap_func();
         assert_eq!(ty.params(), [ValType::I64, ValType::I32]);
         assert_eq!(ty.results(), []);
 
@@ -1511,7 +1516,7 @@ mod tests {
             }
         );
 
-        let id = types.function_at(0);
+        let id = types.core_function_at(0);
         let ty = types[id].unwrap_func();
         assert_eq!(ty.params(), [ValType::I32, ValType::I64]);
         assert_eq!(ty.results(), [ValType::I32]);
@@ -1545,9 +1550,9 @@ mod tests {
 
         let types = validator.validate_all(&bytes)?;
 
-        let t_id = types.component_type_at(0);
-        let a1_id = types.component_type_at(1);
-        let a2_id = types.component_type_at(2);
+        let t_id = types.component_defined_type_at(0);
+        let a1_id = types.component_defined_type_at(1);
+        let a2_id = types.component_defined_type_at(2);
 
         // The ids should all be the same
         assert!(t_id == a1_id);
@@ -1580,9 +1585,9 @@ mod tests {
 
         let types = validator.validate_all(&bytes)?;
 
-        let t_id = types.component_type_at(0);
-        let a1_id = types.component_type_at(1);
-        let a2_id = types.component_type_at(2);
+        let t_id = types.component_defined_type_at(0);
+        let a1_id = types.component_defined_type_at(1);
+        let a2_id = types.component_defined_type_at(2);
 
         // The ids should all be the same
         assert!(t_id != a1_id);

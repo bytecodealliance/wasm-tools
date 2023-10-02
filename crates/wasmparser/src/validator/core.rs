@@ -18,7 +18,7 @@ use crate::{
 use super::{
     check_max, combine_type_sizes,
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
-    types::{EntityType, Type, TypeAlloc, TypeId, TypeList},
+    types::{CoreTypeId, EntityType, TypeAlloc, TypeIdentifierImpl, TypeList},
 };
 
 // Section order for WebAssembly modules.
@@ -478,7 +478,7 @@ pub(crate) struct Module {
     // enable parallel validation of functions.
     pub snapshot: Option<Arc<TypeList>>,
     // Stores indexes into the validator's types list.
-    pub types: Vec<TypeId>,
+    pub types: Vec<CoreTypeId>,
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
     pub globals: Vec<GlobalType>,
@@ -486,7 +486,7 @@ pub(crate) struct Module {
     pub data_count: Option<u32>,
     // Stores indexes into `types`.
     pub functions: Vec<u32>,
-    pub tags: Vec<TypeId>,
+    pub tags: Vec<CoreTypeId>,
     pub function_references: HashSet<u32>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
@@ -525,7 +525,7 @@ impl Module {
             .types()
             .iter()
             .map(|ty| {
-                let id = types.push_ty(Type::Sub(ty.clone()));
+                let id = types.push_ty(ty.clone());
                 if features.gc {
                     // make types in a rec group resolvable by index before validation:
                     // this is needed to support recursive types in the GC proposal
@@ -536,7 +536,7 @@ impl Module {
             .collect();
 
         for (id, ty) in idx_types {
-            self.check_subtype(id.index() as u32, ty.clone(), features, types, offset)?;
+            self.check_subtype(id.index() as u32, &ty, features, types, offset)?;
             if !features.gc {
                 self.types.push(id);
             }
@@ -547,11 +547,11 @@ impl Module {
     fn check_subtype(
         &mut self,
         type_index: u32,
-        ty: SubType,
+        ty: &SubType,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
-    ) -> Result<Type> {
+    ) -> Result<()> {
         if !features.gc && (!ty.is_final || ty.supertype_idx.is_some()) {
             bail!(offset, "gc proposal must be enabled to use subtypes");
         }
@@ -566,29 +566,13 @@ impl Module {
                     "unknown type {type_index}: type index out of bounds"
                 );
             }
-            match self.type_at(types, supertype_index, offset)? {
-                Type::Sub(st) => {
-                    if !&ty.matches(st, &|idx| self.subtype_at(types, idx, offset).unwrap()) {
-                        bail!(offset, "subtype must match supertype");
-                    }
-                }
-                _ => {
-                    bail!(offset, "supertype must be a non-final subtype itself");
-                }
-            };
+            let sub = self.sub_type_at(types, supertype_index, offset)?;
+            if !&ty.matches(sub, &|idx| self.sub_type_at(types, idx, offset).unwrap()) {
+                bail!(offset, "subtype must match supertype");
+            }
         }
 
-        Ok(Type::Sub(ty))
-    }
-
-    fn subtype_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a SubType> {
-        match self.type_at(types, idx, offset)? {
-            Type::Sub(ty) => Ok(ty),
-            _ => bail!(
-                offset,
-                "subtype with index {idx} not found, offset: {offset}"
-            ),
-        }
+        Ok(())
     }
 
     fn check_structural_type(
@@ -754,15 +738,16 @@ impl Module {
         Ok(())
     }
 
-    pub fn type_id_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    pub fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
         self.types
             .get(idx as usize)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
 
-    fn type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a Type> {
-        self.type_id_at(idx, offset).map(|type_id| &types[type_id])
+    fn sub_type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a SubType> {
+        let id = self.type_id_at(idx, offset)?;
+        Ok(&types[id])
     }
 
     fn func_type_at<'a>(
@@ -771,11 +756,8 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        match &types[self.type_id_at(type_index, offset)?] {
-            Type::Sub(SubType {
-                structural_type: StructuralType::Func(f),
-                ..
-            }) => Ok(f),
+        match &self.sub_type_at(types, type_index, offset)?.structural_type {
+            StructuralType::Func(f) => Ok(f),
             _ => bail!(offset, "type index {type_index} is not a function type"),
         }
     }
@@ -958,7 +940,7 @@ impl Module {
     /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
     /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
     pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.matches(&ty2, &|idx| self.subtype_at(types, idx, 0).unwrap())
+        ty1.matches(&ty2, &|idx| self.sub_type_at(types, idx, 0).unwrap())
     }
 
     fn check_tag_type(

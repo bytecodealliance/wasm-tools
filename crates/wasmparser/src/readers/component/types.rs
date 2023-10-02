@@ -1,7 +1,7 @@
 use crate::limits::*;
 use crate::{
     BinaryReader, ComponentAlias, ComponentExternName, ComponentImport, ComponentTypeRef,
-    FromReader, FuncType, Import, Result, SectionLimited, SubType, TypeRef, ValType,
+    FromReader, Import, Result, SectionLimited, SubType, TypeRef, ValType,
 };
 use std::fmt;
 
@@ -15,21 +15,28 @@ pub enum OuterAliasKind {
 /// Represents a core type in a WebAssembly component.
 #[derive(Debug, Clone)]
 pub enum CoreType<'a> {
-    /// The type is for a core function.
-    Func(FuncType),
+    /// The type is for a core subtype.
+    Sub(SubType),
     /// The type is for a core module.
     Module(Box<[ModuleTypeDeclaration<'a>]>),
 }
 
 impl<'a> FromReader<'a> for CoreType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(match reader.read_u8()? {
-            0x60 => CoreType::Func(reader.read()?),
-            0x50 => CoreType::Module(
-                reader
-                    .read_iter(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?
-                    .collect::<Result<_>>()?,
+        Ok(match reader.peek()? {
+            0x60 => CoreType::Sub(reader.read()?),
+            0x5e | 0x5f => bail!(
+                reader.current_position(),
+                "no support for GC types in the component model yet"
             ),
+            0x50 => {
+                reader.read_u8()?;
+                CoreType::Module(
+                    reader
+                        .read_iter(MAX_WASM_MODULE_TYPE_DECLS, "module type declaration")?
+                        .collect::<Result<_>>()?,
+                )
+            }
             x => return reader.invalid_leading_byte(x, "core type"),
         })
     }
