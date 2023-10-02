@@ -246,6 +246,7 @@ impl<'a> Encode for HeapType<'a> {
         match self {
             HeapType::Func => e.push(0x70),
             HeapType::Extern => e.push(0x6f),
+            HeapType::Exn => e.push(0x69),
             HeapType::Any => e.push(0x6e),
             HeapType::Eq => e.push(0x6d),
             HeapType::Struct => e.push(0x6b),
@@ -277,6 +278,11 @@ impl<'a> Encode for RefType<'a> {
                 nullable: true,
                 heap: HeapType::Extern,
             } => e.push(0x6f),
+            // The 'exnref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::Exn,
+            } => e.push(0x69),
             // The 'eqref' binary abbreviation
             RefType {
                 nullable: true,
@@ -1025,6 +1031,47 @@ impl Encode for Id<'_> {
     fn encode(&self, dst: &mut Vec<u8>) {
         assert!(!self.is_gensym());
         self.name().encode(dst);
+    }
+}
+
+impl<'a> Encode for TryTable<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.block.encode(dst);
+        self.catches.encode(dst);
+
+        let catch_all_flag_byte: u8 = match self.catch_all {
+            None => 0,
+            Some(TryTableCatchAll {
+                kind: TryTableCatchKind::Drop,
+                ..
+            }) => 1,
+            Some(TryTableCatchAll {
+                kind: TryTableCatchKind::Ref,
+                ..
+            }) => 2,
+        };
+        catch_all_flag_byte.encode(dst);
+        if let Some(catch_all) = &self.catch_all {
+            catch_all.encode(dst);
+        }
+    }
+}
+
+impl<'a> Encode for TryTableCatch<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        let catch_flag_byte: u8 = match self.kind {
+            TryTableCatchKind::Drop => 0,
+            TryTableCatchKind::Ref => 1,
+        };
+        catch_flag_byte.encode(dst);
+        self.tag.encode(dst);
+        self.label.encode(dst);
+    }
+}
+
+impl<'a> Encode for TryTableCatchAll<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.label.encode(dst);
     }
 }
 

@@ -193,6 +193,9 @@ fn skip_validation(test: &Path) -> bool {
         "/proposals/gc/type-equivalence.wast",
         "/proposals/gc/type-rec.wast",
         "/proposals/gc/type-subtyping.wast",
+        "/exnref/exnref.wast",
+        "/exnref/throw_ref.wast",
+        "/exnref/try_table.wast",
     ];
     let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
     if broken.iter().any(|x| test_path.contains(x)) {

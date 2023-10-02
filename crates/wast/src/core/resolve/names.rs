@@ -521,6 +521,20 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 });
                 self.resolve_block_type(bt)?;
             }
+            TryTable(try_table) => {
+                self.blocks.push(ExprBlock {
+                    label: try_table.block.label,
+                    pushed_scope: false,
+                });
+                self.resolve_block_type(&mut try_table.block)?;
+                for catch in &mut try_table.catches {
+                    self.resolver.resolve(&mut catch.tag, Ns::Tag)?;
+                    self.resolve_label(&mut catch.label)?;
+                }
+                if let Some(catch_all) = &mut try_table.catch_all {
+                    self.resolve_label(&mut catch_all.label)?;
+                }
+            }
 
             // On `End` instructions we pop a label from the stack, and for both
             // `End` and `Else` instructions if they have labels listed we
