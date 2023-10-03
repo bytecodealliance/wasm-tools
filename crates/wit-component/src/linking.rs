@@ -604,11 +604,28 @@ fn make_init_module(
             )));
         }
 
+        if metadata.has_ctors && metadata.has_initialize {
+            bail!(
+                "library {} exports both `__wasm_call_ctors` and `_initialize`; \
+                 expected at most one of the two",
+                metadata.name
+            );
+        }
+
         if metadata.has_ctors {
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
                 "__wasm_call_ctors",
+                thunk_ty,
+            )));
+        }
+
+        if metadata.has_initialize {
+            ctor_calls.push(Ins::Call(add_function_import(
+                &mut imports,
+                metadata.name,
+                "_initialize",
                 thunk_ty,
             )));
         }
