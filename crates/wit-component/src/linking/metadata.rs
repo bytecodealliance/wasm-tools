@@ -199,6 +199,9 @@ pub struct Metadata<'a> {
     /// Whether this module exports `__wasm_call_ctors`
     pub has_ctors: bool,
 
+    /// Whether this module exports `_initialize`
+    pub has_initialize: bool,
+
     /// Whether this module exports `__wasm_set_libraries`
     pub has_set_libraries: bool,
 
@@ -303,6 +306,7 @@ impl<'a> Metadata<'a> {
             needed_libs: Vec::new(),
             has_data_relocs: false,
             has_ctors: false,
+            has_initialize: false,
             has_set_libraries: false,
             has_component_exports,
             env_imports: BTreeSet::new(),
@@ -491,6 +495,7 @@ impl<'a> Metadata<'a> {
                         match export.name {
                             "__wasm_apply_data_relocs" => result.has_data_relocs = true,
                             "__wasm_call_ctors" => result.has_ctors = true,
+                            "_initialize" => result.has_initialize = true,
                             "__wasm_set_libraries" => result.has_set_libraries = true,
                             _ => {
                                 let ty = match export.kind {
