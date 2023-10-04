@@ -1,5 +1,3 @@
-use std::fs;
-
 use anyhow::Result;
 use wit_component::{is_wasm_binary_or_wat, parse_wit_from_path};
 
@@ -17,8 +15,7 @@ const EXAMPLE_MODULE_WAT: &str = r#"
 fn parse_wit_dir() -> Result<()> {
     drop(env_logger::try_init());
 
-    let (resolver, package_id) =
-        parse_wit_from_path(&fs::canonicalize("tests/wit/parse-dir/wit")?)?;
+    let (resolver, package_id) = parse_wit_from_path("tests/wit/parse-dir/wit")?;
     assert!(resolver
         .select_world(package_id, "foo-world".into())
         .is_ok());
@@ -31,9 +28,7 @@ fn parse_wit_dir() -> Result<()> {
 fn parse_wit_file() -> Result<()> {
     drop(env_logger::try_init());
 
-    let (resolver, package_id) = parse_wit_from_path(&fs::canonicalize(
-        "tests/wit/parse-dir/wit/deps/bar/bar.wit",
-    )?)?;
+    let (resolver, package_id) = parse_wit_from_path("tests/wit/parse-dir/wit/deps/bar/bar.wit")?;
     resolver.select_world(package_id, "bar-world".into())?;
     assert!(resolver
         .interfaces
