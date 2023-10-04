@@ -142,3 +142,10 @@
   )
   "duplicate identifier"
 )
+(assert_invalid
+  (module
+    (type $a (func)) ;; types without `(sub )` are considered final
+    (type (sub $a (func)))
+  )
+  "subtype must match supertype"
+)
