@@ -1,16 +1,16 @@
 //! The WebAssembly component tool command line interface.
 
-use anyhow::{bail, Context, Result};
-use clap::Parser;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use wasm_encoder::{Encode, Section};
+
+use anyhow::{bail, Context, Result};
+use clap::Parser;
+
 use wasm_tools::Output;
 use wit_component::{
-    is_wasm_binary_or_wat, parse_wit_from_path, ComponentEncoder, DecodedWasm, Linker,
-    StringEncoding, WitPrinter,
+    embed_component_metadata, is_wasm_binary_or_wat, parse_wit_from_path, ComponentEncoder,
+    DecodedWasm, Linker, StringEncoding, WitPrinter,
 };
 use wit_parser::{Resolve, UnresolvedPackage};
 
@@ -216,20 +216,14 @@ impl EmbedOpts {
         let (resolve, id) = parse_wit_from_path(self.wit)?;
         let world = resolve.select_world(id, self.world.as_deref())?;
 
-        let encoded = wit_component::metadata::encode(
+        let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
+
+        embed_component_metadata(
+            &mut wasm,
             &resolve,
             world,
             self.encoding.unwrap_or(StringEncoding::UTF8),
-            None,
         )?;
-
-        let section = wasm_encoder::CustomSection {
-            name: "component-type".into(),
-            data: Cow::Borrowed(&encoded),
-        };
-        let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
-        wasm.push(section.id());
-        section.encode(&mut wasm);
 
         self.io.output(Output::Wasm {
             bytes: &wasm,

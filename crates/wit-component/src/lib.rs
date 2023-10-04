@@ -2,11 +2,12 @@
 
 #![deny(missing_docs)]
 
-use anyhow::{bail, Context, Result};
 use std::str::FromStr;
-use std::{fmt::Display, path::Path};
-use wasm_encoder::CanonicalOption;
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use std::{borrow::Cow, fmt::Display, path::Path};
+
+use anyhow::{bail, Context, Result};
+use wasm_encoder::{CanonicalOption, Encode, Section};
+use wit_parser::{PackageId, Resolve, UnresolvedPackage, WorldId};
 
 mod decoding;
 mod encoding;
@@ -177,4 +178,95 @@ pub fn is_wasm_binary_or_wat(bytes: impl AsRef<[u8]>) -> bool {
     }
 
     false
+}
+
+/// Embed component metadata in a buffer of bytes that contains a Wasm module
+pub fn embed_component_metadata(
+    bytes: &mut Vec<u8>,
+    wit_resolver: &Resolve,
+    world: WorldId,
+    encoding: StringEncoding,
+) -> Result<()> {
+    let encoded = metadata::encode(&wit_resolver, world, encoding, None)?;
+
+    let section = wasm_encoder::CustomSection {
+        name: "component-type".into(),
+        data: Cow::Borrowed(&encoded),
+    };
+    bytes.push(section.id());
+    section.encode(bytes);
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use anyhow::Result;
+    use wasmparser::Payload;
+    use wit_parser::{Resolve, UnresolvedPackage};
+
+    use super::{embed_component_metadata, StringEncoding};
+
+    const MODULE_WAT: &str = r#"
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    nop
+  )
+)
+"#;
+
+    const COMPONENT_WIT: &str = r#"
+package test:foo;
+world test-world {}
+"#;
+
+    #[test]
+    fn component_metadata_embedding_works() -> Result<()> {
+        let mut bytes = wat::parse_str(MODULE_WAT)?;
+
+        // Get original len & custom section count
+        let original_len = bytes.len();
+        let payloads = wasmparser::Parser::new(0).parse_all(&bytes);
+        let original_custom_section_count = payloads.fold(0, |acc, payload| {
+            if let Ok(Payload::CustomSection { .. }) = payload {
+                acc + 1
+            } else {
+                acc
+            }
+        });
+
+        // Parse pre-canned WIT to build resolver
+        let mut resolver = Resolve::default();
+        let pkg = UnresolvedPackage::parse(&Path::new("in-code.wit"), COMPONENT_WIT)?;
+        let pkg_id = resolver.push(pkg)?;
+        let world = resolver.select_world(pkg_id, Some("test-world").into())?;
+
+        // Embed component metadata
+        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8)?;
+
+        // Re-retrieve custom section count, and search for the component-type custom section along the way
+        let mut found_component_section = false;
+        let new_custom_section_count =
+            wasmparser::Parser::new(0)
+                .parse_all(&bytes)
+                .fold(0, |acc, payload| {
+                    if let Ok(Payload::CustomSection(reader)) = payload {
+                        if reader.name() == "component-type" {
+                            found_component_section = true;
+                        }
+                        acc + 1
+                    } else {
+                        acc
+                    }
+                });
+
+        assert!(original_len < bytes.len());
+        assert_eq!(original_custom_section_count + 1, new_custom_section_count);
+        assert!(found_component_section);
+
+        Ok(())
+    }
 }
