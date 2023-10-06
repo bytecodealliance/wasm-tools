@@ -3,6 +3,7 @@ use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::Serialize;
+use serde_derive::Serialize;
 
 pub fn serialize_none<S>(serializer: S) -> Result<S::Ok, S::Error>
 where

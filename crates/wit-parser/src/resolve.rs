@@ -9,7 +9,7 @@ use crate::{
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
-use serde::Serialize;
+use serde_derive::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
 use std::path::{Path, PathBuf};

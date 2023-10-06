@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
-use serde::Deserialize;
+use serde_derive::Deserialize;
 use std::{
     fs,
     path::{Path, PathBuf},

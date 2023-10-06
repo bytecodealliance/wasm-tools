@@ -17,6 +17,7 @@ wasmparser = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 serde = { workspace = true }
+serde_derive = { workspace = true }
 petgraph = "0.6.2"
 log = { workspace = true }
 serde_yaml = "0.9.22"

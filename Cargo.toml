@@ -37,7 +37,8 @@ log = "0.4.17"
 num_cpus = "1.13"
 rand = { version = "0.8.4", features = ["small_rng"] }
 rayon = "1.3"
-serde = { version = "1.0.166", features = ["derive"] }
+serde = "1.0.166"
+serde_derive = "1.0.166"
 serde_json = { version = "1" }
 wasmtime = { version = "12.0.0", default-features = false, features = ['cranelift', 'component-model'] }
 url = "2.0.0"
@@ -77,6 +78,7 @@ wasmprinter = { workspace = true }
 # Dependencies of `smith`
 arbitrary = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+serde_derive = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 wasm-smith = { workspace = true, features = ["_internal_cli"], optional = true }
 
@@ -156,7 +158,7 @@ default = [
 validate = ['dep:wasmparser', 'rayon']
 print = []
 parse = []
-smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_json']
+smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_derive', 'serde_json']
 shrink = ['wasm-shrink', 'is_executable']
 mutate = ['wasm-mutate']
 dump = ['dep:wasmparser']

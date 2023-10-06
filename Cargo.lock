@@ -649,12 +649,9 @@ checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "flagset"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cda653ca797810c02f7ca4b804b40b8b95ae046eb989d356bce17919a8c25499"
-dependencies = [
- "serde",
-]
+checksum = "d52a7e408202050813e6f1d9addadcaafef3dca7530c7ddfb005d4081cce6779"
 
 [[package]]
 name = "flate2"
@@ -1717,6 +1714,7 @@ dependencies = [
  "petgraph",
  "pretty_assertions",
  "serde",
+ "serde_derive",
  "serde_yaml",
  "smallvec",
  "wasm-encoder 0.33.2",
@@ -1753,6 +1751,7 @@ dependencies = [
  "clap 4.3.22",
  "indexmap 2.0.0",
  "serde",
+ "serde_derive",
  "serde_json",
  "spdx",
  "wasm-encoder 0.33.2",
@@ -1823,6 +1822,7 @@ dependencies = [
  "libfuzzer-sys",
  "rand",
  "serde",
+ "serde_derive",
  "wasm-encoder 0.33.2",
  "wasmparser 0.113.3",
  "wasmprinter 0.2.68",
@@ -1848,6 +1848,7 @@ dependencies = [
  "regex",
  "rustc-demangle",
  "serde",
+ "serde_derive",
  "serde_json",
  "tempfile",
  "termcolor",
@@ -2360,6 +2361,7 @@ dependencies = [
  "log",
  "pretty_assertions",
  "serde",
+ "serde_derive",
  "serde_json",
  "wasm-encoder 0.33.2",
  "wasm-metadata",
@@ -2401,6 +2403,7 @@ dependencies = [
  "rayon",
  "semver",
  "serde",
+ "serde_derive",
  "serde_json",
  "unicode-xid",
  "url",

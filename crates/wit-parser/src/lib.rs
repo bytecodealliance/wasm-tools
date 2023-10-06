@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
-use serde::Serialize;
+use serde_derive::Serialize;
 use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;

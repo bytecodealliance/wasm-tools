@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use spdx::Expression;
 use std::borrow::Cow;
 use std::fmt;
