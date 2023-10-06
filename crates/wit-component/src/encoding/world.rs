@@ -137,14 +137,17 @@ impl<'a> ComponentWorld<'a> {
                 );
 
                 Cow::Owned(
-                    crate::gc::run(wasm, &required, 
+                    crate::gc::run(
+                        wasm,
+                        &required,
                         if self.encoder.realloc_via_memory_grow {
-                            None 
+                            None
                         } else {
                             self.info.realloc
                         },
-                         self.encoder.alloc_stack_via_memory_grow)
-                        .context("failed to reduce input adapter module to its minimal size")?,
+                        self.encoder.alloc_stack_via_memory_grow,
+                    )
+                    .context("failed to reduce input adapter module to its minimal size")?,
                 )
             };
             let info = validate_adapter_module(
