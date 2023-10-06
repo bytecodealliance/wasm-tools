@@ -24,6 +24,7 @@ indexmap = { workspace = true }
 wast = { workspace = true }
 wat = { workspace = true }
 serde = { workspace = true }
+serde_derive = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]

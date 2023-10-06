@@ -79,7 +79,7 @@ pub struct Opts {
     general: wasm_tools::GeneralOpts,
 }
 
-#[derive(Default, Debug, Parser, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Parser, Clone, serde_derive::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
     #[clap(long = "min-types")]

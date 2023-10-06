@@ -1721,7 +1721,7 @@ flags! {
     /// Enumerate the categories of instructions defined in the [WebAssembly
     /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html).
     #[allow(missing_docs)]
-    #[cfg_attr(feature = "_internal_cli", derive(serde::Deserialize))]
+    #[cfg_attr(feature = "_internal_cli", derive(serde_derive::Deserialize))]
     pub enum InstructionKind: u16 {
         Numeric,
         Vector,

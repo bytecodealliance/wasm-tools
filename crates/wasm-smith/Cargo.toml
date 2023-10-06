@@ -21,6 +21,7 @@ flagset = "0.4"
 indexmap = { workspace = true }
 leb128 = { workspace = true }
 serde = { workspace = true, optional = true }
+serde_derive = { workspace = true, optional = true }
 wasm-encoder = { workspace = true }
 wasmparser = { workspace = true }
 
@@ -34,4 +35,4 @@ wat = { path = "../wat" }
 libfuzzer-sys = { workspace = true }
 
 [features]
-_internal_cli = ["serde", "flagset/serde"]
+_internal_cli = ["serde", "serde_derive"]

@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use wasm_encoder::{CustomSection, Encode};
 use wit_parser::{Docs, InterfaceId, PackageId, Resolve, TypeId, WorldId, WorldItem, WorldKey};
 

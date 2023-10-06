@@ -99,7 +99,7 @@ where
     seq.end()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, serde_derive::Serialize)]
 struct Param {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub name: String,
