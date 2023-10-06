@@ -1,5 +1,0 @@
-expected `world`, `interface` or `use`, found keyword `type`
-     --> tests/ui/parse-fail/invalid-md.md:6:1
-      |
-    6 | type foo = bar
-      | ^---
