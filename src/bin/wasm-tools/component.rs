@@ -107,6 +107,14 @@ pub struct NewOpts {
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
     wat: bool,
+
+    /// Use memory.grow to realloc memory.
+    #[clap(long, short = 'r')]
+    realloc_via_memory_grow: bool,
+
+    /// Use memory.grow for stack allocation.
+    #[clap(long, short = 's')]
+    alloc_stack_via_memory_grow: bool,
 }
 
 impl NewOpts {
@@ -124,6 +132,9 @@ impl NewOpts {
         for (name, wasm) in self.adapters.iter() {
             encoder = encoder.adapter(name, wasm)?;
         }
+
+        encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
+        encoder = encoder.alloc_stack_via_memory_grow(self.alloc_stack_via_memory_grow);
 
         let bytes = encoder
             .encode()
