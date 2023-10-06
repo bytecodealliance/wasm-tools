@@ -3,7 +3,6 @@ use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::Serialize;
-use serde_derive::Serialize;
 
 pub fn serialize_none<S>(serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -100,7 +99,7 @@ where
     seq.end()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, serde_derive::Serialize)]
 struct Param {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub name: String,
