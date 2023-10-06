@@ -21,8 +21,8 @@ anyhow = { workspace = true }
 log = "0.4.17"
 bitflags = "2.3.3"
 indexmap = { workspace = true }
-wast = { workspace = true }
-wat = { workspace = true }
+wast = { workspace = true, optional = true }
+wat = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
@@ -38,4 +38,5 @@ wat = { workspace = true }
 wasmtime = { workspace = true }
 
 [features]
-dummy-module = []
+dummy-module = ['dep:wat']
+wat = ['dep:wast', 'dep:wat']

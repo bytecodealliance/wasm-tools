@@ -3,11 +3,11 @@
 #![deny(missing_docs)]
 
 use std::str::FromStr;
-use std::{borrow::Cow, fmt::Display, path::Path};
+use std::{borrow::Cow, fmt::Display};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use wasm_encoder::{CanonicalOption, Encode, Section};
-use wit_parser::{PackageId, Resolve, UnresolvedPackage, WorldId};
+use wit_parser::{Resolve, WorldId};
 
 mod decoding;
 mod encoding;
@@ -85,7 +85,13 @@ pub(crate) fn base_producers() -> wasm_metadata::Producers {
 
 /// Parse a WIT file from a path that represents a top level 'wit' directory,
 /// normally containing a 'deps' folder.
-pub fn parse_wit_from_path(path: impl AsRef<Path>) -> Result<(Resolve, PackageId)> {
+#[cfg(feature = "wat")]
+pub fn parse_wit_from_path(
+    path: impl AsRef<std::path::Path>,
+) -> Result<(Resolve, wit_parser::PackageId)> {
+    use anyhow::Context;
+    use wit_parser::UnresolvedPackage;
+
     let mut resolver = Resolve::default();
     let id = match path.as_ref() {
         // Directories can be directly fed into the resolver
@@ -153,6 +159,7 @@ pub fn parse_wit_from_path(path: impl AsRef<Path>) -> Result<(Resolve, PackageId
 /// )
 /// "#));
 /// ```
+#[cfg(feature = "wat")]
 pub fn is_wasm_binary_or_wat(bytes: impl AsRef<[u8]>) -> bool {
     use wast::lexer::{Lexer, TokenKind};
 
