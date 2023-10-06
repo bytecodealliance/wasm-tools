@@ -2397,7 +2397,6 @@ dependencies = [
  "indexmap 2.0.0",
  "log",
  "pretty_assertions",
- "pulldown-cmark",
  "rayon",
  "semver",
  "serde",

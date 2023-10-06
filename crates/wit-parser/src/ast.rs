@@ -1199,11 +1199,7 @@ impl SourceMap {
     /// interfaces and worlds defined together. Note that each file has its own
     /// personal namespace, however, for top-level `use` and such.
     pub fn push(&mut self, path: &Path, contents: impl Into<String>) {
-        let mut contents = contents.into();
-        if path.extension().and_then(|s| s.to_str()) == Some("md") {
-            log::debug!("automatically unwrapping markdown container");
-            contents = unwrap_md(&contents);
-        }
+        let contents = contents.into();
         let new_offset = self.offset + u32::try_from(contents.len()).unwrap();
         self.sources.push(Source {
             offset: self.offset,
@@ -1211,43 +1207,6 @@ impl SourceMap {
             contents,
         });
         self.offset = new_offset;
-
-        fn unwrap_md(contents: &str) -> String {
-            use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag};
-
-            let mut wit = String::new();
-            let mut last_pos = 0;
-            let mut in_wit_code_block = false;
-            Parser::new_ext(contents, Options::empty())
-                .into_offset_iter()
-                .for_each(|(event, range)| match (event, range) {
-                    (
-                        Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed(
-                            "wit",
-                        )))),
-                        _,
-                    ) => {
-                        in_wit_code_block = true;
-                    }
-                    (Event::Text(text), range) if in_wit_code_block => {
-                        // Ensure that offsets are correct by inserting newlines to
-                        // cover the Markdown content outside of wit code blocks.
-                        for _ in contents[last_pos..range.start].lines() {
-                            wit.push('\n');
-                        }
-                        wit.push_str(&text);
-                        last_pos = range.end;
-                    }
-                    (
-                        Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("wit")))),
-                        _,
-                    ) => {
-                        in_wit_code_block = false;
-                    }
-                    _ => {}
-                });
-            wit
-        }
     }
 
     /// Parses the files added to this source map into an [`UnresolvedPackage`].
