@@ -2403,7 +2403,6 @@ dependencies = [
  "serde",
  "serde_json",
  "unicode-xid",
- "url",
 ]
 
 [[package]]
