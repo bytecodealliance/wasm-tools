@@ -707,7 +707,6 @@ impl<'a> Module<'a> {
             num_func_imports += 1;
         }
 
-        let mut realloc_via_memory_grow_index = None;
         for (i, func) in local {
             map.funcs.push(i);
             let ty = map.types.remap(func.ty);
@@ -716,7 +715,6 @@ impl<'a> Module<'a> {
                     // The adapter is importing `cabi_realloc` from the main module, but the main module isn't
                     // exporting it.  In this case, we need to define a local function it can call instead.
                     realloc_index = Some(num_func_imports + funcs.len());
-                    realloc_via_memory_grow_index = realloc_index;
                     funcs.function(ty);
                     code.function(&realloc_via_memory_grow());
                 }
@@ -775,37 +773,15 @@ impl<'a> Module<'a> {
             code.function(&func);
         }
 
-        let mut realloc_via_memory_grow_required = None;
         if lazy_stack_init_index.is_some() {
-            let mut alloc_stack_index = realloc_index;
-
-            if main_module_realloc.is_none() {
-                if realloc_via_memory_grow_index.is_none() {
-                    realloc_via_memory_grow_index = Some(num_func_imports + funcs.len());
-                    realloc_via_memory_grow_required = Some(true);
-                }
-                alloc_stack_index = realloc_via_memory_grow_index;
-            }
-
             code.function(&allocate_stack_via_realloc(
-                alloc_stack_index.unwrap(),
+                realloc_index.unwrap(),
                 sp.unwrap(),
                 allocation_state,
             ));
-
-            if realloc_via_memory_grow_required.is_some()
-                && realloc_via_memory_grow_required.unwrap()
-            {
-                funcs.function(add_realloc_type(&mut types));
-                code.function(&realloc_via_memory_grow());
-            }
         }
 
-        if sp.is_some()
-            && (realloc_index.is_none()
-                || allocation_state.is_none()
-                || main_module_realloc.is_none())
-        {
+        if sp.is_some() && (realloc_index.is_none() || allocation_state.is_none()) {
             // Either the main module does _not_ export a realloc function, or it is not safe to use for stack
             // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
             realloc_index = Some(num_func_imports + funcs.len());
