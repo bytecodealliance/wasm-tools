@@ -85,12 +85,10 @@ pub(crate) fn base_producers() -> wasm_metadata::Producers {
 
 /// Parse a WIT file from a path that represents a top level 'wit' directory,
 /// normally containing a 'deps' folder.
-#[cfg(feature = "wat")]
 pub fn parse_wit_from_path(
     path: impl AsRef<std::path::Path>,
 ) -> Result<(Resolve, wit_parser::PackageId)> {
     use anyhow::Context;
-    use wit_parser::UnresolvedPackage;
 
     let mut resolver = Resolve::default();
     let id = match path.as_ref() {
@@ -109,7 +107,21 @@ pub fn parse_wit_from_path(
         // Non-directory files (including symlinks) can be either:
         // - Wasm modules (binary or WAT) that are WIT packages
         // - WIT files
+        #[cfg(not(feature = "wat"))]
         p => {
+            let file_contents = std::fs::read(p)
+                .with_context(|| format!("failed to parse WIT from path [{}]", p.display()))?;
+            match decode(&file_contents)? {
+                DecodedWasm::Component(..) => {
+                    bail!("specified path is a component, not a wit package")
+                }
+                DecodedWasm::WitPackage(resolve, pkg) => return Ok((resolve, pkg)),
+            }
+        }
+        #[cfg(feature = "wat")]
+        p => {
+            use wit_parser::UnresolvedPackage;
+
             let file_contents = std::fs::read(p)
                 .with_context(|| format!("failed to parse WIT from path [{}]", p.display()))?;
 
