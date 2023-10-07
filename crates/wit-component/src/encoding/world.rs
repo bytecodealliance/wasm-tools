@@ -145,7 +145,6 @@ impl<'a> ComponentWorld<'a> {
                         } else {
                             self.info.realloc
                         },
-                        self.encoder.alloc_stack_via_memory_grow,
                     )
                     .context("failed to reduce input adapter module to its minimal size")?,
                 )

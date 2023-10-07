@@ -21,7 +21,6 @@ pub fn run<T>(
     wasm: &[u8],
     required: &IndexMap<String, T>,
     main_module_realloc: Option<&str>,
-    alloc_stack_via_memory_grow: bool,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
@@ -53,7 +52,7 @@ pub fn run<T>(
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
-    module.encode(main_module_realloc, alloc_stack_via_memory_grow)
+    module.encode(main_module_realloc)
 }
 
 fn always_keep(name: &str) -> bool {
@@ -539,11 +538,7 @@ impl<'a> Module<'a> {
 
     /// Encodes this `Module` to a new wasm module which is gc'd and only
     /// contains the items that are live as calculated by the `liveness` pass.
-    fn encode(
-        &mut self,
-        main_module_realloc: Option<&str>,
-        alloc_stack_via_memory_grow: bool,
-    ) -> Result<Vec<u8>> {
+    fn encode(&mut self, main_module_realloc: Option<&str>) -> Result<Vec<u8>> {
         // Data structure used to track the mapping of old index to new index
         // for all live items.
         let mut map = Encoder::default();
@@ -780,14 +775,14 @@ impl<'a> Module<'a> {
             code.function(&func);
         }
 
-        let mut realloc_via_memorry_grow_required = None;
+        let mut realloc_via_memory_grow_required = None;
         if lazy_stack_init_index.is_some() {
             let mut alloc_stack_index = realloc_index;
 
-            if alloc_stack_via_memory_grow {
+            if main_module_realloc.is_none() {
                 if realloc_via_memory_grow_index.is_none() {
                     realloc_via_memory_grow_index = Some(num_func_imports + funcs.len());
-                    realloc_via_memorry_grow_required = Some(true);
+                    realloc_via_memory_grow_required = Some(true);
                 }
                 alloc_stack_index = realloc_via_memory_grow_index;
             }
@@ -798,8 +793,8 @@ impl<'a> Module<'a> {
                 allocation_state,
             ));
 
-            if realloc_via_memorry_grow_required.is_some()
-                && realloc_via_memorry_grow_required.unwrap()
+            if realloc_via_memory_grow_required.is_some()
+                && realloc_via_memory_grow_required.unwrap()
             {
                 funcs.function(add_realloc_type(&mut types));
                 code.function(&realloc_via_memory_grow());
@@ -809,7 +804,7 @@ impl<'a> Module<'a> {
         if sp.is_some()
             && (realloc_index.is_none()
                 || allocation_state.is_none()
-                || alloc_stack_via_memory_grow)
+                || main_module_realloc.is_none())
         {
             // Either the main module does _not_ export a realloc function, or it is not safe to use for stack
             // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.

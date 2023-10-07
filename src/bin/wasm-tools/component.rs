@@ -108,13 +108,9 @@ pub struct NewOpts {
     #[clap(long, short = 't')]
     wat: bool,
 
-    /// Use memory.grow to realloc memory.
-    #[clap(long, short = 'r')]
+    /// Use memory.grow to realloc memory and stack allocation.
+    #[clap(long)]
     realloc_via_memory_grow: bool,
-
-    /// Use memory.grow for stack allocation.
-    #[clap(long, short = 's')]
-    alloc_stack_via_memory_grow: bool,
 }
 
 impl NewOpts {
@@ -134,7 +130,6 @@ impl NewOpts {
         }
 
         encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
-        encoder = encoder.alloc_stack_via_memory_grow(self.alloc_stack_via_memory_grow);
 
         let bytes = encoder
             .encode()
