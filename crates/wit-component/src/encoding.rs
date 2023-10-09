@@ -1892,6 +1892,8 @@ pub struct ComponentEncoder {
     validate: bool,
     main_module_exports: IndexSet<WorldKey>,
     adapters: IndexMap<String, Adapter>,
+
+    realloc_via_memory_grow: bool,
 }
 
 impl ComponentEncoder {
@@ -2028,6 +2030,15 @@ impl ComponentEncoder {
             },
         );
         Ok(self)
+    }
+
+    /// True if the realloc and stack alloction should use ememory.grow
+    /// The default is to use the main module realloc
+    /// Can be useful if cabi_realloc cannot be called before the host
+    /// runtime is initialised.
+    pub fn realloc_via_memory_grow(mut self, value: bool) -> Self {
+        self.realloc_via_memory_grow = value;
+        self
     }
 
     /// Encode the component and return the bytes.
