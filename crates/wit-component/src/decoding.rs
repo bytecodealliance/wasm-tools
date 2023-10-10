@@ -27,6 +27,12 @@ enum Extern<'a> {
     Export(ComponentExport<'a>),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WitEncodingVersion {
+    V1,
+    V2,
+}
+
 impl<'a> ComponentInfo<'a> {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
     fn new(bytes: &'a [u8]) -> Result<Self> {
@@ -79,27 +85,43 @@ impl<'a> ComponentInfo<'a> {
         })
     }
 
-    fn is_wit_package(&self) -> bool {
+    fn is_wit_package(&self) -> Option<WitEncodingVersion> {
         // all wit package exports must be component types, and there must be at
         // least one
-        !self.externs.is_empty()
-            && self.externs.iter().all(|(_, item)| {
-                let export = match item {
-                    Extern::Export(e) => e,
-                    _ => return false,
-                };
-                match export.kind {
-                    ComponentExternalKind::Type => matches!(
-                        &self.types[self.types.component_type_at(export.index)],
-                        types::Type::Component(_)
-                    ),
-                    _ => false,
-                }
-            })
+        if self.externs.is_empty() {
+            return None;
+        }
+
+        if !self.externs.iter().all(|(_, item)| {
+            let export = match item {
+                Extern::Export(e) => e,
+                _ => return false,
+            };
+            match export.kind {
+                ComponentExternalKind::Type => matches!(
+                    &self.types[self.types.component_type_at(export.index)],
+                    types::Type::Component(_)
+                ),
+                _ => false,
+            }
+        }) {
+            return None;
+        }
+
+        // The distinction between v1 and v2 encoding formats is the structure of the export
+        // strings for each component. The v1 format uses "<namespace>:<package>/wit" as the name
+        // for the top-level exports, while the v2 format uses the unqualified name of the encoded
+        // entity.
+
+        let name = self.externs[0].0.as_str();
+        if name.contains(":") && name.ends_with("/wit") {
+            Some(WitEncodingVersion::V1)
+        } else {
+            Some(WitEncodingVersion::V2)
+        }
     }
 
-    fn decode_wit_package(&self) -> Result<(Resolve, PackageId)> {
-        assert!(self.is_wit_package());
+    fn decode_wit_v1_package(&self) -> Result<(Resolve, PackageId)> {
         let resolve = Resolve::default();
         let mut decoder = WitPackageDecoder {
             resolve,
@@ -138,8 +160,12 @@ impl<'a> ComponentInfo<'a> {
         Ok((resolve, package))
     }
 
+    fn decode_wit_v2_package(&self) -> Result<(Resolve, PackageId)> {
+        unimplemented!()
+    }
+
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
-        assert!(!self.is_wit_package());
+        assert!(self.is_wit_package().is_none());
         let mut resolve = Resolve::default();
         // Note that this name is arbitrarily chosen. We may one day perhaps
         // want to encode this in the component binary format itself, but for
@@ -234,10 +260,19 @@ impl DecodedWasm {
 pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
     let info = ComponentInfo::new(bytes)?;
 
-    if info.is_wit_package() {
-        log::debug!("decoding a WIT package encoded as wasm");
-        let (resolve, pkg) = info.decode_wit_package()?;
-        Ok(DecodedWasm::WitPackage(resolve, pkg))
+    if let Some(version) = info.is_wit_package() {
+        match version {
+            WitEncodingVersion::V1 => {
+                log::debug!("decoding a v1 WIT package encoded as wasm");
+                let (resolve, pkg) = info.decode_wit_v1_package()?;
+                Ok(DecodedWasm::WitPackage(resolve, pkg))
+            }
+            WitEncodingVersion::V2 => {
+                log::debug!("decoding a v2 WIT package encoded as wasm");
+                let (resolve, pkg) = info.decode_wit_v2_package()?;
+                Ok(DecodedWasm::WitPackage(resolve, pkg))
+            }
+        }
     } else {
         log::debug!("inferring the WIT of a concrete component");
         let (resolve, world) = info.decode_component()?;
