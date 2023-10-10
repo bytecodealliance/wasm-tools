@@ -66,10 +66,37 @@ impl Encoder<'_> {
         // decoding process where everyone's view of a foreign document agrees
         // notably on the order that types are defined in to assist with
         // roundtripping.
-        let mut interfaces = IndexSet::new();
-        for (_, id) in self.resolve.packages[self.package].interfaces.iter() {
-            self.add_live_interfaces(&mut interfaces, *id);
+        for (name, &id) in self.resolve.packages[self.package].interfaces.iter() {
+            let component_ty = self.encode_interface(id)?;
+            let ty = self.component.type_component(&component_ty);
+            self.component
+                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
         }
+
+        for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
+            let component_ty = encode_world(self.resolve, world)?;
+            let ty = self.component.type_component(&component_ty);
+            self.component
+                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+        }
+
+        Ok(())
+    }
+
+    fn encode_interface(&mut self, id: InterfaceId) -> Result<ComponentType> {
+        let iface = &self.resolve.interfaces[id];
+        log::trace!("encoding interface {:?}", iface.name);
+
+        // Build a set of interfaces reachable from this document, including the
+        // interfaces in the document itself. This is used to import instances
+        // into the component type we're encoding. Note that entire interfaces
+        // are imported with all their types as opposed to just the needed types
+        // in an interface for this document. That's done to assist with the
+        // decoding process where everyone's view of a foreign document agrees
+        // notably on the order that types are defined in to assist with
+        // roundtripping.
+        let mut interfaces = IndexSet::new();
+        self.add_live_interfaces(&mut interfaces, id);
 
         // Seed the set of used names with all exported interfaces to ensure
         // that imported interfaces choose different names as the import names
@@ -82,15 +109,7 @@ impl Encoder<'_> {
                 assert!(first);
             }
         }
-        for (name, _world) in self.resolve.packages[self.package].worlds.iter() {
-            let first = used_names.insert(name.clone());
-            assert!(first);
-        }
 
-        // Encode all interfaces, foreign and local, into this component type.
-        // Local interfaces get their functions defined as well and are
-        // exported. Foreign interfaces are imported and only have their types
-        // encoded.
         let mut encoder = InterfaceEncoder::new(self.resolve);
         for interface in interfaces {
             encoder.interface = Some(interface);
@@ -113,21 +132,10 @@ impl Encoder<'_> {
                 encoder.outer.import(&name, ComponentTypeRef::Instance(idx));
             }
         }
+
         encoder.interface = None;
 
-        for (name, world) in self.resolve.packages[self.package].worlds.iter() {
-            let component_ty = encode_world(self.resolve, *world)?;
-            let idx = encoder.outer.type_count();
-            encoder.outer.ty().component(&component_ty);
-            let id = self.resolve.packages[self.package].name.interface_id(name);
-            encoder.outer.export(&id, ComponentTypeRef::Component(idx));
-        }
-
-        let ty = self.component.type_component(&encoder.outer);
-        let id = self.resolve.packages[self.package].name.interface_id("wit");
-        self.component
-            .export(&id, ComponentExportKind::Type, ty, None);
-        Ok(())
+        Ok(encoder.outer)
     }
 
     /// Recursively add all live interfaces reachable from `id` into the
