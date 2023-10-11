@@ -85,7 +85,7 @@ pub struct StructType {
 impl From<wasmparser::StructType> for StructType {
     fn from(struct_ty: wasmparser::StructType) -> Self {
         StructType {
-            fields: struct_ty.fields.iter().cloned().map(Into::into).collect(),
+            fields: struct_ty.fields.into_iter().map(Into::into).collect(),
         }
     }
 }
