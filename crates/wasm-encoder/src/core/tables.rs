@@ -102,3 +102,14 @@ impl Encode for TableType {
         }
     }
 }
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::TableType> for TableType {
+    fn from(table_ty: wasmparser::TableType) -> Self {
+        TableType {
+            element_type: table_ty.element_type.into(),
+            minimum: table_ty.initial,
+            maximum: table_ty.maximum,
+        }
+    }
+}

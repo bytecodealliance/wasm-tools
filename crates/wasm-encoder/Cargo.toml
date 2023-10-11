@@ -15,6 +15,10 @@ A low-level WebAssembly encoder.
 [dependencies]
 leb128 = { workspace = true }
 
+# Enable this dependency to get a bunch of `From<wasmparser::Foo> for
+# wasm_encoder::Foo` impls.
+wasmparser = { optional = true, path = "../wasmparser" }
+
 [dev-dependencies]
 anyhow = { workspace = true }
 tempfile = "3.2.0"
