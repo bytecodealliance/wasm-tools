@@ -84,9 +84,6 @@ impl Encoder<'_> {
     }
 
     fn encode_interface(&mut self, id: InterfaceId) -> Result<ComponentType> {
-        let iface = &self.resolve.interfaces[id];
-        log::trace!("encoding interface {:?}", iface.name);
-
         // Build a set of interfaces reachable from this document, including the
         // interfaces in the document itself. This is used to import instances
         // into the component type we're encoding. Note that entire interfaces
@@ -115,10 +112,10 @@ impl Encoder<'_> {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
             let name = self.resolve.id_of(interface).unwrap();
-            log::trace!("encoding interface {name}");
-            if iface.package == Some(self.package) {
+            if interface == id {
                 let idx = encoder.encode_instance(interface)?;
-                encoder.outer.export(&name, ComponentTypeRef::Instance(idx));
+                log::trace!("exporting self as {idx}");
+                encoder.outer.export(&name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -262,11 +259,11 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     }
     fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32> {
         match &mut self.ty {
-            Some(ty) => {
+            Some(_) => {
+                // We don't want to re-export anything when we're defining the interface, so we
+                // return `None` when there's an interface pushed.
                 assert!(!self.import_types);
-                let ret = ty.type_count();
-                ty.export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
-                Some(ret)
+                None
             }
             None => {
                 let ret = self.outer.type_count();
