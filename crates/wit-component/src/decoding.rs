@@ -161,7 +161,68 @@ impl<'a> ComponentInfo<'a> {
     }
 
     fn decode_wit_v2_package(&self) -> Result<(Resolve, PackageId)> {
-        unimplemented!()
+        let resolve = Resolve::default();
+        let mut decoder = WitPackageDecoder {
+            resolve,
+            info: self,
+            type_map: HashMap::new(),
+            foreign_packages: Default::default(),
+            iface_to_package_index: Default::default(),
+            named_interfaces: Default::default(),
+            resources: Default::default(),
+        };
+        let mut pkg = None;
+        log::trace!("decoding {} documents", self.externs.len());
+        for (name, item) in self.externs.iter() {
+            log::trace!(" -> decoding `{}`", name.as_str());
+            let export = match item {
+                Extern::Export(e) => e,
+                _ => unreachable!(),
+            };
+
+            let (name, component) = self.unwrap_exported_component(export.index);
+
+            if pkg.is_some() {
+                bail!("more than one top-level exported component type found");
+            }
+
+            panic!("found {} as {:?}", name, component);
+
+            // pkg = Some(
+            //     decoder
+            //         .decode_package(&name, component)
+            //         .with_context(|| format!("failed to decode document `{name}`"))?,
+            // );
+        }
+
+        let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
+        let (mut resolve, package) = decoder.finish(pkg);
+        if let Some(package_docs) = &self.package_docs {
+            package_docs.inject(&mut resolve, package)?;
+        }
+        Ok((resolve, package))
+    }
+
+    fn unwrap_exported_component(&self, index: u32) -> (KebabName, &types::ComponentInstanceType) {
+        let id = self.types.component_type_at(index);
+        let outer_component = self.types[id].unwrap_component();
+
+        log::trace!("component: {outer_component:?}");
+
+        assert_eq!(outer_component.exports.len(), 1);
+        let (name, ty) = outer_component.exports.first().unwrap();
+
+        let component = match ty {
+            types::ComponentEntityType::Type { referenced, .. } => {
+                self.types[*referenced].unwrap_component_instance()
+            }
+
+            _ => unreachable!("what? {ty:?}"),
+        };
+
+        let name = KebabName::new(ComponentExternName::Interface(name.as_ref()), 0).unwrap();
+
+        (name, component)
     }
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
@@ -305,6 +366,7 @@ impl WitPackageDecoder<'_> {
         // Process all imports for this package first, where imports are
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
+            log::trace!("name: {:?}, ty: {:?}", name, ty);
             let ty = match ty {
                 types::ComponentEntityType::Instance(idx) => {
                     self.info.types[*idx].unwrap_component_instance()
