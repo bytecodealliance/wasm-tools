@@ -88,3 +88,13 @@ impl Encode for GlobalType {
         sink.push(self.mutable as u8);
     }
 }
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::GlobalType> for GlobalType {
+    fn from(global_ty: wasmparser::GlobalType) -> Self {
+        GlobalType {
+            val_type: global_ty.content_type.into(),
+            mutable: global_ty.mutable,
+        }
+    }
+}

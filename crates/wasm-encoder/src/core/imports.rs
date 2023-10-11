@@ -73,6 +73,19 @@ impl From<TagType> for EntityType {
     }
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::TypeRef> for EntityType {
+    fn from(type_ref: wasmparser::TypeRef) -> Self {
+        match type_ref {
+            wasmparser::TypeRef::Func(i) => EntityType::Function(i),
+            wasmparser::TypeRef::Table(t) => EntityType::Table(t.into()),
+            wasmparser::TypeRef::Memory(m) => EntityType::Memory(m.into()),
+            wasmparser::TypeRef::Global(g) => EntityType::Global(g.into()),
+            wasmparser::TypeRef::Tag(t) => EntityType::Tag(t.into()),
+        }
+    }
+}
+
 /// An encoder for the import section of WebAssembly modules.
 ///
 /// # Example

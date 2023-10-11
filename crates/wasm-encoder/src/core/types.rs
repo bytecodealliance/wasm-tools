@@ -11,6 +11,17 @@ pub struct SubType {
     pub structural_type: StructuralType,
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::SubType> for SubType {
+    fn from(sub_ty: wasmparser::SubType) -> Self {
+        SubType {
+            is_final: sub_ty.is_final,
+            supertype_idx: sub_ty.supertype_idx,
+            structural_type: sub_ty.structural_type.into(),
+        }
+    }
+}
+
 /// Represents a structural type in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum StructuralType {
@@ -22,6 +33,17 @@ pub enum StructuralType {
     Struct(StructType),
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::StructuralType> for StructuralType {
+    fn from(structural_ty: wasmparser::StructuralType) -> Self {
+        match structural_ty {
+            wasmparser::StructuralType::Func(f) => StructuralType::Func(f.into()),
+            wasmparser::StructuralType::Array(a) => StructuralType::Array(a.into()),
+            wasmparser::StructuralType::Struct(s) => StructuralType::Struct(s.into()),
+        }
+    }
+}
+
 /// Represents a type of a function in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
@@ -31,15 +53,41 @@ pub struct FuncType {
     len_params: usize,
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::FuncType> for FuncType {
+    fn from(func_ty: wasmparser::FuncType) -> Self {
+        FuncType::new(
+            func_ty.params().iter().cloned().map(Into::into),
+            func_ty.results().iter().cloned().map(Into::into),
+        )
+    }
+}
+
 /// Represents a type of an array in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ArrayType(pub FieldType);
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::ArrayType> for ArrayType {
+    fn from(array_ty: wasmparser::ArrayType) -> Self {
+        ArrayType(array_ty.0.into())
+    }
+}
 
 /// Represents a type of a struct in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructType {
     /// Struct fields.
     pub fields: Box<[FieldType]>,
+}
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::StructType> for StructType {
+    fn from(struct_ty: wasmparser::StructType) -> Self {
+        StructType {
+            fields: struct_ty.fields.into_iter().map(Into::into).collect(),
+        }
+    }
 }
 
 /// Field type in structural types (structs, arrays).
@@ -51,6 +99,16 @@ pub struct FieldType {
     pub mutable: bool,
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::FieldType> for FieldType {
+    fn from(field_ty: wasmparser::FieldType) -> Self {
+        FieldType {
+            element_type: field_ty.element_type.into(),
+            mutable: field_ty.mutable,
+        }
+    }
+}
+
 /// Storage type for structural type fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum StorageType {
@@ -60,6 +118,17 @@ pub enum StorageType {
     I16,
     /// A value type.
     Val(ValType),
+}
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::StorageType> for StorageType {
+    fn from(storage_ty: wasmparser::StorageType) -> Self {
+        match storage_ty {
+            wasmparser::StorageType::I8 => StorageType::I8,
+            wasmparser::StorageType::I16 => StorageType::I16,
+            wasmparser::StorageType::Val(v) => StorageType::Val(v.into()),
+        }
+    }
 }
 
 /// The type of a core WebAssembly value.
@@ -83,6 +152,20 @@ pub enum ValType {
     /// generalization here is due to the implementation of the
     /// function-references proposal.
     Ref(RefType),
+}
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::ValType> for ValType {
+    fn from(val_ty: wasmparser::ValType) -> Self {
+        match val_ty {
+            wasmparser::ValType::I32 => ValType::I32,
+            wasmparser::ValType::I64 => ValType::I64,
+            wasmparser::ValType::F32 => ValType::F32,
+            wasmparser::ValType::F64 => ValType::F64,
+            wasmparser::ValType::V128 => ValType::V128,
+            wasmparser::ValType::Ref(r) => ValType::Ref(r.into()),
+        }
+    }
 }
 
 impl FuncType {
@@ -191,6 +274,16 @@ impl Encode for RefType {
     }
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::RefType> for RefType {
+    fn from(ref_type: wasmparser::RefType) -> Self {
+        RefType {
+            nullable: ref_type.is_nullable(),
+            heap_type: ref_type.heap_type().into(),
+        }
+    }
+}
+
 impl From<RefType> for ValType {
     fn from(ty: RefType) -> ValType {
         ValType::Ref(ty)
@@ -241,6 +334,25 @@ impl Encode for HeapType {
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
             HeapType::Indexed(i) => i64::from(*i).encode(sink),
+        }
+    }
+}
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::HeapType> for HeapType {
+    fn from(heap_type: wasmparser::HeapType) -> Self {
+        match heap_type {
+            wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i),
+            wasmparser::HeapType::Func => HeapType::Func,
+            wasmparser::HeapType::Extern => HeapType::Extern,
+            wasmparser::HeapType::Any => HeapType::Any,
+            wasmparser::HeapType::None => HeapType::None,
+            wasmparser::HeapType::NoExtern => HeapType::NoExtern,
+            wasmparser::HeapType::NoFunc => HeapType::NoFunc,
+            wasmparser::HeapType::Eq => HeapType::Eq,
+            wasmparser::HeapType::Struct => HeapType::Struct,
+            wasmparser::HeapType::Array => HeapType::Array,
+            wasmparser::HeapType::I31 => HeapType::I31,
         }
     }
 }
