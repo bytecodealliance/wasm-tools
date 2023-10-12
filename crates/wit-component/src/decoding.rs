@@ -147,7 +147,7 @@ impl<'a> ComponentInfo<'a> {
             let name = KebabName::new(*name, 0).unwrap();
             pkg = Some(
                 decoder
-                    .decode_package(&name, ty)
+                    .decode_v1_package(&name, ty)
                     .with_context(|| format!("failed to decode document `{name}`"))?,
             );
         }
@@ -171,7 +171,16 @@ impl<'a> ComponentInfo<'a> {
             named_interfaces: Default::default(),
             resources: Default::default(),
         };
-        let mut pkg = None;
+
+        let mut pkg_name = None;
+
+        let mut interfaces = IndexMap::new();
+        let mut worlds = IndexMap::new();
+        let mut fields = PackageFields {
+            interfaces: &mut interfaces,
+            worlds: &mut worlds,
+        };
+
         log::trace!("decoding {} documents", self.externs.len());
         for (name, item) in self.externs.iter() {
             log::trace!(" -> decoding `{}`", name.as_str());
@@ -180,49 +189,58 @@ impl<'a> ComponentInfo<'a> {
                 _ => unreachable!(),
             };
 
-            let (name, component) = self.unwrap_exported_component(export.index);
+            let index = export.index;
+            let id = self.types.component_type_at(index);
+            let component = self.types[id].unwrap_component();
+            log::trace!("component: {component:?}");
 
-            if pkg.is_some() {
-                bail!("more than one top-level exported component type found");
+            // The single export of this component will determine if it's a world or an interface:
+            // worlds export a component, while interfaces export an instance.
+            assert_eq!(component.exports.len(), 1);
+
+            let name = component.exports.keys().nth(0).unwrap();
+
+            let exported = match component.exports[name] {
+                types::ComponentEntityType::Type { referenced, .. } => &self.types[referenced],
+
+                _ => unreachable!(),
+            };
+
+            let name = match exported {
+                types::Type::Component(ty) => {
+                    let (package_name, world) =
+                        decoder.decode_world(name.as_str(), ty, &mut fields)?;
+                    log::trace!("parsed world {world:?}");
+                    package_name
+                }
+                _ => panic!(),
+            };
+
+            if let Some(pkg_name) = pkg_name.as_ref() {
+                if pkg_name != &name {
+                    bail!("item defined with mismatched package name")
+                }
+            } else {
+                pkg_name.replace(name);
             }
-
-            panic!("found {} as {:?}", name, component);
-
-            // pkg = Some(
-            //     decoder
-            //         .decode_package(&name, component)
-            //         .with_context(|| format!("failed to decode document `{name}`"))?,
-            // );
         }
 
-        let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
+        let pkg = if let Some(name) = pkg_name {
+            Package {
+                name,
+                docs: Docs::default(),
+                interfaces,
+                worlds,
+            }
+        } else {
+            bail!("no exported component type found");
+        };
+
         let (mut resolve, package) = decoder.finish(pkg);
         if let Some(package_docs) = &self.package_docs {
             package_docs.inject(&mut resolve, package)?;
         }
         Ok((resolve, package))
-    }
-
-    fn unwrap_exported_component(&self, index: u32) -> (KebabName, &types::ComponentInstanceType) {
-        let id = self.types.component_type_at(index);
-        let outer_component = self.types[id].unwrap_component();
-
-        log::trace!("component: {outer_component:?}");
-
-        assert_eq!(outer_component.exports.len(), 1);
-        let (name, ty) = outer_component.exports.first().unwrap();
-
-        let component = match ty {
-            types::ComponentEntityType::Type { referenced, .. } => {
-                self.types[*referenced].unwrap_component_instance()
-            }
-
-            _ => unreachable!("what? {ty:?}"),
-        };
-
-        let name = KebabName::new(ComponentExternName::Interface(name.as_ref()), 0).unwrap();
-
-        (name, component)
     }
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
@@ -264,13 +282,18 @@ impl<'a> ComponentInfo<'a> {
             interfaces: Default::default(),
         };
 
+        let mut fields = PackageFields {
+            worlds: &mut package.worlds,
+            interfaces: &mut package.interfaces,
+        };
+
         for (_name, item) in self.externs.iter() {
             match item {
                 Extern::Import(import) => {
-                    decoder.decode_component_import(import, world, &mut package)?
+                    decoder.decode_component_import(import, world, &mut fields)?
                 }
                 Extern::Export(export) => {
-                    decoder.decode_component_export(export, world, &mut package)?
+                    decoder.decode_component_export(export, world, &mut fields)?
                 }
             }
         }
@@ -341,6 +364,11 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
     }
 }
 
+struct PackageFields<'a> {
+    interfaces: &'a mut IndexMap<String, InterfaceId>,
+    worlds: &'a mut IndexMap<String, WorldId>,
+}
+
 struct WitPackageDecoder<'a> {
     resolve: Resolve,
     info: &'a ComponentInfo<'a>,
@@ -362,7 +390,11 @@ struct WitPackageDecoder<'a> {
 }
 
 impl WitPackageDecoder<'_> {
-    fn decode_package(&mut self, name: &KebabName, ty: &types::ComponentType) -> Result<Package> {
+    fn decode_v1_package(
+        &mut self,
+        name: &KebabName,
+        ty: &types::ComponentType,
+    ) -> Result<Package> {
         // Process all imports for this package first, where imports are
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
@@ -399,16 +431,21 @@ impl WitPackageDecoder<'_> {
             worlds: Default::default(),
         };
 
+        let mut fields = PackageFields {
+            interfaces: &mut package.interfaces,
+            worlds: &mut package.worlds,
+        };
+
         for (name, ty) in ty.exports.iter() {
             match ty {
                 types::ComponentEntityType::Instance(idx) => {
                     let ty = self.info.types[*idx].unwrap_component_instance();
-                    self.register_interface(name.as_str(), ty, &mut package)
+                    self.register_interface(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
                 types::ComponentEntityType::Component(idx) => {
                     let ty = self.info.types[*idx].unwrap_component();
-                    self.register_world(name.as_str(), ty, &mut package)
+                    self.register_world(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
                 _ => bail!("component export `{name}` is not an instance or component"),
@@ -417,11 +454,40 @@ impl WitPackageDecoder<'_> {
         Ok(package)
     }
 
-    fn decode_component_import(
+    fn decode_world<'a>(
+        &mut self,
+        name: &str,
+        ty: &types::ComponentType,
+        fields: &mut PackageFields<'a>,
+    ) -> Result<(PackageName, WorldId)> {
+        let kebab_name = self
+            .extract_kebab_name(name)
+            .context("expected world name to have an ID form")?;
+
+        let package = match kebab_name.kind() {
+            KebabNameKind::Id {
+                namespace,
+                package,
+                version,
+                ..
+            } => PackageName {
+                namespace: namespace.to_string(),
+                name: package.to_string(),
+                version,
+            },
+            _ => bail!("expected world name to be fully qualified"),
+        };
+
+        let id = self.register_world(name, ty, fields)?;
+
+        Ok((package, id))
+    }
+
+    fn decode_component_import<'a>(
         &mut self,
         import: &ComponentImport<'_>,
         world: WorldId,
-        package: &mut Package,
+        package: &mut PackageFields<'a>,
     ) -> Result<()> {
         let name = import.name.as_str();
         log::debug!("decoding component import `{name}`");
@@ -466,11 +532,11 @@ impl WitPackageDecoder<'_> {
         Ok(())
     }
 
-    fn decode_component_export(
+    fn decode_component_export<'a>(
         &mut self,
         export: &ComponentExport<'_>,
         world: WorldId,
-        package: &mut Package,
+        package: &mut PackageFields<'a>,
     ) -> Result<()> {
         let name = export.name.as_str();
         log::debug!("decoding component export `{name}`");
@@ -715,11 +781,11 @@ impl WitPackageDecoder<'_> {
     ///
     /// The `package` is where to insert the final interface if `name` is an ID
     /// meaning it's registered as a named standalone item within the package.
-    fn register_interface(
+    fn register_interface<'a>(
         &mut self,
         name: &str,
         ty: &types::ComponentInstanceType,
-        package: &mut Package,
+        package: &mut PackageFields<'a>,
     ) -> Result<(WorldKey, InterfaceId)> {
         // If this interface's name is already known then that means this is an
         // interface that's both imported and exported.  Use `register_import`
@@ -787,16 +853,21 @@ impl WitPackageDecoder<'_> {
         Ok((key, id))
     }
 
-    fn extract_interface_name_from_kebab_name(&self, name: &str) -> Result<Option<String>> {
+    fn extract_kebab_name(&self, name: &str) -> Result<KebabName> {
         let import_name = if name.contains('/') {
             ComponentExternName::Interface(name)
         } else {
             ComponentExternName::Kebab(name)
         };
-        let kebab_name = KebabName::new(import_name, 0);
-        match kebab_name.as_ref().map(|k| k.kind()) {
-            Ok(KebabNameKind::Id { interface, .. }) => Ok(Some(interface.to_string())),
-            Ok(KebabNameKind::Normal(_name)) => Ok(None),
+        KebabName::new(import_name, 0)
+            .with_context(|| format!("cannot extract item name from: {name}"))
+    }
+
+    fn extract_interface_name_from_kebab_name(&self, name: &str) -> Result<Option<String>> {
+        let kebab_name = self.extract_kebab_name(name)?;
+        match kebab_name.kind() {
+            KebabNameKind::Id { interface, .. } => Ok(Some(interface.to_string())),
+            KebabNameKind::Normal(_name) => Ok(None),
             _ => bail!("cannot extract item name from: {name}"),
         }
     }
@@ -854,11 +925,11 @@ impl WitPackageDecoder<'_> {
         Ok(ty)
     }
 
-    fn register_world(
+    fn register_world<'a>(
         &mut self,
         name: &str,
         ty: &types::ComponentType,
-        package: &mut Package,
+        package: &mut PackageFields<'a>,
     ) -> Result<WorldId> {
         let name = self
             .extract_interface_name_from_kebab_name(name)?
