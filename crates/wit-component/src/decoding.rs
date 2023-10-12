@@ -181,9 +181,7 @@ impl<'a> ComponentInfo<'a> {
             worlds: &mut worlds,
         };
 
-        log::trace!("decoding {} documents", self.externs.len());
-        for (name, item) in self.externs.iter() {
-            log::trace!(" -> decoding `{}`", name.as_str());
+        for (_, item) in self.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
                 _ => unreachable!(),
@@ -192,25 +190,24 @@ impl<'a> ComponentInfo<'a> {
             let index = export.index;
             let id = self.types.component_type_at(index);
             let component = self.types[id].unwrap_component();
-            log::trace!("component: {component:?}");
 
             // The single export of this component will determine if it's a world or an interface:
             // worlds export a component, while interfaces export an instance.
             assert_eq!(component.exports.len(), 1);
-
             let name = component.exports.keys().nth(0).unwrap();
 
             let exported = match component.exports[name] {
                 types::ComponentEntityType::Type { referenced, .. } => &self.types[referenced],
-
                 _ => unreachable!(),
             };
 
             let name = match exported {
                 types::Type::Component(ty) => {
-                    let (package_name, world) =
-                        decoder.decode_world(name.as_str(), ty, &mut fields)?;
-                    log::trace!("parsed world {world:?}");
+                    let package_name = decoder.decode_world(name.as_str(), ty, &mut fields)?;
+                    package_name
+                }
+                types::Type::ComponentInstance(ty) => {
+                    let package_name = decoder.decode_interface(name.as_str(), ty, &mut fields)?;
                     package_name
                 }
                 _ => panic!(),
@@ -454,12 +451,12 @@ impl WitPackageDecoder<'_> {
         Ok(package)
     }
 
-    fn decode_world<'a>(
+    fn decode_interface<'a>(
         &mut self,
         name: &str,
-        ty: &types::ComponentType,
+        ty: &types::ComponentInstanceType,
         fields: &mut PackageFields<'a>,
-    ) -> Result<(PackageName, WorldId)> {
+    ) -> Result<PackageName> {
         let kebab_name = self
             .extract_kebab_name(name)
             .context("expected world name to have an ID form")?;
@@ -478,9 +475,38 @@ impl WitPackageDecoder<'_> {
             _ => bail!("expected world name to be fully qualified"),
         };
 
-        let id = self.register_world(name, ty, fields)?;
+        let _ = self.register_interface(name, ty, fields)?;
 
-        Ok((package, id))
+        Ok(package)
+    }
+
+    fn decode_world<'a>(
+        &mut self,
+        name: &str,
+        ty: &types::ComponentType,
+        fields: &mut PackageFields<'a>,
+    ) -> Result<PackageName> {
+        let kebab_name = self
+            .extract_kebab_name(name)
+            .context("expected world name to have an ID form")?;
+
+        let package = match kebab_name.kind() {
+            KebabNameKind::Id {
+                namespace,
+                package,
+                version,
+                ..
+            } => PackageName {
+                namespace: namespace.to_string(),
+                name: package.to_string(),
+                version,
+            },
+            _ => bail!("expected world name to be fully qualified"),
+        };
+
+        let _ = self.register_world(name, ty, fields)?;
+
+        Ok(package)
     }
 
     fn decode_component_import<'a>(
