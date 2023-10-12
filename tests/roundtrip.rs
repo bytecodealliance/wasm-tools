@@ -603,7 +603,16 @@ impl TestState {
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
-                "testsuite" => features = WasmFeatures::default(),
+                "testsuite" => {
+                    features = WasmFeatures::default();
+
+                    // NB: when these proposals are merged upstream in the spec
+                    // repo then this should be removed. Currently this hasn't
+                    // happened so this is required to get tests passing for
+                    // when these proposals are enabled by default.
+                    features.multi_memory = false;
+                    features.threads = false;
+                }
                 "missing-features" => {
                     features = WasmFeatures::default();
                     features.simd = false;

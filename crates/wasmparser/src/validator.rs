@@ -214,11 +214,11 @@ pub struct WasmFeatures {
     pub bulk_memory: bool,
     /// The WebAssembly SIMD proposal (enabled by default)
     pub simd: bool,
-    /// The WebAssembly Relaxed SIMD proposal
+    /// The WebAssembly Relaxed SIMD proposal (enabled by default)
     pub relaxed_simd: bool,
-    /// The WebAssembly threads proposal
+    /// The WebAssembly threads proposal (enabled by default)
     pub threads: bool,
-    /// The WebAssembly tail-call proposal
+    /// The WebAssembly tail-call proposal (enabled by default)
     pub tail_call: bool,
     /// Whether or not floating-point instructions are enabled.
     ///
@@ -231,7 +231,7 @@ pub struct WasmFeatures {
     /// across hosts which can lead to host-dependent execution which some
     /// runtimes may not desire.
     pub floats: bool,
-    /// The WebAssembly multi memory proposal
+    /// The WebAssembly multi memory proposal (enabled by default)
     pub multi_memory: bool,
     /// The WebAssembly exception handling proposal
     pub exceptions: bool,
@@ -354,9 +354,6 @@ impl Default for WasmFeatures {
     fn default() -> WasmFeatures {
         WasmFeatures {
             // Off-by-default features.
-            relaxed_simd: false,
-            threads: false,
-            multi_memory: false,
             exceptions: false,
             memory64: false,
             extended_const: false,
@@ -376,6 +373,9 @@ impl Default for WasmFeatures {
             tail_call: true,
             simd: true,
             floats: true,
+            relaxed_simd: true,
+            threads: true,
+            multi_memory: true,
         }
     }
 }
