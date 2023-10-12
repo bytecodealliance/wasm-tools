@@ -529,6 +529,8 @@ pub mod kw {
     custom_keyword!(needed);
     custom_keyword!(export_info = "export-info");
     custom_keyword!(import_info = "import-info");
+    custom_keyword!(thread);
+    custom_keyword!(wait);
 }
 
 /// Common annotations used to parse WebAssembly text files.
