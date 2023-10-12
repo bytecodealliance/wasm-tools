@@ -43,6 +43,7 @@ jobs:
       shell: bash
     - run: cargo test --locked --all
     - run: cargo test --locked -p wasmparser --benches
+    - run: cargo test --locked -p wasm-encoder --all-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
     - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
     - run: cmake -S ${{github.workspace}}/examples -B ${{github.workspace}}/examples/build -DCMAKE_BUILD_TYPE=Release
