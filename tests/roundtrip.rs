@@ -417,6 +417,12 @@ impl TestState {
                 }
             }
 
+            WastDirective::Thread(thread) => {
+                for (i, directive) in thread.directives.into_iter().enumerate() {
+                    self.test_wast_directive(test, directive, idx * 1000 + i)?;
+                }
+            }
+
             // This test suite doesn't actually execute any wasm code, so ignore
             // all of these assertions.
             WastDirective::Register { .. }
@@ -425,7 +431,8 @@ impl TestState {
             | WastDirective::AssertReturn { .. }
             | WastDirective::AssertExhaustion { .. }
             | WastDirective::AssertUnlinkable { .. }
-            | WastDirective::AssertException { .. } => {}
+            | WastDirective::AssertException { .. }
+            | WastDirective::Wait { .. } => {}
         }
         Ok(())
     }
