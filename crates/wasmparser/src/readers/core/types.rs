@@ -788,6 +788,41 @@ impl RecGroup {
             RecGroup::Single(ty) => slice::from_ref(ty),
         }
     }
+
+    /// Return an iterator over the types in this rec group, giving ownership of
+    /// the types.
+    pub fn into_types(self) -> impl ExactSizeIterator<Item = SubType> {
+        return match self {
+            RecGroup::Single(ty) => IntoIter::Single(Some(ty)),
+            RecGroup::Many(tys) => IntoIter::Many(tys.into_iter()),
+        };
+
+        enum IntoIter {
+            Single(Option<SubType>),
+            Many(std::vec::IntoIter<SubType>),
+        }
+
+        impl Iterator for IntoIter {
+            type Item = SubType;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                match self {
+                    IntoIter::Single(ty) => ty.take(),
+                    IntoIter::Many(tys) => tys.next(),
+                }
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                match self {
+                    IntoIter::Single(None) => (0, Some(0)),
+                    IntoIter::Single(Some(_)) => (1, Some(1)),
+                    IntoIter::Many(tys) => tys.size_hint(),
+                }
+            }
+        }
+
+        impl ExactSizeIterator for IntoIter {}
+    }
 }
 
 impl Matches for SubType {
