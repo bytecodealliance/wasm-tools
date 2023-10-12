@@ -416,11 +416,5 @@ impl<'a> Parse<'a> for WastThread<'a> {
             shared_module,
             directives,
         })
-
-        // if parser.peek::<WastRetCore<'_>>()? {
-        //     Ok(WastRet::Core(parser.parse()?))
-        // } else {
-        //     Ok(WastRet::Component(parser.parse()?))
-        // }
     }
 }
