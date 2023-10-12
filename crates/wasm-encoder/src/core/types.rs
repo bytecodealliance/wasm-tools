@@ -33,6 +33,24 @@ pub enum StructuralType {
     Struct(StructType),
 }
 
+impl Encode for StructuralType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            StructuralType::Func(ty) => TypeSection::encode_function(
+                sink,
+                ty.params().iter().copied(),
+                ty.results().iter().copied(),
+            ),
+            StructuralType::Array(ArrayType(ty)) => {
+                TypeSection::encode_array(sink, &ty.element_type, ty.mutable)
+            }
+            StructuralType::Struct(ty) => {
+                TypeSection::encode_struct(sink, ty.fields.iter().cloned())
+            }
+        }
+    }
+}
+
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::StructuralType> for StructuralType {
     fn from(structural_ty: wasmparser::StructuralType) -> Self {
@@ -403,70 +421,80 @@ impl TypeSection {
         R: IntoIterator<Item = ValType>,
         R::IntoIter: ExactSizeIterator,
     {
+        Self::encode_function(&mut self.bytes, params, results);
+        self.num_added += 1;
+        self
+    }
+
+    fn encode_function<P, R>(sink: &mut Vec<u8>, params: P, results: R)
+    where
+        P: IntoIterator<Item = ValType>,
+        P::IntoIter: ExactSizeIterator,
+        R: IntoIterator<Item = ValType>,
+        R::IntoIter: ExactSizeIterator,
+    {
         let params = params.into_iter();
         let results = results.into_iter();
 
-        self.bytes.push(0x60);
-        params.len().encode(&mut self.bytes);
-        params.for_each(|p| p.encode(&mut self.bytes));
-        results.len().encode(&mut self.bytes);
-        results.for_each(|p| p.encode(&mut self.bytes));
-        self.num_added += 1;
-        self
+        sink.push(0x60);
+        params.len().encode(sink);
+        params.for_each(|p| p.encode(sink));
+        results.len().encode(sink);
+        results.for_each(|p| p.encode(sink));
     }
 
     /// Define an array type in this type section.
     pub fn array(&mut self, ty: &StorageType, mutable: bool) -> &mut Self {
-        self.bytes.push(0x5e);
-        self.field(ty, mutable);
+        Self::encode_array(&mut self.bytes, ty, mutable);
         self.num_added += 1;
         self
     }
 
-    fn field(&mut self, ty: &StorageType, mutable: bool) -> &mut Self {
-        ty.encode(&mut self.bytes);
-        self.bytes.push(mutable as u8);
-        self
+    fn encode_array(sink: &mut Vec<u8>, ty: &StorageType, mutable: bool) {
+        sink.push(0x5e);
+        Self::encode_field(sink, ty, mutable);
+    }
+
+    fn encode_field(sink: &mut Vec<u8>, ty: &StorageType, mutable: bool) {
+        ty.encode(sink);
+        sink.push(mutable as u8);
     }
 
     /// Define a struct type in this type section.
-    pub fn struct_(&mut self, fields: Vec<FieldType>) -> &mut Self {
-        self.bytes.push(0x5f);
-        fields.len().encode(&mut self.bytes);
-        for f in fields.iter() {
-            self.field(&f.element_type, f.mutable);
-        }
+    pub fn struct_<F>(&mut self, fields: F) -> &mut Self
+    where
+        F: IntoIterator<Item = FieldType>,
+        F::IntoIter: ExactSizeIterator,
+    {
+        Self::encode_struct(&mut self.bytes, fields);
         self.num_added += 1;
         self
+    }
+
+    fn encode_struct<F>(sink: &mut Vec<u8>, fields: F)
+    where
+        F: IntoIterator<Item = FieldType>,
+        F::IntoIter: ExactSizeIterator,
+    {
+        let fields = fields.into_iter();
+        sink.push(0x5f);
+        fields.len().encode(sink);
+        for f in fields {
+            Self::encode_field(sink, &f.element_type, f.mutable);
+        }
     }
 
     /// Define an explicit subtype in this type section.
     pub fn subtype(&mut self, ty: &SubType) -> &mut Self {
-        // In the GC spec, supertypes is a vector, not an option.
-        let st = match ty.supertype_idx {
-            Some(idx) => vec![idx],
-            None => vec![],
-        };
-        if ty.is_final {
-            self.bytes.push(0x4f);
-            st.encode(&mut self.bytes);
-        } else if !st.is_empty() {
-            self.bytes.push(0x50);
-            st.encode(&mut self.bytes);
+        // We only need to emit a prefix byte before the actual structural type
+        // when either the type is not final or it has a declared super type.
+        if ty.supertype_idx.is_some() || !ty.is_final {
+            self.bytes.push(if ty.is_final { 0x4f } else { 0x50 });
+            ty.supertype_idx.encode(&mut self.bytes);
         }
 
-        match &ty.structural_type {
-            StructuralType::Func(ty) => {
-                self.function(ty.params().iter().copied(), ty.results().iter().copied());
-            }
-            StructuralType::Array(ArrayType(ty)) => {
-                self.array(&ty.element_type, ty.mutable);
-            }
-            StructuralType::Struct(ty) => {
-                self.struct_(ty.fields.to_vec());
-            }
-        }
-
+        ty.structural_type.encode(&mut self.bytes);
+        self.num_added += 1;
         self
     }
 }
@@ -480,5 +508,34 @@ impl Encode for TypeSection {
 impl Section for TypeSection {
     fn id(&self) -> u8 {
         SectionId::Type.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Module;
+
+    #[test]
+    fn func_types_dont_require_wasm_gc() {
+        let mut types = TypeSection::new();
+        types.subtype(&SubType {
+            is_final: true,
+            supertype_idx: None,
+            structural_type: StructuralType::Func(FuncType::new([], [])),
+        });
+
+        let mut module = Module::new();
+        module.section(&types);
+        let wasm_bytes = module.finish();
+
+        let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
+            gc: false,
+            ..Default::default()
+        });
+
+        validator.validate_all(&wasm_bytes).expect(
+            "Encoding pre Wasm GC type should not accidentally use Wasm GC specific encoding",
+        );
     }
 }
