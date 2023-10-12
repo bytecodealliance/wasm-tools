@@ -43,6 +43,12 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wasm-tools",
 ];
 
+const NO_VERIFY: &[&str] = &[
+    // Circular dev dependencies between `wasmparser` and `wasm-encoder`.
+    "wasm-encoder",
+    "wasmparser",
+];
+
 #[derive(Clone)]
 struct Crate {
     manifest: PathBuf,
@@ -327,11 +333,15 @@ fn publish(krate: &Crate) -> bool {
         return true;
     }
 
-    let status = Command::new("cargo")
-        .arg("publish")
-        .current_dir(krate.manifest.parent().unwrap())
-        .status()
-        .expect("failed to run cargo");
+    let mut cmd = Command::new("cargo");
+    cmd.arg("publish");
+    cmd.current_dir(krate.manifest.parent().unwrap());
+
+    if NO_VERIFY.iter().any(|s| *s == krate.name) {
+        cmd.arg("--no-verify");
+    }
+
+    let status = cmd.status().expect("failed to run cargo");
     if !status.success() {
         println!("FAIL: failed to publish `{}`: {}", krate.name, status);
         return false;
