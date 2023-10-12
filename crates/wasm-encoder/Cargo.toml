@@ -17,7 +17,7 @@ leb128 = { workspace = true }
 
 # Enable this dependency to get a bunch of `From<wasmparser::Foo> for
 # wasm_encoder::Foo` impls.
-wasmparser = { workspace = true }
+wasmparser = { optional = true, workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
