@@ -1717,7 +1717,7 @@ dependencies = [
  "serde_derive",
  "serde_yaml",
  "smallvec",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasmparser 0.114.0",
  "wasmprinter 0.2.69",
  "wat",
@@ -1735,7 +1735,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-encoder"
-version = "0.34.0"
+version = "0.34.1"
 dependencies = [
  "anyhow",
  "leb128",
@@ -1754,7 +1754,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "spdx",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasmparser 0.114.0",
  "wat",
 ]
@@ -1770,7 +1770,7 @@ dependencies = [
  "log",
  "rand",
  "thiserror",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasmparser 0.114.0",
  "wasmprinter 0.2.69",
  "wat",
@@ -1823,7 +1823,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_derive",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasmparser 0.114.0",
  "wasmprinter 0.2.69",
  "wat",
@@ -1853,7 +1853,7 @@ dependencies = [
  "tempfile",
  "termcolor",
  "wasm-compose",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasm-metadata",
  "wasm-mutate",
  "wasm-shrink",
@@ -1891,7 +1891,7 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "tempfile",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasm-mutate",
  "wasm-smith",
  "wasmparser 0.114.0",
@@ -1926,7 +1926,7 @@ dependencies = [
  "once_cell",
  "rayon",
  "semver",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wast",
  "wat",
 ]
@@ -2214,7 +2214,7 @@ dependencies = [
  "memchr",
  "rayon",
  "unicode-width",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasmparser 0.114.0",
  "wat",
 ]
@@ -2363,7 +2363,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "wasm-encoder 0.34.0",
+ "wasm-encoder 0.34.1",
  "wasm-metadata",
  "wasmparser 0.114.0",
  "wasmprinter 0.2.69",
