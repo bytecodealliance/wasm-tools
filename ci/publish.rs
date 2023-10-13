@@ -58,6 +58,7 @@ const NO_VERIFY: &[&str] = &[
 const PUBLIC_DEPS: &[(&str, &[&str])] = &[
     ("wasmparser", &["wasm-encoder"]),
     ("wit-parser", &["wit-component"]),
+    ("wasm-metadata", &["wit-component"]),
 ];
 
 #[derive(Clone)]
