@@ -49,6 +49,18 @@ const NO_VERIFY: &[&str] = &[
     "wasmparser",
 ];
 
+/// A mapping from a crate to those crates which have a public dependency on
+/// that crate.
+///
+/// This is used so that when a major version bump of the left-hand-side is done
+/// then it must also force major version bumps of everything on the
+/// right-hand-side.
+const PUBLIC_DEPS: &[(&str, &[&str])] = &[
+    ("wasmparser", &["wasm-encoder"]),
+    ("wit-parser", &["wit-component"]),
+    ("wasm-metadata", &["wit-component"]),
+];
+
 #[derive(Clone)]
 struct Crate {
     manifest: PathBuf,
@@ -74,7 +86,7 @@ fn main() {
 
     match &env::args().nth(1).expect("must have one argument")[..] {
         "bump" => {
-            let bumps = env::args()
+            let mut bumps = env::args()
                 .skip(2)
                 .map(|s| {
                     if let Some(s) = s.strip_suffix(":major") {
@@ -86,6 +98,21 @@ fn main() {
                     }
                 })
                 .collect::<Vec<_>>();
+
+            // For all major version bumps automatically do a major version
+            // bump those crates which have a public dependency on it.
+            let mut extra = Vec::new();
+            for (name, _) in bumps.iter().filter(|(_, major)| *major) {
+                if let Some((_, public_deps)) = PUBLIC_DEPS.iter().find(|(n, _)| name == n) {
+                    extra.extend(public_deps.iter().map(|name| (name.to_string(), true)));
+                }
+            }
+            bumps.extend(extra);
+
+            // Move all major bumps first in the case of duplicate keys to
+            // ensure that major bumps are seen first.
+            bumps.sort_by_key(|(_, major)| if *major { 0 } else { 1 });
+
             for (i, mut krate) in crates.clone().into_iter().enumerate() {
                 bump_version(&mut krate, &mut crates, &bumps);
                 crates[i] = krate;
