@@ -1,12 +1,10 @@
-use crate::encoding::types::{FunctionKey, ValtypeEncoder};
+use crate::encoding::{docs::PackageDocs, types::{FunctionKey, ValtypeEncoder}};
 use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
 use wasm_encoder::*;
 use wit_parser::*;
-
-use super::docs::PackageDocs;
 
 /// Encodes the given `package` within `resolve` to a binary WebAssembly
 /// representation.
@@ -66,34 +64,10 @@ impl Encoder<'_> {
         // decoding process where everyone's view of a foreign document agrees
         // notably on the order that types are defined in to assist with
         // roundtripping.
-        for (name, &id) in self.resolve.packages[self.package].interfaces.iter() {
-            let component_ty = self.encode_interface(id)?;
-            let ty = self.component.type_component(&component_ty);
-            self.component
-                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
-        }
-
-        for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
-            let component_ty = encode_world(self.resolve, world)?;
-            let ty = self.component.type_component(&component_ty);
-            self.component
-                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
-        }
-
-        Ok(())
-    }
-
-    fn encode_interface(&mut self, id: InterfaceId) -> Result<ComponentType> {
-        // Build a set of interfaces reachable from this document, including the
-        // interfaces in the document itself. This is used to import instances
-        // into the component type we're encoding. Note that entire interfaces
-        // are imported with all their types as opposed to just the needed types
-        // in an interface for this document. That's done to assist with the
-        // decoding process where everyone's view of a foreign document agrees
-        // notably on the order that types are defined in to assist with
-        // roundtripping.
         let mut interfaces = IndexSet::new();
-        self.add_live_interfaces(&mut interfaces, id);
+        for (_, id) in self.resolve.packages[self.package].interfaces.iter() {
+            self.add_live_interfaces(&mut interfaces, *id);
+        }
 
         // Seed the set of used names with all exported interfaces to ensure
         // that imported interfaces choose different names as the import names
@@ -106,18 +80,24 @@ impl Encoder<'_> {
                 assert!(first);
             }
         }
+        for (name, _world) in self.resolve.packages[self.package].worlds.iter() {
+            let first = used_names.insert(name.clone());
+            assert!(first);
+        }
 
+        // Encode all interfaces, foreign and local, into this component type.
+        // Local interfaces get their functions defined as well and are
+        // exported. Foreign interfaces are imported and only have their types
+        // encoded.
         let mut encoder = InterfaceEncoder::new(self.resolve);
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
             let name = self.resolve.id_of(interface).unwrap();
-            if interface == id {
+            log::trace!("encoding interface {name}");
+            if iface.package == Some(self.package) {
                 let idx = encoder.encode_instance(interface)?;
-                log::trace!("exporting self as {idx}");
-                encoder
-                    .outer
-                    .export(&name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
+                encoder.outer.export(&name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -131,10 +111,21 @@ impl Encoder<'_> {
                 encoder.outer.import(&name, ComponentTypeRef::Instance(idx));
             }
         }
-
         encoder.interface = None;
 
-        Ok(encoder.outer)
+        for (name, world) in self.resolve.packages[self.package].worlds.iter() {
+            let component_ty = encode_world(self.resolve, *world)?;
+            let idx = encoder.outer.type_count();
+            encoder.outer.ty().component(&component_ty);
+            let id = self.resolve.packages[self.package].name.interface_id(name);
+            encoder.outer.export(&id, ComponentTypeRef::Component(idx));
+        }
+
+        let ty = self.component.type_component(&encoder.outer);
+        let id = self.resolve.packages[self.package].name.interface_id("wit");
+        self.component
+            .export(&id, ComponentExportKind::Type, ty, None);
+        Ok(())
     }
 
     /// Recursively add all live interfaces reachable from `id` into the
@@ -261,11 +252,11 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     }
     fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32> {
         match &mut self.ty {
-            Some(_) => {
-                // We don't want to re-export anything when we're defining the interface, so we
-                // return `None` when there's an interface pushed.
+            Some(ty) => {
                 assert!(!self.import_types);
-                None
+                let ret = ty.type_count();
+                ty.export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                Some(ret)
             }
             None => {
                 let ret = self.outer.type_count();
@@ -336,7 +327,7 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
 
 /// Encodes a `world` as a component type.
 pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
-    let mut encoder = InterfaceEncoder::new(resolve);
+    let mut component = InterfaceEncoder::new(resolve);
     let world = &resolve.worlds[world_id];
     log::trace!("encoding world {}", world.name);
 
@@ -368,51 +359,44 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
         log::trace!("encoding import {name}");
         let ty = match import {
             WorldItem::Interface(i) => {
-                encoder.interface = Some(*i);
-                let idx = encoder.encode_instance(*i)?;
+                component.interface = Some(*i);
+                let idx = component.encode_instance(*i)?;
                 ComponentTypeRef::Instance(idx)
             }
             WorldItem::Function(f) => {
-                encoder.interface = None;
-                let idx = encoder.encode_func_type(resolve, f)?;
+                component.interface = None;
+                let idx = component.encode_func_type(resolve, f)?;
                 ComponentTypeRef::Func(idx)
             }
             WorldItem::Type(t) => {
-                encoder.interface = None;
-                encoder.import_types = true;
-                encoder.encode_valtype(resolve, &Type::Id(*t))?;
-                encoder.import_types = false;
+                component.interface = None;
+                component.import_types = true;
+                component.encode_valtype(resolve, &Type::Id(*t))?;
+                component.import_types = false;
                 continue;
             }
         };
-        encoder.outer.import(&name, ty);
+        component.outer.import(&name, ty);
     }
     // Encode the exports
     for (name, export) in world.exports.iter() {
         let name = resolve.name_world_key(name);
+        log::trace!("encoding export {name}");
         let ty = match export {
             WorldItem::Interface(i) => {
-                encoder.interface = Some(*i);
-                let idx = encoder.encode_instance(*i)?;
+                component.interface = Some(*i);
+                let idx = component.encode_instance(*i)?;
                 ComponentTypeRef::Instance(idx)
             }
             WorldItem::Function(f) => {
-                encoder.interface = None;
-                let idx = encoder.encode_func_type(resolve, f)?;
+                component.interface = None;
+                let idx = component.encode_func_type(resolve, f)?;
                 ComponentTypeRef::Func(idx)
             }
             WorldItem::Type(_) => unreachable!(),
         };
-        encoder.outer.export(&name, ty);
+        component.outer.export(&name, ty);
     }
 
-    let mut component = ComponentType::new();
-    component.ty().component(&encoder.outer);
-
-    let name = match world.package {
-        Some(id) => resolve.packages[id].name.interface_id(&world.name),
-        None => world.name.clone(),
-    };
-    component.export(&name, ComponentTypeRef::Type(TypeBounds::Eq(0)));
-    Ok(component)
+    Ok(component.outer)
 }
