@@ -711,19 +711,31 @@ impl ComponentState {
                 .chain(ty.results.iter().map(|(_, ty)| ty))
                 .all(|ty| types.type_named_valtype(ty, set)),
 
-            // Instances must recursively have all referenced types named.
-            Type::ComponentInstance(ty) => ty.exports.values().all(|ty| {
-                let id = match ty {
-                    ComponentEntityType::Module(id)
-                    | ComponentEntityType::Func(id)
-                    | ComponentEntityType::Value(ComponentValType::Type(id))
-                    | ComponentEntityType::Type { created: id, .. }
-                    | ComponentEntityType::Instance(id)
-                    | ComponentEntityType::Component(id) => *id,
-                    ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
+            // Instances must recursively have all referenced types named. Resources defined by
+            // this interface are considered defined
+            Type::ComponentInstance(ty) => {
+                let mut with_resources = HashSet::new();
+
+                let set = if ty.explicit_resources.is_empty() {
+                    set
+                } else {
+                    with_resources.extend(set.iter().cloned().chain(ty.explicit_resources()));
+                    &with_resources
                 };
-                self.all_valtypes_named(types, id, set)
-            }),
+
+                ty.exports.values().all(|ty| {
+                    let id = match ty {
+                        ComponentEntityType::Module(id)
+                        | ComponentEntityType::Func(id)
+                        | ComponentEntityType::Value(ComponentValType::Type(id))
+                        | ComponentEntityType::Type { created: id, .. }
+                        | ComponentEntityType::Instance(id)
+                        | ComponentEntityType::Component(id) => *id,
+                        ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
+                    };
+                    self.all_valtypes_named(types, id, &set)
+                })
+            }
         }
     }
 

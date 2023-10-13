@@ -725,6 +725,19 @@ pub struct ComponentInstanceType {
     pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
+impl ComponentInstanceType {
+    /// [`TypeId`]s for all resources defined by this instance.
+    pub fn explicit_resources(&self) -> impl Iterator<Item = TypeId> + '_ {
+        self.explicit_resources.iter().map(|(res, path)| {
+            assert_eq!(path.len(), 1);
+            TypeId {
+                index: path[0] as u32,
+                unique_id: res.contextually_unique_id,
+            }
+        })
+    }
+}
+
 /// Represents a type of a component function.
 #[derive(Debug, Clone)]
 pub struct ComponentFuncType {
