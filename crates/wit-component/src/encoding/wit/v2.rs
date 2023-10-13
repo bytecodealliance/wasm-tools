@@ -1,4 +1,7 @@
-use crate::encoding::{docs::PackageDocs, types::{FunctionKey, ValtypeEncoder}};
+use crate::encoding::{
+    docs::PackageDocs,
+    types::{FunctionKey, ValtypeEncoder},
+};
 use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
