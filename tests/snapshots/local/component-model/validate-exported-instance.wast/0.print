@@ -1,0 +1,11 @@
+(component
+  (type (;0;)
+    (instance
+      (export (;0;) "x" (type (sub resource)))
+      (type (;1;) (borrow 0))
+      (type (;2;) (func (param "x" 1)))
+      (export (;0;) "f" (func (type 2)))
+    )
+  )
+  (export (;1;) "x" (type 0))
+)

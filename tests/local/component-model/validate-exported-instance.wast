@@ -1,5 +1,12 @@
-;; RUN: validate % --features component-model
+;; Minimal test of using an exported resource.
+(component
+  (type (export "x") (instance
+    (export $x "x" (type (sub resource)))
+    (export "f" (func (param "x" (borrow $x))))
+  ))
+)
 
+;; More complicated case from the component types explainer
 (component
   (type $types (component
     (type $types' (instance
