@@ -52,7 +52,7 @@
           (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/foo-world") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/foo-world") (component (type 0)))
     )
   )
   (export (;3;) "foo-world" (type 2))

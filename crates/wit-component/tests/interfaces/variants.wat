@@ -186,7 +186,7 @@
           (import (interface "foo:variants/variants") (instance (;0;) (type 0)))
         )
       )
-      (export (;1;) (interface "foo:variants/variants-world") (type (eq 0)))
+      (export (;0;) (interface "foo:variants/variants-world") (component (type 0)))
     )
   )
   (export (;3;) "variants-world" (type 2))

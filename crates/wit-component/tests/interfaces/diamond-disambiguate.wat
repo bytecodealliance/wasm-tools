@@ -59,7 +59,7 @@
           (import "bar" (instance (;3;) (type 5)))
         )
       )
-      (export (;1;) (interface "foo:foo/w1") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/w1") (component (type 0)))
     )
   )
   (export (;5;) "w1" (type 4))

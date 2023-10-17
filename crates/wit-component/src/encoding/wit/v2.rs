@@ -412,6 +412,6 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
         Some(id) => resolve.packages[id].name.interface_id(&world.name),
         None => world.name.clone(),
     };
-    component.export(&name, ComponentTypeRef::Type(TypeBounds::Eq(0)));
+    component.export(&name, ComponentTypeRef::Component(0));
     Ok(component)
 }

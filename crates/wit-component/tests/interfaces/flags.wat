@@ -76,7 +76,7 @@
           (import (interface "foo:flags/imports") (instance (;0;) (type 0)))
         )
       )
-      (export (;1;) (interface "foo:flags/flags-world") (type (eq 0)))
+      (export (;0;) (interface "foo:flags/flags-world") (component (type 0)))
     )
   )
   (export (;3;) "flags-world" (type 2))

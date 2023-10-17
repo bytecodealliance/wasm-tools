@@ -203,7 +203,7 @@ impl<'a> ComponentInfo<'a> {
             let name = component.exports.keys().nth(0).unwrap();
 
             let exported = match component.exports[name] {
-                types::ComponentEntityType::Type { referenced, .. } => &self.types[referenced],
+                types::ComponentEntityType::Component(ty) => &self.types[ty],
                 types::ComponentEntityType::Instance(ty) => &self.types[ty],
                 _ => unreachable!(),
             };

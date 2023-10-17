@@ -36,7 +36,7 @@
       (type (;0;)
         (component)
       )
-      (export (;1;) (interface "foo:foo/c") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/c") (component (type 0)))
     )
   )
   (export (;5;) "c" (type 4))

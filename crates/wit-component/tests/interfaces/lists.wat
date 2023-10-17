@@ -200,7 +200,7 @@
           (import (interface "foo:foo/lists") (instance (;0;) (type 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/lists-world") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/lists-world") (component (type 0)))
     )
   )
   (export (;3;) "lists-world" (type 2))

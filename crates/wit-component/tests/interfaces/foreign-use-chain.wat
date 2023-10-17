@@ -20,7 +20,7 @@
           (import (interface "foo:bar/bar") (instance (;1;) (type 2)))
         )
       )
-      (export (;1;) (interface "foo:foo/foo") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/foo") (component (type 0)))
     )
   )
   (export (;1;) "foo" (type 0))

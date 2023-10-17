@@ -62,7 +62,7 @@
           (export (;0;) "i" (instance (type 3)))
         )
       )
-      (export (;1;) (interface "foo:foo/coverage-world") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/coverage-world") (component (type 0)))
     )
   )
   (export (;5;) "coverage-world" (type 4))

@@ -541,7 +541,7 @@
           (export (;6;) (interface "wasi:http/incoming-handler") (instance (type 14)))
         )
       )
-      (export (;1;) (interface "wasi:http/proxy") (type (eq 0)))
+      (export (;0;) (interface "wasi:http/proxy") (component (type 0)))
     )
   )
   (export (;7;) "proxy" (type 6))

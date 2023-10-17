@@ -30,7 +30,7 @@
           (export (;0;) (interface "foo:foo/foo") (instance (type 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/my-world") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/my-world") (component (type 0)))
     )
   )
   (export (;3;) "my-world" (type 2))

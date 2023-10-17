@@ -130,7 +130,7 @@
           (export (;1;) (interface "foo:records/records") (instance (type 1)))
         )
       )
-      (export (;1;) (interface "foo:records/records-world") (type (eq 0)))
+      (export (;0;) (interface "foo:records/records-world") (component (type 0)))
     )
   )
   (export (;3;) "records-world" (type 2))

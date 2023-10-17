@@ -43,7 +43,7 @@
           (export (;1;) (interface "foo:foo/bar") (instance (type 1)))
         )
       )
-      (export (;1;) (interface "foo:foo/import-and-export") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/import-and-export") (component (type 0)))
     )
   )
   (export (;5;) "import-and-export" (type 4))

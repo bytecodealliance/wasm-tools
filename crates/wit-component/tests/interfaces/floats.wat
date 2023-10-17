@@ -36,7 +36,7 @@
           (import (interface "foo:floats/floats") (instance (;0;) (type 0)))
         )
       )
-      (export (;1;) (interface "foo:floats/floats-world") (type (eq 0)))
+      (export (;0;) (interface "foo:floats/floats-world") (component (type 0)))
     )
   )
   (export (;3;) "floats-world" (type 2))

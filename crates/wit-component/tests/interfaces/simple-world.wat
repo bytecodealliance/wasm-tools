@@ -24,7 +24,7 @@
           (import (interface "foo:foo/console") (instance (;0;) (type 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/the-world") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/the-world") (component (type 0)))
     )
   )
   (export (;3;) "the-world" (type 2))
