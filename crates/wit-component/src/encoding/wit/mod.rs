@@ -32,8 +32,8 @@ fn use_v2_encoding() -> bool {
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    if use_v2_encoding() {
+pub fn encode(use_v2: Option<bool>, resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
+    if use_v2.unwrap_or_else(use_v2_encoding) {
         v2::encode(resolve, package)
     } else {
         v1::encode(resolve, package)
@@ -42,8 +42,12 @@ pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
 
 /// Exactly like `encode`, except gives an unfinished `ComponentBuilder` in case you need
 /// to append anything else before finishing.
-pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<ComponentBuilder> {
-    if use_v2_encoding() {
+pub fn encode_component(
+    use_v2: Option<bool>,
+    resolve: &Resolve,
+    package: PackageId,
+) -> Result<ComponentBuilder> {
+    if use_v2.unwrap_or_else(use_v2_encoding) {
         v2::encode_component(resolve, package)
     } else {
         v1::encode_component(resolve, package)
@@ -51,8 +55,12 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
 }
 
 /// Encodes a `world` as a component type.
-pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
-    if use_v2_encoding() {
+pub fn encode_world(
+    use_v2: Option<bool>,
+    resolve: &Resolve,
+    world_id: WorldId,
+) -> Result<ComponentType> {
+    if use_v2.unwrap_or_else(use_v2_encoding) {
         v2::encode_world(resolve, world_id)
     } else {
         v1::encode_world(resolve, world_id)

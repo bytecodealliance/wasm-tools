@@ -507,7 +507,7 @@ impl WitOpts {
         assert!(self.wasm || self.wat);
         assert!(self.out_dir.is_none());
 
-        let bytes = wit_component::encode(decoded.resolve(), decoded.package())?;
+        let bytes = wit_component::encode(None, decoded.resolve(), decoded.package())?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
                 component_model: true,
