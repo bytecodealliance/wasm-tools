@@ -11,12 +11,24 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         wit_smith::smith(&config, u)
     })?;
     write_file("doc1.wasm", &wasm);
-    let (resolve, _pkg) = match wit_component::decode(&wasm).unwrap() {
+    let (resolve, pkg) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
 
-    let encoding_version = u.arbitrary()?;
+    // If we've decoded an empty package, make sure to only use the v1 decoder (v2 has no way to
+    // represent an empty document).
+    let encoding_version = {
+        let package = &resolve.packages[pkg];
+        let is_empty = package.worlds.is_empty() && package.interfaces.is_empty();
+        if is_empty {
+            Some(false)
+        } else {
+            u.arbitrary()?
+        }
+    };
+
+    log::debug!("encoding_version: {encoding_version:?}");
 
     roundtrip_through_printing(encoding_version, "doc1", &resolve, &wasm);
 

@@ -112,12 +112,12 @@ impl<'a> ComponentInfo<'a> {
         // strings for each component. The v1 format uses "<namespace>:<package>/wit" as the name
         // for the top-level exports, while the v2 format uses the unqualified name of the encoded
         // entity.
-
-        let name = self.externs[0].0.as_str();
-        if name.contains(":") && name.ends_with("/wit") {
-            Some(WitEncodingVersion::V1)
-        } else {
-            Some(WitEncodingVersion::V2)
+        match KebabName::new(self.externs[0].0, 0).ok()?.kind() {
+            KebabNameKind::Id { interface, .. } if interface.as_str() == "wit" => {
+                Some(WitEncodingVersion::V1)
+            }
+            KebabNameKind::Normal(_) => Some(WitEncodingVersion::V2),
+            _ => None,
         }
     }
 
@@ -193,7 +193,13 @@ impl<'a> ComponentInfo<'a> {
 
             // The single export of this component will determine if it's a world or an interface:
             // worlds export a component, while interfaces export an instance.
-            assert_eq!(component.exports.len(), 1);
+            if component.exports.len() != 1 {
+                bail!(
+                    "Expected a single export, but found {} instead",
+                    component.exports.len()
+                );
+            }
+
             let name = component.exports.keys().nth(0).unwrap();
 
             let exported = match component.exports[name] {
