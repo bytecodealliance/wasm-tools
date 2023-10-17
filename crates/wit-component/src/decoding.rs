@@ -221,6 +221,8 @@ impl<'a> ComponentInfo<'a> {
             };
 
             if let Some(pkg_name) = pkg_name.as_ref() {
+                // TODO: when we have fully switched to the v2 format, we should switch to parsing
+                // multiple wit documents instead of bailing.
                 if pkg_name != &name {
                     bail!("item defined with mismatched package name")
                 }
