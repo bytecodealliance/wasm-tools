@@ -11,8 +11,10 @@ interface bar {
 }
 
 interface baz {
-  use foo.{t1}
-  use bar.{u}
-  use foo.{t2}
+  type t1 = u8
+
+  type u = u8
+
+  type t2 = u8
 }
 

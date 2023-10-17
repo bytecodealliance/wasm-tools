@@ -7,7 +7,7 @@
           (export (;0;) "log" (func (type 0)))
         )
       )
-      (export (;1;) (interface "foo:console/console") (type (eq 0)))
+      (export (;0;) (interface "foo:console/console") (instance (type 0)))
     )
   )
   (export (;1;) "console" (type 0))

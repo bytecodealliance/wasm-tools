@@ -1,8 +1,11 @@
 package wasi:http
 
 interface types {
-  use wasi:io/streams.{input-stream, output-stream}
-  use wasi:poll/poll.{pollable}
+  type input-stream = u32
+
+  type output-stream = u32
+
+  type pollable = u32
 
   variant method {
     get,
@@ -128,13 +131,23 @@ interface types {
 }
 
 interface incoming-handler {
-  use types.{incoming-request, response-outparam}
+  type incoming-request = u32
+
+  type response-outparam = u32
 
   handle: func(request: incoming-request, response-out: response-outparam)
 }
 
 interface outgoing-handler {
-  use types.{outgoing-request, request-options, future-incoming-response}
+  type outgoing-request = u32
+
+  record request-options {
+    connect-timeout-ms: option<u32>,
+    first-byte-timeout-ms: option<u32>,
+    between-bytes-timeout-ms: option<u32>,
+  }
+
+  type future-incoming-response = u32
 
   handle: func(request: outgoing-request, options: option<request-options>) -> future-incoming-response
 }

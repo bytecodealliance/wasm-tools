@@ -4,9 +4,10 @@
       (type (;0;)
         (instance
           (type (;0;) (enum "a"))
+          (export (;1;) "the-enum" (type (eq 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/shared-items") (type (eq 0)))
+      (export (;0;) (interface "foo:foo/shared-items") (instance (type 0)))
     )
   )
   (export (;1;) "shared-items" (type 0))
@@ -17,6 +18,7 @@
           (type (;0;)
             (instance
               (type (;0;) (enum "a"))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (import (interface "foo:foo/shared-items") (instance (;0;) (type 0)))
@@ -24,12 +26,14 @@
           (type (;2;)
             (instance
               (alias outer 1 1 (type (;0;)))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (import "foo" (instance (;1;) (type 2)))
           (type (;3;)
             (instance
               (alias outer 1 1 (type (;0;)))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (import "bar" (instance (;2;) (type 3)))
@@ -46,6 +50,7 @@
           (type (;0;)
             (instance
               (type (;0;) (enum "a"))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (import (interface "foo:foo/shared-items") (instance (;0;) (type 0)))
@@ -53,12 +58,14 @@
           (type (;2;)
             (instance
               (alias outer 1 1 (type (;0;)))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (import "foo" (instance (;1;) (type 2)))
           (type (;3;)
             (instance
               (alias outer 1 1 (type (;0;)))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (export (;2;) "bar" (instance (type 3)))
@@ -75,6 +82,7 @@
           (type (;0;)
             (instance
               (type (;0;) (enum "a"))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (import (interface "foo:foo/shared-items") (instance (;0;) (type 0)))
@@ -82,6 +90,7 @@
           (type (;2;)
             (instance
               (alias outer 1 1 (type (;0;)))
+              (export (;1;) "the-enum" (type (eq 0)))
             )
           )
           (export (;1;) "bar" (instance (type 2)))

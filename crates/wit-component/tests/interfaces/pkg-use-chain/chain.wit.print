@@ -5,7 +5,7 @@ interface a {
 }
 
 interface def {
-  use a.{a}
+  type a = u8
 
   enum name {
     other,
@@ -13,6 +13,8 @@ interface def {
 }
 
 interface foo {
-  use def.{name}
+  enum name {
+    other,
+  }
 }
 

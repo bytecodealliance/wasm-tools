@@ -15,7 +15,9 @@ interface foo {
 }
 
 interface baz {
-  use foo.{bar, t}
+  resource bar
+
+  resource t
 
   a: func(x: bar) -> bar
 

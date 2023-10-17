@@ -1,7 +1,9 @@
 package foo:foo
 
 interface foo {
-  use foo:dep/foo.{ty}
+  record ty {
+    f: u8,
+  }
 }
 
 world bar {

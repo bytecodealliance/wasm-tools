@@ -1,7 +1,8 @@
 package foo:foo
 
 interface a {
-  use foo:a/the-name.{ty}
-  use foo:b/the-name.{ty as ty2}
+  type ty = u8
+
+  type ty2 = u8
 }
 

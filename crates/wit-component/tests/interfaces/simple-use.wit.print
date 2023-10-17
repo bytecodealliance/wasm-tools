@@ -8,7 +8,10 @@ interface types {
 }
 
 interface console {
-  use types.{level}
+  enum level {
+    info,
+    debug,
+  }
 
   log: func(level: level, msg: string)
 }

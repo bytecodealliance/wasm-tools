@@ -9,10 +9,10 @@ interface foo {
 }
 
 interface bar {
-  use foo.{c}
+  type c = u32
 }
 
 interface baz {
-  use bar.{c}
+  type c = u32
 }
 

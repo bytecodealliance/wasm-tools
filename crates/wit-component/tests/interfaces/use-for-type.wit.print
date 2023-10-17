@@ -8,7 +8,7 @@ interface bar {
 }
 
 interface baz {
-  use bar.{t}
+  type t = u8
 
   record bar {
     a: t,

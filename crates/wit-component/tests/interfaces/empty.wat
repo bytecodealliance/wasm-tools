@@ -4,7 +4,7 @@
       (type (;0;)
         (instance)
       )
-      (export (;1;) (interface "foo:empty/empty") (type (eq 0)))
+      (export (;0;) (interface "foo:empty/empty") (instance (type 0)))
     )
   )
   (export (;1;) "empty" (type 0))
