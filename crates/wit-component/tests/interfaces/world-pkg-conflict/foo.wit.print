@@ -5,7 +5,7 @@ interface a {
 }
 
 interface foo {
-  type t = u32
+  use a.{t}
 }
 
 world c {

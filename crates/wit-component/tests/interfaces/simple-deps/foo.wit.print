@@ -1,6 +1,6 @@
 package foo:foo
 
 interface foo {
-  type some-type = u8
+  use foo:some-dep/types.{some-type}
 }
 

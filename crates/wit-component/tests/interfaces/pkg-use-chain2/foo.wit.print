@@ -7,9 +7,7 @@ interface other {
 }
 
 interface bar {
-  record the-name {
-    f: u8,
-  }
+  use other.{name as the-name}
 
   enum name {
     a,
@@ -17,8 +15,6 @@ interface bar {
 }
 
 interface foo {
-  record the-name {
-    f: u8,
-  }
+  use bar.{the-name}
 }
 

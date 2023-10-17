@@ -7,20 +7,14 @@ interface b {
 }
 
 interface a {
-  record the-type {
-    f: u8,
-  }
+  use b.{the-type}
 }
 
 interface b2 {
-  record the-type {
-    f: u8,
-  }
+  use b.{the-type}
 }
 
 interface a2 {
-  record the-type {
-    f: u8,
-  }
+  use b.{the-type}
 }
 

@@ -214,7 +214,12 @@ impl<'a> ComponentInfo<'a> {
                     package_name
                 }
                 types::Type::ComponentInstance(ty) => {
-                    let package_name = decoder.decode_interface(name.as_str(), ty, &mut fields)?;
+                    let package_name = decoder.decode_interface(
+                        name.as_str(),
+                        &component.imports,
+                        ty,
+                        &mut fields,
+                    )?;
                     package_name
                 }
                 _ => panic!(),
@@ -404,7 +409,6 @@ impl WitPackageDecoder<'_> {
         // Process all imports for this package first, where imports are
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
-            log::trace!("name: {:?}, ty: {:?}", name, ty);
             let ty = match ty {
                 types::ComponentEntityType::Instance(idx) => {
                     self.info.types[*idx].unwrap_component_instance()
@@ -463,6 +467,7 @@ impl WitPackageDecoder<'_> {
     fn decode_interface<'a>(
         &mut self,
         name: &str,
+        imports: &IndexMap<String, types::ComponentEntityType>,
         ty: &types::ComponentInstanceType,
         fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
@@ -483,6 +488,17 @@ impl WitPackageDecoder<'_> {
             },
             _ => bail!("expected world name to be fully qualified"),
         };
+
+        for (name, ty) in imports.iter() {
+            let ty = match ty {
+                types::ComponentEntityType::Instance(idx) => {
+                    self.info.types[*idx].unwrap_component_instance()
+                }
+                _ => bail!("import `{name}` is not an instance"),
+            };
+            self.register_import(name, ty)
+                .with_context(|| format!("failed to process import `{name}`"))?;
+        }
 
         let _ = self.register_interface(name, ty, fields)?;
 
