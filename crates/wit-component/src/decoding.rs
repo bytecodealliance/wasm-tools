@@ -198,6 +198,7 @@ impl<'a> ComponentInfo<'a> {
 
             let exported = match component.exports[name] {
                 types::ComponentEntityType::Type { referenced, .. } => &self.types[referenced],
+                types::ComponentEntityType::Instance(ty) => &self.types[ty],
                 _ => unreachable!(),
             };
 

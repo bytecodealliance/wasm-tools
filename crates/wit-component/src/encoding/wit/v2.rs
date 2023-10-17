@@ -116,9 +116,7 @@ impl Encoder<'_> {
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
-                encoder
-                    .outer
-                    .export(&name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
+                encoder.outer.export(&name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -262,11 +260,11 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     }
     fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32> {
         match &mut self.ty {
-            Some(_) => {
-                // We don't want to re-export anything when we're defining the interface, so we
-                // return `None` when there's an interface pushed.
+            Some(ty) => {
                 assert!(!self.import_types);
-                None
+                let ret = ty.type_count();
+                ty.export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                Some(ret)
             }
             None => {
                 let ret = self.outer.type_count();
