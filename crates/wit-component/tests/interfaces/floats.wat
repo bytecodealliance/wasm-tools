@@ -14,7 +14,12 @@
         )
       )
       (export (;0;) (interface "foo:floats/floats") (instance (type 0)))
-      (type (;1;)
+    )
+  )
+  (export (;1;) "floats" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
         (component
           (type (;0;)
             (instance
@@ -31,10 +36,10 @@
           (import (interface "foo:floats/floats") (instance (;0;) (type 0)))
         )
       )
-      (export (;0;) (interface "foo:floats/floats-world") (component (type 1)))
+      (export (;0;) (interface "foo:floats/floats-world") (component (type 0)))
     )
   )
-  (export (;1;) (interface "foo:floats/wit") (type 0))
+  (export (;3;) "floats-world" (type 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

@@ -176,7 +176,8 @@ pub fn encode(
     });
     world.name.encode(&mut ret);
     // This appends a wasm binary encoded Component to the ret:
-    let mut component_builder = crate::encoding::encode_component(resolve, world.package.unwrap())?;
+    let mut component_builder =
+        crate::encoding::encode_component(None, resolve, world.package.unwrap())?;
 
     let mut producers = crate::base_producers();
     if let Some(p) = extra_producers {

@@ -96,7 +96,12 @@
         )
       )
       (export (;0;) (interface "foo:foo/lists") (instance (type 0)))
-      (type (;1;)
+    )
+  )
+  (export (;1;) "lists" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
         (component
           (type (;0;)
             (instance
@@ -195,10 +200,10 @@
           (import (interface "foo:foo/lists") (instance (;0;) (type 0)))
         )
       )
-      (export (;0;) (interface "foo:foo/lists-world") (component (type 1)))
+      (export (;0;) (interface "foo:foo/lists-world") (component (type 0)))
     )
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
+  (export (;3;) "lists-world" (type 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

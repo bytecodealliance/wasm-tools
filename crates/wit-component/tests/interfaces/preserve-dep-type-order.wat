@@ -18,7 +18,12 @@
         )
       )
       (export (;1;) (interface "foo:foo/foo") (instance (type 2)))
-      (type (;3;)
+    )
+  )
+  (export (;1;) "foo" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
         (component
           (type (;0;)
             (instance
@@ -31,10 +36,10 @@
           (import (interface "foo:dep/foo") (instance (;0;) (type 0)))
         )
       )
-      (export (;0;) (interface "foo:foo/bar") (component (type 3)))
+      (export (;0;) (interface "foo:foo/bar") (component (type 0)))
     )
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
+  (export (;3;) "bar" (type 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

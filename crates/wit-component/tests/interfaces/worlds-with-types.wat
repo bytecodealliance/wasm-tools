@@ -8,7 +8,12 @@
         )
       )
       (export (;0;) (interface "foo:foo/import-me") (instance (type 0)))
-      (type (;1;)
+    )
+  )
+  (export (;1;) "import-me" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
         (component
           (type (;0;) (record (field "f" u8)))
           (import "foo" (type (;1;) (eq 0)))
@@ -18,8 +23,13 @@
           (export (;1;) "b" (func (type 3)))
         )
       )
-      (export (;0;) (interface "foo:foo/simple") (component (type 1)))
-      (type (;2;)
+      (export (;0;) (interface "foo:foo/simple") (component (type 0)))
+    )
+  )
+  (export (;3;) "simple" (type 2))
+  (type (;4;)
+    (component
+      (type (;0;)
         (component
           (type (;0;)
             (instance
@@ -35,10 +45,10 @@
           (export (;1;) "b" (func (type 3)))
         )
       )
-      (export (;1;) (interface "foo:foo/with-imports") (component (type 2)))
+      (export (;0;) (interface "foo:foo/with-imports") (component (type 0)))
     )
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
+  (export (;5;) "with-imports" (type 4))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

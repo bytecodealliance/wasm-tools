@@ -41,7 +41,12 @@
         )
       )
       (export (;0;) (interface "foo:records/records") (instance (type 0)))
-      (type (;1;)
+    )
+  )
+  (export (;1;) "records" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
         (component
           (type (;0;)
             (instance
@@ -125,10 +130,10 @@
           (export (;1;) (interface "foo:records/records") (instance (type 1)))
         )
       )
-      (export (;0;) (interface "foo:records/records-world") (component (type 1)))
+      (export (;0;) (interface "foo:records/records-world") (component (type 0)))
     )
   )
-  (export (;1;) (interface "foo:records/wit") (type 0))
+  (export (;3;) "records-world" (type 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

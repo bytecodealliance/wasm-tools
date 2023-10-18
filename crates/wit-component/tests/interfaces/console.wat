@@ -10,7 +10,7 @@
       (export (;0;) (interface "foo:console/console") (instance (type 0)))
     )
   )
-  (export (;1;) (interface "foo:console/wit") (type 0))
+  (export (;1;) "console" (type 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

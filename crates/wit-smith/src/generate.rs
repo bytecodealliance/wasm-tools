@@ -58,7 +58,7 @@ impl Generator {
     pub fn gen(&mut self, u: &mut Unstructured<'_>) -> Result<Vec<Package>> {
         let mut packages = Vec::new();
         let mut names = HashSet::new();
-        while packages.len() < self.config.max_packages && (packages.is_empty() || u.arbitrary()?) {
+        while packages.len() < self.config.max_packages && packages.is_empty() {
             let (pkg, interfaces) = self.gen_package(u, &mut names)?;
             if interfaces.len() > 0 {
                 self.packages.push((pkg.name.clone(), interfaces));
@@ -89,7 +89,7 @@ impl Generator {
             sources: SourceMap::new(),
         };
 
-        #[derive(Arbitrary)]
+        #[derive(Arbitrary, Clone)]
         enum Generate {
             Interface,
             Use,
@@ -98,11 +98,12 @@ impl Generator {
         }
 
         let mut items = 0;
+        let mut empty = true;
         let mut files = vec![File::default()];
         let mut package_names = HashSet::new();
         let mut package = File::default();
         log::debug!("===================== new package ====================");
-        while items < self.config.max_pkg_items && !u.is_empty() {
+        while items < self.config.max_pkg_items {
             items += 1;
             let max = if files.len() < self.config.max_files_per_package {
                 files.len() + 1
@@ -125,12 +126,23 @@ impl Generator {
                     files.last_mut().unwrap()
                 }
             };
-            match u.arbitrary()? {
+
+            // Only generate Use/Done if we've already generated a world or interface. This ensures
+            // that we never generate empty packages, which aren't representable.
+            let gen = if empty {
+                u.choose(&[Generate::World, Generate::Interface])?.clone()
+            } else {
+                u.arbitrary()?
+            };
+
+            match gen {
                 Generate::World => {
                     let name = file.gen_unique_package_name(u, &mut package_names)?;
                     log::debug!("new world `{name}` in {i}");
                     let world = self.gen_world(u, &name, file)?;
                     file.items.push(world);
+
+                    empty = false;
                 }
                 Generate::Interface => {
                     let name = file.gen_unique_package_name(u, &mut package_names)?;
@@ -166,6 +178,8 @@ impl Generator {
                     for file in files.iter_mut() {
                         file.insert_definition(interface.clone());
                     }
+
+                    empty = false;
                 }
                 Generate::Use => {
                     let mut piece = String::new();

@@ -8,14 +8,24 @@
         )
       )
       (export (;0;) (interface "foo:foo/foo") (instance (type 0)))
-      (type (;1;)
+    )
+  )
+  (export (;1;) "foo" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
         (instance
           (type (;0;) (func))
           (export (;0;) "bar" (func (type 0)))
         )
       )
-      (export (;1;) (interface "foo:foo/bar") (instance (type 1)))
-      (type (;2;)
+      (export (;0;) (interface "foo:foo/bar") (instance (type 0)))
+    )
+  )
+  (export (;3;) "bar" (type 2))
+  (type (;4;)
+    (component
+      (type (;0;)
         (component
           (type (;0;)
             (instance
@@ -33,10 +43,10 @@
           (export (;1;) (interface "foo:foo/bar") (instance (type 1)))
         )
       )
-      (export (;0;) (interface "foo:foo/import-and-export") (component (type 2)))
+      (export (;0;) (interface "foo:foo/import-and-export") (component (type 0)))
     )
   )
-  (export (;1;) (interface "foo:foo/wit") (type 0))
+  (export (;5;) "import-and-export" (type 4))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
