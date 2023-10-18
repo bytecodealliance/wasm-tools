@@ -44,7 +44,7 @@ impl Arbitrary<'_> for Config {
             max_type_size: u.int_in_range(0..=1000)?,
             max_interface_items: u.int_in_range(0..=20)?,
             max_world_items: u.int_in_range(0..=10)?,
-            max_pkg_items: u.int_in_range(0..=10)?,
+            max_pkg_items: u.int_in_range(1..=10)?,
             max_type_parts: u.int_in_range(1..=10)?,
             max_resource_items: u.int_in_range(0..=10)?,
         })

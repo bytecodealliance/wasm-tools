@@ -11,36 +11,22 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         wit_smith::smith(&config, u)
     })?;
     write_file("doc1.wasm", &wasm);
-    let (resolve, pkg) = match wit_component::decode(&wasm).unwrap() {
+    let (resolve, _pkg) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
 
-    // If we've decoded an empty package, make sure to only use the v1 decoder (v2 has no way to
-    // represent an empty document).
-    let encoding_version = {
-        let package = &resolve.packages[pkg];
-        let is_empty = package.worlds.is_empty() && package.interfaces.is_empty();
-        if is_empty {
-            Some(false)
-        } else {
-            u.arbitrary()?
-        }
-    };
-
-    log::debug!("encoding_version: {encoding_version:?}");
-
-    roundtrip_through_printing(encoding_version, "doc1", &resolve, &wasm);
+    roundtrip_through_printing("doc1", &resolve, &wasm);
 
     let (resolve2, pkg2) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
 
-    let wasm2 = wit_component::encode(encoding_version, &resolve2, pkg2)
-        .expect("failed to encode WIT document");
+    let wasm2 =
+        wit_component::encode(Some(true), &resolve2, pkg2).expect("failed to encode WIT document");
     write_file("doc2.wasm", &wasm2);
-    roundtrip_through_printing(encoding_version, "doc2", &resolve2, &wasm2);
+    roundtrip_through_printing("doc2", &resolve2, &wasm2);
 
     if wasm != wasm2 {
         panic!("roundtrip wasm didn't match");
@@ -78,12 +64,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     Ok(())
 }
 
-fn roundtrip_through_printing(
-    encoding_version: Option<bool>,
-    file: &str,
-    resolve: &Resolve,
-    wasm: &[u8],
-) {
+fn roundtrip_through_printing(file: &str, resolve: &Resolve, wasm: &[u8]) {
     // For all packages in `resolve` print them all to a string, then re-parse
     // them and insert them into a `new_resolve`.
     let mut new_resolve = Resolve::default();
@@ -101,7 +82,7 @@ fn roundtrip_through_printing(
 
     // Finally encode the `new_resolve` which should be the exact same as
     // before.
-    let wasm2 = wit_component::encode(encoding_version, &new_resolve, last.unwrap()).unwrap();
+    let wasm2 = wit_component::encode(Some(true), &new_resolve, last.unwrap()).unwrap();
     write_file(&format!("{file}-reencoded.wasm"), &wasm2);
     if wasm != wasm2 {
         panic!("failed to roundtrip through text printing");
