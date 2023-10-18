@@ -1704,7 +1704,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 
 [[package]]
 name = "wasm-compose"
-version = "0.4.9"
+version = "0.4.10"
 dependencies = [
  "anyhow",
  "glob",
@@ -1831,7 +1831,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-tools"
-version = "1.0.47"
+version = "1.0.48"
 dependencies = [
  "addr2line",
  "anyhow",
@@ -1863,7 +1863,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.12.0",
+ "wit-parser 0.12.1",
  "wit-smith",
 ]
 
@@ -1900,7 +1900,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.12.0",
+ "wit-parser 0.12.1",
  "wit-smith",
 ]
 
@@ -2351,7 +2351,7 @@ checksum = "bd1df36d9fd0bbe4849461de9b969f765170f4e0f90497d580a235d515722b10"
 
 [[package]]
 name = "wit-component"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.0",
@@ -2370,7 +2370,7 @@ dependencies = [
  "wasmtime",
  "wast",
  "wat",
- "wit-parser 0.12.0",
+ "wit-parser 0.12.1",
 ]
 
 [[package]]
@@ -2391,7 +2391,7 @@ dependencies = [
 
 [[package]]
 name = "wit-parser"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -2416,12 +2416,12 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "wasmprinter 0.2.70",
- "wit-parser 0.12.0",
+ "wit-parser 0.12.1",
 ]
 
 [[package]]
 name = "wit-smith"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "arbitrary",
  "clap 4.3.22",
@@ -2429,7 +2429,7 @@ dependencies = [
  "log",
  "semver",
  "wit-component",
- "wit-parser 0.12.0",
+ "wit-parser 0.12.1",
 ]
 
 [[package]]
