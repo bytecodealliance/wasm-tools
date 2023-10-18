@@ -570,13 +570,34 @@ impl Resolve {
             .with_context(|| format!("failed to parse world specifier `{world}`"))?;
         let (pkg, world) = match path {
             AstUsePath::Name(name) => (pkg, name),
-            AstUsePath::Package(pkg, interface) => (
-                *self
-                    .package_names
-                    .get(&pkg)
-                    .ok_or_else(|| anyhow!("unknown package `{pkg}`"))?,
-                interface,
-            ),
+            AstUsePath::Package(pkg, interface) => {
+                let pkg = match self.package_names.get(&pkg) {
+                    Some(pkg) => *pkg,
+                    None => {
+                        let mut candidates = self.package_names.iter().filter(|(name, _)| {
+                            pkg.version.is_none()
+                                && pkg.name == name.name
+                                && pkg.namespace == name.namespace
+                                && name.version.is_some()
+                        });
+                        let candidate = candidates.next();
+                        if let Some((c2, _)) = candidates.next() {
+                            let (c1, _) = candidate.unwrap();
+                            bail!(
+                                "package name `{pkg}` is available at both \
+                                 versions {} and {} but which is not specified",
+                                c1.version.as_ref().unwrap(),
+                                c2.version.as_ref().unwrap(),
+                            );
+                        }
+                        match candidate {
+                            Some((_, id)) => *id,
+                            None => bail!("unknown package `{pkg}`"),
+                        }
+                    }
+                };
+                (pkg, interface)
+            }
         };
         let pkg = &self.packages[pkg];
         pkg.worlds
@@ -1779,5 +1800,68 @@ impl<'a> MergeMap<'a> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{PackageId, Resolve};
+
+    #[test]
+    fn select_world() {
+        let mut resolve = Resolve::default();
+        parse_into(
+            &mut resolve,
+            r#"
+                package foo:bar@0.1.0
+
+                world foo {}
+            "#,
+        );
+        parse_into(
+            &mut resolve,
+            r#"
+                package foo:baz@0.1.0
+
+                world foo {}
+            "#,
+        );
+        parse_into(
+            &mut resolve,
+            r#"
+                package foo:baz@0.2.0
+
+                world foo {}
+            "#,
+        );
+
+        let dummy = parse_into(
+            &mut resolve,
+            r#"
+                package foo:dummy
+
+                world foo {}
+            "#,
+        );
+
+        assert!(resolve.select_world(dummy, None).is_ok());
+        assert!(resolve.select_world(dummy, Some("xx")).is_err());
+        assert!(resolve.select_world(dummy, Some("")).is_err());
+        assert!(resolve.select_world(dummy, Some("foo:bar/foo")).is_ok());
+        assert!(resolve
+            .select_world(dummy, Some("foo:bar/foo@0.1.0"))
+            .is_ok());
+        assert!(resolve.select_world(dummy, Some("foo:baz/foo")).is_err());
+        assert!(resolve
+            .select_world(dummy, Some("foo:baz/foo@0.1.0"))
+            .is_ok());
+        assert!(resolve
+            .select_world(dummy, Some("foo:baz/foo@0.2.0"))
+            .is_ok());
+    }
+
+    fn parse_into(resolve: &mut Resolve, wit: &str) -> PackageId {
+        let pkg = crate::UnresolvedPackage::parse("input.wit".as_ref(), wit).unwrap();
+        resolve.push(pkg).unwrap()
     }
 }
