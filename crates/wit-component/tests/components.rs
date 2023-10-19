@@ -75,11 +75,15 @@ fn component_encoding_via_flags() -> Result<()> {
                 .encode()
         } else {
             let mut libs = glob::glob(path.join("lib-*.wat").to_str().unwrap())?
-                .map(|path| ("lib-", path, false))
+                .map(|path| Ok(("lib-", path?, false)))
                 .chain(
                     glob::glob(path.join("dlopen-lib-*.wat").to_str().unwrap())?
-                        .map(|path| ("dlopen-lib-", path, true)),
-                );
+                        .map(|path| Ok(("dlopen-lib-", path?, true))),
+                )
+                .collect::<Result<Vec<_>>>()?;
+
+            // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
+            libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
 
             let mut linker = Linker::default().validate(true);
 
@@ -87,10 +91,12 @@ fn component_encoding_via_flags() -> Result<()> {
                 linker = linker.stub_missing_functions(true);
             }
 
-            let linker = libs.try_fold(linker, |linker, (prefix, path, dl_openable)| {
-                let (name, wasm) = read_name_and_module(prefix, &path?, &resolve, pkg)?;
-                Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
-            })?;
+            let linker =
+                libs.into_iter()
+                    .try_fold(linker, |linker, (prefix, path, dl_openable)| {
+                        let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg)?;
+                        Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
+                    })?;
 
             adapters
                 .try_fold(linker, |linker, path| {

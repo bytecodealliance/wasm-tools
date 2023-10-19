@@ -271,6 +271,9 @@ fn parse_library(s: &str) -> Result<(String, Vec<u8>)> {
 /// The resulting component's type will be the union of the types found in any `component-type*` custom sections in
 /// the input modules.
 ///
+/// Note that the order in which input libraries are listed determines priority in cases where more than one
+/// library exports the same symbol.
+///
 /// See
 /// https://github.com/WebAssembly/component-model/blob/main/design/mvp/examples/SharedEverythingDynamicLinking.md
 /// for further details.

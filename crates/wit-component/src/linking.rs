@@ -836,7 +836,8 @@ fn resolve_symbols<'a>(
                     // symbol, in which case we may redundantly insert the same value.
                     resolved.insert(*key, *exporter);
                 }
-                _ => {
+                [exporter, ..] => {
+                    resolved.insert(*key, *exporter);
                     duplicates.push((metadata.name, *key, value.as_slice()));
                 }
             }
@@ -879,14 +880,15 @@ fn resolve_symbols<'a>(
     for metadata in metadata {
         for name in &metadata.table_address_imports {
             if let Some((key, value)) = function_exporters.get(name) {
+                // Note that we do not use `insert_unique` here since multiple libraries may import the same
+                // symbol, in which case we may redundantly insert the same value.
                 match value.as_slice() {
                     [] => unreachable!(),
                     [exporter] => {
-                        // Note that we do not use `insert_unique` here since multiple libraries may import the
-                        // same symbol, in which case we may redundantly insert the same value.
                         resolved.insert(key, *exporter);
                     }
-                    _ => {
+                    [exporter, ..] => {
+                        resolved.insert(key, *exporter);
                         duplicates.push((metadata.name, *key, value.as_slice()));
                     }
                 }
@@ -1158,6 +1160,8 @@ fn find_reachable<'a>(
 #[derive(Default)]
 pub struct Linker {
     /// The `(name, module, dl_openable)` triple representing the libraries to be composed
+    ///
+    /// The order of this list determines priority in cases where more than one library exports the same symbol.
     libraries: Vec<(String, Vec<u8>, bool)>,
 
     /// The set of adapters to use when generating the component
@@ -1286,14 +1290,12 @@ impl Linker {
                 }),
             })
             .map(|exporters| {
-                // TODO: When there are multiple exporters, we should choose the one that came first in the order
-                // they were specified.
                 let first = *exporters.first().unwrap();
                 *exporters = vec![first];
                 first.0
             });
 
-        let (exporters, missing, duplicates) = resolve_symbols(&metadata, &exporters);
+        let (exporters, missing, _) = resolve_symbols(&metadata, &exporters);
 
         if !missing.is_empty() {
             if missing
@@ -1322,28 +1324,6 @@ impl Linker {
                         .join("\n")
                 );
             }
-        }
-
-        if !duplicates.is_empty() {
-            // TODO: When there are multiple exporters for a given symbol, we should choose the one that came first
-            // in the order they were specified.
-            bail!(
-                "duplicate symbol(s):\n{}",
-                duplicates
-                    .iter()
-                    .map(|(importer, key, exporters)| {
-                        format!(
-                            "\t{importer} needs {key}, provided by {}",
-                            exporters
-                                .iter()
-                                .map(|(exporter, _)| *exporter)
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            );
         }
 
         let dependencies = find_dependencies(&metadata, &exporters)?;
