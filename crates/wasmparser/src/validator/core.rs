@@ -18,7 +18,7 @@ use crate::{
 use super::{
     check_max, combine_type_sizes,
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
-    types::{CoreTypeId, EntityType, TypeAlloc, TypeIdentifierImpl, TypeList},
+    types::{CoreTypeId, EntityType, TypeAlloc, TypeIdentifier, TypeList},
 };
 
 // Section order for WebAssembly modules.

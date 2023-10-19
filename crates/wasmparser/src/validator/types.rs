@@ -144,146 +144,49 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 /// Any id that can be used to get a type from a `Types`.
 //
 // Or, internally, from a `TypeList`.
-pub trait TypeIdentifier:
-    TypeIdentifierImpl<DataImpl = Self::Data> + std::fmt::Debug + Copy + Eq + Sized + 'static
-{
+pub trait TypeIdentifier: std::fmt::Debug + Copy + Eq + Sized + 'static {
     /// The data pointed to by this type of id.
     type Data: TypeData<Id = Self>;
+
+    /// Create a type id from an index.
+    #[doc(hidden)]
+    fn from_index(index: u32) -> Self;
+
+    /// Get a shared reference to the list where this id's type data is stored
+    /// within.
+    #[doc(hidden)]
+    fn list(types: &TypeList) -> &SnapshotList<Self::Data>;
+
+    /// Get an exclusive reference to the list where this id's type data is
+    /// stored within.
+    #[doc(hidden)]
+    fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::Data>;
+
+    /// The raw index of this id.
+    #[doc(hidden)]
+    fn index(&self) -> usize;
 }
 
 /// A trait shared by all types within a `Types`.
 ///
 /// This is the data that can be retreived by indexing with the associated
 /// [`TypeIdentifier`].
-pub trait TypeData: TypeDataImpl + std::fmt::Debug {
+pub trait TypeData: std::fmt::Debug {
     /// The identifier for this type data.
     type Id: TypeIdentifier<Data = Self>;
+
+    /// Get the info for this type.
+    #[doc(hidden)]
+    fn type_info(&self, types: &TypeList) -> TypeInfo;
 }
 
 /// A type that can be aliased in the component model.
-pub trait Aliasable: AliasableImpl {}
+pub trait Aliasable {
+    #[doc(hidden)]
+    fn alias_id(&self) -> u32;
 
-pub(crate) use sealed::*;
-mod sealed {
-    use super::*;
-
-    /// Internal sealed trait for `TypeIdentifier`.
-    pub trait TypeIdentifierImpl: Sized + 'static {
-        type DataImpl;
-
-        /// Create a type id from an index.
-        fn from_index(index: u32) -> Self;
-
-        /// Get a shared reference to the list where this id's type data is stored
-        /// within.
-        fn list(types: &TypeList) -> &SnapshotList<Self::DataImpl>;
-
-        /// Get an exclusive reference to the list where this id's type data is
-        /// stored within.
-        fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::DataImpl>;
-
-        /// The raw index of this id.
-        fn index(&self) -> usize;
-    }
-
-    /// Internal sealed trait for `TypeData`.
-    pub trait TypeDataImpl: std::fmt::Debug {
-        /// Get the info for this type.
-        fn type_info(&self, types: &TypeList) -> TypeInfo;
-    }
-
-    /// Internal sealed trait for `Aliasable`.
-    pub trait AliasableImpl {
-        #[doc(hidden)]
-        fn alias_id(&self) -> u32;
-
-        #[doc(hidden)]
-        fn set_alias_id(&mut self, alias_id: u32);
-    }
-
-    /// This is a type which mirrors a subset of the `Vec<T>` API, but is intended
-    /// to be able to be cheaply snapshotted and cloned.
-    ///
-    /// When each module's code sections start we "commit" the current list of types
-    /// in the global list of types. This means that the temporary `cur` vec here is
-    /// pushed onto `snapshots` and wrapped up in an `Arc`. At that point we clone
-    /// this entire list (which is then O(modules), not O(types in all modules)) and
-    /// pass out as a context to each function validator.
-    ///
-    /// Otherwise, though, this type behaves as if it were a large `Vec<T>`, but
-    /// it's represented by lists of contiguous chunks.
-    pub struct SnapshotList<T> {
-        // All previous snapshots, the "head" of the list that this type represents.
-        // The first entry in this pair is the starting index for all elements
-        // contained in the list, and the second element is the list itself. Note
-        // the `Arc` wrapper around sub-lists, which makes cloning time for this
-        // `SnapshotList` O(snapshots) rather than O(snapshots_total), which for
-        // us in this context means the number of modules, not types.
-        //
-        // Note that this list is sorted least-to-greatest in order of the index for
-        // binary searching.
-        pub(super) snapshots: Vec<Arc<Snapshot<T>>>,
-
-        // This is the total length of all lists in the `snapshots` array.
-        pub(super) snapshots_total: usize,
-
-        // The current list of types for the current snapshot that are being built.
-        pub(super) cur: Vec<T>,
-    }
-
-    /// A snapshot list of types.
-    ///
-    /// Note that the snapshot lists below do not correspond with index spaces. Many
-    /// different kinds of types are in the same index space (e.g. all of the
-    /// component model's {component, instance, defined, func} types are in the same
-    /// index space). However, we store each of them in their own type-specific
-    /// snapshot list and give each of them their own identifier type.
-    #[derive(Default)]
-    pub struct TypeList {
-        // Keeps track of which `alias_id` is an alias of which other `alias_id`.
-        pub(super) alias_mappings: HashMap<u32, u32>,
-        // Counter for generating new `alias_id`s.
-        pub(super) alias_counter: u32,
-        // Snapshots of previously committed `TypeList`s' aliases.
-        pub(super) alias_snapshots: Vec<TypeListAliasSnapshot>,
-
-        // Core Wasm types.
-        pub(super) core_types: SnapshotList<SubType>,
-
-        // Component model types.
-        pub(super) components: SnapshotList<ComponentType>,
-        pub(super) component_defined_types: SnapshotList<ComponentDefinedType>,
-        pub(super) component_values: SnapshotList<ComponentValType>,
-        pub(super) component_instances: SnapshotList<ComponentInstanceType>,
-        pub(super) component_funcs: SnapshotList<ComponentFuncType>,
-        pub(super) core_modules: SnapshotList<ModuleType>,
-        pub(super) core_instances: SnapshotList<InstanceType>,
-    }
-
-    /// Metadata about a type and its transitive structure.
-    ///
-    /// Currently contains two properties:
-    ///
-    /// * The "size" of a type - a proxy to the recursive size of a type if
-    ///   everything in the type were unique (e.g. no shared references). Not an
-    ///   approximation of runtime size, but instead of type-complexity size if
-    ///   someone were to visit each element of the type individually. For example
-    ///   `u32` has size 1 and `(list u32)` has size 2 (roughly). Used to prevent
-    ///   massive trees of types.
-    ///
-    /// * Whether or not a type contains a "borrow" transitively inside of it. For
-    ///   example `(borrow $t)` and `(list (borrow $t))` both contain borrows, but
-    ///   `(list u32)` does not. Used to validate that component function results do
-    ///   not contain borrows.
-    ///
-    /// Currently this is represented as a compact 32-bit integer to ensure that
-    /// `TypeId`, which this is stored in, remains relatively small. The maximum
-    /// type size allowed in wasmparser is 1M at this time which is 20 bits of
-    /// information, and then one more bit is used for whether or not a borrow is
-    /// used. Currently this uses the low 24 bits for the type size and the MSB for
-    /// the borrow bit.
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-    pub struct TypeInfo(pub(super) u32);
+    #[doc(hidden)]
+    fn set_alias_id(&mut self, alias_id: u32);
 }
 
 /// A fresh alias id that means the entity is not an alias of anything.
@@ -308,20 +211,16 @@ macro_rules! define_type_id {
 
         impl TypeIdentifier for $name {
             type Data = $data;
-        }
-
-        impl TypeIdentifierImpl for $name {
-            type DataImpl = $data;
 
             fn from_index(index: u32) -> Self {
                 $name { index }
             }
 
-            fn list(types: &TypeList) -> &SnapshotList<Self::DataImpl> {
+            fn list(types: &TypeList) -> &SnapshotList<Self::Data> {
                 &types.$list
             }
 
-            fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::DataImpl> {
+            fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::Data> {
                 &mut types.$list
             }
 
@@ -330,9 +229,7 @@ macro_rules! define_type_id {
             }
         }
 
-        impl Aliasable for $name {}
-
-        impl AliasableImpl for $name {
+        impl Aliasable for $name {
             fn alias_id(&self) -> u32 {
                 NO_ALIAS
             }
@@ -374,20 +271,16 @@ const _: () = {
 
 impl TypeIdentifier for CoreTypeId {
     type Data = SubType;
-}
-
-impl TypeIdentifierImpl for CoreTypeId {
-    type DataImpl = SubType;
 
     fn from_index(index: u32) -> Self {
         CoreTypeId { index }
     }
 
-    fn list(types: &TypeList) -> &SnapshotList<Self::DataImpl> {
+    fn list(types: &TypeList) -> &SnapshotList<Self::Data> {
         &types.core_types
     }
 
-    fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::DataImpl> {
+    fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::Data> {
         &mut types.core_types
     }
 
@@ -398,9 +291,7 @@ impl TypeIdentifierImpl for CoreTypeId {
 
 impl TypeData for SubType {
     type Id = CoreTypeId;
-}
 
-impl TypeDataImpl for SubType {
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         // TODO(#1036): calculate actual size for func, array, struct.
         let size = 1 + match &self.structural_type {
@@ -601,9 +492,7 @@ pub struct AliasableResourceId {
     alias_id: u32,
 }
 
-impl Aliasable for AliasableResourceId {}
-
-impl AliasableImpl for AliasableResourceId {
+impl Aliasable for AliasableResourceId {
     fn alias_id(&self) -> u32 {
         self.alias_id
     }
@@ -650,9 +539,7 @@ define_wrapper_id! {
     }
 }
 
-impl Aliasable for ComponentAnyTypeId {}
-
-impl AliasableImpl for ComponentAnyTypeId {
+impl Aliasable for ComponentAnyTypeId {
     fn alias_id(&self) -> u32 {
         match self {
             ComponentAnyTypeId::Resource(x) => x.alias_id(),
@@ -748,10 +635,6 @@ const _: () = {
 
 impl TypeIdentifier for ComponentDefinedTypeId {
     type Data = ComponentDefinedType;
-}
-
-impl TypeIdentifierImpl for ComponentDefinedTypeId {
-    type DataImpl = ComponentDefinedType;
 
     fn from_index(index: u32) -> Self {
         ComponentDefinedTypeId {
@@ -760,11 +643,11 @@ impl TypeIdentifierImpl for ComponentDefinedTypeId {
         }
     }
 
-    fn list(types: &TypeList) -> &SnapshotList<Self::DataImpl> {
+    fn list(types: &TypeList) -> &SnapshotList<Self::Data> {
         &types.component_defined_types
     }
 
-    fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::DataImpl> {
+    fn list_mut(types: &mut TypeList) -> &mut SnapshotList<Self::Data> {
         &mut types.component_defined_types
     }
 
@@ -773,9 +656,7 @@ impl TypeIdentifierImpl for ComponentDefinedTypeId {
     }
 }
 
-impl Aliasable for ComponentDefinedTypeId {}
-
-impl AliasableImpl for ComponentDefinedTypeId {
+impl Aliasable for ComponentDefinedTypeId {
     fn alias_id(&self) -> u32 {
         self.alias_id
     }
@@ -784,6 +665,33 @@ impl AliasableImpl for ComponentDefinedTypeId {
         self.alias_id = alias_id;
     }
 }
+
+/// Metadata about a type and its transitive structure.
+///
+/// Currently contains two properties:
+///
+/// * The "size" of a type - a proxy to the recursive size of a type if
+///   everything in the type were unique (e.g. no shared references). Not an
+///   approximation of runtime size, but instead of type-complexity size if
+///   someone were to visit each element of the type individually. For example
+///   `u32` has size 1 and `(list u32)` has size 2 (roughly). Used to prevent
+///   massive trees of types.
+///
+/// * Whether or not a type contains a "borrow" transitively inside of it. For
+///   example `(borrow $t)` and `(list (borrow $t))` both contain borrows, but
+///   `(list u32)` does not. Used to validate that component function results do
+///   not contain borrows.
+///
+/// Currently this is represented as a compact 32-bit integer to ensure that
+/// `TypeId`, which this is stored in, remains relatively small. The maximum
+/// type size allowed in wasmparser is 1M at this time which is 20 bits of
+/// information, and then one more bit is used for whether or not a borrow is
+/// used. Currently this uses the low 24 bits for the type size and the MSB for
+/// the borrow bit.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+// Only public because it shows up in a public trait's `doc(hidden)` method.
+#[doc(hidden)]
+pub struct TypeInfo(u32);
 
 impl TypeInfo {
     /// Creates a new blank set of type information.
@@ -847,9 +755,7 @@ pub enum ComponentValType {
 
 impl TypeData for ComponentValType {
     type Id = ComponentValueTypeId;
-}
 
-impl TypeDataImpl for ComponentValType {
     fn type_info(&self, types: &TypeList) -> TypeInfo {
         match self {
             ComponentValType::Primitive(_) => TypeInfo::new(),
@@ -974,9 +880,7 @@ pub struct ModuleType {
 
 impl TypeData for ModuleType {
     type Id = ComponentCoreModuleTypeId;
-}
 
-impl TypeDataImpl for ModuleType {
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -1012,9 +916,7 @@ pub struct InstanceType {
 
 impl TypeData for InstanceType {
     type Id = ComponentCoreInstanceTypeId;
-}
 
-impl TypeDataImpl for InstanceType {
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -1154,9 +1056,7 @@ pub struct ComponentType {
 
 impl TypeData for ComponentType {
     type Id = ComponentTypeId;
-}
 
-impl TypeDataImpl for ComponentType {
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -1214,9 +1114,7 @@ pub struct ComponentInstanceType {
 
 impl TypeData for ComponentInstanceType {
     type Id = ComponentInstanceTypeId;
-}
 
-impl TypeDataImpl for ComponentInstanceType {
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -1235,9 +1133,7 @@ pub struct ComponentFuncType {
 
 impl TypeData for ComponentFuncType {
     type Id = ComponentFuncTypeId;
-}
 
-impl TypeDataImpl for ComponentFuncType {
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -1383,9 +1279,7 @@ pub enum ComponentDefinedType {
 
 impl TypeData for ComponentDefinedType {
     type Id = ComponentDefinedTypeId;
-}
 
-impl TypeDataImpl for ComponentDefinedType {
     fn type_info(&self, types: &TypeList) -> TypeInfo {
         match self {
             Self::Primitive(_) | Self::Flags(_) | Self::Enum(_) | Self::Own(_) => TypeInfo::new(),
@@ -2317,6 +2211,39 @@ where
     }
 }
 
+/// This is a type which mirrors a subset of the `Vec<T>` API, but is intended
+/// to be able to be cheaply snapshotted and cloned.
+///
+/// When each module's code sections start we "commit" the current list of types
+/// in the global list of types. This means that the temporary `cur` vec here is
+/// pushed onto `snapshots` and wrapped up in an `Arc`. At that point we clone
+/// this entire list (which is then O(modules), not O(types in all modules)) and
+/// pass out as a context to each function validator.
+///
+/// Otherwise, though, this type behaves as if it were a large `Vec<T>`, but
+/// it's represented by lists of contiguous chunks.
+//
+// Only public because it shows up in a public trait's `doc(hidden)` method.
+#[doc(hidden)]
+pub struct SnapshotList<T> {
+    // All previous snapshots, the "head" of the list that this type represents.
+    // The first entry in this pair is the starting index for all elements
+    // contained in the list, and the second element is the list itself. Note
+    // the `Arc` wrapper around sub-lists, which makes cloning time for this
+    // `SnapshotList` O(snapshots) rather than O(snapshots_total), which for
+    // us in this context means the number of modules, not types.
+    //
+    // Note that this list is sorted least-to-greatest in order of the index for
+    // binary searching.
+    snapshots: Vec<Arc<Snapshot<T>>>,
+
+    // This is the total length of all lists in the `snapshots` array.
+    snapshots_total: usize,
+
+    // The current list of types for the current snapshot that are being built.
+    cur: Vec<T>,
+}
+
 struct Snapshot<T> {
     prior_types: usize,
     items: Vec<T>,
@@ -2416,6 +2343,37 @@ impl<T> Default for SnapshotList<T> {
             cur: Vec::new(),
         }
     }
+}
+
+/// A snapshot list of types.
+///
+/// Note that the snapshot lists below do not correspond with index spaces. Many
+/// different kinds of types are in the same index space (e.g. all of the
+/// component model's {component, instance, defined, func} types are in the same
+/// index space). However, we store each of them in their own type-specific
+/// snapshot list and give each of them their own identifier type.
+#[derive(Default)]
+// Only public because it shows up in a public trait's `doc(hidden)` method.
+#[doc(hidden)]
+pub struct TypeList {
+    // Keeps track of which `alias_id` is an alias of which other `alias_id`.
+    alias_mappings: HashMap<u32, u32>,
+    // Counter for generating new `alias_id`s.
+    alias_counter: u32,
+    // Snapshots of previously committed `TypeList`s' aliases.
+    alias_snapshots: Vec<TypeListAliasSnapshot>,
+
+    // Core Wasm types.
+    core_types: SnapshotList<SubType>,
+
+    // Component model types.
+    components: SnapshotList<ComponentType>,
+    component_defined_types: SnapshotList<ComponentDefinedType>,
+    component_values: SnapshotList<ComponentValType>,
+    component_instances: SnapshotList<ComponentInstanceType>,
+    component_funcs: SnapshotList<ComponentFuncType>,
+    core_modules: SnapshotList<ModuleType>,
+    core_instances: SnapshotList<InstanceType>,
 }
 
 #[derive(Clone, Debug)]
