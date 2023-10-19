@@ -488,7 +488,7 @@
     (type $x u32)
     (instance (instantiate $c (with "x" (type $x))))
   )
-  "expected resource, found type")
+  "expected resource, found defined type")
 
 (assert_invalid
   (component
@@ -499,7 +499,7 @@
     (type $x (resource (rep i32)))
     (instance (instantiate $c (with "x" (type $x))))
   )
-  "expected type, found resource")
+  "expected defined type, found resource")
 
 (assert_invalid
   (component

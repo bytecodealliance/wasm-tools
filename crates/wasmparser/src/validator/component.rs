@@ -4,17 +4,19 @@ use super::{
     check_max,
     core::Module,
     types::{
-        ComponentFuncType, ComponentInstanceType, ComponentType, ComponentValType, EntityType,
-        InstanceType, ModuleType, RecordType, Remapping, ResourceId, Type, TypeAlloc, TypeId,
-        TypeList, VariantCase,
+        AliasableResourceId, ComponentCoreInstanceTypeId, ComponentDefinedTypeId,
+        ComponentFuncType, ComponentFuncTypeId, ComponentInstanceType, ComponentInstanceTypeId,
+        ComponentType, ComponentTypeId, ComponentValType, CoreTypeId, EntityType, InstanceType,
+        ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
 use crate::validator::names::{KebabName, KebabNameKind, KebabStr, KebabString};
 use crate::{
     limits::*,
     types::{
-        ComponentDefinedType, ComponentEntityType, Context, InstanceTypeKind, LoweringInfo, Remap,
-        SubtypeCx, TupleType, TypeInfo, VariantType,
+        ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
+        ComponentEntityType, Context, CoreInstanceTypeKind, LoweringInfo, Remap, SubtypeCx,
+        TupleType, TypeInfo, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
     ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType, GlobalType,
@@ -44,21 +46,21 @@ pub(crate) struct ComponentState {
     kind: ComponentKind,
 
     // Core index spaces
-    pub core_types: Vec<TypeId>,
-    pub core_modules: Vec<TypeId>,
-    pub core_instances: Vec<TypeId>,
-    pub core_funcs: Vec<TypeId>,
+    pub core_types: Vec<ComponentCoreTypeId>,
+    pub core_funcs: Vec<CoreTypeId>,
+    pub core_tags: Vec<CoreTypeId>,
+    pub core_modules: Vec<ComponentCoreModuleTypeId>,
+    pub core_instances: Vec<ComponentCoreInstanceTypeId>,
     pub core_memories: Vec<MemoryType>,
     pub core_tables: Vec<TableType>,
     pub core_globals: Vec<GlobalType>,
-    pub core_tags: Vec<TypeId>,
 
     // Component index spaces
-    pub types: Vec<TypeId>,
-    pub funcs: Vec<TypeId>,
+    pub types: Vec<ComponentAnyTypeId>,
+    pub funcs: Vec<ComponentFuncTypeId>,
     pub values: Vec<(ComponentValType, bool)>,
-    pub instances: Vec<TypeId>,
-    pub components: Vec<TypeId>,
+    pub instances: Vec<ComponentInstanceTypeId>,
+    pub components: Vec<ComponentTypeId>,
 
     pub imports: IndexMap<String, ComponentEntityType>,
     pub exports: IndexMap<String, ComponentEntityType>,
@@ -149,10 +151,10 @@ pub(crate) struct ComponentState {
     ///
     /// This set is consulted whenever an exported item is added since all
     /// referenced types must be members of this set.
-    exported_types: HashSet<TypeId>,
+    exported_types: HashSet<ComponentAnyTypeId>,
 
     /// Same as `exported_types`, but for imports.
-    imported_types: HashSet<TypeId>,
+    imported_types: HashSet<ComponentAnyTypeId>,
 
     /// The set of top-level resource exports and their names.
     ///
@@ -182,7 +184,7 @@ pub enum ComponentKind {
 struct KebabNameContext {
     /// A map from a resource type id to an index in the `all_resource_names`
     /// set for the name of that resource.
-    resource_name_map: HashMap<TypeId, usize>,
+    resource_name_map: HashMap<AliasableResourceId, usize>,
 
     /// All known resource names in this context, used to validate static method
     /// names to by ensuring that static methods' resource names are somewhere
@@ -257,30 +259,29 @@ impl ComponentState {
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        let ty = match ty {
-            crate::CoreType::Func(ty) => Type::Sub(SubType {
-                is_final: false,
-                supertype_idx: None,
-                structural_type: StructuralType::Func(ty),
-            }),
-            crate::CoreType::Module(decls) => Type::Module(Box::new(Self::create_module_type(
-                components,
-                decls.into_vec(),
-                features,
-                types,
-                offset,
-            )?)),
+        let id = match ty {
+            crate::CoreType::Sub(sub) => {
+                let id = types.push_ty(sub);
+                ComponentCoreTypeId::Sub(id)
+            }
+            crate::CoreType::Module(decls) => {
+                let mod_ty = Self::create_module_type(
+                    components,
+                    decls.into_vec(),
+                    features,
+                    types,
+                    offset,
+                )?;
+                let id = types.push_ty(mod_ty);
+                ComponentCoreTypeId::Module(id)
+            }
         };
 
         let current = components.last_mut().unwrap();
-
         if check_limit {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
-
-        let id = types.push_ty(ty);
         current.core_types.push(id);
-
         Ok(())
     }
 
@@ -295,14 +296,14 @@ impl ComponentState {
         // We have to clone the module's imports and exports here
         // because we cannot take the data out of the `MaybeOwned`
         // as it might be shared with a function validator.
-        let ty = Type::Module(Box::new(ModuleType {
+        let mod_ty = ModuleType {
             info: TypeInfo::core(module.type_size),
             imports,
             exports: module.exports.clone(),
-        }));
+        };
 
-        let id = types.push_ty(ty);
-        self.core_modules.push(id);
+        let mod_id = types.push_ty(mod_ty);
+        self.core_modules.push(mod_id);
 
         Ok(())
     }
@@ -315,7 +316,7 @@ impl ComponentState {
     ) -> Result<()> {
         let instance = match instance {
             crate::Instance::Instantiate { module_index, args } => {
-                self.instantiate_module(module_index, args.into_vec(), types, offset)?
+                self.instantiate_core_module(module_index, args.into_vec(), types, offset)?
             }
             crate::Instance::FromExports(exports) => {
                 self.instantiate_core_exports(exports.into_vec(), types, offset)?
@@ -336,27 +337,42 @@ impl ComponentState {
         check_limit: bool,
     ) -> Result<()> {
         assert!(!components.is_empty());
-        let ty = match ty {
-            crate::ComponentType::Defined(ty) => Type::Defined(
-                components
-                    .last_mut()
-                    .unwrap()
-                    .create_defined_type(ty, types, offset)?,
-            ),
-            crate::ComponentType::Func(ty) => Type::ComponentFunc(
-                components
-                    .last_mut()
-                    .unwrap()
-                    .create_function_type(ty, types, offset)?,
-            ),
-            crate::ComponentType::Component(decls) => Type::Component(Box::new(
-                Self::create_component_type(components, decls.into_vec(), features, types, offset)?,
-            )),
-            crate::ComponentType::Instance(decls) => Type::ComponentInstance(Box::new(
-                Self::create_instance_type(components, decls.into_vec(), features, types, offset)?,
-            )),
+
+        fn current(components: &mut Vec<ComponentState>) -> &mut ComponentState {
+            components.last_mut().unwrap()
+        }
+
+        let id = match ty {
+            crate::ComponentType::Defined(ty) => {
+                let ty = current(components).create_defined_type(ty, types, offset)?;
+                types.push(ty).into()
+            }
+            crate::ComponentType::Func(ty) => {
+                let ty = current(components).create_function_type(ty, types, offset)?;
+                types.push(ty).into()
+            }
+            crate::ComponentType::Component(decls) => {
+                let ty = Self::create_component_type(
+                    components,
+                    decls.into_vec(),
+                    features,
+                    types,
+                    offset,
+                )?;
+                types.push(ty).into()
+            }
+            crate::ComponentType::Instance(decls) => {
+                let ty = Self::create_instance_type(
+                    components,
+                    decls.into_vec(),
+                    features,
+                    types,
+                    offset,
+                )?;
+                types.push(ty).into()
+            }
             crate::ComponentType::Resource { rep, dtor } => {
-                let component = components.last_mut().unwrap();
+                let component = current(components);
 
                 // Resource types cannot be declared in a type context, only
                 // within a component context.
@@ -376,7 +392,7 @@ impl ComponentState {
                 // function and has the correct signature.
                 if let Some(dtor) = dtor {
                     let ty = component.core_function_at(dtor, offset)?;
-                    let ty = types[ty].unwrap_func();
+                    let ty = types[ty].structural_type.unwrap_func();
                     if ty.params() != [rep] || ty.results() != [] {
                         bail!(
                             offset,
@@ -391,17 +407,15 @@ impl ComponentState {
                 // rep listed to enable getting access to various intrinsics
                 // such as `resource.rep`.
                 let id = types.alloc_resource_id();
-                component.defined_resources.insert(id, Some(rep));
-                Type::Resource(id)
+                component.defined_resources.insert(id.resource(), Some(rep));
+                id.into()
             }
         };
 
-        let current = components.last_mut().unwrap();
+        let current = current(components);
         if check_limit {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
-
-        let id = types.push_ty(ty);
         current.types.push(id);
 
         Ok(())
@@ -485,7 +499,7 @@ impl ComponentState {
                 // Note that if `created` is the same as `referenced` then this
                 // is the original introduction of the resource which is where
                 // `self.{imported,defined}_resources` are updated.
-                if let Type::Resource(id) = types[*created] {
+                if let ComponentAnyTypeId::Resource(id) = *created {
                     match kind {
                         Some(ExternKind::Import) => {
                             // A fresh new resource is being imported into a
@@ -495,7 +509,8 @@ impl ComponentState {
                             // resource is injected with a fresh new identifier
                             // into our state.
                             if created == referenced {
-                                self.imported_resources.insert(id, vec![self.imports.len()]);
+                                self.imported_resources
+                                    .insert(id.resource(), vec![self.imports.len()]);
                             }
                         }
 
@@ -509,14 +524,15 @@ impl ComponentState {
                             // Notably the representation of this new resource
                             // is unknown so it's listed as `None`.
                             if created == referenced {
-                                self.defined_resources.insert(id, None);
+                                self.defined_resources.insert(id.resource(), None);
                             }
 
                             // If this is a type export of a resource type then
                             // update the `explicit_resources` list. A new
                             // export path is about to be created for this
                             // resource and this keeps track of that.
-                            self.explicit_resources.insert(id, vec![self.exports.len()]);
+                            self.explicit_resources
+                                .insert(id.resource(), vec![self.exports.len()]);
                         }
 
                         None => {}
@@ -569,12 +585,12 @@ impl ComponentState {
             // appropriate context so later validation of method-like-names
             // works out.
             if let Some(name) = toplevel_name {
-                if let Type::Resource(_) = types[*created] {
+                if let ComponentAnyTypeId::Resource(id) = *created {
                     let cx = match kind {
                         ExternKind::Import => &mut self.toplevel_imported_resources,
                         ExternKind::Export => &mut self.toplevel_exported_resources,
                     };
-                    cx.register(name, *created);
+                    cx.register(name, id);
                 }
             }
         }
@@ -628,15 +644,13 @@ impl ComponentState {
             // itself are valid to import/export, recursive instances are
             // captured, and everything is appropriately added to the right
             // imported/exported set.
-            ComponentEntityType::Instance(i) => {
-                let ty = types[*i].unwrap_component_instance();
-                ty.exports
-                    .values()
-                    .all(|ty| self.validate_and_register_named_types(None, kind, ty, types))
-            }
+            ComponentEntityType::Instance(i) => types[*i]
+                .exports
+                .iter()
+                .all(|(_name, ty)| self.validate_and_register_named_types(None, kind, ty, types)),
 
             // All types referred to by a function must be named.
-            ComponentEntityType::Func(id) => self.all_valtypes_named(types, *id, set),
+            ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, *id, set),
 
             ComponentEntityType::Value(ty) => types.type_named_valtype(ty, set),
 
@@ -645,86 +659,117 @@ impl ComponentState {
             ComponentEntityType::Component(_) | ComponentEntityType::Module(_) => true,
         }
     }
-    fn all_valtypes_named(&self, types: &TypeAlloc, id: TypeId, set: &HashSet<TypeId>) -> bool {
-        match &types[id] {
-            Type::Defined(i) => match i {
-                // These types do not contain anything which must be
-                // named.
-                ComponentDefinedType::Primitive(_)
-                | ComponentDefinedType::Flags(_)
-                | ComponentDefinedType::Enum(_) => true,
 
-                // Referenced types of all these aggregates must all be
-                // named.
-                ComponentDefinedType::Record(r) => {
-                    r.fields.values().all(|t| types.type_named_valtype(t, set))
-                }
-                ComponentDefinedType::Tuple(r) => {
-                    r.types.iter().all(|t| types.type_named_valtype(t, set))
-                }
-                ComponentDefinedType::Variant(r) => r
-                    .cases
-                    .values()
-                    .filter_map(|t| t.ty.as_ref())
-                    .all(|t| types.type_named_valtype(t, set)),
-                ComponentDefinedType::Result { ok, err } => {
-                    ok.as_ref()
-                        .map(|t| types.type_named_valtype(t, set))
-                        .unwrap_or(true)
-                        && err
-                            .as_ref()
-                            .map(|t| types.type_named_valtype(t, set))
-                            .unwrap_or(true)
-                }
-                ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
-                    types.type_named_valtype(ty, set)
-                }
-
-                // The resource referred to by own/borrow must be named.
-                ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
-                    set.contains(id)
-                }
-            },
-
-            // Core wasm constructs are always valid with respect to
-            // exported types, since they have none.
-            Type::Module(_) | Type::Instance(_) | Type::Sub(_) => true,
-
-            // Resource types, in isolation, are always valid to import
-            // or export since they're either attached to an import or
-            // being exported.
+    fn all_valtypes_named(
+        &self,
+        types: &TypeAlloc,
+        id: ComponentAnyTypeId,
+        set: &HashSet<ComponentAnyTypeId>,
+    ) -> bool {
+        match id {
+            // Resource types, in isolation, are always valid to import or
+            // export since they're either attached to an import or being
+            // exported.
             //
-            // Note that further validation of this happens in `finish`,
-            // too.
-            Type::Resource(_) => true,
+            // Note that further validation of this happens in `finish`, too.
+            ComponentAnyTypeId::Resource(_) => true,
 
             // Component types are validated as they are constructed,
             // so all component types are valid to export if they've
             // already been constructed.
-            Type::Component(_) => true,
+            ComponentAnyTypeId::Component(_) => true,
 
-            // Function types must have all their parameters/results named.
-            Type::ComponentFunc(ty) => ty
-                .params
-                .iter()
-                .map(|(_, ty)| ty)
-                .chain(ty.results.iter().map(|(_, ty)| ty))
-                .all(|ty| types.type_named_valtype(ty, set)),
-
-            // Instances must recursively have all referenced types named.
-            Type::ComponentInstance(ty) => ty.exports.values().all(|ty| {
-                let id = match ty {
-                    ComponentEntityType::Module(id)
-                    | ComponentEntityType::Func(id)
-                    | ComponentEntityType::Value(ComponentValType::Type(id))
-                    | ComponentEntityType::Type { created: id, .. }
-                    | ComponentEntityType::Instance(id)
-                    | ComponentEntityType::Component(id) => *id,
-                    ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
-                };
-                self.all_valtypes_named(types, id, set)
-            }),
+            ComponentAnyTypeId::Defined(id) => self.all_valtypes_named_in_defined(types, id, set),
+            ComponentAnyTypeId::Func(id) => self.all_valtypes_named_in_func(types, id, set),
+            ComponentAnyTypeId::Instance(id) => self.all_valtypes_named_in_instance(types, id, set),
         }
+    }
+
+    fn all_valtypes_named_in_instance(
+        &self,
+        types: &TypeAlloc,
+        id: ComponentInstanceTypeId,
+        set: &HashSet<ComponentAnyTypeId>,
+    ) -> bool {
+        // Instances must recursively have all referenced types named.
+        let ty = &types[id];
+        ty.exports.values().all(|ty| match ty {
+            ComponentEntityType::Module(_) => true,
+            ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, *id, set),
+            ComponentEntityType::Type { created: id, .. } => {
+                self.all_valtypes_named(types, *id, set)
+            }
+            ComponentEntityType::Value(ComponentValType::Type(id)) => {
+                self.all_valtypes_named_in_defined(types, *id, set)
+            }
+            ComponentEntityType::Instance(id) => {
+                self.all_valtypes_named_in_instance(types, *id, set)
+            }
+            ComponentEntityType::Component(_)
+            | ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
+        })
+    }
+
+    fn all_valtypes_named_in_defined(
+        &self,
+        types: &TypeAlloc,
+        id: ComponentDefinedTypeId,
+        set: &HashSet<ComponentAnyTypeId>,
+    ) -> bool {
+        let ty = &types[id];
+        match ty {
+            // These types do not contain anything which must be
+            // named.
+            ComponentDefinedType::Primitive(_)
+            | ComponentDefinedType::Flags(_)
+            | ComponentDefinedType::Enum(_) => true,
+
+            // Referenced types of all these aggregates must all be
+            // named.
+            ComponentDefinedType::Record(r) => {
+                r.fields.values().all(|t| types.type_named_valtype(t, set))
+            }
+            ComponentDefinedType::Tuple(r) => {
+                r.types.iter().all(|t| types.type_named_valtype(t, set))
+            }
+            ComponentDefinedType::Variant(r) => r
+                .cases
+                .values()
+                .filter_map(|t| t.ty.as_ref())
+                .all(|t| types.type_named_valtype(t, set)),
+            ComponentDefinedType::Result { ok, err } => {
+                ok.as_ref()
+                    .map(|t| types.type_named_valtype(t, set))
+                    .unwrap_or(true)
+                    && err
+                        .as_ref()
+                        .map(|t| types.type_named_valtype(t, set))
+                        .unwrap_or(true)
+            }
+            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+                types.type_named_valtype(ty, set)
+            }
+
+            // The resource referred to by own/borrow must be named.
+            ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
+                set.contains(&(*id).into())
+            }
+        }
+    }
+
+    fn all_valtypes_named_in_func(
+        &self,
+        types: &TypeAlloc,
+        id: ComponentFuncTypeId,
+        set: &HashSet<ComponentAnyTypeId>,
+    ) -> bool {
+        let ty = &types[id];
+        // Function types must have all their parameters/results named.
+        ty.params
+            .iter()
+            .map(|(_, ty)| ty)
+            .chain(ty.results.iter().map(|(_, ty)| ty))
+            .all(|ty| types.type_named_valtype(ty, set))
     }
 
     /// Updates the type `id` specified, an identifier for a component instance
@@ -740,8 +785,8 @@ impl ComponentState {
     /// type is used twice to import two different instances then the instances
     /// do not share resource types despite sharing the same original instance
     /// type.
-    fn prepare_instance_import(&mut self, id: &mut TypeId, types: &mut TypeAlloc) {
-        let ty = types[*id].unwrap_component_instance();
+    fn prepare_instance_import(&mut self, id: &mut ComponentInstanceTypeId, types: &mut TypeAlloc) {
+        let ty = &types[*id];
 
         // No special treatment for imports of instances which themselves have
         // no defined resources
@@ -775,14 +820,14 @@ impl ComponentState {
         // path for where they're imported is updated as well with
         // `self.next_import_index` as the import-to-be soon.
         let mut mapping = Remapping::default();
-        let ty = types[*id].unwrap_component_instance();
+        let ty = &types[*id];
         for (old, new) in ty.defined_resources.iter().zip(&resources) {
-            let prev = mapping.resources.insert(*old, *new);
+            let prev = mapping.resources.insert(*old, new.resource());
             assert!(prev.is_none());
 
             let mut base = vec![self.imports.len()];
             base.extend(ty.explicit_resources[old].iter().copied());
-            self.imported_resources.insert(*new, base);
+            self.imported_resources.insert(new.resource(), base);
         }
 
         // Using the old-to-new resource mapping perform a substitution on
@@ -797,7 +842,7 @@ impl ComponentState {
 
         // Now that `new_ty` is complete finish its registration and then
         // update `id` on the way out.
-        *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
+        *id = types.push_ty(new_ty);
     }
 
     /// Prepares an instance type, pointed to `id`, for being exported as a
@@ -806,13 +851,13 @@ impl ComponentState {
     /// This will internally perform any resource "freshening" as required and
     /// then additionally update metadata within `self` about resources being
     /// exported or defined.
-    fn prepare_instance_export(&mut self, id: &mut TypeId, types: &mut TypeAlloc) {
+    fn prepare_instance_export(&mut self, id: &mut ComponentInstanceTypeId, types: &mut TypeAlloc) {
         // Exports of an instance mean that the enclosing context
         // is inheriting the resources that the instance
         // encapsulates. This means that the instance type
         // recorded for this export will itself have no
         // defined resources.
-        let ty = types[*id].unwrap_component_instance();
+        let ty = &types[*id];
 
         // Check to see if `defined_resources` is non-empty, and if so then
         // "freshen" all the resources and inherit them to our own defined
@@ -838,8 +883,8 @@ impl ComponentState {
             let mut mapping = Remapping::default();
             for old in mem::take(&mut new_ty.defined_resources) {
                 let new = types.alloc_resource_id();
-                mapping.resources.insert(old, new);
-                self.defined_resources.insert(new, None);
+                mapping.resources.insert(old, new.resource());
+                self.defined_resources.insert(new.resource(), None);
             }
             for ty in new_ty.exports.values_mut() {
                 types.remap_component_entity(ty, &mut mapping);
@@ -848,7 +893,7 @@ impl ComponentState {
                 let id = mapping.resources.get(&id).copied().unwrap_or(id);
                 new_ty.explicit_resources.insert(id, path);
             }
-            *id = types.push_ty(Type::ComponentInstance(Box::new(new_ty)));
+            *id = types.push_ty(new_ty);
         }
 
         // Any explicit resources in the instance are now additionally explicit
@@ -857,7 +902,7 @@ impl ComponentState {
         // The path to each explicit resources gets one element prepended which
         // is `self.next_export_index`, the index of the export about to be
         // generated.
-        let ty = types[*id].unwrap_component_instance();
+        let ty = &types[*id];
         for (id, path) in ty.explicit_resources.iter() {
             let mut new_path = vec![self.exports.len()];
             new_path.extend(path);
@@ -933,7 +978,8 @@ impl ComponentState {
             );
         }
 
-        self.funcs.push(self.types[type_index as usize]);
+        self.funcs
+            .push(self.types[type_index as usize].unwrap_func());
 
         Ok(())
     }
@@ -945,7 +991,7 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        let ty = types[self.function_at(func_index, offset)?].unwrap_component_func();
+        let ty = &types[self.function_at(func_index, offset)?];
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
@@ -953,11 +999,11 @@ impl ComponentState {
 
         self.check_options(None, &info, &options, types, offset)?;
 
-        let lowered_ty = Type::Sub(SubType {
+        let lowered_ty = SubType {
             is_final: false,
             supertype_idx: None,
             structural_type: StructuralType::Func(info.into_func_type()),
-        });
+        };
 
         let id = types.push_ty(lowered_ty);
         self.core_funcs.push(id);
@@ -972,11 +1018,11 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let core_ty = Type::Sub(SubType {
+        let core_ty = SubType {
             is_final: false,
             supertype_idx: None,
             structural_type: StructuralType::Func(FuncType::new([rep], [ValType::I32])),
-        });
+        };
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
     }
@@ -988,11 +1034,11 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
-        let core_ty = Type::Sub(SubType {
+        let core_ty = SubType {
             is_final: false,
             supertype_idx: None,
             structural_type: StructuralType::Func(FuncType::new([ValType::I32], [])),
-        });
+        };
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
     }
@@ -1004,35 +1050,41 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let core_ty = Type::Sub(SubType {
+        let core_ty = SubType {
             is_final: false,
             supertype_idx: None,
             structural_type: StructuralType::Func(FuncType::new([ValType::I32], [rep])),
-        });
+        };
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
     }
 
     fn check_local_resource(&self, idx: u32, types: &TypeList, offset: usize) -> Result<ValType> {
-        let id = self.resource_at(idx, types, offset)?;
-        let resource = types[id].unwrap_resource();
-        match self.defined_resources.get(&resource).and_then(|rep| *rep) {
+        let resource = self.resource_at(idx, types, offset)?;
+        match self
+            .defined_resources
+            .get(&resource.resource())
+            .and_then(|rep| *rep)
+        {
             Some(ty) => Ok(ty),
             None => bail!(offset, "type {idx} is not a local resource"),
         }
     }
 
-    fn resource_at<'a>(&self, idx: u32, types: &'a TypeList, offset: usize) -> Result<TypeId> {
-        let id = self.type_at(idx, false, offset)?;
-        match &types[id] {
-            Type::Resource(_) => Ok(id),
-            _ => bail!(offset, "type index {} is not a resource type", idx),
+    fn resource_at<'a>(
+        &self,
+        idx: u32,
+        _types: &'a TypeList,
+        offset: usize,
+    ) -> Result<AliasableResourceId> {
+        if let ComponentAnyTypeId::Resource(id) = self.component_type_at(idx, offset)? {
+            return Ok(id);
         }
+        bail!(offset, "type index {} is not a resource type", idx)
     }
 
     pub fn add_component(&mut self, component: ComponentType, types: &mut TypeAlloc) -> Result<()> {
-        let ty = Type::Component(Box::new(component));
-        let id = types.push_ty(ty);
+        let id = types.push_ty(component);
         self.components.push(id);
         Ok(())
     }
@@ -1056,7 +1108,7 @@ impl ComponentState {
                 offset,
             )?,
             crate::ComponentInstance::FromExports(exports) => {
-                self.instantiate_exports(exports.into_vec(), features, types, offset)?
+                self.instantiate_component_exports(exports.into_vec(), features, types, offset)?
             }
         };
 
@@ -1119,7 +1171,7 @@ impl ComponentState {
         args: &[u32],
         results: u32,
         features: &WasmFeatures,
-        types: &TypeList,
+        types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         if !features.component_model_values {
@@ -1135,7 +1187,7 @@ impl ComponentState {
             ));
         }
 
-        let ft = types[self.function_at(func_index, offset)?].unwrap_component_func();
+        let ft = &types[self.function_at(func_index, offset)?];
 
         if ft.params.len() != args.len() {
             bail!(
@@ -1306,33 +1358,33 @@ impl ComponentState {
     ) -> Result<ComponentEntityType> {
         Ok(match ty {
             ComponentTypeRef::Module(index) => {
-                let id = self.type_at(*index, true, offset)?;
-                match &types[id] {
-                    Type::Module(_) => {}
-                    _ => bail!(offset, "core type index {index} is not a module type"),
+                let id = self.core_type_at(*index, offset)?;
+                match id {
+                    ComponentCoreTypeId::Sub(_) => {
+                        bail!(offset, "core type index {index} is not a module type")
+                    }
+                    ComponentCoreTypeId::Module(id) => ComponentEntityType::Module(id),
                 }
-                ComponentEntityType::Module(id)
             }
             ComponentTypeRef::Func(index) => {
-                let id = self.type_at(*index, false, offset)?;
-                match &types[id] {
-                    Type::ComponentFunc(_) => {}
+                let id = self.component_type_at(*index, offset)?;
+                match id {
+                    ComponentAnyTypeId::Func(id) => ComponentEntityType::Func(id),
                     _ => bail!(offset, "type index {index} is not a function type"),
                 }
-                ComponentEntityType::Func(id)
             }
             ComponentTypeRef::Value(ty) => {
                 self.check_value_support(features, offset)?;
                 let ty = match ty {
                     crate::ComponentValType::Primitive(ty) => ComponentValType::Primitive(*ty),
                     crate::ComponentValType::Type(index) => {
-                        ComponentValType::Type(self.defined_type_at(*index, types, offset)?)
+                        ComponentValType::Type(self.defined_type_at(*index, offset)?)
                     }
                 };
                 ComponentEntityType::Value(ty)
             }
             ComponentTypeRef::Type(TypeBounds::Eq(index)) => {
-                let referenced = self.type_at(*index, false, offset)?;
+                let referenced = self.component_type_at(*index, offset)?;
                 let created = types.with_unique(referenced);
                 ComponentEntityType::Type {
                     referenced,
@@ -1341,27 +1393,24 @@ impl ComponentState {
             }
             ComponentTypeRef::Type(TypeBounds::SubResource) => {
                 let id = types.alloc_resource_id();
-                let id = types.push_ty(Type::Resource(id));
                 ComponentEntityType::Type {
-                    referenced: id,
-                    created: id,
+                    referenced: id.into(),
+                    created: id.into(),
                 }
             }
             ComponentTypeRef::Instance(index) => {
-                let id = self.type_at(*index, false, offset)?;
-                match &types[id] {
-                    Type::ComponentInstance(_) => {}
+                let id = self.component_type_at(*index, offset)?;
+                match id {
+                    ComponentAnyTypeId::Instance(id) => ComponentEntityType::Instance(id),
                     _ => bail!(offset, "type index {index} is not an instance type"),
                 }
-                ComponentEntityType::Instance(id)
             }
             ComponentTypeRef::Component(index) => {
-                let id = self.type_at(*index, false, offset)?;
-                match &types[id] {
-                    Type::Component(_) => {}
+                let id = self.component_type_at(*index, offset)?;
+                match id {
+                    ComponentAnyTypeId::Component(id) => ComponentEntityType::Component(id),
                     _ => bail!(offset, "type index {index} is not a component type"),
                 }
-                ComponentEntityType::Component(id)
             }
         })
     }
@@ -1385,7 +1434,7 @@ impl ComponentState {
                 ComponentEntityType::Value(*self.value_at(export.index, offset)?)
             }
             ComponentExternalKind::Type => {
-                let referenced = self.type_at(export.index, false, offset)?;
+                let referenced = self.component_type_at(export.index, offset)?;
                 let created = types.with_unique(referenced);
                 ComponentEntityType::Type {
                     referenced,
@@ -1441,17 +1490,25 @@ impl ComponentState {
                         crate::OuterAliasKind::Type => {
                             let ty = if count == 0 {
                                 // Local alias, check the local module state
-                                state.type_id_at(index, offset)?
+                                ComponentCoreTypeId::Sub(state.type_id_at(index, offset)?)
                             } else {
                                 // Otherwise, check the enclosing component state
                                 let component =
                                     Self::check_alias_count(components, count - 1, offset)?;
-                                component.type_at(index, true, offset)?
+                                component.core_type_at(index, offset)?
                             };
 
                             check_max(state.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
 
-                            state.types.push(ty);
+                            match ty {
+                                ComponentCoreTypeId::Sub(ty) => state.types.push(ty),
+                                // TODO https://github.com/WebAssembly/component-model/issues/265
+                                ComponentCoreTypeId::Module(_) => bail!(
+                                    offset,
+                                    "not implemented: aliasing core module types into a core \
+                                     module's types index space"
+                                ),
+                            }
                         }
                     }
                 }
@@ -1591,7 +1648,7 @@ impl ComponentState {
                     );
                 }
 
-                let ty = self.create_component_val_type(*ty, types, offset)?;
+                let ty = self.create_component_val_type(*ty, offset)?;
                 info.combine(ty.info(types), offset)?;
                 Ok((name.to_owned(), ty))
             })
@@ -1618,7 +1675,7 @@ impl ComponentState {
                     })
                     .transpose()?;
 
-                let ty = self.create_component_val_type(*ty, types, offset)?;
+                let ty = self.create_component_val_type(*ty, offset)?;
                 let ty_info = ty.info(types);
                 if ty_info.contains_borrow() {
                     bail!(offset, "function result cannot contain a `borrow` type");
@@ -1635,13 +1692,13 @@ impl ComponentState {
         })
     }
 
-    fn instantiate_module(
+    fn instantiate_core_module(
         &self,
         module_index: u32,
         module_args: Vec<crate::InstantiationArg>,
         types: &mut TypeAlloc,
         offset: usize,
-    ) -> Result<TypeId> {
+    ) -> Result<ComponentCoreInstanceTypeId> {
         fn insert_arg<'a>(
             name: &'a str,
             arg: &'a InstanceType,
@@ -1665,15 +1722,14 @@ impl ComponentState {
         for module_arg in module_args {
             match module_arg.kind {
                 InstantiationArgKind::Instance => {
-                    let instance_type =
-                        types[self.core_instance_at(module_arg.index, offset)?].unwrap_instance();
+                    let instance_type = &types[self.core_instance_at(module_arg.index, offset)?];
                     insert_arg(module_arg.name, instance_type, &mut args, offset)?;
                 }
             }
         }
 
         // Validate the arguments
-        let module_type = types[module_type_id].unwrap_module();
+        let module_type = &types[module_type_id];
         let cx = SubtypeCx::new(types, types);
         for ((module, name), expected) in module_type.imports.iter() {
             let instance = args.get(module.as_str()).ok_or_else(|| {
@@ -1707,12 +1763,10 @@ impl ComponentState {
             info.combine(ty.info(types), offset)?;
         }
 
-        let ty = Type::Instance(Box::new(InstanceType {
+        Ok(types.push_ty(InstanceType {
             info,
-            kind: InstanceTypeKind::Instantiated(module_type_id),
-        }));
-
-        Ok(types.push_ty(ty))
+            kind: CoreInstanceTypeKind::Instantiated(module_type_id),
+        }))
     }
 
     fn instantiate_component(
@@ -1722,7 +1776,7 @@ impl ComponentState {
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
-    ) -> Result<TypeId> {
+    ) -> Result<ComponentInstanceTypeId> {
         let component_type_id = self.component_at(component_index, offset)?;
         let mut args = IndexMap::new();
 
@@ -1746,7 +1800,7 @@ impl ComponentState {
                     ComponentEntityType::Value(*self.value_at(component_arg.index, offset)?)
                 }
                 ComponentExternalKind::Type => {
-                    let ty = self.type_at(component_arg.index, false, offset)?;
+                    let ty = self.component_type_at(component_arg.index, offset)?;
                     ComponentEntityType::Type {
                         referenced: ty,
                         created: ty,
@@ -1847,7 +1901,7 @@ impl ComponentState {
         // comments are hopefully enough when augmented with communication with
         // the authors.
 
-        let component_type = types[component_type_id].unwrap_component();
+        let component_type = &types[component_type_id];
         let mut exports = component_type.exports.clone();
         let mut info = TypeInfo::new();
         for (_, ty) in component_type.exports.iter() {
@@ -1890,9 +1944,9 @@ impl ComponentState {
         // placing everything in the same `mapping` and using that for a remap
         // only once.
         let fresh_defined_resources = (0..component_type.defined_resources.len())
-            .map(|_| types.alloc_resource_id())
+            .map(|_| types.alloc_resource_id().resource())
             .collect::<IndexSet<_>>();
-        let component_type = types[component_type_id].unwrap_component();
+        let component_type = &types[component_type_id];
         for ((old, _path), new) in component_type
             .defined_resources
             .iter()
@@ -1915,7 +1969,7 @@ impl ComponentState {
         for entity in exports.values_mut() {
             types.remap_component_entity(entity, &mut mapping);
         }
-        let component_type = types[component_type_id].unwrap_component();
+        let component_type = &types[component_type_id];
         let explicit_resources = component_type
             .explicit_resources
             .iter()
@@ -1976,22 +2030,21 @@ impl ComponentState {
             self.defined_resources.insert(resource, None);
         }
 
-        let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
+        Ok(types.push_ty(ComponentInstanceType {
             info,
             defined_resources: Default::default(),
             explicit_resources,
             exports,
-        }));
-        Ok(types.push_ty(ty))
+        }))
     }
 
-    fn instantiate_exports(
+    fn instantiate_component_exports(
         &mut self,
         exports: Vec<crate::ComponentExport>,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
-    ) -> Result<TypeId> {
+    ) -> Result<ComponentInstanceTypeId> {
         let mut info = TypeInfo::new();
         let mut inst_exports = IndexMap::new();
         let mut explicit_resources = IndexMap::new();
@@ -2018,17 +2071,13 @@ impl ComponentState {
                     // all explicitly exported resources on the sub-instance are
                     // now also listed as exported resources on the outer
                     // instance, just with one more element in their path.
-                    explicit_resources.extend(
-                        types[ty]
-                            .unwrap_component_instance()
-                            .explicit_resources
-                            .iter()
-                            .map(|(id, path)| {
-                                let mut new_path = vec![inst_exports.len()];
-                                new_path.extend(path);
-                                (*id, new_path)
-                            }),
-                    );
+                    explicit_resources.extend(types[ty].explicit_resources.iter().map(
+                        |(id, path)| {
+                            let mut new_path = vec![inst_exports.len()];
+                            new_path.extend(path);
+                            (*id, new_path)
+                        },
+                    ));
                     ComponentEntityType::Instance(ty)
                 }
                 ComponentExternalKind::Func => {
@@ -2039,13 +2088,13 @@ impl ComponentState {
                     ComponentEntityType::Value(*self.value_at(export.index, offset)?)
                 }
                 ComponentExternalKind::Type => {
-                    let ty = self.type_at(export.index, false, offset)?;
+                    let ty = self.component_type_at(export.index, offset)?;
                     // If this is an export of a resource type be sure to
                     // record that in the explicit list with the appropriate
                     // path because if this instance ends up getting used
                     // it'll count towards the "explicit in" check.
-                    if let Type::Resource(id) = &types[ty] {
-                        explicit_resources.insert(*id, vec![inst_exports.len()]);
+                    if let ComponentAnyTypeId::Resource(id) = ty {
+                        explicit_resources.insert(id.resource(), vec![inst_exports.len()]);
                     }
                     ComponentEntityType::Type {
                         referenced: ty,
@@ -2071,7 +2120,7 @@ impl ComponentState {
             )?;
         }
 
-        let ty = Type::ComponentInstance(Box::new(ComponentInstanceType {
+        Ok(types.push_ty(ComponentInstanceType {
             info,
             explicit_resources,
             exports: inst_exports,
@@ -2105,9 +2154,7 @@ impl ComponentState {
             // time, though, so this still remains empty and
             // `self.defined_resources` remains unperturbed.
             defined_resources: Default::default(),
-        }));
-
-        Ok(types.push_ty(ty))
+        }))
     }
 
     fn instantiate_core_exports(
@@ -2115,7 +2162,7 @@ impl ComponentState {
         exports: Vec<crate::Export>,
         types: &mut TypeAlloc,
         offset: usize,
-    ) -> Result<TypeId> {
+    ) -> Result<ComponentCoreInstanceTypeId> {
         fn insert_export(
             types: &TypeList,
             name: &str,
@@ -2187,12 +2234,10 @@ impl ComponentState {
             }
         }
 
-        let ty = Type::Instance(Box::new(InstanceType {
+        Ok(types.push_ty(InstanceType {
             info,
-            kind: InstanceTypeKind::Exports(inst_exports),
-        }));
-
-        Ok(types.push_ty(ty))
+            kind: CoreInstanceTypeKind::Exports(inst_exports),
+        }))
     }
 
     fn alias_core_instance_export(
@@ -2276,7 +2321,6 @@ impl ComponentState {
             self.check_value_support(features, offset)?;
         }
         let mut ty = match types[self.instance_at(instance_index, offset)?]
-            .unwrap_component_instance()
             .exports
             .get(name)
         {
@@ -2359,7 +2403,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
-        let ty = component.type_at(index, true, offset)?;
+        let ty = component.core_type_at(index, offset)?;
 
         let current = components.last_mut().unwrap();
         check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
@@ -2377,7 +2421,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
-        let ty = component.type_at(index, false, offset)?;
+        let ty = component.component_type_at(index, offset)?;
 
         // If `count` "crossed a component boundary", meaning that it went from
         // one component to another, then this must additionally verify that
@@ -2405,7 +2449,7 @@ impl ComponentState {
         if let Some(component) = components.get(pos_after_component) {
             if component.kind == ComponentKind::Component {
                 let mut free = IndexSet::new();
-                types.free_variables_type_id(ty, &mut free);
+                types.free_variables_any_type_id(ty, &mut free);
                 if !free.is_empty() {
                     bail!(
                         offset,
@@ -2448,7 +2492,7 @@ impl ComponentState {
                 self.create_variant_type(cases.as_ref(), types, offset)
             }
             crate::ComponentDefinedType::List(ty) => Ok(ComponentDefinedType::List(
-                self.create_component_val_type(ty, types, offset)?,
+                self.create_component_val_type(ty, offset)?,
             )),
             crate::ComponentDefinedType::Tuple(tys) => {
                 self.create_tuple_type(tys.as_ref(), types, offset)
@@ -2460,14 +2504,14 @@ impl ComponentState {
                 self.create_enum_type(cases.as_ref(), offset)
             }
             crate::ComponentDefinedType::Option(ty) => Ok(ComponentDefinedType::Option(
-                self.create_component_val_type(ty, types, offset)?,
+                self.create_component_val_type(ty, offset)?,
             )),
             crate::ComponentDefinedType::Result { ok, err } => Ok(ComponentDefinedType::Result {
                 ok: ok
-                    .map(|ty| self.create_component_val_type(ty, types, offset))
+                    .map(|ty| self.create_component_val_type(ty, offset))
                     .transpose()?,
                 err: err
-                    .map(|ty| self.create_component_val_type(ty, types, offset))
+                    .map(|ty| self.create_component_val_type(ty, offset))
                     .transpose()?,
             }),
             crate::ComponentDefinedType::Own(idx) => Ok(ComponentDefinedType::Own(
@@ -2494,7 +2538,7 @@ impl ComponentState {
 
         for (name, ty) in fields {
             let name = to_kebab_str(name, "record field", offset)?;
-            let ty = self.create_component_val_type(*ty, types, offset)?;
+            let ty = self.create_component_val_type(*ty, offset)?;
 
             match field_map.entry(name.to_owned()) {
                 Entry::Occupied(e) => bail!(
@@ -2549,7 +2593,7 @@ impl ComponentState {
 
             let ty = case
                 .ty
-                .map(|ty| self.create_component_val_type(ty, types, offset))
+                .map(|ty| self.create_component_val_type(ty, offset))
                 .transpose()?;
 
             match case_map.entry(name.to_owned()) {
@@ -2595,7 +2639,7 @@ impl ComponentState {
         let types = tys
             .iter()
             .map(|ty| {
-                let ty = self.create_component_val_type(*ty, types, offset)?;
+                let ty = self.create_component_val_type(*ty, offset)?;
                 info.combine(ty.info(types), offset)?;
                 Ok(ty)
             })
@@ -2656,20 +2700,25 @@ impl ComponentState {
     fn create_component_val_type(
         &self,
         ty: crate::ComponentValType,
-        types: &TypeList,
         offset: usize,
     ) -> Result<ComponentValType> {
         Ok(match ty {
             crate::ComponentValType::Primitive(pt) => ComponentValType::Primitive(pt),
             crate::ComponentValType::Type(idx) => {
-                ComponentValType::Type(self.defined_type_at(idx, types, offset)?)
+                ComponentValType::Type(self.defined_type_at(idx, offset)?)
             }
         })
     }
 
-    pub fn type_at(&self, idx: u32, core: bool, offset: usize) -> Result<TypeId> {
-        let types = if core { &self.core_types } else { &self.types };
-        types
+    pub fn core_type_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreTypeId> {
+        self.core_types
+            .get(idx as usize)
+            .copied()
+            .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
+    }
+
+    pub fn component_type_at(&self, idx: u32, offset: usize) -> Result<ComponentAnyTypeId> {
+        self.types
             .get(idx as usize)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
@@ -2681,13 +2730,14 @@ impl ComponentState {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a ComponentFuncType> {
-        match &types[self.type_at(idx, false, offset)?] {
-            Type::ComponentFunc(f) => Ok(f),
+        let id = self.component_type_at(idx, offset)?;
+        match id {
+            ComponentAnyTypeId::Func(id) => Ok(&types[id]),
             _ => bail!(offset, "type index {idx} is not a function type"),
         }
     }
 
-    fn function_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    fn function_at(&self, idx: u32, offset: usize) -> Result<ComponentFuncTypeId> {
         self.funcs.get(idx as usize).copied().ok_or_else(|| {
             format_err!(
                 offset,
@@ -2696,7 +2746,7 @@ impl ComponentState {
         })
     }
 
-    fn component_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    fn component_at(&self, idx: u32, offset: usize) -> Result<ComponentTypeId> {
         self.components.get(idx as usize).copied().ok_or_else(|| {
             format_err!(
                 offset,
@@ -2705,7 +2755,7 @@ impl ComponentState {
         })
     }
 
-    fn instance_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    fn instance_at(&self, idx: u32, offset: usize) -> Result<ComponentInstanceTypeId> {
         self.instances.get(idx as usize).copied().ok_or_else(|| {
             format_err!(
                 offset,
@@ -2725,15 +2775,14 @@ impl ComponentState {
         }
     }
 
-    fn defined_type_at(&self, idx: u32, types: &TypeList, offset: usize) -> Result<TypeId> {
-        let id = self.type_at(idx, false, offset)?;
-        match &types[id] {
-            Type::Defined(_) => Ok(id),
-            _ => bail!(offset, "type index {} is not a defined type", idx),
+    fn defined_type_at(&self, idx: u32, offset: usize) -> Result<ComponentDefinedTypeId> {
+        match self.component_type_at(idx, offset)? {
+            ComponentAnyTypeId::Defined(id) => Ok(id),
+            _ => bail!(offset, "type index {idx} is not a defined type"),
         }
     }
 
-    fn core_function_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    fn core_function_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
         match self.core_funcs.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(
@@ -2743,14 +2792,14 @@ impl ComponentState {
         }
     }
 
-    fn module_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    fn module_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreModuleTypeId> {
         match self.core_modules.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(offset, "unknown module {idx}: module index out of bounds"),
         }
     }
 
-    fn core_instance_at(&self, idx: u32, offset: usize) -> Result<TypeId> {
+    fn core_instance_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreInstanceTypeId> {
         match self.core_instances.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(
@@ -2768,7 +2817,6 @@ impl ComponentState {
         offset: usize,
     ) -> Result<&'a EntityType> {
         match types[self.core_instance_at(instance_index, offset)?]
-            .unwrap_instance()
             .internal_exports(types)
             .get(name)
         {
@@ -2914,10 +2962,13 @@ impl ComponentState {
 
 impl KebabNameContext {
     /// Registers that the resource `id` is named `name` within this context.
-    fn register(&mut self, name: &str, id: TypeId) {
+    fn register(&mut self, name: &str, id: AliasableResourceId) {
         let idx = self.all_resource_names.len();
         let prev = self.resource_name_map.insert(id, idx);
-        assert!(prev.is_none());
+        assert!(
+            prev.is_none(),
+            "for {id:?}, inserted {idx:?} but already had {prev:?}"
+        );
         self.all_resource_names.insert(name.to_string());
     }
 
@@ -2988,7 +3039,7 @@ impl KebabNameContext {
                 ComponentEntityType::Func(id) => *id,
                 _ => bail!(offset, "item is not a func"),
             };
-            Ok(types[id].unwrap_component_func())
+            Ok(&types[id])
         };
         match name.kind() {
             // Normal kebab name or id? No validation necessary.
@@ -3005,7 +3056,7 @@ impl KebabNameContext {
                 let resource = match ty {
                     ComponentValType::Primitive(_) => None,
                     ComponentValType::Type(ty) => match &types[ty] {
-                        Type::Defined(ComponentDefinedType::Own(id)) => Some(id),
+                        ComponentDefinedType::Own(id) => Some(id),
                         _ => None,
                     },
                 };
@@ -3034,7 +3085,7 @@ impl KebabNameContext {
                 let id = match pty {
                     ComponentValType::Primitive(_) => None,
                     ComponentValType::Type(ty) => match &types[*ty] {
-                        Type::Defined(ComponentDefinedType::Borrow(id)) => Some(id),
+                        ComponentDefinedType::Borrow(id) => Some(id),
                         _ => None,
                     },
                 };
@@ -3062,7 +3113,12 @@ impl KebabNameContext {
         Ok(())
     }
 
-    fn validate_resource_name(&self, id: TypeId, name: &KebabStr, offset: usize) -> Result<()> {
+    fn validate_resource_name(
+        &self,
+        id: AliasableResourceId,
+        name: &KebabStr,
+        offset: usize,
+    ) -> Result<()> {
         let expected_name_idx = match self.resource_name_map.get(&id) {
             Some(idx) => *idx,
             None => {

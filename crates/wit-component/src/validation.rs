@@ -237,7 +237,7 @@ pub fn validate_module<'a>(
             None if adapters.contains(name) => {
                 let map = ret.adapters_required.entry(name).or_default();
                 for (func, ty) in funcs {
-                    let ty = types[types.core_type_at(*ty)].unwrap_func();
+                    let ty = types[types.core_type_at(*ty).unwrap_sub()].unwrap_func();
                     map.insert(func, ty.clone());
                 }
             }
@@ -526,7 +526,7 @@ pub fn validate_adapter_module<'a>(
                 Some(idx) => *idx,
                 None => bail!("adapter module did not export `{name}`"),
             };
-            let id = types.function_at(idx);
+            let id = types.core_function_at(idx);
             let actual = types[id].unwrap_func();
             validate_func_sig(name, ty, actual)?;
         }
@@ -618,7 +618,7 @@ fn validate_imports_top_level(
     for (name, ty) in funcs {
         match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
             Some(WorldItem::Function(func)) => {
-                let ty = types[types.core_type_at(*ty)].unwrap_func();
+                let ty = types[types.core_type_at(*ty).unwrap_sub()].unwrap_func();
                 validate_func(resolve, ty, func, AbiVariant::GuestImport)?;
             }
             Some(_) => bail!("expected world top-level import `{name}` to be a function"),
@@ -642,7 +642,7 @@ fn valid_imported_resource_func<'a>(
 ) -> Result<Option<&'a str>> {
     if let Some(resource_name) = func_name.strip_prefix(RESOURCE_DROP) {
         if is_resource(resource_name) {
-            let ty = types[types.core_type_at(ty)].unwrap_func();
+            let ty = types[types.core_type_at(ty).unwrap_sub()].unwrap_func();
             let expected = FuncType::new([ValType::I32], []);
             validate_func_sig(func_name, &expected, ty)?;
             return Ok(Some(resource_name));
@@ -665,7 +665,7 @@ fn valid_exported_resource_func<'a>(
         .or_else(|| func_name.strip_prefix(RESOURCE_NEW))
     {
         if is_resource(resource_name) {
-            let ty = types[types.core_type_at(ty)].unwrap_func();
+            let ty = types[types.core_type_at(ty).unwrap_sub()].unwrap_func();
             let expected = FuncType::new([ValType::I32], [ValType::I32]);
             validate_func_sig(func_name, &expected, ty)?;
             return Ok(Some(resource_name));
@@ -692,7 +692,7 @@ fn validate_imported_interface(
     for (func_name, ty) in imports {
         match resolve.interfaces[interface].functions.get(*func_name) {
             Some(f) => {
-                let ty = types[types.core_type_at(*ty)].unwrap_func();
+                let ty = types[types.core_type_at(*ty).unwrap_sub()].unwrap_func();
                 validate_func(resolve, ty, f, AbiVariant::GuestImport)?;
             }
             None => match valid_imported_resource_func(func_name, *ty, types, is_resource)? {
@@ -776,7 +776,7 @@ fn validate_exported_item<'a>(
                 expected_export_name
             ),
         };
-        let id = types.function_at(*func_index);
+        let id = types.core_function_at(*func_index);
         let ty = types[id].unwrap_func();
         validate_func(resolve, ty, func, AbiVariant::GuestExport)?;
 
@@ -784,7 +784,7 @@ fn validate_exported_item<'a>(
         if let Some(index) = exports.get(&post_return[..]) {
             let ok = post_returns.insert(post_return);
             assert!(ok);
-            let id = types.function_at(*index);
+            let id = types.core_function_at(*index);
             let ty = types[id].unwrap_func();
             validate_post_return(resolve, ty, func)?;
         }
@@ -813,7 +813,7 @@ fn validate_exported_item<'a>(
                 };
                 let dtor = format!("{export_name}#[dtor]{name}");
                 if let Some((_, name, func_idx)) = exports.get_full(dtor.as_str()) {
-                    let id = types.function_at(*func_idx);
+                    let id = types.core_function_at(*func_idx);
                     let ty = types[id].unwrap_func();
                     let expected = FuncType::new([ValType::I32], []);
                     validate_func_sig(name, &expected, ty)?;

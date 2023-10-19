@@ -760,6 +760,16 @@ pub enum StructuralType {
     Struct(StructType),
 }
 
+impl StructuralType {
+    /// Unwrap a `FuncType` or panic.
+    pub fn unwrap_func(&self) -> &FuncType {
+        match self {
+            Self::Func(f) => f,
+            _ => panic!("not a func"),
+        }
+    }
+}
+
 /// Represents a subtype of possible other types in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub struct SubType {
@@ -769,6 +779,13 @@ pub struct SubType {
     pub supertype_idx: Option<u32>,
     /// The structural type of the subtype.
     pub structural_type: StructuralType,
+}
+
+impl SubType {
+    /// Unwrap a `FuncType` or panic.
+    pub fn unwrap_func(&self) -> &FuncType {
+        self.structural_type.unwrap_func()
+    }
 }
 
 /// Represents a recursive type group in a WebAssembly module.

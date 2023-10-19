@@ -14,7 +14,11 @@ use std::{
 use wasm_encoder::*;
 use wasmparser::{
     names::KebabString,
-    types::{self, ComponentEntityType, Type, TypeId},
+    types::{
+        self, AnyTypeId, ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId,
+        ComponentDefinedTypeId, ComponentEntityType, ComponentFuncTypeId, ComponentInstanceTypeId,
+        ComponentTypeId,
+    },
     ComponentExternalKind,
 };
 
@@ -113,7 +117,7 @@ pub(crate) struct TypeState<'a> {
 /// Note that this has two components: the first is the component that a type
 /// comes from and the second is the wasmparser-unique id for within that
 /// component.
-type TypeKey<'a> = (PtrKey<'a, crate::graph::Component<'a>>, TypeId);
+type TypeKey<'a> = (PtrKey<'a, crate::graph::Component<'a>>, AnyTypeId);
 
 /// A scope that types can be defined into.
 ///
@@ -334,16 +338,15 @@ impl<'a> TypeEncoder<'a> {
     fn entity_type(
         &self,
         encodable: &mut ModuleType,
-        types: &mut HashMap<TypeId, u32>,
+        types: &mut HashMap<AnyTypeId, u32>,
         ty: wasmparser::types::EntityType,
     ) -> EntityType {
         match ty {
             wasmparser::types::EntityType::Func(id) => {
-                let ty = &self.0.types[id];
-                let idx = match types.entry(id) {
+                let ty = &self.0.types[id].unwrap_func();
+                let idx = match types.entry(ComponentCoreTypeId::Sub(id).into()) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(e) => {
-                        let ty = ty.unwrap_func();
                         let index = encodable.type_count();
                         encodable.ty().function(
                             ty.params().iter().copied().map(Self::val_type),
@@ -359,7 +362,7 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::EntityType::Global(ty) => EntityType::Global(Self::global_type(ty)),
             wasmparser::types::EntityType::Tag(id) => {
                 let ty = &self.0.types[id];
-                let idx = match types.entry(id) {
+                let idx = match types.entry(ComponentCoreTypeId::Sub(id).into()) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(e) => {
                         let ty = ty.unwrap_func();
@@ -386,22 +389,22 @@ impl<'a> TypeEncoder<'a> {
     ) -> ComponentTypeRef {
         match ty {
             wasmparser::types::ComponentEntityType::Module(id) => {
-                ComponentTypeRef::Module(self.ty(state, id))
+                ComponentTypeRef::Module(self.ty(state, id.into()))
             }
             wasmparser::types::ComponentEntityType::Func(id) => {
-                ComponentTypeRef::Func(self.ty(state, id))
+                ComponentTypeRef::Func(self.ty(state, id.into()))
             }
             wasmparser::types::ComponentEntityType::Value(ty) => {
                 ComponentTypeRef::Value(self.component_val_type(state, ty))
             }
             wasmparser::types::ComponentEntityType::Type { referenced, .. } => {
-                ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, referenced)))
+                ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, referenced.into())))
             }
             wasmparser::types::ComponentEntityType::Instance(id) => {
-                ComponentTypeRef::Instance(self.ty(state, id))
+                ComponentTypeRef::Instance(self.ty(state, id.into()))
             }
             wasmparser::types::ComponentEntityType::Component(id) => {
-                ComponentTypeRef::Component(self.ty(state, id))
+                ComponentTypeRef::Component(self.ty(state, id.into()))
             }
         }
     }
@@ -478,9 +481,8 @@ impl<'a> TypeEncoder<'a> {
         }
     }
 
-    fn module_type(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn module_type(&self, state: &mut TypeState<'a>, id: ComponentCoreModuleTypeId) -> u32 {
         let ty = &self.0.types[id];
-        let ty = ty.unwrap_module();
 
         let module = self.module(
             ty.imports
@@ -494,18 +496,20 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn component_instance_type(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn component_instance_type(
+        &self,
+        state: &mut TypeState<'a>,
+        id: ComponentInstanceTypeId,
+    ) -> u32 {
         let ty = &self.0.types[id];
-        let ty = ty.unwrap_component_instance();
         let instance = self.instance(state, ty.exports.iter().map(|(n, t)| (n.as_str(), *t)));
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().instance(&instance);
         index
     }
 
-    fn component_type(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn component_type(&self, state: &mut TypeState<'a>, id: ComponentTypeId) -> u32 {
         let ty = &self.0.types[id];
-        let ty = ty.unwrap_component();
 
         let component = self.component(
             state,
@@ -518,17 +522,16 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn component_func_type(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn component_func_type(&self, state: &mut TypeState<'a>, id: ComponentFuncTypeId) -> u32 {
         let ty = &self.0.types[id];
-        let func_ty = ty.unwrap_component_func();
 
-        let params = func_ty
+        let params = ty
             .params
             .iter()
             .map(|(name, ty)| (name.as_str(), self.component_val_type(state, *ty)))
             .collect::<Vec<_>>();
 
-        let results = func_ty
+        let results = ty
             .results
             .iter()
             .map(|(name, ty)| (name.as_deref(), self.component_val_type(state, *ty)))
@@ -561,7 +564,7 @@ impl<'a> TypeEncoder<'a> {
     /// * Each type is translated only once
     /// * If `id` comes from a different instance it's aliased
     /// * Dispatching to the correct translation internally.
-    fn ty(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn ty(&self, state: &mut TypeState<'a>, id: AnyTypeId) -> u32 {
         // Consult our scope's `type_defs` map, and if it's not present then
         // generate the type and fill it in.
         let key = (PtrKey(self.0), id);
@@ -576,19 +579,21 @@ impl<'a> TypeEncoder<'a> {
 
     // Inner version of `ty` above which is a separate method to make it easier
     // to use `return` and not thwart the caching above.
-    fn _ty(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn _ty(&self, state: &mut TypeState<'a>, id: AnyTypeId) -> u32 {
         // If `id` is not an alias to anything else then it's a defined type in
         // this scope meaning that it needs to be translated and represented
         // here.
-        if self.0.types.peel_alias(id).is_none() {
-            return match &self.0.types[id] {
-                Type::Sub(_) | Type::Instance(_) => unreachable!(),
-                Type::Module(_) => self.module_type(state, id),
-                Type::Component(_) => self.component_type(state, id),
-                Type::ComponentInstance(_) => self.component_instance_type(state, id),
-                Type::ComponentFunc(_) => self.component_func_type(state, id),
-                Type::Defined(_) => self.defined_type(state, id),
-                Type::Resource(_) => unimplemented!(),
+        if id.peel_alias(&self.0.types).is_none() {
+            return match id {
+                AnyTypeId::Core(ComponentCoreTypeId::Sub(_)) => unreachable!(),
+                AnyTypeId::Core(ComponentCoreTypeId::Module(id)) => self.module_type(state, id),
+                AnyTypeId::Component(id) => match id {
+                    ComponentAnyTypeId::Resource(_) => unimplemented!(),
+                    ComponentAnyTypeId::Defined(id) => self.defined_type(state, id),
+                    ComponentAnyTypeId::Func(id) => self.component_func_type(state, id),
+                    ComponentAnyTypeId::Instance(id) => self.component_instance_type(state, id),
+                    ComponentAnyTypeId::Component(id) => self.component_type(state, id),
+                },
             };
         }
 
@@ -656,7 +661,7 @@ impl<'a> TypeEncoder<'a> {
             // in this type translation. It should be the case that we know
             // how to find all types at this point, so reaching the end means
             // there's a missing case one way or another.
-            cur = self.0.types.peel_alias(cur).unwrap_or_else(|| {
+            cur = cur.peel_alias(&self.0.types).unwrap_or_else(|| {
                 panic!("failed to find alias of {id:?}");
             });
         }
@@ -672,16 +677,15 @@ impl<'a> TypeEncoder<'a> {
                 ComponentValType::Primitive(Self::primitive(ty))
             }
             wasmparser::types::ComponentValType::Type(id) => {
-                ComponentValType::Type(self.ty(state, id))
+                ComponentValType::Type(self.ty(state, ComponentAnyTypeId::from(id).into()))
             }
         }
     }
 
-    fn defined_type(&self, state: &mut TypeState<'a>, id: TypeId) -> u32 {
+    fn defined_type(&self, state: &mut TypeState<'a>, id: ComponentDefinedTypeId) -> u32 {
         let ty = &self.0.types[id];
-        let defined_ty = ty.unwrap_defined();
 
-        match defined_ty {
+        match ty {
             wasmparser::types::ComponentDefinedType::Primitive(ty) => {
                 let index = state.cur.encodable.type_count();
                 state
@@ -706,17 +710,11 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::ComponentDefinedType::Result { ok, err } => {
                 self.result(state, *ok, *err)
             }
-            wasmparser::types::ComponentDefinedType::Own(id) => {
-                let i = self.ty(state, *id);
-                let index = state.cur.encodable.type_count();
-                state.cur.encodable.ty().defined_type().own(i);
-                index
+            wasmparser::types::ComponentDefinedType::Own(_r) => {
+                unimplemented!()
             }
-            wasmparser::types::ComponentDefinedType::Borrow(id) => {
-                let i = self.ty(state, *id);
-                let index = state.cur.encodable.type_count();
-                state.cur.encodable.ty().defined_type().borrow(i);
-                index
+            wasmparser::types::ComponentDefinedType::Borrow(_r) => {
+                unimplemented!()
             }
         }
     }
@@ -825,7 +823,7 @@ impl<'a> TypeEncoder<'a> {
         let export = self.component_entity_type(state, export);
         if let Some(id) = id {
             // Update the index in the type map to point to this export
-            let key = (PtrKey(self.0), id);
+            let key = (PtrKey(self.0), id.into());
             let prev = state
                 .cur
                 .type_defs
@@ -872,10 +870,7 @@ impl ArgumentImport<'_> {
         // If the existing import is an instance, convert this argument import to
         // a merged instance import.
         if let ArgumentImportKind::Item(component, ComponentEntityType::Instance(id)) = &self.kind {
-            let exports = component.types[*id]
-                .unwrap_component_instance()
-                .exports
-                .iter();
+            let exports = component.types[*id].exports.iter();
 
             let mut map = IndexMap::with_capacity(exports.len());
             for (name, ty) in exports {
@@ -895,11 +890,7 @@ impl ArgumentImport<'_> {
                 ArgumentImportKind::Instance(exports),
                 ArgumentImportKind::Item(new_component, ComponentEntityType::Instance(id)),
             ) => {
-                for (name, new_type) in new_component.types[id]
-                    .unwrap_component_instance()
-                    .exports
-                    .iter()
-                {
+                for (name, new_type) in new_component.types[id].exports.iter() {
                     let dst = exports.entry(name.as_str()).or_default();
                     for (existing_component, existing_type) in dst.iter_mut() {
                         if Self::types_compatible(
@@ -1165,7 +1156,7 @@ impl<'a> ImportMap<'a> {
 /// and that'll draw a dependency from `self.cur` to that name.
 struct DependencyRegistrar<'a, 'b> {
     types: &'a types::Types,
-    defining_instances: &'b mut HashMap<TypeId, &'a str>,
+    defining_instances: &'b mut HashMap<ComponentAnyTypeId, &'a str>,
     cur: &'a str,
     deps: &'b mut HashMap<&'a str, Vec<&'a str>>,
 }
@@ -1189,7 +1180,7 @@ impl DependencyRegistrar<'_, '_> {
         }
     }
 
-    fn ty(&mut self, ty: TypeId) {
+    fn ty(&mut self, ty: ComponentAnyTypeId) {
         match self.defining_instances.entry(ty) {
             // If it's known where `ty` is defined then there's nothing else to
             // do here beyond drawing a new dependency edge. Note though that
@@ -1214,38 +1205,37 @@ impl DependencyRegistrar<'_, '_> {
             return self.ty(ty);
         }
 
-        match &self.types[ty] {
-            Type::Instance(_) | Type::Sub(_) | Type::Module(_) => {}
-            Type::Component(_) => self.component(ty),
-            Type::ComponentInstance(_) => self.instance(ty),
-            Type::ComponentFunc(_) => self.func(ty),
-            Type::Defined(_) => self.defined(ty),
-            Type::Resource(_) => {}
+        match ty {
+            ComponentAnyTypeId::Resource(_) => unimplemented!(),
+            ComponentAnyTypeId::Defined(id) => self.defined(id),
+            ComponentAnyTypeId::Func(id) => self.func(id),
+            ComponentAnyTypeId::Instance(id) => self.instance(id),
+            ComponentAnyTypeId::Component(id) => self.component(id),
         }
     }
 
     fn val_type(&mut self, ty: types::ComponentValType) {
         match ty {
-            types::ComponentValType::Type(t) => self.ty(t),
+            types::ComponentValType::Type(t) => self.ty(t.into()),
             types::ComponentValType::Primitive(_) => {}
         }
     }
 
-    fn component(&mut self, ty: TypeId) {
-        let ty = &self.types[ty].unwrap_component();
+    fn component(&mut self, ty: ComponentTypeId) {
+        let ty = &self.types[ty];
         for (_, ty) in ty.imports.iter().chain(&ty.exports) {
             self.entity(*ty);
         }
     }
 
-    fn instance(&mut self, ty: TypeId) {
-        for (_, ty) in self.types[ty].unwrap_component_instance().exports.iter() {
+    fn instance(&mut self, ty: ComponentInstanceTypeId) {
+        for (_, ty) in self.types[ty].exports.iter() {
             self.entity(*ty);
         }
     }
 
-    fn func(&mut self, ty: TypeId) {
-        let ty = &self.types[ty].unwrap_component_func();
+    fn func(&mut self, ty: ComponentFuncTypeId) {
+        let ty = &self.types[ty];
         for ty in ty
             .params
             .iter()
@@ -1256,16 +1246,16 @@ impl DependencyRegistrar<'_, '_> {
         }
     }
 
-    fn defined(&mut self, ty: TypeId) {
-        match &self.types[ty].unwrap_defined() {
+    fn defined(&mut self, ty: ComponentDefinedTypeId) {
+        match &self.types[ty] {
             types::ComponentDefinedType::Primitive(_)
             | types::ComponentDefinedType::Enum(_)
             | types::ComponentDefinedType::Flags(_) => {}
             types::ComponentDefinedType::List(t) | types::ComponentDefinedType::Option(t) => {
                 self.val_type(*t)
             }
-            types::ComponentDefinedType::Own(t) | types::ComponentDefinedType::Borrow(t) => {
-                self.ty(*t)
+            types::ComponentDefinedType::Own(_r) | types::ComponentDefinedType::Borrow(_r) => {
+                unimplemented!()
             }
             types::ComponentDefinedType::Record(r) => {
                 for (_, ty) in r.fields.iter() {
@@ -1461,7 +1451,7 @@ impl<'a> CompositionGraphEncoder<'a> {
                 if let ComponentEntityType::Type { created, .. } = ty {
                     state
                         .cur
-                        .add_type_export((PtrKey(component), *created), name);
+                        .add_type_export((PtrKey(component), (*created).into()), name);
                 }
             }
         }

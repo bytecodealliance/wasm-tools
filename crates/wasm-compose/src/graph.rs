@@ -10,7 +10,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
-    types::{ComponentEntityType, TypeId, Types, TypesRef},
+    types::{ComponentEntityType, ComponentInstanceTypeId, Types, TypesRef},
     Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
     Validator, WasmFeatures,
 };
@@ -277,7 +277,7 @@ impl<'a> Component<'a> {
     /// Finds a compatible instance export on the component for the given instance type.
     pub(crate) fn find_compatible_export(
         &self,
-        ty: TypeId,
+        ty: ComponentInstanceTypeId,
         types: TypesRef,
     ) -> Option<ExportIndex> {
         self.exports
@@ -298,8 +298,12 @@ impl<'a> Component<'a> {
 
     /// Checks to see if an instance of this component would be a
     /// subtype of the given instance type.
-    pub(crate) fn is_instance_subtype_of(&self, ty: TypeId, types: TypesRef) -> bool {
-        let exports = types[ty].unwrap_component_instance().exports.iter();
+    pub(crate) fn is_instance_subtype_of(
+        &self,
+        ty: ComponentInstanceTypeId,
+        types: TypesRef,
+    ) -> bool {
+        let exports = types[ty].exports.iter();
 
         for (k, b) in exports {
             match self.exports.get_full(k.as_str()) {

@@ -21,7 +21,7 @@
 //!
 //!     cargo test --test roundtrip local/ref.wat
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use rayon::prelude::*;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -209,11 +209,15 @@ struct TestState {
 
 impl TestState {
     fn run_test(&self, test: &Path, contents: &[u8]) -> Result<()> {
-        let result = match test.extension().and_then(|s| s.to_str()) {
-            Some("wat") => self.test_wat(test),
-            Some("wast") => self.test_wast(test, contents),
-            _ => bail!("unknown file extension {:?}", test),
-        };
+        let result =
+            match std::panic::catch_unwind(|| match test.extension().and_then(|s| s.to_str()) {
+                Some("wat") => self.test_wat(test),
+                Some("wast") => self.test_wast(test, contents),
+                _ => bail!("unknown file extension {:?}", test),
+            }) {
+                Ok(result) => result,
+                Err(e) => Err(anyhow!("panicked: {e:?}")),
+            };
         result.with_context(|| format!("failed test: {}", test.display()))
     }
 
@@ -309,6 +313,7 @@ impl TestState {
             .enumerate()
             .filter_map(|(index, directive)| {
                 let span = directive.span();
+
                 self.test_wast_directive(test, directive, index)
                     .with_context(|| {
                         let (line, col) = span.linecol_in(contents);
