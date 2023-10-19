@@ -311,7 +311,7 @@ impl WasmFeatures {
                     }
                     // indexed types require at least the function-references
                     // proposal
-                    (HeapType::Indexed(_), _) => {
+                    (HeapType::Concrete(_), _) => {
                         if self.function_references {
                             Ok(())
                         } else {

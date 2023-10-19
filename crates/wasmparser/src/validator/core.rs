@@ -9,9 +9,9 @@ use crate::limits::*;
 use crate::readers::Matches;
 use crate::validator::core::arc::MaybeOwned;
 use crate::{
-    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
-    Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, StorageType,
-    StructuralType, SubType, Table, TableInit, TableType, TagType, TypeRef, ValType, VisitOperator,
+    BinaryReaderError, CompositeType, ConstExpr, Data, DataKind, Element, ElementKind,
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result,
+    StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef, ValType, VisitOperator,
     WasmFeatures, WasmModuleResources,
 };
 
@@ -504,7 +504,8 @@ impl Module {
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        if matches!(&rec_group, RecGroup::Many(_)) && !features.gc {
+        debug_assert!(rec_group.explicit_rec_group || rec_group.types.len() == 1);
+        if rec_group.explicit_rec_group && !features.gc {
             bail!(
                 offset,
                 "rec group usage requires `gc` proposal to be enabled"
@@ -556,7 +557,7 @@ impl Module {
             bail!(offset, "gc proposal must be enabled to use subtypes");
         }
 
-        self.check_structural_type(&ty.structural_type, features, offset)?;
+        self.check_composite_type(&ty.composite_type, features, offset)?;
 
         if let Some(supertype_index) = ty.supertype_idx {
             // Check the supertype exists, is not final, and the subtype matches it.
@@ -575,14 +576,14 @@ impl Module {
         Ok(())
     }
 
-    fn check_structural_type(
+    fn check_composite_type(
         &mut self,
-        ty: &StructuralType,
+        ty: &CompositeType,
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<()> {
         match ty {
-            StructuralType::Func(t) => {
+            CompositeType::Func(t) => {
                 for ty in t.params().iter().chain(t.results()) {
                     self.check_value_type(*ty, features, offset)?;
                 }
@@ -593,7 +594,7 @@ impl Module {
                     ));
                 }
             }
-            StructuralType::Array(t) => {
+            CompositeType::Array(t) => {
                 if !features.gc {
                     return Err(BinaryReaderError::new(
                         "array indexed types not supported without the gc feature",
@@ -607,7 +608,7 @@ impl Module {
                     }
                 };
             }
-            StructuralType::Struct(t) => {
+            CompositeType::Struct(t) => {
                 if !features.gc {
                     return Err(BinaryReaderError::new(
                         "struct indexed types not supported without the gc feature",
@@ -756,8 +757,8 @@ impl Module {
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        match &self.sub_type_at(types, type_index, offset)?.structural_type {
-            StructuralType::Func(f) => Ok(f),
+        match &self.sub_type_at(types, type_index, offset)?.composite_type {
+            CompositeType::Func(f) => Ok(f),
             _ => bail!(offset, "type index {type_index} is not a function type"),
         }
     }
@@ -928,7 +929,7 @@ impl Module {
             | HeapType::Struct
             | HeapType::Array
             | HeapType::I31 => (),
-            HeapType::Indexed(type_index) => {
+            HeapType::Concrete(type_index) => {
                 // Just check that the index is valid
                 self.type_id_at(type_index, offset)?;
             }
@@ -1140,7 +1141,11 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.types[*self.module.types.get(at as usize)?].unwrap_func())
+        let id = *self.module.types.get(at as usize)?;
+        match &self.types[id].composite_type {
+            CompositeType::Func(f) => Some(f),
+            _ => None,
+        }
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {
@@ -1192,7 +1197,11 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.0.snapshot.as_ref().unwrap()[*self.0.tags.get(at as usize)?].unwrap_func())
+        let id = *self.0.tags.get(at as usize)?;
+        match &self.0.snapshot.as_ref().unwrap()[id].composite_type {
+            CompositeType::Func(f) => Some(f),
+            _ => None,
+        }
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1200,7 +1209,11 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.0.snapshot.as_ref().unwrap()[*self.0.types.get(at as usize)?].unwrap_func())
+        let id = *self.0.types.get(at as usize)?;
+        match &self.0.snapshot.as_ref().unwrap()[id].composite_type {
+            CompositeType::Func(f) => Some(f),
+            _ => None,
+        }
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {

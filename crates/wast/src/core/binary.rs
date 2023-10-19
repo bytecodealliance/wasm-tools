@@ -257,8 +257,8 @@ impl<'a> Encode for HeapType<'a> {
             HeapType::None => e.push(0x71),
             // Note that this is encoded as a signed leb128 so be sure to cast
             // to an i64 first
-            HeapType::Index(Index::Num(n, _)) => i64::from(*n).encode(e),
-            HeapType::Index(Index::Id(n)) => {
+            HeapType::Concrete(Index::Num(n, _)) => i64::from(*n).encode(e),
+            HeapType::Concrete(Index::Id(n)) => {
                 panic!("unresolved index in emission: {:?}", n)
             }
         }

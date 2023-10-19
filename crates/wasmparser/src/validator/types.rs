@@ -6,8 +6,8 @@ use super::{
 };
 use crate::validator::names::KebabString;
 use crate::{
-    BinaryReaderError, Export, ExternalKind, FuncType, GlobalType, Import, MemoryType,
-    PrimitiveValType, RefType, Result, StructuralType, SubType, TableType, TypeRef, ValType,
+    BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import,
+    MemoryType, PrimitiveValType, RefType, Result, SubType, TableType, TypeRef, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -294,10 +294,10 @@ impl TypeData for SubType {
 
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         // TODO(#1036): calculate actual size for func, array, struct.
-        let size = 1 + match &self.structural_type {
-            StructuralType::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
-            StructuralType::Array(_) => 2,
-            StructuralType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
+        let size = 1 + match &self.composite_type {
+            CompositeType::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
+            CompositeType::Array(_) => 2,
+            CompositeType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
         };
         TypeInfo::core(size)
     }
@@ -314,10 +314,10 @@ impl CoreType {
 
     /// Get the underlying `FuncType` within this `SubType` or panic.
     pub fn unwrap_func(&self) -> &FuncType {
-        match &self.unwrap_sub().structural_type {
-            StructuralType::Func(f) => f,
-            StructuralType::Array(_) | StructuralType::Struct(_) => {
-                panic!("`unwrap_func` on non-func structural type")
+        match &self.unwrap_sub().composite_type {
+            CompositeType::Func(f) => f,
+            CompositeType::Array(_) | CompositeType::Struct(_) => {
+                panic!("`unwrap_func` on non-func composite type")
             }
         }
     }

@@ -19,9 +19,9 @@ use crate::{
         TupleType, TypeInfo, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, ExternalKind, FuncType, GlobalType,
-    InstantiationArgKind, MemoryType, RecGroup, Result, StructuralType, SubType, TableType,
-    TypeBounds, ValType, WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeType, ExternalKind, FuncType, GlobalType,
+    InstantiationArgKind, MemoryType, RecGroup, Result, SubType, TableType, TypeBounds, ValType,
+    WasmFeatures,
 };
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::collections::{HashMap, HashSet};
@@ -392,7 +392,7 @@ impl ComponentState {
                 // function and has the correct signature.
                 if let Some(dtor) = dtor {
                     let ty = component.core_function_at(dtor, offset)?;
-                    let ty = types[ty].structural_type.unwrap_func();
+                    let ty = types[ty].composite_type.unwrap_func();
                     if ty.params() != [rep] || ty.results() != [] {
                         bail!(
                             offset,
@@ -1002,7 +1002,7 @@ impl ComponentState {
         let lowered_ty = SubType {
             is_final: false,
             supertype_idx: None,
-            structural_type: StructuralType::Func(info.into_func_type()),
+            composite_type: CompositeType::Func(info.into_func_type()),
         };
 
         let id = types.push_ty(lowered_ty);
@@ -1021,7 +1021,7 @@ impl ComponentState {
         let core_ty = SubType {
             is_final: false,
             supertype_idx: None,
-            structural_type: StructuralType::Func(FuncType::new([rep], [ValType::I32])),
+            composite_type: CompositeType::Func(FuncType::new([rep], [ValType::I32])),
         };
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
@@ -1037,7 +1037,7 @@ impl ComponentState {
         let core_ty = SubType {
             is_final: false,
             supertype_idx: None,
-            structural_type: StructuralType::Func(FuncType::new([ValType::I32], [])),
+            composite_type: CompositeType::Func(FuncType::new([ValType::I32], [])),
         };
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
@@ -1053,7 +1053,7 @@ impl ComponentState {
         let core_ty = SubType {
             is_final: false,
             supertype_idx: None,
-            structural_type: StructuralType::Func(FuncType::new([ValType::I32], [rep])),
+            composite_type: CompositeType::Func(FuncType::new([ValType::I32], [rep])),
         };
         self.core_funcs.push(types.push_ty(core_ty));
         Ok(())
@@ -1473,7 +1473,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::ModuleTypeDeclaration::Type(ty) => {
-                    state.add_types(&RecGroup::Single(ty), features, types, offset, true)?;
+                    state.add_types(&RecGroup::implicit(ty), features, types, offset, true)?;
                 }
                 crate::ModuleTypeDeclaration::Export { name, ty } => {
                     let ty = state.check_type_ref(&ty, features, types, offset)?;
@@ -1482,9 +1482,10 @@ impl ComponentState {
                 crate::ModuleTypeDeclaration::OuterAlias { kind, count, index } => {
                     if count > 1 {
                         return Err(BinaryReaderError::new(
-                                    "outer type aliases in module type declarations are limited to a maximum count of 1",
-                                    offset,
-                                ));
+                            "outer type aliases in module type declarations are limited to a \
+                             maximum count of 1",
+                            offset,
+                        ));
                     }
                     match kind {
                         crate::OuterAliasKind::Type => {
