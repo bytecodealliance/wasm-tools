@@ -1,3 +1,5 @@
+#![cfg(feature = "wat")]
+
 use anyhow::Result;
 use wit_component::{is_wasm_binary_or_wat, parse_wit_from_path};
 

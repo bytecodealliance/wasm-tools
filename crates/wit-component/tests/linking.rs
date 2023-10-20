@@ -144,8 +144,13 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
         let mut resolve = Resolve::default();
         let pkg = resolve.push(UnresolvedPackage::parse(Path::new("wit"), wit)?)?;
         let world = resolve.select_world(pkg, None)?;
-        let component_type =
-            wit_component::metadata::encode(&resolve, world, StringEncoding::UTF8, None)?;
+        let component_type = wit_component::metadata::encode(
+            &resolve,
+            world,
+            StringEncoding::UTF8,
+            None,
+            Some(true),
+        )?;
 
         let section = CustomSection {
             name: Cow::Borrowed("component-type"),

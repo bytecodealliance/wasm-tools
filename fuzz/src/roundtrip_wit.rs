@@ -34,10 +34,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     // If there's hundreds or thousands of worlds only work with the first few
     // to avoid timing out this fuzzer with asan enabled.
+    let use_next = Some(u.arbitrary()?);
     for (id, _world) in resolve.worlds.iter().take(20) {
         let mut dummy = wit_component::dummy_module(&resolve, id);
         let metadata =
-            wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8, None).unwrap();
+            wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8, None, use_next)
+                .unwrap();
         let section = CustomSection {
             name: "component-type".into(),
             data: Cow::Borrowed(&metadata),

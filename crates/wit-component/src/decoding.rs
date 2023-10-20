@@ -123,16 +123,7 @@ impl<'a> ComponentInfo<'a> {
     }
 
     fn decode_wit_v1_package(&self) -> Result<(Resolve, PackageId)> {
-        let resolve = Resolve::default();
-        let mut decoder = WitPackageDecoder {
-            resolve,
-            info: self,
-            type_map: HashMap::new(),
-            foreign_packages: Default::default(),
-            iface_to_package_index: Default::default(),
-            named_interfaces: Default::default(),
-            resources: Default::default(),
-        };
+        let mut decoder = WitPackageDecoder::new(&self.types);
 
         let mut pkg = None;
         for (name, item) in self.externs.iter() {
@@ -162,16 +153,7 @@ impl<'a> ComponentInfo<'a> {
     }
 
     fn decode_wit_v2_package(&self) -> Result<(Resolve, PackageId)> {
-        let resolve = Resolve::default();
-        let mut decoder = WitPackageDecoder {
-            resolve,
-            info: self,
-            type_map: HashMap::new(),
-            foreign_packages: Default::default(),
-            iface_to_package_index: Default::default(),
-            named_interfaces: Default::default(),
-            resources: Default::default(),
-        };
+        let mut decoder = WitPackageDecoder::new(&self.types);
 
         let mut pkg_name = None;
 
@@ -252,12 +234,12 @@ impl<'a> ComponentInfo<'a> {
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
         assert!(self.is_wit_package().is_none());
-        let mut resolve = Resolve::default();
+        let mut decoder = WitPackageDecoder::new(&self.types);
         // Note that this name is arbitrarily chosen. We may one day perhaps
         // want to encode this in the component binary format itself, but for
         // now it shouldn't be an issue to have a defaulted name here.
         let world_name = "root";
-        let world = resolve.worlds.alloc(World {
+        let world = decoder.resolve.worlds.alloc(World {
             name: world_name.to_string(),
             docs: Default::default(),
             imports: Default::default(),
@@ -266,15 +248,6 @@ impl<'a> ComponentInfo<'a> {
             includes: Default::default(),
             include_names: Default::default(),
         });
-        let mut decoder = WitPackageDecoder {
-            resolve,
-            info: self,
-            type_map: HashMap::new(),
-            foreign_packages: Default::default(),
-            iface_to_package_index: Default::default(),
-            named_interfaces: Default::default(),
-            resources: Default::default(),
-        };
         let mut package = Package {
             // Similar to `world_name` above this is arbitrarily chosen as it's
             // not otherwise encoded in a binary component. This theoretically
@@ -371,6 +344,37 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
     }
 }
 
+/// Decodes the single component type `world` specified as a WIT world.
+///
+/// The `name` provided should be a full ID such as `foo:bar/baz`.
+pub(crate) fn decode_world(
+    types: &types::Types,
+    name: &str,
+    world: types::ComponentTypeId,
+) -> Result<(Resolve, WorldId)> {
+    let mut decoder = WitPackageDecoder::new(types);
+    let mut interfaces = IndexMap::new();
+    let mut worlds = IndexMap::new();
+    let name = decoder.decode_world(
+        name,
+        &types[world],
+        &mut PackageFields {
+            interfaces: &mut interfaces,
+            worlds: &mut worlds,
+        },
+    )?;
+    let (resolve, pkg) = decoder.finish(Package {
+        name,
+        interfaces,
+        worlds,
+        docs: Default::default(),
+    });
+    // The package decoded here should only have a single world so extract that
+    // here to return.
+    let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
+    Ok((resolve, world))
+}
+
 struct PackageFields<'a> {
     interfaces: &'a mut IndexMap<String, InterfaceId>,
     worlds: &'a mut IndexMap<String, WorldId>,
@@ -378,7 +382,7 @@ struct PackageFields<'a> {
 
 struct WitPackageDecoder<'a> {
     resolve: Resolve,
-    info: &'a ComponentInfo<'a>,
+    types: &'a types::Types,
     foreign_packages: IndexMap<String, Package>,
     iface_to_package_index: HashMap<InterfaceId, usize>,
     named_interfaces: HashMap<String, InterfaceId>,
@@ -397,6 +401,18 @@ struct WitPackageDecoder<'a> {
 }
 
 impl WitPackageDecoder<'_> {
+    fn new<'a>(types: &'a types::Types) -> WitPackageDecoder<'a> {
+        WitPackageDecoder {
+            resolve: Resolve::default(),
+            types,
+            type_map: HashMap::new(),
+            foreign_packages: Default::default(),
+            iface_to_package_index: Default::default(),
+            named_interfaces: Default::default(),
+            resources: Default::default(),
+        }
+    }
+
     fn decode_v1_package(
         &mut self,
         name: &KebabName,
@@ -406,7 +422,7 @@ impl WitPackageDecoder<'_> {
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
             let ty = match ty {
-                types::ComponentEntityType::Instance(idx) => &self.info.types[*idx],
+                types::ComponentEntityType::Instance(idx) => &self.types[*idx],
                 _ => bail!("import `{name}` is not an instance"),
             };
             self.register_import(name, ty)
@@ -443,12 +459,12 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.exports.iter() {
             match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    let ty = &self.info.types[*idx];
+                    let ty = &self.types[*idx];
                     self.register_interface(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
                 types::ComponentEntityType::Component(idx) => {
-                    let ty = &self.info.types[*idx];
+                    let ty = &self.types[*idx];
                     self.register_world(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
@@ -485,7 +501,7 @@ impl WitPackageDecoder<'_> {
 
         for (name, ty) in imports.iter() {
             let ty = match ty {
-                types::ComponentEntityType::Instance(idx) => &self.info.types[*idx],
+                types::ComponentEntityType::Instance(idx) => &self.types[*idx],
                 _ => bail!("import `{name}` is not an instance"),
             };
             self.register_import(name, ty)
@@ -535,14 +551,13 @@ impl WitPackageDecoder<'_> {
         let name = import.name.as_str();
         log::debug!("decoding component import `{name}`");
         let ty = self
-            .info
             .types
             .component_entity_type_of_import(import.name.as_str())
             .unwrap();
         let owner = TypeOwner::World(world);
         let (name, item) = match ty {
             types::ComponentEntityType::Instance(i) => {
-                let ty = &self.info.types[i];
+                let ty = &self.types[i];
                 let (name, id) = if name.contains('/') {
                     let id = self.register_import(name, ty)?;
                     (WorldKey::Interface(id), id)
@@ -553,7 +568,7 @@ impl WitPackageDecoder<'_> {
                 (name, WorldItem::Interface(id))
             }
             types::ComponentEntityType::Func(i) => {
-                let ty = &self.info.types[i];
+                let ty = &self.types[i];
                 let func = self
                     .convert_function(name, ty, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
@@ -583,7 +598,7 @@ impl WitPackageDecoder<'_> {
     ) -> Result<()> {
         let name = export.name.as_str();
         log::debug!("decoding component export `{name}`");
-        let types = &self.info.types;
+        let types = &self.types;
         let ty = types.component_entity_type_of_export(name).unwrap();
         let (name, item) = match ty {
             types::ComponentEntityType::Func(i) => {
@@ -665,7 +680,7 @@ impl WitPackageDecoder<'_> {
                             log::debug!("type already exist");
                             match referenced {
                                 types::ComponentAnyTypeId::Defined(ty) => {
-                                    self.register_defined(id, &self.info.types[ty])?;
+                                    self.register_defined(id, &self.types[ty])?;
                                 }
                                 types::ComponentAnyTypeId::Resource(_) => {}
                                 _ => unreachable!(),
@@ -709,7 +724,7 @@ impl WitPackageDecoder<'_> {
                 // functions for remote dependencies and otherwise assert
                 // they're already defined for local dependencies.
                 types::ComponentEntityType::Func(ty) => {
-                    let def = &self.info.types[ty];
+                    let def = &self.types[ty];
                     if self.resolve.interfaces[interface]
                         .functions
                         .contains_key(name.as_str())
@@ -746,7 +761,7 @@ impl WitPackageDecoder<'_> {
         let mut cur = id;
         while prev.is_none() {
             prev = self.type_map.get(&cur).copied();
-            cur = match self.info.types.peel_alias(cur) {
+            cur = match self.types.peel_alias(cur) {
                 Some(next) => next,
                 None => break,
             };
@@ -868,7 +883,7 @@ impl WitPackageDecoder<'_> {
                 }
 
                 types::ComponentEntityType::Func(ty) => {
-                    let ty = &self.info.types[ty];
+                    let ty = &self.types[ty];
                     let func = self
                         .convert_function(name.as_str(), ty, owner)
                         .with_context(|| format!("failed to convert function '{name}'"))?;
@@ -939,7 +954,7 @@ impl WitPackageDecoder<'_> {
                 log::debug!("type export for `{name}` is a new type");
                 match referenced {
                     types::ComponentAnyTypeId::Defined(ty) => self
-                        .convert_defined(&self.info.types[ty])
+                        .convert_defined(&self.types[ty])
                         .context("failed to convert unaliased type")?,
                     types::ComponentAnyTypeId::Resource(_) => TypeDefKind::Resource,
                     _ => unreachable!(),
@@ -993,7 +1008,7 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.imports.iter() {
             let (name, item) = match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    let ty = &self.info.types[*idx];
+                    let ty = &self.types[*idx];
                     let (name, id) = if name.contains('/') {
                         // If a name is an interface import then it is either to
                         // a package-local or foreign interface, and both
@@ -1018,7 +1033,7 @@ impl WitPackageDecoder<'_> {
                     (WorldKey::Name(name.to_string()), WorldItem::Type(ty))
                 }
                 types::ComponentEntityType::Func(idx) => {
-                    let ty = &self.info.types[*idx];
+                    let ty = &self.types[*idx];
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
@@ -1030,7 +1045,7 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.exports.iter() {
             let (name, item) = match ty {
                 types::ComponentEntityType::Instance(idx) => {
-                    let ty = &self.info.types[*idx];
+                    let ty = &self.types[*idx];
                     let (name, id) = if name.contains('/') {
                         // Note that despite this being an export this is
                         // calling `register_import`. With a URL this interface
@@ -1047,7 +1062,7 @@ impl WitPackageDecoder<'_> {
                 }
 
                 types::ComponentEntityType::Func(idx) => {
-                    let ty = &self.info.types[*idx];
+                    let ty = &self.types[*idx];
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
@@ -1138,7 +1153,7 @@ impl WitPackageDecoder<'_> {
         // errors on those types, but eventually the `bail!` here  is
         // more-or-less unreachable due to expected validation to be added to
         // the component model binary format itself.
-        let def = &self.info.types[id];
+        let def = &self.types[id];
         let kind = self.convert_defined(def)?;
         match &kind {
             TypeDefKind::Type(_)
@@ -1303,7 +1318,7 @@ impl WitPackageDecoder<'_> {
 
     fn register_defined(&mut self, id: TypeId, def: &types::ComponentDefinedType) -> Result<()> {
         Registrar {
-            types: &self.info.types,
+            types: &self.types,
             type_map: &mut self.type_map,
             resolve: &self.resolve,
         }
@@ -1353,25 +1368,56 @@ impl WitPackageDecoder<'_> {
     }
 
     fn insert_package(&mut self, package: Package) -> PackageId {
-        let name = package.name.clone();
-        let id = self.resolve.packages.alloc(package);
-        let prev = self.resolve.package_names.insert(name, id);
-        assert!(prev.is_none());
-        for (_, iface) in self.resolve.packages[id].interfaces.iter() {
-            self.resolve.interfaces[*iface].package = Some(id);
+        let Package {
+            name,
+            interfaces,
+            worlds,
+            docs,
+        } = package;
+
+        // Most of the time the `package` being inserted is not already present
+        // in `self.resolve`, but in the case of the top-level `decode_world`
+        // function this isn't the case. This shouldn't in general be a problem
+        // so union-up the packages here while asserting that nothing gets
+        // replaced by accident which would indicate a bug.
+        let pkg = self
+            .resolve
+            .package_names
+            .get(&name)
+            .copied()
+            .unwrap_or_else(|| {
+                let id = self.resolve.packages.alloc(Package {
+                    name: name.clone(),
+                    interfaces: Default::default(),
+                    worlds: Default::default(),
+                    docs,
+                });
+                let prev = self.resolve.package_names.insert(name, id);
+                assert!(prev.is_none());
+                id
+            });
+
+        for (name, id) in interfaces {
+            let prev = self.resolve.packages[pkg].interfaces.insert(name, id);
+            assert!(prev.is_none());
+            self.resolve.interfaces[id].package = Some(pkg);
         }
-        for (_, world) in self.resolve.packages[id].worlds.iter() {
-            self.resolve.worlds[*world].package = Some(id);
-            let world = &self.resolve.worlds[*world];
+
+        for (name, id) in worlds {
+            let prev = self.resolve.packages[pkg].worlds.insert(name, id);
+            assert!(prev.is_none());
+            let world = &mut self.resolve.worlds[id];
+            world.package = Some(pkg);
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 if let WorldKey::Name(_) = name {
                     if let WorldItem::Interface(iface) = item {
-                        self.resolve.interfaces[*iface].package = Some(id);
+                        self.resolve.interfaces[*iface].package = Some(pkg);
                     }
                 }
             }
         }
-        id
+
+        pkg
     }
 
     fn visit_package(&self, idx: usize, order: &mut IndexSet<usize>) {

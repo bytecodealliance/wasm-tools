@@ -206,7 +206,7 @@ pub fn embed_component_metadata(
     world: WorldId,
     encoding: StringEncoding,
 ) -> Result<()> {
-    let encoded = metadata::encode(&wit_resolver, world, encoding, None)?;
+    let encoded = metadata::encode(&wit_resolver, world, encoding, None, None)?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type".into(),
