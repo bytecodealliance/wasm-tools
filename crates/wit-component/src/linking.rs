@@ -1279,21 +1279,17 @@ impl Linker {
             }
         }
 
-        let mut exporters = resolve_exporters(&metadata)?;
+        let exporters = resolve_exporters(&metadata)?;
 
         let cabi_realloc_exporter = exporters
-            .get_mut(&ExportKey {
+            .get(&ExportKey {
                 name: "cabi_realloc",
                 ty: Type::Function(FunctionType {
                     parameters: vec![ValueType::I32; 4],
                     results: vec![ValueType::I32],
                 }),
             })
-            .map(|exporters| {
-                let first = *exporters.first().unwrap();
-                *exporters = vec![first];
-                first.0
-            });
+            .map(|exporters| exporters.first().unwrap().0);
 
         let (exporters, missing, _) = resolve_symbols(&metadata, &exporters);
 
