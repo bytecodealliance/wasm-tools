@@ -52,12 +52,11 @@ impl Encode for ComponentExportKind {
 /// # Example
 ///
 /// ```rust
-/// use wasm_encoder::{Component, ComponentExportSection, ComponentExportKind, ComponentExternName};
+/// use wasm_encoder::{Component, ComponentExportSection, ComponentExportKind};
 ///
 /// // This exports a function named "foo"
 /// let mut exports = ComponentExportSection::new();
-/// let name = ComponentExternName::Kebab("foo");
-/// exports.export(name, ComponentExportKind::Func, 0, None);
+/// exports.export("foo", ComponentExportKind::Func, 0, None);
 ///
 /// let mut component = Component::new();
 /// component.section(&exports);
@@ -94,7 +93,7 @@ impl ComponentExportSection {
         index: u32,
         ty: Option<ComponentTypeRef>,
     ) -> &mut Self {
-        self.bytes.push(0x00);
+        crate::component::imports::push_extern_name_byte(&mut self.bytes, name);
         name.encode(&mut self.bytes);
         kind.encode(&mut self.bytes);
         index.encode(&mut self.bytes);
