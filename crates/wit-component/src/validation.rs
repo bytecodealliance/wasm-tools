@@ -1,15 +1,16 @@
+use crate::decoding::InterfaceNameExt;
 use crate::metadata::{Bindgen, ModuleMetadata};
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::mem;
-use wasmparser::names::{KebabName, KebabNameKind};
+use wasmparser::names::{ComponentName, ComponentNameKind};
 use wasmparser::{
-    types::Types, ComponentExternName, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef,
-    ValType, ValidPayload, Validator,
+    types::Types, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType,
+    ValidPayload, Validator,
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, PackageName, Resolve, TypeDefKind, TypeId, WorldId, WorldItem, WorldKey,
+    Function, InterfaceId, Resolve, TypeDefKind, TypeId, WorldId, WorldItem, WorldKey,
 };
 
 fn is_canonical_function(name: &str) -> bool {
@@ -567,27 +568,12 @@ pub fn validate_adapter_module<'a>(
 }
 
 fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
-    let name = if name.contains('/') {
-        ComponentExternName::Interface(name)
-    } else {
-        ComponentExternName::Kebab(name)
-    };
-    let kebab_name = KebabName::new(name, 0);
+    let kebab_name = ComponentName::new(name, 0);
     let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {
-        Ok(KebabNameKind::Id {
-            namespace,
-            package,
-            version,
-            interface,
-        }) => (
-            PackageName {
-                namespace: namespace.as_str().to_string(),
-                name: package.as_str().to_string(),
-                version,
-            },
-            interface.as_str(),
-        ),
-        _ => return WorldKey::Name(name.as_str().to_string()),
+        Ok(ComponentNameKind::Interface(name)) => {
+            (name.to_package_name(), name.interface().as_str())
+        }
+        _ => return WorldKey::Name(name.to_string()),
     };
     match resolve
         .package_names
@@ -595,7 +581,7 @@ fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
         .and_then(|p| resolve.packages[*p].interfaces.get(interface))
     {
         Some(id) => WorldKey::Interface(*id),
-        None => WorldKey::Name(name.as_str().to_string()),
+        None => WorldKey::Name(name.to_string()),
     }
 }
 

@@ -1692,7 +1692,7 @@ impl Printer {
                 ComponentTypeDeclaration::Export { name, ty } => {
                     self.start_group("export ");
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
-                    self.print_component_import_name(name.into())?;
+                    self.print_str(name.0)?;
                     self.result.push(' ');
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
                     self.end_group();
@@ -1726,7 +1726,7 @@ impl Printer {
                 InstanceTypeDeclaration::Export { name, ty } => {
                     self.start_group("export ");
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
-                    self.print_component_import_name(name.into())?;
+                    self.print_str(name.0)?;
                     self.result.push(' ');
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
                     self.end_group();
@@ -1890,23 +1890,11 @@ impl Printer {
         index: bool,
     ) -> Result<()> {
         self.start_group("import ");
-        self.print_component_import_name(import.name)?;
+        self.print_str(import.name.0)?;
         self.result.push(' ');
         self.print_component_import_ty(state, &import.ty, index)?;
         self.end_group();
         Ok(())
-    }
-
-    fn print_component_import_name(&mut self, name: ComponentExternName<'_>) -> Result<()> {
-        match name {
-            ComponentExternName::Kebab(s) => self.print_str(s),
-            ComponentExternName::Interface(s) => {
-                self.start_group("interface ");
-                self.print_str(s)?;
-                self.end_group();
-                Ok(())
-            }
-        }
     }
 
     fn print_component_import_ty(
@@ -2017,7 +2005,7 @@ impl Printer {
         if named {
             self.print_component_kind_name(state, export.kind)?;
         }
-        self.print_component_import_name(export.name.into())?;
+        self.print_str(export.name.0)?;
         self.result.push(' ');
         self.print_component_external_kind(state, export.kind, export.index)?;
         if let Some(ty) = &export.ty {

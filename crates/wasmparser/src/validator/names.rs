@@ -1,7 +1,7 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
-use crate::{ComponentExternName, Result};
+use crate::Result;
 use semver::Version;
 use std::borrow::Borrow;
 use std::fmt;
@@ -201,81 +201,74 @@ impl From<KebabString> for String {
     }
 }
 
-/// A "kebab name" in the component model which is backed by `T`, which defaults
-/// to `String`.
+/// An import or export name in the component model which is backed by `T`,
+/// which defaults to `String`.
 ///
 /// This name can be either:
 ///
-/// * a `KebabStr`: `a-b-c`
-/// * a method name : `[method]a-b.c-d`
-/// * a static method name : `[static]a-b.c-d`
-/// * a constructor: `[constructor]a-b`
+/// * a plain label or "kebab string": `a-b-c`
+/// * a plain method name : `[method]a-b.c-d`
+/// * a plain static method name : `[static]a-b.c-d`
+/// * a plain constructor: `[constructor]a-b`
+/// * an interface name: `wasi:cli/reactor@0.1.0`
+/// * a dependency name: `locked-dep=foo:bar/baz`
+/// * a URL name: `url=https://..`
+/// * a hash name: `integrity=sha256:...`
 ///
 /// # Equality and hashing
 ///
-/// Note that this type the `Method` and `Static` variants are considered equal
-/// and hash to the same value. This enables disallowing clashes between the two
-/// where method name overlap cannot happen.
+/// Note that this type the `[method]...` and `[static]...` variants are
+/// considered equal and hash to the same value. This enables disallowing
+/// clashes between the two where method name overlap cannot happen.
 #[derive(Clone)]
-pub struct KebabName {
+pub struct ComponentName {
     raw: String,
-    parsed: ParsedKebabName,
+    kind: ParsedComponentNameKind,
 }
 
 #[derive(Copy, Clone)]
-enum ParsedKebabName {
-    Normal,
+enum ParsedComponentNameKind {
+    Label,
     Constructor,
-    Method {
-        dot: u32,
-    },
-    Static {
-        dot: u32,
-    },
-    Id {
-        colon: u32,
-        slash: u32,
-        at: Option<u32>,
-    },
+    Method,
+    Static,
+    Interface,
 }
 
-/// Created via [`KebabName::kind`] and classifies a name.
+/// Created via [`ComponentName::kind`] and classifies a name.
 #[derive(Debug, Clone)]
-pub enum KebabNameKind<'a> {
+pub enum ComponentNameKind<'a> {
     /// `a-b-c`
-    Normal(&'a KebabStr),
+    Label(&'a KebabStr),
     /// `[constructor]a-b`
     Constructor(&'a KebabStr),
     /// `[method]a-b.c-d`
     #[allow(missing_docs)]
-    Method {
-        resource: &'a KebabStr,
-        name: &'a KebabStr,
-    },
+    Method(ResourceFunc<'a>),
     /// `[static]a-b.c-d`
     #[allow(missing_docs)]
-    Static {
-        resource: &'a KebabStr,
-        name: &'a KebabStr,
-    },
+    Static(ResourceFunc<'a>),
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
-    Id {
-        namespace: &'a KebabStr,
-        package: &'a KebabStr,
-        interface: &'a KebabStr,
-        version: Option<Version>,
-    },
+    Interface(InterfaceName<'a>),
 }
 
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
 
-impl KebabName {
+impl ComponentName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
     /// valid.
-    pub fn new(name: ComponentExternName<'_>, offset: usize) -> Result<KebabName> {
+    pub fn new(name: &str, offset: usize) -> Result<ComponentName> {
+        let kind = ComponentName::parse_kind(name, offset)?;
+        Ok(ComponentName {
+            raw: name.to_string(),
+            kind,
+        })
+    }
+
+    fn parse_kind(name: &str, offset: usize) -> Result<ParsedComponentNameKind> {
         let validate_kebab = |s: &str| {
             if KebabStr::new(s).is_none() {
                 bail!(offset, "`{s}` is not in kebab case")
@@ -287,88 +280,56 @@ impl KebabName {
             Some(i) => Ok(i),
             None => bail!(offset, "failed to find `{c}` character"),
         };
-        let parsed = match name {
-            ComponentExternName::Kebab(s) => {
-                if let Some(s) = s.strip_prefix(CONSTRUCTOR) {
-                    validate_kebab(s)?;
-                    ParsedKebabName::Constructor
-                } else if let Some(s) = s.strip_prefix(METHOD) {
-                    let dot = find(s, '.')?;
-                    validate_kebab(&s[..dot])?;
-                    validate_kebab(&s[dot + 1..])?;
-                    ParsedKebabName::Method { dot: dot as u32 }
-                } else if let Some(s) = s.strip_prefix(STATIC) {
-                    let dot = find(s, '.')?;
-                    validate_kebab(&s[..dot])?;
-                    validate_kebab(&s[dot + 1..])?;
-                    ParsedKebabName::Static { dot: dot as u32 }
-                } else {
-                    validate_kebab(s)?;
-                    ParsedKebabName::Normal
-                }
-            }
-            ComponentExternName::Interface(s) => {
-                let colon = find(s, ':')?;
-                validate_kebab(&s[..colon])?;
-                let slash = find(s, '/')?;
-                let at = s[slash..].find('@').map(|i| i + slash);
-                validate_kebab(&s[colon + 1..slash])?;
-                validate_kebab(&s[slash + 1..at.unwrap_or(s.len())])?;
+
+        if let Some(name) = name.strip_prefix(CONSTRUCTOR) {
+            validate_kebab(name)?;
+            return Ok(ParsedComponentNameKind::Constructor);
+        }
+        if let Some(s) = name.strip_prefix(METHOD) {
+            let dot = find(s, '.')?;
+            validate_kebab(&s[..dot])?;
+            validate_kebab(&s[dot + 1..])?;
+            return Ok(ParsedComponentNameKind::Method);
+        }
+        if let Some(s) = name.strip_prefix(STATIC) {
+            let dot = find(s, '.')?;
+            validate_kebab(&s[..dot])?;
+            validate_kebab(&s[dot + 1..])?;
+            return Ok(ParsedComponentNameKind::Static);
+        }
+
+        match name.find(':') {
+            Some(colon) => {
+                validate_kebab(&name[..colon])?;
+                let slash = find(name, '/')?;
+                let at = name[slash..].find('@').map(|i| i + slash);
+                validate_kebab(&name[colon + 1..slash])?;
+                validate_kebab(&name[slash + 1..at.unwrap_or(name.len())])?;
                 if let Some(at) = at {
-                    let version = &s[at + 1..];
+                    let version = &name[at + 1..];
                     if let Err(e) = version.parse::<Version>() {
                         bail!(offset, "failed to parse version: {e}")
                     }
                 }
-                ParsedKebabName::Id {
-                    colon: colon as u32,
-                    slash: slash as u32,
-                    at: at.map(|i| i as u32),
-                }
+                Ok(ParsedComponentNameKind::Interface)
             }
-        };
-        Ok(KebabName {
-            raw: name.as_str().to_string(),
-            parsed,
-        })
+            None => {
+                validate_kebab(name)?;
+                Ok(ParsedComponentNameKind::Label)
+            }
+        }
     }
 
-    /// Returns the [`KebabNameKind`] corresponding to this name.
-    pub fn kind(&self) -> KebabNameKind<'_> {
-        match self.parsed {
-            ParsedKebabName::Normal => KebabNameKind::Normal(KebabStr::new_unchecked(&self.raw)),
-            ParsedKebabName::Constructor => {
-                let kebab = &self.raw[CONSTRUCTOR.len()..];
-                KebabNameKind::Constructor(KebabStr::new_unchecked(kebab))
-            }
-            ParsedKebabName::Method { dot } => {
-                let dotted = &self.raw[METHOD.len()..];
-                let resource = KebabStr::new_unchecked(&dotted[..dot as usize]);
-                let name = KebabStr::new_unchecked(&dotted[dot as usize + 1..]);
-                KebabNameKind::Method { resource, name }
-            }
-            ParsedKebabName::Static { dot } => {
-                let dotted = &self.raw[METHOD.len()..];
-                let resource = KebabStr::new_unchecked(&dotted[..dot as usize]);
-                let name = KebabStr::new_unchecked(&dotted[dot as usize + 1..]);
-                KebabNameKind::Static { resource, name }
-            }
-            ParsedKebabName::Id { colon, slash, at } => {
-                let colon = colon as usize;
-                let slash = slash as usize;
-                let at = at.map(|i| i as usize);
-                let namespace = KebabStr::new_unchecked(&self.raw[..colon]);
-                let package = KebabStr::new_unchecked(&self.raw[colon + 1..slash]);
-                let interface =
-                    KebabStr::new_unchecked(&self.raw[slash + 1..at.unwrap_or(self.raw.len())]);
-                let version = at.map(|i| Version::parse(&self.raw[i + 1..]).unwrap());
-                KebabNameKind::Id {
-                    namespace,
-                    package,
-                    interface,
-                    version,
-                }
-            }
+    /// Returns the [`ComponentNameKind`] corresponding to this name.
+    pub fn kind(&self) -> ComponentNameKind<'_> {
+        use ComponentNameKind::*;
+        use ParsedComponentNameKind as PK;
+        match self.kind {
+            PK::Label => Label(KebabStr::new_unchecked(&self.raw)),
+            PK::Constructor => Constructor(KebabStr::new_unchecked(&self.raw[CONSTRUCTOR.len()..])),
+            PK::Method => Method(ResourceFunc(&self.raw[METHOD.len()..])),
+            PK::Static => Static(ResourceFunc(&self.raw[STATIC.len()..])),
+            PK::Interface => Interface(InterfaceName(&self.raw)),
         }
     }
 
@@ -378,153 +339,134 @@ impl KebabName {
     }
 }
 
-impl From<KebabName> for String {
-    fn from(name: KebabName) -> String {
+impl From<ComponentName> for String {
+    fn from(name: ComponentName) -> String {
         name.raw
     }
 }
 
-impl Hash for KebabName {
+impl Hash for ComponentName {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.kind().hash(hasher)
     }
 }
 
-impl PartialEq for KebabName {
-    fn eq(&self, other: &KebabName) -> bool {
+impl PartialEq for ComponentName {
+    fn eq(&self, other: &ComponentName) -> bool {
         self.kind().eq(&other.kind())
     }
 }
 
-impl Eq for KebabName {}
+impl Eq for ComponentName {}
 
-impl fmt::Display for KebabName {
+impl fmt::Display for ComponentName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.raw.fmt(f)
     }
 }
 
-impl fmt::Debug for KebabName {
+impl fmt::Debug for ComponentName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.raw.fmt(f)
     }
 }
 
-impl Hash for KebabNameKind<'_> {
+impl Hash for ComponentNameKind<'_> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
+        use ComponentNameKind::*;
         match self {
-            KebabNameKind::Normal(name) => {
-                hasher.write_u8(0);
-                name.hash(hasher);
-            }
-            KebabNameKind::Constructor(name) => {
-                hasher.write_u8(1);
-                name.hash(hasher);
-            }
+            Label(name) => (0u8, name).hash(hasher),
+            Constructor(name) => (1u8, name).hash(hasher),
             // for hashing method == static
-            KebabNameKind::Method { resource, name } | KebabNameKind::Static { resource, name } => {
-                hasher.write_u8(2);
-                resource.hash(hasher);
-                name.hash(hasher);
-            }
-            KebabNameKind::Id {
-                namespace,
-                package,
-                interface,
-                version,
-            } => {
-                hasher.write_u8(3);
-                namespace.hash(hasher);
-                package.hash(hasher);
-                interface.hash(hasher);
-                version.hash(hasher);
-            }
+            Method(name) | Static(name) => (2u8, name).hash(hasher),
+            Interface(name) => (3u8, name).hash(hasher),
         }
     }
 }
 
-impl PartialEq for KebabNameKind<'_> {
-    fn eq(&self, other: &KebabNameKind<'_>) -> bool {
+impl PartialEq for ComponentNameKind<'_> {
+    fn eq(&self, other: &ComponentNameKind<'_>) -> bool {
+        use ComponentNameKind::*;
         match (self, other) {
-            (KebabNameKind::Normal(a), KebabNameKind::Normal(b)) => a == b,
-            (KebabNameKind::Normal(_), _) => false,
-            (KebabNameKind::Constructor(a), KebabNameKind::Constructor(b)) => a == b,
-            (KebabNameKind::Constructor(_), _) => false,
+            (Label(a), Label(b)) => a == b,
+            (Label(_), _) => false,
+            (Constructor(a), Constructor(b)) => a == b,
+            (Constructor(_), _) => false,
 
             // method == static for the purposes of hashing so equate them here
             // as well.
-            (
-                KebabNameKind::Method {
-                    resource: ar,
-                    name: an,
-                },
-                KebabNameKind::Method {
-                    resource: br,
-                    name: bn,
-                },
-            )
-            | (
-                KebabNameKind::Static {
-                    resource: ar,
-                    name: an,
-                },
-                KebabNameKind::Static {
-                    resource: br,
-                    name: bn,
-                },
-            )
-            | (
-                KebabNameKind::Method {
-                    resource: ar,
-                    name: an,
-                },
-                KebabNameKind::Static {
-                    resource: br,
-                    name: bn,
-                },
-            )
-            | (
-                KebabNameKind::Static {
-                    resource: ar,
-                    name: an,
-                },
-                KebabNameKind::Method {
-                    resource: br,
-                    name: bn,
-                },
-            ) => ar == br && an == bn,
+            (Method(a), Method(b))
+            | (Static(a), Static(b))
+            | (Method(a), Static(b))
+            | (Static(a), Method(b)) => a == b,
 
-            (KebabNameKind::Method { .. }, _) => false,
-            (KebabNameKind::Static { .. }, _) => false,
+            (Method(_), _) => false,
+            (Static(_), _) => false,
 
-            (
-                KebabNameKind::Id {
-                    namespace: an,
-                    package: ap,
-                    interface: ai,
-                    version: av,
-                },
-                KebabNameKind::Id {
-                    namespace: bn,
-                    package: bp,
-                    interface: bi,
-                    version: bv,
-                },
-            ) => an == bn && ap == bp && ai == bi && av == bv,
-            (KebabNameKind::Id { .. }, _) => false,
+            (Interface(a), Interface(b)) => a == b,
+            (Interface(_), _) => false,
         }
     }
 }
 
-impl Eq for KebabNameKind<'_> {}
+impl Eq for ComponentNameKind<'_> {}
+
+/// TODO
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct ResourceFunc<'a>(&'a str);
+
+impl<'a> ResourceFunc<'a> {
+    /// TODO
+    pub fn resource(&self) -> &'a KebabStr {
+        let dot = self.0.find('.').unwrap();
+        KebabStr::new_unchecked(&self.0[..dot])
+    }
+}
+
+/// TODO
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct InterfaceName<'a>(&'a str);
+
+impl<'a> InterfaceName<'a> {
+    /// TODO
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+
+    /// TODO
+    pub fn namespace(&self) -> &'a KebabStr {
+        let colon = self.0.find(':').unwrap();
+        KebabStr::new_unchecked(&self.0[..colon])
+    }
+
+    /// TODO
+    pub fn package(&self) -> &'a KebabStr {
+        let colon = self.0.find(':').unwrap();
+        let slash = self.0.find('/').unwrap();
+        KebabStr::new_unchecked(&self.0[colon + 1..slash])
+    }
+
+    /// TODO
+    pub fn interface(&self) -> &'a KebabStr {
+        let slash = self.0.find('/').unwrap();
+        let at = self.0.find('@').unwrap_or(self.0.len());
+        KebabStr::new_unchecked(&self.0[slash + 1..at])
+    }
+
+    /// TODO
+    pub fn version(&self) -> Option<Version> {
+        let at = self.0.find('@')?;
+        Some(Version::parse(&self.0[at + 1..]).unwrap())
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    fn parse_kebab_name(s: &str) -> Option<KebabName> {
-        KebabName::new(ComponentExternName::Kebab(s), 0).ok()
+    fn parse_kebab_name(s: &str) -> Option<ComponentName> {
+        ComponentName::new(ComponentExternName::Kebab(s), 0).ok()
     }
 
     #[test]
