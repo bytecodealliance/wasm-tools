@@ -117,7 +117,11 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read_u8()? {
             0x00 => {}
-            0x01 => {} // TODO: commments
+            // Historically export names used a discriminator byte of 0x01 to
+            // indicate an "interface" of the form `a:b/c` but nowadays that's
+            // inferred from string syntax. Ignore 0-vs-1 to continue to parse
+            // older binaries. Eventually this will go away.
+            0x01 => {}
             x => return reader.invalid_leading_byte(x, "import name"),
         }
         Ok(ComponentImportName(reader.read_string()?))
