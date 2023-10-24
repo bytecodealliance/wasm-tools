@@ -177,9 +177,7 @@
   (component (import "wasi:http/types@2.0.0-" (func)))
   "empty identifier segment")
 
-(assert_invalid
-  (component
-    (import "a" (func $a))
-    (export "a" (func $a))
-  )
-  "export name `a` conflicts with previous name `a`")
+(component
+  (import "a" (func $a))
+  (export "a" (func $a))
+)
