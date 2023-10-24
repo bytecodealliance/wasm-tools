@@ -181,3 +181,105 @@
   (import "a" (func $a))
   (export "a" (func $a))
 )
+
+
+(component
+  (import "unlocked-dep=<a:b>" (func))
+  (import "unlocked-dep=<a:b@*>" (func))
+  (import "unlocked-dep=<a:b@{>=1.2.3}>" (func))
+  (import "unlocked-dep=<a:b@{>=1.2.3-rc}>" (func))
+  (import "unlocked-dep=<a:b@{<1.2.3}>" (func))
+  (import "unlocked-dep=<a:b@{<1.2.3-rc}>" (func))
+  (import "unlocked-dep=<a:b@{>=1.2.3 <1.2.3}>" (func))
+  (import "unlocked-dep=<a:b@{>=1.2.3-rc <1.2.3}>" (func))
+)
+
+(assert_invalid
+  (component (import "unlocked-dep=" (func)))
+  "expected `<` at ``")
+(assert_invalid
+  (component (import "unlocked-dep=<" (func)))
+  "failed to find `:`")
+(assert_invalid
+  (component (import "unlocked-dep=<>" (func)))
+  "failed to find `:`")
+(assert_invalid
+  (component (import "unlocked-dep=<:>" (func)))
+  "`` is not in kebab case")
+(assert_invalid
+  (component (import "unlocked-dep=<a:>" (func)))
+  "`` is not in kebab case")
+(assert_invalid
+  (component (import "unlocked-dep=<:a>" (func)))
+  "`` is not in kebab case")
+(assert_invalid
+  (component (import "unlocked-dep=<a:a@>" (func)))
+  "expected `{` at `>`")
+(assert_invalid
+  (component (import "unlocked-dep=<a:a@{xyz}>" (func)))
+  "expected `<` at `xyz}>`")
+(assert_invalid
+  (component (import "unlocked-dep=<a:a@{<xyz}>" (func)))
+  "`xyz` is not a valid semver")
+(assert_invalid
+  (component (import "unlocked-dep=<a:a@{<1.2.3 >=2.3.4}>" (func)))
+  "`1.2.3 >=2.3.4` is not a valid semver")
+
+(component
+  (import "locked-dep=<a:b>" (func))
+  (import "locked-dep=<a:b@1.2.3>" (func))
+  (import "locked-dep=<a:b>,integrity=<a>" (func))
+  (import "locked-dep=<a:b@1.2.3>,integrity=<a>" (func))
+)
+
+(assert_invalid
+  (component (import "locked-dep=" (func)))
+  "expected `<` at ``")
+(assert_invalid
+  (component (import "locked-dep=<" (func)))
+  "failed to find `:`")
+(assert_invalid
+  (component (import "locked-dep=<:" (func)))
+  "is not in kebab case")
+(assert_invalid
+  (component (import "locked-dep=<:>" (func)))
+  "is not in kebab case")
+(assert_invalid
+  (component (import "locked-dep=<a:>" (func)))
+  "is not in kebab case")
+(assert_invalid
+  (component (import "locked-dep=<:a>" (func)))
+  "is not in kebab case")
+(assert_invalid
+  (component (import "locked-dep=<a:a" (func)))
+  "failed to find `>`")
+(assert_invalid
+  (component (import "locked-dep=<a:a@>" (func)))
+  "is not a valid semver")
+(assert_invalid
+  (component (import "locked-dep=<a:a@1.2.3" (func)))
+  "failed to find `>`")
+(assert_invalid
+  (component (import "locked-dep=<a:a@1.2.3>," (func)))
+  "expected `integrity=<`")
+(assert_invalid
+  (component (import "locked-dep=<a:a@1.2.3>x" (func)))
+  "trailing characters found: `x`")
+
+(component
+  (import "url=<>" (func))
+  (import "url=<a>" (func))
+  (import "url=<a>,integrity=<a>" (func))
+)
+
+(assert_invalid
+  (component (import "url=" (func)))
+  "expected `<` at ``")
+(assert_invalid
+  (component (import "url=<" (func)))
+  "failed to find `>`")
+
+(component
+  (import "integrity=<>" (func))
+  (import "integrity=<a>" (func))
+)

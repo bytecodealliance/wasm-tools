@@ -3044,7 +3044,11 @@ impl ComponentNameContext {
         };
         match name.kind() {
             // No validation necessary for these styles of names
-            ComponentNameKind::Label(_) | ComponentNameKind::Interface(_) => {}
+            ComponentNameKind::Label(_)
+            | ComponentNameKind::Interface(_)
+            | ComponentNameKind::Url(_)
+            | ComponentNameKind::Dependency(_)
+            | ComponentNameKind::Hash(_) => {}
 
             // Constructors must return `(own $resource)` and the `$resource`
             // must be named within this context to match `rname`

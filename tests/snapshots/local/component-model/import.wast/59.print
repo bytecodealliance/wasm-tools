@@ -1,0 +1,6 @@
+(component
+  (type (;0;) (func))
+  (import "integrity=<>" (func (;0;) (type 0)))
+  (type (;1;) (func))
+  (import "integrity=<a>" (func (;1;) (type 1)))
+)

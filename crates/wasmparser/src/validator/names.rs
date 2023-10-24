@@ -233,6 +233,9 @@ enum ParsedComponentNameKind {
     Method,
     Static,
     Interface,
+    Dependency,
+    Url,
+    Hash,
 }
 
 /// Created via [`ComponentName::kind`] and classifies a name.
@@ -251,6 +254,15 @@ pub enum ComponentNameKind<'a> {
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
     Interface(InterfaceName<'a>),
+    /// `locked-dep=foo:bar/baz`
+    #[allow(missing_docs)]
+    Dependency(DependencyName<'a>),
+    /// `url=https://...`
+    #[allow(missing_docs)]
+    Url(UrlName<'a>),
+    /// `integrity=sha256:...`
+    #[allow(missing_docs)]
+    Hash(HashName<'a>),
 }
 
 const CONSTRUCTOR: &str = "[constructor]";
@@ -261,63 +273,15 @@ impl ComponentName {
     /// Attempts to parse `name` as a kebab name, returning `None` if it's not
     /// valid.
     pub fn new(name: &str, offset: usize) -> Result<ComponentName> {
-        let kind = ComponentName::parse_kind(name, offset)?;
+        let mut parser = ComponentNameParser { next: name, offset };
+        let kind = parser.parse()?;
+        if !parser.next.is_empty() {
+            bail!(offset, "trailing characters found: `{}`", parser.next);
+        }
         Ok(ComponentName {
             raw: name.to_string(),
             kind,
         })
-    }
-
-    fn parse_kind(name: &str, offset: usize) -> Result<ParsedComponentNameKind> {
-        let validate_kebab = |s: &str| {
-            if KebabStr::new(s).is_none() {
-                bail!(offset, "`{s}` is not in kebab case")
-            } else {
-                Ok(())
-            }
-        };
-        let find = |s: &str, c: char| match s.find(c) {
-            Some(i) => Ok(i),
-            None => bail!(offset, "failed to find `{c}` character"),
-        };
-
-        if let Some(name) = name.strip_prefix(CONSTRUCTOR) {
-            validate_kebab(name)?;
-            return Ok(ParsedComponentNameKind::Constructor);
-        }
-        if let Some(s) = name.strip_prefix(METHOD) {
-            let dot = find(s, '.')?;
-            validate_kebab(&s[..dot])?;
-            validate_kebab(&s[dot + 1..])?;
-            return Ok(ParsedComponentNameKind::Method);
-        }
-        if let Some(s) = name.strip_prefix(STATIC) {
-            let dot = find(s, '.')?;
-            validate_kebab(&s[..dot])?;
-            validate_kebab(&s[dot + 1..])?;
-            return Ok(ParsedComponentNameKind::Static);
-        }
-
-        match name.find(':') {
-            Some(colon) => {
-                validate_kebab(&name[..colon])?;
-                let slash = find(name, '/')?;
-                let at = name[slash..].find('@').map(|i| i + slash);
-                validate_kebab(&name[colon + 1..slash])?;
-                validate_kebab(&name[slash + 1..at.unwrap_or(name.len())])?;
-                if let Some(at) = at {
-                    let version = &name[at + 1..];
-                    if let Err(e) = version.parse::<Version>() {
-                        bail!(offset, "failed to parse version: {e}")
-                    }
-                }
-                Ok(ParsedComponentNameKind::Interface)
-            }
-            None => {
-                validate_kebab(name)?;
-                Ok(ParsedComponentNameKind::Label)
-            }
-        }
     }
 
     /// Returns the [`ComponentNameKind`] corresponding to this name.
@@ -330,6 +294,9 @@ impl ComponentName {
             PK::Method => Method(ResourceFunc(&self.raw[METHOD.len()..])),
             PK::Static => Static(ResourceFunc(&self.raw[STATIC.len()..])),
             PK::Interface => Interface(InterfaceName(&self.raw)),
+            PK::Dependency => Dependency(DependencyName(&self.raw)),
+            PK::Url => Url(UrlName(&self.raw)),
+            PK::Hash => Hash(HashName(&self.raw)),
         }
     }
 
@@ -380,6 +347,9 @@ impl Hash for ComponentNameKind<'_> {
             // for hashing method == static
             Method(name) | Static(name) => (2u8, name).hash(hasher),
             Interface(name) => (3u8, name).hash(hasher),
+            Dependency(name) => (4u8, name).hash(hasher),
+            Url(name) => (5u8, name).hash(hasher),
+            Hash(name) => (6u8, name).hash(hasher),
         }
     }
 }
@@ -405,6 +375,12 @@ impl PartialEq for ComponentNameKind<'_> {
 
             (Interface(a), Interface(b)) => a == b,
             (Interface(_), _) => false,
+            (Dependency(a), Dependency(b)) => a == b,
+            (Dependency(_), _) => false,
+            (Url(a), Url(b)) => a == b,
+            (Url(_), _) => false,
+            (Hash(a), Hash(b)) => a == b,
+            (Hash(_), _) => false,
         }
     }
 }
@@ -471,6 +447,260 @@ pub struct HashName<'a>(&'a str);
 /// TODO
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct UrlName<'a>(&'a str);
+
+// A small helper structure to parse `self.next` which is an import or export
+// name.
+//
+// Methods will update `self.next` as they go along and `self.offset` is used
+// for error messages.
+struct ComponentNameParser<'a> {
+    next: &'a str,
+    offset: usize,
+}
+
+impl<'a> ComponentNameParser<'a> {
+    fn parse(&mut self) -> Result<ParsedComponentNameKind> {
+        if self.eat_str(CONSTRUCTOR) {
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::Constructor);
+        }
+        if self.eat_str(METHOD) {
+            let resource = self.take_until('.')?;
+            self.kebab(resource)?;
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::Method);
+        }
+        if self.eat_str(STATIC) {
+            let resource = self.take_until('.')?;
+            self.kebab(resource)?;
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::Static);
+        }
+
+        // 'unlocked-dep=<' <pkgidset> '>'
+        if self.eat_str("unlocked-dep=") {
+            self.expect_str("<")?;
+            self.pkgidset_up_to('>')?;
+            self.expect_str(">")?;
+            return Ok(ParsedComponentNameKind::Dependency);
+        }
+
+        // 'locked-dep=<' <pkgid> '>' ( ',' <hashname> )?
+        if self.eat_str("locked-dep=") {
+            self.expect_str("<")?;
+            self.pkgid_up_to('>')?;
+            self.expect_str(">")?;
+            self.eat_optional_hash()?;
+            return Ok(ParsedComponentNameKind::Dependency);
+        }
+
+        // 'url=<' <nonbrackets> '>' (',' <hashname>)?
+        if self.eat_str("url=") {
+            self.expect_str("<")?;
+            let _url = self.take_up_to('>')?;
+            self.expect_str(">")?;
+            self.eat_optional_hash()?;
+            return Ok(ParsedComponentNameKind::Url);
+        }
+        // 'relative-url=<' <nonbrackets> '>' (',' <hashname>)?
+        if self.eat_str("relative-url=") {
+            self.expect_str("<")?;
+            let _url = self.take_up_to('>')?;
+            self.expect_str(">")?;
+            self.eat_optional_hash()?;
+            return Ok(ParsedComponentNameKind::Url);
+        }
+
+        // 'integrity=<' <integrity-metadata> '>'
+        if self.eat_str("integrity=") {
+            self.expect_str("<")?;
+            let _hash = self.parse_hash()?;
+            self.expect_str(">")?;
+            return Ok(ParsedComponentNameKind::Hash);
+        }
+
+        match self.eat_until(':') {
+            // interfacename ::= <namespace> <label> <projection> <version>?
+            Some(namespace) => {
+                self.kebab(namespace)?;
+                let pkg = self.take_until('/')?;
+                self.kebab(pkg)?;
+                match self.eat_until('@') {
+                    Some(interface) => {
+                        self.kebab(interface)?;
+                        let version = self.take_rest();
+                        self.semver(version)?;
+                    }
+                    None => {
+                        self.expect_kebab()?;
+                    }
+                }
+                Ok(ParsedComponentNameKind::Interface)
+            }
+            None => {
+                self.expect_kebab()?;
+                Ok(ParsedComponentNameKind::Label)
+            }
+        }
+    }
+
+    // pkgidset      ::= <pkgname> <verrange>?
+    // pkgname       ::= <namespace> <label>
+    // verrange      ::= '@*'
+    //                 | '@{' <verlower> '}'
+    //                 | '@{' <verupper> '}'
+    //                 | '@{' <verlower> ' ' <verupper> '}'
+    // verlower      ::= '>=' <valid semver>
+    // verupper      ::= '<' <valid semver>
+    fn pkgidset_up_to(&mut self, end: char) -> Result<()> {
+        let namespace = self.take_until(':')?;
+        self.kebab(namespace)?;
+        let name = match self.eat_until('@') {
+            Some(name) => name,
+            // a:b
+            None => {
+                let name = self.take_up_to(end)?;
+                self.kebab(name)?;
+                return Ok(());
+            }
+        };
+        self.kebab(name)?;
+
+        // a:b@*
+        if self.eat_str("*") {
+            return Ok(());
+        }
+        self.expect_str("{")?;
+        if self.eat_str(">=") {
+            match self.eat_until(' ') {
+                Some(lower) => {
+                    self.semver(lower)?;
+                }
+                // a:b@{>=1.2.3}
+                None => {
+                    let lower = self.take_until('}')?;
+                    self.semver(lower)?;
+                    return Ok(());
+                }
+            }
+        }
+
+        // a:b@{<1.2.3}
+        // .. or
+        // a:b@{<1.2.3 >=1.2.3}
+        self.expect_str("<")?;
+        let version = self.take_until('}')?;
+        self.semver(version)?;
+        Ok(())
+    }
+
+    // pkgid         ::= <pkgname> <version>?
+    fn pkgid_up_to(&mut self, end: char) -> Result<()> {
+        let namespace = self.take_until(':')?;
+        self.kebab(namespace)?;
+        match self.eat_until('@') {
+            // a:b@1.2.3
+            Some(name) => {
+                self.kebab(name)?;
+                let version = self.take_up_to(end)?;
+                self.semver(version)?;
+            }
+            // a:b
+            None => {
+                let name = self.take_up_to(end)?;
+                self.kebab(name)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_hash(&mut self) -> Result<&'a str> {
+        let hash = self.take_up_to('>')?;
+        Ok(hash)
+    }
+
+    fn eat_optional_hash(&mut self) -> Result<Option<&'a str>> {
+        if !self.eat_str(",") {
+            return Ok(None);
+        }
+        self.expect_str("integrity=<")?;
+        let ret = self.parse_hash()?;
+        self.expect_str(">")?;
+        Ok(Some(ret))
+    }
+
+    fn eat_str(&mut self, prefix: &str) -> bool {
+        match self.next.strip_prefix(prefix) {
+            Some(rest) => {
+                self.next = rest;
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn expect_str(&mut self, prefix: &str) -> Result<()> {
+        if self.eat_str(prefix) {
+            Ok(())
+        } else {
+            bail!(self.offset, "expected `{prefix}` at `{}`", self.next);
+        }
+    }
+
+    fn eat_until(&mut self, c: char) -> Option<&'a str> {
+        let ret = self.eat_up_to(c);
+        if ret.is_some() {
+            self.next = &self.next[c.len_utf8()..];
+        }
+        ret
+    }
+
+    fn eat_up_to(&mut self, c: char) -> Option<&'a str> {
+        let i = self.next.find(c)?;
+        let (a, b) = self.next.split_at(i);
+        self.next = b;
+        Some(a)
+    }
+
+    fn kebab(&self, s: &'a str) -> Result<&'a KebabStr> {
+        match KebabStr::new(s) {
+            Some(name) => Ok(name),
+            None => bail!(self.offset, "`{s}` is not in kebab case"),
+        }
+    }
+
+    fn semver(&self, s: &str) -> Result<Version> {
+        match Version::parse(s) {
+            Ok(v) => Ok(v),
+            Err(e) => bail!(self.offset, "`{s}` is not a valid semver: {e}"),
+        }
+    }
+
+    fn take_until(&mut self, c: char) -> Result<&'a str> {
+        match self.eat_until(c) {
+            Some(s) => Ok(s),
+            None => bail!(self.offset, "failed to find `{c}` character"),
+        }
+    }
+
+    fn take_up_to(&mut self, c: char) -> Result<&'a str> {
+        match self.eat_up_to(c) {
+            Some(s) => Ok(s),
+            None => bail!(self.offset, "failed to find `{c}` character"),
+        }
+    }
+
+    fn take_rest(&mut self) -> &'a str {
+        let ret = self.next;
+        self.next = "";
+        ret
+    }
+
+    fn expect_kebab(&mut self) -> Result<&'a KebabStr> {
+        let s = self.take_rest();
+        self.kebab(s)
+    }
+}
 
 #[cfg(test)]
 mod tests {
