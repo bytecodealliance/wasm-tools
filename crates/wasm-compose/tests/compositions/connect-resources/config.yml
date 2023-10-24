@@ -1,0 +1,6 @@
+instantiations:
+  $input:
+    arguments:
+      example:service/logging@0.1.0:
+        instance: logger
+        export: example:service/logging@0.1.0
