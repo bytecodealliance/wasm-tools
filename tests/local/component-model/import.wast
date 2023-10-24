@@ -109,75 +109,72 @@
 )
 
 (component
-  (import (interface "wasi:http/types") (func))
-  (import (interface "wasi:http/types@1.0.0") (func))
-  (import (interface "wasi:http/types@2.0.0") (func))
-  (import (interface "a-b:c-d/e-f@123456.7890.488") (func))
-  (import (interface "a:b/c@1.2.3") (func))
-  (import (interface "a:b/c@0.0.0") (func))
-  (import (interface "a:b/c@0.0.0+abcd") (func))
-  (import (interface "a:b/c@0.0.0+abcd-efg") (func))
-  (import (interface "a:b/c@0.0.0-abcd+efg") (func))
-  (import (interface "a:b/c@0.0.0-abcd.1.2+efg.4.ee.5") (func))
+  (import "wasi:http/types" (func))
+  (import "wasi:http/types@1.0.0" (func))
+  (import "wasi:http/types@2.0.0" (func))
+  (import "a-b:c-d/e-f@123456.7890.488" (func))
+  (import "a:b/c@1.2.3" (func))
+  (import "a:b/c@0.0.0" (func))
+  (import "a:b/c@0.0.0+abcd" (func))
+  (import "a:b/c@0.0.0+abcd-efg" (func))
+  (import "a:b/c@0.0.0-abcd+efg" (func))
+  (import "a:b/c@0.0.0-abcd.1.2+efg.4.ee.5" (func))
 )
 
 (assert_invalid
   (component
-    (import (interface "wasi:http/types") (func))
-    (import (interface "wasi:http/types") (func))
+    (import "wasi:http/types" (func))
+    (import "wasi:http/types" (func))
   )
   "conflicts with previous name")
 
 (assert_invalid
-  (component (import (interface "") (func)))
-  "failed to find `:` character")
+  (component (import "" (func)))
+  "`` is not in kebab case")
 (assert_invalid
-  (component (import (interface "wasi") (func)))
-  "failed to find `:` character")
-(assert_invalid
-  (component (import (interface "wasi:") (func)))
+  (component (import "wasi:" (func)))
   "failed to find `/` character")
 (assert_invalid
-  (component (import (interface "wasi:/") (func)))
+  (component (import "wasi:/" (func)))
   "not in kebab case")
 (assert_invalid
-  (component (import (interface ":/") (func)))
+  (component (import ":/" (func)))
   "not in kebab case")
 (assert_invalid
-  (component (import (interface "wasi/http") (func)))
-  "failed to find `:` character")
+  (component (import "wasi/http" (func)))
+  "`wasi/http` is not in kebab case")
 (assert_invalid
-  (component (import (interface "wasi:http/TyPeS") (func)))
+  (component (import "wasi:http/TyPeS" (func)))
   "`TyPeS` is not in kebab case")
 (assert_invalid
-  (component (import (interface "WaSi:http/types") (func)))
+  (component (import "WaSi:http/types" (func)))
   "`WaSi` is not in kebab case")
 (assert_invalid
-  (component (import (interface "wasi:HtTp/types") (func)))
+  (component (import "wasi:HtTp/types" (func)))
   "`HtTp` is not in kebab case")
 (assert_invalid
-  (component (import (interface "wasi:http/types@") (func)))
+  (component (import "wasi:http/types@" (func)))
   "empty string")
 (assert_invalid
-  (component (import (interface "wasi:http/types@.") (func)))
+  (component (import "wasi:http/types@." (func)))
   "unexpected character '.'")
 (assert_invalid
-  (component (import (interface "wasi:http/types@1.") (func)))
+  (component (import "wasi:http/types@1." (func)))
   "unexpected end of input")
 (assert_invalid
-  (component (import (interface "wasi:http/types@a.2") (func)))
+  (component (import "wasi:http/types@a.2" (func)))
   "unexpected character 'a'")
 (assert_invalid
-  (component (import (interface "wasi:http/types@2.b") (func)))
+  (component (import "wasi:http/types@2.b" (func)))
   "unexpected character 'b'")
 (assert_invalid
-  (component (import (interface "wasi:http/types@2.0x0") (func)))
+  (component (import "wasi:http/types@2.0x0" (func)))
   "unexpected character 'x'")
 (assert_invalid
-  (component (import (interface "wasi:http/types@2.0.0+") (func)))
+  (component (import "wasi:http/types@2.0.0+" (func)))
   "empty identifier segment")
 (assert_invalid
-  (component (import (interface "wasi:http/types@2.0.0-") (func)))
+  (component (import "wasi:http/types@2.0.0-" (func)))
   "empty identifier segment")
 
 (assert_invalid

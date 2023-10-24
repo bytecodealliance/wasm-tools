@@ -1065,7 +1065,10 @@ impl WitPackageDecoder<'_> {
                 }
 
                 // Functions shouldn't have ID-based names at this time.
-                ComponentNameKind::Interface(_) => unreachable!(),
+                ComponentNameKind::Interface(_)
+                | ComponentNameKind::Url(_)
+                | ComponentNameKind::Hash(_)
+                | ComponentNameKind::Dependency(_) => unreachable!(),
             },
 
             // Note that this name includes "name mangling" such as
