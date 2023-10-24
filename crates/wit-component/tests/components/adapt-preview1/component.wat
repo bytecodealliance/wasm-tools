@@ -12,7 +12,7 @@
       (export (;0;) "proc-exit" (func (type 0)))
     )
   )
-  (import (interface "foo:foo/my-wasi") (instance (;1;) (type 1)))
+  (import "foo:foo/my-wasi" (instance (;1;) (type 1)))
   (core module (;0;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))

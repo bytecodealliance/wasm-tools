@@ -95,7 +95,7 @@
       (with "import-func-foo" (func 0))
     )
   )
-  (export (;1;) (interface "foo:foo/new") (instance 0))
+  (export (;1;) "foo:foo/new" (instance 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

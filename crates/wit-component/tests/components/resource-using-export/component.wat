@@ -32,7 +32,7 @@
       (with "import-type-r" (type 0))
     )
   )
-  (export (;1;) (interface "foo:bar/foo") (instance 0))
+  (export (;1;) "foo:bar/foo" (instance 0))
   (alias export 1 "handle" (type (;1;)))
   (type (;2;) (func (result 1)))
   (alias core export 1 "anon#f" (core func (;1;)))

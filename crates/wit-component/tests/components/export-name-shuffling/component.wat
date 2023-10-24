@@ -14,7 +14,7 @@
     (export (;1;) "foo" (type 0))
   )
   (instance (;0;) (instantiate 0))
-  (export (;1;) (interface "foo:foo/name") (instance 0))
+  (export (;1;) "foo:foo/name" (instance 0))
   (alias export 1 "foo" (type (;0;)))
   (type (;1;) (func (param "f" 0)))
   (alias core export 0 "name#a" (core func (;0;)))

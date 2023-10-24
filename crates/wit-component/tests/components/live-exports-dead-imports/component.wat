@@ -31,7 +31,7 @@
       (with "import-type-r" (type 0))
     )
   )
-  (export (;1;) (interface "foo:foo/a") (instance 0))
+  (export (;1;) "foo:foo/a" (instance 0))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

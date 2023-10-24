@@ -4,7 +4,7 @@
       (export (;0;) "a" (type (sub resource)))
     )
   )
-  (import (interface "foo:bar/foo") (instance (;0;) (type 0)))
+  (import "foo:bar/foo" (instance (;0;) (type 0)))
   (alias export 0 "a" (type (;1;)))
   (import "a" (type (;2;) (eq 1)))
   (core module (;0;)
@@ -46,7 +46,7 @@
       (with "import-type-a" (type 4))
     )
   )
-  (export (;2;) (interface "foo:bar/foo") (instance 1))
+  (export (;2;) "foo:bar/foo" (instance 1))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

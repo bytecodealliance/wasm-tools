@@ -5,7 +5,7 @@
       (export (;1;) "name" (type (eq 0)))
     )
   )
-  (import (interface "foo:foo/name1") (instance (;0;) (type 0)))
+  (import "foo:foo/name1" (instance (;0;) (type 0)))
   (alias export 0 "name" (type (;1;)))
   (type (;2;)
     (instance
@@ -13,7 +13,7 @@
       (export (;1;) "name" (type (eq 0)))
     )
   )
-  (import (interface "foo:foo/name2") (instance (;1;) (type 2)))
+  (import "foo:foo/name2" (instance (;1;) (type 2)))
   (core module (;0;)
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
