@@ -460,13 +460,25 @@ impl<'a> InterfaceName<'a> {
     }
 }
 
+/// TODO
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct DependencyName<'a>(&'a str);
+
+/// TODO
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct HashName<'a>(&'a str);
+
+/// TODO
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct UrlName<'a>(&'a str);
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashSet;
 
     fn parse_kebab_name(s: &str) -> Option<ComponentName> {
-        ComponentName::new(ComponentExternName::Kebab(s), 0).ok()
+        ComponentName::new(s, 0).ok()
     }
 
     #[test]
