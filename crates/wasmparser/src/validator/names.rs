@@ -387,66 +387,94 @@ impl PartialEq for ComponentNameKind<'_> {
 
 impl Eq for ComponentNameKind<'_> {}
 
-/// TODO
+/// A resource name and its function, stored as `a.b`.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct ResourceFunc<'a>(&'a str);
 
 impl<'a> ResourceFunc<'a> {
-    /// TODO
+    /// Returns the the underlying string as `a.b`
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+
+    /// Returns the resource name or the `a` in `a.b`
     pub fn resource(&self) -> &'a KebabStr {
         let dot = self.0.find('.').unwrap();
         KebabStr::new_unchecked(&self.0[..dot])
     }
 }
 
-/// TODO
+/// An interface name, stored as `a:b/c@1.2.3`
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct InterfaceName<'a>(&'a str);
 
 impl<'a> InterfaceName<'a> {
-    /// TODO
+    /// Returns the entire underlying string.
     pub fn as_str(&self) -> &'a str {
         self.0
     }
 
-    /// TODO
+    /// Returns the `a` in `a:b/c`
     pub fn namespace(&self) -> &'a KebabStr {
         let colon = self.0.find(':').unwrap();
         KebabStr::new_unchecked(&self.0[..colon])
     }
 
-    /// TODO
+    /// Returns the `b` in `a:b/c`
     pub fn package(&self) -> &'a KebabStr {
         let colon = self.0.find(':').unwrap();
         let slash = self.0.find('/').unwrap();
         KebabStr::new_unchecked(&self.0[colon + 1..slash])
     }
 
-    /// TODO
+    /// Returns the `c` in `a:b/c`
     pub fn interface(&self) -> &'a KebabStr {
         let slash = self.0.find('/').unwrap();
         let at = self.0.find('@').unwrap_or(self.0.len());
         KebabStr::new_unchecked(&self.0[slash + 1..at])
     }
 
-    /// TODO
+    /// Returns the `1.2.3` in `a:b/c@1.2.3`
     pub fn version(&self) -> Option<Version> {
         let at = self.0.find('@')?;
         Some(Version::parse(&self.0[at + 1..]).unwrap())
     }
 }
 
-/// TODO
+/// A dependency on an implementation either as `locked-dep=...` or
+/// `unlocked-dep=...`
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct DependencyName<'a>(&'a str);
 
-/// TODO
+impl<'a> DependencyName<'a> {
+    /// Returns entire underlying import string
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+/// A dependency on an implementation either as `url=...` or
+/// `relative-url=...`
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct UrlName<'a>(&'a str);
+
+impl<'a> UrlName<'a> {
+    /// Returns entire underlying import string
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+/// A dependency on an implementation either as `integrity=...`.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct HashName<'a>(&'a str);
 
-/// TODO
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct UrlName<'a>(&'a str);
+impl<'a> HashName<'a> {
+    /// Returns entire underlying import string.
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
 
 // A small helper structure to parse `self.next` which is an import or export
 // name.
