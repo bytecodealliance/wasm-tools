@@ -2991,6 +2991,25 @@ impl ComponentNameContext {
         let kebab = ComponentName::new(name, offset)
             .with_context(|| format!("{} name `{name}` is not a valid extern name", kind.desc()))?;
 
+        if let ExternKind::Export = kind {
+            match kebab.kind() {
+                ComponentNameKind::Label(_)
+                | ComponentNameKind::Method(_)
+                | ComponentNameKind::Static(_)
+                | ComponentNameKind::Constructor(_)
+                | ComponentNameKind::Interface(_) => {}
+
+                ComponentNameKind::Hash(_)
+                | ComponentNameKind::Url(_)
+                | ComponentNameKind::Dependency(_) => {
+                    bail!(
+                        offset,
+                        "`{name}` not of an allowed kind to use in an export"
+                    )
+                }
+            }
+        }
+
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.
         self.validate(&kebab, ty, types, offset)
