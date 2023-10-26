@@ -504,8 +504,8 @@ impl Module {
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        debug_assert!(rec_group.explicit_rec_group || rec_group.types.len() == 1);
-        if rec_group.explicit_rec_group && !features.gc {
+        debug_assert!(rec_group.is_explicit_rec_group() || rec_group.types().len() == 1);
+        if rec_group.is_explicit_rec_group() && !features.gc {
             bail!(
                 offset,
                 "rec group usage requires `gc` proposal to be enabled"

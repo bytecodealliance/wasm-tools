@@ -20,20 +20,20 @@ macro_rules! define_core_wasm_types {
         /// Represents a recursive type group in a WebAssembly module.
         #[derive(Debug, Clone)]
         pub struct RecGroup {
-            pub(crate) types: smallvec::SmallVec<[SubType; 1]>,
+            inner: RecGroupInner,
+        }
 
-            /// Whether or not this rec group was explicitly encoded in the
-            /// binary or was implicitly created for a type that was not
-            /// contained in a `(rec ...)` in the types section.
-            pub(crate) explicit_rec_group: bool,
+        #[derive(Debug, Clone)]
+        enum RecGroupInner {
+            Implicit(SubType),
+            Explicit(Vec<SubType>),
         }
 
         impl RecGroup {
             /// Create an explicit `RecGroup` for the given types.
-            pub(crate) fn explicit(types: smallvec::SmallVec<[SubType; 1]>) -> Self {
+            pub(crate) fn explicit(types: Vec<SubType>) -> Self {
                 RecGroup {
-                    types,
-                    explicit_rec_group: true,
+                    inner: RecGroupInner::Explicit(types),
                 }
             }
 
@@ -41,20 +41,56 @@ macro_rules! define_core_wasm_types {
             /// in a `(rec ...)`.
             pub(crate) fn implicit(ty: SubType) -> Self {
                 RecGroup {
-                    types: std::iter::once(ty).collect(),
-                    explicit_rec_group: false,
+                    inner: RecGroupInner::Implicit(ty),
                 }
+            }
+
+            /// Is this an explicit recursion group?
+            pub fn is_explicit_rec_group(&self) -> bool {
+                matches!(self.inner, RecGroupInner::Explicit(_))
             }
 
             /// Returns the list of subtypes in the recursive type group.
             pub fn types(&self) -> &[SubType] {
-                &self.types
+                match &self.inner {
+                    RecGroupInner::Implicit(ty) => std::slice::from_ref(ty),
+                    RecGroupInner::Explicit(types) => types,
+                }
             }
 
             /// Returns an owning iterator of all subtypes in this recursion
             /// group.
             pub fn into_types(self) -> impl ExactSizeIterator<Item = SubType> {
-                self.types.into_iter()
+                return match self.inner {
+                    RecGroupInner::Implicit(ty) => Iter::Implicit(Some(ty)),
+                    RecGroupInner::Explicit(types) => Iter::Explicit(types.into_iter()),
+                };
+
+                enum Iter {
+                    Implicit(Option<SubType>),
+                    Explicit(std::vec::IntoIter<SubType>),
+                }
+
+                impl Iterator for Iter {
+                    type Item = SubType;
+
+                    fn next(&mut self) -> Option<SubType> {
+                        match self {
+                            Self::Implicit(ty) => ty.take(),
+                            Self::Explicit(types) => types.next(),
+                        }
+                    }
+
+                    fn size_hint(&self) -> (usize, Option<usize>) {
+                        match self {
+                            Self::Implicit(None) => (0, Some(0)),
+                            Self::Implicit(Some(_)) => (1, Some(1)),
+                            Self::Explicit(types) => types.size_hint(),
+                        }
+                    }
+                }
+
+                impl ExactSizeIterator for Iter {}
             }
         }
 

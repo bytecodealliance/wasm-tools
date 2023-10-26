@@ -1926,7 +1926,6 @@ dependencies = [
  "once_cell",
  "rayon",
  "semver",
- "smallvec",
  "wasm-encoder 0.35.0",
  "wast",
  "wat",
