@@ -2,7 +2,7 @@
       | 01 00 00 00
   0x8 | 01 05       | type section
   0xa | 01          | 1 count
-  0xb | 60 01 7f 00 | [type 0] Single(SubType { is_final: true, supertype_idx: None, structural_type: Func(FuncType { params: [I32], returns: [] }) })
+  0xb | 60 01 7f 00 | [type 0] RecGroup { inner: Implicit(SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [] }) }) }
   0xf | 03 02       | func section
  0x11 | 01          | 1 count
  0x12 | 00          | [func 0] type 0

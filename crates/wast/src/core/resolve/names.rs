@@ -293,7 +293,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_heaptype(&self, ty: &mut HeapType<'a>) -> Result<(), Error> {
         match ty {
-            HeapType::Index(i) => {
+            HeapType::Concrete(i) => {
                 self.resolve(i, Ns::Type)?;
             }
             _ => {}

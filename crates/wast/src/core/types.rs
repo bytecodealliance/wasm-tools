@@ -86,9 +86,9 @@ pub enum HeapType<'a> {
     NoExtern,
     /// The bottom type of the anyref hierarchy. Part of the GC proposal.
     None,
-    /// A reference to a function, struct, or array: ref T. This is part of the
-    /// GC proposal.
-    Index(Index<'a>),
+    /// A reference to a concrete function, struct, or array type defined by
+    /// Wasm: `ref T`. This is part of the function references and GC proposals.
+    Concrete(Index<'a>),
 }
 
 impl<'a> Parse<'a> for HeapType<'a> {
@@ -128,7 +128,7 @@ impl<'a> Parse<'a> for HeapType<'a> {
             parser.parse::<kw::none>()?;
             Ok(HeapType::None)
         } else if l.peek::<Index>()? {
-            Ok(HeapType::Index(parser.parse()?))
+            Ok(HeapType::Concrete(parser.parse()?))
         } else {
             Err(l.error())
         }

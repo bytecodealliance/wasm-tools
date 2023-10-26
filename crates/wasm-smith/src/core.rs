@@ -1654,7 +1654,7 @@ fn convert_reftype(ty: wasmparser::RefType) -> RefType {
             wasmparser::HeapType::Struct => HeapType::Struct,
             wasmparser::HeapType::Array => HeapType::Array,
             wasmparser::HeapType::I31 => HeapType::I31,
-            wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i.into()),
+            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.into()),
         },
     }
 }

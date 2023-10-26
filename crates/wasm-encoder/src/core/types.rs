@@ -7,8 +7,8 @@ pub struct SubType {
     pub is_final: bool,
     /// The list of supertype indexes. As of GC MVP, there can be at most one supertype.
     pub supertype_idx: Option<u32>,
-    /// The structural type of the subtype.
-    pub structural_type: StructuralType,
+    /// The composite type of the subtype.
+    pub composite_type: CompositeType,
 }
 
 #[cfg(feature = "wasmparser")]
@@ -17,14 +17,14 @@ impl From<wasmparser::SubType> for SubType {
         SubType {
             is_final: sub_ty.is_final,
             supertype_idx: sub_ty.supertype_idx,
-            structural_type: sub_ty.structural_type.into(),
+            composite_type: sub_ty.composite_type.into(),
         }
     }
 }
 
-/// Represents a structural type in a WebAssembly module.
+/// Represents a composite type in a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum StructuralType {
+pub enum CompositeType {
     /// The type is for a function.
     Func(FuncType),
     /// The type is for an array.
@@ -33,18 +33,18 @@ pub enum StructuralType {
     Struct(StructType),
 }
 
-impl Encode for StructuralType {
+impl Encode for CompositeType {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            StructuralType::Func(ty) => TypeSection::encode_function(
+            CompositeType::Func(ty) => TypeSection::encode_function(
                 sink,
                 ty.params().iter().copied(),
                 ty.results().iter().copied(),
             ),
-            StructuralType::Array(ArrayType(ty)) => {
+            CompositeType::Array(ArrayType(ty)) => {
                 TypeSection::encode_array(sink, &ty.element_type, ty.mutable)
             }
-            StructuralType::Struct(ty) => {
+            CompositeType::Struct(ty) => {
                 TypeSection::encode_struct(sink, ty.fields.iter().cloned())
             }
         }
@@ -52,12 +52,12 @@ impl Encode for StructuralType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::StructuralType> for StructuralType {
-    fn from(structural_ty: wasmparser::StructuralType) -> Self {
-        match structural_ty {
-            wasmparser::StructuralType::Func(f) => StructuralType::Func(f.into()),
-            wasmparser::StructuralType::Array(a) => StructuralType::Array(a.into()),
-            wasmparser::StructuralType::Struct(s) => StructuralType::Struct(s.into()),
+impl From<wasmparser::CompositeType> for CompositeType {
+    fn from(composite_ty: wasmparser::CompositeType) -> Self {
+        match composite_ty {
+            wasmparser::CompositeType::Func(f) => CompositeType::Func(f.into()),
+            wasmparser::CompositeType::Array(a) => CompositeType::Array(a.into()),
+            wasmparser::CompositeType::Struct(s) => CompositeType::Struct(s.into()),
         }
     }
 }
@@ -108,7 +108,7 @@ impl From<wasmparser::StructType> for StructType {
     }
 }
 
-/// Field type in structural types (structs, arrays).
+/// Field type in composite types (structs, arrays).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct FieldType {
     /// Storage type of the field.
@@ -127,7 +127,7 @@ impl From<wasmparser::FieldType> for FieldType {
     }
 }
 
-/// Storage type for structural type fields.
+/// Storage type for composite type fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum StorageType {
     /// The `i8` type.
@@ -313,27 +313,51 @@ impl From<RefType> for ValType {
 pub enum HeapType {
     /// Untyped (any) function.
     Func,
-    /// External heap type.
+
+    /// The abstract external heap type.
     Extern,
-    /// The `any` heap type. The common supertype (a.k.a. top) of all internal types.
+
+    /// The abstract `any` heap type.
+    ///
+    /// The common supertype (a.k.a. top) of all internal types.
     Any,
-    /// The `none` heap type. The common subtype (a.k.a. bottom) of all internal types.
+
+    /// The abstract `none` heap type.
+    ///
+    /// The common subtype (a.k.a. bottom) of all internal types.
     None,
-    /// The `noextern` heap type. The common subtype (a.k.a. bottom) of all external types.
+
+    /// The abstract `noextern` heap type.
+    ///
+    /// The common subtype (a.k.a. bottom) of all external types.
     NoExtern,
-    /// The `nofunc` heap type. The common subtype (a.k.a. bottom) of all function types.
+
+    /// The abstract `nofunc` heap type.
+    ///
+    /// The common subtype (a.k.a. bottom) of all function types.
     NoFunc,
-    /// The `eq` heap type. The common supertype of all referenceable types on which comparison
+
+    /// The abstract `eq` heap type.
+    ///
+    /// The common supertype of all referenceable types on which comparison
     /// (ref.eq) is allowed.
     Eq,
-    /// The `struct` heap type. The common supertype of all struct types.
+
+    /// The abstract `struct` heap type.
+    ///
+    /// The common supertype of all struct types.
     Struct,
-    /// The `array` heap type. The common supertype of all array types.
+
+    /// The abstract `array` heap type.
+    ///
+    /// The common supertype of all array types.
     Array,
-    /// The i31 heap type.
+
+    /// The unboxed `i31` heap type.
     I31,
-    /// User defined type at the given index.
-    Indexed(u32),
+
+    /// A concrete Wasm-defined type at the given index.
+    Concrete(u32),
 }
 
 impl Encode for HeapType {
@@ -351,7 +375,7 @@ impl Encode for HeapType {
             HeapType::I31 => sink.push(0x6C),
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
-            HeapType::Indexed(i) => i64::from(*i).encode(sink),
+            HeapType::Concrete(i) => i64::from(*i).encode(sink),
         }
     }
 }
@@ -360,7 +384,7 @@ impl Encode for HeapType {
 impl From<wasmparser::HeapType> for HeapType {
     fn from(heap_type: wasmparser::HeapType) -> Self {
         match heap_type {
-            wasmparser::HeapType::Indexed(i) => HeapType::Indexed(i),
+            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i),
             wasmparser::HeapType::Func => HeapType::Func,
             wasmparser::HeapType::Extern => HeapType::Extern,
             wasmparser::HeapType::Any => HeapType::Any,
@@ -486,14 +510,14 @@ impl TypeSection {
 
     /// Define an explicit subtype in this type section.
     pub fn subtype(&mut self, ty: &SubType) -> &mut Self {
-        // We only need to emit a prefix byte before the actual structural type
+        // We only need to emit a prefix byte before the actual composite type
         // when either the type is not final or it has a declared super type.
         if ty.supertype_idx.is_some() || !ty.is_final {
             self.bytes.push(if ty.is_final { 0x4f } else { 0x50 });
             ty.supertype_idx.encode(&mut self.bytes);
         }
 
-        ty.structural_type.encode(&mut self.bytes);
+        ty.composite_type.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
@@ -522,7 +546,7 @@ mod tests {
         types.subtype(&SubType {
             is_final: true,
             supertype_idx: None,
-            structural_type: StructuralType::Func(FuncType::new([], [])),
+            composite_type: CompositeType::Func(FuncType::new([], [])),
         });
 
         let mut module = Module::new();
