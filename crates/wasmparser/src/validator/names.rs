@@ -643,8 +643,34 @@ impl<'a> ComponentNameParser<'a> {
     }
 
     fn parse_hash(&mut self) -> Result<&'a str> {
-        let hash = self.take_up_to('>')?;
-        Ok(hash)
+        let integrity = self.take_up_to('>')?;
+        let mut any = false;
+        for hash in integrity.split_whitespace() {
+            any = true;
+            let rest = hash
+                .strip_prefix("sha256")
+                .or_else(|| hash.strip_prefix("sha384"))
+                .or_else(|| hash.strip_prefix("sha512"));
+            let rest = match rest {
+                Some(s) => s,
+                None => bail!(self.offset, "unrecognized hash algorithm: `{hash}`"),
+            };
+            let rest = match rest.strip_prefix('-') {
+                Some(s) => s,
+                None => bail!(self.offset, "expected `-` after hash algorithm: {hash}"),
+            };
+            let (base64, _options) = match rest.find('?') {
+                Some(i) => (&rest[..i], Some(&rest[i + 1..])),
+                None => (rest, None),
+            };
+            if !is_base64(base64) {
+                bail!(self.offset, "not valid base64: `{base64}`");
+            }
+        }
+        if !any {
+            bail!(self.offset, "integrity hash cannot be empty");
+        }
+        Ok(integrity)
     }
 
     fn eat_optional_hash(&mut self) -> Result<Option<&'a str>> {
@@ -728,6 +754,21 @@ impl<'a> ComponentNameParser<'a> {
         let s = self.take_rest();
         self.kebab(s)
     }
+}
+
+fn is_base64(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let mut equals = 0;
+    for (i, byte) in s.as_bytes().iter().enumerate() {
+        match byte {
+            b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'+' | b'/' if equals == 0 => {}
+            b'=' if i > 0 && equals < 2 => equals += 1,
+            _ => return false,
+        }
+    }
+    true
 }
 
 #[cfg(test)]

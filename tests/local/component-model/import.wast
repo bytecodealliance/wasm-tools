@@ -228,8 +228,8 @@
 (component
   (import "locked-dep=<a:b>" (func))
   (import "locked-dep=<a:b@1.2.3>" (func))
-  (import "locked-dep=<a:b>,integrity=<a>" (func))
-  (import "locked-dep=<a:b@1.2.3>,integrity=<a>" (func))
+  (import "locked-dep=<a:b>,integrity=<sha256-a>" (func))
+  (import "locked-dep=<a:b@1.2.3>,integrity=<sha256-a>" (func))
 )
 
 (assert_invalid
@@ -269,7 +269,7 @@
 (component
   (import "url=<>" (func))
   (import "url=<a>" (func))
-  (import "url=<a>,integrity=<a>" (func))
+  (import "url=<a>,integrity=<sha256-a>" (func))
 )
 
 (assert_invalid
@@ -280,6 +280,38 @@
   "failed to find `>`")
 
 (component
-  (import "integrity=<>" (func))
-  (import "integrity=<a>" (func))
+  (import "integrity=<sha256-a>" (func))
+  (import "integrity=<sha384-a>" (func))
+  (import "integrity=<sha512-a>" (func))
+  (import "integrity=<sha512-a sha256-b>" (func))
+  (import "integrity=< sha512-a sha256-b >" (func))
+  (import "integrity=<  sha512-a?abcd  >" (func))
+  (import "integrity=<sha256-abcdefghijklmnopqrstuvwxyz>" (func))
+  (import "integrity=<sha256-ABCDEFGHIJKLMNOPQRSTUVWXYZ>" (func))
+  (import "integrity=<sha256-++++++++++++++++++++==>" (func))
+  (import "integrity=<sha256-////////////////////==>" (func))
 )
+(assert_invalid
+  (component (import "integrity=<>" (func)))
+  "integrity hash cannot be empty")
+(assert_invalid
+  (component (import "integrity=<sha256>" (func)))
+  "expected `-` after hash algorithm")
+(assert_invalid
+  (component (import "integrity=<sha256->" (func)))
+  "not valid base64")
+(assert_invalid
+  (component (import "integrity=<sha256-^^^^>" (func)))
+  "not valid base64")
+(assert_invalid
+  (component (import "integrity=<sha256-=========>" (func)))
+  "not valid base64")
+(assert_invalid
+  (component (import "integrity=<sha256-=>" (func)))
+  "not valid base64")
+(assert_invalid
+  (component (import "integrity=<sha256-==>" (func)))
+  "not valid base64")
+(assert_invalid
+  (component (import "integrity=<md5-ABC>" (func)))
+  "unrecognized hash algorithm")

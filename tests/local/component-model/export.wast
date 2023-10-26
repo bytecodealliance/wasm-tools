@@ -54,7 +54,7 @@
 
 ;; cannot export some types of strings
 (assert_invalid
-  (component (type (component (export "integrity=<x>" (func)))))
+  (component (type (component (export "integrity=<sha256-a>" (func)))))
   "not of an allowed kind to use in an export")
 (assert_invalid
   (component (type (component (export "url=<x>" (func)))))
