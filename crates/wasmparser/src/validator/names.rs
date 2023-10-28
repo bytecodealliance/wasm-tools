@@ -270,8 +270,8 @@ const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
 
 impl ComponentName {
-    /// Attempts to parse `name` as a kebab name, returning `None` if it's not
-    /// valid.
+    /// Attempts to parse `name` as a valid component name, returning `Err` if
+    /// it's not valid.
     pub fn new(name: &str, offset: usize) -> Result<ComponentName> {
         let mut parser = ComponentNameParser { next: name, offset };
         let kind = parser.parse()?;

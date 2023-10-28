@@ -55,16 +55,16 @@
 ;; cannot export some types of strings
 (assert_invalid
   (component (type (component (export "integrity=<sha256-a>" (func)))))
-  "not of an allowed kind to use in an export")
+  "not a valid export name")
 (assert_invalid
   (component (type (component (export "url=<x>" (func)))))
-  "not of an allowed kind to use in an export")
+  "not a valid export name")
 (assert_invalid
   (component (type (component (export "relative-url=<x>" (func)))))
-  "not of an allowed kind to use in an export")
+  "not a valid export name")
 (assert_invalid
   (component (type (component (export "locked-dep=<a:b>" (func)))))
-  "not of an allowed kind to use in an export")
+  "not a valid export name")
 (assert_invalid
   (component (type (component (export "unlocked-dep=<a:b>" (func)))))
-  "not of an allowed kind to use in an export")
+  "not a valid export name")

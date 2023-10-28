@@ -3002,10 +3002,7 @@ impl ComponentNameContext {
                 ComponentNameKind::Hash(_)
                 | ComponentNameKind::Url(_)
                 | ComponentNameKind::Dependency(_) => {
-                    bail!(
-                        offset,
-                        "`{name}` not of an allowed kind to use in an export"
-                    )
+                    bail!(offset, "name `{name}` is not a valid export name")
                 }
             }
         }

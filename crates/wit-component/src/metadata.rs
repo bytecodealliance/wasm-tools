@@ -207,7 +207,6 @@ impl Bindgen {
             DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
             DecodedWasm::Component(..) => bail!("expected an encoded wit package"),
         };
-        println!("{world_name}");
         let world = resolve.packages[pkg].worlds[world_name];
         let metadata = ModuleMetadata::new(&resolve, world, encoding);
         let producers = wasm_metadata::Producers::from_wasm(&data[reader.original_position()..])?;
