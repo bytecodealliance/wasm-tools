@@ -5,7 +5,7 @@
       (export (;0;) "foo" (func (type 0)))
     )
   )
-  (import (interface "foo:foo/adapter-imports") (instance (;0;) (type 0)))
+  (import "foo:foo/adapter-imports" (instance (;0;) (type 0)))
   (type (;1;) (func (param "x" string)))
   (import "foo" (func (;0;) (type 1)))
   (core module (;0;)

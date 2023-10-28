@@ -5,7 +5,7 @@
       (export (;0;) "foo" (func (type 0)))
     )
   )
-  (import (interface "test:test/test") (instance (;0;) (type 0)))
+  (import "test:test/test" (instance (;0;) (type 0)))
   (core module (;0;)
     (table (;0;) 0 funcref)
     (memory (;0;) 17)
@@ -154,7 +154,7 @@
       (with "import-func-foo" (func 1))
     )
   )
-  (export (;2;) (interface "test:test/test") (instance 1))
+  (export (;2;) "test:test/test" (instance 1))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

@@ -7,7 +7,7 @@
       (export (;3;) "r" (type (eq 2)))
     )
   )
-  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
+  (import "foo:foo/foo" (instance (;0;) (type 0)))
   (core module (;0;)
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

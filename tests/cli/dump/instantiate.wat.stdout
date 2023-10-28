@@ -5,14 +5,14 @@
   0xb | 41 00       | [type 0] Component([])
   0xd | 0a 06       | component import section
   0xf | 01          | 1 count
- 0x10 | 00 01 61 04 | [component 0] ComponentImport { name: Kebab("a"), ty: Component(0) }
+ 0x10 | 00 01 61 04 | [component 0] ComponentImport { name: ComponentImportName("a"), ty: Component(0) }
       | 00         
  0x15 | 07 05       | component type section
  0x17 | 01          | 1 count
  0x18 | 40 00 01 00 | [type 1] Func(ComponentFuncType { params: [], results: Named([]) })
  0x1c | 0a 06       | component import section
  0x1e | 01          | 1 count
- 0x1f | 00 01 66 01 | [func 0] ComponentImport { name: Kebab("f"), ty: Func(1) }
+ 0x1f | 00 01 66 01 | [func 0] ComponentImport { name: ComponentImportName("f"), ty: Func(1) }
       | 01         
  0x24 | 05 08       | component instance section
  0x26 | 01          | 1 count

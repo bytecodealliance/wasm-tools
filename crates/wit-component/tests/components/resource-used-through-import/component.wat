@@ -4,7 +4,7 @@
       (export (;0;) "r" (type (sub resource)))
     )
   )
-  (import (interface "foo:bar/a") (instance (;0;) (type 0)))
+  (import "foo:bar/a" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (result i32)))

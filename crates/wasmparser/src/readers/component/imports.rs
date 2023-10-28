@@ -79,7 +79,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
 #[derive(Debug, Copy, Clone)]
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
-    pub name: ComponentExternName<'a>,
+    pub name: ComponentImportName<'a>,
     /// The type reference for the import.
     pub ty: ComponentTypeRef,
 }
@@ -111,27 +111,19 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 /// Represents the name of a component import.
 #[derive(Debug, Copy, Clone)]
 #[allow(missing_docs)]
-pub enum ComponentExternName<'a> {
-    Kebab(&'a str),
-    Interface(&'a str),
-}
+pub struct ComponentImportName<'a>(pub &'a str);
 
-impl<'a> ComponentExternName<'a> {
-    /// Returns the underlying string representing this name.
-    pub fn as_str(&self) -> &'a str {
-        match self {
-            ComponentExternName::Kebab(name) => name,
-            ComponentExternName::Interface(name) => name,
-        }
-    }
-}
-
-impl<'a> FromReader<'a> for ComponentExternName<'a> {
+impl<'a> FromReader<'a> for ComponentImportName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(match reader.read_u8()? {
-            0x00 => ComponentExternName::Kebab(reader.read()?),
-            0x01 => ComponentExternName::Interface(reader.read()?),
+        match reader.read_u8()? {
+            0x00 => {}
+            // Historically export names used a discriminator byte of 0x01 to
+            // indicate an "interface" of the form `a:b/c` but nowadays that's
+            // inferred from string syntax. Ignore 0-vs-1 to continue to parse
+            // older binaries. Eventually this will go away.
+            0x01 => {}
             x => return reader.invalid_leading_byte(x, "import name"),
-        })
+        }
+        Ok(ComponentImportName(reader.read_string()?))
     }
 }

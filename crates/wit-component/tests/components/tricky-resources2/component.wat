@@ -20,7 +20,7 @@
       (with "import-type-r" (type 0))
     )
   )
-  (export (;1;) (interface "foo:bar/a") (instance 0))
+  (export (;1;) "foo:bar/a" (instance 0))
   (alias export 1 "r" (type (;1;)))
   (type (;2;) (own 1))
   (type (;3;) (func (result 2)))

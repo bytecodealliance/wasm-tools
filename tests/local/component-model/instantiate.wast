@@ -529,7 +529,7 @@
       (export "a" (component $c))
     )
   )
-  "instance export name `a` conflicts with previous name `a`")
+  "export name `a` conflicts with previous name `a`")
 
 (component
   (import "a" (instance $i))

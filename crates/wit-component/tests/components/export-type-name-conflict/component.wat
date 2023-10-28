@@ -5,7 +5,7 @@
       (export (;1;) "foo" (type (eq 0)))
     )
   )
-  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
+  (import "foo:foo/foo" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func (result i32)))
     (func (;0;) (type 0) (result i32)

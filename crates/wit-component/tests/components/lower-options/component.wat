@@ -49,7 +49,7 @@
       (export (;15;) "p" (func (type 29)))
     )
   )
-  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
+  (import "foo:foo/foo" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func))
     (type (;1;) (func (param i32 i32)))

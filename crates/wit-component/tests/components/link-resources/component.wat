@@ -158,7 +158,7 @@
       (with "import-type-x" (type 0))
     )
   )
-  (export (;1;) (interface "test:test/foo") (instance 0))
+  (export (;1;) "test:test/foo" (instance 0))
   (type (;6;) (own 1))
   (type (;7;) (func (param "v" u32) (result 6)))
   (alias core export 8 "test:test/bar#[constructor]x" (core func (;2;)))
@@ -189,7 +189,7 @@
       (with "import-type-x" (type 1))
     )
   )
-  (export (;3;) (interface "test:test/bar") (instance 2))
+  (export (;3;) "test:test/bar" (instance 2))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

@@ -122,24 +122,14 @@ impl<'a> Component<'a> {
                                 Payload::ComponentImportSection(s) => {
                                     for import in s {
                                         let import = import?;
-                                        let name = match import.name {
-                                            wasmparser::ComponentExternName::Kebab(s)
-                                            | wasmparser::ComponentExternName::Interface(s) => {
-                                                s.to_string()
-                                            }
-                                        };
+                                        let name = import.name.0.to_string();
                                         imports.insert(name, import.ty);
                                     }
                                 }
                                 Payload::ComponentExportSection(s) => {
                                     for export in s {
                                         let export = export?;
-                                        let name = match export.name {
-                                            wasmparser::ComponentExternName::Kebab(s)
-                                            | wasmparser::ComponentExternName::Interface(s) => {
-                                                s.to_string()
-                                            }
-                                        };
+                                        let name = export.name.0.to_string();
                                         exports.insert(name, (export.kind, export.index));
                                     }
                                 }

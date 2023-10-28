@@ -2,13 +2,13 @@
       | 0d 00 01 00
   0x8 | 07 0e       | component type section
   0xa | 01          | 1 count
-  0xb | 41 02 01 40 | [type 0] Component([Type(Func(ComponentFuncType { params: [], results: Named([]) })), Import(ComponentImport { name: Kebab("a"), ty: Func(0) })])
+  0xb | 41 02 01 40 | [type 0] Component([Type(Func(ComponentFuncType { params: [], results: Named([]) })), Import(ComponentImport { name: ComponentImportName("a"), ty: Func(0) })])
       | 00 01 00 03
       | 00 01 61 01
       | 00         
  0x18 | 0a 06       | component import section
  0x1a | 01          | 1 count
- 0x1b | 00 01 61 04 | [component 0] ComponentImport { name: Kebab("a"), ty: Component(0) }
+ 0x1b | 00 01 61 04 | [component 0] ComponentImport { name: ComponentImportName("a"), ty: Component(0) }
       | 00         
  0x20 | 05 04       | component instance section
  0x22 | 01          | 1 count

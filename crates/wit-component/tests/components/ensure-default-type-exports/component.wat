@@ -9,7 +9,7 @@
       (export (;0;) "a" (func (type 4)))
     )
   )
-  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
+  (import "foo:foo/foo" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))

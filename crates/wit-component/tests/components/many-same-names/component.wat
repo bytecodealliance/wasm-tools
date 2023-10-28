@@ -16,7 +16,7 @@
     (export (;3;) "r2" (type 2))
   )
   (instance (;0;) (instantiate 0))
-  (export (;1;) (interface "foo:foo/name") (instance 0))
+  (export (;1;) "foo:foo/name" (instance 0))
   (type (;0;) (func))
   (alias core export 0 "name#a" (core func (;0;)))
   (func (;0;) (type 0) (canon lift (core func 0)))

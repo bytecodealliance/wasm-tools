@@ -13,7 +13,7 @@
       | 00 01      
  0x2d | 0a 07       | component import section
  0x2f | 01          | 1 count
- 0x30 | 00 01 61 00 | [module 0] ComponentImport { name: Kebab("a"), ty: Module(0) }
+ 0x30 | 00 01 61 00 | [module 0] ComponentImport { name: ComponentImportName("a"), ty: Module(0) }
       | 11 00      
  0x36 | 07 03       | component type section
  0x38 | 01          | 1 count

@@ -10,7 +10,7 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
-use crate::validator::names::{KebabName, KebabNameKind, KebabStr, KebabString};
+use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     limits::*,
     types::{
@@ -18,7 +18,7 @@ use crate::{
         ComponentEntityType, Context, CoreInstanceTypeKind, LoweringInfo, Remap, SubtypeCx,
         TupleType, TypeInfo, VariantType,
     },
-    BinaryReaderError, CanonicalOption, ComponentExternName, ComponentExternalKind,
+    BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
     ComponentOuterAliasKind, ComponentTypeRef, CompositeType, ExternalKind, FuncType, GlobalType,
     InstantiationArgKind, MemoryType, RecGroup, Result, SubType, TableType, TypeBounds, ValType,
     WasmFeatures,
@@ -63,8 +63,9 @@ pub(crate) struct ComponentState {
     pub components: Vec<ComponentTypeId>,
 
     pub imports: IndexMap<String, ComponentEntityType>,
+    pub import_names: IndexSet<ComponentName>,
     pub exports: IndexMap<String, ComponentEntityType>,
-    pub kebab_named_externs: IndexSet<KebabName>,
+    pub export_names: IndexSet<ComponentName>,
 
     has_start: bool,
     type_info: TypeInfo,
@@ -165,10 +166,10 @@ pub(crate) struct ComponentState {
     /// Note that imports/exports have disjoint contexts to ensure that they're
     /// validated correctly. Namely you can't retroactively attach methods to an
     /// import, for example.
-    toplevel_exported_resources: KebabNameContext,
+    toplevel_exported_resources: ComponentNameContext,
 
     /// Same as `toplevel_exported_resources`, but for imports.
-    toplevel_imported_resources: KebabNameContext,
+    toplevel_imported_resources: ComponentNameContext,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -181,7 +182,7 @@ pub enum ComponentKind {
 /// Helper context used to track information about resource names for method
 /// name validation.
 #[derive(Default)]
-struct KebabNameContext {
+struct ComponentNameContext {
     /// A map from a resource type id to an index in the `all_resource_names`
     /// set for the name of that resource.
     resource_name_map: HashMap<AliasableResourceId, usize>,
@@ -226,7 +227,8 @@ impl ComponentState {
             components: Default::default(),
             imports: Default::default(),
             exports: Default::default(),
-            kebab_named_externs: Default::default(),
+            import_names: Default::default(),
+            export_names: Default::default(),
             has_start: Default::default(),
             type_info: TypeInfo::new(),
             imported_resources: Default::default(),
@@ -431,18 +433,18 @@ impl ComponentState {
         let mut entity = self.check_type_ref(&import.ty, features, types, offset)?;
         self.add_entity(
             &mut entity,
-            Some((import.name.as_str(), ExternKind::Import)),
+            Some((import.name.0, ExternKind::Import)),
             features,
             types,
             offset,
         )?;
         self.toplevel_imported_resources.validate_extern(
-            import.name,
-            "import",
+            import.name.0,
+            ExternKind::Import,
             &entity,
             types,
             offset,
-            &mut self.kebab_named_externs,
+            &mut self.import_names,
             &mut self.imports,
             &mut self.type_info,
         )?;
@@ -912,7 +914,7 @@ impl ComponentState {
 
     pub fn add_export(
         &mut self,
-        name: ComponentExternName<'_>,
+        name: ComponentExportName<'_>,
         mut ty: ComponentEntityType,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
@@ -924,18 +926,18 @@ impl ComponentState {
         }
         self.add_entity(
             &mut ty,
-            Some((name.as_str(), ExternKind::Export)),
+            Some((name.0, ExternKind::Export)),
             features,
             types,
             offset,
         )?;
         self.toplevel_exported_resources.validate_extern(
-            name.into(),
-            "export",
+            name.0,
+            ExternKind::Export,
             &ty,
             types,
             offset,
-            &mut self.kebab_named_externs,
+            &mut self.export_names,
             &mut self.exports,
             &mut self.type_info,
         )?;
@@ -2049,12 +2051,12 @@ impl ComponentState {
         let mut info = TypeInfo::new();
         let mut inst_exports = IndexMap::new();
         let mut explicit_resources = IndexMap::new();
-        let mut kebab_names = IndexSet::new();
+        let mut export_names = IndexSet::new();
 
         // NB: It's intentional that this context is empty since no indices are
         // introduced in the bag-of-exports construct which means there's no
         // way syntactically to register something inside of this.
-        let names = KebabNameContext::default();
+        let names = ComponentNameContext::default();
 
         for export in exports {
             assert!(export.ty.is_none());
@@ -2110,12 +2112,12 @@ impl ComponentState {
             };
 
             names.validate_extern(
-                export.name.into(),
-                "instance export",
+                export.name.0,
+                ExternKind::Export,
                 &ty,
                 types,
                 offset,
-                &mut kebab_names,
+                &mut export_names,
                 &mut inst_exports,
                 &mut info,
             )?;
@@ -2961,7 +2963,7 @@ impl ComponentState {
     }
 }
 
-impl KebabNameContext {
+impl ComponentNameContext {
     /// Registers that the resource `id` is named `name` within this context.
     fn register(&mut self, name: &str, id: AliasableResourceId) {
         let idx = self.all_resource_names.len();
@@ -2975,47 +2977,61 @@ impl KebabNameContext {
 
     fn validate_extern(
         &self,
-        name: ComponentExternName<'_>,
-        desc: &str,
+        name: &str,
+        kind: ExternKind,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: usize,
-        kebab_names: &mut IndexSet<KebabName>,
+        kind_names: &mut IndexSet<ComponentName>,
         items: &mut IndexMap<String, ComponentEntityType>,
         info: &mut TypeInfo,
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
-        let kebab = KebabName::new(name, offset).with_context(|| {
-            format!("{desc} name `{}` is not a valid extern name", name.as_str())
-        })?;
+        let kebab = ComponentName::new(name, offset)
+            .with_context(|| format!("{} name `{name}` is not a valid extern name", kind.desc()))?;
+
+        if let ExternKind::Export = kind {
+            match kebab.kind() {
+                ComponentNameKind::Label(_)
+                | ComponentNameKind::Method(_)
+                | ComponentNameKind::Static(_)
+                | ComponentNameKind::Constructor(_)
+                | ComponentNameKind::Interface(_) => {}
+
+                ComponentNameKind::Hash(_)
+                | ComponentNameKind::Url(_)
+                | ComponentNameKind::Dependency(_) => {
+                    bail!(offset, "name `{name}` is not a valid export name")
+                }
+            }
+        }
 
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.
         self.validate(&kebab, ty, types, offset)
-            .with_context(|| format!("{desc} name `{kebab}` is not valid"))?;
+            .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
 
         // Top-level kebab-names must all be unique, even between both imports
         // and exports ot a component. For those names consult the `kebab_names`
         // set.
-        if let ComponentExternName::Kebab(_) = name {
-            if let Some(prev) = kebab_names.replace(kebab.clone()) {
-                bail!(
-                    offset,
-                    "{desc} name `{kebab}` conflicts with previous name `{prev}`",
-                );
-            }
+        if let Some(prev) = kind_names.replace(kebab.clone()) {
+            bail!(
+                offset,
+                "{} name `{kebab}` conflicts with previous name `{prev}`",
+                kind.desc()
+            );
         }
 
         // Otherwise all strings must be unique, regardless of their name, so
         // consult the `items` set to ensure that we're not for example
         // importing the same interface ID twice.
-        match items.entry(kebab.into()) {
+        match items.entry(name.to_string()) {
             Entry::Occupied(e) => {
                 bail!(
                     offset,
-                    "{desc} name `{name}` conflicts with previous name `{prev}`",
-                    name = name.as_str(),
+                    "{kind} name `{name}` conflicts with previous name `{prev}`",
+                    kind = kind.desc(),
                     prev = e.key(),
                 );
             }
@@ -3030,7 +3046,7 @@ impl KebabNameContext {
     /// Validates that the `name` provided is allowed to have the type `ty`.
     fn validate(
         &self,
-        name: &KebabName,
+        name: &ComponentName,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: usize,
@@ -3043,12 +3059,16 @@ impl KebabNameContext {
             Ok(&types[id])
         };
         match name.kind() {
-            // Normal kebab name or id? No validation necessary.
-            KebabNameKind::Normal(_) | KebabNameKind::Id { .. } => {}
+            // No validation necessary for these styles of names
+            ComponentNameKind::Label(_)
+            | ComponentNameKind::Interface(_)
+            | ComponentNameKind::Url(_)
+            | ComponentNameKind::Dependency(_)
+            | ComponentNameKind::Hash(_) => {}
 
             // Constructors must return `(own $resource)` and the `$resource`
             // must be named within this context to match `rname`
-            KebabNameKind::Constructor(rname) => {
+            ComponentNameKind::Constructor(rname) => {
                 let ty = func()?;
                 if ty.results.len() != 1 {
                     bail!(offset, "function should return one value");
@@ -3071,7 +3091,7 @@ impl KebabNameContext {
             // Methods must take `(param "self" (borrow $resource))` as the
             // first argument where `$resources` matches the name `resource` as
             // named in this context.
-            KebabNameKind::Method { resource, .. } => {
+            ComponentNameKind::Method(name) => {
                 let ty = func()?;
                 if ty.params.len() == 0 {
                     bail!(offset, "function should have at least one argument");
@@ -3097,15 +3117,15 @@ impl KebabNameContext {
                         "function should take a first argument of `(borrow $T)`"
                     ),
                 };
-                self.validate_resource_name(*id, resource, offset)?;
+                self.validate_resource_name(*id, name.resource(), offset)?;
             }
 
             // Static methods don't have much validation beyond that they must
             // be a function and the resource name referred to must already be
             // in this context.
-            KebabNameKind::Static { resource, .. } => {
+            ComponentNameKind::Static(name) => {
                 func()?;
-                if !self.all_resource_names.contains(resource.as_str()) {
+                if !self.all_resource_names.contains(name.resource().as_str()) {
                     bail!(offset, "static resource name is not known in this context");
                 }
             }

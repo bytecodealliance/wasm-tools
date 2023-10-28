@@ -2,7 +2,7 @@
       | 0d 00 01 00
   0x8 | 07 30       | component type section
   0xa | 01          | 1 count
-  0xb | 42 09 00 50 | [type 0] Instance([CoreType(Module([])), Export { name: Kebab("a"), ty: Module(0) }, Type(Func(ComponentFuncType { params: [], results: Named([]) })), Export { name: Kebab("b"), ty: Func(0) }, Export { name: Kebab("c"), ty: Value(Primitive(String)) }, Type(Instance([])), Export { name: Kebab("d"), ty: Instance(1) }, Type(Component([])), Export { name: Kebab("e"), ty: Component(2) }])
+  0xb | 42 09 00 50 | [type 0] Instance([CoreType(Module([])), Export { name: ComponentExportName("a"), ty: Module(0) }, Type(Func(ComponentFuncType { params: [], results: Named([]) })), Export { name: ComponentExportName("b"), ty: Func(0) }, Export { name: ComponentExportName("c"), ty: Value(Primitive(String)) }, Type(Instance([])), Export { name: ComponentExportName("d"), ty: Instance(1) }, Type(Component([])), Export { name: ComponentExportName("e"), ty: Component(2) }])
       | 00 04 00 01
       | 61 00 11 00
       | 01 40 00 01
@@ -16,7 +16,7 @@
       | 65 04 02   
  0x3a | 0a 06       | component import section
  0x3c | 01          | 1 count
- 0x3d | 00 01 61 05 | [instance 0] ComponentImport { name: Kebab("a"), ty: Instance(0) }
+ 0x3d | 00 01 61 05 | [instance 0] ComponentImport { name: ComponentImportName("a"), ty: Instance(0) }
       | 00         
  0x42 | 04 59       | [component 0] inline size
    0x44 | 00 61 73 6d | version 13 (Component)
@@ -26,30 +26,30 @@
    0x4f | 50 00       | [core type 0] Module([])
    0x51 | 0a 07       | component import section
    0x53 | 01          | 1 count
-   0x54 | 00 01 61 00 | [module 0] ComponentImport { name: Kebab("a"), ty: Module(0) }
+   0x54 | 00 01 61 00 | [module 0] ComponentImport { name: ComponentImportName("a"), ty: Module(0) }
         | 11 00      
    0x5a | 07 05       | component type section
    0x5c | 01          | 1 count
    0x5d | 40 00 01 00 | [type 0] Func(ComponentFuncType { params: [], results: Named([]) })
    0x61 | 0a 0b       | component import section
    0x63 | 02          | 2 count
-   0x64 | 00 01 62 01 | [func 0] ComponentImport { name: Kebab("b"), ty: Func(0) }
+   0x64 | 00 01 62 01 | [func 0] ComponentImport { name: ComponentImportName("b"), ty: Func(0) }
         | 00         
-   0x69 | 00 01 63 02 | [value 0] ComponentImport { name: Kebab("c"), ty: Value(Primitive(String)) }
+   0x69 | 00 01 63 02 | [value 0] ComponentImport { name: ComponentImportName("c"), ty: Value(Primitive(String)) }
         | 73         
    0x6e | 07 03       | component type section
    0x70 | 01          | 1 count
    0x71 | 42 00       | [type 1] Instance([])
    0x73 | 0a 06       | component import section
    0x75 | 01          | 1 count
-   0x76 | 00 01 64 05 | [instance 0] ComponentImport { name: Kebab("d"), ty: Instance(1) }
+   0x76 | 00 01 64 05 | [instance 0] ComponentImport { name: ComponentImportName("d"), ty: Instance(1) }
         | 01         
    0x7b | 07 03       | component type section
    0x7d | 01          | 1 count
    0x7e | 41 00       | [type 2] Component([])
    0x80 | 0a 06       | component import section
    0x82 | 01          | 1 count
-   0x83 | 00 01 65 04 | [component 0] ComponentImport { name: Kebab("e"), ty: Component(2) }
+   0x83 | 00 01 65 04 | [component 0] ComponentImport { name: ComponentImportName("e"), ty: Component(2) }
         | 02         
    0x88 | 00 13       | custom section
    0x8a | 0e 63 6f 6d | name: "component-name"

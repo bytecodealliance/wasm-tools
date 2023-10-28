@@ -5,7 +5,7 @@
       (export (;0;) "the-func" (func (type 0)))
     )
   )
-  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
+  (import "foo:foo/foo" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func))
     (import "foo:foo/foo" "the-func" (func (;0;) (type 0)))

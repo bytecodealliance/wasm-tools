@@ -5,7 +5,7 @@
       (export (;1;) "bar" (type (eq 0)))
     )
   )
-  (import (interface "foo:foo/foo") (instance (;0;) (type 0)))
+  (import "foo:foo/foo" (instance (;0;) (type 0)))
   (alias export 0 "bar" (type (;1;)))
   (type (;2;)
     (instance

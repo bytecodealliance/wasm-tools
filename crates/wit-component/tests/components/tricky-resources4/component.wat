@@ -44,7 +44,7 @@
       (with "import-type-handle" (type 0))
     )
   )
-  (export (;1;) (interface "foo:bar/name") (instance 0))
+  (export (;1;) "foo:bar/name" (instance 0))
   (alias export 1 "name" (type (;3;)))
   (alias export 1 "handle" (type (;4;)))
   (component (;1;)

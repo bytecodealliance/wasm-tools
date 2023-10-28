@@ -7,7 +7,7 @@
       (export (;0;) "the-func" (func (type 2)))
     )
   )
-  (import (interface "foo:foo/i") (instance (;0;) (type 0)))
+  (import "foo:foo/i" (instance (;0;) (type 0)))
   (alias export 0 "some-type" (type (;1;)))
   (import "other-name" (type (;2;) (eq 1)))
   (core module (;0;)
@@ -60,7 +60,7 @@
       (with "import-type-some-type" (type 3))
     )
   )
-  (export (;2;) (interface "foo:foo/i") (instance 1))
+  (export (;2;) "foo:foo/i" (instance 1))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

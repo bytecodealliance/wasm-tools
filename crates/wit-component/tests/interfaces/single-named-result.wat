@@ -7,7 +7,7 @@
           (export (;0;) "a" (func (type 0)))
         )
       )
-      (export (;0;) (interface "foo:foo/foo") (instance (type 0)))
+      (export (;0;) "foo:foo/foo" (instance (type 0)))
     )
   )
   (export (;1;) "foo" (type 0))

@@ -11,14 +11,14 @@
       (export (;5;) "g3" (func (type 1)))
     )
   )
-  (import (interface "foo:shared-dependency/doc") (instance (;0;) (type 0)))
+  (import "foo:shared-dependency/doc" (instance (;0;) (type 0)))
   (type (;1;)
     (instance
       (type (;0;) u32)
       (export (;1;) "a-typedef" (type (eq 0)))
     )
   )
-  (import (interface "foo:shared-dependency/types") (instance (;1;) (type 1)))
+  (import "foo:shared-dependency/types" (instance (;1;) (type 1)))
   (alias export 1 "a-typedef" (type (;2;)))
   (type (;3;)
     (instance
