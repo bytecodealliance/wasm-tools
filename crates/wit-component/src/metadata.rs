@@ -313,7 +313,7 @@ fn decode_custom_section(wasm: &[u8]) -> Result<(Resolve, WorldId, StringEncodin
         _ => bail!("expected an exported component type"),
     };
 
-    let (resolve, world) = crate::decoding::decode_world(types, exports[0].name.as_str(), ty)?;
+    let (resolve, world) = crate::decoding::decode_world(types, exports[0].name.0, ty)?;
     Ok((resolve, world, string_encoding))
 }
 
