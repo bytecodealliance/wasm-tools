@@ -1,8 +1,8 @@
-package foo:into
+package foo:into;
 
 interface b {
-  use foo:foo/only-into.{r}
+  use foo:foo/only-into.{r};
 
-  foo: func()
+  foo: func();
 }
 

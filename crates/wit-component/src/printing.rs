@@ -5,7 +5,7 @@ use std::mem;
 use wit_parser::*;
 
 // NB: keep in sync with `crates/wit-parser/src/ast/lex.rs`
-const PRINT_SEMICOLONS_DEFAULT: bool = false;
+const PRINT_SEMICOLONS_DEFAULT: bool = true;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 pub struct WitPrinter {

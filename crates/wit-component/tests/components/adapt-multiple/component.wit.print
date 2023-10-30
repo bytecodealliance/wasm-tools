@@ -1,10 +1,10 @@
-package root:component
+package root:component;
 
 world root {
   import other1: interface {
-    foo: func()
+    foo: func();
   }
   import other2: interface {
-    bar: func()
+    bar: func();
   }
 }

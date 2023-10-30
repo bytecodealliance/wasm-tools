@@ -1,4 +1,4 @@
-package foo:foo
+package foo:foo;
 
 interface foo {
   record r {
@@ -17,15 +17,15 @@ interface foo {
     s(u32),
   }
 
-  a: func(x: r)
+  a: func(x: r);
 
-  b: func(x: v)
+  b: func(x: v);
 
-  c: func(x: r-no-string)
+  c: func(x: r-no-string);
 
-  d: func(x: v-no-string)
+  d: func(x: v-no-string);
 }
 
 world foo-world {
-  import foo
+  import foo;
 }

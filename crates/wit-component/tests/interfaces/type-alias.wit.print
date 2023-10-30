@@ -1,15 +1,15 @@
-package foo:foo
+package foo:foo;
 
 interface foo {
-  type a = u8
+  type a = u8;
 
-  type b = a
+  type b = a;
 
-  f: func(a: a) -> b
+  f: func(a: a) -> b;
 }
 
 world my-world {
-  import foo
+  import foo;
 
-  export foo
+  export foo;
 }

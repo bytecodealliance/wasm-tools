@@ -1,9 +1,9 @@
-package foo:foo
+package foo:foo;
 
 interface %interface {
-  type %type = u32
+  type %type = u32;
 
-  type %world = %type
+  type %world = %type;
 
   record %record {
     %variant: %world,

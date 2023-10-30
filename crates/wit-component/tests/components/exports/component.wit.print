@@ -1,9 +1,9 @@
-package root:component
+package root:component;
 
 world root {
-  export a: func()
-  export b: func(a: s8, b: s16, c: s32, d: s64) -> string
-  export c: func() -> tuple<s8, s16, s32, s64>
+  export a: func();
+  export b: func(a: s8, b: s16, c: s32, d: s64) -> string;
+  export c: func() -> tuple<s8, s16, s32, s64>;
   export bar: interface {
     flags x {
       a,
@@ -11,7 +11,7 @@ world root {
       c,
     }
 
-    a: func(x: x)
+    a: func(x: x);
   }
   export foo: interface {
     variant x {
@@ -20,10 +20,10 @@ world root {
       c(s64),
     }
 
-    a: func()
+    a: func();
 
-    b: func(x: string) -> x
+    b: func(x: string) -> x;
 
-    c: func(x: x) -> string
+    c: func(x: x) -> string;
   }
 }

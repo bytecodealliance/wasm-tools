@@ -1,9 +1,9 @@
-package root:component
+package root:component;
 
 world root {
-  export foo:bar/foo
-  export foo:bar/name
+  export foo:bar/foo;
+  export foo:bar/name;
   export name: interface {
-    use foo:bar/name.{name}
+    use foo:bar/name.{name};
   }
 }

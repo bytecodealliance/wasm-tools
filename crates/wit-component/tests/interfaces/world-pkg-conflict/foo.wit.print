@@ -1,11 +1,11 @@
-package foo:foo
+package foo:foo;
 
 interface a {
-  type t = u32
+  type t = u32;
 }
 
 interface foo {
-  use a.{t}
+  use a.{t};
 }
 
 world c {

@@ -1,10 +1,10 @@
-package foo:foo
+package foo:foo;
 
 interface only-into {
   record r {
   }
 
-  foo: func() -> r
+  foo: func() -> r;
 }
 
 interface shared-only-into {
@@ -12,36 +12,36 @@ interface shared-only-into {
     c1,
   }
 
-  bar: func(x: v)
+  bar: func(x: v);
 }
 
 interface shared-items {
-  type a = u32
+  type a = u32;
 }
 
 interface only-from {
   record r {
   }
 
-  foo: func() -> r
+  foo: func() -> r;
 }
 
 interface shared-only-from {
-  use foo:only-from-dep/a.{a}
+  use foo:only-from-dep/a.{a};
 
   variant v {
     c1,
   }
 
-  bar: func(x: v)
+  bar: func(x: v);
 }
 
 world shared-world {
-  import shared-items
+  import shared-items;
   import d: interface {
   }
 
-  type c = u32
+  type c = u32;
 
-  export shared-items
+  export shared-items;
 }

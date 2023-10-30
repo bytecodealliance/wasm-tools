@@ -1,4 +1,4 @@
-package foo:foo
+package foo:foo;
 
 interface types {
   enum level {
@@ -8,8 +8,8 @@ interface types {
 }
 
 interface console {
-  use types.{level}
+  use types.{level};
 
-  log: func(level: level, msg: string)
+  log: func(level: level, msg: string);
 }
 

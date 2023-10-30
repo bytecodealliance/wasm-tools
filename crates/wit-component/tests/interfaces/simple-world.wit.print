@@ -1,9 +1,9 @@
-package foo:foo
+package foo:foo;
 
 interface console {
-  log: func(arg: string)
+  log: func(arg: string);
 }
 
 world the-world {
-  import console
+  import console;
 }

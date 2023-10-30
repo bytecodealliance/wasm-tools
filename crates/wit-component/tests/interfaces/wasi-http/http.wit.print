@@ -1,8 +1,8 @@
-package wasi:http
+package wasi:http;
 
 interface types {
-  use wasi:io/streams.{input-stream, output-stream}
-  use wasi:poll/poll.{pollable}
+  use wasi:io/streams.{input-stream, output-stream};
+  use wasi:poll/poll.{pollable};
 
   variant method {
     get,
@@ -30,19 +30,19 @@ interface types {
     unexpected-error(string),
   }
 
-  type fields = u32
+  type fields = u32;
 
-  type headers = fields
+  type headers = fields;
 
-  type trailers = fields
+  type trailers = fields;
 
-  type incoming-stream = input-stream
+  type incoming-stream = input-stream;
 
-  type outgoing-stream = output-stream
+  type outgoing-stream = output-stream;
 
-  type incoming-request = u32
+  type incoming-request = u32;
 
-  type outgoing-request = u32
+  type outgoing-request = u32;
 
   record request-options {
     connect-timeout-ms: option<u32>,
@@ -50,102 +50,102 @@ interface types {
     between-bytes-timeout-ms: option<u32>,
   }
 
-  type response-outparam = u32
+  type response-outparam = u32;
 
-  type status-code = u16
+  type status-code = u16;
 
-  type incoming-response = u32
+  type incoming-response = u32;
 
-  type outgoing-response = u32
+  type outgoing-response = u32;
 
-  type future-incoming-response = u32
+  type future-incoming-response = u32;
 
-  drop-fields: func(fields: fields)
+  drop-fields: func(fields: fields);
 
-  new-fields: func(entries: list<tuple<string, string>>) -> fields
+  new-fields: func(entries: list<tuple<string, string>>) -> fields;
 
-  fields-get: func(fields: fields, name: string) -> list<string>
+  fields-get: func(fields: fields, name: string) -> list<string>;
 
-  fields-set: func(fields: fields, name: string, value: list<string>)
+  fields-set: func(fields: fields, name: string, value: list<string>);
 
-  fields-delete: func(fields: fields, name: string)
+  fields-delete: func(fields: fields, name: string);
 
-  fields-append: func(fields: fields, name: string, value: string)
+  fields-append: func(fields: fields, name: string, value: string);
 
-  fields-entries: func(fields: fields) -> list<tuple<string, string>>
+  fields-entries: func(fields: fields) -> list<tuple<string, string>>;
 
-  fields-clone: func(fields: fields) -> fields
+  fields-clone: func(fields: fields) -> fields;
 
-  finish-incoming-stream: func(s: incoming-stream) -> option<trailers>
+  finish-incoming-stream: func(s: incoming-stream) -> option<trailers>;
 
-  finish-outgoing-stream: func(s: outgoing-stream, trailers: option<trailers>)
+  finish-outgoing-stream: func(s: outgoing-stream, trailers: option<trailers>);
 
-  drop-incoming-request: func(request: incoming-request)
+  drop-incoming-request: func(request: incoming-request);
 
-  drop-outgoing-request: func(request: outgoing-request)
+  drop-outgoing-request: func(request: outgoing-request);
 
-  incoming-request-method: func(request: incoming-request) -> method
+  incoming-request-method: func(request: incoming-request) -> method;
 
-  incoming-request-path: func(request: incoming-request) -> string
+  incoming-request-path: func(request: incoming-request) -> string;
 
-  incoming-request-query: func(request: incoming-request) -> string
+  incoming-request-query: func(request: incoming-request) -> string;
 
-  incoming-request-scheme: func(request: incoming-request) -> option<scheme>
+  incoming-request-scheme: func(request: incoming-request) -> option<scheme>;
 
-  incoming-request-authority: func(request: incoming-request) -> string
+  incoming-request-authority: func(request: incoming-request) -> string;
 
-  incoming-request-headers: func(request: incoming-request) -> headers
+  incoming-request-headers: func(request: incoming-request) -> headers;
 
-  incoming-request-consume: func(request: incoming-request) -> result<incoming-stream>
+  incoming-request-consume: func(request: incoming-request) -> result<incoming-stream>;
 
-  new-outgoing-request: func(method: method, path: string, query: string, scheme: option<scheme>, authority: string, headers: headers) -> outgoing-request
+  new-outgoing-request: func(method: method, path: string, query: string, scheme: option<scheme>, authority: string, headers: headers) -> outgoing-request;
 
-  outgoing-request-write: func(request: outgoing-request) -> result<outgoing-stream>
+  outgoing-request-write: func(request: outgoing-request) -> result<outgoing-stream>;
 
-  drop-response-outparam: func(response: response-outparam)
+  drop-response-outparam: func(response: response-outparam);
 
-  set-response-outparam: func(param: response-outparam, response: result<outgoing-response, error>) -> result
+  set-response-outparam: func(param: response-outparam, response: result<outgoing-response, error>) -> result;
 
-  drop-incoming-response: func(response: incoming-response)
+  drop-incoming-response: func(response: incoming-response);
 
-  drop-outgoing-response: func(response: outgoing-response)
+  drop-outgoing-response: func(response: outgoing-response);
 
-  incoming-response-status: func(response: incoming-response) -> status-code
+  incoming-response-status: func(response: incoming-response) -> status-code;
 
-  incoming-response-headers: func(response: incoming-response) -> headers
+  incoming-response-headers: func(response: incoming-response) -> headers;
 
-  incoming-response-consume: func(response: incoming-response) -> result<incoming-stream>
+  incoming-response-consume: func(response: incoming-response) -> result<incoming-stream>;
 
-  new-outgoing-response: func(status-code: status-code, headers: headers) -> outgoing-response
+  new-outgoing-response: func(status-code: status-code, headers: headers) -> outgoing-response;
 
-  outgoing-response-write: func(response: outgoing-response) -> result<outgoing-stream>
+  outgoing-response-write: func(response: outgoing-response) -> result<outgoing-stream>;
 
-  drop-future-incoming-response: func(f: future-incoming-response)
+  drop-future-incoming-response: func(f: future-incoming-response);
 
-  future-incoming-response-get: func(f: future-incoming-response) -> option<result<incoming-response, error>>
+  future-incoming-response-get: func(f: future-incoming-response) -> option<result<incoming-response, error>>;
 
-  listen-to-future-incoming-response: func(f: future-incoming-response) -> pollable
+  listen-to-future-incoming-response: func(f: future-incoming-response) -> pollable;
 }
 
 interface incoming-handler {
-  use types.{incoming-request, response-outparam}
+  use types.{incoming-request, response-outparam};
 
-  handle: func(request: incoming-request, response-out: response-outparam)
+  handle: func(request: incoming-request, response-out: response-outparam);
 }
 
 interface outgoing-handler {
-  use types.{outgoing-request, request-options, future-incoming-response}
+  use types.{outgoing-request, request-options, future-incoming-response};
 
-  handle: func(request: outgoing-request, options: option<request-options>) -> future-incoming-response
+  handle: func(request: outgoing-request, options: option<request-options>) -> future-incoming-response;
 }
 
 world proxy {
-  import wasi:random/random
-  import wasi:logging/handler
-  import wasi:poll/poll
-  import wasi:io/streams
-  import types
-  import outgoing-handler
+  import wasi:random/random;
+  import wasi:logging/handler;
+  import wasi:poll/poll;
+  import wasi:io/streams;
+  import types;
+  import outgoing-handler;
 
-  export incoming-handler
+  export incoming-handler;
 }

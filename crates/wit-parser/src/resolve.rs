@@ -1818,7 +1818,7 @@ mod tests {
         parse_into(
             &mut resolve,
             r#"
-                package foo:bar@0.1.0
+                package foo:bar@0.1.0;
 
                 world foo {}
             "#,
@@ -1826,7 +1826,7 @@ mod tests {
         parse_into(
             &mut resolve,
             r#"
-                package foo:baz@0.1.0
+                package foo:baz@0.1.0;
 
                 world foo {}
             "#,
@@ -1834,7 +1834,7 @@ mod tests {
         parse_into(
             &mut resolve,
             r#"
-                package foo:baz@0.2.0
+                package foo:baz@0.2.0;
 
                 world foo {}
             "#,
@@ -1843,7 +1843,7 @@ mod tests {
         let dummy = parse_into(
             &mut resolve,
             r#"
-                package foo:dummy
+                package foo:dummy;
 
                 world foo {}
             "#,
