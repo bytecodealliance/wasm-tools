@@ -525,10 +525,7 @@ impl WitPackageDecoder<'_> {
     ) -> Result<()> {
         let name = import.name.0;
         log::debug!("decoding component import `{name}`");
-        let ty = self
-            .types
-            .component_entity_type_of_import(name)
-            .unwrap();
+        let ty = self.types.component_entity_type_of_import(name).unwrap();
         let owner = TypeOwner::World(world);
         let (name, item) = match ty {
             types::ComponentEntityType::Instance(i) => {
