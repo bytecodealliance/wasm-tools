@@ -47,7 +47,7 @@ semver = "1.0.0"
 smallvec = "1.11.1"
 
 wasm-compose = { version = "0.4.12", path = "crates/wasm-compose" }
-wasm-encoder = { version = "0.36.0", path = "crates/wasm-encoder" }
+wasm-encoder = { version = "0.36.1", path = "crates/wasm-encoder" }
 wasm-metadata = { version = "0.10.10", path = "crates/wasm-metadata" }
 wasm-mutate = { version = "0.2.39", path = "crates/wasm-mutate" }
 wasm-shrink = { version = "0.1.40", path = "crates/wasm-shrink" }
