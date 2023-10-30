@@ -27,14 +27,6 @@ use wit_parser::*;
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    let mut component = encode_component(resolve, package)?;
-    component.raw_custom_section(&crate::base_producers().raw_custom_section());
-    Ok(component.finish())
-}
-
-/// Exactly like `encode`, except gives an unfinished `ComponentBuilder` in case you need
-/// to append anything else before finishing.
 pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<ComponentBuilder> {
     let mut encoder = Encoder {
         component: ComponentBuilder::default(),
@@ -75,8 +67,17 @@ impl Encoder<'_> {
         }
 
         for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
-            let component_ty = encode_world(self.resolve, world)?;
-            let ty = self.component.type_component(&component_ty);
+            // Encode the `world` directly as a component, then create a wrapper
+            // component that exports that component.
+            let component_ty = super::encode_world(self.resolve, world)?;
+
+            let world = &self.resolve.worlds[world];
+            let mut wrapper = ComponentType::new();
+            wrapper.ty().component(&component_ty);
+            let pkg = &self.resolve.packages[world.package.unwrap()];
+            wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
+
+            let ty = self.component.type_component(&wrapper);
             self.component
                 .export(name.as_ref(), ComponentExportKind::Type, ty, None);
         }
@@ -331,87 +332,4 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
         &mut self.func_type_map
     }
-}
-
-/// Encodes a `world` as a component type.
-pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
-    let mut encoder = InterfaceEncoder::new(resolve);
-    let world = &resolve.worlds[world_id];
-    log::trace!("encoding world {}", world.name);
-
-    // This sort is similar in purpose to the sort below in
-    // `encode_instance`, but different in its sort. The purpose here is
-    // to ensure that when a document is either printed as WIT or
-    // encoded as wasm that decoding from those artifacts produces the
-    // same WIT package. Namely both encoding processes should encode
-    // things in the same order.
-    //
-    // When printing worlds in WIT freestanding function imports are
-    // printed first, then types. Resource functions are attached to
-    // types which means that they all come last. Sort all
-    // resource-related functions here to the back of the `imports` list
-    // while keeping everything else in front, using a stable sort to
-    // preserve preexisting ordering.
-    let mut imports = world.imports.iter().collect::<Vec<_>>();
-    imports.sort_by_key(|(_name, import)| match import {
-        WorldItem::Function(f) => match f.kind {
-            FunctionKind::Freestanding => 0,
-            _ => 1,
-        },
-        _ => 0,
-    });
-
-    // Encode the imports
-    for (name, import) in imports {
-        let name = resolve.name_world_key(name);
-        log::trace!("encoding import {name}");
-        let ty = match import {
-            WorldItem::Interface(i) => {
-                encoder.interface = Some(*i);
-                let idx = encoder.encode_instance(*i)?;
-                ComponentTypeRef::Instance(idx)
-            }
-            WorldItem::Function(f) => {
-                encoder.interface = None;
-                let idx = encoder.encode_func_type(resolve, f)?;
-                ComponentTypeRef::Func(idx)
-            }
-            WorldItem::Type(t) => {
-                encoder.interface = None;
-                encoder.import_types = true;
-                encoder.encode_valtype(resolve, &Type::Id(*t))?;
-                encoder.import_types = false;
-                continue;
-            }
-        };
-        encoder.outer.import(&name, ty);
-    }
-    // Encode the exports
-    for (name, export) in world.exports.iter() {
-        let name = resolve.name_world_key(name);
-        let ty = match export {
-            WorldItem::Interface(i) => {
-                encoder.interface = Some(*i);
-                let idx = encoder.encode_instance(*i)?;
-                ComponentTypeRef::Instance(idx)
-            }
-            WorldItem::Function(f) => {
-                encoder.interface = None;
-                let idx = encoder.encode_func_type(resolve, f)?;
-                ComponentTypeRef::Func(idx)
-            }
-            WorldItem::Type(_) => unreachable!(),
-        };
-        encoder.outer.export(&name, ty);
-    }
-
-    let mut component = ComponentType::new();
-    component.ty().component(&encoder.outer);
-
-    let name = match world.package {
-        Some(id) => resolve.packages[id].name.interface_id(&world.name),
-        None => world.name.clone(),
-    };
-    component.export(&name, ComponentTypeRef::Component(0));
-    Ok(component)
 }

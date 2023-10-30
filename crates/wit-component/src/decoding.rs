@@ -346,18 +346,29 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
 
 /// Decodes the single component type `world` specified as a WIT world.
 ///
-/// The `name` provided should be a full ID such as `foo:bar/baz`.
+/// The `world` should be an exported component type. The `world` must have been
+/// previously created via `encode_world` meaning that it is a component that
+/// itself imports nothing and exports a single component, and the single
+/// component export represents the world. The name of the export is also the
+/// name of the package/world/etc.
 pub(crate) fn decode_world(
     types: &types::Types,
-    name: &str,
     world: types::ComponentTypeId,
 ) -> Result<(Resolve, WorldId)> {
     let mut decoder = WitPackageDecoder::new(types);
     let mut interfaces = IndexMap::new();
     let mut worlds = IndexMap::new();
+    let ty = &types[world];
+    assert_eq!(ty.imports.len(), 0);
+    assert_eq!(ty.exports.len(), 1);
+    let name = ty.exports.keys().nth(0).unwrap();
+    let ty = match ty.exports[0] {
+        types::ComponentEntityType::Component(ty) => ty,
+        _ => unreachable!(),
+    };
     let name = decoder.decode_world(
         name,
-        &types[world],
+        &types[ty],
         &mut PackageFields {
             interfaces: &mut interfaces,
             worlds: &mut worlds,
