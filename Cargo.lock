@@ -1704,7 +1704,7 @@ checksum = "ca6ad05a4870b2bf5fe995117d3728437bd27d7cd5f06f13c17443ef369775a1"
 
 [[package]]
 name = "wasm-compose"
-version = "0.4.11"
+version = "0.4.12"
 dependencies = [
  "anyhow",
  "glob",
@@ -1831,7 +1831,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-tools"
-version = "1.0.49"
+version = "1.0.50"
 dependencies = [
  "addr2line",
  "anyhow",
@@ -2351,7 +2351,7 @@ checksum = "bd1df36d9fd0bbe4849461de9b969f765170f4e0f90497d580a235d515722b10"
 
 [[package]]
 name = "wit-component"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.0",
@@ -2421,7 +2421,7 @@ dependencies = [
 
 [[package]]
 name = "wit-smith"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "arbitrary",
  "clap 4.3.22",
