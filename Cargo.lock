@@ -1863,7 +1863,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.12.1",
+ "wit-parser 0.12.2",
  "wit-smith",
 ]
 
@@ -1900,7 +1900,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.12.1",
+ "wit-parser 0.12.2",
  "wit-smith",
 ]
 
@@ -2370,7 +2370,7 @@ dependencies = [
  "wasmtime",
  "wast",
  "wat",
- "wit-parser 0.12.1",
+ "wit-parser 0.12.2",
 ]
 
 [[package]]
@@ -2391,7 +2391,7 @@ dependencies = [
 
 [[package]]
 name = "wit-parser"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -2416,7 +2416,7 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "wasmprinter 0.2.71",
- "wit-parser 0.12.1",
+ "wit-parser 0.12.2",
 ]
 
 [[package]]
@@ -2429,7 +2429,7 @@ dependencies = [
  "log",
  "semver",
  "wit-component",
- "wit-parser 0.12.1",
+ "wit-parser 0.12.2",
 ]
 
 [[package]]
