@@ -6,8 +6,9 @@ use super::{
 };
 use crate::validator::names::KebabString;
 use crate::{
-    BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import,
-    MemoryType, PrimitiveValType, RefType, Result, SubType, TableType, TypeRef, ValType,
+    BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import, Matches,
+    MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType,
+    TypeRef, UnpackedIndex, ValType,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -580,6 +581,22 @@ impl ComponentAnyTypeId {
             Self::Instance(_) => "instance",
             Self::Component(_) => "component",
         }
+    }
+}
+
+define_type_id!(
+    RecGroupId,
+    std::ops::Range<CoreTypeId>,
+    rec_group_elements,
+    "recursion group"
+);
+
+impl TypeData for std::ops::Range<CoreTypeId> {
+    type Id = RecGroupId;
+
+    fn type_info(&self, _types: &TypeList) -> TypeInfo {
+        let size = self.end.index() - self.start.index();
+        TypeInfo::core(u32::try_from(size).unwrap())
     }
 }
 
@@ -2364,7 +2381,21 @@ pub struct TypeList {
     alias_snapshots: Vec<TypeListAliasSnapshot>,
 
     // Core Wasm types.
+    //
+    // A primary map from `CoreTypeId` to `SubType`.
     core_types: SnapshotList<SubType>,
+    // The id of each core Wasm type's rec group.
+    //
+    // A secondary map from `CoreTypeId` to `RecGroupId`.
+    core_type_to_rec_group: SnapshotList<RecGroupId>,
+    // A primary map from `RecGroupId` to the range of the rec group's elements
+    // within `core_types`.
+    rec_group_elements: SnapshotList<std::ops::Range<CoreTypeId>>,
+    // A hash map from rec group elements to their canonical `RecGroupId`.
+    //
+    // This hash map is queried by the full `RecGroup` structure but actually
+    // only stores the range of the rec group's elements as a key.
+    canonical_rec_groups: hashbrown::HashTable<(std::ops::Range<CoreTypeId>, RecGroupId)>,
 
     // Component model types.
     components: SnapshotList<ComponentType>,
@@ -2394,6 +2425,9 @@ struct TypeListCheckpoint {
     component_funcs: usize,
     core_modules: usize,
     core_instances: usize,
+    core_type_to_rec_group: usize,
+    rec_group_elements: usize,
+    canonical_rec_groups: hashbrown::HashTable<(std::ops::Range<CoreTypeId>, RecGroupId)>,
 }
 
 impl TypeList {
@@ -2408,10 +2442,147 @@ impl TypeList {
     where
         T: TypeData,
     {
+        // eprintln!("FITZGEN: TypeList::push({ty:?})");
         let index = u32::try_from(T::Id::list(self).len()).unwrap();
         let id = T::Id::from_index(index);
+        // eprintln!("FITZGEN:   -> {id:?}");
         T::Id::list_mut(self).push(ty);
         id
+    }
+
+    /// Intern the given recursion group (that has already been canonicalized)
+    /// and return its associated id and whether this was a new recursion group
+    /// or not.
+    pub fn intern_canonical_rec_group(
+        &mut self,
+        rec_group: RecGroup,
+    ) -> Result<(bool, RecGroupId)> {
+        /// Hasher for the elements in a rec group.
+        ///
+        /// Doesn't take a slice because a `SnapshotList` doesn't necessarily
+        /// hold its elements in a contiguous slice.
+        fn rec_group_hasher<'a, I>(rec_group_elems: impl IntoIterator<IntoIter = I>) -> u64
+        where
+            I: ExactSizeIterator<Item = &'a SubType>,
+        {
+            let iter = rec_group_elems.into_iter();
+            let mut state = std::collections::hash_map::DefaultHasher::default();
+            std::hash::Hash::hash(&iter.len(), &mut state);
+            for ty in iter {
+                std::hash::Hash::hash(ty, &mut state);
+            }
+            state.finish()
+        }
+
+        let hash = rec_group_hasher(rec_group.types());
+
+        let entry = self.canonical_rec_groups.find_entry(hash, |(range, _)| {
+            let len = range.end.index() - range.start.index();
+            if len != rec_group.types().len() {
+                return false;
+            }
+
+            (range.start.index()..range.end.index())
+                .map(|i| &self.core_types[i])
+                .zip(rec_group.types())
+                .all(|(canon_ty, new_ty)| canon_ty == new_ty)
+        });
+
+        let (is_new, occupied_entry) = match entry {
+            // Occupied: use the existing entry.
+            Ok(entry) => (false, entry),
+
+            // Absent: intern the types, record their range, add a new canonical
+            // rec group for that range, insert it into the hash table, and
+            // return the new entry.
+            Err(absent_entry) => {
+                let table = absent_entry.into_table();
+
+                let rec_group_id = self.rec_group_elements.len();
+                let rec_group_id = u32::try_from(rec_group_id).unwrap();
+                let rec_group_id = RecGroupId::from_index(rec_group_id);
+
+                let start = self.core_types.len();
+                let start = u32::try_from(start).unwrap();
+                let start = CoreTypeId::from_index(start);
+
+                for ty in rec_group.into_types() {
+                    self.core_types.push(ty);
+                    self.core_type_to_rec_group.push(rec_group_id);
+                }
+
+                let end = self.core_types.len();
+                let end = u32::try_from(end).unwrap();
+                let end = CoreTypeId::from_index(end);
+
+                let range = start..end;
+
+                self.rec_group_elements.push(range.clone());
+
+                let occupied_entry = table.insert_unique(hash, (range, rec_group_id), |entry| {
+                    let range = &entry.0;
+                    let start = range.start.index();
+                    let end = range.end.index();
+                    rec_group_hasher((start..end).map(|i| &self.core_types[i]))
+                });
+
+                (true, occupied_entry)
+            }
+        };
+
+        let rec_group_id = occupied_entry.get().1;
+        Ok((is_new, rec_group_id))
+    }
+
+    /// Get the `CoreTypeId` for a local index into a rec group.
+    pub fn rec_group_local_id(
+        &self,
+        rec_group: RecGroupId,
+        index: u32,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
+        let elems = &self[rec_group];
+        let len = elems.end.index() - elems.start.index();
+        let len = u32::try_from(len).unwrap();
+        if index < len {
+            let id = u32::try_from(elems.start.index()).unwrap() + index;
+            let id = CoreTypeId::from_index(id);
+            Ok(id)
+        } else {
+            bail!(
+                offset,
+                "unknown type {index}: type index out of rec group bounds"
+            )
+        }
+    }
+
+    /// Get the id of the rec group that the given type id was defined within.
+    pub fn rec_group_id_of(&self, id: CoreTypeId) -> RecGroupId {
+        self.core_type_to_rec_group[id.index()]
+    }
+
+    /// Get the `CoreTypeId` for a canonicalized `PackedIndex`.
+    ///
+    /// Panics when given a non-canonicalized `PackedIndex`.
+    pub fn at_canonicalized_packed_index(
+        &self,
+        rec_group: RecGroupId,
+        index: PackedIndex,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
+        match index.unpack() {
+            UnpackedIndex::Module(_) => panic!("not canonicalized"),
+            UnpackedIndex::Id(id) => Ok(id),
+            UnpackedIndex::RecGroup(idx) => self.rec_group_local_id(rec_group, idx, offset),
+        }
+    }
+
+    /// Helper for calling `T::matches` with type inference to make callers look nicer.
+    pub fn matches<T>(&self, a: T, b: T, offset: usize) -> Result<bool>
+    where
+        T: Matches,
+    {
+        T::matches(self, a, b, offset)
     }
 
     fn checkpoint(&self) -> TypeListCheckpoint {
@@ -2427,6 +2598,9 @@ impl TypeList {
             component_funcs,
             core_modules,
             core_instances,
+            core_type_to_rec_group,
+            rec_group_elements,
+            canonical_rec_groups,
         } = self;
 
         TypeListCheckpoint {
@@ -2438,6 +2612,9 @@ impl TypeList {
             component_funcs: component_funcs.len(),
             core_modules: core_modules.len(),
             core_instances: core_instances.len(),
+            core_type_to_rec_group: core_type_to_rec_group.len(),
+            rec_group_elements: rec_group_elements.len(),
+            canonical_rec_groups: canonical_rec_groups.clone(),
         }
     }
 
@@ -2454,6 +2631,9 @@ impl TypeList {
             component_funcs,
             core_modules,
             core_instances,
+            core_type_to_rec_group,
+            rec_group_elements,
+            canonical_rec_groups,
         } = self;
 
         core_types.truncate(checkpoint.core_types);
@@ -2464,6 +2644,9 @@ impl TypeList {
         component_funcs.truncate(checkpoint.component_funcs);
         core_modules.truncate(checkpoint.core_modules);
         core_instances.truncate(checkpoint.core_instances);
+        core_type_to_rec_group.truncate(checkpoint.core_type_to_rec_group);
+        rec_group_elements.truncate(checkpoint.rec_group_elements);
+        canonical_rec_groups.clone_from(&checkpoint.canonical_rec_groups);
     }
 
     pub fn commit(&mut self) -> TypeList {
@@ -2490,6 +2673,9 @@ impl TypeList {
             component_funcs: self.component_funcs.commit(),
             core_modules: self.core_modules.commit(),
             core_instances: self.core_instances.commit(),
+            core_type_to_rec_group: self.core_type_to_rec_group.commit(),
+            rec_group_elements: self.rec_group_elements.commit(),
+            canonical_rec_groups: self.canonical_rec_groups.clone(),
         }
     }
 

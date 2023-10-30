@@ -846,7 +846,7 @@ impl Printer {
             self.result.push_str("final ");
         }
         for idx in &ty.supertype_idx {
-            self.print_name(&state.core.type_names, *idx)?;
+            self.print_name(&state.core.type_names, idx.as_module_index().unwrap())?;
             self.result.push(' ');
         }
         Ok(0)
@@ -912,7 +912,9 @@ impl Printer {
             HeapType::Struct => self.result.push_str("struct"),
             HeapType::Array => self.result.push_str("array"),
             HeapType::I31 => self.result.push_str("i31"),
-            HeapType::Concrete(i) => self.result.push_str(&format!("{}", u32::from(i))),
+            HeapType::Concrete(i) => self
+                .result
+                .push_str(&format!("{}", i.as_module_index().unwrap())),
         }
         Ok(())
     }

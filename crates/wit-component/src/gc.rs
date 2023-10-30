@@ -492,7 +492,7 @@ impl<'a> Module<'a> {
             | HeapType::Struct
             | HeapType::Array
             | HeapType::I31 => {}
-            HeapType::Concrete(i) => self.ty(i),
+            HeapType::Concrete(i) => self.ty(i.as_module_index().unwrap()),
         }
     }
 
@@ -1114,7 +1114,9 @@ impl Encoder {
             HeapType::Struct => wasm_encoder::HeapType::Struct,
             HeapType::Array => wasm_encoder::HeapType::Array,
             HeapType::I31 => wasm_encoder::HeapType::I31,
-            HeapType::Concrete(idx) => wasm_encoder::HeapType::Concrete(self.types.remap(idx)),
+            HeapType::Concrete(idx) => {
+                wasm_encoder::HeapType::Concrete(self.types.remap(idx.as_module_index().unwrap()))
+            }
         }
     }
 }

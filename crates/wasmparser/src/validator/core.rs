@@ -1,32 +1,34 @@
 //! State relating to validating a WebAssembly module.
 //!
-use std::mem;
-use std::{collections::HashSet, sync::Arc};
 
-use indexmap::IndexMap;
+mod canonical;
 
-use crate::limits::*;
-use crate::readers::Matches;
-use crate::validator::core::arc::MaybeOwned;
-use crate::{
-    BinaryReaderError, CompositeType, ConstExpr, Data, DataKind, Element, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result,
-    StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef, ValType, VisitOperator,
-    WasmFeatures, WasmModuleResources,
+use self::{
+    arc::MaybeOwned,
+    canonical::{canonicalize_and_intern_rec_group, TypeCanonicalizer},
 };
-
 use super::{
     check_max, combine_type_sizes,
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
-    types::{CoreTypeId, EntityType, TypeAlloc, TypeIdentifier, TypeList},
+    types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
+use crate::{
+    limits::*, BinaryReaderError, CompositeType, ConstExpr, Data, DataKind, Element, ElementKind,
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, PackedIndex, RecGroup,
+    RefType, Result, StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef,
+    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, WithRecGroup,
+};
+use indexmap::IndexMap;
+use std::mem;
+use std::{collections::HashSet, sync::Arc};
 
 // Section order for WebAssembly modules.
 //
 // Component sections are unordered and allow for duplicates,
 // so this isn't used for components.
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Default, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub enum Order {
+    #[default]
     Initial,
     Type,
     Import,
@@ -41,12 +43,6 @@ pub enum Order {
     DataCount,
     Code,
     Data,
-}
-
-impl Default for Order {
-    fn default() -> Order {
-        Order::Initial
-    }
 }
 
 #[derive(Default)]
@@ -217,11 +213,11 @@ impl ModuleState {
                 offset_expr,
             } => {
                 let table = self.module.table_at(table_index.unwrap_or(0), offset)?;
-                if !self.module.matches(
-                    ValType::Ref(element_ty),
-                    ValType::Ref(table.element_type),
-                    types,
-                ) {
+                if !types.matches(
+                    WithRecGroup::without_rec_group(element_ty),
+                    WithRecGroup::without_rec_group(table.element_type),
+                    offset,
+                )? {
                     return Err(BinaryReaderError::new(
                         format!(
                             "type mismatch: invalid element type `{}` for table type `{}`",
@@ -496,9 +492,24 @@ pub(crate) struct Module {
 }
 
 impl Module {
+    /// Get the `CoreTypeId` of the type at the given packed index.
+    pub(crate) fn at_packed_index(
+        &self,
+        types: &TypeList,
+        rec_group: RecGroupId,
+        index: PackedIndex,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
+        match index.unpack() {
+            UnpackedIndex::Id(id) => Ok(id),
+            UnpackedIndex::Module(idx) => self.type_id_at(idx, offset),
+            UnpackedIndex::RecGroup(idx) => types.rec_group_local_id(rec_group, idx, offset),
+        }
+    }
+
     pub fn add_types(
         &mut self,
-        rec_group: &RecGroup,
+        rec_group: RecGroup,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
@@ -522,37 +533,37 @@ impl Module {
             )?;
         }
 
-        let idx_types: Vec<_> = rec_group
-            .types()
-            .iter()
-            .map(|ty| {
-                let id = types.push_ty(ty.clone());
-                if features.gc {
-                    // make types in a rec group resolvable by index before validation:
-                    // this is needed to support recursive types in the GC proposal
-                    self.types.push(id);
-                }
-                (id, ty)
-            })
-            .collect();
+        let (is_new, rec_group_id) =
+            canonicalize_and_intern_rec_group(features, types, self, rec_group, offset)?;
 
-        for (id, ty) in idx_types {
-            self.check_subtype(id.index() as u32, &ty, features, types, offset)?;
-            if !features.gc {
-                self.types.push(id);
+        let range = &types[rec_group_id];
+
+        use crate::validator::types::TypeIdentifier;
+        let start = range.start.index();
+        let end = range.end.index();
+
+        for i in start..end {
+            let i = u32::try_from(i).unwrap();
+            let id = CoreTypeId::from_index(i);
+            debug_assert!(types.get(id).is_some());
+            self.types.push(id);
+            if is_new {
+                self.check_subtype(rec_group_id, id, features, types, offset)?;
             }
         }
+
         Ok(())
     }
 
     fn check_subtype(
         &mut self,
-        type_index: u32,
-        ty: &SubType,
+        rec_group: RecGroupId,
+        id: CoreTypeId,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
+        let ty = &types[id];
         if !features.gc && (!ty.is_final || ty.supertype_idx.is_some()) {
             bail!(offset, "gc proposal must be enabled to use subtypes");
         }
@@ -560,15 +571,12 @@ impl Module {
         self.check_composite_type(&ty.composite_type, features, offset)?;
 
         if let Some(supertype_index) = ty.supertype_idx {
-            // Check the supertype exists, is not final, and the subtype matches it.
-            if supertype_index >= type_index {
-                bail!(
-                    offset,
-                    "unknown type {type_index}: type index out of bounds"
-                );
+            debug_assert!(supertype_index.is_canonical());
+            let sup_id = self.at_packed_index(types, rec_group, supertype_index, offset)?;
+            if types[sup_id].is_final {
+                bail!(offset, "supertype must not be final");
             }
-            let sub = self.sub_type_at(types, supertype_index, offset)?;
-            if !&ty.matches(sub, &|idx| self.sub_type_at(types, idx, offset).unwrap()) {
+            if !types.matches(id, sup_id, offset)? {
                 bail!(offset, "subtype must match supertype");
             }
         }
@@ -901,19 +909,16 @@ impl Module {
     }
 
     fn check_value_type(&self, ty: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
-        match features.check_value_type(ty) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(BinaryReaderError::new(e, offset)),
-        }?;
+        features
+            .check_value_type(ty)
+            .map_err(|e| BinaryReaderError::new(e, offset))?;
+
         // The above only checks the value type for features.
         // We must check it if it's a reference.
         match ty {
-            ValType::Ref(rt) => {
-                self.check_ref_type(rt, offset)?;
-            }
-            _ => (),
+            ValType::Ref(rt) => self.check_ref_type(rt, offset),
+            _ => Ok(()),
         }
-        Ok(())
     }
 
     fn check_ref_type(&self, ty: RefType, offset: usize) -> Result<()> {
@@ -928,20 +933,22 @@ impl Module {
             | HeapType::Eq
             | HeapType::Struct
             | HeapType::Array
-            | HeapType::I31 => (),
+            | HeapType::I31 => Ok(()),
             HeapType::Concrete(type_index) => {
-                // Just check that the index is valid
-                self.type_id_at(type_index, offset)?;
+                match type_index {
+                    UnpackedIndex::Module(idx) => {
+                        let _ = self.type_id_at(idx, offset)?;
+                        Ok(())
+                    }
+                    UnpackedIndex::RecGroup(_) | UnpackedIndex::Id(_) => {
+                        // If the type index has already been canonicalized,
+                        // then we already checked that it was in bounds and
+                        // valid at that time.
+                        Ok(())
+                    }
+                }
             }
         }
-        Ok(())
-    }
-
-    /// Check that a value of type ty1 is assignable to a variable / table element of type ty2.
-    /// E.g. a non-nullable reference can be assigned to a nullable reference, but not vice versa.
-    /// Or an indexed func ref is assignable to a generic func ref, but not vice versa.
-    pub(crate) fn matches(&self, ty1: ValType, ty2: ValType, types: &TypeList) -> bool {
-        ty1.matches(&ty2, &|idx| self.sub_type_at(types, idx, 0).unwrap())
     }
 
     fn check_tag_type(
@@ -1164,8 +1171,18 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.element_types.get(at as usize).cloned()
     }
 
-    fn matches(&self, t1: ValType, t2: ValType) -> bool {
-        self.module.matches(t1, t2, self.types)
+    fn matches(&self, mut a: ValType, mut b: ValType) -> bool {
+        let canonicalizer = TypeCanonicalizer::new(&self.module, usize::MAX);
+        canonicalizer.canonicalize_val_type(&mut a).unwrap();
+        canonicalizer.canonicalize_val_type(&mut b).unwrap();
+
+        self.types
+            .matches(
+                WithRecGroup::without_rec_group(a),
+                WithRecGroup::without_rec_group(b),
+                usize::MAX,
+            )
+            .unwrap()
     }
 
     fn element_count(&self) -> u32 {
@@ -1232,8 +1249,21 @@ impl WasmModuleResources for ValidatorResources {
         self.0.element_types.get(at as usize).cloned()
     }
 
-    fn matches(&self, t1: ValType, t2: ValType) -> bool {
-        self.0.matches(t1, t2, self.0.snapshot.as_ref().unwrap())
+    fn matches(&self, mut a: ValType, mut b: ValType) -> bool {
+        let canonicalizer = TypeCanonicalizer::new(&self.0, usize::MAX);
+        canonicalizer.canonicalize_val_type(&mut a).unwrap();
+        canonicalizer.canonicalize_val_type(&mut b).unwrap();
+
+        self.0
+            .snapshot
+            .as_ref()
+            .unwrap()
+            .matches(
+                WithRecGroup::without_rec_group(a),
+                WithRecGroup::without_rec_group(b),
+                usize::MAX,
+            )
+            .unwrap()
     }
 
     fn element_count(&self) -> u32 {

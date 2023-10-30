@@ -24,8 +24,8 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, HeapType, Ieee32,
-    Ieee64, MemArg, RefType, Result, ValType, VisitOperator, WasmFeatures, WasmFuncType,
-    WasmModuleResources, V128,
+    Ieee64, MemArg, PackedIndex, RefType, Result, UnpackedIndex, ValType, VisitOperator,
+    WasmFeatures, WasmFuncType, WasmModuleResources, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -1272,14 +1272,22 @@ where
         Ok(())
     }
     fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
-        let hty = HeapType::Concrete(type_index);
+        let unpacked_index = UnpackedIndex::Module(type_index);
+        let hty = HeapType::Concrete(unpacked_index);
         self.resources
             .check_heap_type(hty, &self.features, self.offset)?;
         // If `None` is popped then that means a "bottom" type was popped which
         // is always considered equivalent to the `hty` tag.
         if let Some(rt) = self.pop_ref()? {
-            let expected = RefType::concrete(true, type_index)
-                .expect("existing heap types should be within our limits");
+            let expected = RefType::concrete(
+                true,
+                unpacked_index.pack().ok_or_else(|| {
+                    BinaryReaderError::new(
+                        "implementation limit: type index too large",
+                        self.offset,
+                    )
+                })?,
+            );
             if !self
                 .resources
                 .matches(ValType::Ref(rt), ValType::Ref(expected))
@@ -2291,10 +2299,10 @@ where
         // FIXME(#924) this should not be conditional based on enabled
         // proposals.
         if self.features.function_references {
-            self.push_operand(
-                RefType::concrete(false, type_index)
-                    .expect("our limits on number of types should fit into ref type"),
-            )?;
+            let index = PackedIndex::from_module_index(type_index).ok_or_else(|| {
+                BinaryReaderError::new("implementation limit: type index too large", self.offset)
+            })?;
+            self.push_operand(RefType::concrete(false, index))?;
         } else {
             self.push_operand(ValType::FUNCREF)?;
         }
