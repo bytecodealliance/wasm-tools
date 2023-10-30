@@ -518,17 +518,22 @@ impl Resolve {
     /// Returns `None` for unnamed interfaces.
     pub fn id_of(&self, interface: InterfaceId) -> Option<String> {
         let interface = &self.interfaces[interface];
-        let package = &self.packages[interface.package.unwrap()];
+        Some(self.id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
+    }
+
+    /// Returns the ID of the specified `name` within the `pkg`.
+    pub fn id_of_name(&self, pkg: PackageId, name: &str) -> String {
+        let package = &self.packages[pkg];
         let mut base = String::new();
         base.push_str(&package.name.namespace);
         base.push_str(":");
         base.push_str(&package.name.name);
         base.push_str("/");
-        base.push_str(interface.name.as_ref()?);
+        base.push_str(name);
         if let Some(version) = &package.name.version {
             base.push_str(&format!("@{version}"));
         }
-        Some(base)
+        base
     }
 
     /// Attempts to locate a world given the "default" package `pkg` and the
