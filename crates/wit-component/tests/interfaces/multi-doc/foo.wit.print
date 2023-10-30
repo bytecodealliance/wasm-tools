@@ -1,4 +1,4 @@
-package foo:foo
+package foo:foo;
 
 interface b {
   record the-type {
@@ -7,14 +7,14 @@ interface b {
 }
 
 interface a {
-  use b.{the-type}
+  use b.{the-type};
 }
 
 interface b2 {
-  use b.{the-type}
+  use b.{the-type};
 }
 
 interface a2 {
-  use b.{the-type}
+  use b.{the-type};
 }
 

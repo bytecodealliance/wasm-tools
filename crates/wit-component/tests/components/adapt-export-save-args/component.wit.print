@@ -1,5 +1,5 @@
-package root:component
+package root:component;
 
 world root {
-  export entrypoint: func(nargs: u32)
+  export entrypoint: func(nargs: u32);
 }

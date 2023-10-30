@@ -1,4 +1,4 @@
-package foo:foo
+package foo:foo;
 
 interface other {
   record name {
@@ -7,7 +7,7 @@ interface other {
 }
 
 interface bar {
-  use other.{name as the-name}
+  use other.{name as the-name};
 
   enum name {
     a,
@@ -15,6 +15,6 @@ interface bar {
 }
 
 interface foo {
-  use bar.{the-name}
+  use bar.{the-name};
 }
 

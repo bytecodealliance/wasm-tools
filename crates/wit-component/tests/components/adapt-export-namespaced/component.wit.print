@@ -1,5 +1,5 @@
-package root:component
+package root:component;
 
 world root {
-  export foo:foo/new
+  export foo:foo/new;
 }

@@ -1,8 +1,8 @@
-package foo:%from
+package foo:%from;
 
 interface a {
-  use foo:foo/only-from.{r}
+  use foo:foo/only-from.{r};
 
-  foo: func()
+  foo: func();
 }
 

@@ -1,6 +1,6 @@
-package foo:only-from-dep
+package foo:only-from-dep;
 
 interface a {
-  type a = u32
+  type a = u32;
 }
 

@@ -1,5 +1,5 @@
-package root:root
+package root:root;
 
 world root {
-  import foo:foo/my-interface
+  import foo:foo/my-interface;
 }

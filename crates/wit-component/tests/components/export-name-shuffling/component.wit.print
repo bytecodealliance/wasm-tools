@@ -1,10 +1,10 @@
-package root:component
+package root:component;
 
 world root {
-  export foo:foo/name
+  export foo:foo/name;
   export name: interface {
-    use foo:foo/name.{foo}
+    use foo:foo/name.{foo};
 
-    a: func(f: foo)
+    a: func(f: foo);
   }
 }

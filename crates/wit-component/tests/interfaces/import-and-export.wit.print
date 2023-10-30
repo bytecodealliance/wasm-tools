@@ -1,15 +1,15 @@
-package foo:foo
+package foo:foo;
 
 interface foo {
-  foo: func()
+  foo: func();
 }
 
 interface bar {
-  bar: func()
+  bar: func();
 }
 
 world import-and-export {
-  import foo
+  import foo;
 
-  export bar
+  export bar;
 }

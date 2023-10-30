@@ -1,14 +1,14 @@
-package root:component
+package root:component;
 
 world root {
   import foo: interface {
-    a: func() -> string
+    a: func() -> string;
   }
 
-  export a: func(x: string) -> tuple<string, u32, string>
+  export a: func(x: string) -> tuple<string, u32, string>;
   export bar: interface {
-    a: func()
+    a: func();
 
-    b: func() -> string
+    b: func() -> string;
   }
 }

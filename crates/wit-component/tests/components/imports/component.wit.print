@@ -1,4 +1,4 @@
-package root:component
+package root:component;
 
 world root {
   import bar: interface {
@@ -6,24 +6,24 @@ world root {
       a: u8,
     }
 
-    bar1: func(x: string)
+    bar1: func(x: string);
 
-    bar2: func(x: x)
+    bar2: func(x: x);
   }
   import baz: interface {
-    type x = s8
+    type x = s8;
 
-    baz1: func(x: list<string>)
+    baz1: func(x: list<string>);
 
-    baz2: func()
+    baz2: func();
 
-    baz3: func(x: x)
+    baz3: func(x: x);
   }
   import foo: interface {
-    foo1: func()
+    foo1: func();
 
-    foo2: func(x: u8)
+    foo2: func(x: u8);
 
-    foo3: func(x: float32)
+    foo3: func(x: float32);
   }
 }

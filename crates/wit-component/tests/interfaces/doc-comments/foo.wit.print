@@ -1,10 +1,10 @@
 /// package docs;
-package foo:foo
+package foo:foo;
 
 /// interface docs
 interface coverage-iface {
   /// basic typedef docs
-  type t = u32
+  type t = u32;
 
   /// record typedef docs
   record r {
@@ -33,15 +33,15 @@ interface coverage-iface {
 
   resource res {
     /// constructor docs
-    constructor()
+    constructor();
     /// method docs
-    m: func()
+    m: func();
     /// static func docs
-    s: static func()
+    s: static func();
   }
 
   /// interface func docs
-  f: func()
+  f: func();
 }
 
 /// other comment forms
@@ -49,30 +49,30 @@ interface coverage-iface {
 interface other-comment-forms {
   /// one doc line
   /// another doc line
-  multiple-lines-split: func()
+  multiple-lines-split: func();
 
   /// mixed forms; line doc
   /// plus block doc
   ///       multi-line
-  mixed-forms: func()
+  mixed-forms: func();
 }
 
 /// world docs
 world coverage-world {
   /// world func import docs
-  import imp: func()
+  import imp: func();
 
   /// world typedef docs
-  type t = u32
+  type t = u32;
 
   /// world func export docs
-  export exp: func()
+  export exp: func();
   /// world inline interface docs
   export i: interface {
     /// inline interface typedef docs
-    type t = u32
+    type t = u32;
 
     /// inline interface func docs
-    f: func()
+    f: func();
   }
 }

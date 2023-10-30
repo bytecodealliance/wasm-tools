@@ -1,8 +1,8 @@
-package root:component
+package root:component;
 
 world root {
-  import foo:bar/foo
-  use foo:bar/foo.{a}
+  import foo:bar/foo;
+  use foo:bar/foo.{a};
 
-  export foo:bar/foo
+  export foo:bar/foo;
 }

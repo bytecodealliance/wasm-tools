@@ -1,10 +1,10 @@
-package root:component
+package root:component;
 
 world root {
-  export foo:bar/foo
+  export foo:bar/foo;
   export anon: interface {
-    use foo:bar/foo.{handle}
+    use foo:bar/foo.{handle};
 
-    f: func() -> handle
+    f: func() -> handle;
   }
 }

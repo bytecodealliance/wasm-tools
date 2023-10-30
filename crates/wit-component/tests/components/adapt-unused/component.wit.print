@@ -1,4 +1,4 @@
-package root:component
+package root:component;
 
 world root {
 }

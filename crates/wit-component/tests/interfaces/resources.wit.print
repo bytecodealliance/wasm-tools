@@ -1,70 +1,70 @@
-package foo:bar
+package foo:bar;
 
 interface foo {
   resource bar {
-    constructor()
-    a: static func()
-    b: func()
+    constructor();
+    a: static func();
+    b: func();
   }
 
-  type t = bar
+  type t = bar;
 
-  type t2 = own<bar>
+  type t2 = own<bar>;
 
-  a: func(x: bar) -> bar
+  a: func(x: bar) -> bar;
 }
 
 interface baz {
-  use foo.{bar, t}
+  use foo.{bar, t};
 
-  a: func(x: bar) -> bar
+  a: func(x: bar) -> bar;
 
-  b: func() -> t
+  b: func() -> t;
 }
 
 interface implicit-own-handles {
-  resource a
+  resource a;
 
-  b: func(a1: a, a2: a) -> a
+  b: func(a1: a, a2: a) -> a;
 
-  c: func() -> list<a>
+  c: func() -> list<a>;
 }
 
 interface implicit-own-handles2 {
   resource a {
-    constructor(a: list<a>)
+    constructor(a: list<a>);
   }
 
   resource b {
-    constructor(a: list<b>, b: b)
+    constructor(a: list<b>, b: b);
   }
 
   resource c {
-    a: static func(a: c) -> c
+    a: static func(a: c) -> c;
   }
 }
 
 world some-world {
   import anon: interface {
     resource a {
-      constructor()
-      b: static func()
-      c: func()
+      constructor();
+      b: static func();
+      c: func();
     }
   }
-  import foo
-  import baz
-  use baz.{bar}
+  import foo;
+  import baz;
+  use baz.{bar};
 
   resource a {
-    constructor()
+    constructor();
   }
 
-  export x: func() -> a
-  export y: func() -> bar
+  export x: func() -> a;
+  export y: func() -> bar;
 }
 world implicit-own-handles3 {
   resource a {
-    constructor(a: list<a>, b: list<a>)
+    constructor(a: list<a>, b: list<a>);
   }
 }
