@@ -33,11 +33,9 @@ fn use_v2_encoding() -> bool {
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
 pub fn encode(use_v2: Option<bool>, resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    if use_v2.unwrap_or_else(use_v2_encoding) {
-        v2::encode(resolve, package)
-    } else {
-        v1::encode(resolve, package)
-    }
+    let mut component = encode_component(use_v2, resolve, package)?;
+    component.raw_custom_section(&crate::base_producers().raw_custom_section());
+    Ok(component.finish())
 }
 
 /// Exactly like `encode`, except gives an unfinished `ComponentBuilder` in case you need
@@ -55,14 +53,6 @@ pub fn encode_component(
 }
 
 /// Encodes a `world` as a component type.
-pub fn encode_world(
-    use_v2: Option<bool>,
-    resolve: &Resolve,
-    world_id: WorldId,
-) -> Result<ComponentType> {
-    if use_v2.unwrap_or_else(use_v2_encoding) {
-        v2::encode_world(resolve, world_id)
-    } else {
-        v1::encode_world(resolve, world_id)
-    }
+pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
+    v1::encode_world(resolve, world_id)
 }

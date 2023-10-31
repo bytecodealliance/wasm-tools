@@ -46,7 +46,9 @@ use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use std::borrow::Cow;
-use wasm_encoder::{ComponentBuilder, ComponentExportKind, CustomSection, Encode};
+use wasm_encoder::{
+    ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection, Encode,
+};
 use wasm_metadata::Producers;
 use wasmparser::types::ComponentAnyTypeId;
 use wasmparser::{
@@ -225,7 +227,15 @@ pub fn encode(
             ret
         }
         EncodingFormat::Next => {
-            let ty = crate::encoding::encode_world(None, resolve, world)?;
+            let ty = crate::encoding::encode_world(resolve, world)?;
+
+            let world = &resolve.worlds[world];
+            let mut outer_ty = ComponentType::new();
+            outer_ty.ty().component(&ty);
+            outer_ty.export(
+                &resolve.id_of_name(world.package.unwrap(), &world.name),
+                ComponentTypeRef::Component(0),
+            );
 
             let mut builder = ComponentBuilder::default();
 
@@ -234,14 +244,9 @@ pub fn encode(
                 name: CUSTOM_SECTION_NAME.into(),
                 data: Cow::Borrowed(&[CURRENT_VERSION, string_encoding]),
             });
-            let ty = builder.type_component(&ty);
-            let world = &resolve.worlds[world];
-            builder.export(
-                &resolve.id_of_name(world.package.unwrap(), &world.name),
-                ComponentExportKind::Type,
-                ty,
-                None,
-            );
+
+            let ty = builder.type_component(&outer_ty);
+            builder.export(&world.name, ComponentExportKind::Type, ty, None);
 
             let mut producers = crate::base_producers();
             if let Some(p) = extra_producers {
@@ -313,7 +318,7 @@ fn decode_custom_section(wasm: &[u8]) -> Result<(Resolve, WorldId, StringEncodin
         _ => bail!("expected an exported component type"),
     };
 
-    let (resolve, world) = crate::decoding::decode_world(types, exports[0].name.0, ty)?;
+    let (resolve, world) = crate::decoding::decode_world(types, ty)?;
     Ok((resolve, world, string_encoding))
 }
 
