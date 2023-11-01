@@ -5,7 +5,7 @@ use wit_parser::{PackageId, Resolve, WorldId};
 mod v1;
 mod v2;
 
-const ENCODE_V2_BY_DEFAULT: bool = false;
+const ENCODE_V2_BY_DEFAULT: bool = true;
 
 fn use_v2_encoding() -> bool {
     match std::env::var("WIT_COMPONENT_ENCODING_V2") {
