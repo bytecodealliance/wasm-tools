@@ -200,6 +200,7 @@ impl Generator {
                             file.namespace.insert(name.clone(), Definition::File);
                             name
                         };
+                    piece.push_str(";");
                     log::debug!("new use `{name}` in {i}");
                     file.interfaces
                         .insert(name.clone(), FileInterface { name, id, types });
@@ -229,7 +230,7 @@ impl Generator {
                 if let Some(version) = &ret.name.version {
                     s.push_str(&format!("@{version}"));
                 }
-                s.push_str("\n\n");
+                s.push_str(";\n\n");
             }
             for piece in file.items.iter() {
                 s.push_str(&piece);
@@ -361,10 +362,14 @@ impl<'a> InterfaceGenerator<'a> {
                     let (ty, mut typedef) = self.gen_typedef(u, &name)?;
                     let is_resource = ty.is_resource;
                     self.types_in_interface.push(ty);
-                    if is_resource && u.arbitrary()? {
-                        typedef.push_str(" {\n");
-                        self.gen_resource_funcs(u, &mut typedef)?;
-                        typedef.push_str("}");
+                    if is_resource {
+                        if u.arbitrary()? {
+                            typedef.push_str(" {\n");
+                            self.gen_resource_funcs(u, &mut typedef)?;
+                            typedef.push_str("}");
+                        } else {
+                            typedef.push_str(";");
+                        }
                     }
                     parts.push(typedef);
                 }
@@ -463,6 +468,7 @@ impl<'a> InterfaceGenerator<'a> {
                     if !unique {
                         continue;
                     }
+                    part.push_str(";");
                 }
                 ItemKind::AnonInterface(_) => {
                     let iface =
@@ -478,10 +484,14 @@ impl<'a> InterfaceGenerator<'a> {
                     let is_resource = ty.is_resource;
                     self.types_in_interface.push(ty);
 
-                    if is_resource && u.arbitrary()? {
-                        part.push_str(" {\n");
-                        self.gen_resource_funcs(u, &mut part)?;
-                        part.push_str("}");
+                    if is_resource {
+                        if u.arbitrary()? {
+                            part.push_str(" {\n");
+                            self.gen_resource_funcs(u, &mut part)?;
+                            part.push_str("}");
+                        } else {
+                            part.push_str(";");
+                        }
                     }
                 }
 
@@ -525,6 +535,7 @@ impl<'a> InterfaceGenerator<'a> {
                     has_constructor = true;
                     let mut part = format!("constructor");
                     self.gen_params(u, &mut part, false)?;
+                    part.push_str(";");
                     parts.push(part);
                 }
                 Item::Static => {
@@ -581,7 +592,7 @@ impl<'a> InterfaceGenerator<'a> {
             size,
             is_resource,
         });
-        part.push_str("}");
+        part.push_str("};");
         Ok(true)
     }
 
@@ -656,6 +667,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str(name);
                 ret.push_str(" = ");
                 self.gen_type(u, &mut fuel, &mut ret)?;
+                ret.push_str(";");
             }
             Kind::Resource => {
                 is_resource = true;
@@ -835,6 +847,7 @@ impl<'a> InterfaceGenerator<'a> {
             let mut fuel = self.config.max_type_size;
             self.gen_type(u, &mut fuel, dst)?;
         }
+        dst.push_str(";");
         Ok(())
     }
 
