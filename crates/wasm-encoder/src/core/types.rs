@@ -11,6 +11,18 @@ pub struct SubType {
     pub composite_type: CompositeType,
 }
 
+impl Encode for SubType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        // We only need to emit a prefix byte before the actual composite type
+        // when either the type is not final or it has a declared super type.
+        if self.supertype_idx.is_some() || !self.is_final {
+            sink.push(if self.is_final { 0x4f } else { 0x50 });
+            self.supertype_idx.encode(sink);
+        }
+        self.composite_type.encode(sink);
+    }
+}
+
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::SubType> for SubType {
     fn from(sub_ty: wasmparser::SubType) -> Self {
@@ -510,14 +522,21 @@ impl TypeSection {
 
     /// Define an explicit subtype in this type section.
     pub fn subtype(&mut self, ty: &SubType) -> &mut Self {
-        // We only need to emit a prefix byte before the actual composite type
-        // when either the type is not final or it has a declared super type.
-        if ty.supertype_idx.is_some() || !ty.is_final {
-            self.bytes.push(if ty.is_final { 0x4f } else { 0x50 });
-            ty.supertype_idx.encode(&mut self.bytes);
-        }
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
 
-        ty.composite_type.encode(&mut self.bytes);
+    /// Define an explicit recursion group in this type section.
+    pub fn rec<T>(&mut self, types: T) -> &mut Self
+    where
+        T: IntoIterator<Item = SubType>,
+        T::IntoIter: ExactSizeIterator,
+    {
+        let types = types.into_iter();
+        self.bytes.push(0x4e);
+        types.len().encode(&mut self.bytes);
+        types.for_each(|t| t.encode(&mut self.bytes));
         self.num_added += 1;
         self
     }
