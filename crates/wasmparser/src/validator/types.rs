@@ -2427,7 +2427,7 @@ struct TypeListCheckpoint {
     core_instances: usize,
     core_type_to_rec_group: usize,
     rec_group_elements: usize,
-    canonical_rec_groups: hashbrown::HashTable<(std::ops::Range<CoreTypeId>, RecGroupId)>,
+    canonical_rec_groups: usize,
 }
 
 impl TypeList {
@@ -2612,7 +2612,7 @@ impl TypeList {
             core_instances: core_instances.len(),
             core_type_to_rec_group: core_type_to_rec_group.len(),
             rec_group_elements: rec_group_elements.len(),
-            canonical_rec_groups: canonical_rec_groups.clone(),
+            canonical_rec_groups: canonical_rec_groups.len(),
         }
     }
 
@@ -2644,7 +2644,13 @@ impl TypeList {
         core_instances.truncate(checkpoint.core_instances);
         core_type_to_rec_group.truncate(checkpoint.core_type_to_rec_group);
         rec_group_elements.truncate(checkpoint.rec_group_elements);
-        canonical_rec_groups.clone_from(&checkpoint.canonical_rec_groups);
+
+        assert_eq!(
+            canonical_rec_groups.len(),
+            checkpoint.canonical_rec_groups,
+            "checkpointing does not support resetting `canonical_rec_groups` (it would require a \
+             proper immutable and persistent hash map) so adding new groups is disallowed"
+        );
     }
 
     pub fn commit(&mut self) -> TypeList {
