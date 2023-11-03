@@ -205,6 +205,45 @@ impl<'a> Matches for WithRecGroup<&'a FuncType> {
             return Ok(false);
         }
 
+        // A quick recap of covariance, contravariance, and how it applies to
+        // subtyping function types, because I (and almost everyone else, it
+        // seems) always need a reminder:
+        //
+        // *Covariance* is when `a <: b` and `a' <: b'`. That is, the subtyping
+        // checks on the nested things (`a'` and `b'`) goes the same way as the
+        // outer things (`a` and `b`).
+        //
+        // *Contravariance* is when `a <: b` and `b' <: a'`. That is, the
+        // subtyping on the nested things is reversed compared to the outer
+        // things.
+        //
+        // Now, when we are checking subtyping for function types, we have the
+        // following variance:
+        //
+        // * Parameters are contravariant: `(a -> c) <: (b -> c)` when `b <: a`.
+        //
+        //   For example, we can substitute a `Cat -> Cat` function with a
+        //   `Animal -> Cat` function because `Cat <: Animal` and so all
+        //   arguments that could be given to the function are still valid.
+        //
+        //   We can't do the opposite and replace an `Animal -> Cat` function
+        //   with a `Cat -> Cat` function. What would the `Cat -> Cat` function
+        //   do when given a `Dog`? It is unsound.
+        //
+        // * Results are covariant: `(a -> b) <: (a -> c)` when `b <: c`.
+        //
+        //   For example, we can substitute a `Cat -> Animal` function with a
+        //   `Cat -> Cat` function because callers expect to be returned an
+        //   `Animal` and all `Cat`s are `Animal`s. (Also: all `Cat`s are
+        //   `Beautiful`!)
+        //
+        //   We cannot do the opposite and substitute a `Cat -> Cat` function
+        //   with a `Cat -> Animal` function, since callers expect a `Cat` but
+        //   the new function could return a `Pig`.
+        //
+        // As always, Wikipedia is also helpful:
+        // https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+
         let params_match =
             a.params()
                 .iter()
