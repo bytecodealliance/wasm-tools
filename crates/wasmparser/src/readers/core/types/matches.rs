@@ -28,7 +28,7 @@ pub(crate) struct WithRecGroup<T> {
 
 impl<T: std::fmt::Debug> WithRecGroup<T> {
     #[inline]
-    fn rec_group(x: Self) -> RecGroupId {
+    fn unwrap_rec_group(x: Self) -> RecGroupId {
         match x.rec_group_id {
             Some(id) => id,
             _ => panic!("WithRecGroup::rec_group({x:?}): missing rec group context"),
@@ -107,7 +107,7 @@ fn core_type_id(
     if let Some(id) = index.as_core_type_id() {
         Ok(id)
     } else {
-        let group = WithRecGroup::rec_group(index);
+        let group = WithRecGroup::unwrap_rec_group(index);
         types.at_canonicalized_packed_index(group, *index, offset)
     }
 }
