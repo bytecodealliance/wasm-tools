@@ -2442,10 +2442,8 @@ impl TypeList {
     where
         T: TypeData,
     {
-        // eprintln!("FITZGEN: TypeList::push({ty:?})");
         let index = u32::try_from(T::Id::list(self).len()).unwrap();
         let id = T::Id::from_index(index);
-        // eprintln!("FITZGEN:   -> {id:?}");
         T::Id::list_mut(self).push(ty);
         id
     }
