@@ -164,6 +164,9 @@ impl Matches for CoreTypeId {
 
 impl<'a> Matches for WithRecGroup<&'a SubType> {
     fn matches(types: &TypeList, a: Self, b: Self, offset: usize) -> Result<bool> {
+        // NB: matching does not check finality and supertypes. That is checked
+        // once when we define types, not repeatedly every time we check
+        // matches.
         types.matches(
             WithRecGroup::map(a, |a| &a.composite_type),
             WithRecGroup::map(b, |b| &b.composite_type),
