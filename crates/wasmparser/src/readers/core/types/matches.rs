@@ -180,17 +180,21 @@ impl<'a> Matches for WithRecGroup<&'a CompositeType> {
                 WithRecGroup::map(b, |_| fb),
                 offset,
             ),
+            (CompositeType::Func(_), _) => Ok(false),
+
             (CompositeType::Array(aa), CompositeType::Array(ab)) => types.matches(
                 WithRecGroup::map(a, |_| *aa),
                 WithRecGroup::map(b, |_| *ab),
                 offset,
             ),
+            (CompositeType::Array(_), _) => Ok(false),
+
             (CompositeType::Struct(sa), CompositeType::Struct(sb)) => types.matches(
                 WithRecGroup::map(a, |_| sa),
                 WithRecGroup::map(b, |_| sb),
                 offset,
             ),
-            _ => Ok(false),
+            (CompositeType::Struct(_), _) => Ok(false),
         }
     }
 }
