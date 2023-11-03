@@ -322,12 +322,14 @@ impl Matches for WithRecGroup<StorageType> {
         use StorageType as ST;
         match (*a, *b) {
             (ST::I8, ST::I8) | (ST::I16, ST::I16) => Ok(true),
+            (ST::I8 | ST::I16, _) => Ok(false),
+
             (ST::Val(va), ST::Val(vb)) => types.matches(
                 WithRecGroup::map(a, |_| va),
                 WithRecGroup::map(b, |_| vb),
                 offset,
             ),
-            _ => Ok(false),
+            (ST::Val(_), _) => Ok(false),
         }
     }
 }
@@ -340,7 +342,11 @@ impl Matches for WithRecGroup<ValType> {
                 WithRecGroup::map(b, |_| rb),
                 offset,
             ),
-            (a, b) => Ok(a == b),
+            (ValType::Ref(_), _) => Ok(false),
+
+            (ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128, _) => {
+                Ok(*a == *b)
+            }
         }
     }
 }
@@ -417,7 +423,19 @@ impl Matches for WithRecGroup<HeapType> {
                 CompositeType::Func(_)
             )),
 
-            _ => Ok(false),
+            // Nothing else matches. (Avoid full wildcard matches so that
+            // adding/modifying variants is easier in the future.)
+            (HT::Concrete(_), _)
+            | (HT::Func, _)
+            | (HT::Extern, _)
+            | (HT::Any, _)
+            | (HT::None, _)
+            | (HT::NoExtern, _)
+            | (HT::NoFunc, _)
+            | (HT::Eq, _)
+            | (HT::Struct, _)
+            | (HT::Array, _)
+            | (HT::I31, _) => Ok(false),
         }
     }
 }
