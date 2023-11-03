@@ -1172,6 +1172,9 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn matches(&self, mut a: ValType, mut b: ValType) -> bool {
+        // Unwrapping is okay because canonicalization can only fail on
+        // out-of-bounds type references, but we've already checked that at this
+        // point.
         let canonicalizer = TypeCanonicalizer::new(&self.module, usize::MAX);
         canonicalizer.canonicalize_val_type(&mut a).unwrap();
         canonicalizer.canonicalize_val_type(&mut b).unwrap();
@@ -1250,6 +1253,9 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn matches(&self, mut a: ValType, mut b: ValType) -> bool {
+        // Unwrapping is okay because canonicalization can only fail on
+        // out-of-bounds type references, but we've already checked that at this
+        // point.
         let canonicalizer = TypeCanonicalizer::new(&self.0, usize::MAX);
         canonicalizer.canonicalize_val_type(&mut a).unwrap();
         canonicalizer.canonicalize_val_type(&mut b).unwrap();
