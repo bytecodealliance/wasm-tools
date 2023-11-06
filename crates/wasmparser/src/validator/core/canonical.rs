@@ -131,8 +131,10 @@ impl<'a> TypeCanonicalizer<'a> {
         self.rec_group_start = u32::try_from(self.module.types.len()).unwrap();
         self.rec_group_len = u32::try_from(rec_group.types().len()).unwrap();
 
-        for ty in rec_group.types_mut() {
-            self.canonicalize_sub_type(ty)?;
+        for (rec_group_index, ty) in rec_group.types_mut().iter_mut().enumerate() {
+            let rec_group_index = u32::try_from(rec_group_index).unwrap();
+            let type_index = self.rec_group_start + rec_group_index;
+            self.canonicalize_sub_type(ty, type_index)?;
         }
 
         Ok(())
@@ -181,10 +183,15 @@ impl<'a> TypeCanonicalizer<'a> {
         )
     }
 
-    fn canonicalize_sub_type(&self, ty: &mut SubType) -> Result<()> {
+    fn canonicalize_sub_type(&self, ty: &mut SubType, index: u32) -> Result<()> {
         if let Some(sup) = ty.supertype_idx.as_mut() {
+            if sup.as_module_index().map_or(false, |i| i >= index) {
+                bail!(self.offset, "supertypes must be defined before subtypes");
+            }
+
             self.canonicalize_type_index(sup)?;
         }
+
         self.canonicalize_composite_type(&mut ty.composite_type)
     }
 
