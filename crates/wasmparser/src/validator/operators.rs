@@ -393,7 +393,10 @@ impl<R> DerefMut for OperatorValidatorTemp<'_, '_, R> {
     }
 }
 
-impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R> {
+impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
+where
+    R: WasmModuleResources,
+{
     /// Pushes a type onto the operand stack.
     ///
     /// This is used by instructions to represent a value that is pushed to the
@@ -404,6 +407,23 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
         T: Into<MaybeType>,
     {
         let maybe_ty = ty.into();
+
+        if cfg!(debug_assertions) {
+            match maybe_ty {
+                MaybeType::Type(ValType::Ref(r)) => match r.heap_type() {
+                    HeapType::Concrete(index) => {
+                        debug_assert!(
+                            matches!(index, UnpackedIndex::Id(_)),
+                            "only ref types referencing `CoreTypeId`s can \
+                             be pushed to the operand stack"
+                        );
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+
         self.operands.push(maybe_ty);
         Ok(())
     }
@@ -493,10 +513,10 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
                 // but not any integer types.
                 | (MaybeType::HeapBot, ValType::Ref(_)) => {}
 
-                // Use the `matches` predicate to test if a found type matches
+                // Use the `is_subtype` predicate to test if a found type matches
                 // the expectation.
                 (MaybeType::Type(actual), expected) => {
-                    if !self.resources.matches(actual, expected) {
+                    if !self.resources.is_subtype(actual, expected) {
                         bail!(
                             self.offset,
                             "type mismatch: expected {}, found {}",
@@ -752,7 +772,7 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
             Some(tab) => {
                 if !self
                     .resources
-                    .matches(ValType::Ref(tab.element_type), ValType::FUNCREF)
+                    .is_subtype(ValType::Ref(tab.element_type), ValType::FUNCREF)
                 {
                     bail!(
                         self.offset,
@@ -959,15 +979,24 @@ impl<'resources, R: WasmModuleResources> OperatorValidatorTemp<'_, 'resources, R
     fn params(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
         Ok(match ty {
             BlockType::Empty | BlockType::Type(_) => Either::B(None.into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.inputs()),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.inputs().map(|mut ty| {
+                self.resources.canonicalize_valtype(&mut ty);
+                ty
+            })),
         })
     }
 
     fn results(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
         Ok(match ty {
             BlockType::Empty => Either::B(None.into_iter()),
-            BlockType::Type(t) => Either::B(Some(t).into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.outputs()),
+            BlockType::Type(mut t) => {
+                self.resources.canonicalize_valtype(&mut t);
+                Either::B(Some(t).into_iter())
+            }
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.outputs().map(|mut ty| {
+                self.resources.canonicalize_valtype(&mut ty);
+                ty
+            })),
         })
     }
 
@@ -1288,10 +1317,9 @@ where
                     )
                 })?,
             );
-            if !self
-                .resources
-                .matches(ValType::Ref(rt), ValType::Ref(expected))
-            {
+            let mut expected = ValType::Ref(expected);
+            self.resources.canonicalize_valtype(&mut expected);
+            if !self.resources.is_subtype(ValType::Ref(rt), expected) {
                 bail!(
                     self.offset,
                     "type mismatch: funcref on stack does not match specified type",
@@ -1365,20 +1393,22 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_typed_select(&mut self, ty: ValType) -> Self::Output {
+    fn visit_typed_select(&mut self, mut ty: ValType) -> Self::Output {
         self.resources
             .check_value_type(ty, &self.features, self.offset)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
+        self.resources.canonicalize_valtype(&mut ty);
         self.push_operand(ty)?;
         Ok(())
     }
     fn visit_local_get(&mut self, local_index: u32) -> Self::Output {
-        let ty = self.local(local_index)?;
+        let mut ty = self.local(local_index)?;
         if !self.local_inits[local_index as usize] {
             bail!(self.offset, "uninitialized local: {}", local_index);
         }
+        self.resources.canonicalize_valtype(&mut ty);
         self.push_operand(ty)?;
         Ok(())
     }
@@ -1404,7 +1434,9 @@ where
     }
     fn visit_global_get(&mut self, global_index: u32) -> Self::Output {
         if let Some(ty) = self.resources.global_at(global_index) {
-            self.push_operand(ty.content_type)?;
+            let mut ty = ty.content_type;
+            self.resources.canonicalize_valtype(&mut ty);
+            self.push_operand(ty)?;
         } else {
             bail!(self.offset, "unknown global: global index out of bounds");
         };
@@ -2212,9 +2244,11 @@ where
     fn visit_ref_null(&mut self, heap_type: HeapType) -> Self::Output {
         self.resources
             .check_heap_type(heap_type, &self.features, self.offset)?;
-        self.push_operand(ValType::Ref(
+        let mut ty = ValType::Ref(
             RefType::new(true, heap_type).expect("existing heap types should be within our limits"),
-        ))?;
+        );
+        self.resources.canonicalize_valtype(&mut ty);
+        self.push_operand(ty)?;
         Ok(())
     }
 
@@ -2256,7 +2290,7 @@ where
                 // perform the match because if the branch is taken it's a
                 // non-null value.
                 let ty = rt0.as_non_null();
-                if !self.resources.matches(ty.into(), rt1) {
+                if !self.resources.is_subtype(ty.into(), rt1) {
                     bail!(
                         self.offset,
                         "type mismatch: expected {} but found {}",
@@ -2302,7 +2336,9 @@ where
             let index = PackedIndex::from_module_index(type_index).ok_or_else(|| {
                 BinaryReaderError::new("implementation limit: type index too large", self.offset)
             })?;
-            self.push_operand(RefType::concrete(false, index))?;
+            let mut ty = ValType::Ref(RefType::concrete(false, index));
+            self.resources.canonicalize_valtype(&mut ty);
+            self.push_operand(ty)?;
         } else {
             self.push_operand(ValType::FUNCREF)?;
         }
@@ -3262,7 +3298,7 @@ where
         };
         if !self
             .resources
-            .matches(ValType::Ref(segment_ty), ValType::Ref(table.element_type))
+            .is_subtype(ValType::Ref(segment_ty), ValType::Ref(table.element_type))
         {
             bail!(self.offset, "type mismatch");
         }
@@ -3290,7 +3326,7 @@ where
             (Some(a), Some(b)) => (a, b),
             _ => bail!(self.offset, "table index out of bounds"),
         };
-        if !self.resources.matches(
+        if !self.resources.is_subtype(
             ValType::Ref(src.element_type),
             ValType::Ref(dst.element_type),
         ) {
@@ -3306,8 +3342,10 @@ where
             Some(ty) => ty.element_type,
             None => bail!(self.offset, "table index out of bounds"),
         };
+        let mut ty = ValType::Ref(ty);
+        self.resources.canonicalize_valtype(&mut ty);
         self.pop_operand(Some(ValType::I32))?;
-        self.push_operand(ValType::Ref(ty))?;
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_table_set(&mut self, table: u32) -> Self::Output {

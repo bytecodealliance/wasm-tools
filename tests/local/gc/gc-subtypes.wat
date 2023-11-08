@@ -19,7 +19,7 @@
   (type $k (sub $j (func (param (ref $a)) (result (ref $c)))))
 
   ;; valid: expanded param/result types are equal to those of the parent
-  (type $l (sub $j (func (param (ref $c)) (result (ref $a)))))
+  (type $l (sub $j (func (param (ref $b)) (result (ref $b)))))
 
   ;; array, val types, ref types, mutability, nullability
   (type $m (sub (array (mut i32))))

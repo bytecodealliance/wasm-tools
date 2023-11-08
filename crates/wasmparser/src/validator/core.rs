@@ -16,7 +16,7 @@ use crate::{
     limits::*, BinaryReaderError, CompositeType, ConstExpr, Data, DataKind, Element, ElementKind,
     ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, PackedIndex, RecGroup,
     RefType, Result, StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef,
-    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, WithRecGroup,
+    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -213,11 +213,7 @@ impl ModuleState {
                 offset_expr,
             } => {
                 let table = self.module.table_at(table_index.unwrap_or(0), offset)?;
-                if !types.matches(
-                    WithRecGroup::without_rec_group(element_ty),
-                    WithRecGroup::without_rec_group(table.element_type),
-                    offset,
-                )? {
+                if !types.reftype_is_subtype(element_ty, table.element_type) {
                     return Err(BinaryReaderError::new(
                         format!(
                             "type mismatch: invalid element type `{}` for table type `{}`",
@@ -576,7 +572,7 @@ impl Module {
             if types[sup_id].is_final {
                 bail!(offset, "supertype must not be final");
             }
-            if !types.matches(id, sup_id, offset)? {
+            if !types.matches(id, sup_id) {
                 bail!(offset, "subtype must match supertype");
             }
         }
@@ -1171,7 +1167,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.element_types.get(at as usize).cloned()
     }
 
-    fn matches(&self, mut a: ValType, mut b: ValType) -> bool {
+    fn is_subtype(&self, mut a: ValType, mut b: ValType) -> bool {
         // Unwrapping is okay because canonicalization can only fail on
         // out-of-bounds type references, but we've already checked that at this
         // point.
@@ -1179,13 +1175,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         canonicalizer.canonicalize_val_type(&mut a).unwrap();
         canonicalizer.canonicalize_val_type(&mut b).unwrap();
 
-        self.types
-            .matches(
-                WithRecGroup::without_rec_group(a),
-                WithRecGroup::without_rec_group(b),
-                usize::MAX,
-            )
-            .unwrap()
+        self.types.valtype_is_subtype(a, b)
     }
 
     fn element_count(&self) -> u32 {
@@ -1198,6 +1188,14 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 
     fn is_function_referenced(&self, idx: u32) -> bool {
         self.module.function_references.contains(&idx)
+    }
+
+    fn canonicalize_valtype(&self, valtype: &mut ValType) {
+        // Unwrapping is okay because canonicalization can only fail on
+        // out-of-bounds type references, but we've already checked that at this
+        // point.
+        let canonicalizer = TypeCanonicalizer::new(&self.module, usize::MAX);
+        canonicalizer.canonicalize_val_type(valtype).unwrap();
     }
 }
 
@@ -1252,7 +1250,7 @@ impl WasmModuleResources for ValidatorResources {
         self.0.element_types.get(at as usize).cloned()
     }
 
-    fn matches(&self, mut a: ValType, mut b: ValType) -> bool {
+    fn is_subtype(&self, mut a: ValType, mut b: ValType) -> bool {
         // Unwrapping is okay because canonicalization can only fail on
         // out-of-bounds type references, but we've already checked that at this
         // point.
@@ -1260,16 +1258,7 @@ impl WasmModuleResources for ValidatorResources {
         canonicalizer.canonicalize_val_type(&mut a).unwrap();
         canonicalizer.canonicalize_val_type(&mut b).unwrap();
 
-        self.0
-            .snapshot
-            .as_ref()
-            .unwrap()
-            .matches(
-                WithRecGroup::without_rec_group(a),
-                WithRecGroup::without_rec_group(b),
-                usize::MAX,
-            )
-            .unwrap()
+        self.0.snapshot.as_ref().unwrap().valtype_is_subtype(a, b)
     }
 
     fn element_count(&self) -> u32 {
@@ -1282,6 +1271,14 @@ impl WasmModuleResources for ValidatorResources {
 
     fn is_function_referenced(&self, idx: u32) -> bool {
         self.0.function_references.contains(&idx)
+    }
+
+    fn canonicalize_valtype(&self, valtype: &mut ValType) {
+        // Unwrapping is okay because canonicalization can only fail on
+        // out-of-bounds type references, but we've already checked that at this
+        // point.
+        let canonicalizer = TypeCanonicalizer::new(&self.0, usize::MAX);
+        canonicalizer.canonicalize_val_type(valtype).unwrap();
     }
 }
 

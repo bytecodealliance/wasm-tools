@@ -218,9 +218,8 @@ pub trait WasmModuleResources {
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType>;
     /// Returns the element type at the given index.
     fn element_type_at(&self, at: u32) -> Option<RefType>;
-    /// Under the function references proposal, returns whether t1 <=
-    /// t2. Otherwise, returns whether t1 == t2
-    fn matches(&self, a: ValType, b: ValType) -> bool;
+    /// TODO FITZGEN
+    fn is_subtype(&self, a: ValType, b: ValType) -> bool;
     /// Check a value type. This requires using func_type_at to check references
     fn check_value_type(
         &self,
@@ -260,6 +259,9 @@ pub trait WasmModuleResources {
     /// Returns whether the function index is referenced in the module anywhere
     /// outside of the start/function sections.
     fn is_function_referenced(&self, idx: u32) -> bool;
+
+    /// TODO FITZGEN
+    fn canonicalize_valtype(&self, valtype: &mut ValType);
 }
 
 impl<T> WasmModuleResources for &'_ T
@@ -300,8 +302,8 @@ where
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
     }
-    fn matches(&self, a: ValType, b: ValType) -> bool {
-        T::matches(self, a, b)
+    fn is_subtype(&self, a: ValType, b: ValType) -> bool {
+        T::is_subtype(self, a, b)
     }
 
     fn element_count(&self) -> u32 {
@@ -312,6 +314,9 @@ where
     }
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
+    }
+    fn canonicalize_valtype(&self, valtype: &mut ValType) {
+        T::canonicalize_valtype(self, valtype)
     }
 }
 
@@ -362,8 +367,8 @@ where
         T::element_type_at(self, at)
     }
 
-    fn matches(&self, a: ValType, b: ValType) -> bool {
-        T::matches(self, a, b)
+    fn is_subtype(&self, a: ValType, b: ValType) -> bool {
+        T::is_subtype(self, a, b)
     }
 
     fn element_count(&self) -> u32 {
@@ -376,6 +381,10 @@ where
 
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
+    }
+
+    fn canonicalize_valtype(&self, valtype: &mut ValType) {
+        T::canonicalize_valtype(self, valtype)
     }
 }
 

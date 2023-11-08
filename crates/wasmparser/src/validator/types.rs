@@ -4,11 +4,11 @@ use super::{
     component::{ComponentState, ExternKind},
     core::Module,
 };
-use crate::validator::names::KebabString;
+use crate::{validator::names::KebabString, HeapType};
 use crate::{
     BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import, Matches,
     MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType,
-    TypeRef, UnpackedIndex, ValType,
+    TypeRef, UnpackedIndex, ValType, WithRecGroup,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -2388,6 +2388,10 @@ pub struct TypeList {
     //
     // A secondary map from `CoreTypeId` to `RecGroupId`.
     core_type_to_rec_group: SnapshotList<RecGroupId>,
+    // The supertype of each core type.
+    //
+    // A secondary map from `coreTypeId` to `Option<CoreTypeId>`.
+    core_type_to_supertype: SnapshotList<Option<CoreTypeId>>,
     // A primary map from `RecGroupId` to the range of the rec group's elements
     // within `core_types`.
     rec_group_elements: SnapshotList<std::ops::Range<CoreTypeId>>,
@@ -2426,6 +2430,7 @@ struct TypeListCheckpoint {
     core_modules: usize,
     core_instances: usize,
     core_type_to_rec_group: usize,
+    core_type_to_supertype: usize,
     rec_group_elements: usize,
     canonical_rec_groups: usize,
 }
@@ -2505,6 +2510,15 @@ impl TypeList {
                 let start = CoreTypeId::from_index(start);
 
                 for ty in rec_group.into_types() {
+                    self.core_type_to_supertype.push(ty.supertype_idx.map(
+                        |idx| match idx.unpack() {
+                            UnpackedIndex::RecGroup(offset) => {
+                                CoreTypeId::from_index(start.index + offset)
+                            }
+                            UnpackedIndex::Id(id) => id,
+                            UnpackedIndex::Module(_) => unreachable!("in canonical form"),
+                        },
+                    ));
                     self.core_types.push(ty);
                     self.core_type_to_rec_group.push(rec_group_id);
                 }
@@ -2559,6 +2573,11 @@ impl TypeList {
         self.core_type_to_rec_group[id.index()]
     }
 
+    /// Get the super type of the given type id, if any.
+    pub fn supertype_of(&self, id: CoreTypeId) -> Option<CoreTypeId> {
+        self.core_type_to_supertype[id.index()]
+    }
+
     /// Get the `CoreTypeId` for a canonicalized `PackedIndex`.
     ///
     /// Panics when given a non-canonicalized `PackedIndex`.
@@ -2568,19 +2587,164 @@ impl TypeList {
         index: PackedIndex,
         offset: usize,
     ) -> Result<CoreTypeId> {
-        match index.unpack() {
+        self.at_canonicalized_unpacked_index(rec_group, index.unpack(), offset)
+    }
+
+    /// Get the `CoreTypeId` for a canonicalized `UnpackedIndex`.
+    ///
+    /// Panics when given a non-canonicalized `PackedIndex`.
+    pub fn at_canonicalized_unpacked_index(
+        &self,
+        rec_group: RecGroupId,
+        index: UnpackedIndex,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
+        match index {
             UnpackedIndex::Module(_) => panic!("not canonicalized"),
             UnpackedIndex::Id(id) => Ok(id),
             UnpackedIndex::RecGroup(idx) => self.rec_group_local_id(rec_group, idx, offset),
         }
     }
 
-    /// Helper for calling `T::matches` with type inference to make callers look nicer.
-    pub fn matches<T>(&self, a: T, b: T, offset: usize) -> Result<bool>
-    where
-        T: Matches,
-    {
-        T::matches(self, a, b, offset)
+    /// Does `a` structurally match `b`?
+    pub fn matches(&self, a: CoreTypeId, b: CoreTypeId) -> bool {
+        let a = WithRecGroup::new(self, a);
+        let a = WithRecGroup::map(a, |a| &self[a]);
+
+        let b = WithRecGroup::new(self, b);
+        let b = WithRecGroup::map(b, |b| &self[b]);
+
+        Matches::matches(self, a, b)
+    }
+
+    /// Is `a == b` or was `a` declared (potentially transitively) to be a
+    /// subtype of `b`?
+    pub fn id_is_subtype(&self, mut a: CoreTypeId, b: CoreTypeId) -> bool {
+        // TODO: maintain supertype vectors and implement this check in O(1)
+        // instead of O(n) time.
+        while let Some(aa) = self.supertype_of(a) {
+            if aa == b {
+                return true;
+            }
+            a = aa;
+        }
+        false
+    }
+
+    /// Like `id_is_subtype` but for `RefType`s.
+    ///
+    /// Both `a` and `b` must be canonicalized already.
+    pub fn reftype_is_subtype(&self, a: RefType, b: RefType) -> bool {
+        // NB: Don't need `RecGroupId`s since we are calling from outside of the
+        // rec group, and so any `PackedIndex`es we encounter have already been
+        // canonicalized to `CoreTypeId`s directly.
+        self.reftype_is_subtype_impl(a, None, b, None)
+    }
+
+    /// Implementation of `RefType` and `HeapType` subtyping.
+    ///
+    /// Panics if we need rec groups but aren't given them. Rec groups only need
+    /// to be passed in when checking subtyping of `RefType`s that we encounter
+    /// while validating a rec group itself.
+    pub(crate) fn reftype_is_subtype_impl(
+        &self,
+        a: RefType,
+        a_group: Option<RecGroupId>,
+        b: RefType,
+        b_group: Option<RecGroupId>,
+    ) -> bool {
+        if a == b && a_group == b_group {
+            return true;
+        }
+
+        if a.is_nullable() && !b.is_nullable() {
+            return false;
+        }
+
+        let core_type_id = |group: Option<RecGroupId>, index: UnpackedIndex| -> CoreTypeId {
+            if let Some(id) = index.as_core_type_id() {
+                id
+            } else {
+                self.at_canonicalized_unpacked_index(group.unwrap(), index, usize::MAX)
+                    .expect("type references are checked during canonicalization")
+            }
+        };
+
+        let subtype = |group, index| -> &SubType {
+            let id = core_type_id(group, index);
+            &self[id]
+        };
+
+        use HeapType as HT;
+        match (a.heap_type(), b.heap_type()) {
+            (a, b) if a == b => true,
+
+            (HT::Eq | HT::I31 | HT::Struct | HT::Array | HT::None, HT::Any) => true,
+            (HT::I31 | HT::Struct | HT::Array | HT::None, HT::Eq) => true,
+            (HT::NoExtern, HT::Extern) => true,
+            (HT::NoFunc, HT::Func) => true,
+            (HT::None, HT::I31 | HT::Array | HT::Struct) => true,
+
+            (HT::Concrete(a), HT::Eq | HT::Any) => matches!(
+                subtype(a_group, a).composite_type,
+                CompositeType::Array(_) | CompositeType::Struct(_)
+            ),
+
+            (HT::Concrete(a), HT::Struct) => {
+                matches!(subtype(a_group, a).composite_type, CompositeType::Struct(_))
+            }
+
+            (HT::Concrete(a), HT::Array) => {
+                matches!(subtype(a_group, a).composite_type, CompositeType::Array(_))
+            }
+
+            (HT::Concrete(a), HT::Func) => {
+                matches!(subtype(a_group, a).composite_type, CompositeType::Func(_))
+            }
+
+            (HT::Concrete(a), HT::Concrete(b)) => {
+                self.id_is_subtype(core_type_id(a_group, a), core_type_id(b_group, b))
+            }
+
+            (HT::None, HT::Concrete(b)) => matches!(
+                subtype(b_group, b).composite_type,
+                CompositeType::Array(_) | CompositeType::Struct(_)
+            ),
+
+            (HT::NoFunc, HT::Concrete(b)) => {
+                matches!(subtype(b_group, b).composite_type, CompositeType::Func(_))
+            }
+
+            // Nothing else matches. (Avoid full wildcard matches so that
+            // adding/modifying variants is easier in the future.)
+            (HT::Concrete(_), _)
+            | (HT::Func, _)
+            | (HT::Extern, _)
+            | (HT::Any, _)
+            | (HT::None, _)
+            | (HT::NoExtern, _)
+            | (HT::NoFunc, _)
+            | (HT::Eq, _)
+            | (HT::Struct, _)
+            | (HT::Array, _)
+            | (HT::I31, _) => false,
+        }
+    }
+
+    /// Like `id_is_subtype` but for `RefType`s.
+    ///
+    /// Both `a` and `b` must be canonicalized already.
+    pub fn valtype_is_subtype(&self, a: ValType, b: ValType) -> bool {
+        match (a, b) {
+            (a, b) if a == b => true,
+            (ValType::Ref(a), ValType::Ref(b)) => self.reftype_is_subtype(a, b),
+            (ValType::Ref(_), _)
+            | (ValType::I32, _)
+            | (ValType::I64, _)
+            | (ValType::F32, _)
+            | (ValType::F64, _)
+            | (ValType::V128, _) => false,
+        }
     }
 
     fn checkpoint(&self) -> TypeListCheckpoint {
@@ -2597,6 +2761,7 @@ impl TypeList {
             core_modules,
             core_instances,
             core_type_to_rec_group,
+            core_type_to_supertype,
             rec_group_elements,
             canonical_rec_groups,
         } = self;
@@ -2611,6 +2776,7 @@ impl TypeList {
             core_modules: core_modules.len(),
             core_instances: core_instances.len(),
             core_type_to_rec_group: core_type_to_rec_group.len(),
+            core_type_to_supertype: core_type_to_supertype.len(),
             rec_group_elements: rec_group_elements.len(),
             canonical_rec_groups: canonical_rec_groups.len(),
         }
@@ -2630,6 +2796,7 @@ impl TypeList {
             core_modules,
             core_instances,
             core_type_to_rec_group,
+            core_type_to_supertype,
             rec_group_elements,
             canonical_rec_groups,
         } = self;
@@ -2643,6 +2810,7 @@ impl TypeList {
         core_modules.truncate(checkpoint.core_modules);
         core_instances.truncate(checkpoint.core_instances);
         core_type_to_rec_group.truncate(checkpoint.core_type_to_rec_group);
+        core_type_to_supertype.truncate(checkpoint.core_type_to_supertype);
         rec_group_elements.truncate(checkpoint.rec_group_elements);
 
         assert_eq!(
@@ -2678,6 +2846,7 @@ impl TypeList {
             core_modules: self.core_modules.commit(),
             core_instances: self.core_instances.commit(),
             core_type_to_rec_group: self.core_type_to_rec_group.commit(),
+            core_type_to_supertype: self.core_type_to_supertype.commit(),
             rec_group_elements: self.rec_group_elements.commit(),
             canonical_rec_groups: self.canonical_rec_groups.clone(),
         }
