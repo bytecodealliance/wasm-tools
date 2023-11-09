@@ -1,11 +1,11 @@
 //! Implementation of matching (structural subtyping) for core Wasm types.
 //!
 //! We only ever do structural matching for one link at a time in a subtype
-//! chain. That is, we never recurse on structure. This is because subtyping
-//! relations are required to be declared, so the earlier links in the chain
-//! were already checked when we processed those declarations.
+//! chain. That is, we never recurse on new `SubType`s. This is because
+//! subtyping relations are required to be declared, so the earlier links in the
+//! chain were already checked when we processed those declarations.
 //!
-//! Note that while we don't recursively match on each sub- and supertype field
+//! Note that while we don't recursively *match* on each sub- and supertype field
 //! when checking whether a struct type matches another struct type, we do check
 //! that either `field_type_a == field_type b` or that it was previously
 //! declared that `field_type a <: field_type b`. The latter case means that we
@@ -23,6 +23,12 @@ pub trait Matches {
     /// Does `a` structurally match `b`?
     ///
     /// Both `a` and `b` must be canonicalized already.
+    ///
+    /// This is expected to recursively break down and inspect the *parts* of
+    /// `Self` but should always bottom out in subtype checks, rather than
+    /// looping back to new match calls on a *whole* new `Self`. This is what
+    /// maintains the "single-link-in-the-chain" property mentioned in the
+    /// module comment above.
     fn matches(types: &TypeList, a: Self, b: Self) -> bool;
 }
 
