@@ -67,10 +67,11 @@
 //!   perform additional expensive checks to see if the types match or not
 //!   (since the whole point of canonicalization is to avoid that!).
 
-use super::{Module, RecGroupId, TypeAlloc};
+use super::{Module, RecGroupId, TypeAlloc, TypeList};
 use crate::{
+    types::{CoreTypeId, TypeIdentifier},
     ArrayType, CompositeType, FieldType, FuncType, HeapType, PackedIndex, RecGroup, RefType,
-    Result, StorageType, StructType, SubType, ValType, WasmFeatures,
+    Result, StorageType, StructType, SubType, UnpackedIndex, ValType, WasmFeatures,
 };
 
 /// Canonicalize the rec group and return its id and whether it is a new group
@@ -86,7 +87,22 @@ pub(crate) fn canonicalize_and_intern_rec_group(
     TypeCanonicalizer::new(module, offset)
         .with_features(features)
         .canonicalize_rec_group(&mut rec_group)?;
-    types.intern_canonical_rec_group(rec_group)
+    Ok(types.intern_canonical_rec_group(rec_group))
+}
+
+/// The kind of canonicalization we are doing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CanonicalizationMode {
+    /// Standard canonicalization: turns module indices into either (1)
+    /// `CoreTypeId`s for inter-group references or (2) rec-group-local indices
+    /// for intra-group references.
+    HashConsing,
+
+    /// Turns all type reference indices into `CoreTypeId`s, even from within
+    /// the same rec group. Not useful for hash consing, but useful when
+    /// exposing types to end users so they don't have to deal with
+    /// rec-group-local indices.
+    OnlyIds,
 }
 
 pub(crate) struct TypeCanonicalizer<'a> {
@@ -95,6 +111,8 @@ pub(crate) struct TypeCanonicalizer<'a> {
     rec_group_start: u32,
     rec_group_len: u32,
     offset: usize,
+    mode: CanonicalizationMode,
+    within_rec_group: Option<std::ops::Range<CoreTypeId>>,
 }
 
 impl<'a> TypeCanonicalizer<'a> {
@@ -111,12 +129,27 @@ impl<'a> TypeCanonicalizer<'a> {
             rec_group_start,
             rec_group_len,
             offset,
+            mode: CanonicalizationMode::HashConsing,
+            within_rec_group: None,
         }
     }
 
     pub fn with_features(&mut self, features: &'a WasmFeatures) -> &mut Self {
         debug_assert!(self.features.is_none());
         self.features = Some(features);
+        self
+    }
+
+    /// Configure canonicalization to transform all type indices into
+    /// `CoreTypeId`s, even from within the same rec group.
+    pub fn with_only_ids(&mut self) -> &mut Self {
+        self.mode = CanonicalizationMode::OnlyIds;
+        self
+    }
+
+    pub fn within_rec_group(&mut self, types: &TypeList, rec_group_id: RecGroupId) -> &mut Self {
+        assert_eq!(self.mode, CanonicalizationMode::OnlyIds);
+        self.within_rec_group = Some(types[rec_group_id].clone());
         self
     }
 
@@ -141,46 +174,68 @@ impl<'a> TypeCanonicalizer<'a> {
     }
 
     fn canonicalize_type_index(&self, ty: &mut PackedIndex) -> Result<()> {
-        let index = match ty.as_module_index() {
-            None => return Ok(()),
-            Some(i) => i,
-        };
+        match ty.unpack() {
+            UnpackedIndex::Id(_) => return Ok(()),
+            UnpackedIndex::Module(index) => {
+                if index < self.rec_group_start || self.mode == CanonicalizationMode::OnlyIds {
+                    let id = self.module.type_id_at(index, self.offset)?;
+                    if let Some(id) = PackedIndex::from_id(id) {
+                        *ty = id;
+                        return Ok(());
+                    } else {
+                        bail!(
+                            self.offset,
+                            "implementation limit: too many types in `TypeList`"
+                        )
+                    }
+                }
 
-        if index < self.rec_group_start {
-            let id = self.module.type_id_at(index, self.offset)?;
-            if let Some(id) = PackedIndex::from_id(id) {
-                *ty = id;
-                return Ok(());
-            } else {
+                // When GC is not enabled the `rec_group_len == 1` so any rec group
+                // local type references will be direct self references. But any kind of
+                // type recursion, including self references, is not allowed in the
+                // typed function references proposal, only the GC proposal.
+                debug_assert!(self.allow_gc() || self.rec_group_len == 1);
+                let local = index - self.rec_group_start;
+                if self.allow_gc() && local < self.rec_group_len {
+                    if let Some(id) = PackedIndex::from_rec_group_index(local) {
+                        *ty = id;
+                        return Ok(());
+                    } else {
+                        bail!(
+                            self.offset,
+                            "implementation limit: too many types in a recursion group"
+                        )
+                    }
+                }
+
                 bail!(
                     self.offset,
-                    "implementation limit: too many types in `TypeList`"
+                    "unknown type {index}: type index out of bounds"
                 )
             }
-        }
+            UnpackedIndex::RecGroup(local_index) => match self.mode {
+                CanonicalizationMode::HashConsing => Ok(()),
+                CanonicalizationMode::OnlyIds => {
+                    let rec_group_elems = self.within_rec_group.as_ref().expect(
+                        "configured to canonicalize all type reference indices to `CoreTypeId`s \
+                         and found rec-group-local index, but missing `within_rec_group` context",
+                    );
 
-        // When GC is not enabled the `rec_group_len == 1` so any rec group
-        // local type references will be direct self references. But any kind of
-        // type recursion, including self references, is not allowed in the
-        // typed function references proposal, only the GC proposal.
-        debug_assert!(self.allow_gc() || self.rec_group_len == 1);
-        let local = index - self.rec_group_start;
-        if self.allow_gc() && local < self.rec_group_len {
-            if let Some(id) = PackedIndex::from_rec_group_index(local) {
-                *ty = id;
-                return Ok(());
-            } else {
-                bail!(
-                    self.offset,
-                    "implementation limit: too many types in a recursion group"
-                )
-            }
-        }
+                    let rec_group_len = rec_group_elems.end.index() - rec_group_elems.start.index();
+                    let rec_group_len = u32::try_from(rec_group_len).unwrap();
+                    assert!(local_index < rec_group_len);
 
-        bail!(
-            self.offset,
-            "unknown type {index}: type index out of bounds"
-        )
+                    let rec_group_start = u32::try_from(rec_group_elems.start.index()).unwrap();
+
+                    let id = CoreTypeId::from_index(rec_group_start + local_index);
+                    *ty = PackedIndex::from_id(id).expect(
+                        "should fit in impl limits since we already have the end of the rec group \
+                         constructed successfully",
+                    );
+                    Ok(())
+                }
+            },
+        }
     }
 
     fn canonicalize_sub_type(&self, ty: &mut SubType, index: u32) -> Result<()> {

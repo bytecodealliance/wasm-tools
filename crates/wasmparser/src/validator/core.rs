@@ -1124,39 +1124,81 @@ struct OperatorValidatorResources<'a> {
     types: &'a TypeList,
 }
 
+fn canonicalize_valtype_impl(
+    module: &Module,
+    valtype: &mut ValType,
+    referenced_from: Option<(&TypeList, CoreTypeId)>,
+) {
+    let mut canonicalizer = TypeCanonicalizer::new(module, usize::MAX);
+    canonicalizer.with_only_ids();
+
+    if let Some((types, id)) = referenced_from {
+        let group_id = types.rec_group_id_of(id);
+        canonicalizer.within_rec_group(types, group_id);
+    }
+
+    canonicalizer
+        .canonicalize_val_type(valtype)
+        .expect("already checked type references are in-bounds at this point");
+}
+
 impl WasmModuleResources for OperatorValidatorResources<'_> {
     type FuncType = crate::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
-        self.module.tables.get(at as usize).cloned()
+        let mut ty = self.module.tables.get(at as usize).cloned()?;
+        let mut val_ty = ValType::Ref(ty.element_type);
+        self.canonicalize_valtype(&mut val_ty);
+        ty.element_type = match val_ty {
+            ValType::Ref(r) => r,
+            _ => unreachable!(),
+        };
+        Some(ty)
     }
 
     fn memory_at(&self, at: u32) -> Option<MemoryType> {
         self.module.memories.get(at as usize).cloned()
     }
 
-    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
-        Some(self.types[*self.module.tags.get(at as usize)?].unwrap_func())
+    fn tag_at(&self, at: u32) -> Option<Self::FuncType> {
+        let type_id = *self.module.tags.get(at as usize)?;
+        let mut f = self.types[type_id].unwrap_func().clone();
+        for ty in f.params_mut() {
+            canonicalize_valtype_impl(self.module, ty, Some((self.types, type_id)));
+        }
+        for ty in f.results_mut() {
+            canonicalize_valtype_impl(self.module, ty, Some((self.types, type_id)));
+        }
+        Some(f)
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
-        self.module.globals.get(at as usize).cloned()
+        let mut ty = self.module.globals.get(at as usize).cloned()?;
+        self.canonicalize_valtype(&mut ty.content_type);
+        Some(ty)
     }
 
-    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn func_type_at(&self, at: u32) -> Option<Self::FuncType> {
         let id = *self.module.types.get(at as usize)?;
-        match &self.types[id].composite_type {
-            CompositeType::Func(f) => Some(f),
-            _ => None,
+        let mut f = match &self.types[id].composite_type {
+            CompositeType::Func(f) => f.clone(),
+            _ => return None,
+        };
+        for ty in f.params_mut() {
+            canonicalize_valtype_impl(self.module, ty, Some((self.types, id)));
         }
+        for ty in f.results_mut() {
+            canonicalize_valtype_impl(self.module, ty, Some((self.types, id)));
+        }
+        Some(f)
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {
         self.module.functions.get(at as usize).cloned()
     }
 
-    fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
-        self.func_type_at(self.type_index_of_function(at)?)
+    fn type_of_function(&self, at: u32) -> Option<Self::FuncType> {
+        self.func_type_at(self.type_index_of_function(at)?.into())
     }
 
     fn check_value_type(&self, t: ValType, features: &WasmFeatures, offset: usize) -> Result<()> {
@@ -1168,13 +1210,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn is_subtype(&self, mut a: ValType, mut b: ValType) -> bool {
-        // Unwrapping is okay because canonicalization can only fail on
-        // out-of-bounds type references, but we've already checked that at this
-        // point.
-        let canonicalizer = TypeCanonicalizer::new(&self.module, usize::MAX);
-        canonicalizer.canonicalize_val_type(&mut a).unwrap();
-        canonicalizer.canonicalize_val_type(&mut b).unwrap();
-
+        self.canonicalize_valtype(&mut a);
+        self.canonicalize_valtype(&mut b);
         self.types.valtype_is_subtype(a, b)
     }
 
@@ -1191,11 +1228,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn canonicalize_valtype(&self, valtype: &mut ValType) {
-        // Unwrapping is okay because canonicalization can only fail on
-        // out-of-bounds type references, but we've already checked that at this
-        // point.
-        let canonicalizer = TypeCanonicalizer::new(&self.module, usize::MAX);
-        canonicalizer.canonicalize_val_type(valtype).unwrap();
+        canonicalize_valtype_impl(self.module, valtype, None);
     }
 }
 
@@ -1207,38 +1240,63 @@ impl WasmModuleResources for ValidatorResources {
     type FuncType = crate::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
-        self.0.tables.get(at as usize).cloned()
+        let mut ty = self.0.tables.get(at as usize).cloned()?;
+        let mut val_ty = ValType::Ref(ty.element_type);
+        self.canonicalize_valtype(&mut val_ty);
+        ty.element_type = match val_ty {
+            ValType::Ref(r) => r,
+            _ => unreachable!(),
+        };
+        Some(ty)
     }
 
     fn memory_at(&self, at: u32) -> Option<MemoryType> {
         self.0.memories.get(at as usize).cloned()
     }
 
-    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn tag_at(&self, at: u32) -> Option<Self::FuncType> {
         let id = *self.0.tags.get(at as usize)?;
-        match &self.0.snapshot.as_ref().unwrap()[id].composite_type {
-            CompositeType::Func(f) => Some(f),
-            _ => None,
+        let types = self.0.snapshot.as_ref().unwrap();
+        let mut f = match &types[id].composite_type {
+            CompositeType::Func(f) => f.clone(),
+            _ => return None,
+        };
+        for ty in f.params_mut() {
+            canonicalize_valtype_impl(&self.0, ty, Some((types, id)));
         }
+        for ty in f.results_mut() {
+            canonicalize_valtype_impl(&self.0, ty, Some((types, id)));
+        }
+        Some(f)
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
-        self.0.globals.get(at as usize).cloned()
+        let mut ty = self.0.globals.get(at as usize).cloned()?;
+        self.canonicalize_valtype(&mut ty.content_type);
+        Some(ty)
     }
 
-    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn func_type_at(&self, at: u32) -> Option<Self::FuncType> {
         let id = *self.0.types.get(at as usize)?;
-        match &self.0.snapshot.as_ref().unwrap()[id].composite_type {
-            CompositeType::Func(f) => Some(f),
-            _ => None,
+        let types = self.0.snapshot.as_ref().unwrap();
+        let mut f = match &types[id].composite_type {
+            CompositeType::Func(f) => f.clone(),
+            _ => return None,
+        };
+        for ty in f.params_mut() {
+            canonicalize_valtype_impl(&self.0, ty, Some((types, id)));
         }
+        for ty in f.results_mut() {
+            canonicalize_valtype_impl(&self.0, ty, Some((types, id)));
+        }
+        Some(f)
     }
 
     fn type_index_of_function(&self, at: u32) -> Option<u32> {
         self.0.functions.get(at as usize).cloned()
     }
 
-    fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
+    fn type_of_function(&self, at: u32) -> Option<Self::FuncType> {
         self.func_type_at(self.type_index_of_function(at)?)
     }
 
@@ -1251,13 +1309,8 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn is_subtype(&self, mut a: ValType, mut b: ValType) -> bool {
-        // Unwrapping is okay because canonicalization can only fail on
-        // out-of-bounds type references, but we've already checked that at this
-        // point.
-        let canonicalizer = TypeCanonicalizer::new(&self.0, usize::MAX);
-        canonicalizer.canonicalize_val_type(&mut a).unwrap();
-        canonicalizer.canonicalize_val_type(&mut b).unwrap();
-
+        self.canonicalize_valtype(&mut a);
+        self.canonicalize_valtype(&mut b);
         self.0.snapshot.as_ref().unwrap().valtype_is_subtype(a, b)
     }
 
@@ -1274,11 +1327,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn canonicalize_valtype(&self, valtype: &mut ValType) {
-        // Unwrapping is okay because canonicalization can only fail on
-        // out-of-bounds type references, but we've already checked that at this
-        // point.
-        let canonicalizer = TypeCanonicalizer::new(&self.0, usize::MAX);
-        canonicalizer.canonicalize_val_type(valtype).unwrap();
+        canonicalize_valtype_impl(&self.0, valtype, None);
     }
 }
 

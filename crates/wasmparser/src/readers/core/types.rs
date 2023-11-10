@@ -78,7 +78,7 @@ fn can_fit_max_wasm_types_in_packed_index() {
 impl PackedIndex {
     const UNUSED_MASK: u32 = u32::MAX & !(Self::KIND_MASK | Self::INDEX_MASK);
     const KIND_MASK: u32 = 0b11 << 20;
-    const INDEX_MASK: u32 = (1 << 21) - 1;
+    const INDEX_MASK: u32 = (1 << 20) - 1;
 
     const MODULE_KIND: u32 = 0b00 << 20;
     const REC_GROUP_KIND: u32 = 0b01 << 20;

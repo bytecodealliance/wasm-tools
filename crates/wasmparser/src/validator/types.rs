@@ -2456,10 +2456,7 @@ impl TypeList {
     /// Intern the given recursion group (that has already been canonicalized)
     /// and return its associated id and whether this was a new recursion group
     /// or not.
-    pub fn intern_canonical_rec_group(
-        &mut self,
-        rec_group: RecGroup,
-    ) -> Result<(bool, RecGroupId)> {
+    pub fn intern_canonical_rec_group(&mut self, rec_group: RecGroup) -> (bool, RecGroupId) {
         /// Hasher for the elements in a rec group.
         ///
         /// Doesn't take a slice because a `SnapshotList` doesn't necessarily
@@ -2510,6 +2507,9 @@ impl TypeList {
                 let start = CoreTypeId::from_index(start);
 
                 for ty in rec_group.into_types() {
+                    debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
+                    debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
+
                     self.core_type_to_supertype.push(ty.supertype_idx.map(
                         |idx| match idx.unpack() {
                             UnpackedIndex::RecGroup(offset) => {
@@ -2543,7 +2543,7 @@ impl TypeList {
         };
 
         let rec_group_id = occupied_entry.get().1;
-        Ok((is_new, rec_group_id))
+        (is_new, rec_group_id)
     }
 
     /// Get the `CoreTypeId` for a local index into a rec group.

@@ -263,7 +263,8 @@ impl ComponentState {
     ) -> Result<()> {
         let id = match ty {
             crate::CoreType::Sub(sub) => {
-                let id = types.push_ty(sub);
+                let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(sub));
+                let id = types[group_id].start;
                 ComponentCoreTypeId::Sub(id)
             }
             crate::CoreType::Module(decls) => {
@@ -1007,7 +1008,8 @@ impl ComponentState {
             composite_type: CompositeType::Func(info.into_func_type()),
         };
 
-        let id = types.push_ty(lowered_ty);
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(lowered_ty));
+        let id = types[group_id].start;
         self.core_funcs.push(id);
 
         Ok(())
@@ -1025,7 +1027,9 @@ impl ComponentState {
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([rep], [ValType::I32])),
         };
-        self.core_funcs.push(types.push_ty(core_ty));
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(core_ty));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
         Ok(())
     }
 
@@ -1041,7 +1045,9 @@ impl ComponentState {
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([ValType::I32], [])),
         };
-        self.core_funcs.push(types.push_ty(core_ty));
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(core_ty));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
         Ok(())
     }
 
@@ -1057,7 +1063,9 @@ impl ComponentState {
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([ValType::I32], [rep])),
         };
-        self.core_funcs.push(types.push_ty(core_ty));
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(core_ty));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
         Ok(())
     }
 

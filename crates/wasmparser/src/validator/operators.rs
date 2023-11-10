@@ -245,7 +245,8 @@ impl OperatorValidator {
         }
         .func_type_at(ty)?
         .inputs();
-        for ty in params {
+        for mut ty in params {
+            resources.canonicalize_valtype(&mut ty);
             ret.locals.define(1, ty);
             ret.local_inits.push(true);
         }
@@ -275,10 +276,11 @@ impl OperatorValidator {
         &mut self,
         offset: usize,
         count: u32,
-        ty: ValType,
+        mut ty: ValType,
         resources: &impl WasmModuleResources,
     ) -> Result<()> {
         resources.check_value_type(ty, &self.features, offset)?;
+        resources.canonicalize_valtype(&mut ty);
         if count == 0 {
             return Ok(());
         }
@@ -754,10 +756,12 @@ where
                 );
             }
         };
-        for ty in ty.inputs().rev() {
+        for ty in ty.clone().inputs().rev() {
+            debug_assert_type_indices_are_ids(ty);
             self.pop_operand(Some(ty))?;
         }
         for ty in ty.outputs() {
+            debug_assert_type_indices_are_ids(ty);
             self.push_operand(ty)?;
         }
         Ok(())
@@ -783,7 +787,7 @@ where
         }
         let ty = self.func_type_at(index)?;
         self.pop_operand(Some(ValType::I32))?;
-        for ty in ty.inputs().rev() {
+        for ty in ty.clone().inputs().rev() {
             self.pop_operand(Some(ty))?;
         }
         for ty in ty.outputs() {
@@ -964,13 +968,13 @@ where
         Ok(())
     }
 
-    fn func_type_at(&self, at: u32) -> Result<&'resources R::FuncType> {
+    fn func_type_at(&self, at: u32) -> Result<R::FuncType> {
         self.resources
             .func_type_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown type: type index out of bounds"))
     }
 
-    fn tag_at(&self, at: u32) -> Result<&'resources R::FuncType> {
+    fn tag_at(&self, at: u32) -> Result<R::FuncType> {
         self.resources
             .tag_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown tag {}: tag index out of bounds", at))
@@ -979,10 +983,7 @@ where
     fn params(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
         Ok(match ty {
             BlockType::Empty | BlockType::Type(_) => Either::B(None.into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.inputs().map(|mut ty| {
-                self.resources.canonicalize_valtype(&mut ty);
-                ty
-            })),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.inputs()),
         })
     }
 
@@ -993,10 +994,7 @@ where
                 self.resources.canonicalize_valtype(&mut t);
                 Either::B(Some(t).into_iter())
             }
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.outputs().map(|mut ty| {
-                self.resources.canonicalize_valtype(&mut ty);
-                ty
-            })),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.outputs()),
         })
     }
 
@@ -1082,6 +1080,21 @@ where
     for_each_operator!(validate_proposal);
 }
 
+#[track_caller]
+#[inline]
+fn debug_assert_type_indices_are_ids(ty: ValType) {
+    if cfg!(debug_assertions) {
+        if let ValType::Ref(r) = ty {
+            if let HeapType::Concrete(idx) = r.heap_type() {
+                debug_assert!(
+                    matches!(idx, UnpackedIndex::Id(_)),
+                    "type reference should be a `CoreTypeId`, found {idx:?}"
+                );
+            }
+        }
+    }
+}
+
 impl<'a, T> VisitOperator<'a> for OperatorValidatorTemp<'_, '_, T>
 where
     T: WasmModuleResources,
@@ -1161,7 +1174,7 @@ where
     fn visit_throw(&mut self, index: u32) -> Self::Output {
         // Check values associated with the exception.
         let ty = self.tag_at(index)?;
-        for ty in ty.inputs().rev() {
+        for ty in ty.clone().inputs().rev() {
             self.pop_operand(Some(ty))?;
         }
         if ty.outputs().len() > 0 {
@@ -1396,19 +1409,19 @@ where
     fn visit_typed_select(&mut self, mut ty: ValType) -> Self::Output {
         self.resources
             .check_value_type(ty, &self.features, self.offset)?;
+        self.resources.canonicalize_valtype(&mut ty);
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
-        self.resources.canonicalize_valtype(&mut ty);
         self.push_operand(ty)?;
         Ok(())
     }
     fn visit_local_get(&mut self, local_index: u32) -> Self::Output {
-        let mut ty = self.local(local_index)?;
+        let ty = self.local(local_index)?;
+        debug_assert_type_indices_are_ids(ty);
         if !self.local_inits[local_index as usize] {
             bail!(self.offset, "uninitialized local: {}", local_index);
         }
-        self.resources.canonicalize_valtype(&mut ty);
         self.push_operand(ty)?;
         Ok(())
     }
@@ -1434,8 +1447,8 @@ where
     }
     fn visit_global_get(&mut self, global_index: u32) -> Self::Output {
         if let Some(ty) = self.resources.global_at(global_index) {
-            let mut ty = ty.content_type;
-            self.resources.canonicalize_valtype(&mut ty);
+            let ty = ty.content_type;
+            debug_assert_type_indices_are_ids(ty);
             self.push_operand(ty)?;
         } else {
             bail!(self.offset, "unknown global: global index out of bounds");
@@ -3342,28 +3355,30 @@ where
             Some(ty) => ty.element_type,
             None => bail!(self.offset, "table index out of bounds"),
         };
-        let mut ty = ValType::Ref(ty);
-        self.resources.canonicalize_valtype(&mut ty);
+        let ty = ValType::Ref(ty);
+        debug_assert_type_indices_are_ids(ty);
         self.pop_operand(Some(ValType::I32))?;
         self.push_operand(ty)?;
         Ok(())
     }
     fn visit_table_set(&mut self, table: u32) -> Self::Output {
         let ty = match self.resources.table_at(table) {
-            Some(ty) => ty.element_type,
+            Some(ty) => ValType::Ref(ty.element_type),
             None => bail!(self.offset, "table index out of bounds"),
         };
-        self.pop_operand(Some(ValType::Ref(ty)))?;
+        debug_assert_type_indices_are_ids(ty);
+        self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
         Ok(())
     }
     fn visit_table_grow(&mut self, table: u32) -> Self::Output {
         let ty = match self.resources.table_at(table) {
-            Some(ty) => ty.element_type,
+            Some(ty) => ValType::Ref(ty.element_type),
             None => bail!(self.offset, "table index out of bounds"),
         };
+        debug_assert_type_indices_are_ids(ty);
         self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ValType::Ref(ty)))?;
+        self.pop_operand(Some(ty))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
@@ -3376,11 +3391,12 @@ where
     }
     fn visit_table_fill(&mut self, table: u32) -> Self::Output {
         let ty = match self.resources.table_at(table) {
-            Some(ty) => ty.element_type,
+            Some(ty) => ValType::Ref(ty.element_type),
             None => bail!(self.offset, "table index out of bounds"),
         };
+        debug_assert_type_indices_are_ids(ty);
         self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ValType::Ref(ty)))?;
+        self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
         Ok(())
     }

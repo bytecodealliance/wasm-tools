@@ -1,0 +1,13 @@
+(module
+  (rec
+    (type $f (;0;) (func (param (ref 1))))
+    (type $g (;1;) (func))
+  )
+  (type (;2;) (func (param (ref 0) (ref 1))))
+  (func (;0;) (type 2) (param (ref 0) (ref 1))
+    local.get 1
+    local.get 0
+    call_ref $f
+  )
+  (export "run" (func 0))
+)
