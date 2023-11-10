@@ -212,6 +212,11 @@ impl Encode for Type<'_> {
 
 impl Encode for Rec<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
+        if self.types.len() == 1 {
+            self.types[0].encode(e);
+            return;
+        }
+
         e.push(0x4e);
         self.types.len().encode(e);
         for ty in &self.types {
