@@ -74,15 +74,16 @@ impl From<TagType> for EntityType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::TypeRef> for EntityType {
-    fn from(type_ref: wasmparser::TypeRef) -> Self {
-        match type_ref {
+impl TryFrom<wasmparser::TypeRef> for EntityType {
+    type Error = ();
+    fn try_from(type_ref: wasmparser::TypeRef) -> Result<Self, Self::Error> {
+        Ok(match type_ref {
             wasmparser::TypeRef::Func(i) => EntityType::Function(i),
-            wasmparser::TypeRef::Table(t) => EntityType::Table(t.into()),
+            wasmparser::TypeRef::Table(t) => EntityType::Table(t.try_into()?),
             wasmparser::TypeRef::Memory(m) => EntityType::Memory(m.into()),
-            wasmparser::TypeRef::Global(g) => EntityType::Global(g.into()),
+            wasmparser::TypeRef::Global(g) => EntityType::Global(g.try_into()?),
             wasmparser::TypeRef::Tag(t) => EntityType::Tag(t.into()),
-        }
+        })
     }
 }
 

@@ -261,19 +261,19 @@ mod tests {
         fn memory_at(&self, _at: u32) -> Option<crate::MemoryType> {
             todo!()
         }
-        fn tag_at(&self, _at: u32) -> Option<&Self::FuncType> {
+        fn tag_at(&self, _at: u32) -> Option<Self::FuncType> {
             todo!()
         }
         fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {
             todo!()
         }
-        fn func_type_at(&self, _type_idx: u32) -> Option<&Self::FuncType> {
-            Some(&EmptyFuncType)
+        fn func_type_at(&self, _type_idx: u32) -> Option<Self::FuncType> {
+            Some(EmptyFuncType)
         }
         fn type_index_of_function(&self, _at: u32) -> Option<u32> {
             todo!()
         }
-        fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
+        fn type_of_function(&self, _func_idx: u32) -> Option<Self::FuncType> {
             todo!()
         }
         fn check_value_type(
@@ -287,7 +287,7 @@ mod tests {
         fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {
             todo!()
         }
-        fn matches(&self, _t1: ValType, _t2: ValType) -> bool {
+        fn is_subtype(&self, _t1: ValType, _t2: ValType) -> bool {
             todo!()
         }
         fn element_count(&self) -> u32 {
@@ -299,8 +299,12 @@ mod tests {
         fn is_function_referenced(&self, _idx: u32) -> bool {
             todo!()
         }
+        fn canonicalize_valtype(&self, _valtype: &mut ValType) {
+            todo!()
+        }
     }
 
+    #[derive(Clone)]
     struct EmptyFuncType;
 
     impl WasmFuncType for EmptyFuncType {

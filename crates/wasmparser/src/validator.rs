@@ -632,11 +632,11 @@ impl Validator {
                 state.module.assert_mut().types.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, def, offset| {
+            |state, features, types, rec_group, offset| {
                 state
                     .module
                     .assert_mut()
-                    .add_types(&def, features, types, offset, true)?;
+                    .add_types(rec_group, features, types, offset, true)?;
                 Ok(())
             },
         )

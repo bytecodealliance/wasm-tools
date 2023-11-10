@@ -10,7 +10,7 @@
   (type $h (;8;) (sub $g (;7;) (func (param (ref 4)) (result (ref 6)))))
   (type $j (;9;) (sub (func (param (ref 1)) (result (ref 1)))))
   (type $k (;10;) (sub $j (;9;) (func (param (ref 0)) (result (ref 2)))))
-  (type $l (;11;) (sub $j (;9;) (func (param (ref 2)) (result (ref 0)))))
+  (type $l (;11;) (sub $j (;9;) (func (param (ref 1)) (result (ref 1)))))
   (type $m (;12;) (sub (array (mut i32))))
   (type $n (;13;) (sub $m (;12;) (array i32)))
   (type $o (;14;) (sub (array i32)))

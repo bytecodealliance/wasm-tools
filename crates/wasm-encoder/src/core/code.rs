@@ -2893,6 +2893,11 @@ pub enum ConstExprConversionError {
     /// The const expression is invalid: not actually constant or something like
     /// that.
     Invalid,
+
+    /// There was a type reference that was canonicalized and no longer
+    /// references an index into a module's types space, so we cannot encode it
+    /// into a Wasm binary again.
+    CanonicalizedTypeReference,
 }
 
 #[cfg(feature = "wasmparser")]
@@ -2903,6 +2908,10 @@ impl std::fmt::Display for ConstExprConversionError {
                 write!(f, "There was an error when parsing the const expression")
             }
             Self::Invalid => write!(f, "The const expression was invalid"),
+            Self::CanonicalizedTypeReference => write!(
+                f,
+                "There was a canonicalized type reference without type index information"
+            ),
         }
     }
 }
@@ -2912,7 +2921,7 @@ impl std::error::Error for ConstExprConversionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ParseError(e) => Some(e),
-            Self::Invalid => None,
+            Self::Invalid | Self::CanonicalizedTypeReference => None,
         }
     }
 }
@@ -2936,7 +2945,10 @@ impl<'a> TryFrom<wasmparser::ConstExpr<'a>> for ConstExpr {
             Some(Ok(wasmparser::Operator::V128Const { value })) => {
                 ConstExpr::v128_const(i128::from_le_bytes(*value.bytes()))
             }
-            Some(Ok(wasmparser::Operator::RefNull { hty })) => ConstExpr::ref_null(hty.into()),
+            Some(Ok(wasmparser::Operator::RefNull { hty })) => ConstExpr::ref_null(
+                HeapType::try_from(hty)
+                    .map_err(|_| ConstExprConversionError::CanonicalizedTypeReference)?,
+            ),
             Some(Ok(wasmparser::Operator::RefFunc { function_index })) => {
                 ConstExpr::ref_func(function_index)
             }

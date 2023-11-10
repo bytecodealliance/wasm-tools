@@ -24,13 +24,18 @@ impl Encode for SubType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::SubType> for SubType {
-    fn from(sub_ty: wasmparser::SubType) -> Self {
-        SubType {
+impl TryFrom<wasmparser::SubType> for SubType {
+    type Error = ();
+
+    fn try_from(sub_ty: wasmparser::SubType) -> Result<Self, Self::Error> {
+        Ok(SubType {
             is_final: sub_ty.is_final,
-            supertype_idx: sub_ty.supertype_idx,
-            composite_type: sub_ty.composite_type.into(),
-        }
+            supertype_idx: sub_ty
+                .supertype_idx
+                .map(|i| i.as_module_index().ok_or(()))
+                .transpose()?,
+            composite_type: sub_ty.composite_type.try_into()?,
+        })
     }
 }
 
@@ -64,13 +69,14 @@ impl Encode for CompositeType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::CompositeType> for CompositeType {
-    fn from(composite_ty: wasmparser::CompositeType) -> Self {
-        match composite_ty {
-            wasmparser::CompositeType::Func(f) => CompositeType::Func(f.into()),
-            wasmparser::CompositeType::Array(a) => CompositeType::Array(a.into()),
-            wasmparser::CompositeType::Struct(s) => CompositeType::Struct(s.into()),
-        }
+impl TryFrom<wasmparser::CompositeType> for CompositeType {
+    type Error = ();
+    fn try_from(composite_ty: wasmparser::CompositeType) -> Result<Self, Self::Error> {
+        Ok(match composite_ty {
+            wasmparser::CompositeType::Func(f) => CompositeType::Func(f.try_into()?),
+            wasmparser::CompositeType::Array(a) => CompositeType::Array(a.try_into()?),
+            wasmparser::CompositeType::Struct(s) => CompositeType::Struct(s.try_into()?),
+        })
     }
 }
 
@@ -84,12 +90,14 @@ pub struct FuncType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::FuncType> for FuncType {
-    fn from(func_ty: wasmparser::FuncType) -> Self {
-        FuncType::new(
-            func_ty.params().iter().cloned().map(Into::into),
-            func_ty.results().iter().cloned().map(Into::into),
-        )
+impl TryFrom<wasmparser::FuncType> for FuncType {
+    type Error = ();
+    fn try_from(func_ty: wasmparser::FuncType) -> Result<Self, Self::Error> {
+        let mut buf = Vec::with_capacity(func_ty.params().len() + func_ty.results().len());
+        for ty in func_ty.params().iter().chain(func_ty.results()).copied() {
+            buf.push(ty.try_into()?);
+        }
+        Ok(FuncType::from_parts(buf.into(), func_ty.params().len()))
     }
 }
 
@@ -98,9 +106,10 @@ impl From<wasmparser::FuncType> for FuncType {
 pub struct ArrayType(pub FieldType);
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::ArrayType> for ArrayType {
-    fn from(array_ty: wasmparser::ArrayType) -> Self {
-        ArrayType(array_ty.0.into())
+impl TryFrom<wasmparser::ArrayType> for ArrayType {
+    type Error = ();
+    fn try_from(array_ty: wasmparser::ArrayType) -> Result<Self, Self::Error> {
+        Ok(ArrayType(array_ty.0.try_into()?))
     }
 }
 
@@ -112,11 +121,17 @@ pub struct StructType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::StructType> for StructType {
-    fn from(struct_ty: wasmparser::StructType) -> Self {
-        StructType {
-            fields: struct_ty.fields.iter().cloned().map(Into::into).collect(),
-        }
+impl TryFrom<wasmparser::StructType> for StructType {
+    type Error = ();
+    fn try_from(struct_ty: wasmparser::StructType) -> Result<Self, Self::Error> {
+        Ok(StructType {
+            fields: struct_ty
+                .fields
+                .iter()
+                .cloned()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
@@ -130,12 +145,13 @@ pub struct FieldType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::FieldType> for FieldType {
-    fn from(field_ty: wasmparser::FieldType) -> Self {
-        FieldType {
-            element_type: field_ty.element_type.into(),
+impl TryFrom<wasmparser::FieldType> for FieldType {
+    type Error = ();
+    fn try_from(field_ty: wasmparser::FieldType) -> Result<Self, Self::Error> {
+        Ok(FieldType {
+            element_type: field_ty.element_type.try_into()?,
             mutable: field_ty.mutable,
-        }
+        })
     }
 }
 
@@ -151,13 +167,14 @@ pub enum StorageType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::StorageType> for StorageType {
-    fn from(storage_ty: wasmparser::StorageType) -> Self {
-        match storage_ty {
+impl TryFrom<wasmparser::StorageType> for StorageType {
+    type Error = ();
+    fn try_from(storage_ty: wasmparser::StorageType) -> Result<Self, Self::Error> {
+        Ok(match storage_ty {
             wasmparser::StorageType::I8 => StorageType::I8,
             wasmparser::StorageType::I16 => StorageType::I16,
-            wasmparser::StorageType::Val(v) => StorageType::Val(v.into()),
-        }
+            wasmparser::StorageType::Val(v) => StorageType::Val(v.try_into()?),
+        })
     }
 }
 
@@ -185,16 +202,17 @@ pub enum ValType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::ValType> for ValType {
-    fn from(val_ty: wasmparser::ValType) -> Self {
-        match val_ty {
+impl TryFrom<wasmparser::ValType> for ValType {
+    type Error = ();
+    fn try_from(val_ty: wasmparser::ValType) -> Result<Self, Self::Error> {
+        Ok(match val_ty {
             wasmparser::ValType::I32 => ValType::I32,
             wasmparser::ValType::I64 => ValType::I64,
             wasmparser::ValType::F32 => ValType::F32,
             wasmparser::ValType::F64 => ValType::F64,
             wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::Ref(r) => ValType::Ref(r.into()),
-        }
+            wasmparser::ValType::Ref(r) => ValType::Ref(r.try_into()?),
+        })
     }
 }
 
@@ -208,8 +226,13 @@ impl FuncType {
         let mut buffer = params.into_iter().collect::<Vec<_>>();
         let len_params = buffer.len();
         buffer.extend(results);
+        Self::from_parts(buffer.into(), len_params)
+    }
+
+    #[inline]
+    pub(crate) fn from_parts(params_results: Box<[ValType]>, len_params: usize) -> Self {
         Self {
-            params_results: buffer.into(),
+            params_results,
             len_params,
         }
     }
@@ -305,12 +328,14 @@ impl Encode for RefType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::RefType> for RefType {
-    fn from(ref_type: wasmparser::RefType) -> Self {
-        RefType {
+impl TryFrom<wasmparser::RefType> for RefType {
+    type Error = ();
+
+    fn try_from(ref_type: wasmparser::RefType) -> Result<Self, Self::Error> {
+        Ok(RefType {
             nullable: ref_type.is_nullable(),
-            heap_type: ref_type.heap_type().into(),
-        }
+            heap_type: ref_type.heap_type().try_into()?,
+        })
     }
 }
 
@@ -393,10 +418,12 @@ impl Encode for HeapType {
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::HeapType> for HeapType {
-    fn from(heap_type: wasmparser::HeapType) -> Self {
-        match heap_type {
-            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i),
+impl TryFrom<wasmparser::HeapType> for HeapType {
+    type Error = ();
+
+    fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
+        Ok(match heap_type {
+            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().ok_or(())?),
             wasmparser::HeapType::Func => HeapType::Func,
             wasmparser::HeapType::Extern => HeapType::Extern,
             wasmparser::HeapType::Any => HeapType::Any,
@@ -407,7 +434,7 @@ impl From<wasmparser::HeapType> for HeapType {
             wasmparser::HeapType::Struct => HeapType::Struct,
             wasmparser::HeapType::Array => HeapType::Array,
             wasmparser::HeapType::I31 => HeapType::I31,
-        }
+        })
     }
 }
 

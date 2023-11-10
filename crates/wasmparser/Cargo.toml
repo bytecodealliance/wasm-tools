@@ -13,6 +13,7 @@ edition.workspace = true
 exclude = ["benches/*.wasm"]
 
 [dependencies]
+hashbrown = { version = "0.14.2", default-features = false, features = ["ahash"] }
 indexmap = { workspace = true }
 semver = { workspace = true }
 
