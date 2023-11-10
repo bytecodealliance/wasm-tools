@@ -1424,7 +1424,7 @@ impl<'a> FromReader<'a> for FieldType {
                 1 => true,
                 _ => bail!(
                     reader.original_position(),
-                    "invalid mutability byte for array type"
+                    "malformed mutability: invalid mutability byte for array type"
                 ),
             },
         })

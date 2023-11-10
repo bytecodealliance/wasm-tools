@@ -175,7 +175,6 @@ fn skip_validation(test: &Path) -> bool {
         "/proposals/gc/array_fill.wast",
         "/proposals/gc/array_init_data.wast",
         "/proposals/gc/array_init_elem.wast",
-        "/proposals/gc/binary-gc.wast",
         "/proposals/gc/br_on_cast.wast",
         "/proposals/gc/br_on_cast_fail.wast",
         "/proposals/gc/data.wast",
