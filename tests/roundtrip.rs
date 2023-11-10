@@ -179,7 +179,6 @@ fn skip_validation(test: &Path) -> bool {
         "/proposals/gc/binary-gc.wast",
         "/proposals/gc/br_on_cast.wast",
         "/proposals/gc/br_on_cast_fail.wast",
-        "/proposals/gc/data.wast",
         "/proposals/gc/elem.wast",
         "/proposals/gc/extern.wast",
         "/proposals/gc/global.wast",
@@ -682,6 +681,7 @@ impl TestState {
                 _ => {}
             }
         }
+        log::debug!("features for {} = {features:#?}", test.display());
         Validator::new_with_features(features)
     }
 

@@ -287,6 +287,7 @@ impl ModuleState {
                 types,
                 module: &mut self.module,
             },
+            features,
         };
 
         let mut ops = expr.get_operators_reader();
@@ -309,6 +310,7 @@ impl ModuleState {
             ops: OperatorValidator,
             resources: OperatorValidatorResources<'a>,
             order: Order,
+            features: &'a WasmFeatures,
         }
 
         impl VisitConstOperator<'_> {
@@ -316,12 +318,15 @@ impl ModuleState {
                 self.ops.with_resources(&self.resources, self.offset)
             }
 
-            fn validate_extended_const(&mut self) -> Result<()> {
+            fn validate_extended_const(&mut self, op: &str) -> Result<()> {
                 if self.ops.features.extended_const {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        "constant expression required: non-constant operator",
+                        format!(
+                            "constant expression required: non-constant operator: {}",
+                            op
+                        ),
                         self.offset,
                     ))
                 }
@@ -330,7 +335,8 @@ impl ModuleState {
             fn validate_global(&mut self, index: u32) -> Result<()> {
                 let module = &self.resources.module;
                 let global = module.global_at(index, self.offset)?;
-                if index >= module.num_imported_globals {
+
+                if index >= module.num_imported_globals && !self.features.gc {
                     return Err(BinaryReaderError::new(
                         "constant expression required: global.get of locally defined global",
                         self.offset,
@@ -411,27 +417,27 @@ impl ModuleState {
 
             // These are valid const expressions when the extended-const proposal is enabled.
             (@visit $self:ident visit_i32_add) => {{
-                $self.validate_extended_const()?;
+                $self.validate_extended_const("i32.add")?;
                 $self.validator().visit_i32_add()
             }};
             (@visit $self:ident visit_i32_sub) => {{
-                $self.validate_extended_const()?;
+                $self.validate_extended_const("i32.sub")?;
                 $self.validator().visit_i32_sub()
             }};
             (@visit $self:ident visit_i32_mul) => {{
-                $self.validate_extended_const()?;
+                $self.validate_extended_const("i32.mul")?;
                 $self.validator().visit_i32_mul()
             }};
             (@visit $self:ident visit_i64_add) => {{
-                $self.validate_extended_const()?;
+                $self.validate_extended_const("i64.add")?;
                 $self.validator().visit_i64_add()
             }};
             (@visit $self:ident visit_i64_sub) => {{
-                $self.validate_extended_const()?;
+                $self.validate_extended_const("i64.sub")?;
                 $self.validator().visit_i64_sub()
             }};
             (@visit $self:ident visit_i64_mul) => {{
-                $self.validate_extended_const()?;
+                $self.validate_extended_const("i64.mul")?;
                 $self.validator().visit_i64_mul()
             }};
 
@@ -450,7 +456,7 @@ impl ModuleState {
 
             (@visit $self:ident $op:ident $($args:tt)*) => {{
                 Err(BinaryReaderError::new(
-                    "constant expression required: non-constant operator",
+                    format!("constant expression required: non-constant operator: {}", stringify!($op)),
                     $self.offset,
                 ))
             }}
