@@ -520,6 +520,7 @@ pub enum Instruction<'a> {
     RefNull(HeapType),
     RefIsNull,
     RefFunc(u32),
+    RefEq,
     RefAsNonNull,
 
     // GC types instructions.
@@ -1345,117 +1346,117 @@ impl Encode for Instruction<'_> {
                 sink.push(0xd2);
                 f.encode(sink);
             }
+            Instruction::RefEq => sink.push(0xd3),
             Instruction::RefAsNonNull => sink.push(0xd4),
 
             // GC instructions.
             Instruction::StructNew(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x00);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::StructNewDefault(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x01);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::StructGet(type_index, field_index) => {
                 sink.push(0xfb);
                 sink.push(0x02);
                 type_index.encode(sink);
-                field_index.encode(sink)
+                field_index.encode(sink);
             }
             Instruction::StructGetS(type_index, field_index) => {
                 sink.push(0xfb);
                 sink.push(0x03);
                 type_index.encode(sink);
-                field_index.encode(sink)
+                field_index.encode(sink);
             }
             Instruction::StructGetU(type_index, field_index) => {
                 sink.push(0xfb);
                 sink.push(0x04);
                 type_index.encode(sink);
-                field_index.encode(sink)
+                field_index.encode(sink);
             }
             Instruction::StructSet(type_index, field_index) => {
                 sink.push(0xfb);
                 sink.push(0x05);
                 type_index.encode(sink);
-                field_index.encode(sink)
+                field_index.encode(sink);
             }
-
             Instruction::ArrayNew(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x06);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayNewDefault(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x07);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayNewFixed(type_index, size) => {
                 sink.push(0xfb);
                 sink.push(0x08);
                 type_index.encode(sink);
-                size.encode(sink)
+                size.encode(sink);
             }
             Instruction::ArrayNewData(type_index, data_index) => {
                 sink.push(0xfb);
                 sink.push(0x09);
                 type_index.encode(sink);
-                data_index.encode(sink)
+                data_index.encode(sink);
             }
             Instruction::ArrayNewElem(type_index, elem_index) => {
                 sink.push(0xfb);
                 sink.push(0x0a);
                 type_index.encode(sink);
-                elem_index.encode(sink)
+                elem_index.encode(sink);
             }
             Instruction::ArrayGet(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x0b);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayGetS(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x0c);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayGetU(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x0d);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArraySet(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x0e);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayLen => {
                 sink.push(0xfb);
-                sink.push(0x0f)
+                sink.push(0x0f);
             }
             Instruction::ArrayFill(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x10);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayCopy(type_index) => {
                 sink.push(0xfb);
                 sink.push(0x11);
-                type_index.encode(sink)
+                type_index.encode(sink);
             }
             Instruction::ArrayInitData(type_index, data_index) => {
                 sink.push(0xfb);
                 sink.push(0x12);
                 type_index.encode(sink);
-                data_index.encode(sink)
+                data_index.encode(sink);
             }
             Instruction::ArrayInitElem(type_index, elem_index) => {
                 sink.push(0xfb);
                 sink.push(0x13);
                 type_index.encode(sink);
-                elem_index.encode(sink)
+                elem_index.encode(sink);
             }
             Instruction::RefTest(RefType {
                 nullable: false,
@@ -1463,7 +1464,7 @@ impl Encode for Instruction<'_> {
             }) => {
                 sink.push(0xfb);
                 sink.push(0x14);
-                heap_type.encode(sink)
+                heap_type.encode(sink);
             }
             Instruction::RefTest(RefType {
                 nullable: true,
@@ -1471,7 +1472,7 @@ impl Encode for Instruction<'_> {
             }) => {
                 sink.push(0xfb);
                 sink.push(0x15);
-                heap_type.encode(sink)
+                heap_type.encode(sink);
             }
             Instruction::RefCast(RefType {
                 nullable: false,
@@ -1479,7 +1480,7 @@ impl Encode for Instruction<'_> {
             }) => {
                 sink.push(0xfb);
                 sink.push(0x16);
-                heap_type.encode(sink)
+                heap_type.encode(sink);
             }
             Instruction::RefCast(RefType {
                 nullable: true,
@@ -1487,27 +1488,27 @@ impl Encode for Instruction<'_> {
             }) => {
                 sink.push(0xfb);
                 sink.push(0x17);
-                heap_type.encode(sink)
+                heap_type.encode(sink);
             }
             Instruction::AnyConvertExtern => {
                 sink.push(0xfb);
-                sink.push(0x1a)
+                sink.push(0x1a);
             }
             Instruction::ExternConvertAny => {
                 sink.push(0xfb);
-                sink.push(0x1b)
+                sink.push(0x1b);
             }
             Instruction::RefI31 => {
                 sink.push(0xfb);
-                sink.push(0x1c)
+                sink.push(0x1c);
             }
             Instruction::I31GetS => {
                 sink.push(0xfb);
-                sink.push(0x1d)
+                sink.push(0x1d);
             }
             Instruction::I31GetU => {
                 sink.push(0xfb);
-                sink.push(0x1e)
+                sink.push(0x1e);
             }
 
             // Bulk memory instructions.
