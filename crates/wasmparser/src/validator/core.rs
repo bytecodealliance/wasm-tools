@@ -332,6 +332,20 @@ impl ModuleState {
                 }
             }
 
+            fn validate_gc(&mut self, op: &str) -> Result<()> {
+                if self.features.gc {
+                    Ok(())
+                } else {
+                    Err(BinaryReaderError::new(
+                        format!(
+                            "constant expression required: non-constant operator: {}",
+                            op
+                        ),
+                        self.offset,
+                    ))
+                }
+            }
+
             fn validate_global(&mut self, index: u32) -> Result<()> {
                 let module = &self.resources.module;
                 let global = module.global_at(index, self.offset)?;
@@ -439,6 +453,13 @@ impl ModuleState {
             (@visit $self:ident visit_i64_mul) => {{
                 $self.validate_extended_const("i64.mul")?;
                 $self.validator().visit_i64_mul()
+            }};
+
+            // These are valid const expressions with the gc proposal is
+            // enabled.
+            (@visit $self:ident visit_ref_i31) => {{
+                $self.validate_gc("ref.i31")?;
+                $self.validator().visit_ref_i31()
             }};
 
             // `global.get` is a valid const expression for imported, immutable
