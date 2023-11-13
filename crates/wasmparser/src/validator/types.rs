@@ -2620,15 +2620,18 @@ impl TypeList {
     /// Is `a == b` or was `a` declared (potentially transitively) to be a
     /// subtype of `b`?
     pub fn id_is_subtype(&self, mut a: CoreTypeId, b: CoreTypeId) -> bool {
-        // TODO: maintain supertype vectors and implement this check in O(1)
-        // instead of O(n) time.
-        while let Some(aa) = self.supertype_of(a) {
-            if aa == b {
+        loop {
+            if a == b {
                 return true;
             }
-            a = aa;
+
+            // TODO: maintain supertype vectors and implement this check in O(1)
+            // instead of O(n) time.
+            a = match self.supertype_of(a) {
+                Some(a) => a,
+                None => return false,
+            };
         }
-        false
     }
 
     /// Like `id_is_subtype` but for `RefType`s.
