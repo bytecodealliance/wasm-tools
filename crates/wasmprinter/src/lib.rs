@@ -753,11 +753,12 @@ impl Printer {
         for ty in parser.into_iter_with_offsets() {
             let (offset, rec_group) = ty?;
             self.newline(offset);
-            if rec_group.types().len() == 1 {
+            if rec_group.is_explicit_rec_group() {
+                self.print_rec(state, offset, rec_group.into_types())?
+            } else {
+                assert_eq!(rec_group.types().len(), 1);
                 let ty = rec_group.into_types().next().unwrap();
                 self.print_type(state, ty)?;
-            } else {
-                self.print_rec(state, offset, rec_group.into_types())?
             }
         }
 

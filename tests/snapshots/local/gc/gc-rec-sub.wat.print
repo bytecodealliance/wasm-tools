@@ -1,15 +1,21 @@
 (module
-  (type (;0;) (func))
+  (rec
+    (type (;0;) (func))
+  )
   (rec
     (type (;1;) (func))
     (type (;2;) (func))
   )
-  (type (;3;) (struct))
+  (rec
+    (type (;3;) (struct))
+  )
   (rec
     (type (;4;) (struct))
     (type (;5;) (struct))
   )
-  (type (;6;) (array i32))
+  (rec
+    (type (;6;) (array i32))
+  )
   (rec
     (type (;7;) (array i32))
     (type (;8;) (array i32))
@@ -23,8 +29,12 @@
     (type $a (;12;) (sub (func)))
     (type (;13;) (sub $a (;12;) (func)))
   )
-  (type (;14;) (sub $a (;12;) (func)))
-  (type (;15;) (sub final $a (;12;) (func)))
+  (rec
+    (type (;14;) (sub $a (;12;) (func)))
+  )
+  (rec
+    (type (;15;) (sub final $a (;12;) (func)))
+  )
   (type (;16;) (sub $a (;12;) (func)))
   (rec
     (type $t1 (;17;) (struct (field (ref 18))))

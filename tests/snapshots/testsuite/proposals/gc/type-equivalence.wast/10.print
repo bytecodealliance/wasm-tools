@@ -1,6 +1,10 @@
 (module
-  (type $t1 (;0;) (func (result (ref null 0))))
-  (type $t2 (;1;) (func (result (ref null 1))))
+  (rec
+    (type $t1 (;0;) (func (result (ref null 0))))
+  )
+  (rec
+    (type $t2 (;1;) (func (result (ref null 1))))
+  )
   (type (;2;) (func))
   (func $f1 (;0;) (type $t1) (result (ref null 0))
     ref.null 0

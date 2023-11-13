@@ -3,7 +3,9 @@
     (type $f1 (;0;) (func))
     (type (;1;) (struct))
   )
-  (type $f2 (;2;) (func))
+  (rec
+    (type $f2 (;2;) (func))
+  )
   (type (;3;) (func))
   (func $f1 (;0;) (type $f1))
   (func (;1;) (type 3)
