@@ -504,9 +504,13 @@ impl Aliasable for AliasableResourceId {
 }
 
 impl AliasableResourceId {
-    /// Create a new instance with the specified resource and alias IDs.
-    pub fn new(id: ResourceId, alias_id: u32) -> Self {
-        Self { id, alias_id }
+    /// Create a new instance with the specified resource ID and `self`'s alias
+    /// ID.
+    pub fn with_resource_id(&self, id: ResourceId) -> Self {
+        Self {
+            id,
+            alias_id: self.alias_id,
+        }
     }
 
     /// Get the underlying resource.
@@ -3496,8 +3500,8 @@ impl Remapping {
         self.resources.insert(old, new);
     }
 
-    /// Clear any type remappings
-    pub fn reset(&mut self) {
+    /// Clear the type cache while leaving the resource mappings intact.
+    pub fn reset_type_cache(&mut self) {
         self.types.clear()
     }
 

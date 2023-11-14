@@ -15,10 +15,9 @@ use wasm_encoder::*;
 use wasmparser::{
     names::KebabString,
     types::{
-        self, Aliasable, AliasableResourceId, AnyTypeId, ComponentAnyTypeId,
-        ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedTypeId,
-        ComponentEntityType, ComponentFuncTypeId, ComponentInstanceTypeId, ComponentTypeId, Remap,
-        Remapping, ResourceId, SubtypeCx,
+        self, AnyTypeId, ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId,
+        ComponentDefinedTypeId, ComponentEntityType, ComponentFuncTypeId, ComponentInstanceTypeId,
+        ComponentTypeId, Remap, Remapping, ResourceId, SubtypeCx,
     },
     ComponentExternalKind,
 };
@@ -599,10 +598,9 @@ impl<'a> TypeEncoder<'a> {
             if let Some((component, id)) = state.remapping.get(&resource.resource()) {
                 let key = (
                     PtrKey(*component),
-                    AnyTypeId::Component(ComponentAnyTypeId::Resource(AliasableResourceId::new(
-                        *id,
-                        resource.alias_id(),
-                    ))),
+                    AnyTypeId::Component(ComponentAnyTypeId::Resource(
+                        resource.with_resource_id(*id),
+                    )),
                 );
                 if let Some(ret) = state.cur.type_defs.get(&key) {
                     return *ret;
@@ -878,13 +876,14 @@ impl<'a> TypeEncoder<'a> {
         if let Some(id) = id {
             // Update the index in the type map to point to this export
             let key = (PtrKey(self.0), id.into());
-            let prev = state
-                .cur
-                .type_defs
-                .insert(key, state.cur.encodable.type_count());
+            let value = state.cur.encodable.type_count();
+            let prev = state.cur.type_defs.insert(key, value);
             // Resource aliases will already have been added to the table, but
             // other types should not have been:
-            assert!(prev.is_none() || matches!(id, ComponentAnyTypeId::Resource(_)));
+            assert!(
+                prev.is_none()
+                    || (matches!(id, ComponentAnyTypeId::Resource(_)) && prev == Some(value))
+            );
             state.cur.add_type_export(key, name);
         }
         export
@@ -1029,11 +1028,11 @@ impl ArgumentImport<'_> {
             SubtypeCx::new_with_refs(existing_component.types(), new_component.types());
         let mut a_ty = existing_type;
         context.a.remap_component_entity(&mut a_ty, remapping);
-        remapping.reset();
+        remapping.reset_type_cache();
 
         let mut b_ty = new_type;
         context.b.remap_component_entity(&mut b_ty, remapping);
-        remapping.reset();
+        remapping.reset_type_cache();
 
         if context.component_entity_type(&a_ty, &b_ty, 0).is_err() {
             return false;

@@ -12,7 +12,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::IndexMap;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 use wasmparser::{
-    types::{ComponentEntityType, ComponentInstanceTypeId, Remap, SubtypeCx, TypesRef},
+    types::{ComponentEntityType, ComponentInstanceTypeId, TypesRef},
     ComponentExternalKind, ComponentTypeRef,
 };
 
@@ -198,7 +198,6 @@ impl<'a> CompositionGraphBuilder<'a> {
         instance: usize,
         dependent: usize,
         arg_name: &str,
-        import_component_id: ComponentId,
         ty: ComponentInstanceTypeId,
         types: TypesRef,
     ) -> Result<Option<ExportIndex>> {
@@ -216,7 +215,7 @@ impl<'a> CompositionGraphBuilder<'a> {
 
         log::debug!("searching for compatible export from instance `{instance_name}` for argument `{arg_name}` of instance `{dependent_name}`");
 
-        let export = component.find_compatible_export(import_component_id, ty, types, component_id, &self.graph).ok_or_else(|| {
+        let export = component.find_compatible_export(ty, types, component_id, &self.graph).ok_or_else(|| {
             anyhow!(
                 "component `{path}` is not compatible with import `{arg_name}` of component `{dependent_path}`",
                 path = component.path().unwrap().display(),
@@ -242,7 +241,6 @@ impl<'a> CompositionGraphBuilder<'a> {
         instance: usize,
         dependent_path: &Path,
         arg_name: &str,
-        import_component_id: ComponentId,
         ty: ComponentInstanceTypeId,
         types: TypesRef,
     ) -> Result<ExportIndex> {
@@ -252,47 +250,23 @@ impl<'a> CompositionGraphBuilder<'a> {
         match component.export_by_name(export) {
             Some((export_index, kind, index)) if kind == ComponentExternalKind::Instance => {
                 let export_ty = component.types.component_instance_at(index);
-                let resource_mapping = self.graph.resource_mapping.borrow().clone();
 
-                let error = || {
-                    Err(anyhow!(
+                if self.graph.is_subtype_of(
+                    component_id,
+                    ComponentEntityType::Instance(export_ty),
+                    component.types(),
+                    ComponentEntityType::Instance(ty),
+                    types,
+                ) {
+                    Ok(export_index)
+                } else {
+                    bail!(
                         "component `{path}` exports an instance named `{export}` \
                          but it is not compatible with import `{arg_name}` \
                          of component `{dependent_path}`",
                         path = component.path().unwrap().display(),
                         dependent_path = dependent_path.display(),
-                    ))
-                };
-
-                let mut a_ty = ComponentEntityType::Instance(export_ty);
-                let mut b_ty = ComponentEntityType::Instance(ty);
-
-                if let Some(resource_mapping) = resource_mapping.add_pairs(
-                    component_id,
-                    a_ty,
-                    component.types(),
-                    import_component_id,
-                    b_ty,
-                    types,
-                ) {
-                    let remapping = &mut resource_mapping.remapping();
-                    let mut context = SubtypeCx::new_with_refs(component.types(), types);
-
-                    context.b.remap_component_entity(&mut b_ty, remapping);
-                    remapping.reset();
-
-                    context.a.remap_component_entity(&mut a_ty, remapping);
-                    remapping.reset();
-
-                    if context.component_entity_type(&a_ty, &b_ty, 0).is_err() {
-                        return error();
-                    }
-
-                    *self.graph.resource_mapping.borrow_mut() = resource_mapping;
-
-                    Ok(export_index)
-                } else {
-                    return error();
+                    )
                 }
             }
             _ => bail!(
@@ -390,7 +364,6 @@ impl<'a> CompositionGraphBuilder<'a> {
                         instance,
                         dependent.path().unwrap(),
                         import_name,
-                        import.component,
                         import_type,
                         dependent.types(),
                     )?),
@@ -398,7 +371,6 @@ impl<'a> CompositionGraphBuilder<'a> {
                         instance,
                         dependent_index,
                         import_name,
-                        import.component,
                         import_type,
                         dependent.types(),
                     )?,

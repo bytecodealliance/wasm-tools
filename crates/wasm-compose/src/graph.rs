@@ -271,7 +271,6 @@ impl<'a> Component<'a> {
     /// Finds a compatible instance export on the component for the given instance type.
     pub(crate) fn find_compatible_export(
         &self,
-        import_component_id: ComponentId,
         ty: ComponentInstanceTypeId,
         types: TypesRef,
         export_component_id: ComponentId,
@@ -284,38 +283,13 @@ impl<'a> Component<'a> {
                     return false;
                 }
 
-                let mut a_ty =
-                    ComponentEntityType::Instance(self.types.component_instance_at(*index));
-                let mut b_ty = ComponentEntityType::Instance(ty);
-
-                let resource_mapping = graph.resource_mapping.borrow().clone();
-
-                if let Some(resource_mapping) = resource_mapping.add_pairs(
+                graph.is_subtype_of(
                     export_component_id,
-                    a_ty,
+                    ComponentEntityType::Instance(self.types.component_instance_at(*index)),
                     self.types(),
-                    import_component_id,
-                    b_ty,
+                    ComponentEntityType::Instance(ty),
                     types,
-                ) {
-                    let remapping = &mut resource_mapping.remapping();
-                    let mut context = SubtypeCx::new_with_refs(self.types(), types);
-
-                    context.b.remap_component_entity(&mut b_ty, remapping);
-                    remapping.reset();
-
-                    context.a.remap_component_entity(&mut a_ty, remapping);
-                    remapping.reset();
-
-                    if context.component_entity_type(&a_ty, &b_ty, 0).is_ok() {
-                        *graph.resource_mapping.borrow_mut() = resource_mapping;
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
+                )
             })
             .map(ExportIndex)
     }
@@ -478,12 +452,11 @@ pub(crate) struct ResourceMapping {
 }
 
 impl ResourceMapping {
-    pub(crate) fn add_pairs(
+    fn add_pairs(
         mut self,
         export_component: ComponentId,
         export_type: ComponentEntityType,
         export_types: TypesRef,
-        _import_component: ComponentId,
         import_type: ComponentEntityType,
         import_types: TypesRef,
     ) -> Option<Self> {
@@ -572,6 +545,14 @@ impl<'a> CompositionGraph<'a> {
         Self::default()
     }
 
+    /// Gather any remaining resource imports which have not already been
+    /// connected to exports, group them by name, and update the resource
+    /// mapping to make all resources within each group equivalent.
+    ///
+    /// This should be the last step prior to encoding, after all
+    /// inter-component connections have been made.  It ensures that each set of
+    /// identical imports composed component can be merged into a single import
+    /// in the output component.
     pub(crate) fn unify_imported_resources(&self) {
         let mut resource_mapping = self.resource_mapping.borrow_mut();
 
@@ -615,6 +596,50 @@ impl<'a> CompositionGraph<'a> {
                     }
                 }
             }
+        }
+    }
+
+    pub(crate) fn is_subtype_of(
+        &self,
+        export_component: ComponentId,
+        mut export_type: ComponentEntityType,
+        export_types: TypesRef,
+        mut import_type: ComponentEntityType,
+        import_types: TypesRef,
+    ) -> bool {
+        let resource_mapping = self.resource_mapping.borrow().clone();
+
+        if let Some(resource_mapping) = resource_mapping.add_pairs(
+            export_component,
+            export_type,
+            export_types,
+            import_type,
+            import_types,
+        ) {
+            let remapping = &mut resource_mapping.remapping();
+            let mut context = SubtypeCx::new_with_refs(export_types, import_types);
+
+            context
+                .a
+                .remap_component_entity(&mut export_type, remapping);
+            remapping.reset_type_cache();
+
+            context
+                .b
+                .remap_component_entity(&mut import_type, remapping);
+            remapping.reset_type_cache();
+
+            if context
+                .component_entity_type(&export_type, &import_type, 0)
+                .is_ok()
+            {
+                *self.resource_mapping.borrow_mut() = resource_mapping;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
         }
     }
 
@@ -911,38 +936,19 @@ impl<'a> CompositionGraph<'a> {
                 .export_entity_type(export_index)
                 .ok_or_else(|| anyhow!("the source export index is invalid"))?;
 
-            let resource_mapping = self.resource_mapping.borrow().clone();
-
-            if let Some(resource_mapping) = resource_mapping.add_pairs(
+            if !self.is_subtype_of(
                 source_instance.component,
                 export_ty,
                 source_component.types(),
-                target_instance.component,
                 import_ty,
                 target_component.types(),
             ) {
-                let remapping = &mut resource_mapping.remapping();
-                let mut context =
-                    SubtypeCx::new_with_refs(source_component.types(), target_component.types());
-
-                let mut a_ty = export_ty;
-                context.a.remap_component_entity(&mut a_ty, remapping);
-                remapping.reset();
-
-                let mut b_ty = import_ty;
-                context.b.remap_component_entity(&mut b_ty, remapping);
-                remapping.reset();
-
-                if context.component_entity_type(&a_ty, &b_ty, 0).is_err() {
-                    bail!(
-                        "source {export_ty} export `{export_name}` is not compatible with target \
+                bail!(
+                    "source {export_ty} export `{export_name}` is not compatible with target \
                          {import_ty} import `{import_name}`",
-                        export_ty = type_desc(export_ty),
-                        import_ty = type_desc(import_ty),
-                    );
-                }
-
-                *self.resource_mapping.borrow_mut() = resource_mapping;
+                    export_ty = type_desc(export_ty),
+                    import_ty = type_desc(import_ty),
+                );
             }
         } else {
             let ty = match import_ty {
