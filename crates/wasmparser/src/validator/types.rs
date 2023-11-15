@@ -504,6 +504,15 @@ impl Aliasable for AliasableResourceId {
 }
 
 impl AliasableResourceId {
+    /// Create a new instance with the specified resource ID and `self`'s alias
+    /// ID.
+    pub fn with_resource_id(&self, id: ResourceId) -> Self {
+        Self {
+            id,
+            alias_id: self.alias_id,
+        }
+    }
+
     /// Get the underlying resource.
     pub fn resource(&self) -> ResourceId {
         self.id
@@ -1450,7 +1459,7 @@ pub struct ResourceId {
     //
     // The 32-bit storage here should ideally be enough for any component
     // containing resources. If memory usage becomes an issue (this struct is
-    // 12 bytes instead of 8 or 4) then this coudl get folded into the globally
+    // 12 bytes instead of 8 or 4) then this could get folded into the globally
     // unique id with everything using an atomic increment perhaps.
     contextually_unique_id: u32,
 }
@@ -3197,7 +3206,7 @@ impl TypeAlloc {
 ///
 /// This currently exists to abstract over `TypeAlloc` and `SubtypeArena` which
 /// both need to perform remapping operations.
-pub(crate) trait Remap
+pub trait Remap
 where
     Self: Index<ComponentTypeId, Output = ComponentType>,
     Self: Index<ComponentDefinedTypeId, Output = ComponentDefinedType>,
@@ -3210,10 +3219,12 @@ where
     where
         T: TypeData;
 
+    /// Apply `map` to the keys of `tmp`, setting `*any_changed = true` if any
+    /// keys were remapped.
     fn map_map(
         tmp: &mut IndexMap<ResourceId, Vec<usize>>,
         any_changed: &mut bool,
-        map: &mut Remapping,
+        map: &Remapping,
     ) {
         for (id, path) in mem::take(tmp) {
             let id = match map.resources.get(&id) {
@@ -3227,6 +3238,9 @@ where
         }
     }
 
+    /// If `any_changed` is true, push `ty`, update `map` to point `id` to the
+    /// new type ID, set `id` equal to the new type ID, and return `true`.
+    /// Otherwise, update `map` to point `id` to itself and return `false`.
     fn insert_if_any_changed<T>(
         &mut self,
         map: &mut Remapping,
@@ -3245,6 +3259,9 @@ where
         changed
     }
 
+    /// Recursively search for any resource types reachable from `id`, updating
+    /// it and `map` if any are found and remapped, returning `true` iff at last
+    /// one is remapped.
     fn remap_component_any_type_id(
         &mut self,
         id: &mut ComponentAnyTypeId,
@@ -3259,7 +3276,9 @@ where
         }
     }
 
-    fn remap_resource_id(&mut self, id: &mut AliasableResourceId, map: &mut Remapping) -> bool {
+    /// If `map` indicates `id` should be remapped, update it and return `true`.
+    /// Otherwise, do nothing and return `false`.
+    fn remap_resource_id(&mut self, id: &mut AliasableResourceId, map: &Remapping) -> bool {
         if let Some(changed) = map.remap_id(id) {
             return changed;
         }
@@ -3273,6 +3292,9 @@ where
         }
     }
 
+    /// Recursively search for any resource types reachable from `id`, updating
+    /// it and `map` if any are found and remapped, returning `true` iff at last
+    /// one is remapped.
     fn remap_component_type_id(&mut self, id: &mut ComponentTypeId, map: &mut Remapping) -> bool {
         if let Some(changed) = map.remap_id(id) {
             return changed;
@@ -3297,6 +3319,9 @@ where
         self.insert_if_any_changed(map, any_changed, id, ty)
     }
 
+    /// Recursively search for any resource types reachable from `id`, updating
+    /// it and `map` if any are found and remapped, returning `true` iff at last
+    /// one is remapped.
     fn remap_component_defined_type_id(
         &mut self,
         id: &mut ComponentDefinedTypeId,
@@ -3347,6 +3372,9 @@ where
         self.insert_if_any_changed(map, any_changed, id, tmp)
     }
 
+    /// Recursively search for any resource types reachable from `id`, updating
+    /// it and `map` if any are found and remapped, returning `true` iff at last
+    /// one is remapped.
     fn remap_component_instance_type_id(
         &mut self,
         id: &mut ComponentInstanceTypeId,
@@ -3371,6 +3399,9 @@ where
         self.insert_if_any_changed(map, any_changed, id, tmp)
     }
 
+    /// Recursively search for any resource types reachable from `id`, updating
+    /// it and `map` if any are found and remapped, returning `true` iff at last
+    /// one is remapped.
     fn remap_component_func_type_id(
         &mut self,
         id: &mut ComponentFuncTypeId,
@@ -3432,8 +3463,10 @@ where
     }
 }
 
+/// Utility for mapping equivalent `ResourceId`s to each other and (when paired with the `Remap` trait)
+/// non-destructively edit type lists to reflect those mappings.
 #[derive(Debug, Default)]
-pub(crate) struct Remapping {
+pub struct Remapping {
     /// A mapping from old resource ID to new resource ID.
     pub(crate) resources: HashMap<ResourceId, ResourceId>,
 
@@ -3465,6 +3498,16 @@ where
 }
 
 impl Remapping {
+    /// Add a mapping from the specified old resource ID to the new resource ID
+    pub fn add(&mut self, old: ResourceId, new: ResourceId) {
+        self.resources.insert(old, new);
+    }
+
+    /// Clear the type cache while leaving the resource mappings intact.
+    pub fn reset_type_cache(&mut self) {
+        self.types.clear()
+    }
+
     fn remap_id<T>(&self, id: &mut T) -> Option<bool>
     where
         T: Copy + Into<ComponentAnyTypeId> + TryFrom<ComponentAnyTypeId>,
@@ -3499,12 +3542,19 @@ impl Remapping {
 /// Note that this subtyping context also explicitly supports being created
 /// from to different lists `a` and `b` originally, for testing subtyping
 /// between two different components for example.
-pub(crate) struct SubtypeCx<'a> {
-    pub(crate) a: SubtypeArena<'a>,
-    pub(crate) b: SubtypeArena<'a>,
+pub struct SubtypeCx<'a> {
+    /// Lookup arena for first type argument
+    pub a: SubtypeArena<'a>,
+    /// Lookup arena for second type argument
+    pub b: SubtypeArena<'a>,
 }
 
 impl<'a> SubtypeCx<'a> {
+    /// Create a new instance with the specified type lists
+    pub fn new_with_refs(a: TypesRef<'a>, b: TypesRef<'a>) -> SubtypeCx<'a> {
+        Self::new(a.list, b.list)
+    }
+
     pub(crate) fn new(a: &'a TypeList, b: &'a TypeList) -> SubtypeCx<'a> {
         SubtypeCx {
             a: SubtypeArena::new(a),
@@ -3512,7 +3562,8 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
-    fn swap(&mut self) {
+    /// Swap the type lists
+    pub fn swap(&mut self) {
         mem::swap(&mut self.a, &mut self.b);
     }
 
@@ -3564,6 +3615,9 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
+    /// Tests whether `a` is a subtype of `b`.
+    ///
+    /// Errors are reported at the `offset` specified.
     pub fn component_type(
         &mut self,
         a: ComponentTypeId,
@@ -3646,6 +3700,9 @@ impl<'a> SubtypeCx<'a> {
         })
     }
 
+    /// Tests whether `a` is a subtype of `b`.
+    ///
+    /// Errors are reported at the `offset` specified.
     pub fn component_instance_type(
         &mut self,
         a_id: ComponentInstanceTypeId,
@@ -3679,6 +3736,9 @@ impl<'a> SubtypeCx<'a> {
         Ok(())
     }
 
+    /// Tests whether `a` is a subtype of `b`.
+    ///
+    /// Errors are reported at the `offset` specified.
     pub fn component_func_type(
         &mut self,
         a: ComponentFuncTypeId,
@@ -3751,6 +3811,9 @@ impl<'a> SubtypeCx<'a> {
         Ok(())
     }
 
+    /// Tests whether `a` is a subtype of `b`.
+    ///
+    /// Errors are reported at the `offset` specified.
     pub fn module_type(
         &mut self,
         a: ComponentCoreModuleTypeId,
@@ -3787,6 +3850,9 @@ impl<'a> SubtypeCx<'a> {
         Ok(())
     }
 
+    /// Tests whether `a` is a subtype of `b`.
+    ///
+    /// Errors are reported at the `offset` specified.
     pub fn component_any_type_id(
         &mut self,
         a: ComponentAnyTypeId,
@@ -3798,7 +3864,12 @@ impl<'a> SubtypeCx<'a> {
                 if a.resource() == b.resource() {
                     Ok(())
                 } else {
-                    bail!(offset, "resource types are not the same")
+                    bail!(
+                        offset,
+                        "resource types are not the same ({:?} vs. {:?})",
+                        a.resource(),
+                        b.resource()
+                    )
                 }
             }
             (ComponentAnyTypeId::Resource(_), b) => {
@@ -4297,7 +4368,7 @@ impl<'a> SubtypeCx<'a> {
 /// This is intended to have arena-like behavior where everything pushed onto
 /// `self.list` is thrown away after a subtyping computation is performed. All
 /// new types pushed into this arena are purely temporary.
-pub(crate) struct SubtypeArena<'a> {
+pub struct SubtypeArena<'a> {
     types: &'a TypeList,
     list: TypeList,
 }

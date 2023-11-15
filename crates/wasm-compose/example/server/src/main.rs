@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use tide::{
@@ -12,11 +13,15 @@ use tide::{
 use wasmtime::{component::*, Config, Engine, Store};
 use wasmtime_wasi::preview2::{command, Table, WasiCtx, WasiCtxBuilder, WasiView};
 
-use exports::example::service::*;
+use example::service::{
+    logging::{self, HostLogger},
+    types::{self, HostRequest, HostResponse},
+};
+use exports::example::service::handler;
 
 wasmtime::component::bindgen!({
     path: "../service.wit",
-    world: "service",
+    world: "service-for-host",
     async: true
 });
 
@@ -41,23 +46,6 @@ impl State {
         let engine = Engine::new(&config)?;
         let component = Component::from_file(&engine, path)?;
         Ok(Self { engine, component })
-    }
-}
-
-impl TryFrom<handler::Response> for tide::Response {
-    type Error = tide::Error;
-
-    fn try_from(r: handler::Response) -> Result<Self, Self::Error> {
-        // Convert the service response to a tide response
-        let mut builder = tide::Response::builder(StatusCode::Ok);
-        for (name, value) in r.headers {
-            builder = builder.header(
-                HeaderName::from_bytes(name)?,
-                HeaderValue::from_bytes(value)?,
-            );
-        }
-        builder = builder.body(r.body);
-        Ok(builder.build())
     }
 }
 
@@ -130,17 +118,38 @@ impl ServerApp {
         let state = req.state();
         let mut linker = Linker::new(&state.engine);
         command::add_to_linker(&mut linker)?;
+        ServiceForHost::add_to_linker(&mut linker, |view| view)?;
 
-        let wasi_view = ServerWasiView::new()?;
+        let wasi_view = ServerWasiView::new();
         let mut store = Store::new(&state.engine, wasi_view);
         let (service, _) =
-            Service::instantiate_async(&mut store, &state.component, &linker).await?;
-        service
+            ServiceForHost::instantiate_async(&mut store, &state.component, &linker).await?;
+        let request = Resource::<types::Request>::new_own(
+            store
+                .data_mut()
+                .table_mut()
+                .push(Box::new(MyRequest { headers, body }))?,
+        );
+        let response = service
             .example_service_handler()
-            .call_execute(&mut store, &handler::Request { headers, body })
+            .call_execute(&mut store, request)
             .await?
-            .map(TryInto::try_into)
-            .map_err(handler::Error::into_tide)?
+            .map_err(handler::Error::into_tide)?;
+
+        let response = store
+            .data_mut()
+            .table_mut()
+            .delete::<MyResponse>(response.rep())?;
+
+        let mut builder = tide::Response::builder(StatusCode::Ok);
+        for (name, value) in response.headers {
+            builder = builder.header(
+                HeaderName::from_bytes(name)?,
+                HeaderValue::from_bytes(value)?,
+            );
+        }
+        builder = builder.body(response.body);
+        Ok(builder.build())
     }
 }
 
@@ -150,11 +159,11 @@ struct ServerWasiView {
 }
 
 impl ServerWasiView {
-    fn new() -> Result<Self, anyhow::Error> {
-        let mut table = Table::new();
-        let ctx = WasiCtxBuilder::new().inherit_stdio().build(&mut table)?;
+    fn new() -> Self {
+        let table = Table::new();
+        let ctx = WasiCtxBuilder::new().inherit_stdio().build();
 
-        Ok(Self { table, ctx })
+        Self { table, ctx }
     }
 }
 
@@ -173,6 +182,115 @@ impl WasiView for ServerWasiView {
 
     fn ctx_mut(&mut self) -> &mut WasiCtx {
         &mut self.ctx
+    }
+}
+
+struct MyRequest {
+    headers: Vec<(Vec<u8>, Vec<u8>)>,
+    body: Vec<u8>,
+}
+
+#[async_trait]
+impl HostRequest for ServerWasiView {
+    async fn new(
+        &mut self,
+        headers: Vec<(Vec<u8>, Vec<u8>)>,
+        body: Vec<u8>,
+    ) -> anyhow::Result<Resource<types::Request>> {
+        Ok(Resource::new_own(
+            self.table_mut()
+                .push(Box::new(MyRequest { headers, body }))?,
+        ))
+    }
+
+    async fn headers(
+        &mut self,
+        this: Resource<types::Request>,
+    ) -> anyhow::Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        Ok(self.table().get::<MyRequest>(this.rep())?.headers.clone())
+    }
+
+    async fn body(&mut self, this: Resource<types::Request>) -> anyhow::Result<Vec<u8>> {
+        Ok(self.table().get::<MyRequest>(this.rep())?.body.clone())
+    }
+
+    fn drop(&mut self, this: Resource<types::Request>) -> anyhow::Result<()> {
+        Ok(self
+            .table_mut()
+            .delete::<MyRequest>(this.rep())
+            .map(|_| ())?)
+    }
+}
+
+struct MyResponse {
+    headers: Vec<(Vec<u8>, Vec<u8>)>,
+    body: Vec<u8>,
+}
+
+#[async_trait]
+impl HostResponse for ServerWasiView {
+    async fn new(
+        &mut self,
+        headers: Vec<(Vec<u8>, Vec<u8>)>,
+        body: Vec<u8>,
+    ) -> anyhow::Result<Resource<types::Response>> {
+        Ok(Resource::new_own(
+            self.table_mut()
+                .push(Box::new(MyResponse { headers, body }))?,
+        ))
+    }
+
+    async fn headers(
+        &mut self,
+        this: Resource<types::Response>,
+    ) -> anyhow::Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        Ok(self.table().get::<MyResponse>(this.rep())?.headers.clone())
+    }
+
+    async fn body(&mut self, this: Resource<types::Response>) -> anyhow::Result<Vec<u8>> {
+        Ok(self.table().get::<MyResponse>(this.rep())?.body.clone())
+    }
+
+    fn drop(&mut self, this: Resource<types::Response>) -> anyhow::Result<()> {
+        Ok(self
+            .table_mut()
+            .delete::<MyResponse>(this.rep())
+            .map(|_| ())?)
+    }
+}
+
+impl types::Host for ServerWasiView {}
+
+struct MyLogger;
+
+#[async_trait]
+impl HostLogger for ServerWasiView {
+    async fn log(
+        &mut self,
+        this: Resource<logging::Logger>,
+        message: String,
+    ) -> anyhow::Result<()> {
+        self.table().get::<MyLogger>(this.rep())?;
+
+        println!("host logger: {message}");
+
+        Ok(())
+    }
+
+    fn drop(&mut self, this: Resource<logging::Logger>) -> anyhow::Result<()> {
+        Ok(self
+            .table_mut()
+            .delete::<MyLogger>(this.rep())
+            .map(|_| ())?)
+    }
+}
+
+#[async_trait]
+impl logging::Host for ServerWasiView {
+    async fn get_logger(&mut self) -> anyhow::Result<Resource<logging::Logger>> {
+        Ok(Resource::new_own(
+            self.table_mut().push(Box::new(MyLogger))?,
+        ))
     }
 }
 

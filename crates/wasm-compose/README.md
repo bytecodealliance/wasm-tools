@@ -34,7 +34,7 @@ has implementation efforts underway to support it.__
 
 ## Usage
 
-To composed a component, run the `compose` command:
+To compose a component, run the `compose` command:
 
 ```sh
 wasm-tools compose -o composed.wasm component.wasm

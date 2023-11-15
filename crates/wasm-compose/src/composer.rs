@@ -202,7 +202,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         types: TypesRef,
     ) -> Result<Option<ExportIndex>> {
         let (instance_name, instance_id) = self.instances.get_index(instance).unwrap();
-        let (_, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
+        let (component_id, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
 
         let (dependent_name, dependent_instance_id) = self.instances.get_index(dependent).unwrap();
 
@@ -215,7 +215,7 @@ impl<'a> CompositionGraphBuilder<'a> {
 
         log::debug!("searching for compatible export from instance `{instance_name}` for argument `{arg_name}` of instance `{dependent_name}`");
 
-        let export = component.find_compatible_export(ty, types).ok_or_else(|| {
+        let export = component.find_compatible_export(ty, types, component_id, &self.graph).ok_or_else(|| {
             anyhow!(
                 "component `{path}` is not compatible with import `{arg_name}` of component `{dependent_path}`",
                 path = component.path().unwrap().display(),
@@ -245,23 +245,29 @@ impl<'a> CompositionGraphBuilder<'a> {
         types: TypesRef,
     ) -> Result<ExportIndex> {
         let (_, instance_id) = self.instances.get_index(instance).unwrap();
-        let (_, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
+        let (component_id, component) = self.graph.get_component_of_instance(*instance_id).unwrap();
+
         match component.export_by_name(export) {
             Some((export_index, kind, index)) if kind == ComponentExternalKind::Instance => {
                 let export_ty = component.types.component_instance_at(index);
-                if !ComponentEntityType::is_subtype_of(
-                    &ComponentEntityType::Instance(export_ty),
+
+                if self.graph.try_connection(
+                    component_id,
+                    ComponentEntityType::Instance(export_ty),
                     component.types(),
-                    &ComponentEntityType::Instance(ty),
+                    ComponentEntityType::Instance(ty),
                     types,
                 ) {
-                    bail!("component `{path}` exports an instance named `{export}` but it is not compatible with import `{arg_name}` of component `{dependent_path}`",
+                    Ok(export_index)
+                } else {
+                    bail!(
+                        "component `{path}` exports an instance named `{export}` \
+                         but it is not compatible with import `{arg_name}` \
+                         of component `{dependent_path}`",
                         path = component.path().unwrap().display(),
                         dependent_path = dependent_path.display(),
                     )
                 }
-
-                Ok(export_index)
             }
             _ => bail!(
                 "component `{path}` does not export an instance named `{export}`",
@@ -496,6 +502,8 @@ impl<'a> CompositionGraphBuilder<'a> {
                 self.push_dependencies(instance, &mut queue)?;
             }
         }
+
+        self.graph.unify_imported_resources();
 
         Ok((self.instances[root_instance], self.graph))
     }

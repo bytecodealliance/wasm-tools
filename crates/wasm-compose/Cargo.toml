@@ -23,6 +23,7 @@ log = { workspace = true }
 serde_yaml = "0.9.22"
 smallvec = "1.10.0"
 heck = "0.4.0"
+im-rc = "15.1.0"
 
 [dev-dependencies]
 glob = "0.3.0"

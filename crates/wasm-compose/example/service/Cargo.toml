@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-cargo-component-bindings = { git = "https://github.com/bytecodealliance/cargo-component" }
+cargo-component-bindings = "0.4.0"
 
 [lib]
 crate-type = ["cdylib"]
