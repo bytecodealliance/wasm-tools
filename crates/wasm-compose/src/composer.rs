@@ -251,7 +251,7 @@ impl<'a> CompositionGraphBuilder<'a> {
             Some((export_index, kind, index)) if kind == ComponentExternalKind::Instance => {
                 let export_ty = component.types.component_instance_at(index);
 
-                if self.graph.is_subtype_of(
+                if self.graph.try_connection(
                     component_id,
                     ComponentEntityType::Instance(export_ty),
                     component.types(),

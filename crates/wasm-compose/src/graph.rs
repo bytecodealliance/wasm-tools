@@ -283,7 +283,7 @@ impl<'a> Component<'a> {
                     return false;
                 }
 
-                graph.is_subtype_of(
+                graph.try_connection(
                     export_component_id,
                     ComponentEntityType::Instance(self.types.component_instance_at(*index)),
                     self.types(),
@@ -599,7 +599,20 @@ impl<'a> CompositionGraph<'a> {
         }
     }
 
-    pub(crate) fn is_subtype_of(
+    /// Attempt to connect the specified import to the specified export.
+    ///
+    /// This will attempt to match up any resource types by name by name and
+    /// optimistically produce a remapping that sets identically-named pairs
+    /// equal to each other, provided that remapping does not contradict any
+    /// previous remappings.  If the import is not a subtype of the export
+    /// (either because a consistent remapping could not be created or because
+    /// the instances were incompatible for other reasons), we discard the
+    /// remapping changes and return `false`.  Otherwise, we store the remapping
+    /// changes and return `true`.
+    ///
+    /// Note that although this method takes a shared reference, it uses
+    /// internal mutability to update the remapping.
+    pub(crate) fn try_connection(
         &self,
         export_component: ComponentId,
         mut export_type: ComponentEntityType,
@@ -936,7 +949,7 @@ impl<'a> CompositionGraph<'a> {
                 .export_entity_type(export_index)
                 .ok_or_else(|| anyhow!("the source export index is invalid"))?;
 
-            if !self.is_subtype_of(
+            if !self.try_connection(
                 source_instance.component,
                 export_ty,
                 source_component.types(),
