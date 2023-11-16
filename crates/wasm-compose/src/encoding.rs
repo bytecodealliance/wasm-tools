@@ -408,14 +408,16 @@ impl<'a> TypeEncoder<'a> {
             }
             wasmparser::types::ComponentEntityType::Type {
                 created: created @ ComponentAnyTypeId::Resource(_),
-                ..
-            } if AnyTypeId::from(created).peel_alias(&self.0.types).is_none() => {
-                ComponentTypeRef::Type(TypeBounds::SubResource)
+                referenced,
+            } => {
+                if created == referenced {
+                    log::trace!("creation of a new resource");
+                    ComponentTypeRef::Type(TypeBounds::SubResource)
+                } else {
+                    log::trace!("alias of an existing resource");
+                    ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, referenced.into())))
+                }
             }
-            wasmparser::types::ComponentEntityType::Type {
-                created: created @ ComponentAnyTypeId::Resource(_),
-                ..
-            } => ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, created.into()))),
             wasmparser::types::ComponentEntityType::Type { referenced, .. } => {
                 ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, referenced.into())))
             }
@@ -616,22 +618,23 @@ impl<'a> TypeEncoder<'a> {
 
     // Inner version of `ty` above which is a separate method to make it easier
     // to use `return` and not thwart the caching above.
-    fn _ty(&self, state: &mut TypeState<'a>, id: AnyTypeId) -> u32 {
-        // Before encoding the type or looking for something to alias, first
-        // determine if the type has already been created but under a different
-        // name. This can happen where one component's view of an imported
-        // instance may be partial and then unioned with another component's
-        // view of an imported instance. The second instance should reuse all
-        // the types defined/exported by the first.
-        //
-        // Here the reverse-export map is consulted where if `key` is an
-        // exported type from this instance (which is registered in "parallel"
-        // when one of those is encountered for all components) then search
-        // with the exported name if any other component has a type definition
-        // for their own version of our `id`.
-        let mut cur = id;
+    fn _ty(&self, state: &mut TypeState<'a>, mut id: AnyTypeId) -> u32 {
+        // This loop will walk the "alias chain" starting at `id` which will
+        // eventually reach the definition of `id`.
         loop {
-            let key = (PtrKey(self.0), cur);
+            let key = (PtrKey(self.0), id);
+
+            // First see if this `id` has already been defined under a different
+            // name. This can happen where one component's view of an imported
+            // instance may be partial and then unioned with another component's
+            // view of an imported instance. The second instance should reuse
+            // all the types defined/exported by the first.
+            //
+            // Here the reverse-export map is consulted where if `key` as an
+            // exported type from this instance (which is registered in
+            // "parallel" when one of those is encountered for all components)
+            // then search with the exported name if any other component has a
+            // type definition for their own version of our `id`.
             if let Some(name) = state.cur.type_exports.get(&key) {
                 for key in state.cur.type_exports_rev[name].iter() {
                     if let Some(ret) = state.cur.type_defs.get(key) {
@@ -641,41 +644,10 @@ impl<'a> TypeEncoder<'a> {
                 }
             }
 
-            if let Some(next) = cur.peel_alias(&self.0.types) {
-                cur = next;
-            } else {
-                break;
-            }
-        }
-
-        // If `id` is not an alias to anything else then it's a defined type in
-        // this scope meaning that it needs to be translated and represented
-        // here.
-        if id.peel_alias(&self.0.types).is_none() {
-            return match id {
-                AnyTypeId::Core(ComponentCoreTypeId::Sub(_)) => unreachable!(),
-                AnyTypeId::Core(ComponentCoreTypeId::Module(id)) => self.module_type(state, id),
-                AnyTypeId::Component(id) => match id {
-                    ComponentAnyTypeId::Resource(_) => unreachable!(
-                        "should have been handled in `TypeEncoder::component_entity_type`"
-                    ),
-                    ComponentAnyTypeId::Defined(id) => self.defined_type(state, id),
-                    ComponentAnyTypeId::Func(id) => self.component_func_type(state, id),
-                    ComponentAnyTypeId::Instance(id) => self.component_instance_type(state, id),
-                    ComponentAnyTypeId::Component(id) => self.component_type(state, id),
-                },
-            };
-        }
-
-        // Failing all that it seems that this type is defined elsewhere and
-        // no one has created an alias yet for it. That's our job so follow the
-        // alias chain and search all our outer scopes for one that has an
-        // instance that exports `id`. When found it's aliased out from
-        // that instance and then aliased into the current scope.
-        let mut cur = id;
-        loop {
+            // Otherwise see if this type is defined elsewhere and if an alias
+            // hasn't previously been created then one is done so here. This
+            // will search all outer scopes for an instance that exports `id`.
             for (i, scope) in state.scopes.iter_mut().rev().enumerate() {
-                let key = (PtrKey(self.0), cur);
                 let (instance, name) = match scope.instance_exports.get(&key) {
                     Some(pair) => *pair,
                     None => continue,
@@ -701,16 +673,28 @@ impl<'a> TypeEncoder<'a> {
                 return ret;
             }
 
-            // If the end of the alias chain has been reached then that's a bug
-            // in this type translation. It should be the case that we know
-            // how to find all types at this point, so reaching the end means
-            // there's a missing case one way or another.
-            let next = cur.peel_alias(&self.0.types).unwrap_or_else(|| {
-                panic!("failed to find alias of {id:?}");
-            });
-
-            cur = next;
+            match id.peel_alias(&self.0.types) {
+                Some(next) => id = next,
+                // If there's no more aliases then fall through to the
+                // definition of the type below.
+                None => break,
+            }
         }
+
+        // This type wasn't previously defined, so define it here.
+        return match id {
+            AnyTypeId::Core(ComponentCoreTypeId::Sub(_)) => unreachable!(),
+            AnyTypeId::Core(ComponentCoreTypeId::Module(id)) => self.module_type(state, id),
+            AnyTypeId::Component(id) => match id {
+                ComponentAnyTypeId::Resource(_) => {
+                    unreachable!("should have been handled in `TypeEncoder::component_entity_type`")
+                }
+                ComponentAnyTypeId::Defined(id) => self.defined_type(state, id),
+                ComponentAnyTypeId::Func(id) => self.component_func_type(state, id),
+                ComponentAnyTypeId::Instance(id) => self.component_instance_type(state, id),
+                ComponentAnyTypeId::Component(id) => self.component_type(state, id),
+            },
+        };
     }
 
     fn component_val_type(
@@ -878,12 +862,7 @@ impl<'a> TypeEncoder<'a> {
             let key = (PtrKey(self.0), id.into());
             let value = state.cur.encodable.type_count();
             let prev = state.cur.type_defs.insert(key, value);
-            // Resource aliases will already have been added to the table, but
-            // other types should not have been:
-            assert!(
-                prev.is_none()
-                    || (matches!(id, ComponentAnyTypeId::Resource(_)) && prev == Some(value))
-            );
+            assert!(prev.is_none());
             state.cur.add_type_export(key, name);
         }
         export
