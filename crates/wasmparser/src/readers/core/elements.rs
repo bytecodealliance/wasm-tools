@@ -20,7 +20,7 @@ use crate::{
 use std::ops::Range;
 
 /// Represents a core WebAssembly element segment.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Element<'a> {
     /// The kind of the element segment.
     pub kind: ElementKind<'a>,
@@ -31,7 +31,7 @@ pub struct Element<'a> {
 }
 
 /// The kind of element segment.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ElementKind<'a> {
     /// The element segment is passive.
     Passive,
@@ -47,7 +47,7 @@ pub enum ElementKind<'a> {
 }
 
 /// Represents the items of an element segment.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ElementItems<'a> {
     /// This element contains function indices.
     Functions(SectionLimited<'a, u32>),

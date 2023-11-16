@@ -705,7 +705,7 @@ impl Validator {
                 state.module.assert_mut().tables.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, table, offset| state.add_table(table, features, types, offset),
+            |state, features, _types, table, offset| state.add_table(table, features, offset),
         )
     }
 
@@ -902,6 +902,13 @@ impl Validator {
         self.state.ensure_module("code", offset)?;
 
         let state = self.module.as_mut().unwrap();
+
+        // Also check table init expressions here, before we process function
+        // bodies. Checking constant expressions can insert new function
+        // references, and we need to do that now, while the resource's
+        // `Arc<Module>` is still guaranteed to be unique.
+        state.check_table_init_exprs(&self.features, &self.types)?;
+
         state.update_order(Order::Code, offset)?;
 
         match state.expected_code_bodies.take() {
@@ -1296,7 +1303,7 @@ impl Validator {
             )),
             State::Module => {
                 let mut state = self.module.take().unwrap();
-                state.validate_end(offset)?;
+                state.validate_end(&self.features, &self.types, offset)?;
 
                 // If there's a parent component, we'll add a module to the parent state
                 // and continue to validate the component

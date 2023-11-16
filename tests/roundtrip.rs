@@ -180,7 +180,6 @@ fn skip_validation(test: &Path) -> bool {
         "/proposals/gc/br_on_cast.wast",
         "/proposals/gc/br_on_cast_fail.wast",
         "/proposals/gc/extern.wast",
-        "/proposals/gc/global.wast",
         "/proposals/gc/ref_cast.wast",
         "/proposals/gc/ref_eq.wast",
         "/proposals/gc/ref_test.wast",

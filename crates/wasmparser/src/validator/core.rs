@@ -14,8 +14,8 @@ use super::{
 };
 use crate::{
     limits::*, BinaryReaderError, CompositeType, ConstExpr, Data, DataKind, Element, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, PackedIndex, RecGroup,
-    RefType, Result, StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef,
+    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, OwnedConstExpr, PackedIndex,
+    RecGroup, RefType, Result, StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef,
     UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use indexmap::IndexMap;
@@ -71,6 +71,12 @@ pub(crate) struct ModuleState {
 
     /// When parsing the code section, represents the current index in the section.
     code_section_index: Option<usize>,
+
+    /// Unchecked table initializers and their expected type. Because tables
+    /// (and their initializers) come before globals, and the initializers'
+    /// constant expressions can `global.get` defined globals, we have to queue
+    /// them up for checking later on.
+    table_init_exprs: Vec<(OwnedConstExpr, RefType)>,
 }
 
 impl ModuleState {
@@ -84,7 +90,18 @@ impl ModuleState {
         Ok(())
     }
 
-    pub fn validate_end(&self, offset: usize) -> Result<()> {
+    pub fn validate_end(
+        &mut self,
+        features: &WasmFeatures,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<()> {
+        // Ensure that any table init expressions are valid. These are const
+        // expressions that can `global.get` defined globals, but globals are
+        // defined until after tables (and their init expressions) are
+        // defined. So we have to queue them up and check them at the end.
+        self.check_table_init_exprs(features, types)?;
+
         // Ensure that the data count section, if any, was correct.
         if let Some(data_count) = self.module.data_count {
             if data_count != self.data_segment_count {
@@ -94,6 +111,7 @@ impl ModuleState {
                 ));
             }
         }
+
         // Ensure that the function section, if nonzero, was paired with a code
         // section with the appropriate length.
         if let Some(n) = self.expected_code_bodies {
@@ -144,7 +162,6 @@ impl ModuleState {
         &mut self,
         table: Table<'_>,
         features: &WasmFeatures,
-        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         self.module.check_table_type(&table.ty, features, offset)?;
@@ -163,10 +180,26 @@ impl ModuleState {
                          the function-references proposal"
                     );
                 }
-                self.check_const_expr(expr, table.ty.element_type.into(), features, types)?;
+                self.enqueue_table_init_expr(expr, table.ty.element_type);
             }
         }
         self.module.assert_mut().tables.push(table.ty);
+        Ok(())
+    }
+
+    fn enqueue_table_init_expr(&mut self, expr: &ConstExpr<'_>, expected_ty: RefType) {
+        let expr = expr.to_owned();
+        self.table_init_exprs.push((expr, expected_ty));
+    }
+
+    pub fn check_table_init_exprs(
+        &mut self,
+        features: &WasmFeatures,
+        types: &TypeList,
+    ) -> Result<()> {
+        for (expr, ty) in std::mem::take(&mut self.table_init_exprs) {
+            self.check_const_expr(&expr.as_const_expr(), ty.into(), features, types)?;
+        }
         Ok(())
     }
 

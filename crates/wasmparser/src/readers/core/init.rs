@@ -37,6 +37,13 @@ impl<'a> ConstExpr<'a> {
     pub fn get_operators_reader(&self) -> OperatorsReader<'a> {
         OperatorsReader::new(self.get_binary_reader())
     }
+
+    pub(crate) fn to_owned(&self) -> OwnedConstExpr {
+        OwnedConstExpr {
+            offset: self.offset,
+            data: self.data.to_vec(),
+        }
+    }
 }
 
 impl<'a> FromReader<'a> for ConstExpr<'a> {
@@ -47,5 +54,19 @@ impl<'a> FromReader<'a> for ConstExpr<'a> {
             reader.remaining_buffer(),
             reader.original_position(),
         ))
+    }
+}
+
+pub(crate) struct OwnedConstExpr {
+    offset: usize,
+    data: Vec<u8>,
+}
+
+impl OwnedConstExpr {
+    pub(crate) fn as_const_expr(&self) -> ConstExpr<'_> {
+        ConstExpr {
+            offset: self.offset,
+            data: &self.data,
+        }
     }
 }
