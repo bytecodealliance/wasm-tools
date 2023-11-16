@@ -1,4 +1,4 @@
 instantiations:
-  input:
+  $input:
     arguments:
       invalid: a

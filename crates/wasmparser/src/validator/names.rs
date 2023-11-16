@@ -268,6 +268,7 @@ pub enum ComponentNameKind<'a> {
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
+const COMPOSITION_ROOT: &str = "$input";
 
 impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
@@ -544,6 +545,10 @@ impl<'a> ComponentNameParser<'a> {
             self.expect_str("<")?;
             let _hash = self.parse_hash()?;
             self.expect_str(">")?;
+            return Ok(ParsedComponentNameKind::Hash);
+        }
+
+        if self.eat_str("$input") {
             return Ok(ParsedComponentNameKind::Hash);
         }
 
