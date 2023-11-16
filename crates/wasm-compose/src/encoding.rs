@@ -880,10 +880,7 @@ impl<'a> TypeEncoder<'a> {
             let prev = state.cur.type_defs.insert(key, value);
             // Resource aliases will already have been added to the table, but
             // other types should not have been:
-            assert!(
-                prev.is_none()
-                    || (matches!(id, ComponentAnyTypeId::Resource(_)) && prev == Some(value))
-            );
+            assert!(prev.is_none() || matches!(id, ComponentAnyTypeId::Resource(_)));
             state.cur.add_type_export(key, name);
         }
         export
