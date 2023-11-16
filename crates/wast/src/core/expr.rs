@@ -1228,7 +1228,6 @@ impl<'a> Parse<'a> for BlockType<'a> {
 pub struct TryTable<'a> {
     pub block: Box<BlockType<'a>>,
     pub catches: Vec<TryTableCatch<'a>>,
-    pub catch_all: Option<TryTableCatchAll<'a>>,
 }
 
 impl<'a> Parse<'a> for TryTable<'a> {
@@ -1236,69 +1235,64 @@ impl<'a> Parse<'a> for TryTable<'a> {
         let block = parser.parse()?;
 
         let mut catches = Vec::new();
-        while parser.peek2::<kw::catch>()? || parser.peek2::<kw::catch_ref>()? {
+        while parser.peek2::<kw::catch>()?
+            || parser.peek2::<kw::catch_ref>()?
+            || parser.peek2::<kw::catch_all>()?
+            || parser.peek2::<kw::catch_all_ref>()?
+        {
             catches.push(parser.parens(|p| {
                 let kind = if parser.peek::<kw::catch_ref>()? {
                     p.parse::<kw::catch_ref>()?;
-                    TryTableCatchKind::Ref
-                } else {
+                    TryTableCatchKind::CatchRef(p.parse()?)
+                } else if parser.peek::<kw::catch>()? {
                     p.parse::<kw::catch>()?;
-                    TryTableCatchKind::Drop
+                    TryTableCatchKind::Catch(p.parse()?)
+                } else if parser.peek::<kw::catch_all>()? {
+                    p.parse::<kw::catch_all>()?;
+                    TryTableCatchKind::CatchAll
+                } else {
+                    p.parse::<kw::catch_all_ref>()?;
+                    TryTableCatchKind::CatchAllRef
                 };
+
                 Ok(TryTableCatch {
                     kind,
-                    tag: p.parse()?,
                     label: p.parse()?,
                 })
             })?);
         }
 
-        let mut catch_all = None;
-        if parser.peek2::<kw::catch_all>()? || parser.peek2::<kw::catch_all_ref>()? {
-            catch_all = Some(parser.parens(|p| {
-                let kind = if parser.peek::<kw::catch_all_ref>()? {
-                    p.parse::<kw::catch_all_ref>()?;
-                    TryTableCatchKind::Ref
-                } else {
-                    p.parse::<kw::catch_all>()?;
-                    TryTableCatchKind::Drop
-                };
-                Ok(TryTableCatchAll {
-                    kind,
-                    label: p.parse()?,
-                })
-            })?);
-        }
-
-        Ok(TryTable {
-            block,
-            catches,
-            catch_all,
-        })
+        Ok(TryTable { block, catches })
     }
 }
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub enum TryTableCatchKind {
-    // Capture the exnref for the try
-    Ref,
-    // Drop the exnref for the try
-    Drop,
+pub enum TryTableCatchKind<'a> {
+    // Catch a tagged exception, do not capture an exnref.
+    Catch(Index<'a>),
+    // Catch a tagged exception, and capture the exnref.
+    CatchRef(Index<'a>),
+    // Catch any exception, do not capture an exnref.
+    CatchAll,
+    // Catch any exception, and capture the exnref.
+    CatchAllRef,
+}
+
+impl<'a> TryTableCatchKind<'a> {
+    #[allow(missing_docs)]
+    pub fn tag_index_mut(&mut self) -> Option<&mut Index<'a>> {
+        match self {
+            TryTableCatchKind::Catch(tag) | TryTableCatchKind::CatchRef(tag) => Some(tag),
+            TryTableCatchKind::CatchAll | TryTableCatchKind::CatchAllRef => None,
+        }
+    }
 }
 
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct TryTableCatch<'a> {
-    pub kind: TryTableCatchKind,
-    pub tag: Index<'a>,
-    pub label: Index<'a>,
-}
-
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct TryTableCatchAll<'a> {
-    pub kind: TryTableCatchKind,
+    pub kind: TryTableCatchKind<'a>,
     pub label: Index<'a>,
 }
 

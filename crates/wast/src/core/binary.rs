@@ -1038,39 +1038,24 @@ impl<'a> Encode for TryTable<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
         self.block.encode(dst);
         self.catches.encode(dst);
-
-        let catch_all_flag_byte: u8 = match self.catch_all {
-            None => 0,
-            Some(TryTableCatchAll {
-                kind: TryTableCatchKind::Drop,
-                ..
-            }) => 1,
-            Some(TryTableCatchAll {
-                kind: TryTableCatchKind::Ref,
-                ..
-            }) => 2,
-        };
-        catch_all_flag_byte.encode(dst);
-        if let Some(catch_all) = &self.catch_all {
-            catch_all.encode(dst);
-        }
     }
 }
 
 impl<'a> Encode for TryTableCatch<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
-        let catch_flag_byte: u8 = match self.kind {
-            TryTableCatchKind::Drop => 0,
-            TryTableCatchKind::Ref => 1,
+        let flag_byte: u8 = match self.kind {
+            TryTableCatchKind::Catch(..) => 0,
+            TryTableCatchKind::CatchRef(..) => 1,
+            TryTableCatchKind::CatchAll => 2,
+            TryTableCatchKind::CatchAllRef => 3,
         };
-        catch_flag_byte.encode(dst);
-        self.tag.encode(dst);
-        self.label.encode(dst);
-    }
-}
-
-impl<'a> Encode for TryTableCatchAll<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
+        flag_byte.encode(dst);
+        match self.kind {
+            TryTableCatchKind::Catch(tag) | TryTableCatchKind::CatchRef(tag) => {
+                tag.encode(dst);
+            }
+            TryTableCatchKind::CatchAll | TryTableCatchKind::CatchAllRef => {}
+        }
         self.label.encode(dst);
     }
 }
