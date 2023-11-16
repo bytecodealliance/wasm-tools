@@ -1441,11 +1441,11 @@ impl Encode for Instruction<'_> {
                 sink.push(0x10);
                 type_index.encode(sink);
             }
-            Instruction::ArrayCopy(src_type_index, dst_type_index) => {
+            Instruction::ArrayCopy(dst_type_index, src_type_index) => {
                 sink.push(0xfb);
                 sink.push(0x11);
-                src_type_index.encode(sink);
                 dst_type_index.encode(sink);
+                src_type_index.encode(sink);
             }
             Instruction::ArrayInitData(type_index, data_index) => {
                 sink.push(0xfb);
