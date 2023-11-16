@@ -649,8 +649,8 @@ instructions! {
         BrOnCastFail(Box<BrOnCastFail<'a>>) : [] : "br_on_cast_fail",
 
         // gc proposal extern/any coercion operations
-        ExternInternalize : [0xfb, 0x1a] : "extern.internalize",
-        ExternExternalize : [0xfb, 0x1b] : "extern.externalize",
+        AnyConvertExtern : [0xfb, 0x1a] : "any.convert_extern",
+        ExternConvertAny : [0xfb, 0x1b] : "extern.convert_any",
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
