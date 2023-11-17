@@ -253,7 +253,7 @@ pub trait WasmModuleResources {
             ValType::Ref(r) => {
                 let nullable = r.is_nullable();
                 let mut hty = r.heap_type();
-                self.check_heap_type(&mut hty, features, offset)?;
+                self.check_heap_type(&mut hty, offset)?;
                 *r = RefType::new(nullable, hty).unwrap();
                 Ok(())
             }
@@ -268,7 +268,6 @@ pub trait WasmModuleResources {
     fn check_heap_type(
         &self,
         heap_type: &mut HeapType,
-        features: &WasmFeatures,
         offset: usize,
     ) -> Result<(), BinaryReaderError>;
 
@@ -310,13 +309,8 @@ where
     fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
         T::type_of_function(self, func_idx)
     }
-    fn check_heap_type(
-        &self,
-        t: &mut HeapType,
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<(), BinaryReaderError> {
-        T::check_heap_type(self, t, features, offset)
+    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
+        T::check_heap_type(self, t, offset)
     }
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
@@ -370,13 +364,8 @@ where
         T::type_of_function(self, func_idx)
     }
 
-    fn check_heap_type(
-        &self,
-        t: &mut HeapType,
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<(), BinaryReaderError> {
-        T::check_heap_type(self, t, features, offset)
+    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
+        T::check_heap_type(self, t, offset)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {

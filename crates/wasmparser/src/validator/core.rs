@@ -944,17 +944,12 @@ impl Module {
             .check_ref_type(*ty)
             .map_err(|e| BinaryReaderError::new(e, offset))?;
         let mut hty = ty.heap_type();
-        self.check_heap_type(&mut hty, features, offset)?;
+        self.check_heap_type(&mut hty, offset)?;
         *ty = RefType::new(ty.is_nullable(), hty).unwrap();
         Ok(())
     }
 
-    fn check_heap_type(
-        &self,
-        ty: &mut HeapType,
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<()> {
+    fn check_heap_type(&self, ty: &mut HeapType, offset: usize) -> Result<()> {
         // Check that the heap type is valid
         let type_index = match ty {
             HeapType::Func
@@ -1202,13 +1197,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.func_type_at(*type_index)
     }
 
-    fn check_heap_type(
-        &self,
-        t: &mut HeapType,
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<()> {
-        self.module.check_heap_type(t, features, offset)
+    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
+        self.module.check_heap_type(t, offset)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {
@@ -1279,13 +1269,8 @@ impl WasmModuleResources for ValidatorResources {
         self.func_type_at(type_index)
     }
 
-    fn check_heap_type(
-        &self,
-        t: &mut HeapType,
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<()> {
-        self.0.check_heap_type(t, features, offset)
+    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
+        self.0.check_heap_type(t, offset)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {

@@ -277,12 +277,7 @@ mod tests {
         fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
             todo!()
         }
-        fn check_heap_type(
-            &self,
-            _t: &mut HeapType,
-            _features: &WasmFeatures,
-            _offset: usize,
-        ) -> Result<()> {
+        fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
             Ok(())
         }
         fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {

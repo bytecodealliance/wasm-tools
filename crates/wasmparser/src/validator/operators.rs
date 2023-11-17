@@ -1315,8 +1315,7 @@ where
     fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
         let unpacked_index = UnpackedIndex::Module(type_index);
         let mut hty = HeapType::Concrete(unpacked_index);
-        self.resources
-            .check_heap_type(&mut hty, &self.features, self.offset)?;
+        self.resources.check_heap_type(&mut hty, self.offset)?;
         // If `None` is popped then that means a "bottom" type was popped which
         // is always considered equivalent to the `hty` tag.
         if let Some(rt) = self.pop_ref()? {
@@ -2245,7 +2244,7 @@ where
     }
     fn visit_ref_null(&mut self, mut heap_type: HeapType) -> Self::Output {
         self.resources
-            .check_heap_type(&mut heap_type, &self.features, self.offset)?;
+            .check_heap_type(&mut heap_type, self.offset)?;
         let ty = ValType::Ref(
             RefType::new(true, heap_type).expect("existing heap types should be within our limits"),
         );
