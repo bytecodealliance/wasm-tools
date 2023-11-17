@@ -1485,8 +1485,8 @@ impl ComponentState {
                 crate::ModuleTypeDeclaration::Type(ty) => {
                     state.add_types(RecGroup::implicit(ty), features, types, offset, true)?;
                 }
-                crate::ModuleTypeDeclaration::Export { name, ty } => {
-                    let ty = state.check_type_ref(&ty, features, types, offset)?;
+                crate::ModuleTypeDeclaration::Export { name, mut ty } => {
+                    let ty = state.check_type_ref(&mut ty, features, types, offset)?;
                     state.add_export(name, ty, features, offset, true, types)?;
                 }
                 crate::ModuleTypeDeclaration::OuterAlias { kind, count, index } => {

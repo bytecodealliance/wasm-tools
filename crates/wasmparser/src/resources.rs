@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+use crate::types::CoreTypeId;
 use crate::{
     BinaryReaderError, FuncType, GlobalType, HeapType, MemoryType, RefType, TableType, ValType,
     WasmFeatures,
@@ -48,7 +49,7 @@ pub trait WasmFuncType: Clone {
     fn output_at(&self, at: u32) -> Option<ValType>;
 
     /// Returns the list of inputs as an iterator.
-    fn inputs(self) -> WasmFuncTypeInputs<Self>
+    fn inputs(&self) -> WasmFuncTypeInputs<'_, Self>
     where
         Self: Sized,
     {
@@ -60,7 +61,7 @@ pub trait WasmFuncType: Clone {
     }
 
     /// Returns the list of outputs as an iterator.
-    fn outputs(self) -> WasmFuncTypeOutputs<Self>
+    fn outputs(&self) -> WasmFuncTypeOutputs<'_, Self>
     where
         Self: Sized,
     {
@@ -92,14 +93,14 @@ where
 
 /// Iterator over the inputs of a Wasm function type.
 #[derive(Clone)]
-pub struct WasmFuncTypeInputs<T> {
+pub struct WasmFuncTypeInputs<'a, T> {
     /// The iterated-over function type.
-    func_type: T,
+    func_type: &'a T,
     /// The range we're iterating over.
     range: Range<u32>,
 }
 
-impl<T> Iterator for WasmFuncTypeInputs<T>
+impl<T> Iterator for WasmFuncTypeInputs<'_, T>
 where
     T: WasmFuncType,
 {
@@ -116,7 +117,7 @@ where
     }
 }
 
-impl<T> DoubleEndedIterator for WasmFuncTypeInputs<T>
+impl<T> DoubleEndedIterator for WasmFuncTypeInputs<'_, T>
 where
     T: WasmFuncType,
 {
@@ -127,7 +128,7 @@ where
     }
 }
 
-impl<T> ExactSizeIterator for WasmFuncTypeInputs<T>
+impl<T> ExactSizeIterator for WasmFuncTypeInputs<'_, T>
 where
     T: WasmFuncType,
 {
@@ -138,14 +139,14 @@ where
 
 /// Iterator over the outputs of a Wasm function type.
 #[derive(Clone)]
-pub struct WasmFuncTypeOutputs<T> {
+pub struct WasmFuncTypeOutputs<'a, T> {
     /// The iterated-over function type.
-    func_type: T,
+    func_type: &'a T,
     /// The range we're iterating over.
     range: Range<u32>,
 }
 
-impl<T> Iterator for WasmFuncTypeOutputs<T>
+impl<T> Iterator for WasmFuncTypeOutputs<'_, T>
 where
     T: WasmFuncType,
 {
@@ -162,7 +163,7 @@ where
     }
 }
 
-impl<T> DoubleEndedIterator for WasmFuncTypeOutputs<T>
+impl<T> DoubleEndedIterator for WasmFuncTypeOutputs<'_, T>
 where
     T: WasmFuncType,
 {
@@ -173,7 +174,7 @@ where
     }
 }
 
-impl<T> ExactSizeIterator for WasmFuncTypeOutputs<T>
+impl<T> ExactSizeIterator for WasmFuncTypeOutputs<'_, T>
 where
     T: WasmFuncType,
 {
@@ -205,7 +206,7 @@ pub trait WasmModuleResources {
     /// Returns the tag at given index.
     ///
     /// The tag's function type must be canonicalized.
-    fn tag_at(&self, at: u32) -> Option<Self::FuncType>;
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType>;
 
     /// Returns the global variable at given index.
     ///
@@ -215,20 +216,16 @@ pub trait WasmModuleResources {
     /// Returns the `FuncType` associated with the given type index.
     ///
     /// The function type must be canonicalized.
-    fn func_type_at(&self, type_idx: u32) -> Option<Self::FuncType>;
+    fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType>;
 
-    /// Returns the type index associated with the given function
+    /// Returns the type id associated with the given function
     /// index.
-    ///
-    /// ```ignore
-    /// type_of_function = func_type_at(type_index_of_function)
-    /// ```
-    fn type_index_of_function(&self, func_idx: u32) -> Option<u32>;
+    fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId>;
 
     /// Returns the `FuncType` associated with the given function index.
     ///
     /// The function type must be canonicalized.
-    fn type_of_function(&self, func_idx: u32) -> Option<Self::FuncType>;
+    fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType>;
 
     /// Returns the element type at the given index.
     ///
@@ -238,39 +235,42 @@ pub trait WasmModuleResources {
     /// Is `a` a subtype of `b`?
     fn is_subtype(&self, a: ValType, b: ValType) -> bool;
 
-    /// Check a value type.
+    /// Check and canonicalize a value type.
     ///
-    /// This requires using func_type_at to check references
+    /// This will validate that `t` is valid under the `features` provided and
+    /// then additionally validate the structure of `t`. For example any type
+    /// references that `t` makes are validated and canonicalized.
     fn check_value_type(
         &self,
-        t: ValType,
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<(), BinaryReaderError>;
-
-    /// Checks that a `HeapType` is valid, notably its function index if one is
-    /// used.
-    fn check_heap_type(
-        &self,
-        heap_type: HeapType,
+        t: &mut ValType,
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<(), BinaryReaderError> {
-        // Delegate to the generic value type validation which will have the
-        // same validity checks.
-        self.check_value_type(
-            RefType::new(true, heap_type)
-                .ok_or_else(|| {
-                    BinaryReaderError::new(
-                        "heap type index beyond this crate's implementation limits",
-                        offset,
-                    )
-                })?
-                .into(),
-            features,
-            offset,
-        )
+        features
+            .check_value_type(*t)
+            .map_err(|s| BinaryReaderError::new(s, offset))?;
+        match t {
+            ValType::Ref(r) => {
+                let nullable = r.is_nullable();
+                let mut hty = r.heap_type();
+                self.check_heap_type(&mut hty, features, offset)?;
+                *r = RefType::new(nullable, hty).unwrap();
+                Ok(())
+            }
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(()),
+        }
     }
+
+    /// Checks that a `HeapType` is valid and then additionally place it in its
+    /// canonical form.
+    ///
+    /// Similar to `check_value_type` but for heap types.
+    fn check_heap_type(
+        &self,
+        heap_type: &mut HeapType,
+        features: &WasmFeatures,
+        offset: usize,
+    ) -> Result<(), BinaryReaderError>;
 
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
@@ -281,9 +281,6 @@ pub trait WasmModuleResources {
     /// Returns whether the function index is referenced in the module anywhere
     /// outside of the start/function sections.
     fn is_function_referenced(&self, idx: u32) -> bool;
-
-    /// Canonicalize the given value type in place.
-    fn canonicalize_valtype(&self, valtype: &mut ValType);
 }
 
 impl<T> WasmModuleResources for &'_ T
@@ -298,28 +295,28 @@ where
     fn memory_at(&self, at: u32) -> Option<MemoryType> {
         T::memory_at(self, at)
     }
-    fn tag_at(&self, at: u32) -> Option<Self::FuncType> {
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
         T::tag_at(self, at)
     }
     fn global_at(&self, at: u32) -> Option<GlobalType> {
         T::global_at(self, at)
     }
-    fn func_type_at(&self, at: u32) -> Option<Self::FuncType> {
+    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
         T::func_type_at(self, at)
     }
-    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
-        T::type_index_of_function(self, func_idx)
+    fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
+        T::type_id_of_function(self, func_idx)
     }
-    fn type_of_function(&self, func_idx: u32) -> Option<Self::FuncType> {
+    fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
         T::type_of_function(self, func_idx)
     }
-    fn check_value_type(
+    fn check_heap_type(
         &self,
-        t: ValType,
+        t: &mut HeapType,
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<(), BinaryReaderError> {
-        T::check_value_type(self, t, features, offset)
+        T::check_heap_type(self, t, features, offset)
     }
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
@@ -336,9 +333,6 @@ where
     }
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
-    }
-    fn canonicalize_valtype(&self, valtype: &mut ValType) {
-        T::canonicalize_valtype(self, valtype)
     }
 }
 
@@ -356,7 +350,7 @@ where
         T::memory_at(self, at)
     }
 
-    fn tag_at(&self, at: u32) -> Option<Self::FuncType> {
+    fn tag_at(&self, at: u32) -> Option<&Self::FuncType> {
         T::tag_at(self, at)
     }
 
@@ -364,25 +358,25 @@ where
         T::global_at(self, at)
     }
 
-    fn func_type_at(&self, type_idx: u32) -> Option<Self::FuncType> {
+    fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType> {
         T::func_type_at(self, type_idx)
     }
 
-    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
-        T::type_index_of_function(self, func_idx)
+    fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
+        T::type_id_of_function(self, func_idx)
     }
 
-    fn type_of_function(&self, func_idx: u32) -> Option<Self::FuncType> {
+    fn type_of_function(&self, func_idx: u32) -> Option<&Self::FuncType> {
         T::type_of_function(self, func_idx)
     }
 
-    fn check_value_type(
+    fn check_heap_type(
         &self,
-        t: ValType,
+        t: &mut HeapType,
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<(), BinaryReaderError> {
-        T::check_value_type(self, t, features, offset)
+        T::check_heap_type(self, t, features, offset)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {
@@ -403,10 +397,6 @@ where
 
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
-    }
-
-    fn canonicalize_valtype(&self, valtype: &mut ValType) {
-        T::canonicalize_valtype(self, valtype)
     }
 }
 

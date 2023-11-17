@@ -67,7 +67,7 @@
 //!   perform additional expensive checks to see if the types match or not
 //!   (since the whole point of canonicalization is to avoid that!).
 
-use super::{Module, RecGroupId, TypeAlloc, TypeList};
+use super::{Module, RecGroupId, TypeAlloc};
 use crate::{
     types::{CoreTypeId, TypeIdentifier},
     ArrayType, CompositeType, FieldType, FuncType, HeapType, PackedIndex, RecGroup, RefType,
@@ -140,18 +140,18 @@ impl<'a> TypeCanonicalizer<'a> {
         self
     }
 
-    /// Configure canonicalization to transform all type indices into
-    /// `CoreTypeId`s, even from within the same rec group.
-    pub fn with_only_ids(&mut self) -> &mut Self {
-        self.mode = CanonicalizationMode::OnlyIds;
-        self
-    }
+    // /// Configure canonicalization to transform all type indices into
+    // /// `CoreTypeId`s, even from within the same rec group.
+    // pub fn with_only_ids(&mut self) -> &mut Self {
+    //     self.mode = CanonicalizationMode::OnlyIds;
+    //     self
+    // }
 
-    pub fn within_rec_group(&mut self, types: &TypeList, rec_group_id: RecGroupId) -> &mut Self {
-        assert_eq!(self.mode, CanonicalizationMode::OnlyIds);
-        self.within_rec_group = Some(types[rec_group_id].clone());
-        self
-    }
+    // pub fn within_rec_group(&mut self, types: &TypeList, rec_group_id: RecGroupId) -> &mut Self {
+    //     assert_eq!(self.mode, CanonicalizationMode::OnlyIds);
+    //     self.within_rec_group = Some(types[rec_group_id].clone());
+    //     self
+    // }
 
     fn allow_gc(&self) -> bool {
         self.features.map_or(true, |f| f.gc)

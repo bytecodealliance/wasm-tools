@@ -15,7 +15,7 @@
 
 use crate::{
     limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload,
-    Result, SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    RefType, Result, SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use std::mem;
 use std::ops::Range;
@@ -292,58 +292,60 @@ impl WasmFeatures {
                     Err("floating-point support is disabled")
                 }
             }
-            ValType::Ref(r) => {
-                if !self.reference_types {
-                    return Err("reference types support is not enabled");
-                }
-                match (r.heap_type(), r.is_nullable()) {
-                    // funcref/externref only require `reference-types`
-                    (HeapType::Func, true) | (HeapType::Extern, true) => Ok(()),
-
-                    // non-nullable func/extern references requires the
-                    // `function-references` proposal
-                    (HeapType::Func | HeapType::Extern, false) => {
-                        if self.function_references {
-                            Ok(())
-                        } else {
-                            Err("function references required for non-nullable types")
-                        }
-                    }
-                    // indexed types require at least the function-references
-                    // proposal
-                    (HeapType::Concrete(_), _) => {
-                        if self.function_references {
-                            Ok(())
-                        } else {
-                            Err("function references required for index reference types")
-                        }
-                    }
-
-                    // types added in the gc proposal
-                    (
-                        HeapType::Any
-                        | HeapType::None
-                        | HeapType::Eq
-                        | HeapType::Struct
-                        | HeapType::Array
-                        | HeapType::I31
-                        | HeapType::NoExtern
-                        | HeapType::NoFunc,
-                        _,
-                    ) => {
-                        if self.gc {
-                            Ok(())
-                        } else {
-                            Err("heap types not supported without the gc feature")
-                        }
-                    }
-                }
-            }
+            ValType::Ref(r) => self.check_ref_type(r),
             ValType::V128 => {
                 if self.simd {
                     Ok(())
                 } else {
                     Err("SIMD support is not enabled")
+                }
+            }
+        }
+    }
+
+    pub(crate) fn check_ref_type(&self, r: RefType) -> Result<(), &'static str> {
+        if !self.reference_types {
+            return Err("reference types support is not enabled");
+        }
+        match (r.heap_type(), r.is_nullable()) {
+            // funcref/externref only require `reference-types`
+            (HeapType::Func, true) | (HeapType::Extern, true) => Ok(()),
+
+            // non-nullable func/extern references requires the
+            // `function-references` proposal
+            (HeapType::Func | HeapType::Extern, false) => {
+                if self.function_references {
+                    Ok(())
+                } else {
+                    Err("function references required for non-nullable types")
+                }
+            }
+            // indexed types require at least the function-references
+            // proposal
+            (HeapType::Concrete(_), _) => {
+                if self.function_references {
+                    Ok(())
+                } else {
+                    Err("function references required for index reference types")
+                }
+            }
+
+            // types added in the gc proposal
+            (
+                HeapType::Any
+                | HeapType::None
+                | HeapType::Eq
+                | HeapType::Struct
+                | HeapType::Array
+                | HeapType::I31
+                | HeapType::NoExtern
+                | HeapType::NoFunc,
+                _,
+            ) => {
+                if self.gc {
+                    Ok(())
+                } else {
+                    Err("heap types not supported without the gc feature")
                 }
             }
         }

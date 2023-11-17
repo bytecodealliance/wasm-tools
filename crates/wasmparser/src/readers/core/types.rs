@@ -13,14 +13,14 @@
  * limitations under the License.
  */
 
-use std::fmt::{self, Debug, Write};
-
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
 };
 use crate::types::CoreTypeId;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
+use std::fmt::{self, Debug, Write};
+use std::hash::{Hash, Hasher};
 
 mod matches;
 pub(crate) use self::matches::{Matches, WithRecGroup};
@@ -383,6 +383,20 @@ impl RecGroup {
         impl ExactSizeIterator for Iter {}
     }
 }
+
+impl Hash for RecGroup {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.types().hash(hasher)
+    }
+}
+
+impl PartialEq for RecGroup {
+    fn eq(&self, other: &RecGroup) -> bool {
+        self.types() == other.types()
+    }
+}
+
+impl Eq for RecGroup {}
 
 /// Represents a subtype of possible other types in a WebAssembly module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
