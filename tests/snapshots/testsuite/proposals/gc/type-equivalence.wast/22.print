@@ -3,5 +3,5 @@
     (type $t2 (;0;) (func (param i32 (ref 0))))
   )
   (type (;1;) (func (param (ref 0))))
-  (import "M" "f" (func (;0;) (type 1)))
+  (import "Mr1" "f" (func (;0;) (type 1)))
 )
