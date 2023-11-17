@@ -248,6 +248,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::CoreTypeId;
     use crate::{HeapType, WasmFuncType};
 
     struct EmptyResources;
@@ -270,7 +271,7 @@ mod tests {
         fn func_type_at(&self, _type_idx: u32) -> Option<&Self::FuncType> {
             Some(&EmptyFuncType)
         }
-        fn type_index_of_function(&self, _at: u32) -> Option<u32> {
+        fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
         }
         fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
