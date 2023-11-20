@@ -6,7 +6,7 @@ use wasmparser::{Validator, WasmFeatures};
 #[cfg(feature = "wasmparser")]
 use std::collections::HashMap;
 #[cfg(feature = "wasmparser")]
-use wasmparser::{Parser, TypeRef};
+use wasmparser::{Parser, TypeRef, ValType};
 
 #[test]
 fn smoke_test_module() {
