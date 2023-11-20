@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use super::*;
 use wasm_encoder::{ComponentExportKind, ComponentOuterAliasKind, ExportKind};
-use wasmparser::names::KebabStr;
 
 impl Component {
     /// Encode this Wasm component into bytes.
@@ -169,9 +168,10 @@ impl Type {
                     f.result(ty);
                 } else {
                     f.results(
-                        func_ty.results.iter().map(|(name, ty)| {
-                            (name.as_deref().map(KebabStr::as_str).unwrap(), *ty)
-                        }),
+                        func_ty
+                            .results
+                            .iter()
+                            .map(|(name, ty)| (name.as_deref().unwrap(), *ty)),
                     );
                 }
             }
