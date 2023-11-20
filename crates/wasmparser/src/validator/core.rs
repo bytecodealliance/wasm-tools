@@ -970,15 +970,10 @@ impl Module {
                 *type_index = UnpackedIndex::Id(id);
                 Ok(())
             }
-            UnpackedIndex::RecGroup(_) => {
-                todo!()
-            }
-            UnpackedIndex::Id(_) => {
-                // If the type index has already been canonicalized,
-                // then we already checked that it was in bounds and
-                // valid at that time.
-                Ok(())
-            }
+            // Types at this stage should not be canonicalized. All
+            // canonicalized types should already be validated meaning they
+            // shouldn't be double-checked here again.
+            UnpackedIndex::RecGroup(_) | UnpackedIndex::Id(_) => unreachable!(),
         }
     }
 

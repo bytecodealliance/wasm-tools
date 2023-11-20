@@ -308,11 +308,11 @@ impl WasmFeatures {
             return Err("reference types support is not enabled");
         }
         match (r.heap_type(), r.is_nullable()) {
-            // funcref/externref only require `reference-types`
+            // funcref/externref only require `reference-types`.
             (HeapType::Func, true) | (HeapType::Extern, true) => Ok(()),
 
-            // non-nullable func/extern references requires the
-            // `function-references` proposal
+            // Non-nullable func/extern references requires the
+            // `function-references` proposal.
             (HeapType::Func | HeapType::Extern, false) => {
                 if self.function_references {
                     Ok(())
@@ -320,17 +320,18 @@ impl WasmFeatures {
                     Err("function references required for non-nullable types")
                 }
             }
-            // indexed types require at least the function-references
-            // proposal
+
+            // Indexed types require either the function-references or gc
+            // proposal as gc implies function references here.
             (HeapType::Concrete(_), _) => {
-                if self.function_references {
+                if self.function_references || self.gc {
                     Ok(())
                 } else {
                     Err("function references required for index reference types")
                 }
             }
 
-            // types added in the gc proposal
+            // These types were added in the gc proposal.
             (
                 HeapType::Any
                 | HeapType::None

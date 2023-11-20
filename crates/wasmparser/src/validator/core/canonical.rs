@@ -70,8 +70,7 @@
 use super::{Module, RecGroupId, TypeAlloc};
 use crate::{
     types::{CoreTypeId, TypeIdentifier},
-    ArrayType, CompositeType, FieldType, FuncType, HeapType, PackedIndex, RecGroup, RefType,
-    Result, StorageType, StructType, SubType, UnpackedIndex, ValType, WasmFeatures,
+    PackedIndex, RecGroup, Result, UnpackedIndex, WasmFeatures,
 };
 
 /// Canonicalize the rec group and return its id and whether it is a new group
@@ -140,19 +139,6 @@ impl<'a> TypeCanonicalizer<'a> {
         self
     }
 
-    // /// Configure canonicalization to transform all type indices into
-    // /// `CoreTypeId`s, even from within the same rec group.
-    // pub fn with_only_ids(&mut self) -> &mut Self {
-    //     self.mode = CanonicalizationMode::OnlyIds;
-    //     self
-    // }
-
-    // pub fn within_rec_group(&mut self, types: &TypeList, rec_group_id: RecGroupId) -> &mut Self {
-    //     assert_eq!(self.mode, CanonicalizationMode::OnlyIds);
-    //     self.within_rec_group = Some(types[rec_group_id].clone());
-    //     self
-    // }
-
     fn allow_gc(&self) -> bool {
         self.features.map_or(true, |f| f.gc)
     }
@@ -167,7 +153,14 @@ impl<'a> TypeCanonicalizer<'a> {
         for (rec_group_index, ty) in rec_group.types_mut().iter_mut().enumerate() {
             let rec_group_index = u32::try_from(rec_group_index).unwrap();
             let type_index = self.rec_group_start + rec_group_index;
-            self.canonicalize_sub_type(ty, type_index)?;
+
+            if let Some(sup) = ty.supertype_idx.as_mut() {
+                if sup.as_module_index().map_or(false, |i| i >= type_index) {
+                    bail!(self.offset, "supertypes must be defined before subtypes");
+                }
+            }
+
+            ty.remap_indices(&mut |idx| self.canonicalize_type_index(idx))?;
         }
 
         Ok(())
@@ -235,88 +228,6 @@ impl<'a> TypeCanonicalizer<'a> {
                     Ok(())
                 }
             },
-        }
-    }
-
-    fn canonicalize_sub_type(&self, ty: &mut SubType, index: u32) -> Result<()> {
-        if let Some(sup) = ty.supertype_idx.as_mut() {
-            if sup.as_module_index().map_or(false, |i| i >= index) {
-                bail!(self.offset, "supertypes must be defined before subtypes");
-            }
-
-            self.canonicalize_type_index(sup)?;
-        }
-
-        self.canonicalize_composite_type(&mut ty.composite_type)
-    }
-
-    fn canonicalize_composite_type(&self, ty: &mut CompositeType) -> Result<()> {
-        match ty {
-            CompositeType::Func(f) => self.canonicalize_func_type(f),
-            CompositeType::Array(a) => self.canonicalize_array_type(a),
-            CompositeType::Struct(s) => self.canonicalize_struct_type(s),
-        }
-    }
-
-    fn canonicalize_func_type(&self, ty: &mut FuncType) -> Result<()> {
-        for ty in ty.params_mut() {
-            self.canonicalize_val_type(ty)?;
-        }
-        for ty in ty.results_mut() {
-            self.canonicalize_val_type(ty)?;
-        }
-        Ok(())
-    }
-
-    fn canonicalize_array_type(&self, ty: &mut ArrayType) -> Result<()> {
-        self.canonicalize_field_type(&mut ty.0)
-    }
-
-    fn canonicalize_struct_type(&self, ty: &mut StructType) -> Result<()> {
-        for ty in ty.fields.iter_mut() {
-            self.canonicalize_field_type(ty)?;
-        }
-        Ok(())
-    }
-
-    fn canonicalize_field_type(&self, ty: &mut FieldType) -> Result<()> {
-        self.canonicalize_storage_type(&mut ty.element_type)
-    }
-
-    fn canonicalize_storage_type(&self, ty: &mut StorageType) -> Result<()> {
-        match ty {
-            StorageType::I8 | StorageType::I16 => Ok(()),
-            StorageType::Val(ty) => self.canonicalize_val_type(ty),
-        }
-    }
-
-    pub fn canonicalize_val_type(&self, ty: &mut ValType) -> Result<()> {
-        match ty {
-            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(()),
-            ValType::Ref(ty) => self.canonicalize_ref_type(ty),
-        }
-    }
-
-    fn canonicalize_ref_type(&self, ty: &mut RefType) -> Result<()> {
-        match ty.heap_type() {
-            HeapType::Concrete(unpacked_index) => {
-                let mut packed_index = unpacked_index
-                    .pack()
-                    .expect("it was just packed in the `RefType` so we know it fits");
-                self.canonicalize_type_index(&mut packed_index)?;
-                *ty = RefType::concrete(ty.is_nullable(), packed_index);
-                Ok(())
-            }
-            HeapType::Func
-            | HeapType::Extern
-            | HeapType::Any
-            | HeapType::None
-            | HeapType::NoExtern
-            | HeapType::NoFunc
-            | HeapType::Eq
-            | HeapType::Struct
-            | HeapType::Array
-            | HeapType::I31 => Ok(()),
         }
     }
 }

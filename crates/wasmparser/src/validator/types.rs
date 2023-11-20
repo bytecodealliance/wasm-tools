@@ -6,9 +6,9 @@ use super::{
 };
 use crate::{validator::names::KebabString, HeapType};
 use crate::{
-    BinaryReaderError, CompositeType, Export, ExternalKind, FieldType, FuncType, GlobalType,
-    Import, Matches, MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result,
-    StorageType, SubType, TableType, TypeRef, UnpackedIndex, ValType, WithRecGroup,
+    BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import, Matches,
+    MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType,
+    TypeRef, UnpackedIndex, ValType, WithRecGroup,
 };
 use indexmap::{IndexMap, IndexSet};
 use std::collections::hash_map::Entry;
@@ -2494,7 +2494,19 @@ impl TypeList {
                     UnpackedIndex::Module(_) => unreachable!("in canonical form"),
                 }));
             let mut ty = ty.clone();
-            canonicalize_sub_type(&mut ty, start);
+            ty.remap_indices(&mut |index| {
+                match index.unpack() {
+                    UnpackedIndex::Id(_) => {}
+                    UnpackedIndex::Module(_) => unreachable!(),
+                    UnpackedIndex::RecGroup(offset) => {
+                        *index = UnpackedIndex::Id(CoreTypeId::from_index(start.index + offset))
+                            .pack()
+                            .unwrap();
+                    }
+                };
+                Ok(())
+            })
+            .expect("cannot fail");
             self.core_types.push(ty);
             self.core_type_to_rec_group.push(rec_group_id);
         }
@@ -2509,61 +2521,6 @@ impl TypeList {
 
         entry.insert(rec_group_id);
         return (true, rec_group_id);
-
-        fn canonicalize_sub_type(ty: &mut SubType, start: CoreTypeId) {
-            if let Some(idx) = &mut ty.supertype_idx {
-                canonicalize_packed(idx, start);
-            }
-            match &mut ty.composite_type {
-                CompositeType::Func(ty) => {
-                    for ty in ty.params_mut() {
-                        canonicalize_val_type(ty, start);
-                    }
-                    for ty in ty.results_mut() {
-                        canonicalize_val_type(ty, start);
-                    }
-                }
-                CompositeType::Array(ty) => {
-                    canonicalize_field_type(&mut ty.0, start);
-                }
-                CompositeType::Struct(ty) => {
-                    for field in ty.fields.iter_mut() {
-                        canonicalize_field_type(field, start);
-                    }
-                }
-            }
-        }
-
-        fn canonicalize_field_type(ty: &mut FieldType, start: CoreTypeId) {
-            match &mut ty.element_type {
-                StorageType::I8 | StorageType::I16 => {}
-                StorageType::Val(ty) => canonicalize_val_type(ty, start),
-            }
-        }
-
-        fn canonicalize_val_type(ty: &mut ValType, start: CoreTypeId) {
-            match ty {
-                ValType::Ref(r) => {
-                    if let Some(mut idx) = r.type_index() {
-                        canonicalize_packed(&mut idx, start);
-                        *r = RefType::concrete(r.is_nullable(), idx);
-                    }
-                }
-                ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
-            }
-        }
-
-        fn canonicalize_packed(ty: &mut PackedIndex, start: CoreTypeId) {
-            match ty.unpack() {
-                UnpackedIndex::Id(_) => {}
-                UnpackedIndex::Module(_) => unreachable!(),
-                UnpackedIndex::RecGroup(offset) => {
-                    *ty = UnpackedIndex::Id(CoreTypeId::from_index(start.index + offset))
-                        .pack()
-                        .unwrap();
-                }
-            }
-        }
     }
 
     /// Get the `CoreTypeId` for a local index into a rec group.
