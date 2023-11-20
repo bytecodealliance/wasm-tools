@@ -537,6 +537,16 @@ impl Module {
     ///
     /// Returns `true` if there was a list of available imports configured. Otherwise `false` and
     /// the caller should generate arbitrary imports.
+    #[cfg(not(feature = "wasmparser"))]
+    fn arbitrary_imports_from_available(&mut self, _u: &mut Unstructured) -> Result<bool> {
+        return Ok(false);
+    }
+
+    /// Generate some arbitrary imports from the list of available imports.
+    ///
+    /// Returns `true` if there was a list of available imports configured. Otherwise `false` and
+    /// the caller should generate arbitrary imports.
+    #[cfg(feature = "wasmparser")]
     fn arbitrary_imports_from_available(&mut self, u: &mut Unstructured) -> Result<bool> {
         let example_module = if let Some(wasm) = self.config.available_imports() {
             wasm
@@ -1628,6 +1638,7 @@ fn arbitrary_vec_u8(u: &mut Unstructured) -> Result<Vec<u8>> {
 }
 
 /// Convert a wasmparser's `ValType` to a `wasm_encoder::ValType`.
+#[cfg(feature = "wasmparser")]
 fn convert_type(parsed_type: wasmparser::ValType) -> ValType {
     use wasmparser::ValType::*;
     match parsed_type {
@@ -1640,6 +1651,7 @@ fn convert_type(parsed_type: wasmparser::ValType) -> ValType {
     }
 }
 
+#[cfg(feature = "wasmparser")]
 fn convert_reftype(ty: wasmparser::RefType) -> RefType {
     wasm_encoder::RefType {
         nullable: ty.is_nullable(),

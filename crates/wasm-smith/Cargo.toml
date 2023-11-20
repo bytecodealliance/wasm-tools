@@ -23,11 +23,12 @@ leb128 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 wasm-encoder = { workspace = true }
-wasmparser = { workspace = true }
+wasmparser = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }
+wasmparser = { workspace = true }
 wasmprinter = { path = "../wasmprinter" }
 wat = { path = "../wat" }
 
@@ -35,4 +36,4 @@ wat = { path = "../wat" }
 libfuzzer-sys = { workspace = true }
 
 [features]
-_internal_cli = ["serde", "serde_derive"]
+_internal_cli = ["serde", "serde_derive", "wasmparser"]

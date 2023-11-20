@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use super::*;
+use crate::kebab::KebabStr;
 use wasm_encoder::{ComponentExportKind, ComponentOuterAliasKind, ExportKind};
-use wasmparser::names::KebabStr;
 
 impl Component {
     /// Encode this Wasm component into bytes.

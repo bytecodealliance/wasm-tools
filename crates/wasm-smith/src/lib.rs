@@ -57,15 +57,16 @@
 mod component;
 mod config;
 mod core;
+mod kebab;
 
 pub use crate::core::{
     ConfiguredModule, InstructionKind, InstructionKinds, MaybeInvalidModule, Module,
 };
+use crate::kebab::{KebabStr, KebabString};
 use arbitrary::{Result, Unstructured};
 pub use component::{Component, ConfiguredComponent};
 pub use config::{Config, DefaultConfig, SwarmConfig};
 use std::{collections::HashSet, fmt::Write, str};
-use wasmparser::names::{KebabStr, KebabString};
 
 /// Do something an arbitrary number of times.
 ///

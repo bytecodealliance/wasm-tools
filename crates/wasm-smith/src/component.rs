@@ -4,6 +4,7 @@
 // FIXME(#1000): component support in `wasm-smith` is a work in progress.
 #![allow(unused_variables, dead_code)]
 
+use crate::kebab::KebabString;
 use crate::{arbitrary_loop, Config, DefaultConfig};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::BTreeMap;
@@ -14,7 +15,6 @@ use std::{
     rc::Rc,
 };
 use wasm_encoder::{ComponentTypeRef, ComponentValType, PrimitiveValType, TypeBounds, ValType};
-use wasmparser::names::KebabString;
 
 mod encode;
 

@@ -1,8 +1,12 @@
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use std::collections::HashMap;
 use wasm_smith::{Config, ConfiguredModule, Module, SwarmConfig};
-use wasmparser::{Parser, TypeRef, ValType, Validator, WasmFeatures};
+use wasmparser::{Validator, WasmFeatures};
+
+#[cfg(feature = "wasmparser")]
+use std::collections::HashMap;
+#[cfg(feature = "wasmparser")]
+use wasmparser::{Parser, TypeRef};
 
 #[test]
 fn smoke_test_module() {
@@ -102,6 +106,7 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
     }
 }
 
+#[cfg(feature = "wasmparser")]
 #[test]
 fn smoke_test_imports_config() {
     let mut n_partial = 0;
@@ -224,6 +229,7 @@ fn wasm_features() -> WasmFeatures {
     }
 }
 
+#[cfg(feature = "wasmparser")]
 #[derive(Debug)]
 enum AvailableImportKind {
     Func(&'static [ValType], &'static [ValType]),
@@ -233,6 +239,7 @@ enum AvailableImportKind {
     Memory,
 }
 
+#[cfg(feature = "wasmparser")]
 fn import_config(
     u: &mut Unstructured,
 ) -> (
