@@ -5,7 +5,7 @@ edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
 name = "wit-smith"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-smith"
-version = "0.1.22"
+version = "0.1.23"
 
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
