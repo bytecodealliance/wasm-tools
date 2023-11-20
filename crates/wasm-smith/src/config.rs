@@ -2,7 +2,6 @@
 
 use crate::InstructionKinds;
 use arbitrary::{Arbitrary, Result, Unstructured};
-#[cfg(feature = "wasmparser")]
 use std::borrow::Cow;
 
 /// Configuration for a generated module.
@@ -92,7 +91,6 @@ pub trait Config: 'static + std::fmt::Debug {
     /// "#))
     /// # ;
     /// ```
-    #[cfg(feature = "wasmparser")]
     fn available_imports(&self) -> Option<Cow<'_, [u8]>> {
         None
     }
@@ -502,7 +500,6 @@ impl Config for DefaultConfig {}
 #[allow(missing_docs)]
 pub struct SwarmConfig {
     pub allow_start_export: bool,
-    #[cfg(feature = "wasmparser")]
     pub available_imports: Option<Vec<u8>>,
     pub bulk_memory_enabled: bool,
     pub canonicalize_nans: bool,
@@ -626,7 +623,6 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             memory64_enabled: false,
             max_type_size: 1000,
             canonicalize_nans: false,
-            #[cfg(feature = "wasmparser")]
             available_imports: None,
             threads_enabled: false,
             export_everything: false,
@@ -653,7 +649,6 @@ impl Config for SwarmConfig {
         self.max_imports
     }
 
-    #[cfg(feature = "wasmparser")]
     fn available_imports(&self) -> Option<Cow<'_, [u8]>> {
         self.available_imports
             .as_ref()
