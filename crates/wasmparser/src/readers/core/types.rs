@@ -13,14 +13,14 @@
  * limitations under the License.
  */
 
-use std::fmt::{self, Debug, Write};
-
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
 };
 use crate::types::CoreTypeId;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
+use std::fmt::{self, Debug, Write};
+use std::hash::{Hash, Hasher};
 
 mod matches;
 pub(crate) use self::matches::{Matches, WithRecGroup};
@@ -384,6 +384,20 @@ impl RecGroup {
     }
 }
 
+impl Hash for RecGroup {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.types().hash(hasher)
+    }
+}
+
+impl PartialEq for RecGroup {
+    fn eq(&self, other: &RecGroup) -> bool {
+        self.types() == other.types()
+    }
+}
+
+impl Eq for RecGroup {}
+
 /// Represents a subtype of possible other types in a WebAssembly module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct SubType {
@@ -415,6 +429,35 @@ impl SubType {
     /// Does not check finality or whether there is a supertype.
     pub fn unwrap_struct(&self) -> &StructType {
         self.composite_type.unwrap_struct()
+    }
+
+    /// Maps any `UnpackedIndex` via the specified closure.
+    pub(crate) fn remap_indices(
+        &mut self,
+        f: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
+    ) -> Result<()> {
+        if let Some(idx) = &mut self.supertype_idx {
+            f(idx)?;
+        }
+        match &mut self.composite_type {
+            CompositeType::Func(ty) => {
+                for ty in ty.params_mut() {
+                    ty.remap_indices(f)?;
+                }
+                for ty in ty.results_mut() {
+                    ty.remap_indices(f)?;
+                }
+            }
+            CompositeType::Array(ty) => {
+                ty.0.remap_indices(f)?;
+            }
+            CompositeType::Struct(ty) => {
+                for field in ty.fields.iter_mut() {
+                    field.remap_indices(f)?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -562,6 +605,19 @@ pub struct FieldType {
     pub mutable: bool,
 }
 
+impl FieldType {
+    /// Maps any `UnpackedIndex` via the specified closure.
+    pub(crate) fn remap_indices(
+        &mut self,
+        f: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
+    ) -> Result<()> {
+        match &mut self.element_type {
+            StorageType::I8 | StorageType::I16 => Ok(()),
+            StorageType::Val(ty) => ty.remap_indices(f),
+        }
+    }
+}
+
 /// Represents storage types introduced in the GC spec for array and struct fields.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum StorageType {
@@ -639,6 +695,23 @@ impl ValType {
             Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
             Self::Ref(rt) => rt.is_nullable(),
         }
+    }
+
+    /// Maps any `UnpackedIndex` via the specified closure.
+    pub(crate) fn remap_indices(
+        &mut self,
+        map: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
+    ) -> Result<()> {
+        match self {
+            ValType::Ref(r) => {
+                if let Some(mut idx) = r.type_index() {
+                    map(&mut idx)?;
+                    *r = RefType::concrete(r.is_nullable(), idx);
+                }
+            }
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+        }
+        Ok(())
     }
 }
 

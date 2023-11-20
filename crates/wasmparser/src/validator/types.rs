@@ -11,9 +11,9 @@ use crate::{
     TypeRef, UnpackedIndex, ValType, WithRecGroup,
 };
 use indexmap::{IndexMap, IndexSet};
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::ops::Index;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
+use std::ops::{Index, Range};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
     borrow::Borrow,
@@ -595,12 +595,12 @@ impl ComponentAnyTypeId {
 
 define_type_id!(
     RecGroupId,
-    std::ops::Range<CoreTypeId>,
+    Range<CoreTypeId>,
     rec_group_elements,
     "recursion group"
 );
 
-impl TypeData for std::ops::Range<CoreTypeId> {
+impl TypeData for Range<CoreTypeId> {
     type Id = RecGroupId;
 
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
@@ -2403,12 +2403,12 @@ pub struct TypeList {
     core_type_to_supertype: SnapshotList<Option<CoreTypeId>>,
     // A primary map from `RecGroupId` to the range of the rec group's elements
     // within `core_types`.
-    rec_group_elements: SnapshotList<std::ops::Range<CoreTypeId>>,
+    rec_group_elements: SnapshotList<Range<CoreTypeId>>,
     // A hash map from rec group elements to their canonical `RecGroupId`.
     //
-    // This hash map is queried by the full `RecGroup` structure but actually
-    // only stores the range of the rec group's elements as a key.
-    canonical_rec_groups: hashbrown::HashTable<(std::ops::Range<CoreTypeId>, RecGroupId)>,
+    // This is `None` when a list is "committed" meaning that no more insertions
+    // can happen.
+    canonical_rec_groups: Option<HashMap<RecGroup, RecGroupId>>,
 
     // Component model types.
     components: SnapshotList<ComponentType>,
@@ -2466,93 +2466,61 @@ impl TypeList {
     /// and return its associated id and whether this was a new recursion group
     /// or not.
     pub fn intern_canonical_rec_group(&mut self, rec_group: RecGroup) -> (bool, RecGroupId) {
-        /// Hasher for the elements in a rec group.
-        ///
-        /// Doesn't take a slice because a `SnapshotList` doesn't necessarily
-        /// hold its elements in a contiguous slice.
-        fn rec_group_hasher<'a, I>(rec_group_elems: impl IntoIterator<IntoIter = I>) -> u64
-        where
-            I: ExactSizeIterator<Item = &'a SubType>,
-        {
-            let iter = rec_group_elems.into_iter();
-            let mut state = std::collections::hash_map::DefaultHasher::default();
-            std::hash::Hash::hash(&iter.len(), &mut state);
-            for ty in iter {
-                std::hash::Hash::hash(ty, &mut state);
-            }
-            state.finish()
-        }
-
-        let hash = rec_group_hasher(rec_group.types());
-
-        let entry = self.canonical_rec_groups.find_entry(hash, |(range, _)| {
-            let len = range.end.index() - range.start.index();
-            if len != rec_group.types().len() {
-                return false;
-            }
-
-            (range.start.index()..range.end.index())
-                .map(|i| &self.core_types[i])
-                .zip(rec_group.types())
-                .all(|(canon_ty, new_ty)| canon_ty == new_ty)
-        });
-
-        let (is_new, occupied_entry) = match entry {
-            // Occupied: use the existing entry.
-            Ok(entry) => (false, entry),
-
-            // Absent: intern the types, record their range, add a new canonical
-            // rec group for that range, insert it into the hash table, and
-            // return the new entry.
-            Err(absent_entry) => {
-                let table = absent_entry.into_table();
-
-                let rec_group_id = self.rec_group_elements.len();
-                let rec_group_id = u32::try_from(rec_group_id).unwrap();
-                let rec_group_id = RecGroupId::from_index(rec_group_id);
-
-                let start = self.core_types.len();
-                let start = u32::try_from(start).unwrap();
-                let start = CoreTypeId::from_index(start);
-
-                for ty in rec_group.into_types() {
-                    debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
-                    debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
-
-                    self.core_type_to_supertype.push(ty.supertype_idx.map(
-                        |idx| match idx.unpack() {
-                            UnpackedIndex::RecGroup(offset) => {
-                                CoreTypeId::from_index(start.index + offset)
-                            }
-                            UnpackedIndex::Id(id) => id,
-                            UnpackedIndex::Module(_) => unreachable!("in canonical form"),
-                        },
-                    ));
-                    self.core_types.push(ty);
-                    self.core_type_to_rec_group.push(rec_group_id);
-                }
-
-                let end = self.core_types.len();
-                let end = u32::try_from(end).unwrap();
-                let end = CoreTypeId::from_index(end);
-
-                let range = start..end;
-
-                self.rec_group_elements.push(range.clone());
-
-                let occupied_entry = table.insert_unique(hash, (range, rec_group_id), |entry| {
-                    let range = &entry.0;
-                    let start = range.start.index();
-                    let end = range.end.index();
-                    rec_group_hasher((start..end).map(|i| &self.core_types[i]))
-                });
-
-                (true, occupied_entry)
-            }
+        let canonical_rec_groups = self
+            .canonical_rec_groups
+            .as_mut()
+            .expect("cannot intern into a committed list");
+        let entry = match canonical_rec_groups.entry(rec_group) {
+            Entry::Occupied(e) => return (false, *e.get()),
+            Entry::Vacant(e) => e,
         };
 
-        let rec_group_id = occupied_entry.get().1;
-        (is_new, rec_group_id)
+        let rec_group_id = self.rec_group_elements.len();
+        let rec_group_id = u32::try_from(rec_group_id).unwrap();
+        let rec_group_id = RecGroupId::from_index(rec_group_id);
+
+        let start = self.core_types.len();
+        let start = u32::try_from(start).unwrap();
+        let start = CoreTypeId::from_index(start);
+
+        for ty in entry.key().types() {
+            debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
+            debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
+
+            self.core_type_to_supertype
+                .push(ty.supertype_idx.map(|idx| match idx.unpack() {
+                    UnpackedIndex::RecGroup(offset) => CoreTypeId::from_index(start.index + offset),
+                    UnpackedIndex::Id(id) => id,
+                    UnpackedIndex::Module(_) => unreachable!("in canonical form"),
+                }));
+            let mut ty = ty.clone();
+            ty.remap_indices(&mut |index| {
+                match index.unpack() {
+                    UnpackedIndex::Id(_) => {}
+                    UnpackedIndex::Module(_) => unreachable!(),
+                    UnpackedIndex::RecGroup(offset) => {
+                        *index = UnpackedIndex::Id(CoreTypeId::from_index(start.index + offset))
+                            .pack()
+                            .unwrap();
+                    }
+                };
+                Ok(())
+            })
+            .expect("cannot fail");
+            self.core_types.push(ty);
+            self.core_type_to_rec_group.push(rec_group_id);
+        }
+
+        let end = self.core_types.len();
+        let end = u32::try_from(end).unwrap();
+        let end = CoreTypeId::from_index(end);
+
+        let range = start..end;
+
+        self.rec_group_elements.push(range.clone());
+
+        entry.insert(rec_group_id);
+        return (true, rec_group_id);
     }
 
     /// Get the `CoreTypeId` for a local index into a rec group.
@@ -2790,7 +2758,7 @@ impl TypeList {
             core_type_to_rec_group: core_type_to_rec_group.len(),
             core_type_to_supertype: core_type_to_supertype.len(),
             rec_group_elements: rec_group_elements.len(),
-            canonical_rec_groups: canonical_rec_groups.len(),
+            canonical_rec_groups: canonical_rec_groups.as_ref().map(|m| m.len()).unwrap_or(0),
         }
     }
 
@@ -2825,12 +2793,14 @@ impl TypeList {
         core_type_to_supertype.truncate(checkpoint.core_type_to_supertype);
         rec_group_elements.truncate(checkpoint.rec_group_elements);
 
-        assert_eq!(
-            canonical_rec_groups.len(),
-            checkpoint.canonical_rec_groups,
-            "checkpointing does not support resetting `canonical_rec_groups` (it would require a \
-             proper immutable and persistent hash map) so adding new groups is disallowed"
-        );
+        if let Some(canonical_rec_groups) = canonical_rec_groups {
+            assert_eq!(
+                canonical_rec_groups.len(),
+                checkpoint.canonical_rec_groups,
+                "checkpointing does not support resetting `canonical_rec_groups` (it would require a \
+                 proper immutable and persistent hash map) so adding new groups is disallowed"
+            );
+        }
     }
 
     pub fn commit(&mut self) -> TypeList {
@@ -2860,7 +2830,7 @@ impl TypeList {
             core_type_to_rec_group: self.core_type_to_rec_group.commit(),
             core_type_to_supertype: self.core_type_to_supertype.commit(),
             rec_group_elements: self.rec_group_elements.commit(),
-            canonical_rec_groups: self.canonical_rec_groups.clone(),
+            canonical_rec_groups: None,
         }
     }
 
@@ -2939,11 +2909,13 @@ pub(crate) struct TypeAlloc {
 impl Default for TypeAlloc {
     fn default() -> TypeAlloc {
         static NEXT_GLOBAL_ID: AtomicU64 = AtomicU64::new(0);
-        TypeAlloc {
+        let mut ret = TypeAlloc {
             list: TypeList::default(),
             globally_unique_id: NEXT_GLOBAL_ID.fetch_add(1, Ordering::Relaxed),
             next_resource_id: 0,
-        }
+        };
+        ret.list.canonical_rec_groups = Some(Default::default());
+        ret
     }
 }
 

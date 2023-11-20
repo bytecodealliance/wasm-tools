@@ -40,9 +40,5 @@
     (type $t1 (;17;) (struct (field (ref 18))))
     (type $t2 (;18;) (sub (struct (field (ref 17)))))
   )
-  (rec
-    (type $t3 (;19;) (struct (field (ref 20))))
-    (type $t4 (;20;) (sub $t2 (;18;) (struct (field (ref 19)))))
-  )
   (rec)
 )

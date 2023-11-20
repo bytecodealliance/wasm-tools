@@ -248,7 +248,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::WasmFuncType;
+    use crate::types::CoreTypeId;
+    use crate::{HeapType, WasmFuncType};
 
     struct EmptyResources;
 
@@ -261,27 +262,22 @@ mod tests {
         fn memory_at(&self, _at: u32) -> Option<crate::MemoryType> {
             todo!()
         }
-        fn tag_at(&self, _at: u32) -> Option<Self::FuncType> {
+        fn tag_at(&self, _at: u32) -> Option<&Self::FuncType> {
             todo!()
         }
         fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {
             todo!()
         }
-        fn func_type_at(&self, _type_idx: u32) -> Option<Self::FuncType> {
-            Some(EmptyFuncType)
+        fn func_type_at(&self, _type_idx: u32) -> Option<&Self::FuncType> {
+            Some(&EmptyFuncType)
         }
-        fn type_index_of_function(&self, _at: u32) -> Option<u32> {
+        fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
         }
-        fn type_of_function(&self, _func_idx: u32) -> Option<Self::FuncType> {
+        fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
             todo!()
         }
-        fn check_value_type(
-            &self,
-            _t: ValType,
-            _features: &WasmFeatures,
-            _offset: usize,
-        ) -> Result<()> {
+        fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
             Ok(())
         }
         fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {
@@ -297,9 +293,6 @@ mod tests {
             todo!()
         }
         fn is_function_referenced(&self, _idx: u32) -> bool {
-            todo!()
-        }
-        fn canonicalize_valtype(&self, _valtype: &mut ValType) {
             todo!()
         }
     }
