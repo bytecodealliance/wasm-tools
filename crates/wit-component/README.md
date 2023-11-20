@@ -48,11 +48,14 @@ First `wit-component` supports the wasm-based encoding of a WIT package:
 
 ```sh
 $ cat demo.wit
+package my:demo;
+
 interface host {
-  hello: func()
+  hello: func();
 }
-default world demo {
-  import host: self.host
+
+world demo {
+  import host;
 }
 
 $ wasm-tools component wit demo.wit -o demo.wasm --wasm
@@ -72,7 +75,7 @@ be used where the `demo.wit` argument is specified manually, however.
 ```sh
 $ cat demo.core.wat
 (module
-  (import "host" "hello" (func))
+  (import "my:demo/host" "hello" (func))
 )
 
 $ wasm-tools component embed demo.wit --world demo demo.core.wat -o demo.wasm
