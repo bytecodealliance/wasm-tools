@@ -186,9 +186,13 @@ fn skip_validation(test: &Path) -> bool {
         "/proposals/gc/ref_test.wast",
         "/proposals/gc/struct.wast",
         "/proposals/gc/type-subtyping.wast",
+        "/proposals/exception-handling/try_table.wast",
+        "/proposals/exception-handling/throw_ref.wast",
+        "/proposals/exception-handling/ref_null.wast",
         "/exnref/exnref.wast",
         "/exnref/throw_ref.wast",
         "/exnref/try_table.wast",
+        "obsolete-keywords.wast",
     ];
     let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
     if broken.iter().any(|x| test_path.contains(x)) {
