@@ -114,6 +114,7 @@ impl<'a> Parse<'a> for Module<'a> {
         let _r = parser.register_annotation("producers");
         let _r = parser.register_annotation("name");
         let _r = parser.register_annotation("dylink.0");
+        let _r = parser.register_annotation("metadata.code.branch_hint");
 
         let span = parser.parse::<kw::module>()?.0;
         let id = parser.parse()?;
@@ -209,6 +210,7 @@ impl<'a> Parse<'a> for ModuleField<'a> {
         if parser.peek::<annotation::custom>()?
             || parser.peek::<annotation::producers>()?
             || parser.peek::<annotation::dylink_0>()?
+            || parser.peek::<annotation::metadata_code_branch_hint>()?
         {
             return Ok(ModuleField::Custom(parser.parse()?));
         }
