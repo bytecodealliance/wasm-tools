@@ -191,8 +191,8 @@ pub fn encode(
         Some(true) => EncodingFormat::Next,
         Some(false) => EncodingFormat::Previous,
         None => match std::env::var("WIT_COMPONENT_NEW_ENCODE") {
-            Ok(s) if s == "1" => EncodingFormat::Next,
-            _ => EncodingFormat::Previous,
+            Ok(s) if s == "0" => EncodingFormat::Previous,
+            _ => EncodingFormat::Next,
         },
     };
 
