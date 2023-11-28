@@ -2243,6 +2243,11 @@ where
         Ok(())
     }
     fn visit_ref_null(&mut self, mut heap_type: HeapType) -> Self::Output {
+        if let Some(ty) = RefType::new(true, heap_type) {
+            self.features
+                .check_ref_type(ty)
+                .map_err(|e| BinaryReaderError::new(e, self.offset))?;
+        }
         self.resources
             .check_heap_type(&mut heap_type, self.offset)?;
         let ty = ValType::Ref(
