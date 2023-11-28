@@ -80,7 +80,7 @@ An instantiation has the following fields:
   Argument names match the names of the imports of the dependency being
   instantiated.
 
-Note that the instantiation name `input` is special and signifies how the input
+Note that the instantiation name `composition-root` is special and signifies how the input
 component is to be instantiated.
 
 ### Instantiation arguments
@@ -106,7 +106,7 @@ A slightly complex example of configuring instantiations:
 
 ```yaml
 instantiations:
-  input:
+  composition-root:
     arguments:
       a: b
   b:
@@ -118,7 +118,7 @@ instantiations:
     dependency: f
 ```
 
-In the above example, the `input` instantiation (i.e. the root instantiation)
+In the above example, the `composition-root` instantiation (i.e. the root instantiation)
 has explicitly specified that the argument named `a` is to be provided instance
 `b`.
 

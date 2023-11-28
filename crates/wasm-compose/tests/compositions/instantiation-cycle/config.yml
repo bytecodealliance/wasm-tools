@@ -1,5 +1,5 @@
 instantiations:
-  $input:
+  composition-root:
     arguments:
       b: a1
   a1:

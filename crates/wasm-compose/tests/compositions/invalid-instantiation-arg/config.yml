@@ -1,4 +1,4 @@
 instantiations:
-  $input:
+  composition-root:
     arguments:
       invalid: a
