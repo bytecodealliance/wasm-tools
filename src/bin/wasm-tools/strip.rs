@@ -46,8 +46,8 @@ impl Opts {
                 return to_delete.is_match(name);
             }
 
-            // Finally default strip everything but the `name` section.
-            name != "name"
+            // Finally default strip everything but the `name` and any `component-type` sections.
+            name != "name" && !name.starts_with("component-type:")
         };
 
         let mut output = Vec::new();
