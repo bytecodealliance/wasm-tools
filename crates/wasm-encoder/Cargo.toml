@@ -1,6 +1,6 @@
 [package]
 name = "wasm-encoder"
-version = "0.38.0"
+version = "0.38.1"
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
