@@ -28,3 +28,6 @@
 (assert_invalid
   (module (func (block (result i31ref) unreachable)))
   "heap types not supported without the gc feature")
+(assert_invalid
+  (module (func ref.null array drop))
+  "heap types not supported without the gc feature")
