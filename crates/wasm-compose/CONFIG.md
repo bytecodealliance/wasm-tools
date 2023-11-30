@@ -7,16 +7,16 @@ To specify the configuration file to use, pass the `--config` option to
 
 The configuration file has the following top-level fields:
 
-* `search-paths` : `list<string>` (optional) - a list of paths to search for
-dependencies.
-* `skip-validation` : `bool` (optional) - a boolean indicating whether to skip
-validation of the resulting composed component.
-* `dependencies` : `map<string, dependency>` (optional) - a map specifying the
-explicit locations of transitive dependencies.
-* `instantiations` : `map<string, instantiation>` (optional) - a map specifying
-the explicit instantiations of transitive dependencies.
-* `definitions` : `list<string>` (optional) - a list of paths to _definition_
-components.
+- `search-paths` : `list<string>` (optional) - a list of paths to search for
+  dependencies.
+- `skip-validation` : `bool` (optional) - a boolean indicating whether to skip
+  validation of the resulting composed component.
+- `dependencies` : `map<string, dependency>` (optional) - a map specifying the
+  explicit locations of transitive dependencies.
+- `instantiations` : `map<string, instantiation>` (optional) - a map specifying
+  the explicit instantiations of transitive dependencies.
+- `definitions` : `list<string>` (optional) - a list of paths to _definition_
+  components.
 
 ## Dependencies
 
@@ -25,10 +25,10 @@ dependency, rather than searching the configured search paths.
 
 A dependency has the following fields:
 
-* `path` : `string` - the path to the WebAssembly component file; the path is
+- `path` : `string` - the path to the WebAssembly component file; the path is
   relative to the configuration file.
 
-* `import` : `string` (optional) - the name to use for importing the component.
+- `import` : `string` (optional) - the name to use for importing the component.
   If not present, the component at the given path will be defined directly in
   the composed component.
 
@@ -49,11 +49,11 @@ dependencies:
 
 In the above example, two dependencies are defined in the configuration:
 
-* `a` - the contents of `a.wasm` will be defined directly in the composed
-component.
-* `b` - a component of the same type as `b.wasm` will be imported in the
-composed component with name `b`; the original file will not be embedded in the
-composed component.
+- `a` - the contents of `a.wasm` will be defined directly in the composed
+  component.
+- `b` - a component of the same type as `b.wasm` will be imported in the
+  composed component with name `b`; the original file will not be embedded in the
+  composed component.
 
 _Note: importing components from a composed component is not currently
 supported in [Wasmtime](https://github.com/bytecodealliance/wasmtime)._
@@ -68,19 +68,19 @@ instantiated, even allowing a dependency to be instantiated multiple times.
 
 An instantiation has the following fields:
 
-* `dependency` : `string` (optional) - the name of the dependency to
+- `dependency` : `string` (optional) - the name of the dependency to
   instantiate.
 
   If unspecified, the instantiation will be for a dependency of the same name
   as the instantiation itself.
 
-* `arguments` : `map<string, argument>` (optional) - a mapping of argument
+- `arguments` : `map<string, argument>` (optional) - a mapping of argument
   names to arguments.
 
   Argument names match the names of the imports of the dependency being
   instantiated.
 
-Note that the instantiation name `$input` is special and signifies how the input
+Note that the instantiation name `root` is special and signifies how the input
 component is to be instantiated.
 
 ### Instantiation arguments
@@ -90,9 +90,9 @@ to the instantiation of a dependency.
 
 An argument has the following fields:
 
-* `instance` : `string` - the name of the instance to pass as the argument.
+- `instance` : `string` - the name of the instance to pass as the argument.
 
-* `export` : `string` (optional) - the name of the exported instance on
+- `export` : `string` (optional) - the name of the exported instance on
   `instance` to use as the argument.
 
   If not present, the instance specified by `instance` will be passed directly.
@@ -106,7 +106,7 @@ A slightly complex example of configuring instantiations:
 
 ```yaml
 instantiations:
-  $input:
+  root:
     arguments:
       a: b
   b:
@@ -118,7 +118,7 @@ instantiations:
     dependency: f
 ```
 
-In the above example, the `$input` instantiation (i.e. the root instantiation)
+In the above example, the `root` instantiation (i.e. the root instantiation)
 has explicitly specified that the argument named `a` is to be provided instance
 `b`.
 

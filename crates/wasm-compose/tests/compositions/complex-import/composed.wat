@@ -14,7 +14,7 @@
       (export (;1;) "m2" (func (type 1)))
     )
   )
-  (import "input" (component (;0;) (type 0)))
+  (import "root" (component (;0;) (type 0)))
   (type (;1;)
     (component
       (type (;0;)

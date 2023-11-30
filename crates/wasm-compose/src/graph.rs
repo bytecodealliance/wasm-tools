@@ -11,6 +11,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
+    names::ComponentName,
     types::{
         ComponentAnyTypeId, ComponentEntityType, ComponentInstanceTypeId, Remap, Remapping,
         ResourceId, SubtypeCx, Types, TypesRef,
@@ -48,12 +49,11 @@ pub struct Component<'a> {
 
 impl<'a> Component<'a> {
     /// Constructs a new component from reading the given file.
-    pub fn from_file(name: impl Into<String>, path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(name: &str, path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         log::info!("parsing WebAssembly component file `{}`", path.display());
-
         let component = Self::parse(
-            name.into(),
+            ComponentName::new(name, 0)?.to_string(),
             Some(path.to_owned()),
             wat::parse_file(path)
                 .with_context(|| {
@@ -83,8 +83,12 @@ impl<'a> Component<'a> {
         }
 
         log::info!("parsing WebAssembly component from bytes");
-        let component =
-            Self::parse(name.into(), None, bytes).context("failed to parse component")?;
+        let component = Self::parse(
+            ComponentName::new(&name.into(), 0)?.to_string(),
+            None,
+            bytes,
+        )
+        .context("failed to parse component")?;
 
         log::debug!("WebAssembly component parsed:\n{component:#?}",);
 

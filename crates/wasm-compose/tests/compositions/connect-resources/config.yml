@@ -1,5 +1,5 @@
 instantiations:
-  $input:
+  root:
     arguments:
       example:service/logging@0.1.0:
         instance: logger

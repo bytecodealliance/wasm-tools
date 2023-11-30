@@ -1,5 +1,5 @@
 instantiations:
-  $input:
+  root:
     arguments:
       b: a1
   a1:

@@ -17,7 +17,7 @@ use wasmparser::{
 };
 
 /// The root component name used in configuration.
-pub const ROOT_COMPONENT_NAME: &str = "$input";
+pub const ROOT_COMPONENT_NAME: &str = "root";
 
 /// A reference to an instance import on a component.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
