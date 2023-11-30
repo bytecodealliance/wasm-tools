@@ -1,4 +1,4 @@
-failed to parse component `tests/compositions/locked-dep/root.wat`
+failed to parse component `tests/compositions/locked-dep-invalid-semver/root.wat`
 
 Caused by:
     import name `locked-dep=<foo:add@1.0.>` is not a valid extern name
