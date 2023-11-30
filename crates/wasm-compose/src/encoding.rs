@@ -2,7 +2,6 @@ use crate::graph::{
     type_desc, CompositionGraph, EncodeOptions, ExportIndex, ImportIndex, InstanceId,
 };
 use anyhow::{anyhow, bail, Result};
-use heck::ToKebabCase;
 use indexmap::{IndexMap, IndexSet};
 use petgraph::EdgeDirection;
 use smallvec::SmallVec;
@@ -1059,7 +1058,7 @@ enum ImportMapEntry<'a> {
 /// Represents the import map built during the encoding
 /// of a composition graph.
 #[derive(Default)]
-struct ImportMap<'a>(IndexMap<Cow<'a, str>, ImportMapEntry<'a>>);
+struct ImportMap<'a>(IndexMap<&'a str, ImportMapEntry<'a>>);
 
 impl<'a> ImportMap<'a> {
     fn new(import_components: bool, graph: &'a CompositionGraph) -> Result<Self> {
@@ -1083,7 +1082,7 @@ impl<'a> ImportMap<'a> {
             assert!(self
                 .0
                 .insert(
-                    entry.component.name.clone().into(),
+                    &entry.component.name,
                     ImportMapEntry::Component(&entry.component),
                 )
                 .is_none());

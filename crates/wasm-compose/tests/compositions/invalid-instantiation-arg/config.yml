@@ -1,4 +1,4 @@
 instantiations:
-  composition-root:
+  root:
     arguments:
       invalid: a

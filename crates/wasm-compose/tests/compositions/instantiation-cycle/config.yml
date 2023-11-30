@@ -1,5 +1,5 @@
 instantiations:
-  composition-root:
+  root:
     arguments:
       b: a1
   a1:

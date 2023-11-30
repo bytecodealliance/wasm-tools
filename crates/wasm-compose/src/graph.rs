@@ -49,11 +49,11 @@ pub struct Component<'a> {
 
 impl<'a> Component<'a> {
     /// Constructs a new component from reading the given file.
-    pub fn from_file(name: impl Into<String>, path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(name: &str, path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         log::info!("parsing WebAssembly component file `{}`", path.display());
         let component = Self::parse(
-            ComponentName::new(&name.into(), 0)?.to_string(),
+            ComponentName::new(name, 0)?.to_string(),
             Some(path.to_owned()),
             wat::parse_file(path)
                 .with_context(|| {

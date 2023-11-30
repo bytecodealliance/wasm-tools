@@ -1,5 +1,5 @@
 instantiations:
-  composition-root:
+  root:
     arguments:
       locked-dep=<foo:add@1.0.0>: a1
   a1:
