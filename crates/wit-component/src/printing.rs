@@ -843,7 +843,7 @@ impl WitPrinter {
         if self.emit_docs {
             if let Some(contents) = &docs.contents {
                 for line in contents.lines() {
-                    self.output.push_str("/// ");
+                    self.output.push_str("// ");
                     self.output.push_str(line);
                     self.output.push_str("\n");
                 }

@@ -941,19 +941,17 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
             Token::Whitespace => {}
             Token::Comment => {
                 let comment = tokens.get_span(span);
-                if comment.starts_with("///") || (comment.starts_with("/**") && comment != "/**/") {
-                    if !started {
-                        docs.span.start = span.start;
-                        started = true;
-                    }
-                    let trailing_ws = comment
-                        .bytes()
-                        .rev()
-                        .take_while(|ch| ch.is_ascii_whitespace())
-                        .count();
-                    docs.span.end = span.end - (trailing_ws as u32);
-                    docs.docs.push(comment.into());
+                if !started {
+                    docs.span.start = span.start;
+                    started = true;
                 }
+                let trailing_ws = comment
+                    .bytes()
+                    .rev()
+                    .take_while(|ch| ch.is_ascii_whitespace())
+                    .count();
+                docs.span.end = span.end - (trailing_ws as u32);
+                docs.docs.push(comment.into());
             }
             _ => break,
         };
