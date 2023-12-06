@@ -36,6 +36,9 @@ enum WitEncodingVersion {
 impl<'a> ComponentInfo<'a> {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
     fn new(bytes: &'a [u8]) -> Result<Self> {
+        if !Parser::is_component(bytes) {
+            bail!("input is not a component wasm binary");
+        }
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
         let mut depth = 1;
