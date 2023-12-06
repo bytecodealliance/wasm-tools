@@ -736,6 +736,9 @@
       },
       "owner": {
         "interface": 0
+      },
+      "docs": {
+        "contents": "type order doesn't matter"
       }
     }
   ],

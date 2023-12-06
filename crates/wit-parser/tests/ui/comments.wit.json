@@ -8,6 +8,9 @@
         "bar": 1
       },
       "functions": {},
+      "docs": {
+        "contents": "hello\nworld\nwhy, yes\nthis is a comment\n* this too */\n* is a comment */\n* this /* is /* a */ nested */ comment */"
+      },
       "package": 0
     }
   ],
