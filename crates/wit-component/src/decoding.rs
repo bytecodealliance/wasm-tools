@@ -2,12 +2,12 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::mem;
 use std::{collections::HashMap, io::Read};
+use wasmparser::Chunk;
 use wasmparser::{
     names::{ComponentName, ComponentNameKind},
-    types, ComponentExport, ComponentExternalKind, ComponentImport, Parser, Payload,
-    PrimitiveValType, ValidPayload, Validator, WasmFeatures,
+    types, ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
+    WasmFeatures,
 };
-use wasmparser::{Chunk, ComponentImportName};
 use wit_parser::*;
 
 use crate::encoding::docs::{PackageDocs, PACKAGE_DOCS_SECTION_NAME};
@@ -23,69 +23,25 @@ struct ComponentInfo {
     package_docs: Option<PackageDocs>,
 }
 
-enum Extern {
-    Import(ComponentImport),
-    Export(ComponentExport),
+struct DecodingExport {
+    name: String,
+    kind: ComponentExternalKind,
+    index: u32,
 }
 
+enum Extern {
+    Import(String),
+    Export(DecodingExport),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WitEncodingVersion {
     V1,
     V2,
 }
 
-impl<'a> ComponentInfo {
+impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
-    fn new(bytes: &'a [u8]) -> Result<Self> {
-        let mut validator = Validator::new_with_features(WasmFeatures::all());
-        let mut externs = Vec::new();
-        let mut depth = 1;
-        let mut types = None;
-        let mut package_docs = None;
-
-        for payload in Parser::new(0).parse_all(bytes) {
-            let payload = payload?;
-
-            match validator.payload(&payload)? {
-                ValidPayload::Ok => {}
-                ValidPayload::Parser(_) => depth += 1,
-                ValidPayload::End(t) => {
-                    depth -= 1;
-                    if depth == 0 {
-                        types = Some(t);
-                    }
-                }
-                ValidPayload::Func(..) => {}
-            }
-
-            match payload {
-                Payload::ComponentImportSection(s) if depth == 1 => {
-                    for import in s {
-                        let import = import.clone()?;
-                        externs.push((import.name.0.to_string(), Extern::Import(import)));
-                    }
-                }
-                Payload::ComponentExportSection(s) if depth == 1 => {
-                    for export in s {
-                        let export = export?;
-                        externs.push((export.name.0.to_string(), Extern::Export(export)));
-                    }
-                }
-                Payload::CustomSection(s) if s.name() == PACKAGE_DOCS_SECTION_NAME => {
-                    if package_docs.is_some() {
-                        bail!("multiple {PACKAGE_DOCS_SECTION_NAME:?} sections");
-                    }
-                    package_docs = Some(PackageDocs::decode(s.data())?);
-                }
-                _ => {}
-            }
-        }
-        Ok(Self {
-            types: types.unwrap(),
-            externs,
-            package_docs,
-        })
-    }
-
     fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
@@ -136,17 +92,21 @@ impl<'a> ComponentInfo {
                         let import = import?;
                         externs.push((
                             import.name.0.to_string(),
-                            Extern::Import(ComponentImport {
-                                name: ComponentImportName(import.name.0.to_string()),
-                                ty: import.ty,
-                            }),
+                            Extern::Import(import.name.0.to_string()),
                         ));
                     }
                 }
                 Payload::ComponentExportSection(s) if depth == 1 => {
                     for export in s {
                         let export = export?;
-                        externs.push((export.name.0.to_string(), Extern::Export(export)));
+                        externs.push((
+                            export.name.0.to_string(),
+                            Extern::Export(DecodingExport {
+                                name: export.name.0.to_string(),
+                                kind: export.kind,
+                                index: export.index,
+                            }),
+                        ));
                     }
                 }
                 Payload::CustomSection(s) if s.name() == PACKAGE_DOCS_SECTION_NAME => {
@@ -440,28 +400,8 @@ pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
 /// The WebAssembly binary provided here can either be a
 /// WIT-package-encoded-as-binary or an actual component itself. A [`Resolve`]
 /// is always created and the return value indicates which was detected.
-// pub fn decode(bytes: impl Read) -> Result<DecodedWasm> {
 pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
-    let info = ComponentInfo::new(bytes)?;
-
-    if let Some(version) = info.is_wit_package() {
-        match version {
-            WitEncodingVersion::V1 => {
-                log::debug!("decoding a v1 WIT package encoded as wasm");
-                let (resolve, pkg) = info.decode_wit_v1_package()?;
-                Ok(DecodedWasm::WitPackage(resolve, pkg))
-            }
-            WitEncodingVersion::V2 => {
-                log::debug!("decoding a v2 WIT package encoded as wasm");
-                let (resolve, pkg) = info.decode_wit_v2_package()?;
-                Ok(DecodedWasm::WitPackage(resolve, pkg))
-            }
-        }
-    } else {
-        log::debug!("inferring the WIT of a concrete component");
-        let (resolve, world) = info.decode_component()?;
-        Ok(DecodedWasm::Component(resolve, world))
-    }
+    decode_reader(bytes)
 }
 
 /// Decodes the single component type `world` specified as a WIT world.
@@ -650,22 +590,21 @@ impl WitPackageDecoder<'_> {
 
     fn decode_component_import<'a>(
         &mut self,
-        import: &ComponentImport,
+        name: &str,
         world: WorldId,
         package: &mut PackageFields<'a>,
     ) -> Result<()> {
-        let name = import.name.0.clone();
         log::debug!("decoding component import `{name}`");
-        let ty = self.types.component_entity_type_of_import(&name).unwrap();
+        let ty = self.types.component_entity_type_of_import(name).unwrap();
         let owner = TypeOwner::World(world);
         let (name, item) = match ty {
             types::ComponentEntityType::Instance(i) => {
                 let ty = &self.types[i];
                 let (name, id) = if name.contains('/') {
-                    let id = self.register_import(&name, ty)?;
+                    let id = self.register_import(name, ty)?;
                     (WorldKey::Interface(id), id)
                 } else {
-                    self.register_interface(&name, ty, package)
+                    self.register_interface(name, ty, package)
                         .with_context(|| format!("failed to decode WIT from import `{name}`"))?
                 };
                 (name, WorldItem::Interface(id))
@@ -673,7 +612,7 @@ impl WitPackageDecoder<'_> {
             types::ComponentEntityType::Func(i) => {
                 let ty = &self.types[i];
                 let func = self
-                    .convert_function(&name, ty, owner)
+                    .convert_function(name, ty, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
@@ -682,7 +621,7 @@ impl WitPackageDecoder<'_> {
                 created,
             } => {
                 let id = self
-                    .register_type_export(&name, owner, referenced, created)
+                    .register_type_export(name, owner, referenced, created)
                     .with_context(|| format!("failed to decode type from export `{name}`"))?;
                 (WorldKey::Name(name.to_string()), WorldItem::Type(id))
             }
@@ -695,19 +634,19 @@ impl WitPackageDecoder<'_> {
 
     fn decode_component_export<'a>(
         &mut self,
-        export: &ComponentExport,
+        export: &DecodingExport,
         world: WorldId,
         package: &mut PackageFields<'a>,
     ) -> Result<()> {
-        let name = export.name.0.clone();
+        let name = &export.name;
         log::debug!("decoding component export `{name}`");
         let types = &self.types;
-        let ty = types.component_entity_type_of_export(&name).unwrap();
+        let ty = types.component_entity_type_of_export(name).unwrap();
         let (name, item) = match ty {
             types::ComponentEntityType::Func(i) => {
                 let ty = &types[i];
                 let func = self
-                    .convert_function(&name, ty, TypeOwner::World(world))
+                    .convert_function(name, ty, TypeOwner::World(world))
                     .with_context(|| format!("failed to decode function from export `{name}`"))?;
 
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
@@ -715,10 +654,10 @@ impl WitPackageDecoder<'_> {
             types::ComponentEntityType::Instance(i) => {
                 let ty = &types[i];
                 let (name, id) = if name.contains('/') {
-                    let id = self.register_import(&name, ty)?;
+                    let id = self.register_import(name, ty)?;
                     (WorldKey::Interface(id), id)
                 } else {
-                    self.register_interface(&name, ty, package)
+                    self.register_interface(name, ty, package)
                         .with_context(|| format!("failed to decode WIT from export `{name}`"))?
                 };
                 (name, WorldItem::Interface(id))
