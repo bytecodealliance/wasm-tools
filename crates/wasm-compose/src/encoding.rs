@@ -5,11 +5,8 @@ use anyhow::{anyhow, bail, Result};
 use indexmap::{IndexMap, IndexSet};
 use petgraph::EdgeDirection;
 use smallvec::SmallVec;
+use std::collections::{hash_map::Entry, HashMap};
 use std::mem;
-use std::{
-    borrow::Cow,
-    collections::{hash_map::Entry, HashMap},
-};
 use wasm_encoder::*;
 use wasmparser::{
     names::KebabString,
