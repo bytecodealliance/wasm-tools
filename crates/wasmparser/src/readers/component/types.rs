@@ -303,12 +303,12 @@ pub enum ComponentTypeDeclaration<'a> {
     /// The component type declaration is for an export.
     Export {
         /// The name of the export.
-        name: ComponentExportName<'a>,
+        name: ComponentExportName,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },
     /// The component type declaration is for an import.
-    Import(ComponentImport<'a>),
+    Import(ComponentImport),
 }
 
 impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
@@ -344,7 +344,7 @@ pub enum InstanceTypeDeclaration<'a> {
     /// The instance type declaration is for an export.
     Export {
         /// The name of the export.
-        name: ComponentExportName<'a>,
+        name: ComponentExportName,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },

@@ -65,9 +65,9 @@ impl ComponentExternalKind {
 
 /// Represents an export in a WebAssembly component.
 #[derive(Debug, Clone)]
-pub struct ComponentExport<'a> {
+pub struct ComponentExport {
     /// The name of the exported item.
-    pub name: ComponentExportName<'a>,
+    pub name: ComponentExportName,
     /// The kind of the export.
     pub kind: ComponentExternalKind,
     /// The index of the exported item.
@@ -77,9 +77,9 @@ pub struct ComponentExport<'a> {
 }
 
 /// A reader for the export section of a WebAssembly component.
-pub type ComponentExportSectionReader<'a> = SectionLimited<'a, ComponentExport<'a>>;
+pub type ComponentExportSectionReader<'a> = SectionLimited<'a, ComponentExport>;
 
-impl<'a> FromReader<'a> for ComponentExport<'a> {
+impl<'a> FromReader<'a> for ComponentExport {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(ComponentExport {
             name: reader.read()?,
@@ -115,11 +115,11 @@ impl<'a> FromReader<'a> for ComponentExternalKind {
 }
 
 /// Represents the name of a component export.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
-pub struct ComponentExportName<'a>(pub &'a str);
+pub struct ComponentExportName(pub String);
 
-impl<'a> FromReader<'a> for ComponentExportName<'a> {
+impl<'a> FromReader<'a> for ComponentExportName {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read_u8()? {
             0x00 => {}
@@ -130,6 +130,6 @@ impl<'a> FromReader<'a> for ComponentExportName<'a> {
             0x01 => {}
             x => return reader.invalid_leading_byte(x, "export name"),
         }
-        Ok(ComponentExportName(reader.read_string()?))
+        Ok(ComponentExportName(reader.read_string()?.to_owned()))
     }
 }

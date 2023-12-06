@@ -76,15 +76,15 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
 }
 
 /// Represents an import in a WebAssembly component
-#[derive(Debug, Copy, Clone)]
-pub struct ComponentImport<'a> {
+#[derive(Debug, Clone)]
+pub struct ComponentImport {
     /// The name of the imported item.
-    pub name: ComponentImportName<'a>,
+    pub name: ComponentImportName,
     /// The type reference for the import.
     pub ty: ComponentTypeRef,
 }
 
-impl<'a> FromReader<'a> for ComponentImport<'a> {
+impl<'a> FromReader<'a> for ComponentImport {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(ComponentImport {
             name: reader.read()?,
@@ -106,14 +106,14 @@ impl<'a> FromReader<'a> for ComponentImport<'a> {
 ///     println!("Import: {:?}", import);
 /// }
 /// ```
-pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'a>>;
+pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport>;
 
 /// Represents the name of a component import.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
-pub struct ComponentImportName<'a>(pub &'a str);
+pub struct ComponentImportName(pub String);
 
-impl<'a> FromReader<'a> for ComponentImportName<'a> {
+impl<'a> FromReader<'a> for ComponentImportName {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read_u8()? {
             0x00 => {}
@@ -124,6 +124,6 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
             0x01 => {}
             x => return reader.invalid_leading_byte(x, "import name"),
         }
-        Ok(ComponentImportName(reader.read_string()?))
+        Ok(ComponentImportName(reader.read_string()?.to_owned()))
     }
 }

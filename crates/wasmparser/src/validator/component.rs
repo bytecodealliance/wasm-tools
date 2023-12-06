@@ -434,13 +434,13 @@ impl ComponentState {
         let mut entity = self.check_type_ref(&import.ty, features, types, offset)?;
         self.add_entity(
             &mut entity,
-            Some((import.name.0, ExternKind::Import)),
+            Some((&import.name.0, ExternKind::Import)),
             features,
             types,
             offset,
         )?;
         self.toplevel_imported_resources.validate_extern(
-            import.name.0,
+            &import.name.0,
             ExternKind::Import,
             &entity,
             types,
@@ -915,7 +915,7 @@ impl ComponentState {
 
     pub fn add_export(
         &mut self,
-        name: ComponentExportName<'_>,
+        name: ComponentExportName,
         mut ty: ComponentEntityType,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
@@ -927,13 +927,13 @@ impl ComponentState {
         }
         self.add_entity(
             &mut ty,
-            Some((name.0, ExternKind::Export)),
+            Some((&name.0, ExternKind::Export)),
             features,
             types,
             offset,
         )?;
         self.toplevel_exported_resources.validate_extern(
-            name.0,
+            &name.0,
             ExternKind::Export,
             &ty,
             types,
@@ -2120,7 +2120,7 @@ impl ComponentState {
             };
 
             names.validate_extern(
-                export.name.0,
+                &export.name.0,
                 ExternKind::Export,
                 &ty,
                 types,
