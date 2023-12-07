@@ -441,56 +441,7 @@ impl WitOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        // First up determine the actual `DecodedWasm` as the input. This could
-        // come from a number of sources:
-        //
-        // * If a `*.wat` or `*.wasm` is specified, use `wit_component::decode`
-        // * If a directory is specified, parse it as a `Resolve`-oriented
-        //   package with a `deps` directory optionally available.
-        // * If a file is specified then it's just a normal wit package where
-        //   deps can't be resolved.
-        // * If no file is specified then parse the input as either `*.wat`,
-        //   `*.wasm`, or `*.wit` and do as above.
-        //
-        // Eventually there will want to be more flags for things like
-        // specifying a directory but specifying the WIT dependencies are
-        // located elsewhere. This should be sufficient for now though.
-        let decoded = match &self.input {
-            Some(input) => match input.extension().and_then(|s| s.to_str()) {
-                Some("wat") | Some("wasm") => {
-                    let bytes = wat::parse_file(&input)?;
-                    decode_wasm(&bytes).context("failed to decode WIT document")?
-                }
-                _ => {
-                    let (resolve, id) = parse_wit_from_path(input)?;
-                    DecodedWasm::WitPackage(resolve, id)
-                }
-            },
-            None => {
-                let mut stdin = Vec::new();
-                std::io::stdin()
-                    .read_to_end(&mut stdin)
-                    .context("failed to read <stdin>")?;
-
-                if is_wasm_binary_or_wat(&stdin) {
-                    let bytes = wat::parse_bytes(&stdin).map_err(|mut e| {
-                        e.set_path("<stdin>");
-                        e
-                    })?;
-
-                    decode_wasm(&bytes).context("failed to decode WIT document")?
-                } else {
-                    let stdin = match std::str::from_utf8(&stdin) {
-                        Ok(s) => s,
-                        Err(_) => bail!("stdin was not valid utf-8"),
-                    };
-                    let mut resolve = Resolve::default();
-                    let pkg = UnresolvedPackage::parse("<stdin>".as_ref(), stdin)?;
-                    let id = resolve.push(pkg)?;
-                    DecodedWasm::WitPackage(resolve, id)
-                }
-            }
-        };
+        let decoded = self.decode_input()?;
 
         // Now that the WIT document has been decoded, it's time to emit it.
         // This interprets all of the output options and performs such a task.
@@ -504,6 +455,63 @@ impl WitOpts {
             self.emit_wit(&decoded)?;
         }
         Ok(())
+    }
+
+    fn decode_input(&self) -> Result<DecodedWasm> {
+        // If the input is a directory then it's probably raw WIT files, so use
+        // `parse_wit_from_path`.
+        if let Some(input) = &self.input {
+            if input.is_dir() {
+                let (resolve, id) = parse_wit_from_path(input)?;
+                return Ok(DecodedWasm::WitPackage(resolve, id));
+            }
+        }
+
+        // ... otherwise if the input is not a directory then it's read into
+        // memory here and decoded below. Note that this specifically does not
+        // use `parse_wit_from_path` because this wants to additionally handle
+        // the input case that the input is a core wasm binary with a
+        // `component-type` section inside of it.
+        let (input, path) = match &self.input {
+            Some(input) => (
+                std::fs::read(input).with_context(|| format!("failed to read {input:?}"))?,
+                input.as_path(),
+            ),
+            None => {
+                let mut stdin = Vec::new();
+                std::io::stdin()
+                    .read_to_end(&mut stdin)
+                    .context("failed to read <stdin>")?;
+                (stdin, Path::new("<stdin>"))
+            }
+        };
+
+        if is_wasm_binary_or_wat(&input) {
+            // Use `wat` to possible translate the text format, and then
+            // afterwards use either `decode` or `metadata::decode` depending on
+            // if the input is a component or a core wasm mdoule.
+            let input = wat::parse_bytes(&input).map_err(|mut e| {
+                e.set_path(path);
+                e
+            })?;
+            if wasmparser::Parser::is_component(&input) {
+                wit_component::decode(&input)
+            } else {
+                let (_wasm, bindgen) = wit_component::metadata::decode(&input)?;
+                Ok(DecodedWasm::Component(bindgen.resolve, bindgen.world))
+            }
+        } else {
+            // This is a single WIT file, so create the single-file package and
+            // return it.
+            let input = match std::str::from_utf8(&input) {
+                Ok(s) => s,
+                Err(_) => bail!("input was not valid utf-8"),
+            };
+            let mut resolve = Resolve::default();
+            let pkg = UnresolvedPackage::parse(path, input)?;
+            let id = resolve.push(pkg)?;
+            Ok(DecodedWasm::WitPackage(resolve, id))
+        }
     }
 
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
@@ -632,14 +640,5 @@ impl TargetsOpts {
         wit_component::targets(&resolve, world, &component_to_test)?;
 
         Ok(())
-    }
-}
-
-fn decode_wasm(bytes: &[u8]) -> Result<DecodedWasm> {
-    if wasmparser::Parser::is_component(bytes) {
-        wit_component::decode(bytes)
-    } else {
-        let (_wasm, bindgen) = wit_component::metadata::decode(bytes)?;
-        Ok(DecodedWasm::Component(bindgen.resolve, bindgen.world))
     }
 }
