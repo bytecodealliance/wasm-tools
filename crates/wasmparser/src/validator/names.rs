@@ -414,27 +414,34 @@ impl<'a> InterfaceName<'a> {
         self.0
     }
 
-    /// Returns the `a` in `a:b/c`
+    /// Returns the `a:b` in `a:b:c/d/e`
     pub fn namespace(&self) -> &'a KebabStr {
-        let colon = self.0.find(':').unwrap();
+        let colon = self.0.rfind(':').unwrap();
         KebabStr::new_unchecked(&self.0[..colon])
     }
 
-    /// Returns the `b` in `a:b/c`
+    /// Returns the `c` in `a:b:c/d/e`
     pub fn package(&self) -> &'a KebabStr {
-        let colon = self.0.find(':').unwrap();
+        let colon = self.0.rfind(':').unwrap();
         let slash = self.0.find('/').unwrap();
         KebabStr::new_unchecked(&self.0[colon + 1..slash])
     }
 
-    /// Returns the `c` in `a:b/c`
+    /// Returns the `d` in `a:b:c/d/e`.
     pub fn interface(&self) -> &'a KebabStr {
+        let projection = self.projection();
+        let slash = projection.find('/').unwrap_or(projection.len());
+        KebabStr::new_unchecked(&projection[..slash])
+    }
+
+    /// Returns the `d/e` in `a:b:c/d/e`
+    pub fn projection(&self) -> &'a KebabStr {
         let slash = self.0.find('/').unwrap();
         let at = self.0.find('@').unwrap_or(self.0.len());
         KebabStr::new_unchecked(&self.0[slash + 1..at])
     }
 
-    /// Returns the `1.2.3` in `a:b/c@1.2.3`
+    /// Returns the `1.2.3` in `a:b:c/d/e@1.2.3`
     pub fn version(&self) -> Option<Version> {
         let at = self.0.find('@')?;
         Some(Version::parse(&self.0[at + 1..]).unwrap())
@@ -505,18 +512,18 @@ impl<'a> ComponentNameParser<'a> {
             return Ok(ParsedComponentNameKind::Static);
         }
 
-        // 'unlocked-dep=<' <pkgidset> '>'
+        // 'unlocked-dep=<' <pkgnamequery> '>'
         if self.eat_str("unlocked-dep=") {
             self.expect_str("<")?;
-            self.pkgidset_up_to('>')?;
+            self.pkg_name_query()?;
             self.expect_str(">")?;
             return Ok(ParsedComponentNameKind::Dependency);
         }
 
-        // 'locked-dep=<' <pkgid> '>' ( ',' <hashname> )?
+        // 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
         if self.eat_str("locked-dep=") {
             self.expect_str("<")?;
-            self.pkgid_up_to('>')?;
+            self.pkg_name()?;
             self.expect_str(">")?;
             self.eat_optional_hash()?;
             return Ok(ParsedComponentNameKind::Dependency);
@@ -525,7 +532,10 @@ impl<'a> ComponentNameParser<'a> {
         // 'url=<' <nonbrackets> '>' (',' <hashname>)?
         if self.eat_str("url=") {
             self.expect_str("<")?;
-            let _url = self.take_up_to('>')?;
+            let url = self.take_up_to('>')?;
+            if url.contains('<') {
+                bail!(self.offset, "url cannot contain `<`");
+            }
             self.expect_str(">")?;
             self.eat_optional_hash()?;
             return Ok(ParsedComponentNameKind::Url);
@@ -533,7 +543,10 @@ impl<'a> ComponentNameParser<'a> {
         // 'relative-url=<' <nonbrackets> '>' (',' <hashname>)?
         if self.eat_str("relative-url=") {
             self.expect_str("<")?;
-            let _url = self.take_up_to('>')?;
+            let url = self.take_up_to('>')?;
+            if url.contains('<') {
+                bail!(self.offset, "relative-url cannot contain `<`");
+            }
             self.expect_str(">")?;
             self.eat_optional_hash()?;
             return Ok(ParsedComponentNameKind::Url);
@@ -547,98 +560,114 @@ impl<'a> ComponentNameParser<'a> {
             return Ok(ParsedComponentNameKind::Hash);
         }
 
-        match self.eat_until(':') {
-            // interfacename ::= <namespace> <label> <projection> <version>?
-            Some(namespace) => {
-                self.kebab(namespace)?;
-                let pkg = self.take_until('/')?;
-                self.kebab(pkg)?;
-                match self.eat_until('@') {
-                    Some(interface) => {
-                        self.kebab(interface)?;
-                        let version = self.take_rest();
-                        self.semver(version)?;
-                    }
-                    None => {
-                        self.expect_kebab()?;
-                    }
-                }
-                Ok(ParsedComponentNameKind::Interface)
-            }
-            None => {
-                self.expect_kebab()?;
-                Ok(ParsedComponentNameKind::Label)
-            }
+        if self.next.contains(':') {
+            self.pkg_name()?;
+            Ok(ParsedComponentNameKind::Interface)
+        } else {
+            self.expect_kebab()?;
+            Ok(ParsedComponentNameKind::Label)
         }
     }
 
-    // pkgidset      ::= <pkgname> <verrange>?
-    // pkgname       ::= <namespace> <label>
-    // verrange      ::= '@*'
-    //                 | '@{' <verlower> '}'
-    //                 | '@{' <verupper> '}'
-    //                 | '@{' <verlower> ' ' <verupper> '}'
-    // verlower      ::= '>=' <valid semver>
-    // verupper      ::= '<' <valid semver>
-    fn pkgidset_up_to(&mut self, end: char) -> Result<()> {
-        let namespace = self.take_until(':')?;
-        self.kebab(namespace)?;
-        let name = match self.eat_until('@') {
-            Some(name) => name,
-            // a:b
-            None => {
-                let name = self.take_up_to(end)?;
-                self.kebab(name)?;
+    // pkgnamequery ::= <pkgpath> <verrange>?
+    fn pkg_name_query(&mut self) -> Result<()> {
+        self.pkg_path()?;
+
+        if self.eat_str("@") {
+            if self.eat_str("*") {
                 return Ok(());
             }
-        };
-        self.kebab(name)?;
 
-        // a:b@*
-        if self.eat_str("*") {
-            return Ok(());
-        }
-        self.expect_str("{")?;
-        if self.eat_str(">=") {
-            match self.eat_until(' ') {
-                Some(lower) => {
-                    self.semver(lower)?;
-                }
-                // a:b@{>=1.2.3}
-                None => {
-                    let lower = self.take_until('}')?;
-                    self.semver(lower)?;
-                    return Ok(());
-                }
-            }
+            self.expect_str("{")?;
+            let range = self.take_up_to('}')?;
+            self.expect_str("}")?;
+            self.semver_range(range)?;
         }
 
-        // a:b@{<1.2.3}
-        // .. or
-        // a:b@{<1.2.3 >=1.2.3}
-        self.expect_str("<")?;
-        let version = self.take_until('}')?;
-        self.semver(version)?;
         Ok(())
     }
 
-    // pkgid         ::= <pkgname> <version>?
-    fn pkgid_up_to(&mut self, end: char) -> Result<()> {
-        let namespace = self.take_until(':')?;
-        self.kebab(namespace)?;
-        match self.eat_until('@') {
-            // a:b@1.2.3
-            Some(name) => {
-                self.kebab(name)?;
-                let version = self.take_up_to(end)?;
-                self.semver(version)?;
-            }
-            // a:b
-            None => {
-                let name = self.take_up_to(end)?;
-                self.kebab(name)?;
+    // pkgname ::= <pkgpath> <version>?
+    fn pkg_name(&mut self) -> Result<()> {
+        self.pkg_path()?;
+
+        if self.eat_str("@") {
+            let version = match self.eat_up_to('>') {
+                Some(version) => version,
+                None => self.take_rest(),
+            };
+
+            self.semver(version)?;
+        }
+
+        Ok(())
+    }
+
+    // pkgpath ::= <namespace>+ <label> <projection>*
+    fn pkg_path(&mut self) -> Result<()> {
+        // There must be at least one package namespace
+        self.take_kebab()?;
+        self.expect_str(":")?;
+        self.take_kebab()?;
+
+        // Take the remaining package namespaces and name
+        while self.next.starts_with(':') {
+            self.expect_str(":")?;
+            self.take_kebab()?;
+        }
+
+        // Take the projections
+        if self.next.starts_with('/') {
+            self.expect_str("/")?;
+            self.take_kebab()?;
+
+            while self.next.starts_with('/') {
+                self.expect_str("/")?;
+                self.take_kebab()?;
             }
         }
+
+        Ok(())
+    }
+
+    // verrange ::= '@*'
+    //            | '@{' <verlower> '}'
+    //            | '@{' <verupper> '}'
+    //            | '@{' <verlower> ' ' <verupper> '}'
+    // verlower ::= '>=' <valid semver>
+    // verupper ::= '<' <valid semver>
+    fn semver_range(&self, range: &str) -> Result<()> {
+        if range == "*" {
+            return Ok(());
+        }
+
+        if let Some(range) = range.strip_prefix(">=") {
+            let (lower, upper) = range
+                .split_once(' ')
+                .map(|(l, u)| (l, Some(u)))
+                .unwrap_or((range, None));
+            self.semver(lower)?;
+
+            if let Some(upper) = upper {
+                match upper.strip_prefix('<') {
+                    Some(upper) => {
+                        self.semver(upper)?;
+                    }
+                    None => bail!(
+                        self.offset,
+                        "expected `<` at start of version range upper bounds"
+                    ),
+                }
+            }
+        } else if let Some(upper) = range.strip_prefix('<') {
+            self.semver(upper)?;
+        } else {
+            bail!(
+                self.offset,
+                "expected `>=` or `<` at start of version range"
+            );
+        }
+
         Ok(())
     }
 
@@ -748,6 +777,17 @@ impl<'a> ComponentNameParser<'a> {
         let ret = self.next;
         self.next = "";
         ret
+    }
+
+    fn take_kebab(&mut self) -> Result<&'a KebabStr> {
+        self.next
+            .find(|c| !matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '-'))
+            .map(|i| {
+                let (kebab, next) = self.next.split_at(i);
+                self.next = next;
+                self.kebab(kebab)
+            })
+            .unwrap_or_else(|| self.expect_kebab())
     }
 
     fn expect_kebab(&mut self) -> Result<&'a KebabStr> {

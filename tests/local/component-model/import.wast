@@ -119,6 +119,8 @@
   (import "a:b/c@0.0.0+abcd-efg" (func))
   (import "a:b/c@0.0.0-abcd+efg" (func))
   (import "a:b/c@0.0.0-abcd.1.2+efg.4.ee.5" (func))
+  (import "a:b:c:d/e" (func))
+  (import "a:b-c:d-e:f-g/h-i/j-k/l-m/n/o/p@1.0.0" (func))
 )
 
 (assert_invalid
@@ -133,7 +135,7 @@
   "`` is not in kebab case")
 (assert_invalid
   (component (import "wasi:" (func)))
-  "failed to find `/` character")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "wasi:/" (func)))
   "not in kebab case")
@@ -192,6 +194,14 @@
   (import "unlocked-dep=<a:b@{<1.2.3-rc}>" (func))
   (import "unlocked-dep=<a:b@{>=1.2.3 <1.2.3}>" (func))
   (import "unlocked-dep=<a:b@{>=1.2.3-rc <1.2.3}>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@*>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3}>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3-rc}>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@{<1.2.3}>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@{<1.2.3-rc}>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3 <1.2.3}>" (func))
+  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3-rc <1.2.3}>" (func))
 )
 
 (assert_invalid
@@ -199,10 +209,10 @@
   "expected `<` at ``")
 (assert_invalid
   (component (import "unlocked-dep=<" (func)))
-  "failed to find `:`")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "unlocked-dep=<>" (func)))
-  "failed to find `:`")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "unlocked-dep=<:>" (func)))
   "`` is not in kebab case")
@@ -217,7 +227,7 @@
   "expected `{` at `>`")
 (assert_invalid
   (component (import "unlocked-dep=<a:a@{xyz}>" (func)))
-  "expected `<` at `xyz}>`")
+  "expected `>=` or `<` at start of version range")
 (assert_invalid
   (component (import "unlocked-dep=<a:a@{<xyz}>" (func)))
   "`xyz` is not a valid semver")
@@ -230,6 +240,10 @@
   (import "locked-dep=<a:b@1.2.3>" (func))
   (import "locked-dep=<a:b>,integrity=<sha256-a>" (func))
   (import "locked-dep=<a:b@1.2.3>,integrity=<sha256-a>" (func))
+  (import "locked-dep=<a:b:c:d/e/f/g>" (func))
+  (import "locked-dep=<a:b:c:d/e/f/g@1.2.3>" (func))
+  (import "locked-dep=<a:b:c:d/e/f/g>,integrity=<sha256-a>" (func))
+  (import "locked-dep=<a:b:c:d/e/f/g@1.2.3>,integrity=<sha256-a>" (func))
 )
 
 (assert_invalid
@@ -237,28 +251,28 @@
   "expected `<` at ``")
 (assert_invalid
   (component (import "locked-dep=<" (func)))
-  "failed to find `:`")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "locked-dep=<:" (func)))
-  "is not in kebab case")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "locked-dep=<:>" (func)))
-  "is not in kebab case")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "locked-dep=<a:>" (func)))
-  "is not in kebab case")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "locked-dep=<:a>" (func)))
-  "is not in kebab case")
+  "`` is not in kebab case")
 (assert_invalid
   (component (import "locked-dep=<a:a" (func)))
-  "failed to find `>`")
+  "expected `>` at ``")
 (assert_invalid
   (component (import "locked-dep=<a:a@>" (func)))
   "is not a valid semver")
 (assert_invalid
   (component (import "locked-dep=<a:a@1.2.3" (func)))
-  "failed to find `>`")
+  "expected `>` at ``")
 (assert_invalid
   (component (import "locked-dep=<a:a@1.2.3>," (func)))
   "expected `integrity=<`")
@@ -278,6 +292,25 @@
 (assert_invalid
   (component (import "url=<" (func)))
   "failed to find `>`")
+(assert_invalid
+  (component (import "url=<<>" (func)))
+  "url cannot contain `<`")
+
+(component
+  (import "relative-url=<>" (func))
+  (import "relative-url=<a>" (func))
+  (import "relative-url=<a>,integrity=<sha256-a>" (func))
+)
+
+(assert_invalid
+  (component (import "relative-url=" (func)))
+  "expected `<` at ``")
+(assert_invalid
+  (component (import "relative-url=<" (func)))
+  "failed to find `>`")
+(assert_invalid
+  (component (import "relative-url=<<>" (func)))
+  "relative-url cannot contain `<`")
 
 (component
   (import "integrity=<sha256-a>" (func))

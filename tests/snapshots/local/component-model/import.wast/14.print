@@ -19,4 +19,8 @@
   (import "a:b/c@0.0.0-abcd+efg" (func (;8;) (type 8)))
   (type (;9;) (func))
   (import "a:b/c@0.0.0-abcd.1.2+efg.4.ee.5" (func (;9;) (type 9)))
+  (type (;10;) (func))
+  (import "a:b:c:d/e" (func (;10;) (type 10)))
+  (type (;11;) (func))
+  (import "a:b-c:d-e:f-g/h-i/j-k/l-m/n/o/p@1.0.0" (func (;11;) (type 11)))
 )
