@@ -152,6 +152,7 @@ fn parser_features_from_config(config: &impl Config) -> WasmFeatures {
         memory_control: false,
         gc: false,
         component_model_values: false,
+        component_model_nested_names: false,
     }
 }
 
