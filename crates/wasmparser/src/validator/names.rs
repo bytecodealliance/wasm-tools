@@ -1,7 +1,7 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
-use crate::Result;
+use crate::{Result, WasmFeatures};
 use semver::Version;
 use std::borrow::Borrow;
 use std::fmt;
@@ -273,7 +273,27 @@ impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
     /// it's not valid.
     pub fn new(name: &str, offset: usize) -> Result<ComponentName> {
-        let mut parser = ComponentNameParser { next: name, offset };
+        Self::new_with_features(
+            name,
+            offset,
+            WasmFeatures {
+                component_model: true,
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Attempts to parse `name` as a valid component name, returning `Err` if
+    /// it's not valid.
+    ///
+    /// `features` can be used to enable or disable validation of certain forms
+    /// of supported import names.
+    pub fn new_with_features(name: &str, offset: usize, features: WasmFeatures) -> Result<Self> {
+        let mut parser = ComponentNameParser {
+            next: name,
+            offset,
+            features,
+        };
         let kind = parser.parse()?;
         if !parser.next.is_empty() {
             bail!(offset, "trailing characters found: `{}`", parser.next);
@@ -491,6 +511,7 @@ impl<'a> HashName<'a> {
 struct ComponentNameParser<'a> {
     next: &'a str,
     offset: usize,
+    features: WasmFeatures,
 }
 
 impl<'a> ComponentNameParser<'a> {
@@ -523,7 +544,7 @@ impl<'a> ComponentNameParser<'a> {
         // 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
         if self.eat_str("locked-dep=") {
             self.expect_str("<")?;
-            self.pkg_name()?;
+            self.pkg_name(false)?;
             self.expect_str(">")?;
             self.eat_optional_hash()?;
             return Ok(ParsedComponentNameKind::Dependency);
@@ -561,7 +582,7 @@ impl<'a> ComponentNameParser<'a> {
         }
 
         if self.next.contains(':') {
-            self.pkg_name()?;
+            self.pkg_name(true)?;
             Ok(ParsedComponentNameKind::Interface)
         } else {
             self.expect_kebab()?;
@@ -571,7 +592,7 @@ impl<'a> ComponentNameParser<'a> {
 
     // pkgnamequery ::= <pkgpath> <verrange>?
     fn pkg_name_query(&mut self) -> Result<()> {
-        self.pkg_path()?;
+        self.pkg_path(false)?;
 
         if self.eat_str("@") {
             if self.eat_str("*") {
@@ -588,8 +609,8 @@ impl<'a> ComponentNameParser<'a> {
     }
 
     // pkgname ::= <pkgpath> <version>?
-    fn pkg_name(&mut self) -> Result<()> {
-        self.pkg_path()?;
+    fn pkg_name(&mut self, require_projection: bool) -> Result<()> {
+        self.pkg_path(require_projection)?;
 
         if self.eat_str("@") {
             let version = match self.eat_up_to('>') {
@@ -604,16 +625,18 @@ impl<'a> ComponentNameParser<'a> {
     }
 
     // pkgpath ::= <namespace>+ <label> <projection>*
-    fn pkg_path(&mut self) -> Result<()> {
+    fn pkg_path(&mut self, require_projection: bool) -> Result<()> {
         // There must be at least one package namespace
         self.take_kebab()?;
         self.expect_str(":")?;
         self.take_kebab()?;
 
-        // Take the remaining package namespaces and name
-        while self.next.starts_with(':') {
-            self.expect_str(":")?;
-            self.take_kebab()?;
+        if self.features.component_model_nested_names {
+            // Take the remaining package namespaces and name
+            while self.next.starts_with(':') {
+                self.expect_str(":")?;
+                self.take_kebab()?;
+            }
         }
 
         // Take the projections
@@ -621,10 +644,14 @@ impl<'a> ComponentNameParser<'a> {
             self.expect_str("/")?;
             self.take_kebab()?;
 
-            while self.next.starts_with('/') {
-                self.expect_str("/")?;
-                self.take_kebab()?;
+            if self.features.component_model_nested_names {
+                while self.next.starts_with('/') {
+                    self.expect_str("/")?;
+                    self.take_kebab()?;
+                }
             }
+        } else if require_projection {
+            bail!(self.offset, "expected `/` after package name");
         }
 
         Ok(())

@@ -249,6 +249,8 @@ pub struct WasmFeatures {
     pub gc: bool,
     /// Support for the `value` type in the component model proposal.
     pub component_model_values: bool,
+    /// Support for the nested namespaces and projects in component model names.
+    pub component_model_nested_names: bool,
 }
 
 impl WasmFeatures {
@@ -275,6 +277,7 @@ impl WasmFeatures {
             memory_control: true,
             gc: true,
             component_model_values: true,
+            component_model_nested_names: true,
         }
     }
 
@@ -365,6 +368,7 @@ impl Default for WasmFeatures {
             memory_control: false,
             gc: false,
             component_model_values: false,
+            component_model_nested_names: false,
 
             // On-by-default features (phase 4 or greater).
             mutable_global: true,

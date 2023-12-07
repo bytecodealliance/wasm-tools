@@ -119,8 +119,6 @@
   (import "a:b/c@0.0.0+abcd-efg" (func))
   (import "a:b/c@0.0.0-abcd+efg" (func))
   (import "a:b/c@0.0.0-abcd.1.2+efg.4.ee.5" (func))
-  (import "a:b:c:d/e" (func))
-  (import "a:b-c:d-e:f-g/h-i/j-k/l-m/n/o/p@1.0.0" (func))
 )
 
 (assert_invalid
@@ -178,12 +176,17 @@
 (assert_invalid
   (component (import "wasi:http/types@2.0.0-" (func)))
   "empty identifier segment")
+(assert_invalid
+  (component (import "foo:bar:baz/qux" (func)))
+  "expected `/` after package name")
+(assert_invalid
+  (component (import "foo:bar/baz/qux" (func)))
+  "trailing characters found: `/qux`")
 
 (component
   (import "a" (func $a))
   (export "a" (func $a))
 )
-
 
 (component
   (import "unlocked-dep=<a:b>" (func))
@@ -194,14 +197,6 @@
   (import "unlocked-dep=<a:b@{<1.2.3-rc}>" (func))
   (import "unlocked-dep=<a:b@{>=1.2.3 <1.2.3}>" (func))
   (import "unlocked-dep=<a:b@{>=1.2.3-rc <1.2.3}>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@*>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3}>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3-rc}>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@{<1.2.3}>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@{<1.2.3-rc}>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3 <1.2.3}>" (func))
-  (import "unlocked-dep=<a:b:c:d/e/f/g@{>=1.2.3-rc <1.2.3}>" (func))
 )
 
 (assert_invalid
@@ -240,10 +235,6 @@
   (import "locked-dep=<a:b@1.2.3>" (func))
   (import "locked-dep=<a:b>,integrity=<sha256-a>" (func))
   (import "locked-dep=<a:b@1.2.3>,integrity=<sha256-a>" (func))
-  (import "locked-dep=<a:b:c:d/e/f/g>" (func))
-  (import "locked-dep=<a:b:c:d/e/f/g@1.2.3>" (func))
-  (import "locked-dep=<a:b:c:d/e/f/g>,integrity=<sha256-a>" (func))
-  (import "locked-dep=<a:b:c:d/e/f/g@1.2.3>,integrity=<sha256-a>" (func))
 )
 
 (assert_invalid
