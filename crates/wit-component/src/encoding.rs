@@ -1907,7 +1907,7 @@ impl ComponentEncoder {
         let world = self
             .metadata
             .merge(metadata)
-            .context("failed merge WIT package sets together")?;
+            .context("failed merge WIT metadata for module with previous metadata")?;
         self.main_module_exports
             .extend(self.metadata.resolve.worlds[world].exports.keys().cloned());
         self.module = if let Some(producers) = &self.metadata.producers {
