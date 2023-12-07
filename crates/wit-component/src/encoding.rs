@@ -434,11 +434,13 @@ impl<'a> EncodingState<'a> {
         }
     }
 
-    fn encode_imports(&mut self) -> Result<()> {
+    fn encode_imports(&mut self, name_map: &HashMap<String, String>) -> Result<()> {
         let mut has_funcs = false;
         for (name, info) in self.info.import_map.iter() {
             match name {
-                Some(name) => self.encode_interface_import(name, info)?,
+                Some(name) => {
+                    self.encode_interface_import(name_map.get(name).unwrap_or(name), info)?
+                }
                 None => has_funcs = true,
             }
         }
@@ -1865,7 +1867,7 @@ pub struct LibraryInfo {
     pub arguments: Vec<(String, Instance)>,
 }
 
-/// Represents an adapter or library to be instansiated as part of the component
+/// Represents an adapter or library to be instantiated as part of the component
 struct Adapter {
     /// The wasm of the module itself, with `component-type` sections stripped
     wasm: Vec<u8>,
@@ -1892,7 +1894,7 @@ pub struct ComponentEncoder {
     validate: bool,
     main_module_exports: IndexSet<WorldKey>,
     adapters: IndexMap<String, Adapter>,
-
+    import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
 }
 
@@ -2032,12 +2034,27 @@ impl ComponentEncoder {
         Ok(self)
     }
 
-    /// True if the realloc and stack alloction should use ememory.grow
+    /// True if the realloc and stack allocation should use memory.grow
     /// The default is to use the main module realloc
     /// Can be useful if cabi_realloc cannot be called before the host
-    /// runtime is initialised.
+    /// runtime is initialized.
     pub fn realloc_via_memory_grow(mut self, value: bool) -> Self {
         self.realloc_via_memory_grow = value;
+        self
+    }
+
+    /// The instance import name map to use.
+    ///
+    /// This is used to rename instance imports in the final component.
+    ///
+    /// For example, if there is an instance import `foo:bar/baz` and it is
+    /// desired that the import actually be an `unlocked-dep` name, then
+    /// `foo:bar/baz` can be mapped to `unlocked-dep=<a:b/c@{>=x.y.z}>`.
+    ///
+    /// Note: the replacement names are not validated during encoding unless
+    /// the `validate` option is set to true.
+    pub fn import_name_map(mut self, map: HashMap<String, String>) -> Self {
+        self.import_name_map = map;
         self
     }
 
@@ -2069,7 +2086,7 @@ impl ComponentEncoder {
             exported_instances: Default::default(),
             info: &world,
         };
-        state.encode_imports()?;
+        state.encode_imports(&self.import_name_map)?;
         state.encode_core_modules();
         state.encode_core_instantiation()?;
         state.encode_exports(CustomModule::Main)?;
@@ -2093,5 +2110,70 @@ impl ComponentEncoder {
         }
 
         Ok(bytes)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{dummy_module, embed_component_metadata};
+
+    use super::*;
+    use std::path::Path;
+    use wit_parser::UnresolvedPackage;
+
+    #[test]
+    fn it_renames_imports() {
+        let mut resolve = Resolve::new();
+        let pkg = resolve
+            .push(
+                UnresolvedPackage::parse(
+                    Path::new("test.wit"),
+                    r#"
+package test:wit;
+
+interface i {
+    f: func();
+}
+
+world test {
+    import i;
+    import foo: interface {
+        f: func();
+    }
+}
+"#,
+                )
+                .context("failed to parse wit for publishing")
+                .unwrap(),
+            )
+            .context("failed to resolve wit for publishing")
+            .unwrap();
+
+        let world = resolve.select_world(pkg, None).unwrap();
+
+        let mut module = dummy_module(&resolve, world);
+
+        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
+
+        let encoded = ComponentEncoder::default()
+            .import_name_map(HashMap::from([
+                (
+                    "foo".to_string(),
+                    "unlocked-dep=<foo:bar/foo@{>=1.0.0 <1.1.0}>".to_string(),
+                ),
+                (
+                    "test:wit/i".to_string(),
+                    "locked-dep=<foo:bar/i@1.2.3>".to_string(),
+                ),
+            ]))
+            .module(&module)
+            .unwrap()
+            .validate(true)
+            .encode()
+            .unwrap();
+
+        let wat = wasmprinter::print_bytes(encoded).unwrap();
+        assert!(wat.contains("unlocked-dep=<foo:bar/foo@{>=1.0.0 <1.1.0}>"));
+        assert!(wat.contains("locked-dep=<foo:bar/i@1.2.3>"));
     }
 }
