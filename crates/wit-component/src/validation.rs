@@ -404,6 +404,7 @@ pub fn validate_adapter_module<'a>(
         post_returns: Default::default(),
     };
 
+    let mut cabi_realloc = None;
     for payload in Parser::new(0).parse_all(bytes) {
         let payload = payload?;
         match validator.payload(&payload)? {
@@ -463,6 +464,9 @@ pub fn validate_adapter_module<'a>(
                             if export.name == "cabi_import_realloc" {
                                 ret.import_realloc = Some(export.name.to_string());
                             }
+                            if export.name == "cabi_realloc" {
+                                cabi_realloc = Some(export.name.to_string());
+                            }
                         }
                         _ => continue,
                     }
@@ -470,6 +474,15 @@ pub fn validate_adapter_module<'a>(
             }
             _ => continue,
         }
+    }
+
+    if is_library {
+        // If we're looking at a library, it may only export the
+        // `wit-bindgen`-generated `cabi_realloc` rather than the
+        // `cabi_import_realloc` and `cabi_export_realloc` functions, so we'll
+        // use whatever's available.
+        ret.export_realloc = ret.export_realloc.or_else(|| cabi_realloc.clone());
+        ret.import_realloc = ret.import_realloc.or_else(|| cabi_realloc);
     }
 
     let mut resources = Default::default();

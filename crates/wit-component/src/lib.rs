@@ -83,8 +83,18 @@ pub(crate) fn base_producers() -> wasm_metadata::Producers {
     producer
 }
 
-/// Parse a WIT file from a path that represents a top level 'wit' directory,
-/// normally containing a 'deps' folder.
+/// Parse a WIT package from the input `path`.
+///
+/// The input `path` can be one of:
+///
+/// * A directory containing a WIT package with an optional `deps` directory for
+///   any dependent WIT packages it references.
+/// * A single standalone WIT file with no dependencies.
+/// * A wasm-encoded WIT package as a single file in the wasm binary format.
+/// * A wasm-encoded WIT package as a single file in the wasm text format.
+///
+/// The `Resolve` containing WIT information along with the `PackageId` of what
+/// was parsed is returned if successful.
 pub fn parse_wit_from_path(
     path: impl AsRef<std::path::Path>,
 ) -> Result<(Resolve, wit_parser::PackageId)> {

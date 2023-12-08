@@ -629,6 +629,7 @@ impl TestState {
             memory_control: true,
             gc: true,
             component_model_values: true,
+            component_model_nested_names: false,
         };
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -677,6 +678,9 @@ impl TestState {
                 "gc" => {
                     features.function_references = true;
                     features.gc = true;
+                }
+                "import-extended.wast" => {
+                    features.component_model_nested_names = true;
                 }
                 _ => {}
             }

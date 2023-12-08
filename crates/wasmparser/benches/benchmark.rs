@@ -251,28 +251,7 @@ fn define_benchmarks(c: &mut Criterion) {
     let _ = env_logger::try_init();
 
     fn validator() -> Validator {
-        Validator::new_with_features(WasmFeatures {
-            reference_types: true,
-            multi_value: true,
-            simd: true,
-            relaxed_simd: true,
-            exceptions: true,
-            component_model: true,
-            bulk_memory: true,
-            threads: true,
-            tail_call: true,
-            multi_memory: true,
-            memory64: true,
-            extended_const: true,
-            floats: true,
-            mutable_global: true,
-            saturating_float_to_int: true,
-            sign_extension: true,
-            function_references: true,
-            memory_control: true,
-            gc: true,
-            component_model_values: true,
-        })
+        Validator::new_with_features(WasmFeatures::all())
     }
 
     let test_inputs = once_cell::unsync::Lazy::new(collect_benchmark_inputs);

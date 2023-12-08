@@ -448,6 +448,7 @@ impl ComponentState {
             &mut self.import_names,
             &mut self.imports,
             &mut self.type_info,
+            features,
         )?;
         Ok(())
     }
@@ -941,6 +942,7 @@ impl ComponentState {
             &mut self.export_names,
             &mut self.exports,
             &mut self.type_info,
+            features,
         )?;
         Ok(())
     }
@@ -2128,6 +2130,7 @@ impl ComponentState {
                 &mut export_names,
                 &mut inst_exports,
                 &mut info,
+                features,
             )?;
         }
 
@@ -2993,10 +2996,11 @@ impl ComponentNameContext {
         kind_names: &mut IndexSet<ComponentName>,
         items: &mut IndexMap<String, ComponentEntityType>,
         info: &mut TypeInfo,
+        features: &WasmFeatures,
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
-        let kebab = ComponentName::new(name, offset)
+        let kebab = ComponentName::new_with_features(name, offset, *features)
             .with_context(|| format!("{} name `{name}` is not a valid extern name", kind.desc()))?;
 
         if let ExternKind::Export = kind {

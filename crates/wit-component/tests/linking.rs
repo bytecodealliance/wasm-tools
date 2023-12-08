@@ -1,7 +1,6 @@
 use {
     anyhow::{Context, Result},
-    std::{borrow::Cow, path::Path},
-    wasm_encoder::{CustomSection, Encode as _, Section as _},
+    std::path::Path,
     wit_component::StringEncoding,
     wit_parser::{Resolve, UnresolvedPackage},
 };
@@ -144,21 +143,13 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
         let mut resolve = Resolve::default();
         let pkg = resolve.push(UnresolvedPackage::parse(Path::new("wit"), wit)?)?;
         let world = resolve.select_world(pkg, None)?;
-        let component_type = wit_component::metadata::encode(
+
+        wit_component::embed_component_metadata(
+            &mut module,
             &resolve,
             world,
             StringEncoding::UTF8,
-            None,
-            Some(true),
         )?;
-
-        let section = CustomSection {
-            name: Cow::Borrowed("component-type"),
-            data: Cow::Borrowed(&component_type),
-        };
-
-        module.push(section.id());
-        section.encode(&mut module);
     }
 
     wasmparser::validate(&module)?;
