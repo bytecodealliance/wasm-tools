@@ -29,14 +29,36 @@ use std::path::{Path, PathBuf};
 /// package as necessary.
 #[derive(Default, Clone, Serialize)]
 pub struct Resolve {
+    /// All knowns worlds within this `Resolve`.
+    ///
+    /// Each world points at a `PackageId` which is stored below. No ordering is
+    /// guaranteed between this list of worlds.
     #[serde(serialize_with = "serialize_arena")]
     pub worlds: Arena<World>,
+
+    /// All knowns interfaces within this `Resolve`.
+    ///
+    /// Each interface points at a `PackageId` which is stored below. No
+    /// ordering is guaranteed between this list of interfaces.
     #[serde(serialize_with = "serialize_arena")]
     pub interfaces: Arena<Interface>,
+
+    /// All knowns types within this `Resolve`.
+    ///
+    /// Types are topologically sorted such that any type referenced from one
+    /// type is guaranteed to be defined previously. Otherwise though these are
+    /// not sorted by interface for example.
     #[serde(serialize_with = "serialize_arena")]
     pub types: Arena<TypeDef>,
+
+    /// All knowns packages within this `Resolve`.
+    ///
+    /// This list of packages is not sorted. Sorted packages can be queried
+    /// through [`Resolve::topological_packages`].
     #[serde(serialize_with = "serialize_arena")]
     pub packages: Arena<Package>,
+
+    /// A map of package names to the ID of the package with that name.
     #[serde(skip)]
     pub package_names: IndexMap<PackageName, PackageId>,
 }
@@ -292,6 +314,7 @@ impl Resolve {
         let mut moved_types = Vec::new();
         for (id, mut ty) in types {
             let new_id = type_map.get(&id).copied().unwrap_or_else(|| {
+                log::debug!("moving type {:?}", ty.name);
                 moved_types.push(id);
                 remap.update_typedef(self, &mut ty);
                 self.types.alloc(ty)
@@ -303,6 +326,7 @@ impl Resolve {
         let mut moved_interfaces = Vec::new();
         for (id, mut iface) in interfaces {
             let new_id = interface_map.get(&id).copied().unwrap_or_else(|| {
+                log::debug!("moving interface {:?}", iface.name);
                 moved_interfaces.push(id);
                 remap.update_interface(self, &mut iface);
                 self.interfaces.alloc(iface)
@@ -314,6 +338,7 @@ impl Resolve {
         let mut moved_worlds = Vec::new();
         for (id, mut world) in worlds {
             let new_id = world_map.get(&id).copied().unwrap_or_else(|| {
+                log::debug!("moving world {}", world.name);
                 moved_worlds.push(id);
                 let mut update = |map: &mut IndexMap<WorldKey, WorldItem>| {
                     for (mut name, mut item) in mem::take(map) {
@@ -619,36 +644,266 @@ impl Resolve {
         }
     }
 
+    /// Returns the interface that `id` uses a type from, if it uses a type from
+    /// a different interface than `id` is defined within.
+    ///
+    /// If `id` is not a use-of-a-type or it's using a type in the same
+    /// interface then `None` is returned.
+    pub fn type_interface_dep(&self, id: TypeId) -> Option<InterfaceId> {
+        let ty = &self.types[id];
+        let dep = match ty.kind {
+            TypeDefKind::Type(Type::Id(id)) => id,
+            _ => return None,
+        };
+        let other = &self.types[dep];
+        if ty.owner == other.owner {
+            None
+        } else {
+            match other.owner {
+                TypeOwner::Interface(id) => Some(id),
+                _ => unreachable!(),
+            }
+        }
+    }
+
     /// Returns an iterator of all interfaces that the interface `id` depends
     /// on.
     ///
     /// Interfaces may depend on others for type information to resolve type
     /// imports.
     ///
-    /// Note that the returned iterate may yield the same interface as a
+    /// Note that the returned iterator may yield the same interface as a
     /// dependency multiple times. Additionally only direct dependencies of `id`
     /// are yielded, not transitive dependencies.
     pub fn interface_direct_deps(&self, id: InterfaceId) -> impl Iterator<Item = InterfaceId> + '_ {
         self.interfaces[id]
             .types
             .iter()
-            .filter_map(move |(_name, ty)| {
-                // Find `other` which `ty` is defined within to determine which
-                // interfaces this interface depends on.
-                let dep = match self.types[*ty].kind {
-                    TypeDefKind::Type(Type::Id(id)) => id,
-                    _ => return None,
-                };
-                let other = match self.types[dep].owner {
-                    TypeOwner::Interface(id) => id,
-                    _ => return None,
-                };
-                if other == id {
+            .filter_map(move |(_name, ty)| self.type_interface_dep(*ty))
+    }
+
+    /// Returns an iterator of all packages that the package `id` depends
+    /// on.
+    ///
+    /// Packages may depend on others for type information to resolve type
+    /// imports or interfaces to resolve worlds.
+    ///
+    /// Note that the returned iterator may yield the same package as a
+    /// dependency multiple times. Additionally only direct dependencies of `id`
+    /// are yielded, not transitive dependencies.
+    pub fn package_direct_deps(&self, id: PackageId) -> impl Iterator<Item = PackageId> + '_ {
+        let pkg = &self.packages[id];
+
+        pkg.interfaces
+            .iter()
+            .flat_map(move |(_name, id)| self.interface_direct_deps(*id))
+            .chain(pkg.worlds.iter().flat_map(move |(_name, id)| {
+                let world = &self.worlds[*id];
+                world
+                    .imports
+                    .iter()
+                    .chain(world.exports.iter())
+                    .filter_map(move |(_name, item)| match item {
+                        WorldItem::Interface(id) => Some(*id),
+                        WorldItem::Function(_) => None,
+                        WorldItem::Type(t) => self.type_interface_dep(*t),
+                    })
+            }))
+            .filter_map(move |iface_id| {
+                let pkg = self.interfaces[iface_id].package?;
+                if pkg == id {
                     None
                 } else {
-                    Some(other)
+                    Some(pkg)
                 }
             })
+    }
+
+    /// Returns a topological ordering of packages contained in this `Resolve`.
+    ///
+    /// This returns a list of `PackageId` such that when visited in order it's
+    /// guaranteed that all dependencies will have been defined by prior items
+    /// in the list.
+    pub fn topological_packages(&self) -> Vec<PackageId> {
+        let mut pushed = vec![false; self.packages.len()];
+        let mut order = Vec::new();
+        for (id, _) in self.packages.iter() {
+            self.build_topological_package_ordering(id, &mut pushed, &mut order);
+        }
+        order
+    }
+
+    fn build_topological_package_ordering(
+        &self,
+        id: PackageId,
+        pushed: &mut Vec<bool>,
+        order: &mut Vec<PackageId>,
+    ) {
+        if pushed[id.index()] {
+            return;
+        }
+        for dep in self.package_direct_deps(id) {
+            self.build_topological_package_ordering(dep, pushed, order);
+        }
+        order.push(id);
+        pushed[id.index()] = true;
+    }
+
+    #[doc(hidden)]
+    pub fn assert_valid(&self) {
+        let mut package_interfaces = Vec::new();
+        let mut package_worlds = Vec::new();
+        for (id, pkg) in self.packages.iter() {
+            let mut interfaces = HashSet::new();
+            for (name, iface) in pkg.interfaces.iter() {
+                assert!(interfaces.insert(*iface));
+                let iface = &self.interfaces[*iface];
+                assert_eq!(name, iface.name.as_ref().unwrap());
+                assert_eq!(iface.package.unwrap(), id);
+            }
+            package_interfaces.push(pkg.interfaces.values().copied().collect::<HashSet<_>>());
+            let mut worlds = HashSet::new();
+            for (name, world) in pkg.worlds.iter() {
+                assert!(worlds.insert(*world));
+                let world = &self.worlds[*world];
+                assert_eq!(*name, world.name);
+                assert_eq!(world.package.unwrap(), id);
+            }
+            package_worlds.push(pkg.worlds.values().copied().collect::<HashSet<_>>());
+        }
+
+        let mut interface_types = Vec::new();
+        for (id, iface) in self.interfaces.iter() {
+            assert!(self.packages.get(iface.package.unwrap()).is_some());
+            if iface.name.is_some() {
+                assert!(package_interfaces[iface.package.unwrap().index()].contains(&id));
+            }
+
+            for (name, ty) in iface.types.iter() {
+                let ty = &self.types[*ty];
+                assert_eq!(ty.name.as_ref(), Some(name));
+                assert_eq!(ty.owner, TypeOwner::Interface(id));
+            }
+            interface_types.push(iface.types.values().copied().collect::<HashSet<_>>());
+            for (name, f) in iface.functions.iter() {
+                assert_eq!(*name, f.name);
+            }
+        }
+
+        let mut world_types = Vec::new();
+        for (id, world) in self.worlds.iter() {
+            log::debug!("validating world {}", &world.name);
+            assert!(self.packages.get(world.package.unwrap()).is_some());
+            assert!(package_worlds[world.package.unwrap().index()].contains(&id));
+
+            let mut types = HashSet::new();
+            for (name, item) in world.imports.iter().chain(world.exports.iter()) {
+                log::debug!("validating world item: {}", self.name_world_key(name));
+                match item {
+                    WorldItem::Interface(_) => {}
+                    WorldItem::Function(f) => {
+                        assert_eq!(f.name, name.clone().unwrap_name());
+                    }
+                    WorldItem::Type(ty) => {
+                        assert!(types.insert(*ty));
+                        let ty = &self.types[*ty];
+                        assert_eq!(ty.name, Some(name.clone().unwrap_name()));
+
+                        // TODO: `Resolve::merge_worlds` doesn't uphold this
+                        // invariant, and that should be fixed.
+                        if false {
+                            assert_eq!(ty.owner, TypeOwner::World(id));
+                        }
+                    }
+                }
+            }
+            world_types.push(types);
+        }
+
+        for (ty_id, ty) in self.types.iter() {
+            match ty.owner {
+                TypeOwner::Interface(id) => {
+                    assert!(self.interfaces.get(id).is_some());
+                    assert!(interface_types[id.index()].contains(&ty_id));
+                }
+                TypeOwner::World(id) => {
+                    assert!(self.worlds.get(id).is_some());
+                    assert!(world_types[id.index()].contains(&ty_id));
+                }
+                TypeOwner::None => {}
+            }
+        }
+
+        self.assert_topologically_sorted();
+    }
+
+    fn assert_topologically_sorted(&self) {
+        let mut positions = IndexMap::new();
+        for id in self.topological_packages() {
+            let pkg = &self.packages[id];
+            log::debug!("pkg {}", pkg.name);
+            let prev = positions.insert(Some(id), IndexSet::new());
+            assert!(prev.is_none());
+        }
+        positions.insert(None, IndexSet::new());
+
+        for (id, iface) in self.interfaces.iter() {
+            log::debug!("iface {:?}", iface.name);
+            let ok = positions.get_mut(&iface.package).unwrap().insert(id);
+            assert!(ok);
+        }
+
+        for (_, world) in self.worlds.iter() {
+            log::debug!("world {:?}", world.name);
+
+            let my_package = world.package;
+            let my_package_pos = positions.get_index_of(&my_package).unwrap();
+
+            for (_, item) in world.imports.iter().chain(&world.exports) {
+                let id = match item {
+                    WorldItem::Interface(id) => *id,
+                    _ => continue,
+                };
+                let other_package = self.interfaces[id].package;
+                let other_package_pos = positions.get_index_of(&other_package).unwrap();
+
+                assert!(other_package_pos <= my_package_pos);
+            }
+        }
+
+        for (_id, ty) in self.types.iter() {
+            log::debug!("type {:?} {:?}", ty.name, ty.owner);
+            let other_id = match ty.kind {
+                TypeDefKind::Type(Type::Id(ty)) => ty,
+                _ => continue,
+            };
+            let other = &self.types[other_id];
+            if ty.kind == other.kind {
+                continue;
+            }
+            let my_interface = match ty.owner {
+                TypeOwner::Interface(id) => id,
+                _ => continue,
+            };
+            let other_interface = match other.owner {
+                TypeOwner::Interface(id) => id,
+                _ => continue,
+            };
+
+            let my_package = self.interfaces[my_interface].package;
+            let other_package = self.interfaces[other_interface].package;
+            let my_package_pos = positions.get_index_of(&my_package).unwrap();
+            let other_package_pos = positions.get_index_of(&other_package).unwrap();
+
+            if my_package_pos == other_package_pos {
+                let interfaces = &positions[&my_package];
+                let my_interface_pos = interfaces.get_index_of(&my_interface).unwrap();
+                let other_interface_pos = interfaces.get_index_of(&other_interface).unwrap();
+                assert!(other_interface_pos <= my_interface_pos);
+            } else {
+                assert!(other_package_pos < my_package_pos);
+            }
+        }
     }
 }
 
@@ -1599,7 +1854,8 @@ impl<'a> MergeMap<'a> {
     }
 
     fn build(&mut self) -> Result<()> {
-        for (from_id, from) in self.from.packages.iter() {
+        for from_id in self.from.topological_packages() {
+            let from = &self.from.packages[from_id];
             let into_id = match self.into.package_names.get(&from.name) {
                 Some(id) => *id,
 
@@ -1634,12 +1890,14 @@ impl<'a> MergeMap<'a> {
             let into_interface_id = match into.interfaces.get(name) {
                 Some(id) => *id,
                 None => {
+                    log::trace!("adding unique interface {}", name);
                     self.interfaces_to_add
                         .push((name.clone(), into_id, *from_interface_id));
                     continue;
                 }
             };
 
+            log::trace!("merging duplicate interfaces {}", name);
             self.build_interface(*from_interface_id, into_interface_id)
                 .with_context(|| format!("failed to merge interface `{name}`"))?;
         }
@@ -1648,12 +1906,14 @@ impl<'a> MergeMap<'a> {
             let into_world_id = match into.worlds.get(name) {
                 Some(id) => *id,
                 None => {
+                    log::trace!("adding unique world {}", name);
                     self.worlds_to_add
                         .push((name.clone(), into_id, *from_world_id));
                     continue;
                 }
             };
 
+            log::trace!("merging duplicate worlds {}", name);
             self.build_world(*from_world_id, into_world_id)
                 .with_context(|| format!("failed to merge world `{name}`"))?;
         }

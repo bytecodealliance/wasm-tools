@@ -1,7 +1,5 @@
 use arbitrary::{Result, Unstructured};
-use std::borrow::Cow;
 use std::path::Path;
-use wasm_encoder::{CustomSection, Encode, Section};
 use wit_component::*;
 use wit_parser::{Resolve, SourceMap};
 
@@ -34,20 +32,17 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     // If there's hundreds or thousands of worlds only work with the first few
     // to avoid timing out this fuzzer with asan enabled.
-    let use_next = Some(u.arbitrary()?);
-    for (id, _world) in resolve.worlds.iter().take(20) {
+    let mut decoded_worlds = Vec::new();
+    for (id, world) in resolve.worlds.iter().take(20) {
+        log::debug!("testing world {}", world.name);
         let mut dummy = wit_component::dummy_module(&resolve, id);
-        let metadata =
-            wit_component::metadata::encode(&resolve, id, StringEncoding::UTF8, None, use_next)
-                .unwrap();
-        let section = CustomSection {
-            name: "component-type".into(),
-            data: Cow::Borrowed(&metadata),
-        };
-        dummy.push(section.id());
-        section.encode(&mut dummy);
-
+        wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
+            .unwrap();
         write_file("dummy.wasm", &dummy);
+
+        let (_, decoded) = wit_component::metadata::decode(&dummy).unwrap();
+        decoded_worlds.push(decoded.resolve);
+
         let wasm = wit_component::ComponentEncoder::default()
             .module(&dummy)
             .unwrap()
@@ -63,6 +58,17 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
         wit_component::decode(&wasm).unwrap();
     }
+
+    if decoded_worlds.len() < 2 {
+        return Ok(());
+    }
+
+    log::debug!("merging worlds");
+    let w1 = u.choose(&decoded_worlds)?;
+    let w2 = u.choose(&decoded_worlds)?;
+    let mut dst = w1.clone();
+    dst.merge(w2.clone()).unwrap();
+    dst.assert_valid();
     Ok(())
 }
 
