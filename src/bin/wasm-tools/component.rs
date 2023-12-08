@@ -72,6 +72,12 @@ fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
     Ok((name.to_string(), wasm))
 }
 
+fn parse_import_name(s: &str) -> Result<(String, String)> {
+    s.split_once('=')
+        .map(|(old, new)| (old.to_string(), new.to_string()))
+        .context("expected `--import-name` option to be of the form `OLD=NEW`")
+}
+
 /// WebAssembly component encoder from an input core wasm binary.
 ///
 /// This subcommand will create a new component `*.wasm` file from an input core
@@ -99,6 +105,18 @@ pub struct NewOpts {
     /// imported is inferred from the adapter module itself.
     #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
     adapters: Vec<(String, Vec<u8>)>,
+
+    /// Rename an instance import in the output component.
+    ///
+    /// This may be used to rename instance imports in the final component.
+    ///
+    /// For example, `--import-name "a:b/c=unlocked-dep=<d:e/f>"` will
+    /// rename the instance import `a:b/c` such that it becomes an `unlocked-dep`
+    /// name.
+    ///
+    /// If the old import name is not found, it is ignored.
+    #[clap(long = "import-name", value_name = "[OLD]=NEW", value_parser = parse_import_name)]
+    import_names: HashMap<String, String>,
 
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
@@ -135,6 +153,7 @@ impl NewOpts {
         encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
 
         let bytes = encoder
+            .import_name_map(self.import_names)
             .encode()
             .context("failed to encode a component from module")?;
 

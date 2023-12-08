@@ -2143,10 +2143,8 @@ world test {
 }
 "#,
                 )
-                .context("failed to parse wit for publishing")
                 .unwrap(),
             )
-            .context("failed to resolve wit for publishing")
             .unwrap();
 
         let world = resolve.select_world(pkg, None).unwrap();
