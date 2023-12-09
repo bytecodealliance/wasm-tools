@@ -116,7 +116,7 @@ pub struct NewOpts {
     ///
     /// If the old import name is not found, it is ignored.
     #[clap(long = "import-name", value_name = "[OLD]=NEW", value_parser = parse_import_name)]
-    import_names: Option<HashMap<String, String>>,
+    import_names: Vec<(String, String)>,
 
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
