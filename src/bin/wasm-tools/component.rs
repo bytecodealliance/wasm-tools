@@ -116,7 +116,7 @@ pub struct NewOpts {
     ///
     /// If the old import name is not found, it is ignored.
     #[clap(long = "import-name", value_name = "[OLD]=NEW", value_parser = parse_import_name)]
-    import_names: HashMap<String, String>,
+    import_names: Option<HashMap<String, String>>,
 
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
@@ -153,7 +153,7 @@ impl NewOpts {
         encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
 
         let bytes = encoder
-            .import_name_map(self.import_names)
+            .import_name_map(self.import_names.unwrap_or_else(|| HashMap::new()))
             .encode()
             .context("failed to encode a component from module")?;
 
