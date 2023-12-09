@@ -153,7 +153,7 @@ impl NewOpts {
         encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
 
         let bytes = encoder
-            .import_name_map(self.import_names.unwrap_or_else(|| HashMap::new()))
+            .import_name_map(self.import_names.into_iter().collect())
             .encode()
             .context("failed to encode a component from module")?;
 
