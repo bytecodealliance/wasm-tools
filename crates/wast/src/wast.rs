@@ -67,6 +67,11 @@ pub enum WastDirective<'a> {
         module: QuoteWat<'a>,
         message: &'a str,
     },
+    AssertMalformedCustom {
+        span: Span,
+        module: QuoteWat<'a>,
+        message: &'a str,
+    },
     AssertInvalid {
         span: Span,
         module: QuoteWat<'a>,
@@ -118,6 +123,7 @@ impl WastDirective<'_> {
             WastDirective::Wat(QuoteWat::QuoteModule(span, _)) => *span,
             WastDirective::Wat(QuoteWat::QuoteComponent(span, _)) => *span,
             WastDirective::AssertMalformed { span, .. }
+            | WastDirective::AssertMalformedCustom { span, .. }
             | WastDirective::Register { span, .. }
             | WastDirective::AssertTrap { span, .. }
             | WastDirective::AssertReturn { span, .. }
@@ -140,6 +146,13 @@ impl<'a> Parse<'a> for WastDirective<'a> {
         } else if l.peek::<kw::assert_malformed>()? {
             let span = parser.parse::<kw::assert_malformed>()?.0;
             Ok(WastDirective::AssertMalformed {
+                span,
+                module: parser.parens(|p| p.parse())?,
+                message: parser.parse()?,
+            })
+        } else if l.peek::<kw::assert_malformed_custom>()? {
+            let span = parser.parse::<kw::assert_malformed_custom>()?.0;
+            Ok(WastDirective::AssertMalformedCustom {
                 span,
                 module: parser.parens(|p| p.parse())?,
                 message: parser.parse()?,

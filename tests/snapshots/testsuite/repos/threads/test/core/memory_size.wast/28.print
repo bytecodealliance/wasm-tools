@@ -1,0 +1,15 @@
+(module
+  (type (;0;) (func (result i32)))
+  (type (;1;) (func (param i32)))
+  (func (;0;) (type 0) (result i32)
+    memory.size
+  )
+  (func (;1;) (type 1) (param $sz i32)
+    local.get $sz
+    memory.grow
+    drop
+  )
+  (memory (;0;) 3 8)
+  (export "size" (func 0))
+  (export "grow" (func 1))
+)

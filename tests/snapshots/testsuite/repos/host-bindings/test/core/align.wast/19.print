@@ -1,0 +1,9 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    i32.const 0
+    i64.const 1
+    i64.store32
+  )
+  (memory (;0;) 0)
+)

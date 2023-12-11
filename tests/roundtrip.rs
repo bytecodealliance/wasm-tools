@@ -137,6 +137,10 @@ fn find_tests() -> Vec<PathBuf> {
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
     let broken = &[
+        // We don't support roundtripping custom annotations yet.
+        "custom/custom/custom_annot.wast",
+        // We don't match the error messages for the name section yet.
+        "custom/name/name_annot.wast",
         // I don't really have any idea what's going on with the expected syntax
         // errors and expected error messages in these tests. They seem like
         // they're from left field considering other conventions, so let's just
@@ -169,8 +173,12 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 
 fn skip_validation(test: &Path) -> bool {
     let broken = &[
-        "gc/gc-array.wat",
-        "gc/gc-struct.wat",
+        "/exnref/exnref.wast",
+        "/exnref/throw_ref.wast",
+        "/exnref/try_table.wast",
+        "/proposals/exception-handling/ref_null.wast",
+        "/proposals/exception-handling/throw_ref.wast",
+        "/proposals/exception-handling/try_table.wast",
         "/proposals/gc/array.wast",
         "/proposals/gc/array_copy.wast",
         "/proposals/gc/array_fill.wast",
@@ -186,13 +194,35 @@ fn skip_validation(test: &Path) -> bool {
         "/proposals/gc/ref_test.wast",
         "/proposals/gc/struct.wast",
         "/proposals/gc/type-subtyping.wast",
-        "/proposals/exception-handling/try_table.wast",
-        "/proposals/exception-handling/throw_ref.wast",
-        "/proposals/exception-handling/ref_null.wast",
-        "/exnref/exnref.wast",
-        "/exnref/throw_ref.wast",
-        "/exnref/try_table.wast",
+        "exception-handling/test/core/ref_null.wast",
+        "exception-handling/test/core/throw.wast",
+        "exception-handling/test/core/throw_ref.wast",
+        "exception-handling/test/core/try_table.wast",
+        "exception-handling/test/legacy/exceptions/throw.wast",
+        "exception-handling/test/legacy/exceptions/try_catch.wast",
+        "exception-handling/test/legacy/exceptions/try_delegate.wast",
+        "gc/test/core/gc/array.wast",
+        "gc/test/core/gc/array_copy.wast",
+        "gc/test/core/gc/array_fill.wast",
+        "gc/test/core/gc/array_init_data.wast",
+        "gc/test/core/gc/array_init_elem.wast",
+        "gc/test/core/gc/binary-gc.wast",
+        "gc/test/core/gc/br_on_cast.wast",
+        "gc/test/core/gc/br_on_cast_fail.wast",
+        "gc/test/core/gc/data.wast",
+        "gc/test/core/gc/extern.wast",
+        "gc/test/core/gc/ref_cast.wast",
+        "gc/test/core/gc/ref_eq.wast",
+        "gc/test/core/gc/ref_test.wast",
+        "gc/test/core/gc/struct.wast",
+        "gc/test/core/gc/type-subtyping.wast",
+        "local/gc/gc-array.wat",
+        "local/gc/gc-struct.wat",
+        "memory64/test/core/data.wast",
+        "memory64/test/core/unreached-invalid.wast",
         "obsolete-keywords.wast",
+        "threads/test/core/binary.wast",
+        "threads/test/core/unreached-invalid.wast",
     ];
     let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
     if broken.iter().any(|x| test_path.contains(x)) {
@@ -376,6 +406,11 @@ impl TestState {
                 span: _,
                 mut module,
                 message,
+            }
+            | WastDirective::AssertMalformedCustom {
+                mut module,
+                message,
+                span: _,
             }
             | WastDirective::AssertInvalid {
                 mut module,

@@ -1,0 +1,3 @@
+(module
+  (import "Mv128" "mg-v128" (global (;0;) (mut v128)))
+)

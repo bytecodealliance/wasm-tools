@@ -1,0 +1,13 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    data.drop 0
+    i32.const 1234
+    i32.const 1
+    i32.const 1
+    memory.init 0
+  )
+  (memory (;0;) 1)
+  (export "test" (func 0))
+  (data (;0;) "7")
+)

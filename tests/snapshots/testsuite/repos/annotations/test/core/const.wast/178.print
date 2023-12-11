@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func (result f32)))
+  (func (;0;) (type 0) (result f32)
+    f32.const 0x1p-50 (;=0.0000000000000008881784;)
+  )
+  (export "f" (func 0))
+)

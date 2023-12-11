@@ -1,0 +1,10 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    i32.const 0
+    v128.load offset=65521
+    drop
+  )
+  (memory (;0;) 1)
+  (export "v128.load_offset_65521" (func 0))
+)

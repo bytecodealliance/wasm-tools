@@ -1,0 +1,8 @@
+(module
+  (type $t (;0;) (func (result i32)))
+  (func (;0;) (type $t) (result i32)
+    unreachable
+    return_call_ref $t
+  )
+  (export "unreachable" (func 0))
+)

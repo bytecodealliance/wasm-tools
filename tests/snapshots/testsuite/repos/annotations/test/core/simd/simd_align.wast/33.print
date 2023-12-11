@@ -1,0 +1,9 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    i32.const 0
+    v128.load32x2_u
+    drop
+  )
+  (memory (;0;) 1)
+)

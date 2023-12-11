@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0))
+  (func (;1;) (type 0))
+  (export "a" (func 0))
+  (export "b" (func 1))
+)
