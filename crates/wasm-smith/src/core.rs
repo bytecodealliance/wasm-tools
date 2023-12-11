@@ -1147,8 +1147,8 @@ impl Module {
             }
         }
 
-        // Reference types allows us to create passive and declared element
-        // segments.
+        // Bulk memory enables passive/declared segments for funcrefs, and
+        // reference types additionally enables the segments for externrefs.
         if self.config.bulk_memory_enabled() {
             funcrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
             funcrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
