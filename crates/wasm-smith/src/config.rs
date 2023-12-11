@@ -576,7 +576,7 @@ impl<'a> Arbitrary<'a> for SwarmConfig {
             max_tables,
             max_memory_pages: u.arbitrary()?,
             min_uleb_size: u.int_in_range(0..=5)?,
-            bulk_memory_enabled: reference_types_enabled || u.arbitrary()?,
+            bulk_memory_enabled: u.arbitrary()?,
             reference_types_enabled,
             simd_enabled: u.arbitrary()?,
             multi_value_enabled: u.arbitrary()?,

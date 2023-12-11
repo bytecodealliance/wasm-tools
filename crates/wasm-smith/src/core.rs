@@ -1147,13 +1147,15 @@ impl Module {
             }
         }
 
-        // Reference types allows us to create passive and declared element
-        // segments.
-        if self.config.reference_types_enabled() {
+        // Bulk memory enables passive/declared segments for funcrefs, and
+        // reference types additionally enables the segments for externrefs.
+        if self.config.bulk_memory_enabled() {
             funcrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
-            externrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
             funcrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
-            externrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
+            if self.config.reference_types_enabled() {
+                externrefs.push(Box::new(|_| Ok((ElementKind::Passive, None))));
+                externrefs.push(Box::new(|_| Ok((ElementKind::Declared, None))));
+            }
         }
 
         let mut choices = Vec::new();
