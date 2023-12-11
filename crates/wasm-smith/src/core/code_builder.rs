@@ -4814,7 +4814,7 @@ fn table_grow(
 
 #[inline]
 fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled()
+    module.config.bulk_memory_enabled()
     && !module.config.disallow_traps() // Non-trapping table.copy generation not yet implemented
         && module.tables.len() > 0
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
@@ -4838,7 +4838,7 @@ fn table_copy(
 
 #[inline]
 fn table_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled()
+    module.config.bulk_memory_enabled()
     && !module.config.disallow_traps() // Non-trapping table.init generation not yet implemented.
         && builder.allocs.table_init_possible
         && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
@@ -4869,7 +4869,7 @@ fn table_init(
 
 #[inline]
 fn elem_drop_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled() && module.elems.len() > 0
+    module.config.bulk_memory_enabled() && module.elems.len() > 0
 }
 
 fn elem_drop(
