@@ -27,4 +27,4 @@
       (type $t4 (sub $t2 (struct (field (ref $t3)))))
     )
   )
-  "subtype must match supertype")
+  "sub type must match super type")

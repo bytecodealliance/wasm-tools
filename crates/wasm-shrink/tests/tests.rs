@@ -29,7 +29,7 @@ fn shrink_to_empty_is_error() -> Result<()> {
     let result = WasmShrink::default().run(wasm(), |_| Ok(true));
     assert!(result.is_err());
     let err_msg = result.err().unwrap().to_string();
-    assert!(dbg!(err_msg).contains("empty Wasm module"));
+    assert!(err_msg.contains("empty Wasm module"));
     Ok(())
 }
 

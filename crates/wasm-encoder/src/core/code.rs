@@ -1,4 +1,4 @@
-use crate::{encode_section, Encode, HeapType, RefType, Section, SectionId, ValType};
+use crate::{encode_section, Encode, HeapType, Section, SectionId, ValType};
 use std::borrow::Cow;
 
 /// An encoder for the code section.
@@ -546,8 +546,10 @@ pub enum Instruction<'a> {
     ArrayInitData(u32, u32),
     ArrayInitElem(u32, u32),
 
-    RefTest(RefType),
-    RefCast(RefType),
+    RefTestNonNull(HeapType),
+    RefTestNullable(HeapType),
+    RefCastNonNull(HeapType),
+    RefCastNullable(HeapType),
     AnyConvertExtern,
     ExternConvertAny,
 
@@ -1459,34 +1461,22 @@ impl Encode for Instruction<'_> {
                 type_index.encode(sink);
                 elem_index.encode(sink);
             }
-            Instruction::RefTest(RefType {
-                nullable: false,
-                heap_type,
-            }) => {
+            Instruction::RefTestNonNull(heap_type) => {
                 sink.push(0xfb);
                 sink.push(0x14);
                 heap_type.encode(sink);
             }
-            Instruction::RefTest(RefType {
-                nullable: true,
-                heap_type,
-            }) => {
+            Instruction::RefTestNullable(heap_type) => {
                 sink.push(0xfb);
                 sink.push(0x15);
                 heap_type.encode(sink);
             }
-            Instruction::RefCast(RefType {
-                nullable: false,
-                heap_type,
-            }) => {
+            Instruction::RefCastNonNull(heap_type) => {
                 sink.push(0xfb);
                 sink.push(0x16);
                 heap_type.encode(sink);
             }
-            Instruction::RefCast(RefType {
-                nullable: true,
-                heap_type,
-            }) => {
+            Instruction::RefCastNullable(heap_type) => {
                 sink.push(0xfb);
                 sink.push(0x17);
                 heap_type.encode(sink);

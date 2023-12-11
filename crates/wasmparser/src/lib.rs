@@ -319,6 +319,10 @@ macro_rules! for_each_operator {
             @gc RefI31 => visit_ref_i31
             @gc I31GetS => visit_i31_get_s
             @gc I31GetU => visit_i31_get_u
+            @gc RefTestNonNull { hty: $crate::HeapType } => visit_ref_test_non_null
+            @gc RefTestNullable { hty: $crate::HeapType } => visit_ref_test_nullable
+            @gc RefCastNonNull { hty: $crate::HeapType } => visit_ref_cast_non_null
+            @gc RefCastNullable { hty: $crate::HeapType } => visit_ref_cast_nullable
 
             // 0xFC operators
             // Non-trapping Float-to-int Conversions
