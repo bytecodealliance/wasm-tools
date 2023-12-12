@@ -22,7 +22,7 @@ indexmap = { workspace = true }
 leb128 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
-wasm-encoder = { workspace = true }
+wasm-encoder = { workspace = true, features = ['wasmparser'] }
 wasmparser = { workspace = true, optional = true }
 
 [dev-dependencies]

@@ -12,7 +12,7 @@ description = "A library for composing WebAssembly components."
 
 [dependencies]
 wat = { workspace = true }
-wasm-encoder = { workspace = true }
+wasm-encoder = { workspace = true, features = ['wasmparser'] }
 wasmparser = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
