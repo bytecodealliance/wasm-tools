@@ -76,7 +76,8 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                 | Name::Memory(n)
                 | Name::Global(n)
                 | Name::Element(n)
-                | Name::Data(n) => {
+                | Name::Data(n)
+                | Name::Tag(n) => {
                     for name in n {
                         name?;
                     }

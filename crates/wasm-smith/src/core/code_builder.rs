@@ -7,7 +7,7 @@ use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
-use wasm_encoder::{BlockType, ConstExpr, ExportKind, GlobalType, MemArg, RefType};
+use wasm_encoder::{BlockType, Catch, ConstExpr, ExportKind, GlobalType, MemArg, RefType};
 mod no_traps;
 
 macro_rules! instructions {
@@ -94,10 +94,7 @@ instructions! {
     (None, nop, Control, 800),
     (None, block, Control),
     (None, r#loop, Control),
-    (Some(try_valid), r#try, Control),
-    (Some(delegate_valid), delegate, Control),
-    (Some(catch_valid), catch, Control),
-    (Some(catch_all_valid), catch_all, Control),
+    (Some(try_table_valid), try_table, Control),
     (Some(if_valid), r#if, Control),
     (Some(else_valid), r#else, Control),
     (Some(end_valid), end, Control),
@@ -110,7 +107,7 @@ instructions! {
     (Some(return_call_valid), return_call, Control),
     (Some(return_call_indirect_valid), return_call_indirect, Control),
     (Some(throw_valid), throw, Control, 850),
-    (Some(rethrow_valid), rethrow, Control),
+    (Some(throw_ref_valid), throw_ref, Control, 850),
     // Parametric instructions.
     (Some(drop_valid), drop, Parametric, 990),
     (Some(select_valid), select, Parametric),
@@ -662,9 +659,7 @@ enum ControlKind {
     Block,
     If,
     Loop,
-    Try,
-    Catch,
-    CatchAll,
+    TryTable,
 }
 
 enum Float {
@@ -1306,114 +1301,69 @@ fn block(
 }
 
 #[inline]
-fn try_valid(module: &Module, _: &mut CodeBuilder) -> bool {
+fn try_table_valid(module: &Module, _: &mut CodeBuilder) -> bool {
     module.config.exceptions_enabled
 }
 
-fn r#try(
+fn try_table<'m>(
     u: &mut Unstructured,
     module: &Module,
-    builder: &mut CodeBuilder,
+    builder: &'m mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
+
+    let mut catch_options: Vec<Box<dyn Fn(&mut Unstructured<'_>) -> Result<Catch> + 'm>> =
+        Vec::new();
+
+    for (i, ctrl) in builder.allocs.controls.iter().rev().enumerate() {
+        let i = i as u32;
+
+        let label_types = ctrl.label_types();
+        if label_types.is_empty() {
+            catch_options.push(Box::new(move |_| Ok(Catch::All { label: i })));
+        }
+        if label_types == [ValType::EXNREF] {
+            catch_options.push(Box::new(move |_| Ok(Catch::AllRef { label: i })));
+        }
+
+        if let Some(tags) = builder.allocs.tags.get(label_types) {
+            catch_options.push(Box::new(move |u| {
+                Ok(Catch::One {
+                    tag: *u.choose(&tags)?,
+                    label: i,
+                })
+            }));
+        }
+
+        let mut label_types_with_exnref = label_types.to_vec();
+        label_types_with_exnref.push(ValType::EXNREF);
+        if let Some(tags) = builder.allocs.tags.get(&label_types_with_exnref) {
+            catch_options.push(Box::new(move |u| {
+                Ok(Catch::OneRef {
+                    tag: *u.choose(&tags)?,
+                    label: i,
+                })
+            }));
+        }
+    }
+
+    let mut catches = Vec::new();
+    if catch_options.len() > 0 {
+        for _ in 0..u.int_in_range(0..=10)? {
+            catches.push(u.choose(&mut catch_options)?(u)?);
+        }
+    }
+
     let (params, results) = module.params_results(&block_ty);
     let height = builder.allocs.operands.len() - params.len();
     builder.allocs.controls.push(Control {
-        kind: ControlKind::Try,
+        kind: ControlKind::TryTable,
         params,
         results,
         height,
     });
-    instructions.push(Instruction::Try(block_ty));
-    Ok(())
-}
-
-#[inline]
-fn delegate_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    let control_kind = builder.allocs.controls.last().unwrap().kind;
-    // delegate is only valid if end could be used in a try control frame
-    module.config.exceptions_enabled
-        && control_kind == ControlKind::Try
-        && end_valid(module, builder)
-}
-
-fn delegate(
-    u: &mut Unstructured,
-    _: &Module,
-    builder: &mut CodeBuilder,
-    instructions: &mut Vec<Instruction>,
-) -> Result<()> {
-    // There will always be at least the function's return frame and try
-    // control frame if we are emitting delegate
-    let n = builder.allocs.controls.iter().count();
-    debug_assert!(n >= 2);
-    // Delegate must target an outer control from the try block, and is
-    // encoded with relative depth from the outer control
-    let target_relative_from_last = u.int_in_range(1..=n - 1)?;
-    let target_relative_from_outer = target_relative_from_last - 1;
-    // Delegate ends the try block
-    builder.allocs.controls.pop();
-    instructions.push(Instruction::Delegate(target_relative_from_outer as u32));
-    Ok(())
-}
-
-#[inline]
-fn catch_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    let control_kind = builder.allocs.controls.last().unwrap().kind;
-    // catch is only valid if end could be used in a try or catch (not
-    // catch_all) control frame. There must also be a tag that we can catch.
-    module.config.exceptions_enabled
-        && (control_kind == ControlKind::Try || control_kind == ControlKind::Catch)
-        && end_valid(module, builder)
-        && module.tags.len() > 0
-}
-
-fn catch(
-    u: &mut Unstructured,
-    module: &Module,
-    builder: &mut CodeBuilder,
-    instructions: &mut Vec<Instruction>,
-) -> Result<()> {
-    let tag_idx = u.int_in_range(0..=(module.tags.len() - 1))?;
-    let tag_type = &module.tags[tag_idx];
-    let control = builder.allocs.controls.pop().unwrap();
-    // Pop the results for the previous try or catch
-    builder.pop_operands(&control.results);
-    // Push the params of the tag we're catching
-    builder.push_operands(&tag_type.func_type.params);
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::Catch,
-        ..control
-    });
-    instructions.push(Instruction::Catch(tag_idx as u32));
-    Ok(())
-}
-
-#[inline]
-fn catch_all_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    let control_kind = builder.allocs.controls.last().unwrap().kind;
-    // catch_all is only valid if end could be used in a try or catch (not
-    // catch_all) control frame.
-    module.config.exceptions_enabled
-        && (control_kind == ControlKind::Try || control_kind == ControlKind::Catch)
-        && end_valid(module, builder)
-}
-
-fn catch_all(
-    _: &mut Unstructured,
-    _: &Module,
-    builder: &mut CodeBuilder,
-    instructions: &mut Vec<Instruction>,
-) -> Result<()> {
-    let control = builder.allocs.controls.pop().unwrap();
-    // Pop the results for the previous try or catch
-    builder.pop_operands(&control.results);
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::CatchAll,
-        ..control
-    });
-    instructions.push(Instruction::CatchAll);
+    instructions.push(Instruction::TryTable(block_ty, catches.into()));
     Ok(())
 }
 
@@ -1863,40 +1813,18 @@ fn throw(
 }
 
 #[inline]
-fn rethrow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    // There must be a catch or catch_all control on the stack
-    module.config.exceptions_enabled
-        && builder
-            .allocs
-            .controls
-            .iter()
-            .any(|l| l.kind == ControlKind::Catch || l.kind == ControlKind::CatchAll)
+fn throw_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.exceptions_enabled && builder.types_on_stack(&[ValType::EXNREF])
 }
 
-fn rethrow(
-    u: &mut Unstructured,
-    _: &Module,
+fn throw_ref(
+    _u: &mut Unstructured,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let n = builder
-        .allocs
-        .controls
-        .iter()
-        .filter(|l| l.kind == ControlKind::Catch || l.kind == ControlKind::CatchAll)
-        .count();
-    debug_assert!(n > 0);
-    let i = u.int_in_range(0..=n - 1)?;
-    let (target, _) = builder
-        .allocs
-        .controls
-        .iter()
-        .rev()
-        .enumerate()
-        .filter(|(_, l)| l.kind == ControlKind::Catch || l.kind == ControlKind::CatchAll)
-        .nth(i)
-        .unwrap();
-    instructions.push(Instruction::Rethrow(target as u32));
+    builder.pop_operands(&[ValType::EXNREF]);
+    instructions.push(Instruction::ThrowRef);
     Ok(())
 }
 

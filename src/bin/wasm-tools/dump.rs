@@ -550,6 +550,7 @@ impl<'a> Dump<'a> {
             Name::Global(n) => self.print_name_map("global", n)?,
             Name::Element(n) => self.print_name_map("element", n)?,
             Name::Data(n) => self.print_name_map("data", n)?,
+            Name::Tag(n) => self.print_name_map("tag", n)?,
             Name::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown names: {}", ty)?;
                 self.print(range.start)?;

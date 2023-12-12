@@ -23,10 +23,10 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable,
+    limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable, Catch,
     CompositeType, FieldType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
-    StorageType, StructType, SubType, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources, V128,
+    StorageType, StructType, SubType, TryTable, UnpackedIndex, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -118,19 +118,7 @@ pub enum FrameKind {
     /// # Note
     ///
     /// This belongs to the Wasm exception handling proposal.
-    Try,
-    /// A Wasm `catch` control block.
-    ///
-    /// # Note
-    ///
-    /// This belongs to the Wasm exception handling proposal.
-    Catch,
-    /// A Wasm `catch_all` control block.
-    ///
-    /// # Note
-    ///
-    /// This belongs to the Wasm exception handling proposal.
-    CatchAll,
+    TryTable,
 }
 
 struct OperatorValidatorTemp<'validator, 'resources, T> {
@@ -1295,34 +1283,74 @@ where
         self.push_ctrl(FrameKind::Else, frame.block_type)?;
         Ok(())
     }
-    fn visit_try(&mut self, mut ty: BlockType) -> Self::Output {
-        self.check_block_type(&mut ty)?;
-        for ty in self.params(ty)?.rev() {
+    fn visit_try_table(&mut self, mut ty: TryTable) -> Self::Output {
+        self.check_block_type(&mut ty.ty)?;
+        for ty in self.params(ty.ty)?.rev() {
             self.pop_operand(Some(ty))?;
         }
-        self.push_ctrl(FrameKind::Try, ty)?;
-        Ok(())
-    }
-    fn visit_catch(&mut self, index: u32) -> Self::Output {
-        let frame = self.pop_ctrl()?;
-        if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
-            bail!(self.offset, "catch found outside of an `try` block");
+        for catch in ty.catches {
+            match catch {
+                Catch::One { tag, label } => {
+                    let tag = self.tag_at(tag)?;
+                    let (ty, kind) = self.jump(label)?;
+                    let params = tag.params();
+                    let types = self.label_types(ty, kind)?;
+                    if params.len() != types.len() {
+                        bail!(
+                            self.offset,
+                            "type mismatch: catch label must have same number of types as tag"
+                        );
+                    }
+                    for (expected, actual) in types.zip(params) {
+                        self.push_operand(*actual)?;
+                        self.pop_operand(Some(expected))?;
+                    }
+                }
+                Catch::OneRef { tag, label } => {
+                    let tag = self.tag_at(tag)?;
+                    let (ty, kind) = self.jump(label)?;
+                    let params = tag.params().iter().copied();
+                    let types = self.label_types(ty, kind)?;
+                    if params.len() + 1 != types.len() {
+                        bail!(
+                            self.offset,
+                            "type mismatch: catch_ref label must have one \
+                             more type than tag types",
+                        );
+                    }
+                    for (expected, actual) in types.zip(params.chain([ValType::EXNREF])) {
+                        self.push_operand(actual)?;
+                        self.pop_operand(Some(expected))?;
+                    }
+                }
+
+                Catch::All { label } => {
+                    let (ty, kind) = self.jump(label)?;
+                    if self.label_types(ty, kind)?.len() != 0 {
+                        bail!(
+                            self.offset,
+                            "type mismatch: catch_all label must have no result types"
+                        );
+                    }
+                }
+
+                Catch::AllRef { label } => {
+                    let (ty, kind) = self.jump(label)?;
+                    let mut types = self.label_types(ty, kind)?;
+                    match (types.next(), types.next()) {
+                        (Some(ValType::EXNREF), None) => {}
+                        _ => {
+                            bail!(
+                                self.offset,
+                                "type mismatch: catch_all_ref label must have \
+                                 one exnref result type"
+                            );
+                        }
+                    }
+                }
+            }
         }
-        // Start a new frame and push `exnref` value.
-        let height = self.operands.len();
-        let init_height = self.inits.len();
-        self.control.push(Frame {
-            kind: FrameKind::Catch,
-            block_type: frame.block_type,
-            height,
-            unreachable: false,
-            init_height,
-        });
-        // Push exception argument types.
-        let ty = self.tag_at(index)?;
-        for ty in ty.params() {
-            self.push_operand(*ty)?;
-        }
+        self.push_ctrl(FrameKind::TryTable, ty.ty)?;
         Ok(())
     }
     fn visit_throw(&mut self, index: u32) -> Self::Output {
@@ -1340,48 +1368,9 @@ where
         self.unreachable()?;
         Ok(())
     }
-    fn visit_rethrow(&mut self, relative_depth: u32) -> Self::Output {
-        // This is not a jump, but we need to check that the `rethrow`
-        // targets an actual `catch` to get the exception.
-        let (_, kind) = self.jump(relative_depth)?;
-        if kind != FrameKind::Catch && kind != FrameKind::CatchAll {
-            bail!(
-                self.offset,
-                "invalid rethrow label: target was not a `catch` block"
-            );
-        }
+    fn visit_throw_ref(&mut self) -> Self::Output {
+        self.pop_operand(Some(ValType::EXNREF))?;
         self.unreachable()?;
-        Ok(())
-    }
-    fn visit_delegate(&mut self, relative_depth: u32) -> Self::Output {
-        let frame = self.pop_ctrl()?;
-        if frame.kind != FrameKind::Try {
-            bail!(self.offset, "delegate found outside of an `try` block");
-        }
-        // This operation is not a jump, but we need to check the
-        // depth for validity
-        let _ = self.jump(relative_depth)?;
-        for ty in self.results(frame.block_type)? {
-            self.push_operand(ty)?;
-        }
-        Ok(())
-    }
-    fn visit_catch_all(&mut self) -> Self::Output {
-        let frame = self.pop_ctrl()?;
-        if frame.kind == FrameKind::CatchAll {
-            bail!(self.offset, "only one catch_all allowed per `try` block");
-        } else if frame.kind != FrameKind::Try && frame.kind != FrameKind::Catch {
-            bail!(self.offset, "catch_all found outside of a `try` block");
-        }
-        let height = self.operands.len();
-        let init_height = self.inits.len();
-        self.control.push(Frame {
-            kind: FrameKind::CatchAll,
-            block_type: frame.block_type,
-            height,
-            unreachable: false,
-            init_height,
-        });
         Ok(())
     }
     fn visit_end(&mut self) -> Self::Output {

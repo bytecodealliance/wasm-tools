@@ -129,10 +129,9 @@ macro_rules! for_each_operator {
             @mvp Loop { blockty: $crate::BlockType } => visit_loop
             @mvp If { blockty: $crate::BlockType } => visit_if
             @mvp Else => visit_else
-            @exceptions Try { blockty: $crate::BlockType } => visit_try
-            @exceptions Catch { tag_index: u32 } => visit_catch
+            @exceptions TryTable { try_table: $crate::TryTable } => visit_try_table
             @exceptions Throw { tag_index: u32 } => visit_throw
-            @exceptions Rethrow { relative_depth: u32 } => visit_rethrow
+            @exceptions ThrowRef => visit_throw_ref
             @mvp End => visit_end
             @mvp Br { relative_depth: u32 } => visit_br
             @mvp BrIf { relative_depth: u32 } => visit_br_if
@@ -142,8 +141,6 @@ macro_rules! for_each_operator {
             @mvp CallIndirect { type_index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
             @tail_call ReturnCall { function_index: u32 } => visit_return_call
             @tail_call ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect
-            @exceptions Delegate { relative_depth: u32 } => visit_delegate
-            @exceptions CatchAll => visit_catch_all
             @mvp Drop => visit_drop
             @mvp Select => visit_select
             @reference_types TypedSelect { ty: $crate::ValType } => visit_typed_select

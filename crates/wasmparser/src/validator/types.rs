@@ -2708,6 +2708,10 @@ impl TypeList {
             | (HT::Struct, _)
             | (HT::Array, _)
             | (HT::I31, _) => false,
+
+            // TODO: this probably isn't right, this is probably related to some
+            // gc type.
+            (HT::Exn, _) => false,
         }
     }
 
@@ -2745,6 +2749,7 @@ impl TypeList {
             | HeapType::Array
             | HeapType::I31
             | HeapType::None => HeapType::Any,
+            HeapType::Exn => HeapType::Exn,
         }
     }
 

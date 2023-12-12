@@ -36,6 +36,7 @@ pub const MAX_WASM_MEMORIES: usize = 100;
 pub const MAX_WASM_TAGS: usize = 1_000_000;
 pub const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 pub const MAX_WASM_STRUCT_FIELDS: usize = 10_000;
+pub const MAX_WASM_CATCHES: usize = 10_000;
 
 // Component-related limits
 pub const MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB

@@ -68,6 +68,7 @@ struct CoreState {
     local_names: HashMap<(u32, u32), Naming>,
     label_names: HashMap<(u32, u32), Naming>,
     type_names: HashMap<u32, Naming>,
+    tag_names: HashMap<u32, Naming>,
     table_names: HashMap<u32, Naming>,
     memory_names: HashMap<u32, Naming>,
     global_names: HashMap<u32, Naming>,
@@ -579,6 +580,7 @@ impl Printer {
                 Name::Global(n) => name_map(&mut state.core.global_names, n, "global")?,
                 Name::Element(n) => name_map(&mut state.core.element_names, n, "elem")?,
                 Name::Data(n) => name_map(&mut state.core.data_names, n, "data")?,
+                Name::Tag(n) => name_map(&mut state.core.tag_names, n, "tag")?,
                 Name::Unknown { .. } => (),
             }
         }
@@ -886,6 +888,7 @@ impl Printer {
                 RefType::EQ => self.result.push_str("eqref"),
                 RefType::STRUCT => self.result.push_str("structref"),
                 RefType::ARRAY => self.result.push_str("arrayref"),
+                RefType::EXN => self.result.push_str("exnref"),
                 _ => {
                     self.result.push_str("(ref null ");
                     self.print_heaptype(ty.heap_type())?;
@@ -912,6 +915,7 @@ impl Printer {
             HeapType::Struct => self.result.push_str("struct"),
             HeapType::Array => self.result.push_str("array"),
             HeapType::I31 => self.result.push_str("i31"),
+            HeapType::Exn => self.result.push_str("exn"),
             HeapType::Concrete(i) => self
                 .result
                 .push_str(&format!("{}", i.as_module_index().unwrap())),
@@ -996,7 +1000,8 @@ impl Printer {
     fn print_tag_type(&mut self, state: &State, ty: &TagType, index: bool) -> Result<()> {
         self.start_group("tag ");
         if index {
-            write!(self.result, "(;{};) ", state.core.tags)?;
+            self.print_name(&state.core.tag_names, state.core.tags)?;
+            self.result.push(' ');
         }
         self.print_core_functype_idx(state, ty.func_type_idx, None)?;
         Ok(())
@@ -1187,10 +1192,8 @@ impl Printer {
                 }
 
                 // Exiting a block prints `end` at the previous indentation
-                // level. `delegate` also ends a block like `end` for `try`.
-                operator::OpKind::End | operator::OpKind::Delegate
-                    if op_printer.printer.nesting > nesting_start =>
-                {
+                // level.
+                operator::OpKind::End if op_printer.printer.nesting > nesting_start => {
                     op_printer.printer.nesting -= 1;
                     op_printer.printer.newline(offset);
                 }
@@ -2446,7 +2449,7 @@ impl Printer {
                     }
                     ExternalKind::Tag => {
                         self.start_group("core tag ");
-                        write!(self.result, "(;{};)", state.core.tags)?;
+                        self.print_name(&state.core.tag_names, state.core.tags)?;
                         self.end_group();
                         state.core.tags += 1;
                     }

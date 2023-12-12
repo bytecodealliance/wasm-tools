@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func (param exnref)))
+  (type (;1;) (func (param (ref exn))))
+  (func (;0;) (type 0) (param exnref))
+  (func (;1;) (type 0) (param exnref))
+  (func (;2;) (type 1) (param (ref exn)))
+)

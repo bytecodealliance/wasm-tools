@@ -13,7 +13,8 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, BinaryReaderError, Result, ValType};
+use crate::limits::MAX_WASM_CATCHES;
+use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
 
 /// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -351,4 +352,60 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
         V::visit_operator(&mut *self, op)
     }
     for_each_operator!(define_visit_operator_delegate);
+}
+
+/// A `try_table` entries representation.
+#[derive(Clone, Debug)]
+pub struct TryTable {
+    /// The block type describing the try block itself.
+    pub ty: BlockType,
+    /// Outer blocks which will receive exceptions.
+    pub catches: Vec<Catch>,
+}
+
+/// Catch clauses that can be specified in [`TryTable`].
+#[derive(Copy, Clone, Debug)]
+#[allow(missing_docs)]
+pub enum Catch {
+    /// Equivalent of `catch`
+    One { tag: u32, label: u32 },
+    /// Equivalent of `catch_ref`
+    OneRef { tag: u32, label: u32 },
+    /// Equivalent of `catch_all`
+    All { label: u32 },
+    /// Equivalent of `catch_all_ref`
+    AllRef { label: u32 },
+}
+
+impl<'a> FromReader<'a> for TryTable {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let ty = reader.read_block_type()?;
+        let catches = reader
+            .read_iter(MAX_WASM_CATCHES, "catches")?
+            .collect::<Result<_>>()?;
+        Ok(TryTable { ty, catches })
+    }
+}
+
+impl<'a> FromReader<'a> for Catch {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(match reader.read_u8()? {
+            0x00 => Catch::One {
+                tag: reader.read_var_u32()?,
+                label: reader.read_var_u32()?,
+            },
+            0x01 => Catch::OneRef {
+                tag: reader.read_var_u32()?,
+                label: reader.read_var_u32()?,
+            },
+            0x02 => Catch::All {
+                label: reader.read_var_u32()?,
+            },
+            0x03 => Catch::AllRef {
+                label: reader.read_var_u32()?,
+            },
+
+            x => return reader.invalid_leading_byte(x, "catch"),
+        })
+    }
 }

@@ -25,7 +25,7 @@
   (table (;1;) 10 20 funcref)
   (memory (;0;) 2)
   (tag (;0;) (type 0))
-  (tag (;1;) (type 1) (param i32))
+  (tag $tag-i32 (;1;) (type 1) (param i32))
   (tag (;2;) (type 2) (param f32))
   (global (;0;) i32 i32.const 55)
   (global (;1;) f32 f32.const 0x1.6p+5 (;=44;))

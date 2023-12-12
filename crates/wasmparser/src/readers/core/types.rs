@@ -738,6 +738,9 @@ impl ValType {
     /// Alias for the wasm `externref` type.
     pub const EXTERNREF: ValType = ValType::Ref(RefType::EXTERNREF);
 
+    /// Alias for the wasm `exnref` type.
+    pub const EXNREF: ValType = ValType::Ref(RefType::EXNREF);
+
     /// Returns whether this value type is a "reference type".
     ///
     /// Only reference types are allowed in tables, for example, and with some
@@ -829,6 +832,8 @@ impl ValType {
 //   0011 = extern
 //   0010 = noextern
 //
+//   0001 = exn
+//
 //   0000 = none
 //   ```
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -857,6 +862,8 @@ impl std::fmt::Debug for RefType {
             (false, HeapType::Extern) => write!(f, "(ref extern)"),
             (true, HeapType::Func) => write!(f, "funcref"),
             (false, HeapType::Func) => write!(f, "(ref func)"),
+            (true, HeapType::Exn) => write!(f, "exnref"),
+            (false, HeapType::Exn) => write!(f, "(ref exn)"),
             (true, HeapType::Concrete(idx)) => write!(f, "(ref null {idx})"),
             (false, HeapType::Concrete(idx)) => write!(f, "(ref {idx})"),
         }
@@ -906,6 +913,7 @@ impl RefType {
     const NOFUNC_ABSTYPE: u32 = 0b0100 << 18;
     const EXTERN_ABSTYPE: u32 = 0b0011 << 18;
     const NOEXTERN_ABSTYPE: u32 = 0b0010 << 18;
+    const EXN_ABSTYPE: u32 = 0b0001 << 18;
     const NONE_ABSTYPE: u32 = 0b0000 << 18;
 
     // The `index` is valid only when `concrete == 1`.
@@ -918,6 +926,10 @@ impl RefType {
     /// A nullable reference to an extern object aka `(ref null extern)` aka
     /// `externref`.
     pub const EXTERNREF: Self = RefType::EXTERN.nullable();
+
+    /// A nullable reference to an exception object aka `(ref null exn)` aka
+    /// `exnref`.
+    pub const EXNREF: Self = RefType::EXN.nullable();
 
     /// A non-nullable untyped function reference aka `(ref func)`.
     pub const FUNC: Self = RefType::from_u32(Self::FUNC_ABSTYPE);
@@ -948,6 +960,9 @@ impl RefType {
 
     /// A non-nullable reference to an i31 object aka `(ref i31)`.
     pub const I31: Self = RefType::from_u32(Self::I31_ABSTYPE);
+
+    /// A non-nullable reference to an exn object aka `(ref exn)`.
+    pub const EXN: Self = RefType::from_u32(Self::EXN_ABSTYPE);
 
     const fn can_represent_type_index(index: u32) -> bool {
         index & Self::INDEX_MASK == index
@@ -988,6 +1003,7 @@ impl RefType {
                         | Self::EXTERN_ABSTYPE
                         | Self::NOEXTERN_ABSTYPE
                         | Self::NONE_ABSTYPE
+                        | Self::EXN_ABSTYPE
                 )
         );
 
@@ -1025,6 +1041,7 @@ impl RefType {
             HeapType::Struct => Some(Self::from_u32(nullable32 | Self::STRUCT_ABSTYPE)),
             HeapType::Array => Some(Self::from_u32(nullable32 | Self::ARRAY_ABSTYPE)),
             HeapType::I31 => Some(Self::from_u32(nullable32 | Self::I31_ABSTYPE)),
+            HeapType::Exn => Some(Self::from_u32(nullable32 | Self::EXN_ABSTYPE)),
         }
     }
 
@@ -1120,6 +1137,7 @@ impl RefType {
                 Self::STRUCT_ABSTYPE => HeapType::Struct,
                 Self::ARRAY_ABSTYPE => HeapType::Array,
                 Self::I31_ABSTYPE => HeapType::I31,
+                Self::EXN_ABSTYPE => HeapType::Exn,
                 _ => unreachable!(),
             }
         }
@@ -1140,6 +1158,7 @@ impl RefType {
             (true, HeapType::Struct) => "structref",
             (true, HeapType::Array) => "arrayref",
             (true, HeapType::I31) => "i31ref",
+            (true, HeapType::Exn) => "exnref",
             (false, HeapType::Func) => "(ref func)",
             (false, HeapType::Extern) => "(ref extern)",
             (false, HeapType::Concrete(_)) => "(ref $type)",
@@ -1151,6 +1170,7 @@ impl RefType {
             (false, HeapType::Struct) => "(ref struct)",
             (false, HeapType::Array) => "(ref array)",
             (false, HeapType::I31) => "(ref i31)",
+            (false, HeapType::Exn) => "(ref exn)",
         }
     }
 }
@@ -1231,13 +1251,18 @@ pub enum HeapType {
     ///
     /// Introduced in the GC proposal.
     I31,
+
+    /// The abstraction `exception` heap type.
+    ///
+    /// Introduced in the exception-handling proposal.
+    Exn,
 }
 
 impl ValType {
     pub(crate) fn is_valtype_byte(byte: u8) -> bool {
         match byte {
             0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72
-            | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C => true,
+            | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69 => true,
             _ => false,
         }
     }
@@ -1282,9 +1307,8 @@ impl<'a> FromReader<'a> for ValType {
                 reader.position += 1;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C => {
-                Ok(ValType::Ref(reader.read()?))
-            }
+            0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C
+            | 0x69 => Ok(ValType::Ref(reader.read()?)),
             _ => bail!(reader.original_position(), "invalid value type"),
         }
     }
@@ -1303,6 +1327,7 @@ impl<'a> FromReader<'a> for RefType {
             0x6B => Ok(RefType::STRUCT.nullable()),
             0x6A => Ok(RefType::ARRAY.nullable()),
             0x6C => Ok(RefType::I31.nullable()),
+            0x69 => Ok(RefType::EXN.nullable()),
             byte @ (0x63 | 0x64) => {
                 let nullable = byte == 0x63;
                 let pos = reader.original_position();
@@ -1356,6 +1381,10 @@ impl<'a> FromReader<'a> for HeapType {
             0x6C => {
                 reader.position += 1;
                 Ok(HeapType::I31)
+            }
+            0x69 => {
+                reader.position += 1;
+                Ok(HeapType::Exn)
             }
             _ => {
                 let idx = match u32::try_from(reader.read_var_s33()?) {

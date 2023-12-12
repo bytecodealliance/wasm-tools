@@ -310,10 +310,6 @@ pub enum Instruction<'a> {
     Loop(BlockType),
     If(BlockType),
     Else,
-    Try(BlockType),
-    Delegate(u32),
-    Catch(u32),
-    CatchAll,
     End,
     Br(u32),
     BrIf(u32),
@@ -333,8 +329,9 @@ pub enum Instruction<'a> {
         ty: u32,
         table: u32,
     },
+    TryTable(BlockType, Cow<'a, [Catch]>),
     Throw(u32),
-    Rethrow(u32),
+    ThrowRef,
 
     // Parametric instructions.
     Drop,
@@ -997,21 +994,12 @@ impl Encode for Instruction<'_> {
                 bt.encode(sink);
             }
             Instruction::Else => sink.push(0x05),
-            Instruction::Try(bt) => {
-                sink.push(0x06);
-                bt.encode(sink);
-            }
-            Instruction::Catch(t) => {
-                sink.push(0x07);
-                t.encode(sink);
-            }
             Instruction::Throw(t) => {
                 sink.push(0x08);
                 t.encode(sink);
             }
-            Instruction::Rethrow(l) => {
-                sink.push(0x09);
-                l.encode(sink);
+            Instruction::ThrowRef => {
+                sink.push(0x0A);
             }
             Instruction::End => sink.push(0x0B),
             Instruction::Br(l) => {
@@ -1063,13 +1051,6 @@ impl Encode for Instruction<'_> {
                 ty.encode(sink);
                 table.encode(sink);
             }
-            Instruction::Delegate(l) => {
-                sink.push(0x18);
-                l.encode(sink);
-            }
-            Instruction::CatchAll => {
-                sink.push(0x19);
-            }
 
             // Parametric instructions.
             Instruction::Drop => sink.push(0x1A),
@@ -1077,6 +1058,12 @@ impl Encode for Instruction<'_> {
             Instruction::TypedSelect(ty) => {
                 sink.push(0x1c);
                 [ty].encode(sink);
+            }
+
+            Instruction::TryTable(ty, ref catches) => {
+                sink.push(0x1f);
+                ty.encode(sink);
+                catches.encode(sink);
             }
 
             // Variable instructions.
@@ -3109,6 +3096,40 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFE);
                 sink.push(0x4E);
                 memarg.encode(sink);
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[allow(missing_docs)]
+pub enum Catch {
+    One { tag: u32, label: u32 },
+    OneRef { tag: u32, label: u32 },
+    All { label: u32 },
+    AllRef { label: u32 },
+}
+
+impl Encode for Catch {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            Catch::One { tag, label } => {
+                sink.push(0x00);
+                tag.encode(sink);
+                label.encode(sink);
+            }
+            Catch::OneRef { tag, label } => {
+                sink.push(0x01);
+                tag.encode(sink);
+                label.encode(sink);
+            }
+            Catch::All { label } => {
+                sink.push(0x02);
+                label.encode(sink);
+            }
+            Catch::AllRef { label } => {
+                sink.push(0x03);
+                label.encode(sink);
             }
         }
     }

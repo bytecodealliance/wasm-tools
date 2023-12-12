@@ -981,7 +981,8 @@ impl Module {
             | HeapType::Eq
             | HeapType::Struct
             | HeapType::Array
-            | HeapType::I31 => return Ok(()),
+            | HeapType::I31
+            | HeapType::Exn => return Ok(()),
             HeapType::Concrete(type_index) => type_index,
         };
         match type_index {

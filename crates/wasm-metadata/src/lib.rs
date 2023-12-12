@@ -639,7 +639,8 @@ impl<'a> ModuleNames<'a> {
                 wasmparser::Name::Memory(m) => section.memories(&name_map(&m)?),
                 wasmparser::Name::Global(m) => section.globals(&name_map(&m)?),
                 wasmparser::Name::Element(m) => section.elements(&name_map(&m)?),
-                wasmparser::Name::Data(m) => section.types(&name_map(&m)?),
+                wasmparser::Name::Data(m) => section.data(&name_map(&m)?),
+                wasmparser::Name::Tag(m) => section.tags(&name_map(&m)?),
                 wasmparser::Name::Unknown { .. } => {} // wasm-encoder doesn't support it
             }
         }
