@@ -1001,22 +1001,10 @@ impl<'a> BinaryReader<'a> {
     {
         let code = self.read_var_u32()?;
         Ok(match code {
-            0x14 => {
-                let ht = HeapType::from_reader(self)?;
-                visitor.visit_ref_test_non_null(ht)
-            }
-            0x15 => {
-                let ht = HeapType::from_reader(self)?;
-                visitor.visit_ref_test_nullable(ht)
-            }
-            0x16 => {
-                let ht = HeapType::from_reader(self)?;
-                visitor.visit_ref_cast_non_null(ht)
-            }
-            0x17 => {
-                let ht = HeapType::from_reader(self)?;
-                visitor.visit_ref_cast_nullable(ht)
-            }
+            0x14 => visitor.visit_ref_test_non_null(self.read()?),
+            0x15 => visitor.visit_ref_test_nullable(self.read()?),
+            0x16 => visitor.visit_ref_cast_non_null(self.read()?),
+            0x17 => visitor.visit_ref_cast_nullable(self.read()?),
 
             0x1c => visitor.visit_ref_i31(),
             0x1d => visitor.visit_i31_get_s(),
