@@ -1,0 +1,20 @@
+(module
+  (rec
+    (type $f11 (;0;) (sub (func (result (ref func)))))
+    (type $f12 (;1;) (sub $f11 (;0;) (func (result (ref 0)))))
+  )
+  (rec
+    (type $f21 (;2;) (sub (func (result (ref func)))))
+    (type $f22 (;3;) (sub $f21 (;2;) (func (result (ref 2)))))
+  )
+  (func $f11 (;0;) (type $f11) (result (ref func))
+    unreachable
+  )
+  (func $f12 (;1;) (type $f12) (result (ref 0))
+    unreachable
+  )
+  (global (;0;) (ref 0) ref.func $f11)
+  (global (;1;) (ref 2) ref.func $f11)
+  (global (;2;) (ref 1) ref.func $f12)
+  (global (;3;) (ref 3) ref.func $f12)
+)

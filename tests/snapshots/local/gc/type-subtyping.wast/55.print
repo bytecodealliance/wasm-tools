@@ -1,0 +1,16 @@
+(module
+  (rec
+    (type $f1 (;0;) (sub (func)))
+    (type (;1;) (struct (field (ref 0))))
+  )
+  (rec
+    (type $f2 (;2;) (sub (func)))
+    (type (;3;) (struct (field (ref 2))))
+  )
+  (rec
+    (type $g (;4;) (sub $f1 (;0;) (func)))
+    (type (;5;) (struct))
+  )
+  (func (;0;) (type $g))
+  (export "g" (func 0))
+)
