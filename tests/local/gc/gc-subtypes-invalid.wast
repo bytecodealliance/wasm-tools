@@ -5,7 +5,7 @@
     (type $a (func))
     (type $b (sub $a (func))) ;; invalid
   )
-  "supertype must not be final"
+  "sub type cannot have a final super type"
 )
 (assert_invalid
   (module
@@ -13,7 +13,7 @@
     (type $b (sub final $a (func)))
     (type $c (sub $b (func))) ;; invalid
   )
-  "supertype must not be final"
+  "sub type cannot have a final super type"
 )
 (assert_invalid
   (module
@@ -147,5 +147,5 @@
     (type $a (func)) ;; types without `(sub )` are considered final
     (type (sub $a (func)))
   )
-  "supertype must not be final"
+  "sub type cannot have a final super type"
 )
