@@ -978,7 +978,9 @@ where
 
         let sub_ty = RefType::new(nullable, heap_type)
             .map(ValType::from)
-            .ok_or_else(|| BinaryReaderError::new("TODO FITZGEN", self.offset))?;
+            .ok_or_else(|| {
+                BinaryReaderError::new("implementation limit: type index too large", self.offset)
+            })?;
 
         let sup_ty = match self.pop_ref()? {
             None => bail!(
