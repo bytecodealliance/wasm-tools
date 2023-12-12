@@ -593,7 +593,7 @@ impl Module {
             debug_assert!(supertype_index.is_canonical());
             let sup_id = self.at_packed_index(types, rec_group, supertype_index, offset)?;
             if types[sup_id].is_final {
-                bail!(offset, "supertype must not be final");
+                bail!(offset, "sub type cannot have a final super type");
             }
             if !types.matches(id, sup_id) {
                 bail!(offset, "subtype must match supertype");
